@@ -1,15 +1,16 @@
 // src-tauri/src/services/downloader/core_installer.rs
 use std::fs;
 use std::path::Path;
-use tauri::{AppHandle, Emitter};
+// ✅ 修复：引入 Runtime
+use tauri::{AppHandle, Emitter, Runtime}; 
 use crate::domain::event::DownloadProgressEvent;
 use crate::error::AppResult;
 
-// 我们使用 BMCLAPI 加速国内下载
 const BMCLAPI_VERSION_MANIFEST: &str = "https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json";
 
-pub async fn install_vanilla_core(
-    app: &AppHandle,
+// ✅ 修复：添加 <R: Runtime> 泛型
+pub async fn install_vanilla_core<R: Runtime>(
+    app: &AppHandle<R>,
     version_id: &str,
     global_mc_root: &Path,
 ) -> AppResult<()> {
@@ -50,7 +51,6 @@ pub async fn install_vanilla_core(
     // -----------------------------------------------------
     // 步骤 2: 解析 JSON 并下载 client.jar
     // -----------------------------------------------------
-    // 此时 JSON 一定存在了，读取它
     let json_content = fs::read_to_string(&json_path)?;
     let parsed_json: serde_json::Value = serde_json::from_str(&json_content)?;
 
@@ -68,8 +68,6 @@ pub async fn install_vanilla_core(
         
         let mirror_jar_url = jar_url.replace("https://piston-data.mojang.com", "https://bmclapi2.bangbang93.com");
         
-        // TODO: 这里目前是简单的全部读取到内存然后写入。
-        // 对于几百 MB 的 jar 文件，后续我们要优化为 stream() 分块写入，才能实现真实的进度条。
         let jar_bytes = client.get(&mirror_jar_url).send().await?.bytes().await?;
         fs::write(&jar_path, jar_bytes)?;
     } else {

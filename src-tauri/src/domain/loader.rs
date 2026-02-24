@@ -1,5 +1,5 @@
 // src-tauri/src/domain/loader.rs
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 // --- Fabric 官方 API 返回结构 ---
 #[derive(Debug, Deserialize)]
