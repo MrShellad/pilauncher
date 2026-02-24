@@ -1,0 +1,32 @@
+/* /src/style/ui/primitives/OreInput.css */
+@layer components {
+  /* 输入框容器（通常包含标签和提示） */
+  .ore-input-wrapper {
+    @apply flex flex-col w-full space-y-2;
+  }
+
+  /* 核心输入槽位 */
+  .ore-input {
+    @apply w-full min-h-[40px] px-3 py-2 bg-ore-nav-active border-2 border-ore-gray-border text-white font-minecraft outline-none transition-all;
+    /* 核心：制造向内凹陷的物理感 */
+    box-shadow: inset 0 4px theme('colors.ore.nav.shadow');
+    /* 基岩绿光标 */
+    caret-color: #6CC349;
+  }
+
+  /* 悬停与聚焦：边框稍微变亮 */
+  .ore-input:focus {
+    @apply border-white/20;
+  }
+
+  /* 禁用状态 */
+  .ore-input:disabled {
+    @apply opacity-50 cursor-not-allowed bg-ore-nav-active/80;
+    box-shadow: none; /* 禁用时失去深度感 */
+  }
+
+  /* 占位符颜色 */
+  .ore-input::placeholder {
+    @apply text-ore-text-muted opacity-50;
+  }
+}

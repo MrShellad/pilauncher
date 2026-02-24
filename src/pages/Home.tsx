@@ -9,7 +9,8 @@ import { LaunchControls } from '../features/home/components/LaunchControls';
 // 引入刚刚抽离的弹窗组件及配套的 mock 数据
 import { InstanceSelectModal, MOCK_INSTANCES } from '../features/home/components/InstanceSelectModal';
 
-export const Home: React.FC = () => {
+// 【关键修改 1】：去掉这里的 export
+const Home: React.FC = () => {
   const {
     instanceName,
     playTime,
@@ -62,3 +63,6 @@ export const Home: React.FC = () => {
     </div>
   );
 };
+
+// 【关键修改 2】：在文件末尾使用 default 导出
+export default Home;

@@ -3,7 +3,6 @@ import React from 'react';
 
 interface OreButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger';
-  // 新增 auto (随文字宽度自适应) 和 full (随父容器宽度自适应)
   size?: 'sm' | 'md' | 'lg' | 'auto' | 'full'; 
 }
 
@@ -15,16 +14,24 @@ export const OreButton: React.FC<OreButtonProps> = ({
   disabled,
   ...props 
 }) => {
-  const sizes = {
-    sm: "min-w-[120px] h-[36px] px-4 text-sm", 
-    md: "min-w-[160px] h-[40px] px-6 text-base", 
-    lg: "min-w-[200px] h-[44px] px-8 text-base", 
-    auto: "w-auto h-[40px] px-6 text-base",
-    // 【关键改动】：让 full 模式不仅宽度占满，高度和字体在窗口变大时也变大
-    // 小窗: 高度40px 基础字体
-    // 中窗(md): 高度48px 较大字体
-    // 大窗(lg): 高度56px 更大字体
-    full: "w-full h-[40px] md:h-[48px] lg:h-[56px] px-4 md:px-6 text-base md:text-lg lg:text-xl", 
+  // 1. Wrapper 尺寸：负责外部的物理占位，控制宽、高、最小宽度
+  const wrapperSizes = {
+    sm: "min-w-[120px] h-[36px]", 
+    md: "min-w-[160px] h-[40px]", 
+    lg: "min-w-[200px] h-[44px]", 
+    // auto 模式保持宽度自适应，加一个 100px 的保底宽度让按钮不至于太局促
+    auto: "w-auto min-w-[100px] h-[40px]", 
+    full: "w-full h-[40px] md:h-[48px] lg:h-[56px]", 
+  };
+  
+  // 2. Button 尺寸：负责真正的内部留白 (Padding) 和 字体大小
+  const buttonSizes = {
+    sm: "px-4 text-sm", 
+    md: "px-6 text-base", 
+    lg: "px-8 text-base", 
+    // 给 auto 模式充足的左右 padding，让文字远离边框
+    auto: "px-5 text-base", 
+    full: "px-4 md:px-6 text-base md:text-lg lg:text-xl", 
   };
   
   const variants = {
@@ -34,12 +41,13 @@ export const OreButton: React.FC<OreButtonProps> = ({
   };
 
   return (
-    <div className={`inline-flex items-start justify-center ${sizes[size]} ${className}`}>
+    <div className={`inline-flex items-start justify-center ${wrapperSizes[size]} ${className}`}>
       <button
         disabled={disabled}
         className={`
           ore-btn w-full h-full 
           focus:outline-none focus-visible:ring-2 focus-visible:ring-white 
+          ${buttonSizes[size]}
           ${variants[variant]}
         `}
         {...props}

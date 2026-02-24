@@ -10,6 +10,12 @@
 @import './ui/primitives/OreSegmentedControl.css';
 @import './ui/primitives/OreModal.css';
 @import './ui/primitives/OreInstanceCard.css';
+@import './ui/primitives/OreList.css';
+@import './ui/primitives/OreCard.css';
+@import './ui/primitives/OreInput.css';
+@import './ui/primitives/OreAccordion.css';
+
+
 
 @tailwind base;
 @tailwind components;

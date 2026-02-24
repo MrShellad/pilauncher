@@ -1,0 +1,25 @@
+/* /src/style/ui/primitives/OreCard.css */
+@layer components {
+  .ore-card-item {
+    @apply flex flex-col w-full min-h-[320px] bg-ore-nav border-2 border-ore-gray-border transition-none cursor-pointer overflow-hidden;
+    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.05), inset -2px -2px rgba(0, 0, 0, 0.1);
+  }
+
+  .ore-card-item:hover:not(.disabled) {
+    @apply bg-ore-nav-hover;
+  }
+
+  .ore-card-item:active:not(.disabled) {
+    @apply bg-ore-nav-active;
+    box-shadow: inset 0 4px theme('colors.ore.nav.shadow');
+  }
+
+  .ore-card-media {
+    @apply w-full h-40 flex-shrink-0 bg-[#1E1E1F] border-b-2 border-ore-gray-border flex items-center justify-center overflow-hidden;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+  }
+
+  .ore-card-footer {
+    @apply bg-black/10 border-t border-white/5 w-full py-3 px-4 flex justify-center items-center mt-auto;
+  }
+}

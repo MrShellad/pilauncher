@@ -41,4 +41,29 @@ export const OreMotionTokens = {
     y: 20, 
     transition: { duration: 0.15 } 
   } as TargetAndTransition,
+
+  stepInitial: (direction: number) => ({
+    opacity: 0,
+    x: direction > 0 ? 20 : -20, // 减小位移距离，视觉上显得更快
+  }) as TargetAndTransition,
+  
+  stepAnimate: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.2, ease: [0.4, 0, 0.2, 1] } // 使用“急促”的缓动曲线
+  } as TargetAndTransition,
+
+  stepExit: (direction: number) => ({
+    opacity: 0,
+    x: direction > 0 ? -20 : 20,
+    transition: { duration: 0.15 }
+  }) as TargetAndTransition,
+
+  // [新增] 分段按钮激活背景的“魔术移动”配置
+  segmentActiveLayout: {
+    type: "spring",
+    stiffness: 500,
+    damping: 30,
+    mass: 1
+  } as const,
 };

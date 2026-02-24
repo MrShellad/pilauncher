@@ -1,0 +1,28 @@
+/* /src/style/ui/primitives/OreAccordion.css */
+@layer components {
+  /* 标题栏：复用列表项的 3D 效果 */
+  .ore-accordion-header {
+    @apply flex items-center justify-between w-full h-12 bg-ore-nav border-2 border-ore-gray-border px-4 cursor-pointer transition-none;
+    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.05), inset -2px -2px rgba(0, 0, 0, 0.1);
+  }
+
+  .ore-accordion-header:hover {
+    @apply bg-ore-nav-hover;
+  }
+
+  .ore-accordion-header:active {
+    @apply bg-ore-nav-active;
+    box-shadow: inset 0 4px theme('colors.ore.nav.shadow');
+  }
+
+  /* 内容容器：带有向内凹陷的槽位感 */
+  .ore-accordion-content-wrapper {
+    @apply bg-ore-nav-active border-x-2 border-b-2 border-ore-gray-border overflow-hidden;
+    /* 顶部内阴影制造从标题栏下方“钻出来”的深度感 */
+    box-shadow: inset 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+  }
+
+  .ore-accordion-content {
+    @apply p-4 text-ore-text;
+  }
+}
