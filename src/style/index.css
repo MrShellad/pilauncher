@@ -6,15 +6,11 @@
 /* 2. Ore UI 核心公共工具类 */
 @import './ui/core.css';
 
-/* 3. 具体组件样式 */
 @import './ui/primitives/OreButton.css';
 @import './ui/primitives/OreSegmentedControl.css';
-/* 未来加入的其他组件继续往下接... */
 @import './ui/primitives/OreModal.css';
+@import './ui/primitives/OreInstanceCard.css';
 
-/* ========================================= */
-/* 4. Tailwind 基础注入 (必须放在所有 import 之后) */
-/* ========================================= */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

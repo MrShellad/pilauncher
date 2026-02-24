@@ -60,7 +60,7 @@
 * 所有系统行为走 Rust
 * 状态统一由 Zustand 管理
 * 视觉统一由 Tailwind Token 管理
-*动画统一由 Framer Motion Token 管理
+* 动画统一由 Framer Motion Token 管理
 ---
 
 # 4. 目录结构规范

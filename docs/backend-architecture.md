@@ -60,7 +60,7 @@ Rust 后端负责：
 src-tauri/
 ├── src/
 │   ├── lib.rs
-│   ├── main.rs
+│   │ 
 │   ├── commands/
 │   │   ├── instance.rs
 │   │   ├── download.rs

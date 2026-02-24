@@ -1,0 +1,34 @@
+/* /src/style/ui/primitives/OreInstanceCard.css */
+@layer components {
+  .ore-instance-card {
+    @apply flex flex-col relative bg-ore-nav border-2 border-ore-gray-border text-white cursor-pointer select-none overflow-hidden transition-none;
+    /* 默认给一个极细微的高光，让面板有点厚度 */
+    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.05), inset -2px -2px rgba(0, 0, 0, 0.1);
+  }
+
+  /* 悬停状态：整体变亮 */
+  .ore-instance-card:hover:not(.active) {
+    @apply bg-ore-nav-hover;
+    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.1), inset -2px -2px rgba(0, 0, 0, 0.15);
+  }
+
+  /* 按下时的物理反馈 (模拟轻微下沉) */
+  .ore-instance-card:active:not(.active) {
+    @apply bg-ore-nav-hover;
+    box-shadow: inset 2px 2px rgba(0, 0, 0, 0.2), inset -2px -2px rgba(255, 255, 255, 0.05);
+  }
+
+  /* 选中状态：凹陷底色 + 绿色高亮边框 + 内部黑阴影 */
+  .ore-instance-card.active {
+    @apply bg-ore-nav-active border-ore-green;
+    box-shadow: inset 0 4px theme('colors.ore.nav.shadow');
+    cursor: default;
+  }
+
+  /* 封面图容器的内部分割线 */
+  .ore-instance-cover-wrapper {
+    @apply w-full relative bg-[#1E1E1F] border-b-2 border-ore-gray-border;
+    /* 16:9 比例的占位高度，可根据你的实际 UI 需求调整 */
+    aspect-ratio: 16 / 9; 
+  }
+}
