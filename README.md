@@ -1,160 +1,73 @@
-# 🚀 PiLauncher
+# React + TypeScript + Vite
 
-> A lightweight, modern Minecraft launcher built with Tauri + React.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-PiLauncher 是一个基于 **Tauri + React + TailwindCSS** 构建的跨平台 Minecraft 启动器，
-目标是提供一个轻量、可扩展、现代化 UI 体验的启动工具。
+Currently, two official plugins are available:
 
----
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-## ✨ Features
+## React Compiler
 
-* 🎮 Instance Management
-* ⚡ Fast Launch (Rust-powered backend)
-* 🎨 Modern Ore-inspired UI
-* 📦 Modular Architecture
-* 🔄 Extensible Design System
-* 🌍 Cross-platform (Windows / macOS / Linux)
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
----
+## Expanding the ESLint configuration
 
-## 🏗 Tech Stack
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
 
-**Frontend**
+```js
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
 
-* React
-* TypeScript
-* TailwindCSS
-* React-Facet (state management)
+      // Remove tseslint.configs.recommended and replace with this
+      tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      tseslint.configs.stylisticTypeChecked,
 
-**Backend**
-
-* Tauri
-* Rust
-
----
-
-## 📸 Preview
-
-> (screenshots here later)
-
-```
-/docs/screenshots/home.png
-/docs/screenshots/instances.png
-```
-
----
-
-## 📦 Installation (Development)
-
-### 1️⃣ Clone repository
-
-```bash
-git clone https://github.com/MrShellad/pilauncher.git
-cd pilauncher
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
 ```
 
----
+You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
-### 2️⃣ Install dependencies
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
 
-```bash
-pnpm install
-# or
-npm install
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
 ```
-
----
-
-### 3️⃣ Run in development
-
-```bash
-pnpm tauri dev
-```
-
----
-
-## 🏗 Build
-
-```bash
-pnpm tauri build
-```
-
-Build output will be located in:
-
-```
-src-tauri/target/release/bundle/
-```
-
----
-
-## 📁 Project Structure
-
-```
-src/
- ├─ ui/          # Design system components
- ├─ state/       # React-Facet state
- ├─ features/    # Business modules
- ├─ pages/       # Page-level components
-
-src-tauri/
- ├─ src/         # Rust backend
- ├─ tauri.conf.json
-```
-
----
-
-## 🎨 UI Philosophy
-
-PiLauncher follows a restrained, game-oriented design language:
-
-* Dark layered panels
-* Low-contrast borders
-* Soft glow accents
-* Consistent radius & shadow system
-* Minimal motion (≤ 200ms transitions)
-
-No over-animation.
-No visual noise.
-Clarity first.
-
----
-
-## ⚠ Disclaimer
-
-PiLauncher is an unofficial launcher for Minecraft.
-
-Minecraft is a trademark of Mojang Studios.
-This project is not affiliated with or endorsed by Mojang.
-
----
-
-## 📌 Roadmap
-
-* [ ] Multi-version support
-* [ ] Fabric / Forge installer integration
-* [ ] Download manager
-* [ ] Account management
-* [ ] Instance export / import
-* [ ] Performance optimization
-
----
-
-## 🤝 Contributing
-
-Pull requests are welcome.
-
-Before submitting:
-
-* Follow the UI design system
-* Avoid introducing third-party UI libraries
-* Keep components reusable
-* Document new APIs
-
----
-
-## 📄 License
-
-MIT License
-
-
