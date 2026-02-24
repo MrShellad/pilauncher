@@ -1,0 +1,36 @@
+# Rust build output
+/target/
+
+# Cargo
+**/*.rs.bk
+Cargo.lock
+
+# Tauri bundle output
+/bundle/
+/gen/
+/dist/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Linux
+*.swp
+
+# Tauri local configuration
+.tauri/
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
+
+# Node modules (防止错误放在这里)
+node_modules/
+
+# VSCode
+.vscode/
