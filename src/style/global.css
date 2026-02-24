@@ -1,0 +1,33 @@
+/* H:\VSCodeWork\pilauncher\src\style\global.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 引入 Minecraft 像素字体 (这里使用本地或在线资源，你可以后期替换为确切的字体文件) */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
+
+/* 为了防止 Tauri 桌面端拖拽选中文字，设置一些基础全局属性 */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  user-select: none; /* 禁止选中文本，更像原生应用 */
+  background-color: #1e1e1e; /* 默认深色背景，防止加载闪烁 */
+}
+
+/* 隐藏滚动条但保留滚动功能 (Ore UI 风格) */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #5a5a5a;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #7a7a7a;
+}

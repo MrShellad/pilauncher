@@ -60,15 +60,15 @@
 * 所有系统行为走 Rust
 * 状态统一由 Zustand 管理
 * 视觉统一由 Tailwind Token 管理
-
+*动画统一由 Framer Motion Token 管理
 ---
 
 # 4. 目录结构规范
 
 ```
 src/
-├── app/                  # 入口
-│   └── App.tsx
+├── App.tsx                 # 入口
+│ 
 │
 ├── ui/                   # 纯 UI 组件（无业务）
 │   ├── primitives/
@@ -99,7 +99,25 @@ src/
     ├── Instances.tsx
     └── Settings.tsx
 ```
-
+src/
+├── style/
+│   ├── global.css                 <-- (刚刚创建)
+│   ├── tokens/
+│   │   └── motion.ts              <-- (上一轮的 Framer Motion Token)
+│   └── ui/
+│       └── primitives/
+│           └── OreButton.css      <-- (上一轮创建，暂时可以为空)
+├── store/
+│   └── useLauncherStore.ts        <-- (上一轮的 Zustand 状态)
+├── ui/
+│   ├── primitives/
+│   │   └── OreButton.tsx          <-- (上一轮的按钮组件)
+│   └── layout/
+│       └── OreBackground.tsx      <-- (上一轮的分层背景组件)
+├── pages/
+│   └── Home.tsx                   <-- (上一轮的首页页面)
+├── App.tsx                        <-- (刚刚更新)
+└── main.tsx                       <-- (Vite/React 默认入口，保持原样即可)
 ---
 
 # 5. Ore 风格视觉系统

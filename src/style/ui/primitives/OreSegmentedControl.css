@@ -1,0 +1,39 @@
+/* /src/style/ui/primitives/OreSegmentedControl.css */
+@layer components {
+  /* 导航容器 */
+  .ore-segmented-track {
+    @apply bg-ore-nav border-2 border-ore-gray-border flex h-ore-nav;
+  }
+
+  /* 单个选项卡 */
+  .ore-segmented-tab {
+    @apply flex items-center justify-center relative bg-ore-nav border-r-2 border-ore-gray-border text-ore-text-muted cursor-pointer font-minecraft transition-colors duration-100;
+  }
+  .ore-segmented-tab:last-child {
+    @apply border-r-0;
+  }
+  .ore-segmented-tab:hover:not(.active) {
+    @apply bg-ore-nav-hover text-ore-text;
+  }
+  .ore-segmented-tab.active {
+    @apply bg-ore-nav-active text-ore-text cursor-default;
+    /* 使用 theme 动态读取 #242425 内阴影 */
+    box-shadow: inset 0 4px theme('colors.ore.nav.shadow');
+  }
+  /* 底部白色高亮条 */
+  .ore-segmented-tab.active::after {
+    @apply content-[''] absolute bottom-0 left-[10%] w-[80%] h-[3px] bg-white;
+  }
+
+  /* 快捷键提示按钮 */
+  .ore-shortcut-btn {
+    @apply flex items-center justify-center bg-ore-button border-2 border-ore-gray-border text-ore-text-dark font-minecraft font-bold cursor-pointer pb-[4px];
+    transition: none;
+    box-shadow: inset 0 -4px theme('colors.ore.button.shadow'), inset 2px 2px rgba(255, 255, 255, 0.6), inset -2px -6px rgba(255, 255, 255, 0.4);
+  }
+  .ore-shortcut-btn:active {
+    @apply bg-ore-button-hover mt-1 pb-0;
+    height: calc(100% - 4px);
+    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.8), inset -2px -2px rgba(255, 255, 255, 0.6);
+  }
+}

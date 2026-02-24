@@ -1,0 +1,7 @@
+/* /src/style/ui/core.css */
+@layer components {
+  /* 基岩版的标准文字阴影 */
+  .ore-text-shadow {
+    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.6);
+  }
+}
