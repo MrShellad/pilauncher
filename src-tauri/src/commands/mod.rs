@@ -4,7 +4,7 @@ pub mod animation_cmd;
 pub mod instance;
 pub mod minecraft_cmd;
 pub mod loader_cmd;
-
+pub mod config_cmd;
 
 
 use tauri::{Builder, Runtime};
@@ -16,6 +16,8 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         instance::listing_cmd::get_instance_list,
         instance::creation_cmd::create_instance,
         minecraft_cmd::get_minecraft_versions,
-        loader_cmd::get_loader_versions
+        loader_cmd::get_loader_versions,
+        config_cmd::get_base_directory,
+        config_cmd::set_base_directory,
     ])
 }

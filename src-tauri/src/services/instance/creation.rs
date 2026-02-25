@@ -3,7 +3,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use chrono::Local;
 
-use tauri::{AppHandle, Emitter, Manager, Runtime}; 
+// 注意这里移除了 Manager，因为路径获取交给了 ConfigService
+use tauri::{AppHandle, Emitter, Runtime}; 
 
 use crate::domain::instance::{
     CreateInstancePayload, InstanceConfig, JavaConfig, LoaderConfig, MemoryConfig, ResolutionConfig
@@ -14,20 +15,24 @@ use crate::error::AppResult;
 pub struct InstanceCreationService;
 
 impl InstanceCreationService {
-    // ✅ 修复：加上 async 关键字，并接收带泛型的 app 句柄
     pub async fn create<R: Runtime>(app: &AppHandle<R>, payload: CreateInstancePayload) -> AppResult<()> {
-        // ==========================================
-        // 第一阶段：构建目录结构
-        // ==========================================
-        let instance_root = PathBuf::from(&payload.save_path).join(&payload.folder_name);
         
-        // 1. 创建实例私有目录
+        // ✅ 1. 动态获取基础目录 (由 SetupWizard 配置的 PiLauncher 根目录)
+        let base_path_str = crate::services::config_service::ConfigService::get_base_path(app)?
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "尚未配置基础数据目录"))?; 
+        let base_dir = PathBuf::from(base_path_str);
+
+        // 我们统一使用 folder_name 作为实例的唯一标识 ID
+        let instance_id = payload.folder_name.clone(); 
+
+        // ✅ 2. 强制将实例生成在 PiLauncher/instances/ 目录下
+        let instance_root = base_dir.join("instances").join(&instance_id);
+
         let sub_dirs = ["mods", "config", "saves", "resourcepacks", "screenshots", "piconfig"];
         for dir in sub_dirs {
             fs::create_dir_all(instance_root.join(dir))?;
         }
 
-        // 2. 处理封面
         let piconfig_dir = instance_root.join("piconfig");
         if let Some(cover_path_str) = &payload.cover_image {
             let cover_path = Path::new(cover_path_str);
@@ -37,9 +42,8 @@ impl InstanceCreationService {
             }
         }
 
-        // 3. 写入 instance.json
         let config = InstanceConfig {
-            id: payload.folder_name.clone(),
+            id: instance_id.clone(),
             name: if payload.name.is_empty() { payload.folder_name.clone() } else { payload.name.clone() },
             mc_version: payload.game_version.clone(),
             loader: LoaderConfig {
@@ -55,16 +59,17 @@ impl InstanceCreationService {
         };
         fs::write(instance_root.join("instance.json"), serde_json::to_string_pretty(&config)?)?;
 
-        // ==========================================
-        // 第二阶段：构建全局共享库并准备下载
-        // ==========================================
-        let global_mc_root = app.path().app_data_dir()?.join("global").join(".minecraft");
+        // ✅ 3. 将全局核心缓存强制指向 PiLauncher/runtime/
+        let global_mc_root = base_dir.join("runtime");
+        
+        // 虽然 ConfigService 初始化时建过，但做个兜底创建更安全
         fs::create_dir_all(global_mc_root.join("assets"))?;
         fs::create_dir_all(global_mc_root.join("libraries"))?;
         fs::create_dir_all(global_mc_root.join("versions"))?;
 
-        // 发送部署开始事件
+        // 发送事件 (保持不变)
         let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {
+            instance_id: instance_id.clone(),
             stage: "VANILLA_CORE".to_string(),
             file_name: "".to_string(),
             current: 0,
@@ -72,22 +77,23 @@ impl InstanceCreationService {
             message: format!("正在准备部署 Minecraft {}...", payload.game_version),
         });
 
-        // 核心下载
+        // 传递修改后的 global_mc_root 给底层下载器
         crate::services::downloader::core_installer::install_vanilla_core(
             app, 
+            &instance_id,
             &payload.game_version, 
             &global_mc_root
         ).await?;
 
-        // 依赖与资产下载
         crate::services::downloader::dependencies::download_dependencies(
             app,
+            &instance_id,
             &payload.game_version,
             &global_mc_root
         ).await?;
 
-        // 发送完成事件
         let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {
+            instance_id: instance_id.clone(),
             stage: "DONE".to_string(),
             file_name: "".to_string(),
             current: 100,

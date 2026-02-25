@@ -1,5 +1,7 @@
+// /src/hooks/pages/Instances/useCustomInstance.ts
 import { useState, useEffect, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+
 export type McVersionType = 'release' | 'snapshot' | 'rc' | 'pre' | 'special';
 export interface McVersion {
   id: string;
@@ -20,7 +22,8 @@ export const useCustomInstance = () => {
   // --- 表单状态 ---
   const [instanceName, setInstanceName] = useState('');
   const [folderName, setFolderName] = useState('');
-  const [savePath, setSavePath] = useState('C:/OreLauncher/instances');
+  // ✅ 将硬编码改为默认空字符串，后续通过 useEffect 动态加载
+  const [savePath, setSavePath] = useState(''); 
   const [coverImage, setCoverImage] = useState<string | null>(null);
 
   // --- 游戏参数 ---
@@ -34,6 +37,23 @@ export const useCustomInstance = () => {
   const [isLoadingVersions, setIsLoadingVersions] = useState(false);
   const [loaderVersions, setLoaderVersions] = useState<string[]>([]);
   const [isLoadingLoaders, setIsLoadingLoaders] = useState(false);
+
+  // ✅ 新增：组件挂载时，获取用户配置的全局基础目录
+  useEffect(() => {
+    const fetchBasePath = async () => {
+      try {
+        const basePath = await invoke<string | null>('get_base_directory');
+        if (basePath) {
+          // 自动判断系统的路径分隔符（Windows 是 \，macOS/Linux 是 /）
+          const separator = basePath.includes('\\') ? '\\' : '/';
+          setSavePath(`${basePath}${separator}instances`);
+        }
+      } catch (error) {
+        console.error("获取基础目录失败:", error);
+      }
+    };
+    fetchBasePath();
+  }, []);
 
   // 1. 获取 MC 版本列表 (带缓存/强制刷新逻辑)
   const fetchVersions = async (force: boolean = false) => {
@@ -59,32 +79,30 @@ export const useCustomInstance = () => {
     return versionGroups.map(g => ({
       ...g,
       versions: g.versions.filter(v => {
-        // 根据 ID 特征和后端分类逻辑进行匹配
         if (versionType === 'rc') return v.id.includes('-rc');
         if (versionType === 'pre') return v.id.includes('-pre');
         if (versionType === 'release') return v.type === 'release';
         if (versionType === 'snapshot') {
-          // 排除掉 rc 和 pre 的普通快照
           return v.type === 'snapshot' && !v.id.includes('-rc') && !v.id.includes('-pre');
         }
         return v.type === 'special' || (v.type !== 'release' && v.type !== 'snapshot');
       })
     })).filter(g => g.versions.length > 0);
   }, [versionGroups, versionType]);
+
   // 4. Wiki 跳转处理
   const handleOpenWiki = (url: string) => {
     if (url) window.open(url, '_blank');
   };
+
   // 2. 获取 Loader 版本逻辑
-useEffect(() => {
-    // 只有在第二步，并且不是纯净原版，且已经选择了游戏版本时才发起请求
+  useEffect(() => {
     if (step === 2 && loaderType !== 'Vanilla' && gameVersion) {
       const fetchLoaders = async () => {
         try {
           setIsLoadingLoaders(true);
-          setLoaderVersions([]); // 清空旧列表，防止误导
+          setLoaderVersions([]); 
           
-          // 调用 Rust 的 Loader 抓取指令
           const data = await invoke<string[]>('get_loader_versions', { 
             loaderType: loaderType, 
             gameVersion: gameVersion 
@@ -92,11 +110,10 @@ useEffect(() => {
           
           setLoaderVersions(data);
           
-          // 如果有版本返回，默认选中最新的（数组第一个）
           if (data.length > 0) {
             setLoaderVersion(data[0]);
           } else {
-            setLoaderVersion(null); // 该游戏版本没有此 Loader
+            setLoaderVersion(null); 
           }
         } catch (error) {
           console.error("获取引导器版本失败:", error);
@@ -107,11 +124,8 @@ useEffect(() => {
       
       fetchLoaders();
     }
-  }, [step, loaderType, gameVersion]); // 依赖项包含 gameVersion，确保游戏版本改变时更新 Loader
+  }, [step, loaderType, gameVersion]); 
 
-
-
-  
   // 3. 自动生成文件夹名称逻辑
   useEffect(() => {
     if (gameVersion) {
@@ -134,6 +148,7 @@ useEffect(() => {
       loader_type: loaderType,
       loader_version: loaderVersion,
       save_path: savePath,
+      cover_image: coverImage, // ✅ 补全被遗漏的封面图路径
     };
     await invoke('create_instance', { payload });
   };
@@ -143,6 +158,6 @@ useEffect(() => {
     save_path: savePath, setSavePath, coverImage, setCoverImage, gameVersion, setGameVersion,
     versionType, setVersionType, loaderType, setLoaderType, loaderVersion, setLoaderVersion,
     filteredVersionGroups, loaderVersions, isLoadingVersions, isLoadingLoaders,
-    handleNextStep, handlePrevStep, handleCreate, handleRefreshVersions,handleOpenWiki,
+    handleNextStep, handlePrevStep, handleCreate, handleRefreshVersions, handleOpenWiki,
   };
 };

@@ -2,7 +2,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-// ✅ 修复：引入 Runtime
 use tauri::{AppHandle, Emitter, Runtime};
 use futures::stream::{StreamExt, iter};
 use reqwest::Client;
@@ -14,9 +13,9 @@ use crate::error::AppResult;
 
 const MAX_CONCURRENT_DOWNLOADS: usize = 16; 
 
-// ✅ 修复：添加 <R: Runtime>
 pub async fn download_dependencies<R: Runtime>(
     app: &AppHandle<R>,
+    instance_id: &str, // ✅ 新增参数
     version_id: &str,
     global_mc_root: &Path,
 ) -> AppResult<()> {
@@ -28,15 +27,16 @@ pub async fn download_dependencies<R: Runtime>(
     let json_content = fs::read_to_string(&json_path)?;
     let manifest: VersionManifestJson = serde_json::from_str(&json_content)?;
 
-    download_libraries(app, &client, &manifest, global_mc_root).await?;
-    download_assets(app, &client, &manifest, global_mc_root).await?;
+    // ✅ 继续传递 instance_id
+    download_libraries(app, instance_id, &client, &manifest, global_mc_root).await?;
+    download_assets(app, instance_id, &client, &manifest, global_mc_root).await?;
 
     Ok(())
 }
 
-// ✅ 修复：添加 <R: Runtime>
 async fn download_libraries<R: Runtime>(
     app: &AppHandle<R>,
+    instance_id: &str, // ✅ 新增参数
     client: &Client,
     manifest: &VersionManifestJson,
     global_mc_root: &Path,
@@ -65,8 +65,9 @@ async fn download_libraries<R: Runtime>(
 
     let fetches = iter(tasks).map(|(url, path, name)| {
         let client = client.clone();
-        let app = app.clone(); // 这里 app.clone() 需要 T: Runtime，没问题
+        let app = app.clone(); 
         let completed = Arc::clone(&completed);
+        let i_id = instance_id.to_string(); // ✅ 拷贝所有权用于 async move 闭包
         
         async move {
             if let Some(parent) = path.parent() {
@@ -86,6 +87,7 @@ async fn download_libraries<R: Runtime>(
             *c += 1;
             
             let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {
+                instance_id: i_id, // ✅ 注入
                 stage: "LIBRARIES".to_string(),
                 file_name: name,
                 current: *c,
@@ -99,9 +101,9 @@ async fn download_libraries<R: Runtime>(
     Ok(())
 }
 
-// ✅ 修复：添加 <R: Runtime>
 async fn download_assets<R: Runtime>(
     app: &AppHandle<R>,
+    instance_id: &str, // ✅ 新增参数
     client: &Client,
     manifest: &VersionManifestJson,
     global_mc_root: &Path,
@@ -146,6 +148,7 @@ async fn download_assets<R: Runtime>(
         let client = client.clone();
         let app = app.clone();
         let completed = Arc::clone(&completed);
+        let i_id = instance_id.to_string(); // ✅ 拷贝所有权用于 async move 闭包
         
         async move {
             if let Some(parent) = path.parent() {
@@ -166,6 +169,7 @@ async fn download_assets<R: Runtime>(
             
             if *c % 20 == 0 || *c == total {
                 let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {
+                    instance_id: i_id, // ✅ 注入
                     stage: "ASSETS".to_string(),
                     file_name: name,
                     current: *c,

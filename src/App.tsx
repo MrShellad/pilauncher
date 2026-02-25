@@ -4,13 +4,16 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useLauncherStore } from './store/useLauncherStore';
 import { OreBackground } from './ui/layout/OreBackground';
 import { TitleBar } from './ui/layout/TitleBar';
-// 引入你的动画令牌
 import { OreMotionTokens } from './style/tokens/motion'; 
 import './style/index.css';
 
+// ✅ 1. 引入你刚刚写好的 DownloadManager 组件
+import { DownloadManager } from './features/Downloads/components/DownloadManager';
+import { SetupWizard } from './features/Setup/components/SetupWizard';
 const Home = lazy(() => import('./pages/Home'));
 const Instances = lazy(() => import('./pages/Instances'));
 const NewInstance = lazy(() => import('./pages/NewInstance'));
+const Settings = lazy(() => import('./pages/Settings'));
 
 const App: React.FC = () => {
   const activeTab = useLauncherStore(state => state.activeTab);
@@ -44,15 +47,15 @@ const App: React.FC = () => {
                   <span className="text-xl font-minecraft">资源下载页面开发中...</span>
                 </div>
               )}
-              {activeTab === 'settings' && (
-                <div className="flex-1 flex items-center justify-center">
-                  <span className="text-xl font-minecraft">设置页面开发中...</span>
-                </div>
-              )}
+              {activeTab === 'settings' && <Settings />}
             </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>
+
+      {/*将全局下载管理器挂载在最外层，确保切换 Tab 时它不会被销毁或重启动画 */}
+      <DownloadManager />
+      <SetupWizard />
     </div>
   );
 };
