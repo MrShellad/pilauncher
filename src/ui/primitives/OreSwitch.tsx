@@ -4,6 +4,7 @@ import React from 'react';
 interface OreSwitchProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
+  label?: string;      // 可选的文字标签
   disabled?: boolean;
   className?: string;
 }
@@ -11,37 +12,44 @@ interface OreSwitchProps {
 export const OreSwitch: React.FC<OreSwitchProps> = ({
   checked,
   onChange,
+  label,
   disabled = false,
-  className = ''
+  className = '',
 }) => {
   return (
-    <div className={`p-1.5 ${className}`}>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => !disabled && onChange(!checked)}
-        // 外部轨道：宽58，高24
-        className={`
-          relative w-[58px] h-[24px] overflow-visible outline-none ore-track
-          ${disabled ? 'bg-[#D0D1D4] cursor-not-allowed border-[#8C8D90]' : 'cursor-pointer'}
-        `}
-        style={!disabled ? {
-          // 巧妙的对半渐变背景
-          background: 'linear-gradient(to right, #3C8527 50%, #8C8D90 50%)'
-        } : {}}
+    // 使用 label 包裹，点击文字也能触发开关
+    <label 
+      className={`ore-switch-wrapper ${disabled ? 'disabled' : ''} ${className}`}
+      // 阻止事件冒泡，防止嵌套在卡片里时触发卡片的点击
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* 文本标签 */}
+      {label && (
+        <span className="mr-3 font-minecraft font-bold text-white ore-text-shadow">
+          {label}
+        </span>
+      )}
+
+      {/* 开关滑轨 (动态改变背景色) */}
+      <div 
+        className={`ore-switch-track ${checked ? 'bg-ore-green' : 'bg-ore-gray-track'}`}
       >
-        {/* 滑动推钮：宽高28 */}
+        <input
+          type="checkbox"
+          className="sr-only" // 隐藏原生 checkbox
+          checked={checked}
+          onChange={(e) => !disabled && onChange(e.target.checked)}
+          disabled={disabled}
+        />
+        
+        {/* 物理推钮 (动态改变水平位置) */}
         <div 
-          className={`
-            absolute w-[28px] h-[28px] top-[-4px] z-10
-            ${disabled ? 'bg-[#D0D1D4] border-[#8C8D90] shadow-[inset_0_-4px_#B1B2B5]' : 'ore-thumb'}
-          `}
-          style={{
-            // left 从 -2px 到 28px
-            left: checked ? '28px' : '-2px'
+          className="ore-switch-thumb"
+          style={{ 
+            left: checked ? '24px' : '-2px' 
           }}
         />
-      </button>
-    </div>
+      </div>
+    </label>
   );
 };

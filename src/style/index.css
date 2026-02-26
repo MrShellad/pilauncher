@@ -14,6 +14,9 @@
 @import './ui/primitives/OreCard.css';
 @import './ui/primitives/OreInput.css';
 @import './ui/primitives/OreAccordion.css';
+@import './ui/primitives/OreSwitch.css';
+@import './ui/primitives/OreSlider.css';
+@import './ui/primitives/OreDropdown.css';
 
 
 

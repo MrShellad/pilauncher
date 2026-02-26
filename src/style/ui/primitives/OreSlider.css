@@ -1,0 +1,57 @@
+/* /src/style/ui/primitives/OreSlider.css */
+@layer components {
+  /* 滑动条外层交互容器 */
+  .ore-slider-wrapper {
+    @apply relative flex items-center w-full h-[36px] select-none touch-none;
+  }
+  .ore-slider-wrapper.disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  /* 凹陷的底层轨道 */
+  .ore-slider-track {
+    @apply absolute w-full h-[16px] bg-ore-gray-track border-2 border-ore-gray-border overflow-hidden;
+    box-shadow: inset 2px 2px rgba(0, 0, 0, 0.4), inset -2px -2px rgba(255, 255, 255, 0.1);
+  }
+
+  /* 绿色的进度填充槽 */
+  .ore-slider-fill {
+    @apply absolute h-full bg-ore-green border-r-2 border-ore-gray-border;
+    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.2), inset -2px -2px rgba(0, 0, 0, 0.2);
+  }
+  /* 禁用时的进度槽变成灰色 */
+  .ore-slider-wrapper.disabled .ore-slider-fill {
+    @apply bg-[#A0A0A0];
+  }
+
+  /* 厚重的物理推钮 */
+  .ore-slider-thumb {
+    @apply absolute w-[20px] h-[36px] bg-ore-button border-2 border-ore-gray-border -translate-x-1/2 flex items-center justify-center;
+    top: 0;
+    /* 祖传 4px 底部阴影，表现物理厚度 */
+    box-shadow: inset 0 -4px theme('colors.ore.button.shadow'), inset 2px 2px rgba(255, 255, 255, 0.6), inset -2px -6px rgba(255, 255, 255, 0.4);
+    transition: background-color 0.1s;
+  }
+
+  /* 悬停提亮 */
+  .ore-slider-wrapper:not(.disabled) .ore-slider-thumb:hover {
+    @apply bg-ore-button-hover cursor-grab;
+    box-shadow: inset 0 -4px theme('colors.ore.button.shadow'), inset 2px 2px rgba(255, 255, 255, 0.8), inset -2px -6px rgba(255, 255, 255, 0.6);
+  }
+
+  /* 拖拽时的真实物理下沉反馈 */
+  .ore-slider-thumb.active {
+    @apply bg-ore-button-hover cursor-grabbing;
+    /* 下降 4px，高度缩短 4px，移除底部阴影 */
+    top: 4px;
+    height: 32px;
+    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.8), inset -2px -2px rgba(255, 255, 255, 0.6);
+  }
+
+  /* 推钮中间的 3 道防滑凹槽 (极具灵魂的设计) */
+  .ore-slider-thumb::after {
+    content: '';
+    @apply w-[2px] h-[12px] bg-black/20;
+    box-shadow: 4px 0 0 0 rgba(0,0,0,0.2), -4px 0 0 0 rgba(0,0,0,0.2);
+  }
+}

@@ -1,0 +1,41 @@
+/* /src/style/ui/primitives/OreSwitch.css */
+@layer components {
+  /* 开关最外层容器，用来统一管理点击和禁用状态 */
+  .ore-switch-wrapper {
+    @apply inline-flex items-center cursor-pointer select-none;
+  }
+  .ore-switch-wrapper.disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  /* 凹陷的滑轨 (Track) */
+  .ore-switch-track {
+    @apply relative block w-[50px] h-[24px] border-2 border-ore-gray-border transition-colors duration-200;
+    /* 制造向内凹陷的阴影 */
+    box-shadow: inset 2px 2px rgba(0, 0, 0, 0.4), inset -2px -2px rgba(255, 255, 255, 0.1);
+  }
+
+  /* 厚重的推钮 (Thumb) */
+  .ore-switch-thumb {
+    @apply absolute w-[24px] h-[24px] bg-ore-button border-2 border-ore-gray-border transition-all duration-200;
+    /* top: -2px 刚好能完美覆盖掉滑轨的 2px 边框 */
+    top: -2px;
+    box-shadow: inset 0 -4px theme('colors.ore.button.shadow'), inset 2px 2px rgba(255, 255, 255, 0.6), inset -2px -6px rgba(255, 255, 255, 0.4);
+  }
+
+  /* 悬停时的推钮增亮 */
+  .ore-switch-wrapper:hover:not(.disabled) .ore-switch-thumb {
+    @apply bg-ore-button-hover;
+    box-shadow: inset 0 -4px theme('colors.ore.button.shadow'), inset 2px 2px rgba(255, 255, 255, 0.8), inset -2px -6px rgba(255, 255, 255, 0.6);
+  }
+
+  /* 鼠标按压时的真实物理下沉效果 */
+  .ore-switch-wrapper:active:not(.disabled) .ore-switch-thumb {
+    @apply bg-ore-button-hover;
+    /* 下沉 4px：top 从 -2px 变成 2px，高度从 24px 缩短为 20px */
+    top: 2px;
+    height: 20px;
+    /* 移除底部阴影，模拟被按扁 */
+    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.8), inset -2px -2px rgba(255, 255, 255, 0.6);
+  }
+}

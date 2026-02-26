@@ -1,0 +1,61 @@
+/* /src/style/ui/primitives/OreDropdown.css */
+@layer components {
+  /* 1. 触发器按钮 (未展开时) */
+  .ore-dropdown-trigger {
+    @apply flex items-center justify-between w-full h-10 px-3 bg-ore-nav border-2 border-ore-gray-border text-white font-minecraft cursor-pointer select-none transition-none focus:outline-none;
+    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.05), inset -2px -2px rgba(0, 0, 0, 0.1);
+  }
+
+  .ore-dropdown-trigger:hover:not(:disabled) {
+    @apply bg-ore-nav-hover;
+    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.1), inset -2px -2px rgba(0, 0, 0, 0.15);
+  }
+
+  /* 展开时的凹陷状态 */
+  .ore-dropdown-trigger.is-open {
+    @apply bg-ore-nav-active;
+    box-shadow: inset 0 4px theme('colors.ore.nav.shadow');
+  }
+
+  .ore-dropdown-trigger:disabled {
+    @apply opacity-50 cursor-not-allowed bg-ore-nav-active/80;
+    box-shadow: none;
+  }
+
+  /* 2. 下拉面板容器 (悬浮层) */
+  .ore-dropdown-panel {
+    @apply absolute left-0 w-full bg-ore-nav border-2 border-ore-gray-border z-50 overflow-y-auto overflow-x-hidden max-h-60;
+    /* 强烈的弹出阴影，加上经典的基岩版内外高光 */
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), inset 2px 2px rgba(255, 255, 255, 0.05), inset -2px -2px rgba(0, 0, 0, 0.15);
+  }
+
+  /* 隐藏下拉菜单的默认滚动条，使其更符合游戏风格 */
+  .ore-dropdown-panel::-webkit-scrollbar {
+    width: 8px;
+  }
+  .ore-dropdown-panel::-webkit-scrollbar-track {
+    @apply bg-ore-gray-border;
+  }
+  .ore-dropdown-panel::-webkit-scrollbar-thumb {
+    @apply bg-ore-gray-track border border-ore-gray-border;
+  }
+
+  /* 3. 单个选项 */
+  .ore-dropdown-item {
+    @apply flex items-center justify-between w-full px-3 py-2 text-ore-text-muted font-minecraft cursor-pointer select-none transition-none;
+    border-bottom: 2px solid theme('colors.ore.gray.border');
+  }
+  .ore-dropdown-item:last-child {
+    border-bottom: none;
+  }
+
+  .ore-dropdown-item:hover {
+    @apply bg-ore-nav-hover text-white;
+  }
+
+  /* 被选中的选项呈现深坑状态 */
+  .ore-dropdown-item.is-selected {
+    @apply bg-ore-nav-active text-white;
+    box-shadow: inset 0 4px theme('colors.ore.nav.shadow');
+  }
+}

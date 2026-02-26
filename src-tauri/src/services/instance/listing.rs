@@ -1,7 +1,7 @@
 // src-tauri/src/services/instance/listing.rs
 use std::fs;
-use std::path::Path;
-use tauri::{AppHandle, Manager, Runtime};
+use std::path::{Path, PathBuf};
+use tauri::{AppHandle, Runtime};
 use crate::domain::instance::{InstanceItem, InstanceConfig};
 use crate::error::AppResult;
 
@@ -9,9 +9,14 @@ pub struct InstanceListingService;
 
 impl InstanceListingService {
     pub fn get_all<R: Runtime>(app: &AppHandle<R>) -> AppResult<Vec<InstanceItem>> {
-        // 注意：这里你原本写死了 app_data_dir()，如果用户的 save_path 是自定义的，
-        // 你可能需要从全局设置里读取根目录。这里暂且保持你原有的读取逻辑。
-        let instances_dir = app.path().app_data_dir()?.join("instances");
+        // ✅ 1. 动态获取用户设置的全局基础目录 (例如 D:\PiLauncher)
+        let base_path_str = crate::services::config_service::ConfigService::get_base_path(app)?
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "尚未配置基础数据目录"))?;
+            
+        let base_dir = PathBuf::from(base_path_str);
+        
+        // ✅ 2. 定位到真正的 instances 文件夹
+        let instances_dir = base_dir.join("instances");
         if !instances_dir.exists() { return Ok(vec![]); }
 
         let mut list = Vec::new();
@@ -22,7 +27,7 @@ impl InstanceListingService {
                 
                 let manifest_path = path.join("instance.json");
                 if let Ok(content) = fs::read_to_string(manifest_path) {
-                    // 解析新的 InstanceConfig
+                    // 解析 InstanceConfig
                     if let Ok(m) = serde_json::from_str::<InstanceConfig>(&content) {
                         list.push(InstanceItem {
                             id,

@@ -66,4 +66,26 @@ export const OreMotionTokens = {
     damping: 30,
     mass: 1
   } as const,
+
+  // ================= 实例卡片 (Instance Card) 动画 =================
+  // 封面图缩放
+  cardCoverScale: {
+    rest: { scale: 1, transition: { duration: 0.4, ease: "easeOut" } },
+    hover: { scale: 1.05, transition: { duration: 0.4, ease: "easeOut" } }
+  },
+  // 黑色半透明遮罩淡入
+  cardOverlayFade: {
+    rest: { opacity: 0, transition: { duration: 0.2 } },
+    hover: { opacity: 1, transition: { duration: 0.2 } }
+  },
+  // 游玩按钮上浮淡入
+  cardButtonSlide: {
+    rest: { y: 15, opacity: 0, transition: { duration: 0.2, ease: "easeOut" } },
+    hover: { y: 0, opacity: 1, transition: { duration: 0.3, ease: "easeOut" } }
+  },
+  // 编辑按钮放大 (可选)
+  cardEditIcon: {
+    rest: { scale: 1 },
+    hover: { scale: 1.1, transition: { duration: 0.2 } }
+  }
 };

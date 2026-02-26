@@ -16,22 +16,35 @@ export const OreButton: React.FC<OreButtonProps> = ({
 }) => {
   // 1. Wrapper 尺寸：负责外部的物理占位，控制宽、高、最小宽度
   const wrapperSizes = {
-    sm: "min-w-[120px] h-[36px]", 
-    md: "min-w-[160px] h-[40px]", 
-    lg: "min-w-[200px] h-[44px]", 
-    // auto 模式保持宽度自适应，加一个 100px 的保底宽度让按钮不至于太局促
-    auto: "w-auto min-w-[100px] h-[40px]", 
-    full: "w-full h-[40px] md:h-[48px] lg:h-[56px]", 
+    // sm: "min-w-[120px] h-[36px]", 
+    // md: "min-w-[160px] h-[40px]", 
+    // lg: "min-w-[200px] h-[44px]", 
+    // // auto 模式保持宽度自适应，加一个 100px 的保底宽度让按钮不至于太局促
+    // auto: "w-auto min-w-[100px] h-[40px]", 
+    // full: "w-full h-[40px] md:h-[48px] lg:h-[56px]", 
+
+    sm: "min-w-[120px] h-[40px]", 
+    md: "min-w-[160px] h-[48px]", // 基础高度提升到 48px
+    lg: "min-w-[220px] h-[56px]", // 大按钮提升到 56px，更显大气
+    auto: "w-auto min-w-[120px] h-[48px]", 
+    full: "w-full h-[48px] lg:h-[56px]",
   };
   
   // 2. Button 尺寸：负责真正的内部留白 (Padding) 和 字体大小
   const buttonSizes = {
-    sm: "px-4 text-sm", 
-    md: "px-6 text-base", 
-    lg: "px-8 text-base", 
-    // 给 auto 模式充足的左右 padding，让文字远离边框
-    auto: "px-5 text-base", 
-    full: "px-4 md:px-6 text-base md:text-lg lg:text-xl", 
+    // sm: "px-4 text-sm", 
+    // md: "px-6 text-base", 
+    // lg: "px-8 text-base", 
+    // // 给 auto 模式充足的左右 padding，让文字远离边框
+    // auto: "px-5 text-base", 
+    // full: "px-4 md:px-6 text-base md:text-lg lg:text-xl", 
+    sm: "px-5 text-sm", 
+    md: "px-8 text-base tracking-wide", // 增加字间距
+    lg: "px-10 text-lg tracking-wider", // 更大的字间距
+    auto: "px-6 text-base tracking-wide", 
+    full: "px-6 text-lg tracking-wider",
+
+
   };
   
   const variants = {

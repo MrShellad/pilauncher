@@ -6,7 +6,7 @@ import { Settings as SettingsIcon, Monitor, Gamepad2, Coffee, Download, Users, A
 // 引入选项卡组件
 import { GeneralSettings } from '../features/Settings/components/tabs/GeneralSettings';
 import { JavaSettings } from '../features/Settings/components/tabs/JavaSettings';
-
+import { AppearanceSettings } from '../features/Settings/components/tabs/AppearanceSettings';
 // 菜单配置
 const MENU_ITEMS = [
   { id: 'general', label: '常规', icon: <SettingsIcon size={18} /> },
@@ -26,8 +26,8 @@ const Settings: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'general': return <GeneralSettings />;
+      case 'appearance': return <AppearanceSettings />;
       case 'java': return <JavaSettings />;
-      // 开发中占位
       default: return (
         <div className="flex flex-col items-center justify-center h-64 text-ore-text-muted font-minecraft border-2 border-dashed border-ore-gray-border">
           <Wrench size={48} className="mb-4 opacity-50" />

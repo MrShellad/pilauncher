@@ -13,6 +13,11 @@
     "core:window:allow-close",
     
     "dialog:default",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "fs:default",
+    {
+      "identifier": "fs:allow-read",
+      "allow": ["**"]
+    }
   ]
 }
