@@ -14,6 +14,7 @@ const Home = lazy(() => import('./pages/Home'));
 const Instances = lazy(() => import('./pages/Instances'));
 const NewInstance = lazy(() => import('./pages/NewInstance'));
 const Settings = lazy(() => import('./pages/Settings'));
+const InstanceDetail = lazy(() => import('./pages/InstanceDetail'));
 
 const App: React.FC = () => {
   const activeTab = useLauncherStore(state => state.activeTab);
@@ -55,12 +56,13 @@ const App: React.FC = () => {
                   <span className="text-xl font-minecraft">资源下载页面开发中...</span>
                 </div>
               )}
+              {activeTab === 'instance-detail' && <InstanceDetail />}
               {activeTab === 'settings' && <Settings />}
             </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>
-
+     
       {/*将全局下载管理器挂载在最外层，确保切换 Tab 时它不会被销毁或重启动画 */}
       <DownloadManager />
       <SetupWizard />

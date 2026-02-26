@@ -22,6 +22,7 @@ const DEFAULT_IMAGES = [defaultImg1, defaultImg2, defaultImg3];
 export const useInstances = () => {
   const [instances, setInstances] = useState<InstanceItem[]>([]);
   const setActiveTab = useLauncherStore(state => state.setActiveTab);
+  const setSelectedInstanceId = useLauncherStore(state => state.setSelectedInstanceId);
   // 1. 从后端拉取数据
   useEffect(() => {
     const fetchInstances = async () => {
@@ -67,8 +68,17 @@ export const useInstances = () => {
   };
   const handleImport = () => console.log('触发: 导入实例');
   const handleAddFolder = () => console.log('触发: 添加文件夹');
-  const handleEdit = (id: string) => console.log('触发: 编辑实例', id);
-  const handleCardClick = (id: string) => console.log('触发: 选中实例', id);
+  const handleEdit = (id: string) => {
+    // 存入当前点击的 ID
+    setSelectedInstanceId(id);
+    // 触发页面切换动画，跳往详情页！
+    setActiveTab('instance-detail');
+  };
+  const handleCardClick = (id: string) => {
+    // 这里的 onClick (比如点封面) 通常是直接启动游戏或者也进详情，这里先复用进详情
+    setSelectedInstanceId(id);
+    setActiveTab('instance-detail');
+  };
 
   return {
     instances,
