@@ -1,7 +1,8 @@
 // /src/hooks/pages/InstanceDetail/useInstanceDetail.ts
 import { useState, useEffect } from 'react';
+import { open } from '@tauri-apps/plugin-dialog';
+import { convertFileSrc } from '@tauri-apps/api/core';
 
-// 导航菜单枚举
 export type DetailTab = 'overview' | 'basic' | 'java' | 'saves' | 'mods' | 'resourcepacks' | 'shaders' | 'export';
 
 export interface InstanceDetailData {
@@ -9,48 +10,76 @@ export interface InstanceDetailData {
   name: string;
   description: string;
   coverUrl: string;
-  screenshots: string[]; // 游戏截图路径数组
+  screenshots: string[]; 
 }
 
 export const useInstanceDetail = (instanceId: string) => {
   const [activeTab, setActiveTab] = useState<DetailTab>('overview');
   const [data, setData] = useState<InstanceDetailData | null>(null);
-  
-  // 幻灯片当前索引
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  // 1. 模拟从后端获取实例详情 (后续可替换为 invoke)
+  // 1. 模拟获取数据
   useEffect(() => {
-    // TODO: 替换为实际的后端调用
-    const fetchDetail = async () => {
-      setData({
-        id: instanceId,
-        name: 'Mob Maze (演示实例)',
-        description: '进入这座遍布巨型生物、陷阱与合作谜题的超大迷宫！与队友携手搜集战利品、解锁强大能力，在时间耗尽前奋力求生。你能否成功逃出迷宫？',
-        coverUrl: 'https://images.unsplash.com/photo-1607513837770-49272336db8a?w=800&q=80', // 占位封面图
-        screenshots: [
-          'https://images.unsplash.com/photo-1627856013091-fed6e4e048c1?w=800&q=80', // 占位截图1
-          'https://images.unsplash.com/photo-1607513837770-49272336db8a?w=800&q=80', // 占位截图2
-        ]
-      });
-    };
-    fetchDetail();
+    setData({
+      id: instanceId,
+      name: 'Mob Maze (演示实例)',
+      description: '进入这座遍布巨型生物、陷阱与合作谜题的超大迷宫！...',
+      coverUrl: 'https://images.unsplash.com/photo-1607513837770-49272336db8a?w=800&q=80',
+      screenshots: [
+        'https://images.unsplash.com/photo-1627856013091-fed6e4e048c1?w=800&q=80',
+        'https://images.unsplash.com/photo-1607513837770-49272336db8a?w=800&q=80',
+      ]
+    });
   }, [instanceId]);
 
-  // 2. 幻灯片轮播逻辑 (仅在有截图且处于概览页时运行)
+  // 2. 幻灯片逻辑
   useEffect(() => {
     if (!data || data.screenshots.length <= 1 || activeTab !== 'overview') return;
-
     const timer = setInterval(() => {
       setCurrentImageIndex((prev) => (prev + 1) % data.screenshots.length);
-    }, 4000); // 每4秒切换一张
-
+    }, 4000);
     return () => clearInterval(timer);
   }, [data, activeTab]);
 
-  const handlePlay = () => {
-    console.log(`准备启动实例: ${data?.name}`);
-    // TODO: 调用后端启动逻辑
+  const handlePlay = () => console.log(`启动实例: ${data?.name}`);
+
+  // ================= 新增：基础设置相关操作 =================
+
+  // 更新名称
+  const handleUpdateName = async (newName: string) => {
+    setData(prev => prev ? { ...prev, name: newName } : null);
+    console.log(`[Mock] 调用 Rust 更新实例 ${instanceId} 名称为: ${newName}`);
+    // TODO: invoke('update_instance_name', { id: instanceId, newName })
+  };
+
+  // 更换封面
+  const handleUpdateCover = async () => {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }]
+      });
+      if (selected && typeof selected === 'string') {
+        const newUrl = convertFileSrc(selected);
+        setData(prev => prev ? { ...prev, coverUrl: newUrl } : null);
+        console.log(`[Mock] 调用 Rust 将 ${selected} 复制为封面`);
+        // TODO: invoke('update_instance_cover', { id: instanceId, sourcePath: selected })
+      }
+    } catch (e) {
+      console.error("封面选择失败:", e);
+    }
+  };
+
+  // 补全文件
+  const handleVerifyFiles = async () => {
+    console.log(`[Mock] 调用 Rust 校验并补全实例 ${instanceId} 的文件`);
+  };
+
+  // 删除实例
+  const handleDeleteInstance = async () => {
+    // 实际项目中这里应该有个二次确认弹窗
+    console.log(`[Mock] 调用 Rust 彻底删除实例 ${instanceId}`);
+    // TODO: invoke('delete_instance', { id: instanceId })，成功后跳转回主页
   };
 
   return {
@@ -58,6 +87,10 @@ export const useInstanceDetail = (instanceId: string) => {
     setActiveTab,
     data,
     currentImageIndex,
-    handlePlay
+    handlePlay,
+    handleUpdateName,
+    handleUpdateCover,
+    handleVerifyFiles,
+    handleDeleteInstance
   };
 };
