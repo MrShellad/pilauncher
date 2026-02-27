@@ -1,6 +1,7 @@
-// /src/ui/primitives/OreButton.tsx
+// src/ui/primitives/OreButton.tsx
 import React from 'react';
-import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
+// ✅ 1. 引入我们自己封装的高级 FocusItem
+import { FocusItem } from '../focus/FocusItem';
 
 interface OreButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger';
@@ -16,17 +17,6 @@ export const OreButton: React.FC<OreButtonProps> = ({
   onClick,
   ...props 
 }) => {
-  // ✅ 1. 注册为可聚焦元素
-  const { ref, focused } = useFocusable({
-    focusable: !disabled, // 禁用的按钮不可被选中
-    onEnterPress: () => {
-      // 当使用手柄A键或键盘Enter键时，触发 onClick 回调
-      if (!disabled && onClick) {
-        // 构造一个伪事件对象，防止外部代码调用 e.preventDefault() 报错
-        onClick({ preventDefault: () => {}, stopPropagation: () => {} } as any);
-      }
-    }
-  });
 
   const wrapperSizes = {
     sm: "min-w-[120px] h-[36px]", 
@@ -51,26 +41,34 @@ export const OreButton: React.FC<OreButtonProps> = ({
   };
 
   return (
-    <div className={`inline-flex items-start justify-center ${wrapperSizes[size]} ${className}`}>
-      <button
-        // ✅ 2. 绑定 Norigin 生成的 ref
-        ref={ref}
-        disabled={disabled}
-        onClick={onClick}
-        className={`
-          ore-btn w-full h-full font-minecraft flex items-center justify-center
-          focus:outline-none transition-all duration-150 transform-gpu backface-hidden antialiased
-          ${buttonSizes[size]}
-          ${variants[variant]}
-          ${disabled ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98] active:brightness-90'}
-          /* ✅ 3. 核心：如果获取了空间焦点，强制显示白色边框和微微发亮放大，模拟 Hover 效果 */
-          ${focused ? 'ring-2 ring-white brightness-110 scale-[1.02] shadow-lg z-10' : 'hover:brightness-110'}
-        `}
-        style={{ fontWeight: 'normal', ...props.style }}
-        {...props}
-      >
-        {children}
-      </button>
-    </div>
+    // ✅ 2. 使用 FocusItem 包裹，处理手柄的回车事件
+    <FocusItem 
+      disabled={disabled} 
+      onEnter={() => onClick && onClick({ preventDefault: () => {}, stopPropagation: () => {} } as any)}
+    >
+      {/* ✅ 3. 接收底层传来的 ref 和 visuallyFocused 状态 */}
+      {({ ref, focused }) => (
+        <div className={`inline-flex items-start justify-center ${wrapperSizes[size]} ${className}`}>
+          <button
+            ref={ref}
+            disabled={disabled}
+            onClick={onClick}
+            className={`
+              ore-btn w-full h-full font-minecraft flex items-center justify-center
+              focus:outline-none transition-all duration-150 transform-gpu backface-hidden antialiased
+              ${buttonSizes[size]}
+              ${variants[variant]}
+              ${disabled ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98] active:brightness-90'}
+              /* ✅ 4. 只有在键盘/手柄模式下，才会出现白色边框，鼠标点击完全无感！ */
+              ${focused ? 'ring-2 ring-white brightness-110 scale-[1.02] shadow-lg z-10' : 'hover:brightness-110'}
+            `}
+            style={{ fontWeight: 'normal', ...props.style }}
+            {...props}
+          >
+            {children}
+          </button>
+        </div>
+      )}
+    </FocusItem>
   );
 };

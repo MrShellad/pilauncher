@@ -1,8 +1,10 @@
 // src/ui/focus/FocusProvider.tsx
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { init } from '@noriginmedia/norigin-spatial-navigation';
 
-export type InputMode = "mouse" | "keyboard" | "controller";
+// 引入全新设计的超级输入驱动和成就弹窗组件
+import { useInputDriver, type InputMode } from './InputDriver';
+import { GamepadToast } from './GamepadToast';
 
 interface GlobalFocusContextType {
   inputMode: InputMode;
@@ -22,9 +24,10 @@ export const FocusProvider: React.FC<FocusProviderProps> = ({ children, debug = 
   const [isInitialized, setIsInitialized] = useState(false);
   const [inputMode, setInputMode] = useState<InputMode>('mouse');
   
-  // 使用 ref 避免在事件监听器中产生闭包陷阱
+  // 使用 ref 避免在事件回调中产生闭包陷阱
   const currentModeRef = useRef<InputMode>('mouse');
 
+  // 2. 初始化空间导航引擎
   useEffect(() => {
     init({
       debug: debug,
@@ -33,50 +36,29 @@ export const FocusProvider: React.FC<FocusProviderProps> = ({ children, debug = 
     setIsInitialized(true);
   }, [debug]);
 
-  // 2. 核心：全局监听用户的输入设备并切换状态
-  useEffect(() => {
-    const updateMode = (mode: InputMode) => {
-      if (currentModeRef.current !== mode) {
-        currentModeRef.current = mode;
-        setInputMode(mode);
-        // 可选：将模式注入到 body class，方便纯 CSS 使用 (如 .intent-mouse)
-        document.body.classList.remove('intent-mouse', 'intent-keyboard', 'intent-controller');
-        document.body.classList.add(`intent-${mode}`);
-      }
-    };
-
-    const handleMouseMove = () => updateMode('mouse');
-    const handleMouseDown = () => updateMode('mouse');
-    
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // 忽略单纯的修饰键，避免误触发
-      if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return;
-      updateMode('keyboard');
-    };
-
-    const handleGamepad = () => updateMode('controller');
-
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    window.addEventListener('mousedown', handleMouseDown, { passive: true });
-    window.addEventListener('keydown', handleKeyDown, { passive: true });
-    window.addEventListener('gamepadconnected', handleGamepad);
-    // 监听手柄按键 (如果有更高级的 Gamepad API 轮询也可以写在这里)
-    window.addEventListener('gamepadbuttondown', handleGamepad as EventListener); 
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mousedown', handleMouseDown);
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('gamepadconnected', handleGamepad);
-      window.removeEventListener('gamepadbuttondown', handleGamepad as EventListener);
-    };
+  // 3. 全局模式切换方法
+  const updateMode = useCallback((mode: InputMode) => {
+    if (currentModeRef.current !== mode) {
+      currentModeRef.current = mode;
+      setInputMode(mode);
+      // 将模式注入到 body class，方便纯 CSS 使用 (如 .intent-mouse)
+      document.body.classList.remove('intent-mouse', 'intent-keyboard', 'intent-controller');
+      document.body.classList.add(`intent-${mode}`);
+    }
   }, []);
 
+  // 4. 挂载底层超级驱动，接管所有输入设备的识别与转化
+  useInputDriver(updateMode);
+
+  // 如果引擎还没初始化完毕，先不渲染子树
   if (!isInitialized) return null;
 
   return (
     <GlobalFocusContext.Provider value={{ inputMode }}>
       {children}
+      
+      {/* 5. 挂载全局游戏手柄成就提示吐司 */}
+      <GamepadToast />
     </GlobalFocusContext.Provider>
   );
 };

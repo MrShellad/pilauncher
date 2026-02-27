@@ -7,7 +7,7 @@ import { useInstanceDetail, type DetailTab } from '../hooks/pages/InstanceDetail
 import { OverviewPanel } from '../features/InstanceDetail/components/tabs/OverviewPanel';
 import { BasicPanel } from '../features/InstanceDetail/components/tabs/BasicPanel'; 
 import { useLauncherStore } from '../store/useLauncherStore'; 
-
+import { FocusBoundary } from '../ui/focus/FocusBoundary';
 // ✅ 引入我们刚刚封装好的通用垂直导航组件
 import { VerticalNav } from '../ui/navigation/VerticalNav';
 
@@ -84,7 +84,7 @@ const InstanceDetail: React.FC = () => {
           </div>
 
           {/* 右侧：内容渲染区 */}
-          <div className="flex-1 overflow-hidden relative">
+          <FocusBoundary id="instance-detail-content" className="flex-1 overflow-hidden relative">
             {activeTab === 'overview' && (
               <OverviewPanel 
                 data={data} 
@@ -108,7 +108,7 @@ const InstanceDetail: React.FC = () => {
                 {TABS.find(t => t.id === activeTab)?.label} 页面开发中...
               </div>
             )}
-          </div>
+          </FocusBoundary>
 
         </div>
       </div>

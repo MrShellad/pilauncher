@@ -26,5 +26,6 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         settings_cmd::save_settings,
         system_cmd::get_system_fonts,
         settings_cmd::import_background_image,
+        system_cmd::check_steam_deck
     ])
 }
