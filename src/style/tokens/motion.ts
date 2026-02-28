@@ -22,12 +22,12 @@ export const OreMotionTokens = {
     transition: { duration: 0.3, ease: "easeOut" }
   } as TargetAndTransition,
   
-  // [新增] 弹窗遮罩层动画
+  // 弹窗遮罩层动画
   modalOverlayInitial: { opacity: 0 } as TargetAndTransition,
   modalOverlayAnimate: { opacity: 1, transition: { duration: 0.2 } } as TargetAndTransition,
   modalOverlayExit: { opacity: 0, transition: { duration: 0.2 } } as TargetAndTransition,
 
-  // [新增] 弹窗面板动画 (带轻微弹簧物理效果)
+  //弹窗面板动画 (带轻微弹簧物理效果)
   modalContentInitial: { opacity: 0, scale: 0.95, y: 20 } as TargetAndTransition,
   modalContentAnimate: { 
     opacity: 1, 
@@ -41,6 +41,20 @@ export const OreMotionTokens = {
     y: 20, 
     transition: { duration: 0.15 } 
   } as TargetAndTransition,
+
+  // [新增] 折叠面板/警告框的平滑展开动画
+  collapseInitial: { 
+    height: 0, opacity: 0, marginTop: 0, overflow: 'hidden' 
+  } as TargetAndTransition,
+  collapseAnimate: { 
+    height: 'auto', opacity: 1, marginTop: 16, // 16px 相当于 mt-4
+    transition: { duration: 0.3, ease: "easeOut" } 
+  } as TargetAndTransition,
+  collapseExit: { 
+    height: 0, opacity: 0, marginTop: 0, 
+    transition: { duration: 0.2, ease: "easeIn" } 
+  } as TargetAndTransition,
+
 
   stepInitial: (direction: number) => ({
     opacity: 0,
@@ -87,5 +101,6 @@ export const OreMotionTokens = {
   cardEditIcon: {
     rest: { scale: 1 },
     hover: { scale: 1.1, transition: { duration: 0.2 } }
-  }
+  },
+  
 };

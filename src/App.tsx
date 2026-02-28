@@ -14,7 +14,7 @@ import { OreBackground } from './ui/layout/OreBackground';
 import { TitleBar } from './ui/layout/TitleBar';
 import { DownloadManager } from './features/Downloads/components/DownloadManager';
 import { SetupWizard } from './features/Setup/components/SetupWizard';
-
+import { JavaGuard } from './features/runtime/components/JavaGuard';
 // 引入样式与动画 Token
 import { OreMotionTokens } from './style/tokens/motion'; 
 import './style/index.css';
@@ -76,6 +76,7 @@ const App: React.FC = () => {
 
         {/* 全局悬浮与拦截层 */}
         <DownloadManager />
+        <JavaGuard />
         <SetupWizard />
       </div>
     </FocusProvider>

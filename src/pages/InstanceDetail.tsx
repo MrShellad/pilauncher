@@ -1,15 +1,15 @@
 // /src/pages/InstanceDetail.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, LayoutTemplate, Settings, Coffee, FolderOpen, Blocks, Package, Image as ImageIcon, Download } from 'lucide-react';
 import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
-
+import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { useInstanceDetail, type DetailTab } from '../hooks/pages/InstanceDetail/useInstanceDetail';
 import { OverviewPanel } from '../features/InstanceDetail/components/tabs/OverviewPanel';
 import { BasicPanel } from '../features/InstanceDetail/components/tabs/BasicPanel'; 
 import { useLauncherStore } from '../store/useLauncherStore'; 
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
-// ✅ 引入我们刚刚封装好的通用垂直导航组件
 import { VerticalNav } from '../ui/navigation/VerticalNav';
+import { JavaPanel } from '../features/InstanceDetail/components/tabs/JavaPanel';
 
 const TABS: { id: DetailTab; label: string; icon: React.FC<any> }[] = [
   { id: 'overview', label: '概览', icon: LayoutTemplate },
@@ -22,30 +22,16 @@ const TABS: { id: DetailTab; label: string; icon: React.FC<any> }[] = [
   { id: 'export', label: '整合包导出', icon: Download },
 ];
 
-// ================= 子组件：支持焦点的返回按钮 =================
-// 注：为了保留顶部返回按钮特殊的样式，我们没有用普通的 OreButton 替代它，
-// 而是保留了这个简单的封装，让它依然支持手柄/键盘焦点。
 const FocusableBackButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
-  const { ref, focused } = useFocusable({
-    onEnterPress: onClick,
-  });
-
+  const { ref, focused } = useFocusable({ onEnterPress: onClick });
   return (
-    <button 
-      ref={ref}
-      onClick={onClick}
-      className={`
-        flex items-center transition-colors font-minecraft px-3 py-1.5 rounded-sm outline-none
-        ${focused ? 'text-white bg-white/10 ring-2 ring-white shadow-lg' : 'text-ore-text-muted hover:text-white hover:bg-white/5'}
-      `}
-    >
+    <button ref={ref} onClick={onClick} className={`flex items-center transition-colors font-minecraft px-3 py-1.5 rounded-sm outline-none ${focused ? 'text-white bg-white/10 ring-2 ring-white shadow-lg' : 'text-ore-text-muted hover:text-white hover:bg-white/5'}`}>
       <ArrowLeft size={18} className="mr-2" />
       返回实例列表
     </button>
   );
 };
 
-// ================= 主页面组件 =================
 const InstanceDetail: React.FC = () => {
   const instanceId = useLauncherStore(state => state.selectedInstanceId) || "demo-id-123"; 
   const { 
@@ -54,61 +40,97 @@ const InstanceDetail: React.FC = () => {
   } = useInstanceDetail(instanceId);
   const setActiveTabGlobal = useLauncherStore(state => state.setActiveTab);
 
-  // 为整个详情页创建一个 Focus Context，限制焦点作用域，防止跑偏
   const { ref: pageFocusRef, focusKey } = useFocusable();
 
-  if (!data) {
-    return <div className="w-full h-full flex items-center justify-center text-white font-minecraft">加载中...</div>;
-  }
+  // ✅ 核心魔法：上帝视角的激活面板记录器，脱离空间引擎的不可控状态
+  const [activePane, setActivePane] = useState<'sidebar' | 'content'>('sidebar');
+
+  const handleTabPreview = (id: string) => {
+    setActiveTab(id as DetailTab);
+  };
+
+  const handleTabSelect = (id: string) => {
+    setActiveTab(id as DetailTab);
+    setActivePane('content'); // 明确进入右侧
+    setTimeout(() => setFocus('instance-detail-content'), 50);
+  };
+
+  // ✅ 终极 ESC 退出链条（接管一切路由与回退）
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        
+        // 1. 防御机制：如果在输入框里打字，只取消焦点，绝对不越级退出
+        const activeEl = document.activeElement as HTMLElement;
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+          activeEl.blur();
+          return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        // 2. 完美的层级穿越逻辑
+        if (activePane === 'content') {
+          setActivePane('sidebar');
+          setFocus(activeTab); // 从右侧退回侧边栏，并精准选中刚刚的 Tab！
+        } else {
+          setActiveTabGlobal('instances'); // 从侧边栏退出整个设置页
+        }
+      }
+    };
+    
+    // 注意：这里用普通阶段监听。因为之前在 OreModal 里我们加了 capture: true。
+    // 所以如果是“弹窗打开”状态，弹窗会最先抢走 ESC 并拦截，这里根本不会执行。简直天衣无缝！
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [activePane, activeTab, setActiveTabGlobal]);
+
+  if (!data) return <div className="w-full h-full flex items-center justify-center text-white font-minecraft">加载中...</div>;
 
   return (
     <FocusContext.Provider value={focusKey}>
       <div ref={pageFocusRef} className="w-full h-full flex flex-col bg-[#141415] overflow-hidden">
         
-        {/* 顶部返回条 */}
         <div className="h-12 bg-[#1E1E1F] border-b-2 border-black flex items-center px-2 flex-shrink-0 z-20">
           <FocusableBackButton onClick={() => setActiveTabGlobal('instances')} />
         </div>
 
-        {/* 左右分栏容器 */}
         <div className="flex flex-1 overflow-hidden">
           
-          {/* 左侧：导航栏 (✅ 极简接入通用组件，由 FocusManager 自动记录焦点位置) */}
-          <div className="w-56 bg-[#18181B] border-r-2 border-black flex-shrink-0 flex flex-col py-2 overflow-y-auto custom-scrollbar">
+          {/* ✅ 左侧容器：通过 Capture 捕获任何流经这里的交互 */}
+          <div 
+            className="w-56 bg-[#18181B] border-r-2 border-black flex-shrink-0 flex flex-col py-2 overflow-y-auto custom-scrollbar"
+            onFocusCapture={() => setActivePane('sidebar')}
+            onClickCapture={() => setActivePane('sidebar')}
+          >
             <VerticalNav 
               boundaryId="instance-detail-sidebar" 
               items={TABS} 
               activeId={activeTab} 
-              onSelect={(id) => setActiveTab(id as DetailTab)} 
+              onPreview={handleTabPreview}
+              onSelect={handleTabSelect} 
             />
           </div>
 
-          {/* 右侧：内容渲染区 */}
-          <FocusBoundary id="instance-detail-content" className="flex-1 overflow-hidden relative">
-            {activeTab === 'overview' && (
-              <OverviewPanel 
-                data={data} 
-                currentImageIndex={currentImageIndex} 
-                onPlay={handlePlay} 
-              />
-            )}
-
-            {activeTab === 'basic' && (
-              <BasicPanel 
-                data={data}
-                onUpdateName={handleUpdateName}
-                onUpdateCover={handleUpdateCover}
-                onVerifyFiles={handleVerifyFiles}
-                onDelete={handleDeleteInstance}
-              />
-            )}
-
-            {activeTab !== 'overview' && activeTab !== 'basic' && (
-              <div className="w-full h-full flex items-center justify-center text-ore-text-muted font-minecraft text-xl">
-                {TABS.find(t => t.id === activeTab)?.label} 页面开发中...
-              </div>
-            )}
-          </FocusBoundary>
+          {/* ✅ 右侧容器：同样通过 Capture 捕获鼠标或键盘产生的任何微小动作 */}
+          <div 
+            className="flex-1 overflow-hidden relative flex flex-col"
+            onFocusCapture={() => setActivePane('content')}
+            onClickCapture={() => setActivePane('content')}
+          >
+            {/* 这里的 onEscape 可以删掉了，全权交由上方上帝视角的 handleEsc 处理 */}
+            <FocusBoundary id="instance-detail-content" trapFocus={true} className="w-full h-full">
+              {activeTab === 'overview' && <OverviewPanel data={data} currentImageIndex={currentImageIndex} onPlay={handlePlay} />}
+              {activeTab === 'basic' && <BasicPanel data={data} onUpdateName={handleUpdateName} onUpdateCover={handleUpdateCover} onVerifyFiles={handleVerifyFiles} onDelete={handleDeleteInstance} />}
+              {activeTab === 'java' && <JavaPanel instanceId={instanceId} />}
+              {activeTab !== 'overview' && activeTab !== 'basic' && activeTab !== 'java' && (
+                <div className="w-full h-full flex items-center justify-center text-ore-text-muted font-minecraft text-xl">
+                  {TABS.find(t => t.id === activeTab)?.label} 页面开发中...
+                </div>
+              )}
+            </FocusBoundary>
+          </div>
 
         </div>
       </div>

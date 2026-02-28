@@ -1,33 +1,36 @@
-// src/ui/navigation/VerticalNav.tsx
+// /src/ui/navigation/VerticalNav.tsx
 import React, { useEffect } from 'react';
 import { FocusBoundary } from '../focus/FocusBoundary';
-
-// ✅ 修复：将 NavItem (组件) 和 NavItemProps (类型) 分开导入，并加上 type 关键字
 import { NavItem } from './NavItem';
 import type { NavItemProps } from './NavItem';
-
 import { focusManager } from '../focus/FocusManager';
 
 interface VerticalNavProps {
-  boundaryId: string; // 如 "sidebar-instances"
-  items: Omit<NavItemProps, 'isActive' | 'onSelect' | 'boundaryId'>[];
+  boundaryId: string;
+  items: Omit<NavItemProps, 'isActive' | 'onSelect' | 'onPreview' | 'boundaryId'>[];
   activeId: string;
   onSelect: (id: string) => void;
+  onPreview?: (id: string) => void;  // ✨ 新增
+  onEscape?: () => void;             // ✨ 新增
   className?: string;
 }
 
-export const VerticalNav: React.FC<VerticalNavProps> = ({ 
-  boundaryId, items, activeId, onSelect, className = '' 
+export const VerticalNav: React.FC<VerticalNavProps> = ({
+  boundaryId, items, activeId, onSelect, onPreview, onEscape, className = ''
 }) => {
 
-  // 组件挂载时，尝试恢复该侧边栏上次的焦点
   useEffect(() => {
-    // 默认焦点给当前激活的项
     focusManager.restoreFocus(boundaryId, activeId);
   }, [boundaryId, activeId]);
 
   return (
-    <FocusBoundary id={boundaryId} className={`flex flex-col overflow-y-auto custom-scrollbar ${className}`}>
+    // ✅ 核心魔法 2：给侧边栏也绑定 onEscape，用于退出到上一级页面
+    <FocusBoundary 
+      id={boundaryId} 
+      trapFocus={true} 
+      onEscape={onEscape} 
+      className={`flex flex-col overflow-y-auto custom-scrollbar ${className}`}
+    >
       {items.map(item => (
         <NavItem
           key={item.id}
@@ -36,6 +39,7 @@ export const VerticalNav: React.FC<VerticalNavProps> = ({
           label={item.label}
           icon={item.icon}
           isActive={activeId === item.id}
+          onPreview={() => onPreview && onPreview(item.id)}
           onSelect={() => onSelect(item.id)}
         />
       ))}

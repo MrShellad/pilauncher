@@ -7,7 +7,7 @@ pub mod loader_cmd;
 pub mod config_cmd;
 pub mod settings_cmd;
 pub mod system_cmd;
-
+pub mod runtime_cmd;
 
 
 use tauri::{Builder, Runtime};
@@ -26,6 +26,9 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         settings_cmd::save_settings,
         system_cmd::get_system_fonts,
         settings_cmd::import_background_image,
-        system_cmd::check_steam_deck
+        system_cmd::check_steam_deck,
+        runtime_cmd::get_system_memory,
+        runtime_cmd::validate_java_cache,
+        runtime_cmd::scan_java_environments,
     ])
 }

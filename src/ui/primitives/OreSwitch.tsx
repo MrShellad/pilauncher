@@ -1,10 +1,11 @@
 // /src/ui/primitives/OreSwitch.tsx
 import React from 'react';
+import { FocusItem } from '../focus/FocusItem';
 
 interface OreSwitchProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
-  label?: string;      // 可选的文字标签
+  label?: string;      
   disabled?: boolean;
   className?: string;
 }
@@ -17,39 +18,43 @@ export const OreSwitch: React.FC<OreSwitchProps> = ({
   className = '',
 }) => {
   return (
-    // 使用 label 包裹，点击文字也能触发开关
-    <label 
-      className={`ore-switch-wrapper ${disabled ? 'disabled' : ''} ${className}`}
-      // 阻止事件冒泡，防止嵌套在卡片里时触发卡片的点击
-      onClick={(e) => e.stopPropagation()}
-    >
-      {/* 文本标签 */}
-      {label && (
-        <span className="mr-3 font-minecraft font-bold text-white ore-text-shadow">
-          {label}
-        </span>
-      )}
-
-      {/* 开关滑轨 (动态改变背景色) */}
-      <div 
-        className={`ore-switch-track ${checked ? 'bg-ore-green' : 'bg-ore-gray-track'}`}
-      >
-        <input
-          type="checkbox"
-          className="sr-only" // 隐藏原生 checkbox
-          checked={checked}
-          onChange={(e) => !disabled && onChange(e.target.checked)}
-          disabled={disabled}
-        />
-        
-        {/* 物理推钮 (动态改变水平位置) */}
+    // ✅ 1. 使用 FocusItem 接管状态，支持手柄 A 键和键盘 Enter 键
+    <FocusItem disabled={disabled} onEnter={() => !disabled && onChange(!checked)}>
+      {({ ref, focused }) => (
         <div 
-          className="ore-switch-thumb"
-          style={{ 
-            left: checked ? '24px' : '-2px' 
+          ref={ref}
+          className={`ore-switch-wrapper ${disabled ? 'disabled' : ''} ${className}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!disabled) onChange(!checked);
           }}
-        />
-      </div>
-    </label>
+          tabIndex={disabled ? -1 : 0}
+        >
+          {/* 文本标签 */}
+          {label && (
+            <span className="mr-3 font-minecraft font-bold text-white ore-text-shadow">
+              {label}
+            </span>
+          )}
+
+          {/* 开关滑轨 (动态改变背景色，并且在获取焦点时加上白色高亮光环) */}
+          <div 
+            className={`
+              ore-switch-track transition-all duration-300
+              ${checked ? 'bg-ore-green' : 'bg-ore-gray-track'}
+              ${focused ? 'ring-2 ring-white ring-offset-2 ring-offset-[#2A2A2C] brightness-110' : ''}
+            `}
+          >
+            {/* 物理推钮 (动态改变水平位置) */}
+            <div 
+              className="ore-switch-thumb"
+              style={{ 
+                left: checked ? '24px' : '-2px' 
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </FocusItem>
   );
 };

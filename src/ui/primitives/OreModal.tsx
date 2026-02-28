@@ -1,11 +1,12 @@
-// /src/ui/primitives/OreModal.tsx
+// src/ui/primitives/OreModal.tsx
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { OreMotionTokens } from '../../style/tokens/motion';
-
-// 引入你可能用到的基础组件 (如果后续弹窗需要默认确认/取消按钮)
-// import { OreButton } from './OreButton';
+import { FocusBoundary } from '../focus/FocusBoundary';
+import { FocusItem } from '../focus/FocusItem';
+// ✅ 1. 引入全局焦点调度器
+import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
 export interface OreModalProps {
   isOpen: boolean;
@@ -13,92 +14,70 @@ export interface OreModalProps {
   title?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
-  className?: string; // 控制弹窗面板的宽度等额外样式
+  className?: string; 
   closeOnOverlayClick?: boolean;
 }
 
 export const OreModal: React.FC<OreModalProps> = ({
-  isOpen,
-  onClose,
-  title,
-  children,
-  footer,
-  className = 'w-full max-w-lg',
-  closeOnOverlayClick = true,
+  isOpen, onClose, title, children, footer, className = 'w-full max-w-lg', closeOnOverlayClick = true,
 }) => {
+  // 生成稳定的边界 ID
+  const modalBoundaryId = `modal-${title || 'default'}`;
 
-  // 按下 ESC 键关闭弹窗
   useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) onClose();
-    };
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape' && isOpen) onClose(); };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, [isOpen, onClose]);
 
-  // 防止弹窗打开时底层页面滚动
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'auto';
-    }
-  }, [isOpen]);
+  useEffect(() => { document.body.style.overflow = isOpen ? 'hidden' : 'auto'; }, [isOpen]);
+
+  // ✅ 2. 核心修复：弹窗打开时，自动将焦点强行抓取到弹窗内部！
+useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        // ✅ 核心修复：在捕获阶段彻底吃掉 ESC 事件，绝不让它传到后面的页面去！
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        onClose();
+      }
+    };
+    
+    // ✅ 加入 { capture: true }，赋予弹窗最高优先级的按键拦截权
+    window.addEventListener('keydown', handleEsc, { capture: true });
+    return () => window.removeEventListener('keydown', handleEsc, { capture: true });
+  }, [isOpen, onClose]);
 
   return (
-    // AnimatePresence 必须包裹着条件渲染，这样 exit 动画才能生效
     <AnimatePresence>
       {isOpen && (
-        // 外层全屏容器 (使用 fixed 和最高层级保证覆盖整个窗口)
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-          
-          {/* 1. 遮罩层 */}
           <motion.div
-            initial={OreMotionTokens.modalOverlayInitial}
-            animate={OreMotionTokens.modalOverlayAnimate}
-            exit={OreMotionTokens.modalOverlayExit}
-            onClick={() => closeOnOverlayClick && onClose()}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            initial={OreMotionTokens.modalOverlayInitial} animate={OreMotionTokens.modalOverlayAnimate} exit={OreMotionTokens.modalOverlayExit}
+            onClick={() => closeOnOverlayClick && onClose()} className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           />
 
-          {/* 2. 弹窗面板 */}
           <motion.div
-            initial={OreMotionTokens.modalContentInitial}
-            animate={OreMotionTokens.modalContentAnimate}
-            exit={OreMotionTokens.modalContentExit}
-            // role="dialog" 增强可访问性
-            role="dialog"
-            aria-modal="true"
-            className={`ore-modal-panel ${className}`}
+            initial={OreMotionTokens.modalContentInitial} animate={OreMotionTokens.modalContentAnimate} exit={OreMotionTokens.modalContentExit}
+            role="dialog" aria-modal="true" className={`ore-modal-panel ${className}`}
           >
-            {/* 头部 (可选) */}
-            {title && (
-              <div className="ore-modal-header">
-                <h2 className="text-xl font-minecraft font-bold ore-text-shadow tracking-wide text-white">
-                  {title}
-                </h2>
-                <button
-                  onClick={onClose}
-                  className="p-1 text-ore-text-muted hover:text-white hover:bg-white/10 rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            )}
-
-            {/* 主体内容区 */}
-            <div className="ore-modal-body">
-              {children}
-            </div>
-
-            {/* 底部操作区 (可选) */}
-            {footer && (
-              <div className="ore-modal-footer">
-                {footer}
-              </div>
-            )}
+            <FocusBoundary id={modalBoundaryId} trapFocus={true} className="flex flex-col w-full h-full">
+              {title && (
+                <div className="ore-modal-header">
+                  <h2 className="text-xl font-minecraft font-bold ore-text-shadow tracking-wide text-white">{title}</h2>
+                  <FocusItem onEnter={onClose}>
+                    {({ ref, focused }) => (
+                      <button ref={ref} onClick={onClose} className={`p-1 text-ore-text-muted hover:text-white rounded outline-none transition-colors ${focused ? 'ring-2 ring-white bg-white/10' : 'hover:bg-white/10'}`}>
+                        <X size={20} />
+                      </button>
+                    )}
+                  </FocusItem>
+                </div>
+              )}
+              <div className="ore-modal-body">{children}</div>
+              {footer && <div className="ore-modal-footer">{footer}</div>}
+            </FocusBoundary>
           </motion.div>
-
         </div>
       )}
     </AnimatePresence>
