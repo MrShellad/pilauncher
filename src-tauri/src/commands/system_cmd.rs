@@ -2,8 +2,6 @@
 use tauri::command;
 use font_kit::source::SystemSource;
 use std::collections::HashSet;
-use std::fs;
-use std::path::Path;
 #[command]
 pub async fn get_system_fonts() -> Result<Vec<String>, String> {
     // 由于读取字体可能较慢，建议放在异步线程中执行

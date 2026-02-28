@@ -1,7 +1,7 @@
 // /src/hooks/pages/InstanceDetail/useInstanceDetail.ts
 import { useState, useEffect } from 'react';
-import { open } from '@tauri-apps/plugin-dialog';
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { invoke, convertFileSrc } from '@tauri-apps/api/core';
+import { open, ask } from '@tauri-apps/plugin-dialog';
 
 export type DetailTab = 'overview' | 'basic' | 'java' | 'saves' | 'mods' | 'resourcepacks' | 'shaders' | 'export';
 
@@ -17,19 +17,39 @@ export const useInstanceDetail = (instanceId: string) => {
   const [activeTab, setActiveTab] = useState<DetailTab>('overview');
   const [data, setData] = useState<InstanceDetailData | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  
+  // 新增：向 UI 层暴露全局的初始化加载状态
+  const [isInitializing, setIsInitializing] = useState(true);
 
-  // 1. 模拟获取数据
+  // 1. 全局数据拉取（包含真实名称与绝对路径封面）
   useEffect(() => {
-    setData({
-      id: instanceId,
-      name: 'Mob Maze (演示实例)',
-      description: '进入这座遍布巨型生物、陷阱与合作谜题的超大迷宫！...',
-      coverUrl: 'https://images.unsplash.com/photo-1607513837770-49272336db8a?w=800&q=80',
-      screenshots: [
-        'https://images.unsplash.com/photo-1627856013091-fed6e4e048c1?w=800&q=80',
-        'https://images.unsplash.com/photo-1607513837770-49272336db8a?w=800&q=80',
-      ]
-    });
+    const fetchDetail = async () => {
+      try {
+        setIsInitializing(true);
+        const realData = await invoke<any>('get_instance_detail', { id: instanceId });
+        
+        let coverUrl = '';
+        if (realData.cover_absolute_path) {
+          coverUrl = `${convertFileSrc(realData.cover_absolute_path)}?t=${Date.now()}`;
+        }
+
+        setData({
+          id: instanceId,
+          name: realData.name || instanceId,
+          description: realData.description || '这个实例还没有添加任何描述...',
+          coverUrl: coverUrl,
+          screenshots: [
+            'https://images.unsplash.com/photo-1627856013091-fed6e4e048c1?w=800&q=80',
+            'https://images.unsplash.com/photo-1607513837770-49272336db8a?w=800&q=80',
+          ]
+        });
+      } catch (e) {
+        console.error("获取实例详情失败:", e);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+    fetchDetail();
   }, [instanceId]);
 
   // 2. 幻灯片逻辑
@@ -43,49 +63,52 @@ export const useInstanceDetail = (instanceId: string) => {
 
   const handlePlay = () => console.log(`启动实例: ${data?.name}`);
 
-  // ================= 新增：基础设置相关操作 =================
+  // ================= 核心业务逻辑层 (供 UI 组件调用) =================
 
-  // 更新名称
   const handleUpdateName = async (newName: string) => {
+    await invoke('rename_instance', { id: instanceId, newName });
     setData(prev => prev ? { ...prev, name: newName } : null);
-    console.log(`[Mock] 调用 Rust 更新实例 ${instanceId} 名称为: ${newName}`);
-    // TODO: invoke('update_instance_name', { id: instanceId, newName })
   };
 
-  // 更换封面
   const handleUpdateCover = async () => {
-    try {
-      const selected = await open({
-        multiple: false,
-        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }]
-      });
-      if (selected && typeof selected === 'string') {
-        const newUrl = convertFileSrc(selected);
-        setData(prev => prev ? { ...prev, coverUrl: newUrl } : null);
-        console.log(`[Mock] 调用 Rust 将 ${selected} 复制为封面`);
-        // TODO: invoke('update_instance_cover', { id: instanceId, sourcePath: selected })
-      }
-    } catch (e) {
-      console.error("封面选择失败:", e);
+    const selected = await open({
+      multiple: false,
+      filters: [{ name: 'Image', extensions: ['png', 'jpg', 'jpeg', 'webp'] }],
+      title: '选择实例封面图'
+    });
+
+    if (selected && typeof selected === 'string') {
+      const newAbsPath = await invoke<string>('change_instance_cover', { id: instanceId, imagePath: selected });
+      const assetUrl = `${convertFileSrc(newAbsPath)}?t=${Date.now()}`;
+      setData(prev => prev ? { ...prev, coverUrl: assetUrl } : null);
+    } else {
+      // 抛出特定的错误，让 UI 知道是用户主动取消，而不是报错
+      throw new Error("USER_CANCELED");
     }
   };
 
-  // 补全文件
   const handleVerifyFiles = async () => {
-    console.log(`[Mock] 调用 Rust 校验并补全实例 ${instanceId} 的文件`);
+    console.log(`调用 Rust 校验并补全实例 ${instanceId} 的文件`);
   };
 
-  // 删除实例
-  const handleDeleteInstance = async () => {
-    // 实际项目中这里应该有个二次确认弹窗
-    console.log(`[Mock] 调用 Rust 彻底删除实例 ${instanceId}`);
-    // TODO: invoke('delete_instance', { id: instanceId })，成功后跳转回主页
+  const handleDeleteInstance = async (): Promise<boolean> => {
+    const confirmed = await ask(`确定要彻底删除该实例吗？\n该操作不可逆转，所有存档和 MOD 将被永久清除！`, {
+      title: '危险操作确认',
+      kind: 'warning',
+    });
+
+    if (confirmed) {
+      await invoke('delete_instance', { id: instanceId });
+      return true; // 告知外部：已成功删除
+    }
+    return false;
   };
 
   return {
     activeTab,
     setActiveTab,
     data,
+    isInitializing,
     currentImageIndex,
     handlePlay,
     handleUpdateName,

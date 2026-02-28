@@ -4,21 +4,28 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FolderOpen, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { useSettingsStore } from '../../../store/useSettingsStore';
 
 export const SetupWizard: React.FC = () => {
   const [needsSetup, setNeedsSetup] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
+  //获取更新 general 设置的方法
+  const updateGeneralSetting = useSettingsStore(state => state.updateGeneralSetting);
   // 每次启动时检查是否配置了基础目录
   useEffect(() => {
     invoke<string | null>('get_base_directory')
       .then((res) => {
-        if (!res) setNeedsSetup(true);
+        if (!res) {
+          setNeedsSetup(true);
+        } else {
+          // 如果后端已经有路径，顺手同步给前端 Store（做个保险）
+          updateGeneralSetting('basePath', res);
+        }
       })
       .catch(console.error)
       .finally(() => setIsChecking(false));
-  }, []);
+  }, [updateGeneralSetting]);
 
   const handleSelectFolder = async () => {
     setError(null);
@@ -30,14 +37,18 @@ export const SetupWizard: React.FC = () => {
       });
 
       if (selectedPath && typeof selectedPath === 'string') {
-        // 调用后端校验并初始化目录结构
+        // 调用后端校验并初始化目录结构 (这会在 meta.json 里打个路标)
         await invoke('set_base_directory', { path: selectedPath });
+        
+        // ✅ 3. 核心：同步写入前端 Zustand！
+        // 因为你之前在 useSettingsStore 里写了 tauriStorage，
+        // 这一步会自动把包含 basePath 的全新 JSON 发给后端，保存到 settings.json 中！
+        updateGeneralSetting('basePath', selectedPath);
         
         // 成功后关闭弹窗
         setNeedsSetup(false);
       }
     } catch (err: any) {
-      // 捕捉后端传来的“目录不为空”等错误提示
       setError(String(err));
     }
   };

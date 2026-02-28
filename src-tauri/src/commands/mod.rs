@@ -10,6 +10,7 @@ pub mod system_cmd;
 pub mod runtime_cmd;
 
 
+
 use tauri::{Builder, Runtime};
 
 // 【关键检查点】：前面必须有 pub 关键字，这样外部的 lib.rs 才能调用它！
@@ -30,5 +31,11 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         runtime_cmd::get_system_memory,
         runtime_cmd::validate_java_cache,
         runtime_cmd::scan_java_environments,
+        runtime_cmd::get_instance_runtime,
+        runtime_cmd::save_instance_runtime,
+        instance::action_cmd::rename_instance,
+        instance::action_cmd::change_instance_cover,
+        instance::action_cmd::delete_instance,
+        instance::action_cmd::get_instance_detail,
     ])
 }

@@ -5,6 +5,10 @@ use std::process::Command;
 use sysinfo::System;
 use walkdir::WalkDir;
 
+use crate::domain::runtime::RuntimeConfig;
+use serde_json::Value;
+
+
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
@@ -129,4 +133,56 @@ fn get_java_version(path: &Path) -> Option<String> {
     } else {
         Some(format!("Unknown ({})", bitness))
     }
+}
+
+// ================= 4. 读取实例的 Runtime 配置 =================
+pub fn get_instance_runtime(instance_dir: &Path) -> Result<RuntimeConfig, String> {
+    let file_path = instance_dir.join("instance.json");
+    
+    // 默认的配置回退方案
+    let default_config = RuntimeConfig {
+        use_global_java: true,
+        use_global_memory: true,
+        java_path: "".to_string(),
+        max_memory: 4096,
+        min_memory: 1024,
+        jvm_args: "-XX:+UseG1GC -XX:+UnlockExperimentalVMOptions".to_string(),
+    };
+
+    if !file_path.exists() {
+        return Ok(default_config);
+    }
+
+    let data = fs::read_to_string(&file_path).map_err(|e| e.to_string())?;
+    let json: Value = serde_json::from_str(&data).unwrap_or(Value::Null);
+
+    // 尝试提取 "runtime" 节点
+    if let Some(runtime_val) = json.get("runtime") {
+        if let Ok(config) = serde_json::from_value(runtime_val.clone()) {
+            return Ok(config);
+        }
+    }
+
+    Ok(default_config)
+}
+
+// ================= 5. 保存实例的 Runtime 配置 (无损局部更新) =================
+pub fn save_instance_runtime(instance_dir: &Path, config: RuntimeConfig) -> Result<(), String> {
+    let file_path = instance_dir.join("instance.json");
+    
+    let mut json = if file_path.exists() {
+        let data = fs::read_to_string(&file_path).map_err(|e| e.to_string())?;
+        serde_json::from_str::<Value>(&data).unwrap_or(serde_json::json!({}))
+    } else {
+        // 如果文件压根不存在，就建一个空对象
+        serde_json::json!({})
+    };
+
+    // 仅覆盖或插入 "runtime" 节点，其余数据原封不动
+    json["runtime"] = serde_json::to_value(config).map_err(|e| e.to_string())?;
+
+    let new_data = serde_json::to_string_pretty(&json).map_err(|e| e.to_string())?;
+    fs::write(&file_path, new_data).map_err(|e| e.to_string())?;
+
+    Ok(())
 }

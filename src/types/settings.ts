@@ -12,6 +12,7 @@ export interface GeneralSettings {
   keepLogDays: number;
   autoRestartOnCrash: boolean;
   showLogOnFailure: boolean;
+  basePath: string;
 }
 
 export interface AppearanceSettings {
@@ -43,6 +44,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     keepLogDays: 30,
     autoRestartOnCrash: true,
     showLogOnFailure: true,
+    basePath: '',
   } as any,
   appearance: {
     backgroundImage: null,

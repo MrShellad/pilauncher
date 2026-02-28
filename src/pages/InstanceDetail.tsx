@@ -35,7 +35,7 @@ const FocusableBackButton: React.FC<{ onClick: () => void }> = ({ onClick }) => 
 const InstanceDetail: React.FC = () => {
   const instanceId = useLauncherStore(state => state.selectedInstanceId) || "demo-id-123"; 
   const { 
-    activeTab, setActiveTab, data, currentImageIndex, handlePlay,
+    activeTab, setActiveTab, data, isInitializing, currentImageIndex, handlePlay,
     handleUpdateName, handleUpdateCover, handleVerifyFiles, handleDeleteInstance 
   } = useInstanceDetail(instanceId);
   const setActiveTabGlobal = useLauncherStore(state => state.setActiveTab);
@@ -120,9 +120,27 @@ const InstanceDetail: React.FC = () => {
             onClickCapture={() => setActivePane('content')}
           >
             {/* 这里的 onEscape 可以删掉了，全权交由上方上帝视角的 handleEsc 处理 */}
+            {/* 这里的 onEscape 可以删掉了，全权交由上方上帝视角的 handleEsc 处理 */}
             <FocusBoundary id="instance-detail-content" trapFocus={true} className="w-full h-full">
               {activeTab === 'overview' && <OverviewPanel data={data} currentImageIndex={currentImageIndex} onPlay={handlePlay} />}
-              {activeTab === 'basic' && <BasicPanel data={data} onUpdateName={handleUpdateName} onUpdateCover={handleUpdateCover} onVerifyFiles={handleVerifyFiles} onDelete={handleDeleteInstance} />}
+              
+              {/* ✅ 修改这里：传入 isInitializing，并处理删除成功后的路由回退 */}
+              {activeTab === 'basic' && (
+                <BasicPanel 
+                  data={data} 
+                  isInitializing={isInitializing}
+                  onUpdateName={handleUpdateName} 
+                  onUpdateCover={handleUpdateCover} 
+                  onVerifyFiles={handleVerifyFiles} 
+                  onDelete={async () => {
+                    const success = await handleDeleteInstance();
+                    if (success) {
+                      setActiveTabGlobal('instances'); // 成功删除后，跳回全局的实例列表
+                    }
+                  }} 
+                />
+              )}
+              
               {activeTab === 'java' && <JavaPanel instanceId={instanceId} />}
               {activeTab !== 'overview' && activeTab !== 'basic' && activeTab !== 'java' && (
                 <div className="w-full h-full flex items-center justify-center text-ore-text-muted font-minecraft text-xl">
