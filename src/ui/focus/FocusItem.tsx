@@ -1,7 +1,6 @@
 // src/ui/focus/FocusItem.tsx
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
-// ✅ 1. 引入你之前写好的输入模式钩子
 import { useInputMode } from './FocusProvider'; 
 
 interface FocusItemRenderProps {
@@ -14,14 +13,18 @@ interface FocusItemProps {
   focusKey?: string;         
   disabled?: boolean;        
   onEnter?: () => void;      
+  onFocus?: () => void;      // ✅ 新增：光环聚焦到当前元素时的回调
   children: (props: FocusItemRenderProps) => React.ReactNode; 
+  autoScroll?: boolean;
 }
 
 export const FocusItem: React.FC<FocusItemProps> = ({
   focusKey,
   disabled = false,
   onEnter,
-  children
+  onFocus,
+  children,
+  autoScroll = true,
 }) => {
   const { ref, focused, hasFocusedChild } = useFocusable({
     focusable: !disabled, 
@@ -29,11 +32,30 @@ export const FocusItem: React.FC<FocusItemProps> = ({
     onEnterPress: onEnter,
   });
 
-  // ✅ 2. 动态获取当前用户的输入外设状态
   const inputMode = useInputMode();
 
-  // ✅ 3. 核心魔法：视觉焦点遮罩！
-  // 只要当前是用“鼠标”在操作，哪怕底层空间焦点在这里，也强行对 UI 隐藏发光框！
+  // ✅ 使用 Ref 存储最新的 onFocus，防止 React 闭包陷阱或引发死循环
+  const onFocusRef = useRef(onFocus);
+  useEffect(() => { onFocusRef.current = onFocus; }, [onFocus]);
+
+  // ✅ 当获得焦点时，触发回调
+  useEffect(() => {
+    if (focused && onFocusRef.current) {
+      onFocusRef.current();
+    }
+  }, [focused]);
+
+  // 全局虚拟焦点自动吸附可视区域
+  useEffect(() => {
+    if (autoScroll && focused && inputMode !== 'mouse' && ref.current) {
+      ref.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'nearest',   
+      });
+    }
+  }, [focused, inputMode, autoScroll]);
+
+  // 视觉焦点遮罩：鼠标模式下隐藏光环
   const isVisualFocused = focused && inputMode !== 'mouse';
   const isVisualFocusedChild = hasFocusedChild && inputMode !== 'mouse';
 

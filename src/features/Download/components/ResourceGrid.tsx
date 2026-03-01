@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from 'react';
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { Loader2, Blocks, Download, Clock, CheckCircle2, Heart, Monitor, Tags } from 'lucide-react';
-import { useTranslation } from 'react-i18next'; // ✅ 引入 i18n Hook
+import { useTranslation } from 'react-i18next';
 import type { ModrinthProject } from '../../InstanceDetail/logic/modrinthApi';
 import type { ModMeta } from '../../InstanceDetail/logic/modService';
 
@@ -16,10 +16,8 @@ interface ResourceGridProps {
   onSelectProject: (project: ModrinthProject) => void;
 }
 
-// 辅助：首字母大写 (作为翻译缺失时的兜底显示)
 const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
 
-// 辅助：格式化数字 (如 96.8M, 24.2K)
 const formatNumber = (num?: number) => {
   if (!num) return '0';
   if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
@@ -27,7 +25,6 @@ const formatNumber = (num?: number) => {
   return num.toString();
 };
 
-// ✅ 辅助：格式化相对时间 (注入 t 函数实现彻底的 i18n)
 const timeAgo = (dateStr: string | undefined, t: any) => {
   if (!dateStr) return t('download.time.unknown', '未知时间');
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -41,9 +38,10 @@ const timeAgo = (dateStr: string | undefined, t: any) => {
 };
 
 export const ResourceGrid: React.FC<ResourceGridProps> = ({ results, installedMods, isLoading, hasMore, onLoadMore, onSelectProject }) => {
-  const { t } = useTranslation(); // ✅ 激活翻译函数
+  const { t } = useTranslation(); 
   const observerTarget = useRef<HTMLDivElement>(null);
 
+  // 鼠标滚轮依然依靠 IntersectionObserver 触发懒加载
   useEffect(() => {
     const observer = new IntersectionObserver(
       entries => { if (entries[0].isIntersecting) onLoadMore(); },
@@ -66,18 +64,26 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({ results, installedMo
       {isLoading ? (
         <div className="flex h-full items-center justify-center"><Loader2 size={48} className="animate-spin text-ore-green" /></div>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 pb-20">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 pb-6">
           {results.map((project, i) => {
             const isInstalled = checkIsInstalled(project);
-            
             const displayCategories: string[] = (project as any).display_categories || [];
             const follows: number = (project as any).follows || 0;
-            
             const loaders = displayCategories.filter(c => KNOWN_LOADERS.includes(c.toLowerCase()));
             const features = displayCategories.filter(c => !KNOWN_LOADERS.includes(c.toLowerCase())).slice(0, 2);
 
+            // ✅ 核心判断：如果当前卡片处于列表最后 4 个之内（涵盖各种列数排列情况的最后一行）
+            const isNearBottom = i >= results.length - 4;
+
             return (
-              <FocusItem key={`${project.id}-${i}`} onEnter={() => onSelectProject(project)}>
+              <FocusItem 
+                key={`${project.id}-${i}`} 
+                onEnter={() => onSelectProject(project)}
+                // ✅ 手柄焦点抵达触发器：光环滑到这里时，如果还有更多数据，无感触发下一页加载！
+                onFocus={() => {
+                  if (isNearBottom && hasMore) onLoadMore();
+                }}
+              >
                 {({ref, focused}) => (
                    <div ref={ref as any} onClick={() => onSelectProject(project)}
                      className={`
@@ -86,7 +92,6 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({ results, installedMo
                        ${isInstalled ? 'border-ore-green/30 bg-ore-green/5' : ''}
                      `}
                    >
-                     {/* 封面图标 */}
                      <div className="w-20 h-20 md:w-24 md:h-24 bg-black/50 border border-white/10 flex-shrink-0 rounded-md overflow-hidden shadow-inner">
                        {project.icon_url ? (
                          <img src={project.icon_url} className="w-full h-full object-cover" alt="icon" />
@@ -95,7 +100,6 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({ results, installedMo
                        )}
                      </div>
                      
-                     {/* 信息栏 */}
                      <div className="ml-4 flex flex-col flex-1 min-w-0 justify-between">
                        <div>
                          <div className="flex items-baseline justify-between min-w-0">
@@ -108,9 +112,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({ results, installedMo
                          <p className="text-xs text-gray-300 mt-1 line-clamp-2 leading-snug opacity-80">{project.description}</p>
                        </div>
 
-                       {/* ✅ 全面国际化的标签栏 */}
                        <div className="flex flex-wrap gap-1.5 mt-2">
-                         {/* 1. 客户端支持标签 */}
                          {project.client_side !== 'unsupported' && (
                            <span className="flex items-center bg-white/10 border border-white/5 px-2 py-0.5 rounded-full text-[10px] text-gray-300">
                              <Monitor size={10} className="mr-1" /> 
@@ -118,7 +120,6 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({ results, installedMo
                            </span>
                          )}
                          
-                         {/* 2. 动态功能标签 (动态匹配 JSON Key) */}
                          {features.map(f => (
                            <span key={f} className="flex items-center bg-white/5 border border-white/5 px-2 py-0.5 rounded-full text-[10px] text-gray-300">
                              <Tags size={10} className="mr-1 opacity-70" /> 
@@ -126,7 +127,6 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({ results, installedMo
                            </span>
                          ))}
                          
-                         {/* 3. 引导器标签 (通常保留英文原名，但也支持翻译) */}
                          {loaders.map(l => (
                            <span key={l} className="flex items-center bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded-full text-[10px] text-orange-200/80">
                              {t(`download.tags.loader.${l.toLowerCase()}`, capitalize(l))}
@@ -134,7 +134,6 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({ results, installedMo
                          ))}
                        </div>
 
-                       {/* ✅ 国际化的数据与状态栏 */}
                        <div className="flex justify-between items-end mt-3 text-gray-400 text-xs font-minecraft">
                          <div className="flex space-x-4">
                            <span className="flex items-center" title={t('download.stats.downloads', '总下载量')}><Download size={14} className="mr-1"/> {formatNumber(project.downloads)}</span>

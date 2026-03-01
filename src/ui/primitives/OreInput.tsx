@@ -1,75 +1,78 @@
 // /src/ui/primitives/OreInput.tsx
 import React, { useId, useRef } from 'react';
-// ✅ 1. 引入高级空间导航挂载点
 import { FocusItem } from '../focus/FocusItem';
 
-interface OreInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface OreInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'width' | 'height'> {
   label?: string;
+  description?: string;
   error?: string;
   containerClassName?: string;
+  width?: string | number;
+  height?: string | number;
+  focusKey?: string;
+  prefixNode?: React.ReactNode; // ✅ 新增：用于在左侧内嵌图标 (如搜索放大镜)
 }
 
 export const OreInput = React.forwardRef<HTMLInputElement, OreInputProps>(
-  ({ label, error, containerClassName = '', disabled, ...props }, forwardedRef) => {
-    const id = useId(); // 自动生成唯一的 ID 绑定 Label
+  ({ label, description, error, containerClassName = '', width = '100%', height = '40px', disabled, className = '', style, focusKey, prefixNode, onKeyDown, ...props }, forwardedRef) => {
+    const id = useId(); 
     const internalRef = useRef<HTMLInputElement>(null);
 
-    // 巧妙的 ref 合并函数：既保留外部传入的 ref（比如 react-hook-form 使用），又让内部能拿到 DOM
+    // 合并 ref，既保证内部能调用 focus/blur，又支持外部传 ref
     const setRefs = (node: HTMLInputElement) => {
       internalRef.current = node;
-      if (typeof forwardedRef === 'function') {
-        forwardedRef(node);
-      } else if (forwardedRef) {
-        forwardedRef.current = node;
+      if (typeof forwardedRef === 'function') forwardedRef(node);
+      else if (forwardedRef) forwardedRef.current = node;
+    };
+
+    // ✅ 核心逃生舱逻辑：当在输入框内按下回车或ESC时，强制失去原生焦点，把控制权还给空间导航
+    const handleNativeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter' || e.key === 'Escape') {
+        e.currentTarget.blur();
       }
+      if (onKeyDown) onKeyDown(e);
     };
 
     return (
-      // ✅ 2. 挂载空间导航引擎
       <FocusItem 
-        disabled={disabled}
-        onEnter={() => {
-          // ✅ 3. 核心交互：当手柄或键盘在这个输入框上按下“确认”时，强制原生 input 获取焦点以便打字
-          internalRef.current?.focus();
-        }}
+        focusKey={focusKey} 
+        disabled={disabled} 
+        onEnter={() => internalRef.current?.focus()} // ✅ 手柄按下确认时，激活原生输入模式
       >
         {({ ref: focusRef, focused }) => (
           <div 
-            // ✅ 4. 引擎监听的物理范围挂载在外层容器上
-            ref={focusRef} 
-            className={`ore-input-wrapper ${containerClassName}`}
+            ref={focusRef as any}
+            className={`ore-input-wrapper ${containerClassName} transition-all rounded-sm ${focused ? 'ring-2 ring-white scale-[1.01] z-20 shadow-lg brightness-110' : ''}`}
+            style={{ width }} 
           >
-            {/* 如果有 Label，显示带阴影的 MC 风格文字 */}
             {label && (
-              <label 
-                htmlFor={id} 
-                className="text-sm font-minecraft font-bold text-ore-text-muted ore-text-shadow px-1"
-              >
+              <label htmlFor={id} className={`text-sm font-minecraft font-bold ore-text-shadow ${disabled ? 'text-gray-500' : 'text-white'}`}>
                 {label}
               </label>
             )}
 
-            <div className="relative">
+            <div className="relative w-full flex items-center" style={{ height }}>
+              {/* 渲染前缀图标 */}
+              {prefixNode && (
+                <div className={`absolute left-3 z-10 transition-colors pointer-events-none ${focused ? 'text-white' : 'text-gray-400'}`}>
+                  {prefixNode}
+                </div>
+              )}
+
               <input
                 id={id}
                 ref={setRefs}
                 disabled={disabled}
-                className={`
-                  ore-input 
-                  ${error ? 'border-red-500 focus:border-red-500' : ''}
-                  /* ✅ 5. 焦点视觉表现：与按钮保持一致的全局 Focus 样式（仅限键盘/手柄触发） */
-                  ${focused ? 'ring-2 ring-white brightness-110 shadow-lg z-10 border-white/20' : ''}
-                `}
+                onKeyDown={handleNativeKeyDown}
+                className={`ore-input ${error ? 'border-red-500 focus:border-red-500 shadow-[0_0_0_1px_red]' : ''} ${prefixNode ? '!pl-9' : ''} ${className}`}
+                style={style}
                 {...props}
               />
-              
-              {/* 输入框右侧的装饰（可选：比如搜索图标或清除按钮可以塞在这里） */}
             </div>
 
-            {/* 错误提示文字 */}
-            {error && (
-              <span className="text-xs font-minecraft text-red-500 mt-1 px-1">
-                {error}
+            {(description || error) && (
+              <span className={`text-xs font-minecraft mt-0.5 ${error ? 'text-red-500' : disabled ? 'text-gray-500' : 'text-ore-text-muted'}`}>
+                {error || description}
               </span>
             )}
           </div>

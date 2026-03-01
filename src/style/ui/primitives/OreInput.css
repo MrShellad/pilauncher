@@ -1,32 +1,45 @@
 /* /src/style/ui/primitives/OreInput.css */
 @layer components {
-  /* 输入框容器（通常包含标签和提示） */
   .ore-input-wrapper {
-    @apply flex flex-col w-full space-y-2;
+    @apply flex flex-col space-y-1;
   }
 
-  /* 核心输入槽位 */
+  /* 基础输入框样式 (Normal 状态 - 极暗灰背景 + 深色边框) */
   .ore-input {
-    @apply w-full min-h-[40px] px-3 py-2 bg-ore-nav-active border-2 border-ore-gray-border text-white font-minecraft outline-none transition-all;
-    /* 核心：制造向内凹陷的物理感 */
-    box-shadow: inset 0 4px theme('colors.ore.nav.shadow');
-    /* 基岩绿光标 */
-    caret-color: #6CC349;
+    /* ✅ 关键修改：h-10 改为 h-full，完全由外部控制高度 */
+    @apply w-full h-full px-3 bg-[#1E1E1F] border-2 border-[#111111] text-white font-minecraft outline-none transition-none;
+    /* 微弱内阴影体现凹陷感 */
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+    caret-color: #6CC349; /* 基岩绿光标 */
   }
 
-  /* 悬停与聚焦：边框稍微变亮 */
-  .ore-input:focus {
-    @apply border-white/20;
+  /* Hovered 状态：稍微提亮背景 */
+  .ore-input:hover:not(:disabled) {
+    @apply bg-[#2A2B2C];
   }
 
-  /* 禁用状态 */
+  /* Focused 状态：纯白外描边 (严格还原草图的白色高亮) */
+  .ore-input:focus:not(:disabled) {
+    @apply border-white;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4); 
+  }
+
+  /* Pressed 状态：按下的瞬间背景变纯黑 */
+  .ore-input:active:not(:disabled) {
+    @apply bg-[#0A0A0A];
+  }
+
+  /* Disabled 状态：经典的浅灰色实心方块 (无阴影) */
   .ore-input:disabled {
-    @apply opacity-50 cursor-not-allowed bg-ore-nav-active/80;
-    box-shadow: none; /* 禁用时失去深度感 */
+    @apply bg-[#C6C6C6] border-[#C6C6C6] text-[#5A5A5A] cursor-not-allowed;
+    box-shadow: none;
   }
 
   /* 占位符颜色 */
   .ore-input::placeholder {
-    @apply text-ore-text-muted opacity-50;
+    @apply text-gray-500 opacity-80;
+  }
+  .ore-input:disabled::placeholder {
+    @apply text-[#7A7A7A];
   }
 }

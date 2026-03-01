@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { useLauncherStore } from '../store/useLauncherStore';
 import { Blocks, Package, Image as ImageIcon } from 'lucide-react';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+// ✅ 引入核心边界组件
+import { FocusBoundary } from '../ui/focus/FocusBoundary'; 
 
 import { useResourceDownload, type TabType } from '../features/Download/hooks/useResourceDownload';
 import { FilterBar } from '../features/Download/components/FilterBar';
@@ -21,7 +23,6 @@ const ResourceDownloadPage: React.FC = () => {
   const instanceId = useLauncherStore(state => state.selectedInstanceId);
   const setActiveTabGlobal = useLauncherStore(state => state.setActiveTab);
   
-  // 1. 注入解耦好的超强 Hook
   const {
     activeTab, setActiveTab,
     query, setQuery, mcVersion, setMcVersion, loaderType, setLoaderType,
@@ -30,10 +31,9 @@ const ResourceDownloadPage: React.FC = () => {
     handleSearchClick, handleResetClick, loadMore
   } = useResourceDownload(instanceId);
 
-  // 2. 详情弹窗状态
   const [selectedProject, setSelectedProject] = useState<ModrinthProject | null>(null);
 
-  // 3. 全局键盘/手柄监听 (LT/RT切换选项卡，ESC退出)
+  // 快捷键拦截 (LT/RT / Esc)
   useEffect(() => {
     const handleGamepad = (e: KeyboardEvent) => {
       if (e.key === 'PageUp' || e.key === 'PageDown') {
@@ -49,13 +49,19 @@ const ResourceDownloadPage: React.FC = () => {
     return () => window.removeEventListener('keydown', handleGamepad);
   }, [activeTab, selectedProject, setActiveTabGlobal, setActiveTab]);
 
-  // ✅ 安全屏障：必须等环境加载完毕才能渲染UI，解决白屏死机问题
+  // ✅ 当环境加载完毕时，自动向引擎发送“降落”指令，把焦点吸附在搜索框上
+  useEffect(() => {
+    if (isEnvLoaded && !selectedProject) {
+      setTimeout(() => setFocus('download-search-input'), 100);
+    }
+  }, [isEnvLoaded, selectedProject]);
+
   if (!isEnvLoaded) return <div className="flex h-full items-center justify-center text-white font-minecraft">加载环境...</div>;
 
   return (
-    <div className="w-full h-full flex flex-col bg-transparent text-white relative">
+    // ✅ 核心修复：为页面套上最外层的保护边界，这不仅让引擎知道页面的存在，也拦截了意外的焦点丢失
+    <FocusBoundary id="resource-download-page" className="w-full h-full flex flex-col bg-transparent text-white relative">
       
-      {/* 模块 1：顶部筛选器 */}
       <FilterBar 
         query={query} setQuery={setQuery} source={source} setSource={setSource}
         mcVersion={mcVersion} setMcVersion={setMcVersion} loaderType={loaderType} setLoaderType={setLoaderType}
@@ -63,16 +69,14 @@ const ResourceDownloadPage: React.FC = () => {
         onSearch={handleSearchClick} onReset={handleResetClick}
       />
 
-      {/* 模块 2：带有无限滚动的资源网格 */}
       <ResourceGrid 
         results={results} installedMods={installedMods} isLoading={isLoading && results.length === 0} 
         hasMore={hasMore} onLoadMore={loadMore} onSelectProject={setSelectedProject} 
       />
 
-      {/* 模块 3：底部分段导航 */}
-      <BottomNav activeTab={activeTab} tabs={TABS} />
+      {/* ✅ 传入 onTabChange 回调 */}
+      <BottomNav activeTab={activeTab} tabs={TABS} onTabChange={setActiveTab} />
 
-      {/* 模块 4：详情与下载模态框 */}
       <DownloadDetailModal 
         project={selectedProject} 
         instanceConfig={instanceConfig} 
@@ -81,7 +85,7 @@ const ResourceDownloadPage: React.FC = () => {
         installedVersionIds={installedMods.map(m => m.modId || '').filter(Boolean)}
       />
 
-    </div>
+    </FocusBoundary>
   );
 };
 
