@@ -12,20 +12,20 @@ import { FocusProvider } from './ui/focus/FocusProvider';
 // 引入布局与组件
 import { OreBackground } from './ui/layout/OreBackground';
 import { TitleBar } from './ui/layout/TitleBar';
-import { DownloadManager } from './features/Downloads/components/DownloadManager';
+import { DownloadManager } from './features/Download/components/DownloadManager';
 import { SetupWizard } from './features/Setup/components/SetupWizard';
 import { JavaGuard } from './features/runtime/components/JavaGuard';
 // 引入样式与动画 Token
 import { OreMotionTokens } from './style/tokens/motion'; 
 import './style/index.css';
-
+import './ui/i18';
 // 懒加载页面路由
 const Home = lazy(() => import('./pages/Home'));
 const Instances = lazy(() => import('./pages/Instances'));
 const NewInstance = lazy(() => import('./pages/NewInstance'));
 const Settings = lazy(() => import('./pages/Settings'));
 const InstanceDetail = lazy(() => import('./pages/InstanceDetail')); 
-
+const ResourceDownloadPage = lazy(() => import('./pages/ResourceDownloadPage'));
 const App: React.FC = () => {
   const activeTab = useLauncherStore(state => state.activeTab);
   const { appearance } = useSettingsStore(state => state.settings);
@@ -63,11 +63,8 @@ const App: React.FC = () => {
                 {activeTab === 'instances' && <Instances />}
                 {activeTab === 'new-instance' && <NewInstance />}
                 {activeTab === 'instance-detail' && <InstanceDetail />}
-                {activeTab === 'downloads' && (
-                  <div className="flex-1 flex items-center justify-center">
-                    <span className="text-xl font-minecraft">资源下载页面开发中...</span>
-                  </div>
-                )}
+                {activeTab === 'downloads' && <ResourceDownloadPage />}
+
                 {activeTab === 'settings' && <Settings />}
               </Suspense>
             </motion.div>

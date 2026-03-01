@@ -1,0 +1,41 @@
+/* /src/style/ui/primitives/OreToggleButton.css */
+@layer components {
+  /* 按钮组外层容器：统一的外边框 */
+  .ore-toggle-btn-group {
+    @apply flex w-full border-2 border-ore-gray-border bg-ore-gray-border overflow-hidden;
+    gap: 2px; 
+  }
+
+  /* 单个 Toggle 按钮基础样式 (✅ 彻底修复：移除固定 padding，使用 Flex 完美居中，引入 text-sm 规范) */
+  .ore-toggle-btn-item {
+    @apply relative flex-1 text-sm font-minecraft font-bold cursor-pointer select-none transition-none focus:outline-none flex items-center justify-center;
+  }
+
+  /* --- 未选中状态 (凸起的灰色按钮) --- */
+  .ore-toggle-btn-item:not(.is-active) {
+    @apply bg-ore-button text-ore-text-dark;
+    box-shadow: inset 0 -4px theme('colors.ore.button.shadow'), inset 2px 2px rgba(255, 255, 255, 0.6), inset -2px -6px rgba(255, 255, 255, 0.4);
+  }
+  .ore-toggle-btn-item:not(.is-active):hover {
+    @apply bg-ore-button-hover;
+    box-shadow: inset 0 -4px theme('colors.ore.button.shadow'), inset 2px 2px rgba(255, 255, 255, 0.8), inset -2px -6px rgba(255, 255, 255, 0.6);
+  }
+  .ore-toggle-btn-item:not(.is-active):active {
+    @apply bg-ore-button-hover;
+    padding-top: 4px; /* 模拟物理按下效果 */
+    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.8), inset -2px -2px rgba(255, 255, 255, 0.6);
+  }
+
+  /* --- 选中状态 (按下的绿色按钮) --- */
+  .ore-toggle-btn-item.is-active {
+    @apply bg-ore-green text-white cursor-default;
+    box-shadow: inset 0 3px rgba(0, 0, 0, 0.2), inset 2px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  /* 选中状态的底部白色指示短线 */
+  .ore-toggle-btn-item.is-active::after {
+    content: '';
+    @apply absolute bottom-1 left-1/2 -translate-x-1/2 h-[2px] w-[20%] bg-white;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  }
+}

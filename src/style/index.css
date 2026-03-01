@@ -16,7 +16,7 @@
 @import './ui/primitives/OreSwitch.css';
 @import './ui/primitives/OreSlider.css';
 @import './ui/primitives/OreDropdown.css';
-
+@import './ui/primitives/OreToggleButton.css';
 
 
 @tailwind base;

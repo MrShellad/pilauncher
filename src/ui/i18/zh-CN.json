@@ -1,0 +1,27 @@
+{
+  "download": {
+    "tags": {
+      "clientSide": "客户端",
+      "optimization": "优化",
+      "technology": "科技",
+      "magic": "魔法",
+      "utility": "实用工具",
+      "decoration": "装饰",
+      "loader": {
+        "fabric": "Fabric",
+        "forge": "Forge",
+        "neoforge": "NeoForge"
+      }
+    },
+    "status": {
+      "installed": "已安装"
+    },
+    "time": {
+      "unknown": "未知时间",
+      "today": "今天",
+      "daysAgo": "{{count}} 天前",
+      "monthsAgo": "{{count}} 个月前",
+      "yearsAgo": "{{count}} 年前"
+    }
+  }
+}

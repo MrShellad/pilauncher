@@ -1,0 +1,27 @@
+{
+  "download": {
+    "tags": {
+      "clientSide": "Client-side",
+      "optimization": "Optimization",
+      "technology": "Technology",
+      "magic": "Magic",
+      "utility": "Utility",
+      "decoration": "Decoration",
+      "loader": {
+        "fabric": "Fabric",
+        "forge": "Forge",
+        "neoforge": "NeoForge"
+      }
+    },
+    "status": {
+      "installed": "Installed"
+    },
+    "time": {
+      "unknown": "Unknown Time",
+      "today": "Today",
+      "daysAgo": "{{count}} days ago",
+      "monthsAgo": "{{count}} months ago",
+      "yearsAgo": "{{count}} years ago"
+    }
+  }
+}
