@@ -10,6 +10,12 @@ import { useLauncherStore } from '../store/useLauncherStore';
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { VerticalNav } from '../ui/navigation/VerticalNav';
 import { JavaPanel } from '../features/InstanceDetail/components/tabs/JavaPanel';
+import { ModPanel } from '../features/InstanceDetail/components/tabs/ModPanel';
+import { SavePanel } from '../features/InstanceDetail/components/tabs/SavePanel';
+import { ResourcePackPanel } from '../features/InstanceDetail/components/tabs/ResourcePackPanel';
+import { ShaderPanel } from '../features/InstanceDetail/components/tabs/ShaderPanel';
+
+
 
 const TABS: { id: DetailTab; label: string; icon: React.FC<any> }[] = [
   { id: 'overview', label: '概览', icon: LayoutTemplate },
@@ -119,8 +125,7 @@ const InstanceDetail: React.FC = () => {
             onFocusCapture={() => setActivePane('content')}
             onClickCapture={() => setActivePane('content')}
           >
-            {/* 这里的 onEscape 可以删掉了，全权交由上方上帝视角的 handleEsc 处理 */}
-            {/* 这里的 onEscape 可以删掉了，全权交由上方上帝视角的 handleEsc 处理 */}
+  
             <FocusBoundary id="instance-detail-content" trapFocus={true} className="w-full h-full">
               {activeTab === 'overview' && <OverviewPanel data={data} currentImageIndex={currentImageIndex} onPlay={handlePlay} />}
               
@@ -142,7 +147,12 @@ const InstanceDetail: React.FC = () => {
               )}
               
               {activeTab === 'java' && <JavaPanel instanceId={instanceId} />}
-              {activeTab !== 'overview' && activeTab !== 'basic' && activeTab !== 'java' && (
+              {activeTab === 'mods' && <ModPanel instanceId={instanceId} />}
+              {activeTab === 'saves' && <SavePanel instanceId={instanceId} />}
+              {activeTab === 'resourcepacks' && <ResourcePackPanel instanceId={instanceId} />}
+              {activeTab === 'shaders' && <ShaderPanel instanceId={instanceId} />}
+
+              {activeTab !== 'overview' && activeTab !== 'basic' && activeTab !== 'java' && activeTab !== 'mods' && activeTab !== 'saves' && activeTab !== 'resourcepacks' && activeTab !== 'shaders' &&(
                 <div className="w-full h-full flex items-center justify-center text-ore-text-muted font-minecraft text-xl">
                   {TABS.find(t => t.id === activeTab)?.label} 页面开发中...
                 </div>

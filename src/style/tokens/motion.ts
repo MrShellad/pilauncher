@@ -102,5 +102,25 @@ export const OreMotionTokens = {
     rest: { scale: 1 },
     hover: { scale: 1.1, transition: { duration: 0.2 } }
   },
+  // 新增：弹窗背景遮罩的淡入淡出
+  modalBackdrop: {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    exit: { opacity: 0 },
+    transition: { duration: 0.2, ease: "easeInOut" }
+  },
+  
+  // 新增：弹窗主体的 3D 弹出效果 (带物理弹簧惯性)
+  modalContent: {
+    initial: { opacity: 0, scale: 0.95, y: 15 },
+    animate: { 
+      opacity: 1, scale: 1, y: 0, 
+      transition: { type: 'spring', damping: 25, stiffness: 350 } 
+    },
+    exit: { 
+      opacity: 0, scale: 0.97, y: -10, 
+      transition: { duration: 0.15, ease: "easeOut" } 
+    }
+  },
   
 };

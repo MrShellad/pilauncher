@@ -6,7 +6,7 @@ import { listen } from '@tauri-apps/api/event';
 import { useDownloadStore } from '../../../store/useDownloadStore';
 import { useLauncherStore } from '../../../store/useLauncherStore'; 
 import { 
-  Download, X, Pause, Play, ChevronUp, ChevronDown, 
+  Download, X, ChevronUp, ChevronDown, 
   CheckCircle, Box, Trash2, List, Terminal
 } from 'lucide-react';
 
@@ -93,7 +93,7 @@ export const DownloadManager: React.FC = () => {
 };
 
 // --- 单个任务卡片组件 ---
-const TaskItem = ({ task, setActiveTab, pauseTask, removeTask }: any) => {
+const TaskItem = ({ task, setActiveTab, removeTask }: any) => {
   const [showLogs, setShowLogs] = React.useState(false);
   const isDone = task.status === 'completed';
 

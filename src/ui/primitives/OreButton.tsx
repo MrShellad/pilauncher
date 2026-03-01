@@ -1,11 +1,11 @@
 // src/ui/primitives/OreButton.tsx
 import React from 'react';
-// ✅ 1. 引入我们自己封装的高级 FocusItem
 import { FocusItem } from '../focus/FocusItem';
 
 interface OreButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger';
   size?: 'sm' | 'md' | 'lg' | 'auto' | 'full'; 
+  focusKey?: string; // ✅ 新增：允许外部传入指定的焦点 ID
 }
 
 export const OreButton: React.FC<OreButtonProps> = ({ 
@@ -15,6 +15,7 @@ export const OreButton: React.FC<OreButtonProps> = ({
   className = '',
   disabled,
   onClick,
+  focusKey, // ✅ 接收 focusKey
   ...props 
 }) => {
 
@@ -41,12 +42,11 @@ export const OreButton: React.FC<OreButtonProps> = ({
   };
 
   return (
-    // ✅ 2. 使用 FocusItem 包裹，处理手柄的回车事件
     <FocusItem 
+      focusKey={focusKey} // ✅ 将 focusKey 传递给底层的空间导航引擎
       disabled={disabled} 
       onEnter={() => onClick && onClick({ preventDefault: () => {}, stopPropagation: () => {} } as any)}
     >
-      {/* ✅ 3. 接收底层传来的 ref 和 visuallyFocused 状态 */}
       {({ ref, focused }) => (
         <div className={`inline-flex items-start justify-center ${wrapperSizes[size]} ${className}`}>
           <button
@@ -59,7 +59,6 @@ export const OreButton: React.FC<OreButtonProps> = ({
               ${buttonSizes[size]}
               ${variants[variant]}
               ${disabled ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98] active:brightness-90'}
-              /* ✅ 4. 只有在键盘/手柄模式下，才会出现白色边框，鼠标点击完全无感！ */
               ${focused ? 'ring-2 ring-white brightness-110 scale-[1.02] shadow-lg z-10' : 'hover:brightness-110'}
             `}
             style={{ fontWeight: 'normal', ...props.style }}

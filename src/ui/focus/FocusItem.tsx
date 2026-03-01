@@ -1,18 +1,19 @@
 // src/ui/focus/FocusItem.tsx
 import React from 'react';
 import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
+// ✅ 1. 引入你之前写好的输入模式钩子
+import { useInputMode } from './FocusProvider'; 
 
 interface FocusItemRenderProps {
-  ref: React.RefObject<any>; // 传递给内部 DOM 节点的 ref
-  focused: boolean;          // 当前项是否获得焦点
-  hasFocusedChild: boolean;  // 内部子元素是否获得焦点
+  ref: React.RefObject<any>;
+  focused: boolean;          
+  hasFocusedChild: boolean;  
 }
 
 interface FocusItemProps {
-  focusKey?: string;         // 可选的指定焦点 ID
-  disabled?: boolean;        // 是否禁用焦点
-  onEnter?: () => void;      // 按下手柄 A 键 / 键盘 Enter 键的回调
-  // 采用 Render Props 模式，把状态和 ref 传递给被包裹的元素
+  focusKey?: string;         
+  disabled?: boolean;        
+  onEnter?: () => void;      
   children: (props: FocusItemRenderProps) => React.ReactNode; 
 }
 
@@ -22,16 +23,27 @@ export const FocusItem: React.FC<FocusItemProps> = ({
   onEnter,
   children
 }) => {
-  // 接入 Norigin Spatial Navigation 引擎的核心 Hook
   const { ref, focused, hasFocusedChild } = useFocusable({
-    focusable: !disabled, // 如果 disabled 为 true，则剥夺获取焦点的能力
+    focusable: !disabled, 
     focusKey: focusKey,
     onEnterPress: onEnter,
   });
 
+  // ✅ 2. 动态获取当前用户的输入外设状态
+  const inputMode = useInputMode();
+
+  // ✅ 3. 核心魔法：视觉焦点遮罩！
+  // 只要当前是用“鼠标”在操作，哪怕底层空间焦点在这里，也强行对 UI 隐藏发光框！
+  const isVisualFocused = focused && inputMode !== 'mouse';
+  const isVisualFocusedChild = hasFocusedChild && inputMode !== 'mouse';
+
   return (
     <>
-      {children({ ref, focused, hasFocusedChild })}
+      {children({ 
+        ref, 
+        focused: isVisualFocused, 
+        hasFocusedChild: isVisualFocusedChild 
+      })}
     </>
   );
 };
