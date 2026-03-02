@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronUp, ChevronDown, CheckCircle, Box, Trash2, List, Terminal, FileDown } from 'lucide-react';
 import type { DownloadTask } from '../../../../store/useDownloadStore';

@@ -27,7 +27,7 @@ interface DownloadStore {
   removeTask: (id: string) => void;
 }
 
-export const useDownloadStore = create<DownloadStore>((set, get) => ({
+export const useDownloadStore = create<DownloadStore>((set, _get) => ({
   tasks: {},
   isPopupOpen: false,
   setPopupOpen: (isOpen) => set({ isPopupOpen: isOpen }),

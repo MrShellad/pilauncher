@@ -1,7 +1,7 @@
 // /src/ui/primitives/OreModal.tsx
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, type Variants } from 'framer-motion'; // ✅ 引入 Variants 类型
 import { X } from 'lucide-react';
 import { OreMotionTokens } from '../../style/tokens/motion';
 
@@ -12,23 +12,29 @@ interface OreModalProps {
   hideTitleBar?: boolean;
   className?: string;
   children: React.ReactNode;
+  closeOnOverlayClick?: boolean;
 }
 
 export const OreModal: React.FC<OreModalProps> = ({
-  isOpen, onClose, title, hideTitleBar = false, className = '', children
+  isOpen, 
+  onClose, 
+  title, 
+  hideTitleBar = false, 
+  className = '', 
+  children,
+  closeOnOverlayClick = true // ✅ 默认允许点击遮罩关闭
 }) => {
   useEffect(() => {
-    // ✅ 新增：ESC 键关闭弹窗逻辑
+    // ESC 键关闭弹窗逻辑
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
-        e.stopPropagation(); // 核心：立刻阻止冒泡，防止底层的 InstanceDetail 触发回退！
+        e.stopPropagation(); 
         onClose();
       }
     };
 
     if (isOpen) {
       document.body.style.overflow = 'hidden';
-      // 使用 capture: true 确保弹窗在捕获阶段最先拿到键盘事件
       window.addEventListener('keydown', handleEsc, { capture: true });
     } else {
       document.body.style.overflow = 'unset';
@@ -46,14 +52,15 @@ export const OreModal: React.FC<OreModalProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           
           <motion.div
-            variants={OreMotionTokens.modalBackdrop}
+            variants={OreMotionTokens.modalBackdrop as Variants} // ✅ 加上类型断言
             initial="initial" animate="animate" exit="exit"
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={onClose}
+            // ✅ 正确应用 closeOnOverlayClick 逻辑
+            onClick={closeOnOverlayClick ? onClose : undefined} 
           />
 
           <motion.div
-            variants={OreMotionTokens.modalContent}
+            variants={OreMotionTokens.modalContent as Variants} // ✅ 加上类型断言
             initial="initial" animate="animate" exit="exit"
             className={`ore-modal-panel z-10 ${className}`}
             onClick={(e) => e.stopPropagation()}

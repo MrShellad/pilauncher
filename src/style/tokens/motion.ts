@@ -1,5 +1,5 @@
 // /src/style/tokens/motion.ts
-import type { TargetAndTransition, Variants } from "framer-motion"; // 引入 Variants 类型
+import type { TargetAndTransition} from "framer-motion"; // 引入 Variants 类型
 
 export const OreMotionTokens = {
   // 按钮交互动画 (保持不变)

@@ -1,6 +1,6 @@
 // /src/features/Download/components/FilterBar.tsx
 import React from 'react';
-import { Search, RotateCcw, Filter } from 'lucide-react';
+import { Search, RotateCcw } from 'lucide-react';
 import { OreToggleButton } from '../../../ui/primitives/OreToggleButton';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { OreInput } from '../../../ui/primitives/OreInput';

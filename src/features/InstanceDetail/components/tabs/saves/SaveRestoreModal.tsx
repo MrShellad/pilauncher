@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { OreModal } from '../../../../../ui/primitives/OreModal';
 import { OreButton } from '../../../../../ui/primitives/OreButton';
 import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary';
-import { FocusItem } from '../../../../../ui/focus/FocusItem';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { AlertTriangle, ShieldCheck, Loader2, RotateCcw, XCircle } from 'lucide-react';
 import { saveService, type SaveBackupMetadata } from '../../../logic/saveService';
@@ -18,7 +17,7 @@ interface SaveRestoreModalProps {
 export const SaveRestoreModal: React.FC<SaveRestoreModalProps> = ({ instanceId, backupMeta, onClose, onConfirmRestore }) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [warnings, setWarnings] = useState<string[]>([]);
-  const [hasVerified, setHasVerified] = useState(false);
+  const [_hasVerified, setHasVerified] = useState(false);
 
   useEffect(() => {
     if (backupMeta) {

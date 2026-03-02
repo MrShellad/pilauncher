@@ -86,7 +86,7 @@ export const OreSlider: React.FC<OreSliderProps> = ({
               trackRef.current = node;
               if (focusRef) {
                 if (typeof focusRef === 'function') {
-                  focusRef(node);
+                  (focusRef as (node: HTMLDivElement | null) => void)(node);
                 } else {
                   // 强行写入 Norigin 引擎的 ref.current
                   (focusRef as React.MutableRefObject<HTMLDivElement | null>).current = node;

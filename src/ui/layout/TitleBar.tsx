@@ -57,7 +57,7 @@ export const TitleBar: React.FC = () => {
         <OreSegmentedControl 
           tabs={navTabs} 
           activeTab={activeTab} 
-          onChange={setActiveTab} 
+          onChange={(id) => setActiveTab(id as any)}
         />
       </div>
     </div>

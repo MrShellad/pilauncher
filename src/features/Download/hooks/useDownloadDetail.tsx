@@ -1,5 +1,5 @@
 // /src/features/Download/hooks/useDownloadDetail.tsx
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { getProjectDetails, fetchModrinthVersions, type OreProjectDetail, type OreProjectVersion, type ModrinthProject } from '../../InstanceDetail/logic/modrinthApi';
 

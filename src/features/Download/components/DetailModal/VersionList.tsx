@@ -16,7 +16,8 @@ interface VersionListProps {
   // ✅ 核心修改：改为传递整个版本对象
   onDownload: (version: OreProjectVersion) => void; 
   visibleCount: number;
-  observerTarget: React.RefObject<HTMLDivElement>;
+  // ✅ 修复类型报错：允许其内部类型为 null，以完美匹配 useRef<HTMLDivElement>(null)
+  observerTarget: React.RefObject<HTMLDivElement | null>;
 }
 
 export const VersionList: React.FC<VersionListProps> = ({

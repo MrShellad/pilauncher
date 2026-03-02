@@ -1,6 +1,6 @@
 // /src/features/Instances/components/InstanceListView.tsx
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion'; // ✅ 引入 Variants 类型
 import { Play, Pencil, Loader2 } from 'lucide-react';
 import type { InstanceItem } from '../../../hooks/pages/Instances/useInstances';
 import { OreMotionTokens } from '../../../style/tokens/motion'; 
@@ -32,7 +32,7 @@ export const InstanceListView: React.FC<InstanceListViewProps> = ({ instance, on
           <motion.img 
             src={instance.coverUrl} 
             alt={instance.name} 
-            variants={OreMotionTokens.cardCoverScale}
+            variants={OreMotionTokens.cardCoverScale as Variants} // ✅ 加上类型断言
             className="w-full h-full object-cover origin-center"
             draggable={false}
           />
@@ -43,10 +43,10 @@ export const InstanceListView: React.FC<InstanceListViewProps> = ({ instance, on
         )}
 
         <motion.div 
-          variants={OreMotionTokens.cardOverlayFade}
+          variants={OreMotionTokens.cardOverlayFade as Variants} // ✅ 加上类型断言
           className="absolute inset-0 bg-black/40 flex items-center justify-center z-20"
         >
-          <motion.div variants={OreMotionTokens.cardButtonSlide}>
+          <motion.div variants={OreMotionTokens.cardButtonSlide as Variants}> {/* ✅ 加上类型断言 */}
             {/* ✅ 直接传入 e 给 launchGame 拦截冒泡 */}
             <OreButton 
               variant="primary" 
@@ -102,7 +102,7 @@ export const InstanceListView: React.FC<InstanceListViewProps> = ({ instance, on
         title="编辑配置"
       >
         <div className="absolute top-0 left-0 w-[1px] h-full bg-white/10 pointer-events-none" />
-        <motion.div variants={OreMotionTokens.cardEditIcon}>
+        <motion.div variants={OreMotionTokens.cardEditIcon as Variants}> {/* ✅ 加上类型断言 */}
           <Pencil size={24} className="text-white drop-shadow-md group-hover/edit:text-ore-green transition-colors" />
         </motion.div>
       </button>

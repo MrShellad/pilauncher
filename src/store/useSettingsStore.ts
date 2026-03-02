@@ -10,7 +10,7 @@ import { DEFAULT_SETTINGS } from '../types/settings';
 
 // ✅ 1. 定义与 Rust 后端通信的自定义存储引擎
 const tauriStorage: StateStorage = {
-  getItem: async (name: string): Promise<string | null> => {
+  getItem: async (_name: string): Promise<string | null> => {
     try {
       // 从后端读取 settings.json
       const data = await invoke<any>('get_settings');
@@ -23,7 +23,7 @@ const tauriStorage: StateStorage = {
       return null;
     }
   },
-  setItem: async (name: string, value: string): Promise<void> => {
+  setItem: async (_name: string, value: string): Promise<void> => {
     try {
       // 每次状态改变，Zustand 会调用这里，我们将整个对象发给后端保存
       await invoke('save_settings', { settings: JSON.parse(value) });
@@ -31,7 +31,7 @@ const tauriStorage: StateStorage = {
       console.error("写入本地配置失败:", error);
     }
   },
-  removeItem: async (name: string): Promise<void> => {
+  removeItem: async (_name: string): Promise<void> => {
     // 可选实现：如果需要在恢复默认设置时彻底删除文件
   }
 };

@@ -1,7 +1,7 @@
 // src/features/Settings/components/tabs/GameSettings.tsx
 import React, { useEffect, useState, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Gamepad2, Monitor, Eye } from 'lucide-react';
+import { Monitor, Eye } from 'lucide-react';
 
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { SettingsSection } from '../../../../ui/layout/SettingsSection';
