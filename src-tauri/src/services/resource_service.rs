@@ -72,11 +72,14 @@ impl ResourceService {
         let url = format!("https://api.modrinth.com/v2/project/{}", project_id);
         let client = Client::new();
 
-        let raw: ModrinthRawProject = client.get(&url)
+        let raw: ModrinthRawProject = client
+            .get(&url)
             .send()
-            .await.map_err(|e| e.to_string())?
+            .await
+            .map_err(|e| e.to_string())?
             .json()
-            .await.map_err(|e| e.to_string())?;
+            .await
+            .map_err(|e| e.to_string())?;
 
         let gallery_urls = match raw.gallery {
             Some(g) => g.into_iter().map(|img| img.url).collect(),
@@ -86,7 +89,7 @@ impl ResourceService {
         Ok(OreProjectDetail {
             id: raw.id,
             title: raw.title,
-            author: "Unknown".to_string(), 
+            author: "Unknown".to_string(),
             description: raw.description,
             icon_url: raw.icon_url,
             client_side: raw.client_side,
@@ -107,7 +110,7 @@ impl ResourceService {
         loader: Option<&str>,
     ) -> Result<Vec<OreProjectVersion>, String> {
         let url = format!("https://api.modrinth.com/v2/project/{}/version", project_id);
-        
+
         let mut query = Vec::new();
         if let Some(lv) = loader {
             if !lv.is_empty() {
@@ -121,16 +124,21 @@ impl ResourceService {
         }
 
         let client = Client::new();
-        let raw_versions: Vec<ModrinthRawVersion> = client.get(&url)
+        let raw_versions: Vec<ModrinthRawVersion> = client
+            .get(&url)
             .query(&query)
             .send()
-            .await.map_err(|e| e.to_string())?
+            .await
+            .map_err(|e| e.to_string())?
             .json()
-            .await.map_err(|e| e.to_string())?;
+            .await
+            .map_err(|e| e.to_string())?;
 
         let mut clean_versions = Vec::new();
         for v in raw_versions {
-            let primary_file = v.files.iter()
+            let primary_file = v
+                .files
+                .iter()
                 .find(|f| f.primary)
                 .or_else(|| v.files.first());
 
@@ -158,7 +166,6 @@ impl ResourceService {
         instance_id: &str,
         sub_folder: &str,
     ) -> Result<(), String> {
-        
         // 1. 获取目标绝对路径
         let base_path_str = crate::services::config_service::ConfigService::get_base_path(app)
             .map_err(|_| "无法获取基础路径".to_string())?
@@ -170,15 +177,21 @@ impl ResourceService {
             .join(sub_folder);
 
         if !target_dir.exists() {
-            tokio::fs::create_dir_all(&target_dir).await.map_err(|e| e.to_string())?;
+            tokio::fs::create_dir_all(&target_dir)
+                .await
+                .map_err(|e| e.to_string())?;
         }
 
         let target_file_path = target_dir.join(file_name);
 
         // 2. 发起请求
         let client = Client::new();
-        let mut response = client.get(url).send().await.map_err(|e| format!("请求失败: {}", e))?;
-        
+        let mut response = client
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| format!("请求失败: {}", e))?;
+
         if !response.status().is_success() {
             return Err(format!("下载失败, HTTP 状态码: {}", response.status()));
         }
@@ -186,11 +199,15 @@ impl ResourceService {
         let total_size = response.content_length().unwrap_or(0);
         let mut downloaded: u64 = 0;
 
-        let mut dest = File::create(&target_file_path).await.map_err(|e| format!("无法创建文件: {}", e))?;
+        let mut dest = File::create(&target_file_path)
+            .await
+            .map_err(|e| format!("无法创建文件: {}", e))?;
 
         // 3. 边下载，边写入，边推送事件到前端的 DownloadManager
         while let Some(chunk) = response.chunk().await.map_err(|e| e.to_string())? {
-            dest.write_all(&chunk).await.map_err(|e| format!("写入磁盘失败: {}", e))?;
+            dest.write_all(&chunk)
+                .await
+                .map_err(|e| format!("写入磁盘失败: {}", e))?;
             downloaded += chunk.len() as u64;
 
             // 推送事件 (前端 index.tsx 里 listen 的就是 resource-download-progress)
@@ -222,6 +239,4 @@ impl ResourceService {
 
         Ok(())
     }
-
-
 }

@@ -26,7 +26,7 @@ pub struct McVersion {
     pub wiki_url: String,
 }
 
-#[derive(Debug, Serialize, Clone)] 
+#[derive(Debug, Serialize, Clone)]
 pub struct VersionGroup {
     pub group_name: String,
     pub versions: Vec<McVersion>,

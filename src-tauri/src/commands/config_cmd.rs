@@ -1,6 +1,6 @@
 // src-tauri/src/commands/config_cmd.rs
-use tauri::{AppHandle, Runtime};
 use crate::services::config_service::ConfigService;
+use tauri::{AppHandle, Runtime};
 
 #[tauri::command]
 pub async fn get_base_directory<R: Runtime>(app: AppHandle<R>) -> Result<Option<String>, String> {

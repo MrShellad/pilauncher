@@ -1,18 +1,17 @@
 // src-tauri/src/services/animation_service.rs
+use crate::domain::animation::AnimationRequest;
+use crate::error::{AppError, AppResult};
 use std::path::Path;
 use tauri::{AppHandle, Manager, Runtime}; // 引入 Runtime
-use crate::error::{AppError, AppResult};
-use crate::domain::animation::AnimationRequest;
 
 pub struct AnimationService;
 
 impl AnimationService {
     // 【关键修复】：加上 <R: Runtime>，并将 AppHandle 改为 AppHandle<R>
     pub fn resolve_and_load<R: Runtime>(
-        app: &AppHandle<R>, 
-        req: AnimationRequest
+        app: &AppHandle<R>,
+        req: AnimationRequest,
     ) -> AppResult<Option<String>> {
-        
         let app_data_dir = app
             .path()
             .app_data_dir()
@@ -30,7 +29,7 @@ impl AnimationService {
             .join(&req.animation_name);
 
         let is_user_first = req.is_premium && req.user_prioritized;
-        
+
         let check_order = if is_user_first {
             vec![user_anim_path, modpack_anim_path]
         } else {

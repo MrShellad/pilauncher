@@ -8,7 +8,6 @@ use walkdir::WalkDir;
 use crate::domain::runtime::RuntimeConfig;
 use serde_json::Value;
 
-
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
@@ -73,14 +72,20 @@ pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, Str
 
     for dir in base_dirs {
         if Path::new(dir).exists() {
-            for entry in WalkDir::new(dir).max_depth(3).into_iter().filter_map(|e| e.ok()) {
+            for entry in WalkDir::new(dir)
+                .max_depth(3)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
                 let p = entry.path();
                 #[cfg(target_os = "windows")]
                 let is_java = p.is_file() && p.file_name().unwrap_or_default() == "java.exe";
                 #[cfg(not(target_os = "windows"))]
                 let is_java = p.is_file() && p.file_name().unwrap_or_default() == "java";
 
-                if is_java { paths_to_check.push(p.to_path_buf()); }
+                if is_java {
+                    paths_to_check.push(p.to_path_buf());
+                }
             }
         }
     }
@@ -90,7 +95,9 @@ pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, Str
         let p = PathBuf::from(java_home).join("bin").join("java.exe");
         #[cfg(not(target_os = "windows"))]
         let p = PathBuf::from(java_home).join("bin").join("java");
-        if p.exists() { paths_to_check.push(p); }
+        if p.exists() {
+            paths_to_check.push(p);
+        }
     }
 
     paths_to_check.sort();
@@ -98,7 +105,10 @@ pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, Str
 
     for path in paths_to_check {
         if let Some(version) = get_java_version(&path) {
-            installs.push(JavaInstall { version, path: path.to_string_lossy().to_string() });
+            installs.push(JavaInstall {
+                version,
+                path: path.to_string_lossy().to_string(),
+            });
         }
     }
 
@@ -113,16 +123,18 @@ pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, Str
 fn get_java_version(path: &Path) -> Option<String> {
     let mut cmd = Command::new(path);
     cmd.arg("-version");
-    
+
     #[cfg(target_os = "windows")]
     cmd.creation_flags(0x08000000);
 
     let output = cmd.output().ok()?;
     let stderr = String::from_utf8_lossy(&output.stderr);
-    
+
     let lines: Vec<&str> = stderr.lines().collect();
-    if lines.is_empty() { return None; }
-    
+    if lines.is_empty() {
+        return None;
+    }
+
     let first_line = lines[0];
     let is_64_bit = stderr.contains("64-Bit");
     let bitness = if is_64_bit { "64-bit" } else { "32-bit" };
@@ -138,7 +150,7 @@ fn get_java_version(path: &Path) -> Option<String> {
 // ================= 4. 读取实例的 Runtime 配置 =================
 pub fn get_instance_runtime(instance_dir: &Path) -> Result<RuntimeConfig, String> {
     let file_path = instance_dir.join("instance.json");
-    
+
     // 默认的配置回退方案
     let default_config = RuntimeConfig {
         use_global_java: true,
@@ -169,7 +181,7 @@ pub fn get_instance_runtime(instance_dir: &Path) -> Result<RuntimeConfig, String
 // ================= 5. 保存实例的 Runtime 配置 (无损局部更新) =================
 pub fn save_instance_runtime(instance_dir: &Path, config: RuntimeConfig) -> Result<(), String> {
     let file_path = instance_dir.join("instance.json");
-    
+
     let mut json = if file_path.exists() {
         let data = fs::read_to_string(&file_path).map_err(|e| e.to_string())?;
         serde_json::from_str::<Value>(&data).unwrap_or(serde_json::json!({}))

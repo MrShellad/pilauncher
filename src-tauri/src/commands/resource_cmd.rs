@@ -1,6 +1,6 @@
-use tauri::{AppHandle, Runtime, command};
-use crate::services::resource_service::ResourceService;
 use crate::domain::resource::{OreProjectDetail, OreProjectVersion};
+use crate::services::resource_service::ResourceService;
+use tauri::{command, AppHandle, Runtime};
 
 #[command]
 pub async fn get_ore_project_detail(project_id: String) -> Result<OreProjectDetail, String> {
@@ -9,15 +9,12 @@ pub async fn get_ore_project_detail(project_id: String) -> Result<OreProjectDeta
 
 #[command]
 pub async fn get_ore_project_versions(
-    project_id: String, 
-    game_version: Option<String>, 
-    loader: Option<String>
+    project_id: String,
+    game_version: Option<String>,
+    loader: Option<String>,
 ) -> Result<Vec<OreProjectVersion>, String> {
-    ResourceService::fetch_project_versions(
-        &project_id, 
-        game_version.as_deref(), 
-        loader.as_deref()
-    ).await
+    ResourceService::fetch_project_versions(&project_id, game_version.as_deref(), loader.as_deref())
+        .await
 }
 
 // ✅ 新增的底层下载指令

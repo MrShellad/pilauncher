@@ -2,7 +2,7 @@
 import React from 'react';
 
 export interface ToggleOption {
-  label: React.ReactNode; // ✅ 改为 ReactNode，以支持传入 SVG 图标或复杂的 HTML
+  label: React.ReactNode; 
   value: string;
   description?: string;
 }
@@ -39,18 +39,31 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
         </div>
       )}
 
-      {/* 2. 核心按钮组 */}
-      <div className="ore-toggle-btn-group">
+      {/* 2. 核心按钮组：完全恢复你的 ore-toggle-btn-group 类名 */}
+      <div className="ore-toggle-btn-group flex w-full">
         {options.map((option) => {
           const isActive = option.value === value;
           return (
             <button
               key={option.value}
               onClick={() => !isActive && onChange(option.value)}
-              className={`ore-toggle-btn-item ${isActive ? 'is-active' : ''}`}
-              tabIndex={-1} // 移交控制权给 FocusItem
+              // ✅ 核心修复：
+              // 1. 保留你的 ore-toggle-btn-item 和 is-active 样式
+              // 2. min-h-[48px] 让按钮变得更大气
+              // 3. border-2 border-transparent：提前占下 2px 的边框位置！这样当你点击加上边框时，就不会发生任何抖动了。
+              className={`
+                ore-toggle-btn-item 
+                flex-1 flex items-center justify-center min-h-[48px] px-2 
+                border-2 transition-all duration-200
+                ${isActive ? 'is-active border-ore-green' : 'border-transparent'}
+              `}
+              tabIndex={-1} 
             >
-              <span className={`flex items-center justify-center truncate ${isActive ? 'ore-text-shadow' : ''}`}>
+              {/* ✅ flex items-center justify-center 确保内部的 SVG 和文字绝对居中对齐 */}
+              <span className={`
+                flex items-center justify-center truncate transition-transform duration-200
+                ${isActive ? 'ore-text-shadow scale-105' : 'scale-100'}
+              `}>
                 {option.label}
               </span>
             </button>
@@ -58,7 +71,7 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
         })}
       </div>
 
-      {/* 3. 底部描述区 (✅ 修复：如果没有配置 description，彻底不渲染该区域，防止撑高顶部栏) */}
+      {/* 3. 底部描述区 */}
       {options.some(opt => opt.description) && (
         <div className="mt-2 px-1 min-h-[20px]">
           {activeOption?.description && (

@@ -124,6 +124,7 @@ const ResourceDownloadPage: React.FC = () => {
         installedVersionIds={installedMods.map(m => m.modId || '').filter(Boolean)}
         searchMcVersion={mcVersion}
         searchLoader={loaderType}
+        activeTab={activeTab}
       />
     </FocusBoundary>
   );

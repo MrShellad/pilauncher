@@ -1,17 +1,17 @@
 // src-tauri/src/services/downloader/dependencies.rs
+use futures::stream::{iter, StreamExt};
+use reqwest::Client;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Runtime};
-use futures::stream::{StreamExt, iter};
-use reqwest::Client;
 use tokio::sync::Mutex;
 
 use crate::domain::event::DownloadProgressEvent;
-use crate::domain::minecraft_json::{VersionManifestJson, AssetIndexJson};
+use crate::domain::minecraft_json::{AssetIndexJson, VersionManifestJson};
 use crate::error::AppResult;
 
-const MAX_CONCURRENT_DOWNLOADS: usize = 16; 
+const MAX_CONCURRENT_DOWNLOADS: usize = 16;
 
 pub async fn download_dependencies<R: Runtime>(
     app: &AppHandle<R>,
@@ -19,11 +19,12 @@ pub async fn download_dependencies<R: Runtime>(
     version_id: &str,
     global_mc_root: &Path,
 ) -> AppResult<()> {
-    let client = Client::builder()
-        .user_agent("OreLauncher/1.0")
-        .build()?;
-    
-    let json_path = global_mc_root.join("versions").join(version_id).join(format!("{}.json", version_id));
+    let client = Client::builder().user_agent("OreLauncher/1.0").build()?;
+
+    let json_path = global_mc_root
+        .join("versions")
+        .join(version_id)
+        .join(format!("{}.json", version_id));
     let json_content = fs::read_to_string(&json_path)?;
     let manifest: VersionManifestJson = serde_json::from_str(&json_content)?;
 
@@ -42,60 +43,72 @@ async fn download_libraries<R: Runtime>(
     global_mc_root: &Path,
 ) -> AppResult<()> {
     let mut tasks = Vec::new();
-    
+
     for lib in &manifest.libraries {
         if let Some(downloads) = &lib.downloads {
             if let Some(artifact) = &downloads.artifact {
                 let target_path = global_mc_root.join("libraries").join(&artifact.path);
-                
-                if target_path.exists() && target_path.metadata().map(|m| m.len()).unwrap_or(0) == artifact.size {
+
+                if target_path.exists()
+                    && target_path.metadata().map(|m| m.len()).unwrap_or(0) == artifact.size
+                {
                     continue;
                 }
 
-                let mirror_url = artifact.url.replace("https://libraries.minecraft.net", "https://bmclapi2.bangbang93.com/maven");
+                let mirror_url = artifact.url.replace(
+                    "https://libraries.minecraft.net",
+                    "https://bmclapi2.bangbang93.com/maven",
+                );
                 tasks.push((mirror_url, target_path, lib.name.clone()));
             }
         }
     }
 
     let total = tasks.len() as u64;
-    if total == 0 { return Ok(()); } 
-    
+    if total == 0 {
+        return Ok(());
+    }
+
     let completed = Arc::new(Mutex::new(0_u64));
 
-    let fetches = iter(tasks).map(|(url, path, name)| {
-        let client = client.clone();
-        let app = app.clone(); 
-        let completed = Arc::clone(&completed);
-        let i_id = instance_id.to_string(); // ✅ 拷贝所有权用于 async move 闭包
-        
-        async move {
-            if let Some(parent) = path.parent() {
-                let _ = fs::create_dir_all(parent);
-            }
+    let fetches = iter(tasks)
+        .map(|(url, path, name)| {
+            let client = client.clone();
+            let app = app.clone();
+            let completed = Arc::clone(&completed);
+            let i_id = instance_id.to_string(); // ✅ 拷贝所有权用于 async move 闭包
 
-            match client.get(&url).send().await {
-                Ok(res) if res.status().is_success() => {
-                    if let Ok(bytes) = res.bytes().await {
-                        let _ = fs::write(&path, bytes);
-                    }
+            async move {
+                if let Some(parent) = path.parent() {
+                    let _ = fs::create_dir_all(parent);
                 }
-                _ => { /* 忽略失败 */ }
-            }
 
-            let mut c = completed.lock().await;
-            *c += 1;
-            
-            let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {
-                instance_id: i_id, // ✅ 注入
-                stage: "LIBRARIES".to_string(),
-                file_name: name,
-                current: *c,
-                total,
-                message: format!("正在下载依赖库 ({}/{})", *c, total),
-            });
-        }
-    }).buffer_unordered(MAX_CONCURRENT_DOWNLOADS);
+                match client.get(&url).send().await {
+                    Ok(res) if res.status().is_success() => {
+                        if let Ok(bytes) = res.bytes().await {
+                            let _ = fs::write(&path, bytes);
+                        }
+                    }
+                    _ => { /* 忽略失败 */ }
+                }
+
+                let mut c = completed.lock().await;
+                *c += 1;
+
+                let _ = app.emit(
+                    "instance-deployment-progress",
+                    DownloadProgressEvent {
+                        instance_id: i_id, // ✅ 注入
+                        stage: "LIBRARIES".to_string(),
+                        file_name: name,
+                        current: *c,
+                        total,
+                        message: format!("正在下载依赖库 ({}/{})", *c, total),
+                    },
+                );
+            }
+        })
+        .buffer_unordered(MAX_CONCURRENT_DOWNLOADS);
 
     fetches.collect::<Vec<()>>().await;
     Ok(())
@@ -111,11 +124,14 @@ async fn download_assets<R: Runtime>(
     let index_meta = &manifest.asset_index;
     let index_dir = global_mc_root.join("assets").join("indexes");
     fs::create_dir_all(&index_dir)?;
-    
+
     let index_path = index_dir.join(format!("{}.json", index_meta.id));
-    
+
     if !index_path.exists() {
-        let mirror_url = index_meta.url.replace("https://launchermeta.mojang.com", "https://bmclapi2.bangbang93.com");
+        let mirror_url = index_meta.url.replace(
+            "https://launchermeta.mojang.com",
+            "https://bmclapi2.bangbang93.com",
+        );
         let index_text = client.get(&mirror_url).send().await?.text().await?;
         fs::write(&index_path, &index_text)?;
     }
@@ -127,11 +143,17 @@ async fn download_assets<R: Runtime>(
 
     for (name, object) in index_json.objects {
         let hash = object.hash;
-        let prefix = &hash[0..2]; 
-        
-        let target_path = global_mc_root.join("assets").join("objects").join(prefix).join(&hash);
-        
-        if target_path.exists() && target_path.metadata().map(|m| m.len()).unwrap_or(0) == object.size {
+        let prefix = &hash[0..2];
+
+        let target_path = global_mc_root
+            .join("assets")
+            .join("objects")
+            .join(prefix)
+            .join(&hash);
+
+        if target_path.exists()
+            && target_path.metadata().map(|m| m.len()).unwrap_or(0) == object.size
+        {
             continue;
         }
 
@@ -140,45 +162,52 @@ async fn download_assets<R: Runtime>(
     }
 
     let total = tasks.len() as u64;
-    if total == 0 { return Ok(()); }
+    if total == 0 {
+        return Ok(());
+    }
 
     let completed = Arc::new(Mutex::new(0_u64));
 
-    let fetches = iter(tasks).map(|(url, path, name)| {
-        let client = client.clone();
-        let app = app.clone();
-        let completed = Arc::clone(&completed);
-        let i_id = instance_id.to_string(); // ✅ 拷贝所有权用于 async move 闭包
-        
-        async move {
-            if let Some(parent) = path.parent() {
-                let _ = fs::create_dir_all(parent);
-            }
+    let fetches = iter(tasks)
+        .map(|(url, path, name)| {
+            let client = client.clone();
+            let app = app.clone();
+            let completed = Arc::clone(&completed);
+            let i_id = instance_id.to_string(); // ✅ 拷贝所有权用于 async move 闭包
 
-            match client.get(&url).send().await {
-                Ok(res) if res.status().is_success() => {
-                    if let Ok(bytes) = res.bytes().await {
-                        let _ = fs::write(&path, bytes);
-                    }
+            async move {
+                if let Some(parent) = path.parent() {
+                    let _ = fs::create_dir_all(parent);
                 }
-                _ => {}
-            }
 
-            let mut c = completed.lock().await;
-            *c += 1;
-            
-            if *c % 20 == 0 || *c == total {
-                let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {
-                    instance_id: i_id, // ✅ 注入
-                    stage: "ASSETS".to_string(),
-                    file_name: name,
-                    current: *c,
-                    total,
-                    message: format!("正在下载游戏资源 ({}/{})", *c, total),
-                });
+                match client.get(&url).send().await {
+                    Ok(res) if res.status().is_success() => {
+                        if let Ok(bytes) = res.bytes().await {
+                            let _ = fs::write(&path, bytes);
+                        }
+                    }
+                    _ => {}
+                }
+
+                let mut c = completed.lock().await;
+                *c += 1;
+
+                if *c % 20 == 0 || *c == total {
+                    let _ = app.emit(
+                        "instance-deployment-progress",
+                        DownloadProgressEvent {
+                            instance_id: i_id, // ✅ 注入
+                            stage: "ASSETS".to_string(),
+                            file_name: name,
+                            current: *c,
+                            total,
+                            message: format!("正在下载游戏资源 ({}/{})", *c, total),
+                        },
+                    );
+                }
             }
-        }
-    }).buffer_unordered(MAX_CONCURRENT_DOWNLOADS);
+        })
+        .buffer_unordered(MAX_CONCURRENT_DOWNLOADS);
 
     fetches.collect::<Vec<()>>().await;
     Ok(())

@@ -1,8 +1,9 @@
 pub mod animation;
-pub mod instance;
-pub mod minecraft;
-pub mod loader;
 pub mod event;
+pub mod instance;
+pub mod launcher;
+pub mod loader;
+pub mod minecraft;
 pub mod minecraft_json;
-pub mod runtime;
 pub mod resource;
+pub mod runtime;

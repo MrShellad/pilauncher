@@ -38,10 +38,18 @@ const tauriStorage: StateStorage = {
 
 interface SettingsStore {
   settings: AppSettings;
+  // 声明更新通用设置的方法
   updateGeneralSetting: <K extends keyof AppSettings['general']>(key: K, value: AppSettings['general'][K]) => void;
+  // 声明更新外观设置的方法
   updateAppearanceSetting: <K extends keyof AppSettings['appearance']>(key: K, value: AppSettings['appearance'][K]) => void;
+  // 声明更新游戏设置的方法
+  updateGameSetting: <K extends keyof AppSettings['game']>(key: K, value: AppSettings['game'][K]) => void;
+  // 声明更新 Java 设置的方法
+  updateJavaSetting: <K extends keyof AppSettings['java']>(key: K, value: AppSettings['java'][K]) => void;
+  // 声明更新下载设置的方法
+  updateDownloadSetting: <K extends keyof AppSettings['download']>(key: K, value: AppSettings['download'][K]) => void;
+  
   resetSettings: () => void;
-  // 添加一个 hydrated 状态，供应用判断配置是否从硬盘加载完毕
   _hasHydrated: boolean; 
   setHasHydrated: (state: boolean) => void;
 }
@@ -52,7 +60,7 @@ export const useSettingsStore = create<SettingsStore>()(
       settings: DEFAULT_SETTINGS,
       _hasHydrated: false,
       setHasHydrated: (state) => set({ _hasHydrated: state }),
-
+      // ✅ 1. 实现更新通用设置的方法
       updateGeneralSetting: (key, value) => 
         set((state) => ({
           settings: {
@@ -63,6 +71,7 @@ export const useSettingsStore = create<SettingsStore>()(
             }
           },
         })),
+        // ✅ 2. 实现更新外观设置的方法
       updateAppearanceSetting: (key, value) => 
         set((state) => ({
           settings: {
@@ -74,6 +83,40 @@ export const useSettingsStore = create<SettingsStore>()(
           }
         })),
 
+      // ✅ 3. 实现更新 Java 设置的方法
+      updateJavaSetting: (key, value) => 
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            java: {
+              // 防御性展开：如果 java 不存在，先展开默认值，再覆盖新修改的值
+              ...(state.settings.java || DEFAULT_SETTINGS.java),
+              [key]: value
+            }
+          }
+        })),
+        // ✅ 4. 实现更新 Game 设置的方法
+      updateGameSetting: (key, value) => 
+    set((state) => ({
+      settings: {
+        ...state.settings,
+        game: {
+          ...(state.settings.game || DEFAULT_SETTINGS.game),
+          [key]: value
+        }
+      }
+    })),
+    // ✅ 5. 实现更新下载设置的方法
+    updateDownloadSetting: (key, value) => 
+    set((state) => ({
+      settings: {
+        ...state.settings,
+        download: {
+          ...(state.settings.download || DEFAULT_SETTINGS.download),
+          [key]: value
+        }
+      }
+    })),
       resetSettings: () => set({ settings: DEFAULT_SETTINGS }),
     }),
     {

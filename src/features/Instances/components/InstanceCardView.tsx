@@ -1,11 +1,12 @@
 // /src/features/Instances/components/InstanceCardView.tsx
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Play, Pencil } from 'lucide-react';
+import { Play, Pencil, Loader2 } from 'lucide-react';
 import type { InstanceItem } from '../../../hooks/pages/Instances/useInstances';
 import { OreButton } from '../../../ui/primitives/OreButton';
-// 引入全局动画 Token
 import { OreMotionTokens } from '../../../style/tokens/motion'; 
+// ✅ 引入封装好的启动 Hook
+import { useGameLaunch } from '../../../hooks/useGameLaunch';
 
 interface InstanceCardViewProps {
   instance: InstanceItem;
@@ -14,14 +15,15 @@ interface InstanceCardViewProps {
 }
 
 export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, onClick, onEdit }) => {
+  // ✅ 一行代码接管所有启动逻辑和状态
+  const { isLaunching, launchGame } = useGameLaunch();
+
   return (
     <motion.div 
       onClick={onClick}
-      // 动画状态机：默认 rest，悬浮时触发 hover
       initial="rest"
       animate="rest"
       whileHover="hover"
-      // 去掉了 hover:border-ore-green 等描边效果，只保留基础的方块厚度
       className="relative flex flex-col w-full bg-[#4B4C50] border-2 border-b-[6px] border-[#1E1E1F] cursor-pointer overflow-hidden shadow-lg"
     >
       {/* ================= 上半部分：自适应封面图 ================= */}
@@ -30,7 +32,6 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
           <motion.img 
             src={instance.coverUrl} 
             alt={instance.name} 
-            // 接入 Token 控制封面缩放
             variants={OreMotionTokens.cardCoverScale}
             className="w-full h-full object-cover origin-center"
             draggable={false}
@@ -41,15 +42,25 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
           </div>
         )}
 
-        {/* 交互遮罩与大按钮：由 Framer Motion 变体接管 */}
         <motion.div 
           variants={OreMotionTokens.cardOverlayFade}
           className="absolute inset-0 bg-black/40 flex items-center justify-center z-20"
         >
           <motion.div variants={OreMotionTokens.cardButtonSlide}>
-            <OreButton variant="primary" size="md" className="pointer-events-none shadow-2xl">
-              <Play fill="currentColor" size={18} className="mr-2" />
-              选中游玩
+            {/* ✅ 直接将 e 传给 launchGame，它会自动处理阻止冒泡 */}
+            <OreButton 
+              variant="primary" 
+              size="md" 
+              className="shadow-2xl"
+              onClick={(e) => launchGame(instance.id, e)}
+              disabled={isLaunching}
+            >
+              {isLaunching ? (
+                <Loader2 className="animate-spin mr-2" size={18} />
+              ) : (
+                <Play fill="currentColor" size={18} className="mr-2" />
+              )}
+              {isLaunching ? '启动中...' : '启动游戏'}
             </OreButton>
           </motion.div>
         </motion.div>
@@ -66,7 +77,6 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
       <div className="flex w-full h-[68px] border-t-2 border-[#1E1E1F] relative">
         <div className="absolute top-0 left-0 w-full h-[1px] bg-white/10 pointer-events-none" />
         
-        {/* 左侧：实例名称与时间信息 */}
         <div className="flex-1 flex flex-col justify-center px-3 overflow-hidden">
           <span className="text-white font-minecraft text-lg truncate drop-shadow-md">
             {instance.name}
@@ -82,7 +92,6 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
           </div>
         </div>
 
-        {/* 右侧：编辑按钮 */}
         <button
           onClick={(e) => {
             e.stopPropagation();

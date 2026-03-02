@@ -28,7 +28,7 @@ tauri-plugin-shell = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-process = "2"
-
+md5 = "0.7.0"
 uuid = { version = "1", features = ["v4", "serde"] }
 zip = "0.6"
 sqlx = { version = "0.7", features = [

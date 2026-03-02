@@ -1,15 +1,17 @@
 // src-tauri/src/services/config_service.rs
+use crate::error::AppResult;
 use std::fs;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Manager, Runtime};
-use crate::error::AppResult; // 假设你有统一定义的 AppResult
+use tauri::{AppHandle, Manager, Runtime}; // 假设你有统一定义的 AppResult
 
 pub struct ConfigService;
 
 impl ConfigService {
     // 获取“路标”文件的存放路径 (通常在 AppData/Roaming/你的包名/meta.json)
     fn get_meta_path<R: Runtime>(app: &AppHandle<R>) -> AppResult<PathBuf> {
-        let path = app.path().app_config_dir()
+        let path = app
+            .path()
+            .app_config_dir()
             .expect("无法获取系统配置目录")
             .join("meta.json");
         Ok(path)
@@ -37,7 +39,9 @@ impl ConfigService {
         if target.exists() {
             let mut entries = fs::read_dir(target).map_err(|e| e.to_string())?;
             if entries.next().is_some() {
-                return Err("所选目录不为空！为了防止文件冲突，请选择一个全新或空白的文件夹。".to_string());
+                return Err(
+                    "所选目录不为空！为了防止文件冲突，请选择一个全新或空白的文件夹。".to_string(),
+                );
             }
         } else {
             fs::create_dir_all(target).map_err(|e| e.to_string())?;
@@ -53,7 +57,8 @@ impl ConfigService {
         ];
 
         for dir in dirs_to_create {
-            fs::create_dir_all(&dir).map_err(|e| format!("创建目录失败 {}: {}", dir.display(), e))?;
+            fs::create_dir_all(&dir)
+                .map_err(|e| format!("创建目录失败 {}: {}", dir.display(), e))?;
         }
 
         // 3. 将用户选择的路径保存到 meta.json

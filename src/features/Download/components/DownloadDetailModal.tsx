@@ -20,11 +20,12 @@ interface DownloadDetailModalProps {
   onDownload: (version: OreProjectVersion, targetInstanceId: string) => void;
   installedVersionIds: string[]; 
   searchMcVersion?: string; 
-  searchLoader?: string;    
+  searchLoader?: string;
+  activeTab: 'mod' | 'resourcepack' | 'shader';    
 }
 
 export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({ 
-  project, instanceConfig, onClose, onDownload, installedVersionIds, searchMcVersion, searchLoader 
+  project, instanceConfig, onClose, onDownload, installedVersionIds, searchMcVersion, searchLoader, activeTab 
 }) => {
   const [showGallery, setShowGallery] = useState(false);
   const [visibleCount, setVisibleCount] = useState(15);
@@ -105,6 +106,7 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
           if (pendingVersion) onDownload(pendingVersion, instanceId);
           setPendingVersion(null);
         }}
+        ignoreLoader={activeTab !== 'mod'}
       />
     </>
   );

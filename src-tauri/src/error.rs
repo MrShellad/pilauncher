@@ -10,7 +10,7 @@ pub enum AppError {
     Network(reqwest::Error),
     PathResolution,
     InstanceNotFound(PathBuf),
-    Generic(String),          // 通用字符串错误 (修复 E0599)
+    Generic(String), // 通用字符串错误 (修复 E0599)
 }
 
 // 转换 std::io::Error

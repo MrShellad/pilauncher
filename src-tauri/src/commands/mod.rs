@@ -1,14 +1,16 @@
 // src-tauri/src/commands/mod.rs
 
 pub mod animation_cmd;
-pub mod instance;
-pub mod minecraft_cmd;
-pub mod loader_cmd;
+pub mod auth_cmd;
 pub mod config_cmd;
+pub mod instance;
+pub mod launcher_cmd;
+pub mod loader_cmd;
+pub mod minecraft_cmd;
+pub mod resource_cmd;
+pub mod runtime_cmd;
 pub mod settings_cmd;
 pub mod system_cmd;
-pub mod runtime_cmd;
-pub mod resource_cmd;
 
 use tauri::{Builder, Runtime};
 
@@ -55,5 +57,9 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         resource_cmd::get_ore_project_detail,
         resource_cmd::get_ore_project_versions,
         resource_cmd::download_resource,
+        launcher_cmd::launch_game,
+        system_cmd::get_primary_monitor_resolution,
+        auth_cmd::request_microsoft_device_code,
+        auth_cmd::poll_and_exchange_microsoft_token,
     ])
 }
