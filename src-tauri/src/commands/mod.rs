@@ -8,7 +8,7 @@ pub mod config_cmd;
 pub mod settings_cmd;
 pub mod system_cmd;
 pub mod runtime_cmd;
-
+pub mod resource_cmd;
 
 use tauri::{Builder, Runtime};
 
@@ -51,6 +51,9 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         instance::save_cmd::verify_save_restore,
         instance::save_cmd::get_save_backups,
         instance::resource_cmd::open_resource_folder,
-
+        instance::listing_cmd::get_compatible_instances, // 新增的兼容性实例筛选命令
+        resource_cmd::get_ore_project_detail,
+        resource_cmd::get_ore_project_versions,
+        resource_cmd::download_resource,
     ])
 }

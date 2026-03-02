@@ -3,7 +3,6 @@ import React, { useEffect, useRef } from 'react';
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { Loader2, Blocks, Download, Clock, CheckCircle2, Heart, Monitor, Tags } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
 import type { ModrinthProject } from '../../InstanceDetail/logic/modrinthApi';
 import type { ModMeta } from '../../InstanceDetail/logic/modService';
 
@@ -25,23 +24,21 @@ const formatNumber = (num?: number) => {
   return num.toString();
 };
 
-const timeAgo = (dateStr: string | undefined, t: any) => {
-  if (!dateStr) return t('download.time.unknown', '未知时间');
+const timeAgo = (dateStr: string | undefined) => {
+  if (!dateStr) return '未知时间';
   const diff = Date.now() - new Date(dateStr).getTime();
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   
-  if (days === 0) return t('download.time.today', '今天');
-  if (days < 30) return t('download.time.daysAgo', '{{count}} 天前', { count: days });
+  if (days === 0) return '今天';
+  if (days < 30) return `${days} 天前`;
   const months = Math.floor(days / 30);
-  if (months < 12) return t('download.time.monthsAgo', '{{count}} 个月前', { count: months });
-  return t('download.time.yearsAgo', '{{count}} 年前', { count: Math.floor(months / 12) });
+  if (months < 12) return `${months} 个月前`;
+  return `${Math.floor(months / 12)} 年前`;
 };
 
 export const ResourceGrid: React.FC<ResourceGridProps> = ({ results, installedMods, isLoading, hasMore, onLoadMore, onSelectProject }) => {
-  const { t } = useTranslation(); 
   const observerTarget = useRef<HTMLDivElement>(null);
 
-  // 鼠标滚轮依然依靠 IntersectionObserver 触发懒加载
   useEffect(() => {
     const observer = new IntersectionObserver(
       entries => { if (entries[0].isIntersecting) onLoadMore(); },
@@ -67,19 +64,19 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({ results, installedMo
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 pb-6">
           {results.map((project, i) => {
             const isInstalled = checkIsInstalled(project);
-            const displayCategories: string[] = (project as any).display_categories || [];
-            const follows: number = (project as any).follows || 0;
-            const loaders = displayCategories.filter(c => KNOWN_LOADERS.includes(c.toLowerCase()));
-            const features = displayCategories.filter(c => !KNOWN_LOADERS.includes(c.toLowerCase())).slice(0, 2);
+            
+            // ✅ 防御性读取：兼容 Modrinth 原生数据和后端未来可能吐出的清洗数据
+            const categories: string[] = project.categories || project.display_categories || [];
+            const follows: number = (project as any).followers || project.follows || 0;
+            const loaders = categories.filter(c => KNOWN_LOADERS.includes(c.toLowerCase()));
+            const features = categories.filter(c => !KNOWN_LOADERS.includes(c.toLowerCase())).slice(0, 2);
 
-            // ✅ 核心判断：如果当前卡片处于列表最后 4 个之内（涵盖各种列数排列情况的最后一行）
             const isNearBottom = i >= results.length - 4;
 
             return (
               <FocusItem 
                 key={`${project.id}-${i}`} 
                 onEnter={() => onSelectProject(project)}
-                // ✅ 手柄焦点抵达触发器：光环滑到这里时，如果还有更多数据，无感触发下一页加载！
                 onFocus={() => {
                   if (isNearBottom && hasMore) onLoadMore();
                 }}
@@ -113,37 +110,35 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({ results, installedMo
                        </div>
 
                        <div className="flex flex-wrap gap-1.5 mt-2">
-                         {project.client_side !== 'unsupported' && (
+                         {project.client_side !== 'unsupported' && project.client_side && (
                            <span className="flex items-center bg-white/10 border border-white/5 px-2 py-0.5 rounded-full text-[10px] text-gray-300">
-                             <Monitor size={10} className="mr-1" /> 
-                             {t('download.tags.clientSide', '客户端')}
+                             <Monitor size={10} className="mr-1" /> 客户端
                            </span>
                          )}
                          
                          {features.map(f => (
                            <span key={f} className="flex items-center bg-white/5 border border-white/5 px-2 py-0.5 rounded-full text-[10px] text-gray-300">
-                             <Tags size={10} className="mr-1 opacity-70" /> 
-                             {t(`download.tags.${f.toLowerCase()}`, capitalize(f))}
+                             <Tags size={10} className="mr-1 opacity-70" /> {capitalize(f)}
                            </span>
                          ))}
                          
                          {loaders.map(l => (
                            <span key={l} className="flex items-center bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded-full text-[10px] text-orange-200/80">
-                             {t(`download.tags.loader.${l.toLowerCase()}`, capitalize(l))}
+                             {capitalize(l)}
                            </span>
                          ))}
                        </div>
 
                        <div className="flex justify-between items-end mt-3 text-gray-400 text-xs font-minecraft">
                          <div className="flex space-x-4">
-                           <span className="flex items-center" title={t('download.stats.downloads', '总下载量')}><Download size={14} className="mr-1"/> {formatNumber(project.downloads)}</span>
-                           <span className="flex items-center" title={t('download.stats.followers', '关注人数')}><Heart size={14} className="mr-1"/> {formatNumber(follows)}</span>
-                           <span className="flex items-center" title={t('download.stats.updatedAt', '最后更新时间')}><Clock size={14} className="mr-1"/> {timeAgo(project.date_modified, t)}</span>
+                           <span className="flex items-center"><Download size={14} className="mr-1"/> {formatNumber(project.downloads)}</span>
+                           <span className="flex items-center text-red-400/80"><Heart size={14} className="mr-1"/> {formatNumber(follows)}</span>
+                           <span className="flex items-center"><Clock size={14} className="mr-1"/> {timeAgo(project.date_modified)}</span>
                          </div>
                          
                          {isInstalled && (
                            <span className="text-ore-green bg-ore-green/10 border border-ore-green/20 px-1.5 py-0.5 rounded-sm flex items-center shadow-inner text-[10px]">
-                             {t('download.status.installed', '已安装')}
+                             已安装
                            </span>
                          )}
                        </div>

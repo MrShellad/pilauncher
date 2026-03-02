@@ -5,3 +5,4 @@ pub mod loader_service;
 pub mod downloader;
 pub mod config_service;
 pub mod runtime_service;
+pub mod resource_service;

@@ -6,6 +6,15 @@ use crate::error::AppResult;
 
 #[tauri::command]
 pub async fn get_all_instances<R: Runtime>(app: AppHandle<R>) -> AppResult<Vec<InstanceItem>> {
-    // 获取列表通常涉及文件遍历，使用 async 运行是正确的
     InstanceListingService::get_all(&app)
+}
+
+// ✅ 新增的兼容性实例筛选命令
+#[tauri::command]
+pub async fn get_compatible_instances<R: Runtime>(
+    app: AppHandle<R>,
+    game_versions: Vec<String>,
+    loaders: Vec<String>
+) -> AppResult<Vec<InstanceItem>> {
+    InstanceListingService::get_compatible(&app, game_versions, loaders)
 }

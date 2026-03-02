@@ -2,15 +2,16 @@
 import { create } from 'zustand';
 
 export interface DownloadTask {
-  id: string;             // instance_id (如 folder_name)
-  instanceName: string;   // 实例名称
+  id: string;             // 任务唯一ID
+  taskType: 'instance' | 'resource'; // ✅ 新增：区分任务类型
+  title: string;          // ✅ 统一字段：实例名称 或 资源文件名
   status: 'downloading' | 'paused' | 'completed' | 'error';
-  stage: string;          // 当前阶段 (VANILLA_CORE 等)
-  stepText: string;       // 转换后的展示文本 (如 第1步: 正在下载核心)
+  stage: string;          // 当前阶段 (VANILLA_CORE, DOWNLOADING_MOD 等)
+  stepText: string;       // 转换后的展示文本
   progress: number;       // 0-100 百分比
   current: number;
   total: number;
-  speed: string;          // 下载速度 (如 2.5 MB/s)
+  speed: string;          // 下载速度
   logs: string[];         // 日志数组
   lastUpdate: number;     // 用于计算速度的时间戳
   lastCurrent: number;    // 用于计算速度的字节记录
@@ -38,20 +39,23 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
 
     // 简易速度计算 (两次事件的差值)
     if (existingTask && update.current !== undefined && update.current > existingTask.lastCurrent) {
-      const timeDiff = (now - existingTask.lastUpdate) / 1000; // 秒
-      if (timeDiff > 0.5) { // 每 0.5 秒计算一次速度防止闪烁
+      const timeDiff = (now - existingTask.lastUpdate) / 1000; 
+      if (timeDiff > 0.5) { 
         const bytesDiff = update.current - existingTask.lastCurrent;
         const speedMBps = (bytesDiff / (1024 * 1024)) / timeDiff;
         speedStr = speedMBps > 1 ? `${speedMBps.toFixed(2)} MB/s` : `${(bytesDiff / 1024 / timeDiff).toFixed(2)} KB/s`;
       }
     }
 
-    // 阶段映射
+    // ✅ 兼容了资源下载的文案映射
     const stageMap: Record<string, string> = {
       'VANILLA_CORE': '第1步: 下载游戏核心',
       'LIBRARIES': '第2步: 下载依赖库',
       'ASSETS': '第3步: 下载游戏资源',
-      'DONE': '部署完成'
+      'DOWNLOADING_MOD': '正在下载模组文件',
+      'DOWNLOADING_RESOURCEPACK': '正在下载资源包',
+      'DOWNLOADING_SHADER': '正在下载光影文件',
+      'DONE': (update.taskType || existingTask?.taskType) === 'resource' ? '下载已完成' : '部署已完成'
     };
     const stepText = update.stage ? stageMap[update.stage] || '处理中' : existingTask?.stepText || '';
 
@@ -63,7 +67,8 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
 
     const newTask: DownloadTask = {
       id: update.id,
-      instanceName: update.instanceName || existingTask?.instanceName || update.id,
+      taskType: update.taskType || existingTask?.taskType || 'instance',
+      title: update.title || existingTask?.title || update.id, // 使用传入的 title
       status: update.stage === 'DONE' ? 'completed' : 'downloading',
       stage: update.stage || existingTask?.stage || '',
       stepText,
@@ -71,12 +76,11 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
       current: update.current ?? existingTask?.current ?? 0,
       total: update.total ?? existingTask?.total ?? 0,
       speed: update.stage === 'DONE' ? '0 KB/s' : speedStr,
-      logs: newLogs.slice(-50), // 仅保留最近 50 条日志防内存泄漏
+      logs: newLogs.slice(-50), 
       lastUpdate: existingTask && speedStr === existingTask.speed ? existingTask.lastUpdate : now,
       lastCurrent: update.current ?? existingTask?.lastCurrent ?? 0,
     };
 
-    // 如果是新任务，自动弹出面板
     const isPopupOpen = !existingTask ? true : state.isPopupOpen;
 
     return { 
@@ -85,7 +89,6 @@ export const useDownloadStore = create<DownloadStore>((set, get) => ({
     };
   }),
 
-  // UI 上的暂停与取消逻辑 (实际截断需要后端对接)
   pauseTask: (id) => set(state => ({ tasks: { ...state.tasks, [id]: { ...state.tasks[id], status: 'paused', speed: '已暂停' } } })),
   cancelTask: (id) => set(state => {
     const newTasks = { ...state.tasks };

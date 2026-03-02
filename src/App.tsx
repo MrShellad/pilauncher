@@ -12,7 +12,7 @@ import { FocusProvider } from './ui/focus/FocusProvider';
 // 引入布局与组件
 import { OreBackground } from './ui/layout/OreBackground';
 import { TitleBar } from './ui/layout/TitleBar';
-import { DownloadManager } from './features/Download/components/DownloadManager';
+import { DownloadManager } from './features/Download/components/DownloadManager/index';
 import { SetupWizard } from './features/Setup/components/SetupWizard';
 import { JavaGuard } from './features/runtime/components/JavaGuard';
 // 引入样式与动画 Token

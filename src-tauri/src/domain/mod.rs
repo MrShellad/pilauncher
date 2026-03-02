@@ -5,3 +5,4 @@ pub mod loader;
 pub mod event;
 pub mod minecraft_json;
 pub mod runtime;
+pub mod resource;
