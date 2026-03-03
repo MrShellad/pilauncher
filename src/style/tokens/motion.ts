@@ -123,4 +123,25 @@ export const OreMotionTokens = {
     }
   },
   
+  // [新增] 基岩版大方块卡片悬浮动画
+  bedrockCardHover: {
+    rest: { scale: 1, y: 0, transition: { duration: 0.2, ease: "easeOut" } },
+    hover: { 
+      scale: 1.05, 
+      y: -8, 
+      transition: { type: "spring", stiffness: 400, damping: 20 } 
+    }
+  },
+  
+  // [新增] 基岩版卡片内部图标的弹跳动画
+  bedrockIconHover: {
+    rest: { scale: 1, rotate: 0, y: 0 },
+    hover: { 
+      scale: 1.15, 
+      rotate: [0, -5, 5, 0], // 微微摇晃
+      y: -5,
+      transition: { duration: 0.4, ease: "easeInOut" } 
+    }
+  }
+
 };

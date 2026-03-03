@@ -21,14 +21,20 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
   onSelectInstance,
 }) => {
   
-  // 统一定义内部元素的尺寸与居中方式
-  // 注意：去掉了 px- padding 覆盖，绝不干涉 OreButton 组件自带的 padding
-  // 利用 flex 和 gap-3 保证图标和文字完美居中
+  // ==========================================
+  // 次要按钮尺寸 (保留原有的精致感)
+  // ==========================================
   const innerButtonClass = "h-[clamp(48px,6vh,64px)] text-[clamp(16px,1.8vh,20px)] flex items-center justify-center gap-3 w-full transition-colors duration-200";
   const iconClass = "flex-shrink-0 w-[clamp(20px,2.5vh,28px)] h-[clamp(20px,2.5vh,28px)]";
 
+  // ==========================================
+  // 巨型主按钮尺寸 (Hero Button 专属)
+  // ==========================================
+  const heroButtonClass = "h-[clamp(56px,7.5vh,76px)] text-[clamp(18px,2.2vh,24px)] flex items-center justify-center gap-3 w-full transition-colors duration-200";
+  const heroIconClass = "flex-shrink-0 w-[clamp(24px,3vh,32px)] h-[clamp(24px,3vh,32px)]";
+
   useEffect(() => {
-    // 自动将默认焦点吸附到 Play 按钮，解决键盘首次无法操作的问题
+    // 自动将默认焦点吸附到 Play 按钮
     const timer = setTimeout(() => {
       focusManager.focus('play-button');
     }, 100);
@@ -36,43 +42,51 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
   }, []);
 
   return (
-    // 稍微增大了 space-y 间距，留出足以容纳焦点外框的空间，防止互相遮挡
     <div className="flex flex-col items-center justify-center space-y-[clamp(20px,3vh,32px)] w-[clamp(280px,25vw,420px)]">
       
-      {/* 1. Play 主按钮 */}
+      {/* 1. Play 主按钮 (升级为 Hero 视觉) */}
       <FocusItem focusKey="play-button" onEnter={onLaunch}>
         {({ ref, focused }) => (
-          // ✅ 核心修复 1：废弃 scale 放大，使用 outline 机制。
-          // outline 是绘制在盒子模型外部的，无论怎么变化都绝对不会引起任何 "布局浮动" 和 padding 挤压。
-          // 未聚焦时使用 outline-transparent 提前占位，确保尺寸永远一致。
-          <div 
-            ref={ref} 
-            className={`
-              w-full rounded-sm transition-shadow duration-150
-              ${focused 
-                ? 'outline outline-[3px] outline-offset-[4px] outline-ore-green shadow-[0_0_20px_rgba(56,133,39,0.5)] z-10' 
-                : 'outline outline-[3px] outline-offset-[4px] outline-transparent'
-              }
-            `}
-          >
-            {/* ✅ 核心修复 2：恢复了 size="full"，强制 OreButton 内部按钮撑满外层 div，彻底解决光环宽、按钮窄的问题 */}
-            <OreButton 
-              variant="primary" 
-              size="full"
-              className={innerButtonClass}
-              onClick={onLaunch}
-              tabIndex={-1} 
+          // 套一层 relative group 用来承载底层光晕
+          <div className="relative w-full group">
+            
+            {/* 核心视觉提升：底层环境光晕 (Ambient Glow) */}
+            <div 
+              className={`
+                absolute inset-0 bg-ore-green/40 blur-xl rounded-sm pointer-events-none transition-all duration-500
+                ${focused ? 'bg-ore-green/70 blur-2xl scale-105' : 'group-hover:bg-ore-green/60 group-hover:blur-2xl'}
+              `} 
+            />
+
+            {/* 按钮本体：保留你完美的 outline 无抖动方案 */}
+            <div 
+              ref={ref} 
+              className={`
+                relative w-full rounded-sm transition-shadow duration-150 z-10
+                ${focused 
+                  ? 'outline outline-[3px] outline-offset-[4px] outline-ore-green shadow-[0_0_20px_rgba(56,133,39,0.6)]' 
+                  : 'outline outline-[3px] outline-offset-[4px] outline-transparent'
+                }
+              `}
             >
-              <Play fill="currentColor" className={iconClass} />
-              <span className="font-minecraft font-bold tracking-widest uppercase leading-none">
-                Play
-              </span>
-            </OreButton>
+              <OreButton 
+                variant="primary" 
+                size="full"
+                className={heroButtonClass}
+                onClick={onLaunch}
+                tabIndex={-1} 
+              >
+                <Play fill="currentColor" className={heroIconClass} />
+                <span className="font-minecraft font-bold tracking-[0.1em] uppercase leading-none">
+                  Play
+                </span>
+              </OreButton>
+            </div>
           </div>
         )}
       </FocusItem>
 
-      {/* 2. 实例选择按钮 */}
+      {/* 2. 实例选择按钮 (保持原样) */}
       <FocusItem focusKey="instance-button" onEnter={onSelectInstance}>
         {({ ref, focused }) => (
           <div 
@@ -101,7 +115,7 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
         )}
       </FocusItem>
 
-      {/* 3. 设置按钮 */}
+      {/* 3. 设置按钮 (保持原样) */}
       <FocusItem focusKey="settings-button" onEnter={onSettings}>
         {({ ref, focused }) => (
           <div 

@@ -7,3 +7,4 @@ pub mod minecraft;
 pub mod minecraft_json;
 pub mod resource;
 pub mod runtime;
+pub mod modpack;

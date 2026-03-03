@@ -1,0 +1,77 @@
+{
+  "version": 2,
+  "updatedAt": "2026-03-03T12:00:00Z",
+  "regions": {
+    "cn": {
+      "enabled": true
+    },
+    "global": {
+      "enabled": true
+    }
+  },
+  "items": [
+    {
+      "id": "aliyun",
+      "icon": "https://example.com/aliyun-icon.png",
+      "name": "阿里云计算",
+      "desc": "高主频游戏型 ECS 实例",
+      "tags": ["BGP高防", "低延迟"],
+      "price": "新人 ¥99/年",
+      "link": "https://xxx.com",
+      "regions": ["cn"],
+      "priority": 1,
+      "borderColor": "#FF5722",
+      "backgroundColor": "#FFF3E0",
+      "textColor": "#212121",
+      "enabled": true
+    },
+
+    {
+      "id": "aws",
+      "icon": "https://example.com/aws-icon.png",
+      "name": "Amazon Web Services",
+      "desc": "全球领先的云计算平台",
+      "tags": ["全球覆盖", "高可靠性"],
+      "price": "免费试用",
+      "link": "https://aws.amazon.com",
+      "regions": ["global"],
+      "priority": 2,
+      "borderColor": "#FF5722",
+      "backgroundColor": "#FFF3E0",
+      "textColor": "#212121",
+      "enabled": true
+    },
+
+    {
+      "id": "azure",
+      "icon": "https://example.com/azure-icon.png",
+      "name": "Microsoft Azure",
+      "desc": "微软的云计算服务平台",
+      "tags": ["企业级", "混合云"],
+      "price": "免费试用",
+      "link": "https://azure.microsoft.com",
+      "regions": ["global"],
+      "priority": 3,
+      "borderColor": "#FF5722",
+      "backgroundColor": "#FFF3E0",
+      "textColor": "#212121",
+      "enabled": true
+    },
+
+    {
+      "id": "tencent",
+      "icon": "https://example.com/tencent-icon.png",
+      "name": "腾讯云",
+      "desc": "腾讯的云计算服务平台",
+      "tags": ["高性能", "安全可靠"],
+      "price": "新人 ¥99/年",
+      "link": "https://cloud.tencent.com",
+      "regions": ["cn"],
+      "priority": 4,
+      "borderColor": "#FF5722",
+      "backgroundColor": "#FFF3E0",
+      "textColor": "#212121",
+      "enabled": true
+    }
+  ]
+}

@@ -49,6 +49,7 @@ export const useDownloadStore = create<DownloadStore>((set, _get) => ({
 
     // ✅ 兼容了资源下载的文案映射
     const stageMap: Record<string, string> = {
+      'EXTRACTING': '正在解压整合包资源',
       'VANILLA_CORE': '第1步: 下载游戏核心',
       'LIBRARIES': '第2步: 下载依赖库',
       'ASSETS': '第3步: 下载游戏资源',

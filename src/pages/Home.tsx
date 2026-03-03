@@ -1,48 +1,46 @@
 // /src/pages/Home.tsx
 import React, { useState } from 'react';
 import { useHome } from '../hooks/pages/Home/useHome';
-
-// ✅ 引入 useInstances 获取真实数据
 import { useInstances } from '../hooks/pages/Instances/useInstances';
+import { useLauncherStore } from '../store/useLauncherStore'; // ✅ 引入全局 Store
 
 import { PlayStats } from '../features/home/components/PlayStats';
 import { SkinViewerPlaceholder } from '../features/home/components/SkinViewerPlaceholder';
 import { HeroLogo } from '../features/home/components/HeroLogo';
 import { LaunchControls } from '../features/home/components/LaunchControls';
-
-// ✅ 只需引入 Modal，不需要再引入 MOCK_INSTANCES 了
 import { InstanceSelectModal } from '../features/home/components/InstanceSelectModal';
 
 const Home: React.FC = () => {
-  const {
-    instanceName, // 这个作为后备默认名称
-    playTime,
-    lastPlayed,
-    handleLaunch,
-    handleOpenSettings,
-  } = useHome();
-
-  // 获取真实实例数据
+  const { playTime, lastPlayed, handleLaunch } = useHome();
   const { instances } = useInstances();
+  
+  // ✅ 接入全局 Store：获取当前选中的实例 ID 和路由切换方法
+  const selectedInstanceId = useLauncherStore(state => state.selectedInstanceId);
+  const setSelectedInstanceId = useLauncherStore(state => state.setSelectedInstanceId);
+  const setActiveTab = useLauncherStore(state => state.setActiveTab);
 
-  // 弹窗与选中状态
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState(''); 
 
-  // 处理实例卡片点击
+  // 1. 确定当前应该显示的实例（如果有全局选中的就用全局，没有就默认列表第一个）
+  const currentId = selectedInstanceId || (instances.length > 0 ? instances[0].id : '');
+  const currentInstanceName = instances.find(i => i.id === currentId)?.name || "选择实例";
+
+  // 2. 弹窗中点击实例的逻辑
   const handleCardClick = (id: string) => {
-    setSelectedId(id);
+    setSelectedInstanceId(id);
     setIsModalOpen(false); 
-    // TODO: 调用 useHome 或全局 Store 的方法，把选中的 ID 存入全局配置
   };
 
-  // ✅ 动态获取当前选中的真实实例名称
-  // 如果找到了选中实例就用它的名字，否则回退到 useHome 提供的默认名字
-  const currentInstanceName = instances.find(i => i.id === selectedId)?.name || instanceName;
+  // 3. 点击“设置”按钮，携带当前实例 ID，直接跨页跳转到详情页！
+  const handleSettingsClick = () => {
+    if (currentId) {
+      setSelectedInstanceId(currentId);
+      setActiveTab('instance-detail'); 
+    }
+  };
 
   return (
     <div className="w-full h-full relative">
-      
       <PlayStats playTime={playTime} lastPlayed={lastPlayed} />
       <SkinViewerPlaceholder />
 
@@ -54,19 +52,17 @@ const Home: React.FC = () => {
         <LaunchControls 
           instanceName={currentInstanceName}
           onLaunch={handleLaunch}
-          onSettings={handleOpenSettings}
+          onSettings={handleSettingsClick} // ✅ 绑定跨页跳转
           onSelectInstance={() => setIsModalOpen(true)} 
         />
       </div>
 
-      {/* 独立的实例选择弹窗组件 */}
       <InstanceSelectModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        selectedId={selectedId}
+        selectedId={currentId}
         onSelect={handleCardClick}
       />
-
     </div>
   );
 };
