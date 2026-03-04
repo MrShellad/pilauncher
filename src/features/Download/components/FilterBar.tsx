@@ -29,9 +29,10 @@ interface FilterBarProps {
 }
 
 export const FilterBar: React.FC<FilterBarProps> = (props) => {
+  // ✅ 核心修复：在 label 内层包裹里加上 justify-center w-full，强制图标和文字组合水平居中
   const sourceOptions = [
-    { label: <div className="flex items-center"><ModrinthIcon className={`mr-1.5 text-lg ${props.source === 'modrinth' ? 'text-white' : 'text-ore-green'}`} /> Modrinth</div>, value: 'modrinth' },
-    { label: <div className="flex items-center"><CurseforgeIcon className={`mr-1.5 text-lg ${props.source === 'curseforge' ? 'text-white' : 'text-[#F16436]'}`} /> CurseForge</div>, value: 'curseforge' }
+    { label: <div className="flex items-center justify-center w-full font-minecraft tracking-wider"><ModrinthIcon className={`mr-1.5 text-[18px] ${props.source === 'modrinth' ? 'text-white' : 'text-ore-green'}`} /> Modrinth</div>, value: 'modrinth' },
+    { label: <div className="flex items-center justify-center w-full font-minecraft tracking-wider"><CurseforgeIcon className={`mr-1.5 text-[18px] ${props.source === 'curseforge' ? 'text-white' : 'text-[#F16436]'}`} /> CurseForge</div>, value: 'curseforge' }
   ];
 
   const mcVersionOptions = [{ label: '所有版本', value: '' }, ...MC_VERSIONS.map(v => ({ label: v, value: v }))];
@@ -60,13 +61,13 @@ export const FilterBar: React.FC<FilterBarProps> = (props) => {
           <FocusItem onEnter={() => props.setSource(props.source === 'modrinth' ? 'curseforge' : 'modrinth')}>
             {({ ref, focused }) => (
               <div ref={ref as any} className={`w-full h-10 transition-all ${focused ? 'ring-2 ring-white scale-[1.02] z-10 brightness-110' : ''}`}>
-                <OreToggleButton options={sourceOptions} value={props.source} onChange={props.setSource} className="!m-0 h-full [&>.ore-toggle-btn-group]:!h-full" />
+                {/* ✅ 移除外部那些复杂的 hack 类，直接让组件填充 h-full 即可 */}
+                <OreToggleButton options={sourceOptions} value={props.source} onChange={props.setSource} className="!m-0 h-full" />
               </div>
             )}
           </FocusItem>
         </div>
 
-        {/* ✅ 去除了外部 FocusItem 包裹，代码极其清爽 */}
         <div className="col-span-1"><OreDropdown options={mcVersionOptions} value={props.mcVersion} onChange={props.setMcVersion} className="w-full" /></div>
         <div className="col-span-1"><OreDropdown options={loaderOptions} value={props.loaderType} onChange={props.setLoaderType} className="w-full" /></div>
         <div className="col-span-1"><OreDropdown options={categoryOptions} value={props.category} onChange={props.setCategory} className="w-full" /></div>
@@ -74,7 +75,6 @@ export const FilterBar: React.FC<FilterBarProps> = (props) => {
 
         {/* ================= 第二行 ================= */}
         <div className="col-span-2 flex items-center">
-          {/* ✅ 直接使用 OreInput，利用刚写好的 prefixNode 塞入搜索图标 */}
           <OreInput
             focusKey="download-search-input"
             width="100%"
@@ -83,12 +83,11 @@ export const FilterBar: React.FC<FilterBarProps> = (props) => {
             onChange={(e) => props.setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && props.onSearch()}
             placeholder="搜索模组名称..."
-            prefixNode={<Search size={16} />} // 完美嵌入图标
+            prefixNode={<Search size={16} />} 
             containerClassName="!space-y-0 h-10 w-full"
           />
         </div>
 
-        {/* ✅ OreButton 也是自带焦点的，直接放 */}
         <div className="col-span-3 grid grid-cols-3 gap-5 items-start">
           <div className="col-span-2 w-full h-10">
             <OreButton variant="primary" size="auto" onClick={props.onSearch} className="w-full !h-10 font-bold tracking-wider text-black">

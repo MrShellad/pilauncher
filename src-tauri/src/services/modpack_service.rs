@@ -8,9 +8,15 @@ use std::path::{Path, PathBuf};
 use zip::ZipArchive;
 use tauri::{AppHandle, Emitter, Runtime};
 use chrono::Local;
+use crate::services::config_service::ConfigService;
+// ✅ 并发下载所需的依赖
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use futures::stream::{iter, StreamExt};
+use reqwest::Client;
 
+/// 1. 解析整合包元数据 (支持 CurseForge 和 Modrinth)
 pub fn parse_modpack(path: &str) -> Result<ModpackMetadata, String> {
-    // 1. 打开 ZIP 文件
     let file = File::open(path).map_err(|e| format!("无法打开文件: {}", e))?;
     let mut archive = ZipArchive::new(file).map_err(|e| format!("无法读取压缩包: {}", e))?;
 
@@ -85,6 +91,7 @@ pub fn parse_modpack(path: &str) -> Result<ModpackMetadata, String> {
     Err("未识别的整合包格式：压缩包内未找到 manifest.json 或 modrinth.index.json".to_string())
 }
 
+/// 2. 整合包导入业务总管
 pub async fn execute_import<R: Runtime>(
     app: &AppHandle<R>,
     zip_path: &str,
@@ -133,14 +140,14 @@ pub async fn execute_import<R: Runtime>(
         serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?,
     ).map_err(|e| e.to_string())?;
 
-    // 6. 发送事件：开始解压本地资源
+    // 6. 提取本地资源 (overrides)
     let _ = app.emit(
         "instance-deployment-progress",
         DownloadProgressEvent {
             instance_id: instance_id.clone(),
             stage: "EXTRACTING".to_string(),
             file_name: "overrides".to_string(),
-            current: 50, // 假进度防空跑
+            current: 50,
             total: 100,
             message: "正在解压整合包内的存档、配置与资源...".to_string(),
         },
@@ -148,9 +155,8 @@ pub async fn execute_import<R: Runtime>(
 
     extract_overrides(zip_path, &instance_root, &metadata.source).map_err(|e| e.to_string())?;
 
-    // 7. 发送事件：交接给核心下载器进行环境补全
+    // 7. 补全原版核心
     let global_mc_root = base_dir.join("runtime");
-
     let _ = app.emit(
         "instance-deployment-progress",
         DownloadProgressEvent {
@@ -163,18 +169,53 @@ pub async fn execute_import<R: Runtime>(
         },
     );
 
-    // 调用你现成的 core_installer
     crate::services::downloader::core_installer::install_vanilla_core(
         app, &instance_id, &metadata.version, &global_mc_root,
     ).await.map_err(|e| e.to_string())?;
 
-    // 调用你现成的 dependencies
     crate::services::downloader::dependencies::download_dependencies(
         app, &instance_id, &metadata.version, &global_mc_root,
     ).await.map_err(|e| e.to_string())?;
 
-    // TODO: (未来在此处解析并下载缺失的 Mod .jar 实体)
+    // 8. 安装 Loader (Fabric/Forge)
+    let _ = app.emit(
+        "instance-deployment-progress",
+        DownloadProgressEvent {
+            instance_id: instance_id.clone(),
+            stage: "VANILLA_CORE".to_string(),
+            file_name: "".to_string(),
+            current: 90,
+            total: 100,
+            message: format!("正在配置 {} {} 模组加载器...", metadata.loader, metadata.loader_version),
+        },
+    );
 
+    // 调用 Loader 安装器
+    crate::services::downloader::loader_installer::install_loader(
+        app, 
+        &instance_id, 
+        &metadata.version, 
+        &metadata.loader, 
+        &metadata.loader_version, 
+        &global_mc_root
+    ).await.map_err(|e| e.to_string())?;
+
+    // 9. 拉取整合包 Mod
+    let _ = app.emit(
+        "instance-deployment-progress",
+        DownloadProgressEvent {
+            instance_id: instance_id.clone(),
+            stage: "DOWNLOADING_MOD".to_string(),
+            file_name: "".to_string(),
+            current: 0,
+            total: 100,
+            message: "准备拉取整合包 Mod...".to_string(),
+        },
+    );
+
+    fetch_modpack_mods(app, zip_path, &instance_root, &metadata.source, &instance_id).await?;
+
+    // 10. 全部完成
     let _ = app.emit(
         "instance-deployment-progress",
         DownloadProgressEvent {
@@ -190,12 +231,11 @@ pub async fn execute_import<R: Runtime>(
     Ok(())
 }
 
-// ✅ 辅助工具：提取并拷贝 ZIP 中的 overrides 资源
-fn extract_overrides(zip_path: &str, target_dir: &Path, source: &str) -> Result<(), String> {
+/// 3. 提取覆盖文件 (overrides)
+fn extract_overrides(zip_path: &str, target_dir: &Path, _source: &str) -> Result<(), String> {
     let file = File::open(zip_path).map_err(|e| e.to_string())?;
     let mut archive = ZipArchive::new(file).map_err(|e| e.to_string())?;
 
-    // 大多平台的变动文件都会被塞进 overrides 目录内
     let override_prefix = "overrides/";
 
     for i in 0..archive.len() {
@@ -207,7 +247,6 @@ fn extract_overrides(zip_path: &str, target_dir: &Path, source: &str) -> Result<
 
         let outpath_str = outpath.to_string_lossy().to_string();
         
-        // 我们只关心且只解压 overrides 下的文件（防止恶意 zip 污染磁盘）
         if outpath_str.starts_with(override_prefix) {
             let relative_path = outpath.strip_prefix(override_prefix).unwrap();
             if relative_path.as_os_str().is_empty() { continue; }
@@ -225,5 +264,141 @@ fn extract_overrides(zip_path: &str, target_dir: &Path, source: &str) -> Result<
             }
         }
     }
+    Ok(())
+}
+
+/// 4. 路由并启动对应源的 Mod 下载逻辑
+async fn fetch_modpack_mods<R: Runtime>(
+    app: &AppHandle<R>,
+    zip_path: &str,
+    instance_root: &Path,
+    source: &str,
+    instance_id: &str,
+) -> Result<(), String> {
+    if source == "Modrinth" {
+        fetch_modrinth_mods(app, zip_path, instance_root, instance_id).await
+    } else if source == "CurseForge" {
+        fetch_curseforge_mods(app, zip_path, instance_root, instance_id).await
+    } else {
+        Ok(())
+    }
+}
+
+/// 5. 并发拉取 Modrinth 源的 Mod 文件
+async fn fetch_modrinth_mods<R: Runtime>(
+    app: &AppHandle<R>,
+    zip_path: &str,
+    instance_root: &Path,
+    instance_id: &str,
+) -> Result<(), String> {
+    
+    let contents = {
+        let file = File::open(zip_path).map_err(|e| e.to_string())?;
+        let mut archive = ZipArchive::new(file).map_err(|e| e.to_string())?;
+        
+        let mut index_file = archive.by_name("modrinth.index.json").map_err(|e| e.to_string())?;
+        let mut data = String::new();
+        index_file.read_to_string(&mut data).map_err(|e| e.to_string())?;
+        data
+    };
+
+    let json: serde_json::Value = serde_json::from_str(&contents).map_err(|e| e.to_string())?;
+    
+    let mut tasks: Vec<(String, PathBuf, String)> = Vec::new();
+
+    if let Some(files) = json["files"].as_array() {
+        for f in files {
+            if let Some(env) = f["env"].as_object() {
+                if let Some(client_env) = env.get("client").and_then(|v| v.as_str()) {
+                    if client_env == "unsupported" { continue; }
+                }
+            }
+            if let Some(url) = f["downloads"].as_array().and_then(|a| a.get(0)).and_then(|v| v.as_str()) {
+                if let Some(path) = f["path"].as_str() {
+                    let target_path = instance_root.join(path);
+                    let file_name = target_path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                    tasks.push((url.to_string(), target_path, file_name));
+                }
+            }
+        }
+    }
+
+    let total = tasks.len() as u64;
+    if total == 0 { return Ok(()); }
+
+    // ✅ 读取用户的并发与限速配置
+    let dl_settings = ConfigService::get_download_settings(app);
+    let concurrency = if dl_settings.concurrency > 0 { dl_settings.concurrency } else { 16 };
+    let limit_per_thread = if dl_settings.speed_limit > 0 {
+        (dl_settings.speed_limit * 1024 * 1024) / (concurrency as u64)
+    } else {
+        0
+    };
+
+    let client = Client::builder().user_agent("OreLauncher/1.0").build().unwrap();
+    let completed: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
+
+    let fetches = iter(tasks).map(|(url, path, name): (String, PathBuf, String)| {
+        let client = client.clone();
+        let app = app.clone();
+        let completed = Arc::clone(&completed);
+        let i_id = instance_id.to_string();
+        let limit = limit_per_thread;
+
+        async move {
+            if let Some(parent) = path.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            
+            if !path.exists() {
+                if let Ok(mut res) = client.get(&url).send().await {
+                    if res.status().is_success() {
+                        // ✅ 精准流式限速机制
+                        let mut file_data = Vec::new();
+                        while let Ok(Some(chunk)) = res.chunk().await {
+                            file_data.extend_from_slice(&chunk);
+                            if limit > 0 {
+                                let duration = std::time::Duration::from_secs_f64(chunk.len() as f64 / limit as f64);
+                                tokio::time::sleep(duration).await;
+                            }
+                        }
+                        let _ = fs::write(&path, file_data);
+                    }
+                }
+            }
+            
+            let mut c = completed.lock().await;
+            *c += 1;
+
+            let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {
+                instance_id: i_id,
+                stage: "DOWNLOADING_MOD".to_string(),
+                file_name: name.clone(),
+                current: *c,
+                total,
+                message: format!("正在拉取模组: {} ({}/{})", name, *c, total),
+            });
+        }
+    }).buffer_unordered(concurrency); // ✅ 严格遵循用户设置的并发数
+
+    fetches.collect::<Vec<()>>().await;
+    Ok(())
+}
+
+/// 6. 拉取 CurseForge 源的 Mod 文件 (待后续补充 CF 算法)
+async fn fetch_curseforge_mods<R: Runtime>(
+    app: &AppHandle<R>,
+    _zip_path: &str,
+    _instance_root: &Path,
+    instance_id: &str,
+) -> Result<(), String> {
+    let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {
+        instance_id: instance_id.to_string(),
+        stage: "DOWNLOADING_MOD".to_string(),
+        file_name: "CurseForge".to_string(),
+        current: 0,
+        total: 100,
+        message: "CurseForge Mod 下载解析准备中...".to_string(),
+    });
     Ok(())
 }

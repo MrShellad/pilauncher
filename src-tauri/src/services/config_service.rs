@@ -1,8 +1,45 @@
 // src-tauri/src/services/config_service.rs
 use crate::error::AppResult;
+use serde::Deserialize; // ✅ 新增：用于解析 settings.json
 use std::fs;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Manager, Runtime}; // 假设你有统一定义的 AppResult
+use tauri::{AppHandle, Manager, Runtime}; 
+
+// ==========================================
+// ✅ 新增：后端专用的下载配置模型 (映射前端 Settings)
+// ==========================================
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")] // 自动将驼峰转换为 Rust 的下划线命名
+pub struct DownloadSettings {
+    pub concurrency: usize,
+    pub speed_limit: u64,
+    pub speed_unit: String,
+    pub source: String,
+    pub proxy_type: String,
+    pub proxy_host: String,
+    pub proxy_port: String,
+    pub retry_count: u32,
+    pub timeout: u64,
+    pub verify_after_download: bool,
+}
+
+// 如果读取文件失败或找不到节点，提供安全兜底的默认值
+impl Default for DownloadSettings {
+    fn default() -> Self {
+        Self {
+            concurrency: 16,
+            speed_limit: 0,
+            speed_unit: "MB/s".to_string(),
+            source: "bmclapi".to_string(),
+            proxy_type: "none".to_string(),
+            proxy_host: "127.0.0.1".to_string(),
+            proxy_port: "7890".to_string(),
+            retry_count: 3,
+            timeout: 15,
+            verify_after_download: true,
+        }
+    }
+}
 
 pub struct ConfigService;
 
@@ -29,6 +66,34 @@ impl ConfigService {
             }
         }
         Ok(None)
+    }
+
+    // ==========================================
+    // ✅ 新增核心能力：为后端下载引擎提供用户偏好配置
+    // ==========================================
+    pub fn get_download_settings<R: Runtime>(app: &AppHandle<R>) -> DownloadSettings {
+        // 1. 尝试获取基础目录
+        if let Ok(Some(base_path_str)) = Self::get_base_path(app) {
+            let file_path = PathBuf::from(base_path_str).join("config").join("settings.json");
+            
+            // 2. 如果存在 settings.json，尝试读取
+            if file_path.exists() {
+                if let Ok(content) = fs::read_to_string(file_path) {
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                        // 3. 🎯 核心魔法：利用 JSON Pointer 语法直接穿透 Zustand 的嵌套层级
+                        // 你的 JSON 结构是: state -> settings -> download
+                        if let Some(dl_val) = json.pointer("/state/settings/download") {
+                            // 4. 将提取出的对象反序列化为 Rust 的 DownloadSettings 结构体
+                            if let Ok(settings) = serde_json::from_value(dl_val.clone()) {
+                                return settings;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // 如果中间任何一步失败（如文件被删、初次启动没生成），直接返回默认安全配置
+        DownloadSettings::default()
     }
 
     // 设置基础目录并初始化架构，包含空目录校验

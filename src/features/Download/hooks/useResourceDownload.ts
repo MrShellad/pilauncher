@@ -4,7 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { searchModrinth, type ModrinthProject } from '../../InstanceDetail/logic/modrinthApi';
 import { modService, type ModMeta } from '../../InstanceDetail/logic/modService';
 
-export type TabType = 'mod' | 'resourcepack' | 'shader';
+export type TabType = 'mod' | 'resourcepack' | 'shader' | 'modpack';
 
 // ================= 定义缓存结构 =================
 interface DownloadCache {

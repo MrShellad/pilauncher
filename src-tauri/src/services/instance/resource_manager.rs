@@ -1,9 +1,9 @@
 // src-tauri/src/services/instance/resource_manager.rs
 use crate::services::config_service::ConfigService;
-use chrono::{DateTime, Local};
+use chrono::Local;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tauri::{AppHandle, Runtime};
 
 // 1. 定义资源类型枚举，自动映射到真实的文件夹名称

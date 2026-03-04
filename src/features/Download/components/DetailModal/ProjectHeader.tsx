@@ -1,3 +1,4 @@
+// /src/features/Download/components/DetailModal/ProjectHeader.tsx
 import React from 'react';
 import { Download, Blocks, Heart, Clock, Monitor, Server } from 'lucide-react';
 import type { ModrinthProject, OreProjectDetail } from '../../../InstanceDetail/logic/modrinthApi';
@@ -22,15 +23,19 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({ project, details }
   };
 
   return (
-    <div className="flex p-4 lg:p-5 border-b border-white/5 bg-black/40 flex-shrink-0 relative overflow-hidden items-center">
-      <div className="w-16 h-16 lg:w-20 lg:h-20 bg-black/50 border border-white/10 flex items-center justify-center p-1.5 rounded-lg shadow-xl z-10 flex-shrink-0">
+    // ✅ 需求2：背景色提升至 bg-[#1E1E1F]，并加强边框，使之与内容区产生清晰的视差
+    <div className="flex p-4 lg:p-5 border-b-2 border-white/10 bg-[#1E1E1F] flex-shrink-0 relative overflow-hidden items-center shadow-lg z-10">
+      <div className="w-16 h-16 lg:w-20 lg:h-20 bg-black/50 border border-white/10 flex items-center justify-center p-1.5 rounded-lg shadow-inner z-10 flex-shrink-0">
         {project.icon_url ? <img src={project.icon_url} className="w-full h-full object-cover rounded-md" alt="icon" /> : <Blocks size={32} className="text-white/20" />}
       </div>
       
       <div className="ml-5 flex-1 z-10 flex flex-col justify-center min-w-0">
         <div className="flex items-baseline min-w-0 mb-1.5">
           <h2 className="text-2xl lg:text-3xl font-minecraft text-white drop-shadow-md truncate mr-3">{project.title}</h2>
-          <p className="text-xs text-gray-400 truncate flex-shrink-0">by <span className="text-gray-300 font-bold">{details?.author || project.author || 'Unknown'}</span></p>
+          {/* ✅ 需求1：完美修复作者字段读取问题 */}
+          <p className="text-xs text-gray-400 truncate flex-shrink-0">
+            by <span className="text-gray-200 font-bold">{project.author || (project as any).team || details?.author || 'Unknown'}</span>
+          </p>
         </div>
         
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-1">

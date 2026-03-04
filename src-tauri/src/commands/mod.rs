@@ -12,6 +12,9 @@ pub mod runtime_cmd;
 pub mod settings_cmd;
 pub mod system_cmd;
 pub mod modpack_cmd; // ✅ 新增 modpack_cmd 模块
+
+
+
 use tauri::{Builder, Runtime};
 
 // 【关键检查点】：前面必须有 pub 关键字，这样外部的 lib.rs 才能调用它！
@@ -63,6 +66,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         auth_cmd::poll_and_exchange_microsoft_token,
         modpack_cmd::parse_modpack_metadata,
         modpack_cmd::import_modpack,
+        modpack_cmd::download_and_import_modpack, // ✅ 新增在线下载并导入整合包的命令
 
     ])
 }

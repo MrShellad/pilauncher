@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { useDownloadStore } from '../../../../store/useDownloadStore';
 import { useLauncherStore } from '../../../../store/useLauncherStore'; 
+import { useInputAction } from '../../../../ui/focus/InputDriver'; // ✅ 引入超级驱动
 import { TaskPanel } from './TaskPanel';
 import { FloatingButton } from './FloatingButton';
 
@@ -12,15 +13,21 @@ export const DownloadManager: React.FC = () => {
   
   const taskList = Object.values(tasks);
   const activeTasksCount = taskList.filter(t => t.status === 'downloading').length;
+
+  // ✅ 核心新增：监听手柄的 MENU 键 (选项键) 来回切换面板状态
+  useInputAction('MENU', () => {
+    if (taskList.length > 0) {
+      setPopupOpen(!isPopupOpen);
+    }
+  });
   
   useEffect(() => {
-    // 1. 监听实例部署进度
     const unlistenInstance = listen('instance-deployment-progress', (event: any) => {
       const payload = event.payload;
       addOrUpdateTask({
         id: payload.instance_id,
         taskType: 'instance',
-        title: payload.instance_name || payload.instance_id, // 以实例名为标题
+        title: payload.instance_name || payload.instance_id,
         stage: payload.stage,
         current: payload.current,
         total: payload.total,
@@ -28,13 +35,12 @@ export const DownloadManager: React.FC = () => {
       });
     });
 
-    // 2. 监听模块/资源包下载进度 (兼容你的新功能！)
     const unlistenResource = listen('resource-download-progress', (event: any) => {
       const payload = event.payload;
       addOrUpdateTask({
-        id: payload.task_id || payload.file_name, // 使用传入的任务ID，兜底使用文件名
+        id: payload.task_id || payload.file_name,
         taskType: 'resource',
-        title: payload.file_name, // 资源下载以文件名为标题
+        title: payload.file_name,
         stage: payload.stage || 'DOWNLOADING_MOD', 
         current: payload.current,
         total: payload.total,

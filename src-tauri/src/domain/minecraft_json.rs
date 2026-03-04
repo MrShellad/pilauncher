@@ -4,8 +4,10 @@ use std::collections::HashMap;
 
 #[derive(Debug, Deserialize)]
 pub struct VersionManifestJson {
+    // ✅ 修复核心：必须用 Option 包裹！因为 Fabric/Forge 的 JSON 根本没有这个字段
     #[serde(rename = "assetIndex")]
-    pub asset_index: AssetIndexMeta,
+    pub asset_index: Option<AssetIndexMeta>, 
+    
     pub libraries: Vec<LibraryEntry>,
 }
 
@@ -20,8 +22,7 @@ pub struct AssetIndexMeta {
 pub struct LibraryEntry {
     pub name: String,
     pub downloads: Option<LibraryDownloads>,
-    // 注意：这里省略了 rules 操作系统校验逻辑。
-    // 在更完善的实现中，你需要根据 rules 剔除不属于当前系统 (如 macOS/Linux) 的 LWJGL 动态库。
+    // 💡 提示：未来如果要做跨平台兼容，可以在这里补充对 rules 的解析
 }
 
 #[derive(Debug, Deserialize)]
