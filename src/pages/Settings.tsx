@@ -1,98 +1,40 @@
 // /src/pages/Settings.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // ✅ 引入 useEffect
 import { motion, AnimatePresence } from 'framer-motion';
 import { Settings as SettingsIcon, Monitor, Gamepad2, Coffee, Download, Users, Archive, Wrench } from 'lucide-react';
+import { setFocus } from '@noriginmedia/norigin-spatial-navigation'; // ✅ 引入引擎指令
 
-// 引入选项卡组件
 import { GeneralSettings } from '../features/Settings/components/tabs/GeneralSettings';
 import { JavaSettings } from '../features/Settings/components/tabs/JavaSettings';
 import { AppearanceSettings } from '../features/Settings/components/tabs/AppearanceSettings';
 import { GameSettings } from '../features/Settings/components/tabs/GameSettings';
 import { DownloadSettings } from '../features/Settings/components/tabs/DownloadSettings';
 import { AccountSettings } from '../features/Settings/components/tabs/AccountSettings';
-// 引入新的顶部 Toggle 按钮
 import { OreToggleButton, type ToggleOption } from '../ui/primitives/OreToggleButton';
+import { FocusBoundary } from '../ui/focus/FocusBoundary'; // ✅ 引入焦点边界
 
-// 将原有的菜单配置转化为 ToggleOption 格式
 const SETTINGS_TABS: ToggleOption[] = [
-  { 
-    value: 'general', 
-    label: (
-      <div className="flex items-center space-x-2 px-2 py-1">
-        <SettingsIcon size={16} />
-        <span className="font-minecraft tracking-wider">常规</span>
-      </div>
-    ) 
-  },
-  { 
-    value: 'appearance', 
-    label: (
-      <div className="flex items-center space-x-2 px-2 py-1">
-        <Monitor size={16} />
-        <span className="font-minecraft tracking-wider">界面</span>
-      </div>
-    ) 
-  },
-  { 
-    value: 'game', 
-    label: (
-      <div className="flex items-center space-x-2 px-2 py-1">
-        <Gamepad2 size={16} />
-        <span className="font-minecraft tracking-wider">游戏</span>
-      </div>
-    ) 
-  },
-  { 
-    value: 'java', 
-    label: (
-      <div className="flex items-center space-x-2 px-2 py-1">
-        <Coffee size={16} />
-        <span className="font-minecraft tracking-wider">Java</span>
-      </div>
-    ) 
-  },
-  { 
-    value: 'download', 
-    label: (
-      <div className="flex items-center space-x-2 px-2 py-1">
-        <Download size={16} />
-        <span className="font-minecraft tracking-wider">下载</span>
-      </div>
-    ) 
-  },
-  { 
-    value: 'accounts', 
-    label: (
-      <div className="flex items-center space-x-2 px-2 py-1">
-        <Users size={16} />
-        <span className="font-minecraft tracking-wider">账户</span>
-      </div>
-    ) 
-  },
-  { 
-    value: 'backup', 
-    label: (
-      <div className="flex items-center space-x-2 px-2 py-1">
-        <Archive size={16} />
-        <span className="font-minecraft tracking-wider">备份</span>
-      </div>
-    ) 
-  },
-  { 
-    value: 'advanced', 
-    label: (
-      <div className="flex items-center space-x-2 px-2 py-1">
-        <Wrench size={16} />
-        <span className="font-minecraft tracking-wider">高级</span>
-      </div>
-    ) 
-  },
+  { value: 'general', label: (<div className="flex items-center justify-center space-x-2"><SettingsIcon size={16} /><span className="font-minecraft tracking-wider">常规</span></div>) },
+  { value: 'appearance', label: (<div className="flex items-center justify-center space-x-2"><Monitor size={16} /><span className="font-minecraft tracking-wider">界面</span></div>) },
+  { value: 'game', label: (<div className="flex items-center justify-center space-x-2"><Gamepad2 size={16} /><span className="font-minecraft tracking-wider">游戏</span></div>) },
+  { value: 'java', label: (<div className="flex items-center justify-center space-x-2"><Coffee size={16} /><span className="font-minecraft tracking-wider">Java</span></div>) },
+  { value: 'download', label: (<div className="flex items-center justify-center space-x-2"><Download size={16} /><span className="font-minecraft tracking-wider">下载</span></div>) },
+  { value: 'accounts', label: (<div className="flex items-center justify-center space-x-2"><Users size={16} /><span className="font-minecraft tracking-wider">账户</span></div>) },
+  { value: 'backup', label: (<div className="flex items-center justify-center space-x-2"><Archive size={16} /><span className="font-minecraft tracking-wider">备份</span></div>) },
+  { value: 'advanced', label: (<div className="flex items-center justify-center space-x-2"><Wrench size={16} /><span className="font-minecraft tracking-wider">高级</span></div>) },
 ];
 
 const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState('general');
 
-  // 路由渲染函数
+  // ✅ 核心修复：当进入设置页时，立刻向引擎发送指令，强行把焦点吸附到本页面的边界上
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFocus('settings-page-boundary');
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   const renderContent = () => {
     switch (activeTab) {
       case 'general': return <GeneralSettings />;
@@ -111,27 +53,22 @@ const Settings: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col w-full h-full bg-[#1E1E1F] overflow-hidden">
+    // ✅ 用 FocusBoundary 替换掉原本的 div 容器
+    <FocusBoundary id="settings-page-boundary" className="flex flex-col w-full h-full bg-[#1E1E1F] overflow-hidden">
       
-      {/* ================= 顶部：导航栏 ================= */}
-      {/* ✅ 去除了 bg-[#141415], border-b-2 和 shadow-sm，使其完全融入背景 */}
-      {/* ✅ 将 pt-8 改为 pt-6，进一步缩减无标题后的顶部留白 */}
       <div className="flex-shrink-0 pt-6 px-6 md:px-8 z-10">
         <div className="max-w-5xl mx-auto w-full">
-          
-          {/* 核心控件：支持横向滑动的 Toggle 组 */}
-          <div className="w-full overflow-x-auto no-scrollbar pb-2">
+          <div className="w-full overflow-x-auto custom-scrollbar pb-2">
             <OreToggleButton 
               options={SETTINGS_TABS}
               value={activeTab}
               onChange={setActiveTab}
+              size="lg"
             />
           </div>
-
         </div>
       </div>
 
-      {/* ================= 底部：设置内容区 ================= */}
       <div className="flex-1 w-full overflow-hidden relative">
         <AnimatePresence mode="wait">
           <motion.div
@@ -147,7 +84,7 @@ const Settings: React.FC = () => {
         </AnimatePresence>
       </div>
 
-    </div>
+    </FocusBoundary>
   );
 };
 

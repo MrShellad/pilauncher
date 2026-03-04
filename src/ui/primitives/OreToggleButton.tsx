@@ -1,5 +1,6 @@
 // /src/ui/primitives/OreToggleButton.tsx
 import React from 'react';
+import { FocusItem } from '../focus/FocusItem'; // ✅ 引入空间导航核心组件
 
 export interface ToggleOption {
   label: React.ReactNode; 
@@ -14,9 +15,9 @@ interface OreToggleButtonProps {
   title?: string;
   description?: string;
   disabled?: boolean;
-  className?: string;        // 控制最外层容器的样式 (如 w-full, w-1/2 等)
-  buttonClassName?: string;  // ✅ 控制按钮自身的样式 (如 aspect-square, px-4 等)
-  size?: 'sm' | 'md' | 'lg' | 'full'; // ✅ 预设的高度和排版尺寸
+  className?: string;        
+  buttonClassName?: string;  
+  size?: 'sm' | 'md' | 'lg' | 'full'; 
 }
 
 export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
@@ -28,22 +29,20 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
   disabled = false,
   className = '',
   buttonClassName = '',
-  size = 'full', // 默认使用 full，完美向后兼容 FilterBar
+  size = 'full', 
 }) => {
   const activeOption = options.find((opt) => opt.value === value);
 
-  // ✅ 根据 size 动态映射容器高度与默认文字大小
   const sizeClasses = {
-    sm: 'h-8 text-xs',
-    md: 'min-h-[36px] text-sm',
-    lg: 'min-h-[48px] text-base',
-    full: 'h-full min-h-[36px]', // 填满父容器高度
+    sm: 'h-[40px] text-xs', 
+    md: 'h-[44px] text-sm', 
+    lg: 'h-[48px] text-base',
+    full: 'h-full min-h-[44px]', 
   };
 
   return (
     <div className={`flex flex-col w-full ${className} ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
       
-      {/* 1. 顶部文本区 */}
       {(title || description) && (
         <div className="mb-2 px-1">
           {title && <div className="font-minecraft font-bold text-white ore-text-shadow text-lg">{title}</div>}
@@ -51,36 +50,43 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
         </div>
       )}
 
-      {/* 2. 核心按钮组：注入高度控制，并强行去除多余底边 */}
-      <div className={`ore-toggle-btn-group flex w-full !border-b-0 ${sizeClasses[size]}`}>
+      <div className={`ore-toggle-btn-group flex items-stretch w-full overflow-hidden ${sizeClasses[size]}`}>
         {options.map((option) => {
           const isActive = option.value === value;
           return (
-            <button
+            // ✅ 核心修复：为每个选项注入 FocusItem，支持键盘左右键导航与 Enter 键触发
+            <FocusItem
               key={option.value}
-              onClick={() => !isActive && onChange(option.value)}
-              // ✅ h-full 确保按钮撑满组容器；注入 buttonClassName 实现高级定制
-              className={`
-                ore-toggle-btn-item 
-                flex-1 flex items-center justify-center h-full px-2 
-                border-2 transition-all duration-200
-                ${isActive ? 'is-active border-ore-green' : 'border-transparent'}
-                ${buttonClassName}
-              `}
-              tabIndex={-1} 
+              disabled={disabled}
+              onEnter={() => !isActive && onChange(option.value)}
             >
-              <div className={`
-                flex items-center justify-center w-full transition-transform duration-200
-                ${isActive ? 'ore-text-shadow scale-[1.03]' : 'scale-100'}
-              `}>
-                {option.label}
-              </div>
-            </button>
+              {({ ref, focused }) => (
+                <button
+                  ref={ref as any}
+                  onClick={() => !isActive && onChange(option.value)}
+                  className={`
+                    ore-toggle-btn-item 
+                    flex-1 flex items-center justify-center px-2 
+                    border-2 transition-all duration-200 outline-none
+                    ${isActive ? 'is-active border-ore-green z-10' : 'border-transparent'}
+                    ${focused ? 'ring-2 ring-white scale-[1.02] z-30 brightness-125 shadow-lg' : ''}
+                    ${buttonClassName}
+                  `}
+                  tabIndex={-1} 
+                >
+                  <div className={`
+                    flex items-center justify-center w-full transition-transform duration-200
+                    ${isActive ? 'ore-text-shadow scale-[1.03]' : 'scale-100'}
+                  `}>
+                    {option.label}
+                  </div>
+                </button>
+              )}
+            </FocusItem>
           );
         })}
       </div>
 
-      {/* 3. 底部描述区 */}
       {options.some(opt => opt.description) && (
         <div className="mt-2 px-1 min-h-[20px]">
           {activeOption?.description && (
