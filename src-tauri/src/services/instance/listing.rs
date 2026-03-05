@@ -65,7 +65,7 @@ impl InstanceListingService {
                 // 游戏版本必须匹配
                 let matches_gv = game_versions.contains(inst_gv);
 
-                // ✅ 如果是 ignore_loader (光影/资源包)，或者 Mod 本身不限 Loader，或者匹配成功
+                // 如果是 ignore_loader (光影/资源包)，或者 Mod 本身不限 Loader，或者匹配成功
                 let matches_loader = ignore_loader
                     || loaders.is_empty()
                     || loaders.iter().any(|l| l.to_lowercase() == inst_loader);
@@ -77,10 +77,12 @@ impl InstanceListingService {
         Ok(filtered)
     }
 
+    /// 解析实例封面图路径
     fn resolve_cover(root: &Path) -> Option<String> {
-        let piconfig = root.join("piconfig");
-
         let extensions = ["png", "jpg", "jpeg", "webp"];
+        
+        // 1. 尝试读取本启动器专属的 piconfig/cover.*
+        let piconfig = root.join("piconfig");
         for ext in extensions {
             let cover_file = piconfig.join(format!("cover.{}", ext));
             if cover_file.exists() {
@@ -88,12 +90,22 @@ impl InstanceListingService {
             }
         }
 
+        // 2. ✅ 新增 Fallback：尝试读取实例根目录下的 instance.* (完美兼容外部导入的整合包)
+        for ext in extensions {
+            let instance_file = root.join(format!("instance.{}", ext));
+            if instance_file.exists() {
+                return Some(instance_file.to_string_lossy().to_string());
+            }
+        }
+
+        // 3. 最后 Fallback：尝试获取截图目录下的第一张图片
         let screen_dir = root.join("screenshots");
         if let Ok(mut entries) = fs::read_dir(screen_dir) {
             if let Some(Ok(e)) = entries.next() {
                 return Some(e.path().to_string_lossy().to_string());
             }
         }
+        
         None
     }
 }

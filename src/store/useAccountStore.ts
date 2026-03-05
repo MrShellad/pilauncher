@@ -1,10 +1,12 @@
+// src/store/useAccountStore.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export interface MinecraftAccount {
   uuid: string;
   name: string;
-  type: 'microsoft' | 'offline';
+  // ✅ 将 type 改为支持任意字符串，为以后的 LittleSkin / 自建外置登录铺路
+  type: 'microsoft' | 'offline' | string; 
   accessToken: string;
   refreshToken?: string;
   skinUrl?: string;
@@ -14,6 +16,7 @@ interface AccountStore {
   accounts: MinecraftAccount[];
   activeAccountId: string | null;
   addAccount: (account: MinecraftAccount) => void;
+  updateAccount: (oldUuid: string, updates: Partial<MinecraftAccount>) => void; // ✅ 新增修改方法
   removeAccount: (uuid: string) => void;
   setActiveAccount: (uuid: string) => void;
 }
@@ -25,7 +28,6 @@ export const useAccountStore = create<AccountStore>()(
       activeAccountId: null,
       
       addAccount: (account) => set((state) => {
-        // 如果已存在同 UUID 账号则覆盖，否则追加
         const exists = state.accounts.some(a => a.uuid === account.uuid);
         const newAccounts = exists 
           ? state.accounts.map(a => a.uuid === account.uuid ? account : a)
@@ -33,8 +35,20 @@ export const useAccountStore = create<AccountStore>()(
           
         return { 
           accounts: newAccounts,
-          activeAccountId: account.uuid // 新添加的账号自动设为当前激活
+          activeAccountId: account.uuid 
         };
+      }),
+
+      // ✅ 核心逻辑：修改账号时，如果 UUID 发了生改变，自动迁移活动状态
+      updateAccount: (oldUuid, updates) => set((state) => {
+        const newAccounts = state.accounts.map(a => 
+          a.uuid === oldUuid ? { ...a, ...updates } : a
+        );
+        let newActiveId = state.activeAccountId;
+        if (state.activeAccountId === oldUuid && updates.uuid) {
+          newActiveId = updates.uuid;
+        }
+        return { accounts: newAccounts, activeAccountId: newActiveId };
       }),
 
       removeAccount: (uuid) => set((state) => {
@@ -49,10 +63,6 @@ export const useAccountStore = create<AccountStore>()(
 
       setActiveAccount: (uuid) => set({ activeAccountId: uuid }),
     }),
-    {
-      name: 'pilauncher-accounts', // 独立存储账户信息
-      // TODO: 生产环境中，最好对账户 Token 进行本地系统级加密存储 (如 tauri-plugin-stronghold)
-      // 目前开发阶段先明文存在 localStorage 或普通 JSON 中方便调试
-    }
+    { name: 'pilauncher-accounts' }
   )
 );

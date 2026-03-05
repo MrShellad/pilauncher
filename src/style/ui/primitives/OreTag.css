@@ -1,0 +1,46 @@
+/* /src/style/ui/primitives/OreTag.css */
+@layer components {
+  /* 基础样式 */
+  .ore-tag {
+    @apply inline-flex items-center justify-center font-minecraft tracking-wide whitespace-nowrap leading-none;
+  }
+
+  /* ================= 色彩变体 ================= */
+  .ore-tag-neutral {
+    @apply bg-[#202020] text-white;
+  }
+  .ore-tag-primary {
+    @apply bg-[#71B943] text-black;
+  }
+  .ore-tag-informative {
+    @apply bg-[#81A6FF] text-black;
+  }
+  .ore-tag-notice {
+    @apply bg-[#FCE05E] text-black;
+  }
+  .ore-tag-warning {
+    @apply bg-[#FF7676] text-black;
+  }
+  .ore-tag-realms {
+    @apply bg-[#B192EA] text-black;
+  }
+
+  /* ================= 尺寸控制 ================= */
+  .ore-tag-sm {
+    @apply px-1.5 py-0.5 text-[10px];
+  }
+  .ore-tag-md {
+    @apply px-2 py-1 text-xs;
+  }
+  .ore-tag-lg {
+    @apply px-3 py-1.5 text-sm;
+  }
+
+  /* ================= 字重控制 ================= */
+  .ore-tag-normal {
+    @apply font-normal;
+  }
+  .ore-tag-bold {
+    @apply font-bold;
+  }
+}

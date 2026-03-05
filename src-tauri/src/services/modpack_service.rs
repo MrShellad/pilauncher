@@ -134,6 +134,7 @@ pub async fn execute_import<R: Runtime>(
         play_time: 0.0,
         last_played: "从未游玩".to_string(),
         created_at: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+        cover_image: None, // ✅ 核心修复：补全缺失的 cover_image 字段
     };
     fs::write(
         instance_root.join("instance.json"),

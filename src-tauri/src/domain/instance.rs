@@ -31,6 +31,7 @@ pub struct InstanceConfig {
     pub last_played: String,
     #[serde(rename = "createdAt")]
     pub created_at: String,
+    pub cover_image: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
