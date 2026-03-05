@@ -30,7 +30,7 @@ export const HeroLogo: React.FC = () => {
       ) : (
         // 【关键改动】：文本字号也要响应式 (text-4xl -> 6xl -> 7xl -> 8xl)
         <h1 className="font-bold tracking-tighter text-white drop-shadow-xl ore-text-shadow text-4xl md:text-6xl lg:text-7xl xl:text-8xl">
-          PiLauncher
+          无LOGO
         </h1>
       )}
     </motion.div>

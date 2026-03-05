@@ -23,7 +23,7 @@
       "borderColor": "#FF5722",
       "backgroundColor": "#FFF3E0",
       "textColor": "#212121",
-      "enabled": true
+      "enabled": false
     },
 
     {
@@ -39,7 +39,7 @@
       "borderColor": "#FF5722",
       "backgroundColor": "#FFF3E0",
       "textColor": "#212121",
-      "enabled": true
+      "enabled": false
     },
 
     {
@@ -55,7 +55,7 @@
       "borderColor": "#FF5722",
       "backgroundColor": "#FFF3E0",
       "textColor": "#212121",
-      "enabled": true
+      "enabled": false
     },
 
     {
@@ -71,7 +71,7 @@
       "borderColor": "#FF5722",
       "backgroundColor": "#FFF3E0",
       "textColor": "#212121",
-      "enabled": true
+      "enabled": false
     }
   ]
 }

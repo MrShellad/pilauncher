@@ -146,7 +146,7 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
             style={piConfig?.buttonStyle}
             onClick={() => console.log('触发登录弹窗')}
           >
-            <span className="text-lg tracking-widest leading-none mt-0.5">登录</span>
+            <span className="text-lg tracking-widest leading-none mt-0.5">正版验证</span>
           </OreButton>
         ) : (
           <OreButton 

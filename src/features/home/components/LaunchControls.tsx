@@ -82,7 +82,7 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
               >
                 <Play fill="currentColor" className={heroIconClass} />
                 <span className="font-minecraft font-bold tracking-[0.1em] uppercase leading-none">
-                  Play
+                  流程演示测试
                 </span>
               </OreButton>
             </div>

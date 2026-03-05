@@ -28,6 +28,17 @@ The interface design has been recreated from scratch and does not use any offici
 
 ---
 
+## Screenshots
+
+![screenshots1](docs/screenshots/CUT_2026-03-06_04-00-29.png)
+
+![screenshots2](docs/screenshots/CUT_2026-03-06_04-04-23.png)
+
+![screenshots3](docs/screenshots/CUT_2026-03-06_04-04-31.png)
+
+![screenshots4](docs/screenshots/CUT_2026-03-06_04-05-08.png)
+
+---
 ## ✨ Features
 
 ### 🎮 Handheld & Gamepad Friendly
