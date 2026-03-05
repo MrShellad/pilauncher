@@ -1,8 +1,7 @@
 // src-tauri/src/services/auth_service.rs
-use crate::domain::auth::{DeviceCodeResponse, MicrosoftTokenResponse, MinecraftAccount, McProfile};
+use crate::domain::auth::{Account, AccountType, DeviceCodeResponse, McProfile, MicrosoftTokenResponse};
 use std::time::Duration;
 use tokio::time::sleep;
-
 
 use uuid::Uuid;
 use std::fs;
@@ -34,7 +33,8 @@ pub async fn request_device_code() -> Result<DeviceCodeResponse, String> {
     }
 }
 
-pub async fn poll_and_exchange_token(device_code: &str, interval: u64) -> Result<MinecraftAccount, String> {
+// ✅ 核心修改：返回你设计的全新 Account 类型
+pub async fn poll_and_exchange_token(device_code: &str, interval: u64) -> Result<Account, String> {
     let client = reqwest::Client::new();
     let poll_interval = Duration::from_secs(interval);
     let mut ms_access_token = String::new();
@@ -78,17 +78,19 @@ pub async fn poll_and_exchange_token(device_code: &str, interval: u64) -> Result
     let mc_token = auth_minecraft(&client, &xsts_token, &uhs).await?;
     let profile = get_minecraft_profile(&client, &mc_token).await?;
 
-    Ok(MinecraftAccount {
+    Ok(Account {
+        id: profile.id.clone(),
+        account_type: AccountType::Microsoft, // ✅ 强类型枚举
+        username: profile.name,
         uuid: profile.id,
-        name: profile.name,
-        r#type: "microsoft".to_string(),
         access_token: mc_token,
         refresh_token: Some(ms_refresh_token),
+        expires_at: Some(chrono::Utc::now().timestamp() + 86400), // 假设存活一天，为后续自动续期留足空间
         skin_url: profile.skins.first().map(|s| s.url.clone()),
     })
 }
 
-// --------- 内部 Helper 函数 (私有) ---------
+// --------- 内部 Helper 函数 (私有，保持不变) ---------
 
 async fn auth_xbl(client: &reqwest::Client, ms_token: &str) -> Result<String, String> {
     let payload = serde_json::json!({
@@ -183,24 +185,18 @@ async fn get_minecraft_profile(client: &reqwest::Client, mc_token: &str) -> Resu
 }
 
 
-// ✅ 1. 严格遵守 Minecraft 协议的离线 UUID 生成算法
-// ✅ 严格遵守 Minecraft 协议的离线 UUID 生成算法 (完美适配 md5 0.7.0)
+// ✅ 严格遵守 Minecraft 协议的离线 UUID 生成算法
 pub fn generate_offline_uuid(name: &str) -> String {
-    // md5 0.7.0 的用法非常极简，直接 compute 即可
     let digest = md5::compute(format!("OfflinePlayer:{}", name));
-    
-    // digest 内部就是 [u8; 16]，通过解引用直接拿出来
     let mut bytes = *digest;
     
-    // 强行修正版本号为 v3 (代表基于 MD5 的哈希)，Variant 为标准 RFC4122
     bytes[6] = (bytes[6] & 0x0f) | 0x30; 
     bytes[8] = (bytes[8] & 0x3f) | 0x80; 
     
-    // uuid 1.x 的 Uuid::from_bytes 是基础方法，不需要额外开启 "v3" feature 就能用
     Uuid::from_bytes(bytes).to_string()
 }
 
-// ✅ 2. 离线皮肤文件专属存储库
+// ✅ 核心修改：将皮肤的落盘目录转移到 runtime/accounts
 pub fn upload_offline_skin<R: Runtime>(app: &AppHandle<R>, uuid: &str, source_path: &str) -> Result<String, String> {
     let base_path_str = crate::services::config_service::ConfigService::get_base_path(app)
         .map_err(|e| e.to_string())?
@@ -209,13 +205,12 @@ pub fn upload_offline_skin<R: Runtime>(app: &AppHandle<R>, uuid: &str, source_pa
     let source = Path::new(source_path);
     if !source.exists() { return Err("选中的图片不存在".to_string()); }
 
-    // 严苛验证 PNG
     if source.extension().and_then(|s| s.to_str()).unwrap_or("").to_lowercase() != "png" {
         return Err("仅支持标准的 PNG 格式皮肤文件".to_string());
     }
 
-    // 存放到 \config\accounts\{uuid}\skin.png
-    let target_dir = PathBuf::from(base_path_str).join("config").join("accounts").join(uuid);
+    // ✅ 改为 runtime/accounts
+    let target_dir = PathBuf::from(base_path_str).join("runtime").join("accounts").join(uuid);
     fs::create_dir_all(&target_dir).map_err(|e| format!("创建皮肤目录失败: {}", e))?;
 
     let target_path = target_dir.join("skin.png");
@@ -224,9 +219,6 @@ pub fn upload_offline_skin<R: Runtime>(app: &AppHandle<R>, uuid: &str, source_pa
     Ok(target_path.to_string_lossy().to_string())
 }
 
-
-
-// ✅ 新增：根据玩家 ID 去 Mojang 官方窃取正版皮肤
 pub async fn fetch_and_save_mojang_skin<R: Runtime>(
     app: &AppHandle<R>, 
     username: &str, 
@@ -234,7 +226,6 @@ pub async fn fetch_and_save_mojang_skin<R: Runtime>(
 ) -> Result<String, String> {
     let client = reqwest::Client::builder().user_agent("OreLauncher/1.0").build().unwrap();
     
-    // 1. 通过用户名请求正版在线 UUID
     let profile_res = client.get(format!("https://api.mojang.com/users/profiles/minecraft/{}", username))
         .send().await.map_err(|e| e.to_string())?;
     
@@ -245,32 +236,29 @@ pub async fn fetch_and_save_mojang_skin<R: Runtime>(
     let profile_data: serde_json::Value = profile_res.json().await.map_err(|e| e.to_string())?;
     let real_uuid = profile_data["id"].as_str().ok_or("API未返回UUID")?;
     
-    // 2. 通过在线 UUID 请求 Session 会话数据
     let session_res = client.get(format!("https://sessionserver.mojang.com/session/minecraft/profile/{}", real_uuid))
         .send().await.map_err(|e| e.to_string())?;
         
     let session_data: serde_json::Value = session_res.json().await.map_err(|e| e.to_string())?;
     let properties = session_data["properties"].as_array().ok_or("无 properties 节点")?;
     
-    // 3. 寻找 textures 属性并解码 Base64
     let textures_prop = properties.iter().find(|p| p["name"] == "textures").ok_or("无材质属性")?;
     let base64_value = textures_prop["value"].as_str().ok_or("无 Base64 值")?;
     
     let decoded_bytes = general_purpose::STANDARD.decode(base64_value).map_err(|e| format!("Base64 解码失败: {}", e))?;
     let decoded_str = String::from_utf8(decoded_bytes).map_err(|e| e.to_string())?;
     
-    // 4. 解析出具体的皮肤和披风 URL
     let texture_data: serde_json::Value = serde_json::from_str(&decoded_str).map_err(|e| e.to_string())?;
     let skin_url = texture_data["textures"]["SKIN"]["url"].as_str().ok_or("未找到皮肤 URL")?;
     
-    // 5. 下载并存入我们离线账号对应的目录
     let skin_bytes = client.get(skin_url).send().await.map_err(|e| e.to_string())?.bytes().await.map_err(|e| e.to_string())?;
     
     let base_path_str = crate::services::config_service::ConfigService::get_base_path(app)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "尚未配置基础数据目录".to_string())?;
         
-    let target_dir = PathBuf::from(base_path_str).join("config").join("accounts").join(offline_uuid);
+    // ✅ 改为 runtime/accounts
+    let target_dir = PathBuf::from(base_path_str).join("runtime").join("accounts").join(offline_uuid);
     fs::create_dir_all(&target_dir).map_err(|e| format!("创建皮肤目录失败: {}", e))?;
     
     let target_path = target_dir.join("skin.png");
@@ -279,16 +267,14 @@ pub async fn fetch_and_save_mojang_skin<R: Runtime>(
     Ok(target_path.to_string_lossy().to_string())
 }
 
-
-// ✅ 新增：彻底删除本地离线账号对应的目录与文件 (包含皮肤)
+// ✅ 核心修改：保证删除账号时，清理的也是 runtime/accounts 下的文件
 pub fn delete_offline_account_dir<R: Runtime>(app: &AppHandle<R>, uuid: &str) -> Result<(), String> {
     let base_path_str = crate::services::config_service::ConfigService::get_base_path(app)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "尚未配置基础数据目录".to_string())?;
         
-    let target_dir = PathBuf::from(base_path_str).join("config").join("accounts").join(uuid);
+    let target_dir = PathBuf::from(base_path_str).join("runtime").join("accounts").join(uuid);
     
-    // 如果目录存在，则连带内部的皮肤文件一并物理销毁
     if target_dir.exists() {
         fs::remove_dir_all(&target_dir).map_err(|e| format!("物理删除账号目录失败: {}", e))?;
     }

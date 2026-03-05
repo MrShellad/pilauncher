@@ -35,7 +35,7 @@ export const TitleBar: React.FC = () => {
           data-tauri-drag-region 
           className="text-ore-text font-minecraft text-sm tracking-wider pointer-events-none"
         >
-          MINECRAFT LAUNCHER
+          PiLauncher
         </div>
 
         <div className="flex space-x-2">

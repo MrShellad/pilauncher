@@ -1,0 +1,52 @@
+{
+  "version": "1.0.0",
+  "apiEndpoint": "https://api.pilauncher.net/v1/config/download-sources",
+  "sources": {
+    "vanilla": [
+      {
+        "id": "bmclapi",
+        "name": "BMCLAPI 镜像",
+        "url": "https://bmclapi2.bangbang93.com"
+      },
+      {
+        "id": "mojang",
+        "name": "Mojang 官方",
+        "url": "https://piston-meta.mojang.com"
+      }
+    ],
+
+    "forge": [
+      {
+        "id": "bmclapi",
+        "name": "BMCLAPI",
+        "url": "https://bmclapi2.bangbang93.com/forge"
+      },
+      {
+        "id": "official",
+        "name": "Forge 官方",
+        "url": "https://maven.minecraftforge.net"
+      }
+    ],
+
+    "fabric": [
+      {
+        "id": "official",
+        "name": "Fabric 官方",
+        "url": "https://meta.fabricmc.net"
+      }
+    ],
+
+    "neoforge": [
+      {
+        "id": "bmclapi",
+        "name": "BMCLAPI",
+        "url": "https://bmclapi2.bangbang93.com/neoforge"
+      },
+      {
+        "id": "official",
+        "name": "NeoForge 官方",
+        "url": "https://maven.neoforged.net/releases"
+      }
+    ]
+  }
+}

@@ -28,11 +28,25 @@ pub enum LoaderType {
     NeoForge,
 }
 
-// ✅ 新增：用于接收前端传来的真实账号数据
-#[derive(Debug, Clone, Deserialize)]
-pub struct AccountPayload {
+// ✅ 引入全新的强类型账号类型枚举
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")] // 兼容前端的小驼峰命名 (accountType)
+pub enum AccountType {
+    Offline,
+    Microsoft,
+    Authlib,
+}
+
+// ✅ 替换原有的 AccountPayload，使用你设计的最优 Account 结构
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Account {
+    pub id: String,
+    pub account_type: AccountType,
+    pub username: String,
     pub uuid: String,
-    pub name: String,
     pub access_token: String,
-    pub r#type: String,
+    pub refresh_token: Option<String>,
+    pub expires_at: Option<i64>,
+    pub skin_url: Option<String>,
 }

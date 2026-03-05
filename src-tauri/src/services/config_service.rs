@@ -5,33 +5,43 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, Runtime};
 
-// ================= 全局配置数据模型 =================
-
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadSettings {
     pub concurrency: usize,
     pub speed_limit: u64,
     pub speed_unit: String,
-    pub source: String,
     pub proxy_type: String,
     pub proxy_host: String,
     pub proxy_port: String,
     pub retry_count: u32,
     pub timeout: u64,
     pub verify_after_download: bool,
+    // ✅ 新增：各路下载源路由配置
+    pub vanilla_source: String,
+    pub vanilla_source_url: String,
+    pub fabric_source: String,
+    pub fabric_source_url: String,
+    pub forge_source: String,
+    pub forge_source_url: String,
+    pub neoforge_source: String,
+    pub neoforge_source_url: String,
 }
+
 impl Default for DownloadSettings {
     fn default() -> Self {
         Self {
             concurrency: 16, speed_limit: 0, speed_unit: "MB/s".to_string(),
-            source: "bmclapi".to_string(), proxy_type: "none".to_string(), proxy_host: "127.0.0.1".to_string(),
+            proxy_type: "none".to_string(), proxy_host: "127.0.0.1".to_string(),
             proxy_port: "7890".to_string(), retry_count: 3, timeout: 15, verify_after_download: true,
+            vanilla_source: "bmclapi".to_string(), vanilla_source_url: "https://bmclapi2.bangbang93.com".to_string(),
+            fabric_source: "official".to_string(), fabric_source_url: "https://meta.fabricmc.net".to_string(),
+            forge_source: "bmclapi".to_string(), forge_source_url: "https://bmclapi2.bangbang93.com/forge".to_string(),
+            neoforge_source: "bmclapi".to_string(), neoforge_source_url: "https://bmclapi2.bangbang93.com/neoforge".to_string(),
         }
     }
 }
 
-// ✅ 新增：Java 全局设置模型
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct JavaSettings {
@@ -44,16 +54,13 @@ pub struct JavaSettings {
 impl Default for JavaSettings {
     fn default() -> Self {
         Self {
-            auto_detect: true,
-            java_path: "java".to_string(),
+            auto_detect: true, java_path: "java".to_string(),
             jvm_args: "-XX:+UseG1GC -XX:+UnlockExperimentalVMOptions".to_string(),
-            max_memory: 4096,
-            min_memory: 1024,
+            max_memory: 4096, min_memory: 1024,
         }
     }
 }
 
-// ✅ 新增：Game 全局设置模型
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GameSettings {
@@ -61,17 +68,14 @@ pub struct GameSettings {
     pub resolution: String,
 }
 impl Default for GameSettings {
-    fn default() -> Self {
-        Self { fullscreen: false, resolution: "854x480".to_string() }
-    }
+    fn default() -> Self { Self { fullscreen: false, resolution: "854x480".to_string() } }
 }
 
 pub struct ConfigService;
 
 impl ConfigService {
     fn get_meta_path<R: Runtime>(app: &AppHandle<R>) -> AppResult<PathBuf> {
-        let path = app.path().app_config_dir().expect("无法获取系统配置目录").join("meta.json");
-        Ok(path)
+        Ok(app.path().app_config_dir().expect("无法获取系统配置目录").join("meta.json"))
     }
 
     pub fn get_base_path<R: Runtime>(app: &AppHandle<R>) -> AppResult<Option<String>> {
@@ -85,7 +89,6 @@ impl ConfigService {
         Ok(None)
     }
 
-    // 内部复用的工具方法：读取 settings.json
     fn get_settings_json<R: Runtime>(app: &AppHandle<R>) -> Option<serde_json::Value> {
         if let Ok(Some(base_path_str)) = Self::get_base_path(app) {
             let file_path = PathBuf::from(base_path_str).join("config").join("settings.json");
@@ -107,7 +110,6 @@ impl ConfigService {
         DownloadSettings::default()
     }
 
-    // ✅ 新增：获取全局 Java 设置
     pub fn get_java_settings<R: Runtime>(app: &AppHandle<R>) -> JavaSettings {
         if let Some(json) = Self::get_settings_json(app) {
             if let Some(val) = json.pointer("/state/settings/java") {
@@ -117,7 +119,6 @@ impl ConfigService {
         JavaSettings::default()
     }
 
-    // ✅ 新增：获取全局游戏设置
     pub fn get_game_settings<R: Runtime>(app: &AppHandle<R>) -> GameSettings {
         if let Some(json) = Self::get_settings_json(app) {
             if let Some(val) = json.pointer("/state/settings/game") {

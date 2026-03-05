@@ -10,7 +10,8 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
 use crate::domain::instance::InstanceConfig;
-use crate::domain::launcher::{AccountPayload, LoaderType};
+// ✅ 将 AccountPayload 替换为 Account
+use crate::domain::launcher::{Account, LoaderType};
 use crate::error::AppResult;
 
 use auth::AuthService;
@@ -23,7 +24,7 @@ impl LauncherService {
     pub async fn launch_instance<R: Runtime>(
         app: &AppHandle<R>,
         instance_id: &str,
-        account: AccountPayload,
+        account: Account, // ✅ 接收新模型
     ) -> AppResult<()> {
         let base_path = crate::services::config_service::ConfigService::get_base_path(app)?
             .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "未配置数据目录"))?;
@@ -38,7 +39,9 @@ impl LauncherService {
         let instance_cfg: InstanceConfig = serde_json::from_str(&content)?;
 
         let resolved_config = ConfigResolver::resolve(app, &instance_cfg);
-        let auth_session = AuthService::build_session(account);
+        
+        // ✅ 核心修改：将 runtime_dir 传给 AuthService 以触发 JSON 落盘
+        let auth_session = AuthService::build_session(account, &runtime_dir);
 
         let loader_type = match instance_cfg.loader.r#type.to_lowercase().as_str() {
             "fabric" => LoaderType::Fabric,
@@ -47,13 +50,34 @@ impl LauncherService {
             _ => LoaderType::Vanilla,
         };
 
+        let target_version_id = match loader_type {
+            LoaderType::Vanilla => instance_cfg.mc_version.clone(),
+            LoaderType::Fabric => format!("fabric-loader-{}-{}", instance_cfg.loader.version, instance_cfg.mc_version),
+            LoaderType::Forge | LoaderType::NeoForge => {
+                let keyword = if loader_type == LoaderType::Forge { "forge" } else { "neoforge" };
+                let mut found_id = format!("{}-{}-{}", instance_cfg.mc_version, keyword, instance_cfg.loader.version); 
+                
+                if let Ok(entries) = std::fs::read_dir(runtime_dir.join("versions")) {
+                    for entry in entries.flatten() {
+                        if let Ok(name) = entry.file_name().into_string() {
+                            if name.contains(keyword) && name.contains(&instance_cfg.loader.version) {
+                                found_id = name;
+                                break;
+                            }
+                        }
+                    }
+                }
+                found_id
+            }
+        };
+
         let builder = LaunchCommandBuilder::new(
             resolved_config.clone(),
             auth_session,
-            loader_type,
             &instance_cfg.mc_version,
+            &target_version_id, 
             instance_dir.clone(),
-            runtime_dir,
+            runtime_dir.clone(),
         );
         
         let args = builder.build_args();
@@ -92,28 +116,21 @@ impl LauncherService {
         let stdout = child.stdout.take().unwrap();
         let stderr = child.stderr.take().unwrap();
 
-        // ✅ 核心修复：独立开启两个线程死守日志流，进程不彻底关闭，它们绝对不退出
         tokio::spawn(async move {
             let mut reader = BufReader::new(stdout).lines();
-            while let Ok(Some(line)) = reader.next_line().await {
-                println!("[Game INFO] {}", line);
-            }
+            while let Ok(Some(line)) = reader.next_line().await { println!("[Game INFO] {}", line); }
         });
 
         tokio::spawn(async move {
             let mut reader = BufReader::new(stderr).lines();
-            while let Ok(Some(line)) = reader.next_line().await {
-                eprintln!("[Game ERROR] {}", line);
-            }
+            while let Ok(Some(line)) = reader.next_line().await { eprintln!("[Game ERROR] {}", line); }
         });
 
-        // 阻塞等待进程退出
         let status = child.wait().await.map_err(|e| {
             std::io::Error::new(std::io::ErrorKind::Other, format!("等待进程时发生错误: {}", e))
         })?;
         
         println!("🛑 游戏进程已退出，状态: {}", status);
-
         Ok(())
     }
 }

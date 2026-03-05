@@ -1,61 +1,57 @@
 /* /src/style/ui/primitives/OreDropdown.css */
 @layer components {
-  /* 1. 触发器按钮 (未展开时) */
+  /* ================= 1. 触发器按钮 (未展开时) ================= */
   .ore-dropdown-trigger {
-    @apply flex items-center justify-between w-full h-10 px-3 bg-ore-nav border-2 border-ore-gray-border text-white font-minecraft cursor-pointer select-none transition-none focus:outline-none;
-    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.05), inset -2px -2px rgba(0, 0, 0, 0.1);
+    @apply flex items-center justify-between w-full min-h-[44px] px-4 font-minecraft text-sm select-none transition-none focus:outline-none border-2 border-[#1E1E1F] bg-[#313233] text-white;
+    box-shadow: inset 2px 2px rgba(255,255,255,0.08), inset -2px -2px rgba(0,0,0,0.2);
   }
 
-  .ore-dropdown-trigger:hover:not(:disabled) {
-    @apply bg-ore-nav-hover;
-    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.1), inset -2px -2px rgba(0, 0, 0, 0.15);
+  .ore-dropdown-trigger:hover:not(:disabled):not(.is-open) {
+    @apply bg-[#3C3D3F];
   }
 
-  /* 展开时的凹陷状态 */
+  /* 展开时的深坑凹陷状态 */
   .ore-dropdown-trigger.is-open {
-    @apply bg-ore-nav-active;
-    box-shadow: inset 0 4px theme('colors.ore.nav.shadow');
+    @apply bg-[#18181B] text-white;
+    box-shadow: inset 0 4px rgba(0,0,0,0.5);
   }
 
   .ore-dropdown-trigger:disabled {
-    @apply opacity-50 cursor-not-allowed bg-ore-nav-active/80;
+    @apply opacity-50 cursor-not-allowed;
     box-shadow: none;
   }
 
-  /* 2. 下拉面板容器 (悬浮层) */
+  /* ================= 2. 下拉面板容器 (悬浮层) ================= */
   .ore-dropdown-panel {
-    @apply absolute left-0 w-full bg-ore-nav border-2 border-ore-gray-border z-50 overflow-y-auto overflow-x-hidden max-h-60;
-    /* 强烈的弹出阴影，加上经典的基岩版内外高光 */
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), inset 2px 2px rgba(255, 255, 255, 0.05), inset -2px -2px rgba(0, 0, 0, 0.15);
+    @apply absolute min-w-[220px] w-full bg-[#1E1E1F] border-2 border-[#111112] z-[100] max-h-72 overflow-y-auto;
+    /* 强烈的弹出阴影 */
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
   }
 
-  /* 隐藏下拉菜单的默认滚动条，使其更符合游戏风格 */
-  .ore-dropdown-panel::-webkit-scrollbar {
-    width: 8px;
+  /* ================= 3. 内部搜索框 ================= */
+  .ore-dropdown-search-wrapper {
+    @apply sticky top-0 bg-[#1E1E1F] z-20 p-2 border-b-2 border-[#111112] shadow-sm;
   }
-  .ore-dropdown-panel::-webkit-scrollbar-track {
-    @apply bg-ore-gray-border;
-  }
-  .ore-dropdown-panel::-webkit-scrollbar-thumb {
-    @apply bg-ore-gray-track border border-ore-gray-border;
+  
+  .ore-dropdown-search-input {
+    @apply w-full h-[36px] bg-[#141415] border-2 border-[#111112] pl-9 pr-3 text-sm text-white font-minecraft focus:outline-none focus:border-ore-green transition-colors placeholder:text-gray-600;
+    box-shadow: inset 2px 2px rgba(0,0,0,0.4);
   }
 
-  /* 3. 单个选项 */
+  /* ================= 4. 单个选项 ================= */
   .ore-dropdown-item {
-    @apply flex items-center justify-between w-full px-3 py-2 text-ore-text-muted font-minecraft cursor-pointer select-none transition-none;
-    border-bottom: 2px solid theme('colors.ore.gray.border');
-  }
-  .ore-dropdown-item:last-child {
-    border-bottom: none;
+    @apply relative flex justify-between items-center w-full px-4 py-2.5 text-sm cursor-pointer select-none transition-none border-l-4 border-transparent text-gray-300;
   }
 
-  .ore-dropdown-item:hover {
-    @apply bg-ore-nav-hover text-white;
+  .ore-dropdown-item:hover:not(.is-selected),
+  .ore-dropdown-item.is-highlighted:not(.is-selected) {
+    @apply border-transparent bg-[#3A3B3C] text-white;
+    box-shadow: inset 2px 2px rgba(255,255,255,0.05);
   }
 
-  /* 被选中的选项呈现深坑状态 */
+  /* 被选中的选项呈现基岩版经典绿色粗边框与深坑状态 */
   .ore-dropdown-item.is-selected {
-    @apply bg-ore-nav-active text-white;
-    box-shadow: inset 0 4px theme('colors.ore.nav.shadow');
+    @apply border-ore-green bg-[#141415] text-ore-green font-bold;
+    box-shadow: inset 0 2px rgba(0,0,0,0.2);
   }
 }

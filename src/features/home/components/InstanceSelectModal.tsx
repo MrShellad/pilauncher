@@ -4,10 +4,13 @@ import { OreModal } from '../../../ui/primitives/OreModal';
 import { OreInstanceCard } from '../../../ui/primitives/OreInstanceCard';
 import { useInstances } from '../../../hooks/pages/Instances/useInstances';
 
-// ✅ 引入空间焦点引擎组件
+// 引入空间焦点引擎组件
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { focusManager } from '../../../ui/focus/FocusManager';
+
+// ✅ 引入全局 Store，用于记忆选择
+import { useLauncherStore } from '../../../store/useLauncherStore';
 
 interface InstanceSelectModalProps {
   isOpen: boolean;
@@ -19,24 +22,34 @@ interface InstanceSelectModalProps {
 export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
   isOpen,
   onClose,
-  selectedId,
+  selectedId, // 父组件传来的状态（如果存在）
   onSelect,
 }) => {
   const { instances } = useInstances();
+  
+  // ✅ 获取全局存储的方法和记忆的 ID
+  const globalSelectedId = useLauncherStore(state => state.selectedInstanceId);
+  const setSelectedInstanceId = useLauncherStore(state => state.setSelectedInstanceId);
 
-  // ✅ 焦点自动吸附与退回逻辑
+  // 综合判定当前高亮的 ID：优先用父组件传的 -> 其次用全局记忆的 -> 最后默认选第一个
+  const currentSelectedId = selectedId || globalSelectedId || (instances.length > 0 ? instances[0].id : null);
+
+  // ✅ 拦截点击事件，将选择同步到持久化 Store 中
+  const handleSelect = (id: string) => {
+    setSelectedInstanceId(id); // 记忆选择，下次打开启动器依然生效
+    onSelect(id);              // 通知父组件
+    onClose();                 // 选择后自动关闭弹窗
+  };
+
   useEffect(() => {
     if (isOpen) {
-      // 打开弹窗时，延迟一点等待动画，然后强行将焦点吸附到当前选中的实例上
-      const targetId = selectedId || (instances.length > 0 ? instances[0].id : null);
-      if (targetId) {
-        setTimeout(() => focusManager.focus(`instance-card-${targetId}`), 100);
+      if (currentSelectedId) {
+        setTimeout(() => focusManager.focus(`instance-card-${currentSelectedId}`), 100);
       }
     } else {
-      // 弹窗关闭时，焦点退回到首页的选择按钮上
       focusManager.focus('instance-button');
     }
-  }, [isOpen, selectedId, instances]);
+  }, [isOpen, currentSelectedId, instances]);
 
   return (
     <OreModal
@@ -45,7 +58,6 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
       title="选择启动实例"
       className="w-full max-w-4xl"
     >
-      {/* ✅ 焦点隔离边界，trapFocus={true} 确保焦点不会跑出弹窗外 */}
       <FocusBoundary id="instance-select-boundary" trapFocus={true} onEscape={onClose}>
         
         {instances.length === 0 ? (
@@ -61,17 +73,17 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-2 max-h-[60vh] overflow-y-auto no-scrollbar pb-6">
             {instances.map((instance) => (
               
-              // ✅ 让每个卡片都成为可被手柄选中的焦点项
               <FocusItem 
                 key={instance.id} 
                 focusKey={`instance-card-${instance.id}`} 
-                onEnter={() => onSelect(instance.id)}
+                onEnter={() => handleSelect(instance.id)} // ✅ 使用拦截器
               >
                 {({ ref, focused }) => (
                   <div 
                     ref={ref}
+                    onClick={() => handleSelect(instance.id)} // ✅ 使用拦截器
                     className={`
-                      rounded-sm transition-all duration-200 
+                      rounded-sm transition-all duration-200 cursor-pointer
                       ${focused ? 'outline outline-[4px] outline-offset-4 outline-white/80 scale-[1.02] shadow-[0_0_20px_rgba(255,255,255,0.2)] z-10' : ''}
                     `}
                   >
@@ -82,9 +94,9 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
                       loaderType={instance.loader}
                       lastPlayed={instance.lastPlayed}
                       coverUrl={instance.coverUrl}
-                      isActive={instance.id === selectedId}
-                      onClick={() => onSelect(instance.id)}
-                      className="w-full h-64"
+                      isActive={instance.id === currentSelectedId} // ✅ 使用智能判定的 ID
+                      onClick={() => handleSelect(instance.id)} // ✅ 使用拦截器
+                      className="w-full h-64 pointer-events-none" // 卡片内部不要阻挡外层的点击
                     />
                   </div>
                 )}

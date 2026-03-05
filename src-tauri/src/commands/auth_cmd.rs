@@ -1,5 +1,5 @@
 // src-tauri/src/commands/auth_cmd.rs
-use crate::domain::auth::{DeviceCodeResponse, MinecraftAccount};
+use crate::domain::auth::{DeviceCodeResponse, Account};
 use crate::services::auth_service;
 
 #[tauri::command]
@@ -11,7 +11,7 @@ pub async fn request_microsoft_device_code() -> Result<DeviceCodeResponse, Strin
 pub async fn poll_and_exchange_microsoft_token(
     device_code: String, 
     interval: u64
-) -> Result<MinecraftAccount, String> {
+) -> Result<Account, String> { // ✅ 核心修改：返回类型改为 Account
     auth_service::poll_and_exchange_token(&device_code, interval).await
 }
 

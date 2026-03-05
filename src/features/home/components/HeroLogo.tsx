@@ -23,14 +23,14 @@ export const HeroLogo: React.FC = () => {
       {defaultLogo ? (
         <img 
           src={defaultLogo} 
-          alt="Minecraft Logo" 
+          alt="PiLauncher Logo" 
           // object-contain 是神来之笔：无论外层高宽比怎么变，图片都会保持原比例缩放并居中
           className="w-full h-full object-contain drop-shadow-2xl" 
         />
       ) : (
         // 【关键改动】：文本字号也要响应式 (text-4xl -> 6xl -> 7xl -> 8xl)
-        <h1 className="font-minecraft font-bold tracking-tighter text-white drop-shadow-xl ore-text-shadow text-4xl md:text-6xl lg:text-7xl xl:text-8xl">
-          MINECRAFT
+        <h1 className="font-bold tracking-tighter text-white drop-shadow-xl ore-text-shadow text-4xl md:text-6xl lg:text-7xl xl:text-8xl">
+          PiLauncher
         </h1>
       )}
     </motion.div>

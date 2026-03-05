@@ -35,7 +35,7 @@ const Home: React.FC = () => {
   const handleSettingsClick = () => {
     if (currentId) {
       setSelectedInstanceId(currentId);
-      setActiveTab('instance-detail'); 
+      setActiveTab('instance-detail'); // 确保这里的命名与你侧边栏路由的定义一致
     }
   };
 
@@ -50,9 +50,14 @@ const Home: React.FC = () => {
 
       <div className="absolute bottom-12 left-1/2 -translate-x-1/2 w-full flex justify-center z-20">
         <LaunchControls 
+          instanceId={currentId} // ✅ 核心修复 1：把当前高亮的 ID 传给控制组件
           instanceName={currentInstanceName}
-          onLaunch={handleLaunch}
-          onSettings={handleSettingsClick} // ✅ 绑定跨页跳转
+          
+          // ✅ 核心修复 2：极其重要！必须把 currentId 传给 handleLaunch！
+          // 否则后端将不知道你要启动哪个实例，导致启动失败。
+          onLaunch={() => handleLaunch(currentId)} 
+          
+          onSettings={handleSettingsClick}
           onSelectInstance={() => setIsModalOpen(true)} 
         />
       </div>

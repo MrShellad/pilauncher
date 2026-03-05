@@ -1,6 +1,6 @@
 // src/features/Settings/components/tabs/DownloadSettings.tsx
-import React from 'react';
-import { Globe, Zap, ShieldCheck, Network } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Globe, Zap, ShieldCheck, Network, AlertTriangle } from 'lucide-react';
 
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { SettingsSection } from '../../../../ui/layout/SettingsSection';
@@ -9,55 +9,115 @@ import { OreSwitch } from '../../../../ui/primitives/OreSwitch';
 import { OreSlider } from '../../../../ui/primitives/OreSlider';
 import { OreInput } from '../../../../ui/primitives/OreInput';
 import { OreToggleButton } from '../../../../ui/primitives/OreToggleButton';
+import { OreDropdown } from '../../../../ui/primitives/OreDropdown';
 
 import { useSettingsStore } from '../../../../store/useSettingsStore';
 import { DEFAULT_SETTINGS } from '../../../../types/settings';
 
+// 引入你刚刚修改好的 JSON
+import downloadConfig from '../../../../assets/config/downloadsource.json';
+
 export const DownloadSettings: React.FC = () => {
   const { settings, updateDownloadSetting } = useSettingsStore();
-  // 防御性读取：兼容旧版本 JSON 缺少 download 节点的情况
   const download = settings.download || DEFAULT_SETTINGS.download;
 
-  const selectBaseStyle = "bg-[#141415] border-2 border-ore-gray-border text-white font-minecraft p-2 text-sm focus:outline-none focus:border-ore-green transition-colors min-w-[200px] cursor-pointer";
+  // ✅ 映射配置：将 JSON 结构映射为对应的组件渲染项
+  const SOURCE_CATEGORIES = useMemo(() => [
+    { key: 'vanilla', label: '原版核心下载源', data: downloadConfig.sources.vanilla },
+    { key: 'forge', label: 'Forge 下载源', data: downloadConfig.sources.forge },
+    { key: 'fabric', label: 'Fabric 下载源', data: downloadConfig.sources.fabric },
+    { key: 'neoforge', label: 'NeoForge 下载源', data: downloadConfig.sources.neoforge },
+  ] as const, []);
+
+  const proxyOptions = [
+    { label: '直连 (不使用代理)', value: 'none' },
+    { label: 'HTTP 代理', value: 'http' },
+    { label: 'HTTPS 代理', value: 'https' },
+    { label: 'SOCKS5 代理', value: 'socks5' },
+  ];
 
   return (
     <SettingsPageLayout title="下载与网络" subtitle="Download & Network Configurations">
       
-      {/* ==================== 1. 下载源与节点 ==================== */}
-      <SettingsSection title="下载源与节点" icon={<Globe size={18} />}>
-        
-        <FormRow 
-          label="Minecraft 核心下载源" 
-          description="选择游戏核心、库文件及资源的下载通道。国内用户强烈建议使用镜像源。"
-          control={
-            <select 
-              value={download.source} 
-              onChange={(e) => updateDownloadSetting('source', e.target.value as any)} 
-              className={selectBaseStyle}
-            >
-              <option value="official">官方源 (Official)</option>
-              <option value="bmclapi">BMCLAPI (国内极速镜像)</option>
-              <option value="mcbbs">MCBBS (备用镜像)</option>
-            </select>
-          }
-        />
+      {/* ==================== 1. 下载源配置 (循环渲染四个 Loader 通道) ==================== */}
+      <SettingsSection title="组件下载源" icon={<Globe size={18} />}>
+        {SOURCE_CATEGORIES.map(category => {
+          // 动态计算对应的 state key (例如 vanillaSource, vanillaSourceUrl)
+          const sourceKey = `${category.key}Source` as keyof typeof download;
+          const urlKey = `${category.key}SourceUrl` as keyof typeof download;
 
-        <FormRow 
-          label="动态测速与自动切换" 
-          description="下载前自动对可用节点进行 PING 测试，并优先分配到延迟最低的节点服务器。"
-          control={
-            <OreSwitch 
-              checked={download.autoCheckLatency} 
-              onChange={(v) => updateDownloadSetting('autoCheckLatency', v)} 
-            />
-          }
-        />
+          // 组装下拉选项
+          const options = category.data.map(s => ({ label: s.name, value: s.id }));
+          options.push({ label: '自定义源 (Custom)', value: 'custom' });
 
+          const currentSourceValue = (download as any)[sourceKey] || 'official';
+          const currentUrlValue = (download as any)[urlKey] || '';
+
+          return (
+            <React.Fragment key={category.key}>
+              <FormRow 
+                label={category.label} 
+                control={
+                  <OreDropdown 
+                    options={options}
+                    value={currentSourceValue}
+                    onChange={(val) => {
+                      if (val === 'custom') {
+                        const confirmCustom = window.confirm(`⚠️ 警告：\n\n您正在修改 [${category.label}]。\n使用未知的自定义源可能导致下载到被篡改的游戏文件，面临账号被盗或系统感染木马的风险。\n\n您确定要知道自己在做什么吗？`);
+                        if (!confirmCustom) return;
+                        
+                        updateDownloadSetting(sourceKey, val as any);
+                        updateDownloadSetting(urlKey, '' as any); 
+                      } else {
+                        const targetSource = category.data.find(s => s.id === val);
+                        if (targetSource) {
+                          updateDownloadSetting(urlKey, targetSource.url as any);
+                        }
+                        updateDownloadSetting(sourceKey, val as any);
+                      }
+                    }}
+                    className="w-56"
+                  />
+                }
+              />
+
+              {/* 当选中当前类别的“自定义源”时，展开警告与输入框 */}
+              <div className={`transition-all duration-300 overflow-hidden ${currentSourceValue === 'custom' ? 'max-h-48 opacity-100 mb-2' : 'max-h-0 opacity-0'}`}>
+                <div className="bg-red-500/10 border-l-4 border-red-500 p-3 mb-2 rounded-r-sm flex items-start">
+                  <AlertTriangle size={16} className="text-red-500 mt-0.5 mr-2 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h4 className="text-red-400 font-minecraft text-sm font-bold mb-1">危险操作提示</h4>
+                    <p className="text-red-400/80 text-xs">您正在使用不受支持的自定义 API。请确保该地址使用 HTTPS 且来源绝对可靠。</p>
+                  </div>
+                </div>
+                <FormRow 
+                  label={`${category.key.toUpperCase()} API 地址`} 
+                  control={
+                    <OreInput 
+                      value={currentUrlValue} 
+                      onChange={(e) => updateDownloadSetting(urlKey, e.target.value as any)} 
+                      placeholder={`https://your-${category.key}-mirror.com`}
+                      className="w-64 font-mono text-xs"
+                    />
+                  }
+                />
+              </div>
+            </React.Fragment>
+          );
+        })}
+
+        {/* 测速设置放到底部 */}
+        <div className="mt-4 pt-4 border-t border-white/5">
+          <FormRow 
+            label="动态测速与自动切换" 
+            description="下载前自动对可用节点进行 PING 测试，并优先分配到延迟最低的节点服务器。"
+            control={<OreSwitch checked={download.autoCheckLatency} onChange={(v) => updateDownloadSetting('autoCheckLatency', v)} />}
+          />
+        </div>
       </SettingsSection>
 
       {/* ==================== 2. 速度与并发 ==================== */}
       <SettingsSection title="速度与并发" icon={<Zap size={18} />}>
-        
         <FormRow 
           label="速度显示单位" 
           description="MB/s (兆字节，常规显示方式) 或 Mbps (兆比特，宽带运营商标注方式)。"
@@ -71,11 +131,11 @@ export const DownloadSettings: React.FC = () => {
                 ]}
                 value={download.speedUnit}
                 onChange={(v) => updateDownloadSetting('speedUnit', v as any)}
+                size="sm"
               />
             </div>
           }
         />
-
         <FormRow 
           label="全局下载限速" 
           description="限制启动器的最大下载速度，设置为 0 则表示不限速。"
@@ -92,7 +152,6 @@ export const DownloadSettings: React.FC = () => {
             </div>
           }
         />
-
         <FormRow 
           label="最大并发任务数" 
           description="同时下载的文件数量。数值越大理论速度越快，但过高可能导致路由器卡顿或被服务器拒绝连接。"
@@ -110,12 +169,10 @@ export const DownloadSettings: React.FC = () => {
             </div>
           }
         />
-
       </SettingsSection>
 
       {/* ==================== 3. 容错与校验 ==================== */}
       <SettingsSection title="容错与校验" icon={<ShieldCheck size={18} />}>
-        
         <FormRow 
           label="连接超时时间" 
           description="当超过此时间（秒）仍未收到服务器数据时，将自动断开并尝试重新连接。"
@@ -132,7 +189,6 @@ export const DownloadSettings: React.FC = () => {
             </div>
           }
         />
-
         <FormRow 
           label="单文件失败重试次数" 
           description="下载失败后自动重新尝试的次数。超过该次数将判定为彻底失败并中断任务。"
@@ -150,41 +206,27 @@ export const DownloadSettings: React.FC = () => {
             </div>
           }
         />
-
         <FormRow 
           label="下载后强制校验 (Hash)" 
           description="下载完成后自动对文件进行 SHA-1 完整性校验，确保文件未损坏。开启后会略微增加 CPU 负担。"
-          control={
-            <OreSwitch 
-              checked={download.verifyAfterDownload} 
-              onChange={(v) => updateDownloadSetting('verifyAfterDownload', v)} 
-            />
-          }
+          control={<OreSwitch checked={download.verifyAfterDownload} onChange={(v) => updateDownloadSetting('verifyAfterDownload', v)} />}
         />
-
       </SettingsSection>
 
       {/* ==================== 4. 代理设置 ==================== */}
       <SettingsSection title="代理服务器" icon={<Network size={18} />}>
-        
         <FormRow 
           label="代理模式" 
           description="配置启动器的全局网络代理（仅对下载与 API 请求生效，不影响游戏内的多人联机）。"
           control={
-            <select 
-              value={download.proxyType} 
-              onChange={(e) => updateDownloadSetting('proxyType', e.target.value as any)} 
-              className={selectBaseStyle}
-            >
-              <option value="none">直连 (不使用代理)</option>
-              <option value="http">HTTP 代理</option>
-              <option value="https">HTTPS 代理</option>
-              <option value="socks5">SOCKS5 代理</option>
-            </select>
+            <OreDropdown 
+              options={proxyOptions}
+              value={download.proxyType}
+              onChange={(val) => updateDownloadSetting('proxyType', val as any)}
+              className="w-48"
+            />
           }
         />
-
-        {/* 当非直连时，动态展开配置项，加上平滑的透明度过渡 */}
         <div className={`transition-all duration-300 overflow-hidden divide-y-2 divide-[#1E1E1F] ${download.proxyType === 'none' ? 'max-h-0 opacity-0' : 'max-h-96 opacity-100 bg-[#141415]/30'}`}>
           <FormRow 
             label="主机地址 (Host)" 
@@ -209,7 +251,6 @@ export const DownloadSettings: React.FC = () => {
             }
           />
         </div>
-
       </SettingsSection>
 
     </SettingsPageLayout>

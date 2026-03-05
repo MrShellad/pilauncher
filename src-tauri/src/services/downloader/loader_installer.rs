@@ -1,9 +1,12 @@
 // src-tauri/src/services/downloader/loader_installer.rs
 use crate::domain::event::DownloadProgressEvent;
 use crate::error::AppResult;
-use std::fs;
 use std::path::Path;
 use tauri::{AppHandle, Emitter, Runtime};
+use tokio::process::Command;
+use std::process::Stdio;
+use tokio::io::AsyncBufReadExt;
+use crate::services::config_service::ConfigService;
 
 pub async fn install_loader<R: Runtime>(
     app: &AppHandle<R>,
@@ -14,78 +17,174 @@ pub async fn install_loader<R: Runtime>(
     global_mc_root: &Path,
 ) -> AppResult<()> {
     if loader_type.eq_ignore_ascii_case("Vanilla") || loader_version.is_empty() {
-        return Ok(()); // 原版无需安装 Loader
+        return Ok(()); 
     }
 
     if loader_type.eq_ignore_ascii_case("Fabric") {
         install_fabric(app, instance_id, mc_version, loader_version, global_mc_root).await?;
     } else if loader_type.eq_ignore_ascii_case("Forge") {
-        // TODO: Forge 的安装较为复杂（需要运行 Installer 提取 client.lzma），这里暂时预留
-        let _ = app.emit(
-            "instance-deployment-progress",
-            DownloadProgressEvent {
-                instance_id: instance_id.to_string(),
-                stage: "ERROR".to_string(),
-                file_name: "".to_string(),
-                current: 0,
-                total: 100,
-                message: "当前版本暂未实现 Forge 的自动安装，请期待后续更新".to_string(),
-            },
-        );
+        install_forge(app, instance_id, mc_version, loader_version, global_mc_root).await?;
+    } else if loader_type.eq_ignore_ascii_case("NeoForge") {
+        install_neoforge(app, instance_id, loader_version, global_mc_root).await?;
     }
 
     Ok(())
 }
 
 async fn install_fabric<R: Runtime>(
-    app: &AppHandle<R>,
-    instance_id: &str,
-    mc_version: &str,
-    loader_version: &str,
-    global_mc_root: &Path,
+    app: &AppHandle<R>, instance_id: &str, mc_version: &str, loader_version: &str, global_mc_root: &Path,
 ) -> AppResult<()> {
+    let dl_settings = ConfigService::get_download_settings(app);
     let client = reqwest::Client::new();
     
-    // Fabric 版本的标准命名格式 (例如: fabric-loader-0.15.7-1.20.4)
     let version_id = format!("fabric-loader-{}-{}", loader_version, mc_version);
     let version_dir = global_mc_root.join("versions").join(&version_id);
-    fs::create_dir_all(&version_dir)?;
-
+    tokio::fs::create_dir_all(&version_dir).await?;
     let json_path = version_dir.join(format!("{}.json", version_id));
 
-    // 1. 从 Fabric Meta API 获取 Profile JSON (国内同样可以使用 BMCLAPI 镜像)
     if !json_path.exists() {
-        let _ = app.emit(
-            "instance-deployment-progress",
-            DownloadProgressEvent {
-                instance_id: instance_id.to_string(),
-                stage: "VANILLA_CORE".to_string(), // 借用核心阶段的 UI 展示
-                file_name: format!("{}.json", version_id),
-                current: 90,
-                total: 100,
-                message: format!("正在配置 Fabric {} 环境...", loader_version),
-            },
-        );
+        let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {
+            instance_id: instance_id.to_string(), stage: "LOADER_CORE".to_string(), file_name: format!("{}.json", version_id), current: 90, total: 100, message: format!("正在配置 Fabric {} 环境...", loader_version),
+        });
 
-        let meta_url = format!(
-            "https://bmclapi2.bangbang93.com/fabric-meta/v2/versions/loader/{}/{}/profile/json",
-            mc_version, loader_version
-        );
+        // 根据配置选择官方或镜像源
+        let base_meta_url = if dl_settings.fabric_source == "official" {
+            "https://meta.fabricmc.net".to_string()
+        } else {
+            "https://bmclapi2.bangbang93.com/fabric-meta".to_string() // 兼容 BMCLAPI
+        };
 
+        let meta_url = format!("{}/v2/versions/loader/{}/{}/profile/json", base_meta_url, mc_version, loader_version);
         let profile_json_text = client.get(&meta_url).send().await?.text().await?;
-        fs::write(&json_path, &profile_json_text)?;
+        tokio::fs::write(&json_path, &profile_json_text).await?;
     }
 
-    // 2. 极其关键的一步：Fabric 也有自己专属的 Libraries (比如 sponge-mixin, mappings)
-    // 我们可以直接复用你写好的 dependencies::download_dependencies 函数！
-    // 只需要把版本号指向刚生成的 Fabric 版本即可。
-    crate::services::downloader::dependencies::download_dependencies(
-        app,
-        instance_id,
-        &version_id, // 注意这里传入的是 fabric-loader-xxx
-        global_mc_root,
-    )
-    .await?;
+    // 复用依赖下载器拉取 fabric 核心包
+    crate::services::downloader::dependencies::download_dependencies(app, instance_id, &version_id, global_mc_root).await?;
+
+    Ok(())
+}
+
+async fn install_forge<R: Runtime>(
+    app: &AppHandle<R>, instance_id: &str, mc_version: &str, loader_version: &str, global_mc_root: &Path,
+) -> AppResult<()> {
+    let dl_settings = ConfigService::get_download_settings(app);
+    let java_settings = ConfigService::get_java_settings(app);
+    let client = reqwest::Client::new();
+
+    let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {
+        instance_id: instance_id.to_string(), stage: "LOADER_CORE".to_string(), file_name: "".to_string(), current: 20, total: 100, message: format!("正在下载 Forge {} 安装器...", loader_version),
+    });
+
+    let installer_url = if dl_settings.forge_source == "official" {
+        format!("https://maven.minecraftforge.net/net/minecraftforge/forge/{0}-{1}/forge-{0}-{1}-installer.jar", mc_version, loader_version)
+    } else {
+        format!("https://bmclapi2.bangbang93.com/maven/net/minecraftforge/forge/{0}-{1}/forge-{0}-{1}-installer.jar", mc_version, loader_version)
+    };
+
+    let temp_dir = global_mc_root.join("temp");
+    tokio::fs::create_dir_all(&temp_dir).await?;
+    let installer_path = temp_dir.join(format!("forge-installer-{}.jar", loader_version));
+
+    if !installer_path.exists() {
+        let res = client.get(&installer_url).send().await?.bytes().await?;
+        tokio::fs::write(&installer_path, res).await?;
+    }
+
+    // ✅ 核心修复：伪造官方 launcher_profiles.json，骗过 Forge 安装器的校验
+    let launcher_profiles = global_mc_root.join("launcher_profiles.json");
+    if !launcher_profiles.exists() {
+        tokio::fs::write(&launcher_profiles, "{\"profiles\": {}}").await?;
+    }
+
+    let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {
+        instance_id: instance_id.to_string(), stage: "LOADER_CORE".to_string(), file_name: "".to_string(), current: 60, total: 100, message: "正在后台静默编译 Forge 运行环境，此过程可能需要几分钟，请耐心等待...".to_string(),
+    });
+
+    let java_path = if java_settings.java_path.is_empty() || java_settings.java_path == "auto" { "java".to_string() } else { java_settings.java_path.clone() };
+
+    let mut child = Command::new(&java_path)
+        .arg("-jar").arg(&installer_path).arg("--installClient").arg(global_mc_root)
+        .stdout(Stdio::piped()).stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("启动 Java 安装器失败: {}", e)))?;
+
+    if let Some(stdout) = child.stdout.take() {
+        let mut reader = tokio::io::BufReader::new(stdout).lines();
+        tokio::spawn(async move {
+            while let Ok(Some(line)) = reader.next_line().await {
+                println!("[Forge] {}", line);
+            }
+        });
+    }
+
+    let status = child.wait().await?;
+    if !status.success() {
+        return Err(std::io::Error::new(std::io::ErrorKind::Other, "Forge 安装器执行失败，请检查控制台日志").into());
+    }
+
+    let _ = tokio::fs::remove_file(&installer_path).await; // 清理残留
+
+    Ok(())
+}
+
+async fn install_neoforge<R: Runtime>(
+    app: &AppHandle<R>, instance_id: &str, loader_version: &str, global_mc_root: &Path,
+) -> AppResult<()> {
+    let dl_settings = ConfigService::get_download_settings(app);
+    let java_settings = ConfigService::get_java_settings(app);
+    let client = reqwest::Client::new();
+
+    let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {
+        instance_id: instance_id.to_string(), stage: "LOADER_CORE".to_string(), file_name: "".to_string(), current: 20, total: 100, message: format!("正在下载 NeoForge {} 安装器...", loader_version),
+    });
+
+    let installer_url = if dl_settings.neoforge_source == "official" {
+        format!("https://maven.neoforged.net/releases/net/neoforged/neoforge/{0}/neoforge-{0}-installer.jar", loader_version)
+    } else {
+        format!("https://bmclapi2.bangbang93.com/maven/net/neoforged/neoforge/{0}/neoforge-{0}-installer.jar", loader_version)
+    };
+
+    let temp_dir = global_mc_root.join("temp");
+    tokio::fs::create_dir_all(&temp_dir).await?;
+    let installer_path = temp_dir.join(format!("neoforge-installer-{}.jar", loader_version));
+
+    if !installer_path.exists() {
+        let res = client.get(&installer_url).send().await?.bytes().await?;
+        tokio::fs::write(&installer_path, res).await?;
+    }
+
+    // ✅ 核心修复：伪造官方 launcher_profiles.json，骗过 NeoForge 安装器的校验
+    let launcher_profiles = global_mc_root.join("launcher_profiles.json");
+    if !launcher_profiles.exists() {
+        tokio::fs::write(&launcher_profiles, "{\"profiles\": {}}").await?;
+    }
+
+    let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {
+        instance_id: instance_id.to_string(), stage: "LOADER_CORE".to_string(), file_name: "".to_string(), current: 60, total: 100, message: "正在后台静默编译 NeoForge 运行环境...".to_string(),
+    });
+
+    let java_path = if java_settings.java_path.is_empty() || java_settings.java_path == "auto" { "java".to_string() } else { java_settings.java_path.clone() };
+
+    let mut child = Command::new(&java_path)
+        .arg("-jar").arg(&installer_path).arg("--installClient").arg(global_mc_root)
+        .stdout(Stdio::piped()).stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("启动 Java 安装器失败: {}", e)))?;
+
+    if let Some(stdout) = child.stdout.take() {
+        let mut reader = tokio::io::BufReader::new(stdout).lines();
+        tokio::spawn(async move {
+            while let Ok(Some(line)) = reader.next_line().await { println!("[NeoForge] {}", line); }
+        });
+    }
+
+    let status = child.wait().await?;
+    if !status.success() {
+        return Err(std::io::Error::new(std::io::ErrorKind::Other, "NeoForge 安装器执行失败").into());
+    }
+
+    let _ = tokio::fs::remove_file(&installer_path).await;
 
     Ok(())
 }

@@ -6,10 +6,14 @@ export interface MinecraftAccount {
   uuid: string;
   name: string;
   // ✅ 将 type 改为支持任意字符串，为以后的 LittleSkin / 自建外置登录铺路
-  type: 'microsoft' | 'offline' | string; 
+  // 顺手加上 'authlib' 的语法提示，对齐后端的枚举
+  type: 'microsoft' | 'offline' | 'authlib' | string; 
   accessToken: string;
-  refreshToken?: string;
-  skinUrl?: string;
+  
+  // ✅ 核心修复：补齐以下三个可选字段，并允许其为 null，彻底消除 TS 报错！
+  refreshToken?: string | null;
+  expiresAt?: number | null;
+  skinUrl?: string | null;
 }
 
 interface AccountStore {

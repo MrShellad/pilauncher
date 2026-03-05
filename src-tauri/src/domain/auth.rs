@@ -19,13 +19,26 @@ pub struct MicrosoftTokenResponse {
     pub error_description: Option<String>, 
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct MinecraftAccount {
+// ✅ 引入全新的强类型账号类型枚举
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")] // 兼容前端的小驼峰命名
+pub enum AccountType {
+    Offline,
+    Microsoft,
+    Authlib,
+}
+
+// ✅ 替换原有的 MinecraftAccount，使用你设计的最优 Account 结构
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Account {
+    pub id: String,
+    pub account_type: AccountType,
+    pub username: String,
     pub uuid: String,
-    pub name: String,
-    pub r#type: String, 
     pub access_token: String,
     pub refresh_token: Option<String>,
+    pub expires_at: Option<i64>,
     pub skin_url: Option<String>,
 }
 
