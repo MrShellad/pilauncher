@@ -2,10 +2,13 @@
 import React from 'react';
 import { FocusItem } from '../focus/FocusItem';
 
+// ✅ 核心修复：引入 designToken，确保打包器加载它，并触发内部的 CSS 变量全局注入！
+import '../../style/tokens/designToken'; 
+
 interface OreButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: 'primary' | 'secondary' | 'danger' | 'purple' | 'hero';
   size?: 'sm' | 'md' | 'lg' | 'auto' | 'full'; 
-  focusKey?: string; // ✅ 新增：允许外部传入指定的焦点 ID
+  focusKey?: string; 
 }
 
 export const OreButton: React.FC<OreButtonProps> = ({ 
@@ -15,7 +18,7 @@ export const OreButton: React.FC<OreButtonProps> = ({
   className = '',
   disabled,
   onClick,
-  focusKey, // ✅ 接收 focusKey
+  focusKey, 
   ...props 
 }) => {
 
@@ -37,13 +40,15 @@ export const OreButton: React.FC<OreButtonProps> = ({
   
   const variants = {
     primary: "ore-btn-primary ore-text-shadow",
+    hero: "ore-btn-primary ore-text-shadow text-lg tracking-wider", // Hero为强化版Primary
     secondary: "ore-btn-secondary",
     danger: "ore-btn-danger ore-text-shadow",
+    purple: "ore-btn-purple ore-text-shadow", 
   };
 
   return (
     <FocusItem 
-      focusKey={focusKey} // ✅ 将 focusKey 传递给底层的空间导航引擎
+      focusKey={focusKey} 
       disabled={disabled} 
       onEnter={() => onClick && onClick({ preventDefault: () => {}, stopPropagation: () => {} } as any)}
     >
@@ -53,13 +58,13 @@ export const OreButton: React.FC<OreButtonProps> = ({
             ref={ref}
             disabled={disabled}
             onClick={onClick}
+            // 样式控制全部移交至上一轮写好的 OreButton.css
             className={`
-              ore-btn w-full h-full font-minecraft flex items-center justify-center
-              focus:outline-none transition-all duration-150 transform-gpu backface-hidden antialiased
+              ore-btn relative w-full h-full font-minecraft flex items-center justify-center tracking-wide
+              focus:outline-none transition-none transform-gpu backface-hidden antialiased
               ${buttonSizes[size]}
               ${variants[variant]}
-              ${disabled ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98] active:brightness-90'}
-              ${focused ? 'ring-2 ring-white brightness-110 scale-[1.02] shadow-lg z-10' : 'hover:brightness-110'}
+              ${focused ? 'is-focused' : ''}
             `}
             style={{ fontWeight: 'normal', ...props.style }}
             {...props}

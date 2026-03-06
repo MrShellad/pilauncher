@@ -18,7 +18,9 @@ export const useGameLaunch = () => {
     const currentAccount = accounts.find(a => a.uuid === activeAccountId);
 
     if (!currentAccount) {
-      alert("启动失败：请先在设置页面添加并选择一个游戏账号！");
+      // ✅ 移除了原生的 alert()，改为向控制台输出警告并静默中止
+      // 真正的拦截与弹窗反馈将由前端 LaunchControls 负责
+      console.warn("[Launch] 启动中止：未检测到有效账号");
       return;
     }
 
@@ -26,8 +28,6 @@ export const useGameLaunch = () => {
       setIsLaunching(true);
       console.log(`[Launch] 准备使用账号 [${currentAccount.name}] 启动实例: ${instanceId}`);
       
-      // ✅ 致命修复：必须全部小写！
-      // 对应 Rust 端的 'offline', 'microsoft', 'authlib'
       let mappedAccountType = 'offline';
       if (currentAccount.type?.toLowerCase() === 'microsoft') {
         mappedAccountType = 'microsoft';
@@ -39,7 +39,7 @@ export const useGameLaunch = () => {
         instanceId, 
         account: {
           id: currentAccount.uuid,
-          accountType: mappedAccountType, // ✅ 传入全小写的字符串
+          accountType: mappedAccountType, 
           username: currentAccount.name,
           uuid: currentAccount.uuid,
           accessToken: currentAccount.accessToken || "0",
@@ -51,7 +51,7 @@ export const useGameLaunch = () => {
 
     } catch (error) {
       console.error('游戏启动失败:', error);
-      alert(`启动失败: ${error}`);
+      alert(`启动失败: ${error}`); // 这里的报错依然保留，因为这是真实的底层崩溃抛出
     } finally {
       setIsLaunching(false);
     }

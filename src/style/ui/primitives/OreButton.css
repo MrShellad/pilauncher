@@ -1,62 +1,138 @@
 /* /src/style/ui/primitives/OreButton.css */
 @layer components {
+  /* ================= 基础物理框架 ================= */
   .ore-btn {
-    /* 使用 @apply 代替硬编码的 flex, font, border 等 */
-    @apply inline-flex items-center justify-center box-border font-minecraft uppercase font-bold border-2 border-ore-gray-border pb-[6px];
-    transition: none; 
+    /* 统一 2px 纯黑描边 */
+    @apply relative inline-flex items-center justify-center box-border font-minecraft uppercase font-bold border-2 transition-none outline-none;
+    border-color: var(--ore-border-color);
+    padding-bottom: 4px; /* 为底部的 4px 3D阴影预留视觉补偿中心 */
   }
 
+  /* 物理下压引擎：底框位置绝对固定，只压缩按钮顶部 */
   .ore-btn:active:not(:disabled) {
-    @apply mt-1 pb-[2px];
+    margin-top: 4px;
     height: calc(100% - 4px);
+    padding-bottom: 0px; 
   }
 
-  /* --- Secondary (浅灰按钮) --- */
-  .ore-btn-secondary {
-    @apply bg-ore-button text-ore-text-dark;
-    /* 使用 theme() 读取 tailwind.config 中的阴影色 */
-    box-shadow: inset 0 -4px theme('colors.ore.button.shadow'), inset 3px 3px rgba(255, 255, 255, 0.6), inset -3px -7px rgba(255, 255, 255, 0.4);
-  }
-  .ore-btn-secondary:hover:not(:disabled) {
-    @apply bg-ore-button-hover;
-    box-shadow: inset 0 -4px theme('colors.ore.button.shadow'), inset 3px 3px rgba(255, 255, 255, 0.8), inset -3px -7px rgba(255, 255, 255, 0.6);
-  }
-  .ore-btn-secondary:active:not(:disabled) {
-    @apply bg-ore-button-hover;
-    box-shadow: inset 3px 3px rgba(255, 255, 255, 0.8), inset -3px -3px rgba(255, 255, 255, 0.6);
+  /* ================= 高光焦点导航环 (HDR Ready) ================= */
+  .ore-btn.is-focused {
+    /* 1px 缝隙 + 2px 亮白环 */
+    outline: 2px solid var(--ore-focus-ringFallback);
+    outline: 2px solid var(--ore-focus-ring); /* 若浏览器支持P3色域则自动覆盖 */
+    outline-offset: 1px;
+    z-index: 20;
+    
+    /* 绝杀：通过 drop-shadow 给 outline 赋予外围光晕，即便在纯白背景下也能清晰辨认 */
+    filter: drop-shadow(0 0 6px var(--ore-focus-glow)) brightness(1.1);
   }
 
-  /* --- Primary (绿色按钮) --- */
+  /* 当按钮被按下时，光环需要跟随按钮一起下沉 */
+  .ore-btn.is-focused:active:not(:disabled) {
+    outline-offset: 0px;
+    filter: drop-shadow(0 0 3px var(--ore-focus-glow)) brightness(1.1);
+  }
+
+  /* ================= Primary / Hero (绿色动作) ================= */
   .ore-btn-primary {
-    @apply bg-ore-green text-ore-text;
-    box-shadow: inset 0 -4px theme('colors.ore.green.shadow'), inset 3px 3px rgba(255, 255, 255, 0.2), inset -3px -7px rgba(255, 255, 255, 0.1);
+    background-color: var(--ore-btn-primary-bg);
+    color: var(--ore-btn-primary-text);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-primary-shadow), 
+      inset 3px 3px var(--ore-btn-primary-hl1), 
+      inset -3px -7px var(--ore-btn-primary-hl2);
   }
   .ore-btn-primary:hover:not(:disabled) {
-    @apply bg-ore-green-hover;
-    box-shadow: inset 0 -4px theme('colors.ore.green.shadow'), inset 3px 3px rgba(255, 255, 255, 0.4), inset -3px -7px rgba(255, 255, 255, 0.3);
+    background-color: var(--ore-btn-primary-hover);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-primary-shadow), 
+      inset 3px 3px var(--ore-btn-primary-hoverHl1), 
+      inset -3px -7px var(--ore-btn-primary-hoverHl2);
   }
   .ore-btn-primary:active:not(:disabled) {
-    @apply bg-ore-green-active;
-    box-shadow: inset 3px 3px rgba(255, 255, 255, 0.4), inset -3px -3px rgba(255, 255, 255, 0.3);
+    background-color: var(--ore-btn-primary-active);
+    /* 按下时：底部黑框消失，转换为顶角凹陷阴影 */
+    box-shadow: 
+      inset 3px 3px var(--ore-btn-primary-hoverHl1), 
+      inset -3px -3px var(--ore-btn-primary-hoverHl2);
   }
 
-  /* --- Danger (红色按钮) --- */
+  /* ================= Secondary (灰色次要) ================= */
+  .ore-btn-secondary {
+    background-color: var(--ore-btn-secondary-bg);
+    color: var(--ore-btn-secondary-text);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-secondary-shadow), 
+      inset 3px 3px var(--ore-btn-secondary-hl1), 
+      inset -3px -7px var(--ore-btn-secondary-hl2);
+  }
+  .ore-btn-secondary:hover:not(:disabled) {
+    background-color: var(--ore-btn-secondary-hover);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-secondary-shadow), 
+      inset 3px 3px var(--ore-btn-secondary-hoverHl1), 
+      inset -3px -7px var(--ore-btn-secondary-hoverHl2);
+  }
+  .ore-btn-secondary:active:not(:disabled) {
+    background-color: var(--ore-btn-secondary-active);
+    box-shadow: 
+      inset 3px 3px var(--ore-btn-secondary-hoverHl1), 
+      inset -3px -3px var(--ore-btn-secondary-hoverHl2);
+  }
+
+  /* ================= Danger (红色危险) ================= */
   .ore-btn-danger {
-    @apply bg-ore-red text-ore-text;
-    box-shadow: inset 0 -4px theme('colors.ore.red.shadow'), inset 3px 3px rgba(255, 255, 255, 0.2), inset -3px -7px rgba(255, 255, 255, 0.1);
+    background-color: var(--ore-btn-danger-bg);
+    color: var(--ore-btn-danger-text);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-danger-shadow), 
+      inset 3px 3px var(--ore-btn-danger-hl1), 
+      inset -3px -7px var(--ore-btn-danger-hl2);
   }
   .ore-btn-danger:hover:not(:disabled) {
-    @apply bg-ore-red-hover;
-    box-shadow: inset 0 -4px theme('colors.ore.red.shadow'), inset 3px 3px rgba(255, 255, 255, 0.5), inset -3px -7px rgba(255, 255, 255, 0.4);
+    background-color: var(--ore-btn-danger-hover);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-danger-shadow), 
+      inset 3px 3px var(--ore-btn-danger-hoverHl1), 
+      inset -3px -7px var(--ore-btn-danger-hoverHl2);
   }
   .ore-btn-danger:active:not(:disabled) {
-    @apply bg-ore-red-active;
-    box-shadow: inset 3px 3px rgba(255, 255, 255, 0.5), inset -3px -3px rgba(255, 255, 255, 0.4);
+    background-color: var(--ore-btn-danger-active);
+    box-shadow: 
+      inset 3px 3px var(--ore-btn-danger-hoverHl1), 
+      inset -3px -3px var(--ore-btn-danger-hoverHl2);
   }
 
-  /* --- Disabled (禁用) --- */
+  /* ================= Purple (紫色史诗) ================= */
+  .ore-btn-purple {
+    background-color: var(--ore-btn-purple-bg);
+    color: var(--ore-btn-purple-text);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-purple-shadow), 
+      inset 3px 3px var(--ore-btn-purple-hl1), 
+      inset -3px -7px var(--ore-btn-purple-hl2);
+  }
+  .ore-btn-purple:hover:not(:disabled) {
+    background-color: var(--ore-btn-purple-hover);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-purple-shadow), 
+      inset 3px 3px var(--ore-btn-purple-hoverHl1), 
+      inset -3px -7px var(--ore-btn-purple-hoverHl2);
+  }
+  .ore-btn-purple:active:not(:disabled) {
+    background-color: var(--ore-btn-purple-active);
+    box-shadow: 
+      inset 3px 3px var(--ore-btn-purple-hoverHl1), 
+      inset -3px -3px var(--ore-btn-purple-hoverHl2);
+  }
+
+  /* ================= Disabled (禁用还原) ================= */
   .ore-btn:disabled {
-    @apply bg-ore-button border-ore-gray-track text-ore-nav cursor-not-allowed;
-    box-shadow: inset 0 -4px theme('colors.ore.button.hover');
+    background-color: var(--ore-btn-disabled-bg);
+    color: var(--ore-btn-disabled-text);
+    border-color: var(--ore-btn-disabled-border);
+    cursor: not-allowed;
+    /* 禁用状态下只保留极其微弱的 3D 效果底边 */
+    box-shadow: inset 0 -4px var(--ore-btn-disabled-shadow);
   }
 }

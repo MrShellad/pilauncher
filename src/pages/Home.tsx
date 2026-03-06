@@ -48,7 +48,7 @@ const Home: React.FC = () => {
         <HeroLogo />
       </div>
 
-      <div className="absolute bottom-12 left-1/2 -translate-x-1/2 w-full flex justify-center z-20">
+      <div className="absolute bottom-[13vh] left-1/2 -translate-x-1/2 w-full flex justify-center z-20">
         <LaunchControls 
           instanceId={currentId} // ✅ 核心修复 1：把当前高亮的 ID 传给控制组件
           instanceName={currentInstanceName}

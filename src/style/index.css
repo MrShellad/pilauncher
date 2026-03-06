@@ -8,7 +8,7 @@
 
 @import './ui/primitives/OreButton.css';
 @import './ui/primitives/OreSegmentedControl.css';
-@import './ui/primitives/OreModal.css';
+/* @import './ui/primitives/OreModal.css'; */
 @import './ui/primitives/OreInstanceCard.css';
 @import './ui/primitives/OreCard.css';
 @import './ui/primitives/OreInput.css';

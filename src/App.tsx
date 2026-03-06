@@ -1,5 +1,5 @@
 // /src/App.tsx
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useLayoutEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 // 引入状态管理
@@ -19,6 +19,9 @@ import { JavaGuard } from './features/runtime/components/JavaGuard';
 import { OreMotionTokens } from './style/tokens/motion'; 
 import './style/index.css';
 import './ui/i18';
+
+import { injectDesignTokens } from './style/tokens/designToken';
+
 // 懒加载页面路由
 const Home = lazy(() => import('./pages/Home'));
 const Instances = lazy(() => import('./pages/Instances'));
@@ -26,9 +29,16 @@ const NewInstance = lazy(() => import('./pages/NewInstance'));
 const Settings = lazy(() => import('./pages/Settings'));
 const InstanceDetail = lazy(() => import('./pages/InstanceDetail')); 
 const ResourceDownloadPage = lazy(() => import('./pages/ResourceDownloadPage'));
+
 const App: React.FC = () => {
   const activeTab = useLauncherStore(state => state.activeTab);
   const { appearance } = useSettingsStore(state => state.settings);
+
+  // ✅ 核心修复：使用 useLayoutEffect，确保在组件挂载、DOM 渲染前，同步注入 CSS 变量。
+  // 彻底解决首次加载或热更新时，CSS 变量丢失导致按钮变透明的问题！
+  useLayoutEffect(() => {
+    injectDesignTokens();
+  }, []);
 
   const PageLoader = () => (
     <div className="absolute inset-0 flex items-center justify-center">
@@ -43,7 +53,6 @@ const App: React.FC = () => {
   };
 
   return (
-    // ✅ 核心：使用 FocusProvider 包裹整个应用，初始化底层的空间导航引擎
     <FocusProvider>
       <div className="relative w-screen h-screen flex flex-col overflow-hidden text-ore-text" style={globalStyle}>
         <OreBackground />
@@ -52,7 +61,7 @@ const App: React.FC = () => {
         <main className="flex-1 flex relative">
           <AnimatePresence mode="wait">
             <motion.div
-              key={activeTab} // 使用 activeTab 作为 key 确保切换时触发动画
+              key={activeTab} 
               initial={OreMotionTokens.pageInitial}
               animate={OreMotionTokens.pageAnimate}
               exit={OreMotionTokens.pageExit}
@@ -64,7 +73,6 @@ const App: React.FC = () => {
                 {activeTab === 'new-instance' && <NewInstance />}
                 {activeTab === 'instance-detail' && <InstanceDetail />}
                 {activeTab === 'downloads' && <ResourceDownloadPage />}
-
                 {activeTab === 'settings' && <Settings />}
               </Suspense>
             </motion.div>

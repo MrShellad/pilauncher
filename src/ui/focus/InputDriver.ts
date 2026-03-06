@@ -18,12 +18,9 @@ export const useInputAction = (action: InputAction, callback: () => void) => {
   }, [action, callback]);
 };
 
-// ✅ 核心修复 1：增加 source 参数
 const dispatchAction = (action: InputAction, source: InputMode = 'controller') => {
   window.dispatchEvent(new CustomEvent('ore-action', { detail: action }));
   
-  // ✅ 核心修复 2：只有手柄产生的事件，才需要伪造原生事件！
-  // 键盘事件浏览器会自动处理，再发一次就会导致“连跳两格”的 Bug。
   if (source === 'controller') {
     const keyMap: Record<string, string> = {
       'UP': 'ArrowUp', 'DOWN': 'ArrowDown', 'LEFT': 'ArrowLeft', 'RIGHT': 'ArrowRight',
@@ -48,7 +45,6 @@ export const useInputDriver = (onModeChange: (mode: InputMode) => void) => {
         const currentAxisX = Math.abs(gp.axes[0]) > 0.5;
         const currentAxisY = Math.abs(gp.axes[1]) > 0.5;
 
-        // 手柄触发，传入 'controller'
         if (currentAxisX && !lastAxes.current.x) {
           onModeChange('controller');
           dispatchAction(gp.axes[0] > 0 ? 'RIGHT' : 'LEFT', 'controller');
@@ -59,9 +55,12 @@ export const useInputDriver = (onModeChange: (mode: InputMode) => void) => {
         }
         lastAxes.current = { x: currentAxisX, y: currentAxisY };
 
+        // ✅ 核心修改：增加了 6(LT), 7(RT) 扳机键的映射。4(LB), 5(RB) 依然保留作为备选习惯
         const mapping: Record<number, InputAction> = {
           0: 'CONFIRM', 1: 'CANCEL', 12: 'UP', 13: 'DOWN', 14: 'LEFT', 15: 'RIGHT',
-          4: 'PAGE_LEFT', 5: 'PAGE_RIGHT', 9: 'MENU', 8: 'VIEW'
+          4: 'PAGE_LEFT', 5: 'PAGE_RIGHT', 
+          6: 'PAGE_LEFT', 7: 'PAGE_RIGHT', // 扳机键支持
+          9: 'MENU', 8: 'VIEW'
         };
 
         gp.buttons.forEach((button, index) => {
@@ -82,7 +81,6 @@ export const useInputDriver = (onModeChange: (mode: InputMode) => void) => {
       
       onModeChange('keyboard');
       
-      // 键盘触发，传入 'keyboard'，阻止底层重复派发事件
       switch(e.key) {
         case 'ArrowUp': dispatchAction('UP', 'keyboard'); break;
         case 'ArrowDown': dispatchAction('DOWN', 'keyboard'); break;
@@ -90,6 +88,9 @@ export const useInputDriver = (onModeChange: (mode: InputMode) => void) => {
         case 'ArrowRight': dispatchAction('RIGHT', 'keyboard'); break;
         case 'Enter': dispatchAction('CONFIRM', 'keyboard'); break;
         case 'Escape': dispatchAction('CANCEL', 'keyboard'); break;
+        // ✅ 核心修改：捕获 [ ] 键
+        case '[': dispatchAction('PAGE_LEFT', 'keyboard'); break;
+        case ']': dispatchAction('PAGE_RIGHT', 'keyboard'); break;
       }
     };
 

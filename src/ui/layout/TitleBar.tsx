@@ -3,20 +3,17 @@ import React from 'react';
 import { X, Minus, Square } from 'lucide-react'; 
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useLauncherStore } from '../../store/useLauncherStore';
-// 注意这里：使用 type 关键字导入 TabItem 修复 verbatimModuleSyntax 报错
 import { OreSegmentedControl, type TabItem } from '../primitives/OreSegmentedControl';
 import { Home as HomeIcon, Server, Download, Settings } from 'lucide-react';
 
 export const TitleBar: React.FC = () => {
   const appWindow = getCurrentWindow();
-  // 从全局 Store 获取状态和切换方法
   const { activeTab, setActiveTab } = useLauncherStore();
 
   const handleMinimize = () => appWindow.minimize();
   const handleMaximize = () => appWindow.toggleMaximize();
   const handleClose = () => appWindow.close();
 
-  // 定义全局导航数据
   const navTabs: TabItem[] = [
     { id: 'home', label: '首页', icon: <HomeIcon size={16} /> },
     { id: 'instances', label: '实例管理', icon: <Server size={16} /> },
@@ -25,7 +22,9 @@ export const TitleBar: React.FC = () => {
   ];
 
   return (
+    // ✅ 已经移除了 FocusBoundary，现在它是纯粹的视觉组件
     <div className="w-full flex flex-col z-50">
+      
       {/* 顶部：拖拽区与窗口控制 */}
       <div 
         data-tauri-drag-region 
@@ -38,21 +37,35 @@ export const TitleBar: React.FC = () => {
           PiLauncher
         </div>
 
+        {/* ✅ 去除了 FocusItem 封装，还原为普通 button */}
         <div className="flex space-x-2">
-          <button onClick={handleMinimize} className="p-1 hover:bg-white/10 active:bg-white/20 rounded text-ore-text transition-colors">
+          <button 
+            onClick={handleMinimize} 
+            tabIndex={-1}
+            className="p-1 hover:bg-white/10 active:bg-white/20 rounded text-ore-text transition-colors outline-none"
+          >
             <Minus size={16}/>
           </button>
-          <button onClick={handleMaximize} className="p-1 hover:bg-white/10 active:bg-white/20 rounded text-ore-text transition-colors">
+          
+          <button 
+            onClick={handleMaximize} 
+            tabIndex={-1}
+            className="p-1 hover:bg-white/10 active:bg-white/20 rounded text-ore-text transition-colors outline-none"
+          >
             <Square size={14}/>
           </button>
-          <button onClick={handleClose} className="p-1 hover:bg-red-600 active:bg-red-700 rounded text-ore-text transition-colors">
+
+          <button 
+            onClick={handleClose} 
+            tabIndex={-1}
+            className="p-1 hover:bg-red-600 active:bg-red-700 rounded text-ore-text transition-colors outline-none"
+          >
             <X size={16}/>
           </button>
         </div>
       </div>
 
       {/* 底部：全局分段导航 */}
-      {/* 这一层不需要 data-tauri-drag-region，防止误触拖动 */}
       <div className="w-full flex justify-center pb-2 pt-1 select-none">
         <OreSegmentedControl 
           tabs={navTabs} 
@@ -60,6 +73,7 @@ export const TitleBar: React.FC = () => {
           onChange={(id) => setActiveTab(id as any)}
         />
       </div>
+      
     </div>
   );
 };
