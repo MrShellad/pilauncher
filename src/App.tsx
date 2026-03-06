@@ -40,21 +40,23 @@ const App: React.FC = () => {
     injectDesignTokens();
   }, []);
 
-  const PageLoader = () => (
+
+
+ useLayoutEffect(() => {
+    const currentFont = appearance?.fontFamily || 'Minecraft';
+    // 强制全局更新字体变量
+    document.documentElement.style.setProperty('--ore-global-font', `"${currentFont}"`);
+  }, [appearance?.fontFamily]);
+
+    const PageLoader = () => (
     <div className="absolute inset-0 flex items-center justify-center">
       <span className="text-ore-text-muted font-minecraft animate-pulse">Loading...</span>
     </div>
   );
 
-  // 安全地动态生成全局字体样式
-  const fontFamily = appearance?.fontFamily || 'Minecraft';
-  const globalStyle = {
-    fontFamily: `"${fontFamily}", "Minecraft", sans-serif`,
-  };
-
   return (
     <FocusProvider>
-      <div className="relative w-screen h-screen flex flex-col overflow-hidden text-ore-text" style={globalStyle}>
+      <div className="relative w-screen h-screen flex flex-col overflow-hidden text-ore-text">
         <OreBackground />
         <TitleBar />
 

@@ -90,3 +90,13 @@ pub async fn import_background_image<R: Runtime>(
     // 6. 返回新的绝对路径给前端
     Ok(target_path.to_string_lossy().to_string())
 }
+
+#[tauri::command]
+pub async fn delete_background_image(path: String) -> Result<(), String> {
+    let file_path = std::path::Path::new(&path);
+    // 检查文件是否存在，如果存在则执行物理删除
+    if file_path.exists() {
+        std::fs::remove_file(file_path).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}

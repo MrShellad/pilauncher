@@ -33,14 +33,44 @@ export const AppearanceSettings: React.FC = () => {
       .finally(() => setIsLoadingFonts(false));
   }, []);
 
+  // ✅ 新增：专门处理物理删除旧背景的逻辑
+  const handleRemoveImage = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    
+    // 1. 如果当前有背景图片，先通知 Rust 删除硬盘上的物理文件
+    if (appearance.backgroundImage) {
+      try {
+        await invoke('delete_background_image', { path: appearance.backgroundImage });
+      } catch (err) {
+        console.error("彻底删除旧背景图失败:", err);
+      }
+    }
+    
+    // 2. 将前端状态置空
+    updateAppearanceSetting('backgroundImage', null);
+  };
+
   const handleSelectImage = async () => {
     try {
       const selected = await open({
         multiple: false,
         filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }]
       });
+      
       if (selected && typeof selected === 'string') {
+        // 先导入新图片
         const newPath = await invoke<string>('import_background_image', { sourcePath: selected });
+        
+        // ✅ 核心修复：成功导入新图后，再去物理删除旧图（防止中途失败导致旧图也没了）
+        if (appearance.backgroundImage) {
+          try {
+            await invoke('delete_background_image', { path: appearance.backgroundImage });
+          } catch (err) {
+            console.error("清理上一张背景图失败:", err);
+          }
+        }
+        
+        // 更新为新图路径
         updateAppearanceSetting('backgroundImage', newPath);
       }
     } catch (e) {
@@ -61,10 +91,8 @@ export const AppearanceSettings: React.FC = () => {
   return (
     <SettingsPageLayout title="界面与外观" subtitle="Appearance & Styling">
       
-      {/* ==================== 核心：背景与主题 ==================== */}
       <SettingsSection title="背景与主题" icon={<ImageIcon size={18} />}>
         
-        {/* 图片预览区 - 独立于 FormRow 之外，保持大尺寸横跨 */}
         <div className="p-6">
           <div 
             onClick={handleSelectImage}
@@ -82,7 +110,8 @@ export const AppearanceSettings: React.FC = () => {
                   <OreButton 
                     variant="danger" 
                     size="sm" 
-                    onClick={(e) => { e.stopPropagation(); updateAppearanceSetting('backgroundImage', null); }}
+                    // ✅ 绑定新的删除函数
+                    onClick={handleRemoveImage}
                   >
                     移除背景
                   </OreButton>
@@ -102,7 +131,7 @@ export const AppearanceSettings: React.FC = () => {
         <FormRow 
           label="背景模糊度" 
           description="调节主界面背景图片的模糊效果。"
-          vertical={true} // ✅ 强制换行显示
+          vertical={true}
           control={
             <div className="w-full">
               <OreSlider 
@@ -153,7 +182,7 @@ export const AppearanceSettings: React.FC = () => {
       <FormRow 
           label="遮罩透明度" 
           description="调节颜色遮罩的透明级别，数值越大背景越暗。"
-          vertical={true} // ✅ 强制换行显示
+          vertical={true}
           control={
             <div className="w-full">
               <OreSlider 
@@ -167,7 +196,6 @@ export const AppearanceSettings: React.FC = () => {
         />
       </SettingsSection>
 
-      {/* ==================== 独立选项：排版与渐变 ==================== */}
       <SettingsSection title="排版与特效" icon={<Sparkles size={18} />}>
         <FormRow 
           label="启动器全局字体" 

@@ -2,40 +2,56 @@
 @layer components {
   /* 导航容器 */
   .ore-segmented-track {
-    @apply bg-ore-nav border-2 border-ore-gray-border flex h-ore-nav;
+    /* 强制指定 40px 高度，彻底解决塌陷问题 */
+    @apply flex bg-[#313233] border-[2px] h-[40px] box-border;
+    border-color: var(--ore-border-color);
   }
 
   /* 单个选项卡 */
   .ore-segmented-tab {
-    @apply flex items-center justify-center relative bg-ore-nav border-r-2 border-ore-gray-border text-ore-text-muted cursor-pointer font-minecraft transition-none outline-none;
+    @apply flex items-center justify-center relative bg-[#313233] border-r-[2px] text-gray-400 cursor-pointer font-minecraft transition-none outline-none h-full box-border;
+    border-color: var(--ore-border-color);
   }
   .ore-segmented-tab:last-child {
     @apply border-r-0;
   }
   .ore-segmented-tab:hover:not(.active) {
-    @apply bg-ore-nav-hover text-ore-text;
+    @apply bg-[#3A3B3C] text-white;
   }
   .ore-segmented-tab.active {
-    @apply bg-ore-nav-active text-ore-text cursor-default;
-    box-shadow: inset 0 4px theme('colors.ore.nav.shadow');
+    @apply bg-[#1E1E1F] text-white cursor-default;
+    /* 被选中时的顶部内凹陷阴影 */
+    box-shadow: inset 0 4px rgba(0, 0, 0, 0.4);
   }
   /* 底部白色高亮条 */
   .ore-segmented-tab.active::after {
     @apply content-[''] absolute bottom-0 left-[10%] w-[80%] h-[3px] bg-white;
   }
 
-  /* 快捷键提示按钮 */
+  /* ==================================================== */
+  /* ✅ 快捷键提示按钮：安全且完美的物理下压反馈           */
+  /* ==================================================== */
   .ore-shortcut-btn {
-    @apply flex items-center justify-center bg-ore-button border-2 border-ore-gray-border text-ore-text-dark font-minecraft font-bold cursor-pointer pb-[4px] outline-none;
-    transition: none;
-    box-shadow: inset 0 -4px theme('colors.ore.button.shadow'), inset 2px 2px rgba(255, 255, 255, 0.6), inset -2px -6px rgba(255, 255, 255, 0.4);
+    /* ✅ 修复核心：移除危险的绝对定位，直接锁定自身宽 36px，高 40px */
+    @apply flex items-center justify-center w-[36px] h-[40px] border-[2px] font-minecraft font-bold cursor-pointer pb-[4px] outline-none transition-none flex-shrink-0 box-border;
+    background-color: var(--ore-btn-secondary-bg);
+    border-color: var(--ore-border-color);
+    color: var(--ore-btn-secondary-text);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-secondary-shadow), 
+      inset 2px 2px var(--ore-btn-secondary-highlight), 
+      inset -2px -6px rgba(255, 255, 255, 0.4);
   }
   
-  /* 无论是鼠标真实点击，还是按下了键盘/手柄触发了虚拟点击，都会表现为下沉 */
+  /* 按下时的真实下沉：向下偏移 4px，同时自身高度减 4px */
   .ore-shortcut-btn:active, 
   .ore-shortcut-btn.is-pressed {
-    @apply bg-ore-button-hover mt-1 pb-0;
-    height: calc(100% - 4px);
-    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.8), inset -2px -2px rgba(255, 255, 255, 0.6);
+    @apply pb-0;
+    margin-top: 4px;
+    height: 36px;
+    background-color: var(--ore-btn-secondary-hover);
+    box-shadow: 
+      inset 2px 2px var(--ore-btn-secondary-highlight), 
+      inset -2px -2px var(--ore-btn-secondary-press);
   }
 }

@@ -4,6 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import '../../style/index.css';
 
+// ✅ 引入空间导航焦点组件
+import { FocusItem } from '../focus/FocusItem';
+
 interface OreAccordionProps {
   title: string;
   children: React.ReactNode;
@@ -21,24 +24,35 @@ export const OreAccordion: React.FC<OreAccordionProps> = ({
 
   return (
     <div className={`flex flex-col w-full ${className}`}>
-      {/* 标题栏 */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className={`ore-accordion-header ${isExpanded ? 'bg-ore-nav-active' : ''}`}
-      >
-        <span className="font-minecraft font-bold text-white ore-text-shadow uppercase tracking-wider">
-          {title}
-        </span>
-        
-        {/* 旋转箭头 */}
-        <motion.div
-          animate={{ rotate: isExpanded ? 180 : 0 }}
-          transition={{ duration: 0.2, ease: "easeInOut" }}
-          className="text-ore-text-muted"
-        >
-          <ChevronDown size={20} />
-        </motion.div>
-      </button>
+      
+      {/* 标题栏 ✅ 包裹 FocusItem */}
+      <FocusItem onEnter={() => setIsExpanded(!isExpanded)}>
+        {({ ref, focused }) => (
+          <button
+            ref={ref as any}
+            onClick={() => setIsExpanded(!isExpanded)}
+            tabIndex={-1} // 禁用浏览器原生焦点
+            className={`
+              ore-accordion-header outline-none
+              ${isExpanded ? 'bg-ore-nav-active' : ''}
+              ${focused ? 'is-focused' : ''}
+            `}
+          >
+            <span className="font-minecraft font-bold text-white ore-text-shadow uppercase tracking-wider">
+              {title}
+            </span>
+            
+            {/* 旋转箭头 */}
+            <motion.div
+              animate={{ rotate: isExpanded ? 180 : 0 }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+              className={focused ? 'text-white' : 'text-ore-text-muted'}
+            >
+              <ChevronDown size={20} />
+            </motion.div>
+          </button>
+        )}
+      </FocusItem>
 
       {/* 内容区域 */}
       <AnimatePresence initial={false}>

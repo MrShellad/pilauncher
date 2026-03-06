@@ -12,20 +12,16 @@ import { MemorySlider } from '../../../runtime/components/MemorySlider';
 import { JVMParamsEditor } from '../../../runtime/components/JVMParamsEditor';
 
 import { useSettingsStore } from '../../../../store/useSettingsStore';
-// ✅ 引入默认设置，用于旧配置文件缺少 java 节点时的防御性回退
-import { DEFAULT_SETTINGS } from '../../../../types/settings'; 
 
 export const JavaSettings: React.FC = () => {
-  // 从 Store 提取数据和更新方法
   const { settings, updateJavaSetting } = useSettingsStore();
   
-  // ✅ 核心防御：如果本地旧 JSON 没有 java 节点，就用默认值兜底，彻底避免 undefined 报错
-  const java = settings.java || DEFAULT_SETTINGS.java;
+  // ✅ 结构已被 Store 深度合并保证，直接安全使用
+  const java = settings.java;
 
   return (
     <SettingsPageLayout title="Java 运行环境" subtitle="Global Java & Runtime Allocation">
       
-      {/* ==================== 1. Java 运行环境 ==================== */}
       <SettingsSection title="环境配置" icon={<Coffee size={18} />}>
         <FormRow 
           label="自动检测 Java 环境" 
@@ -33,7 +29,14 @@ export const JavaSettings: React.FC = () => {
           control={
             <OreSwitch 
               checked={java.autoDetect} 
-              onChange={(v) => updateJavaSetting('autoDetect', v)} 
+              onChange={(v) => {
+                const isChecked = typeof v === 'boolean' ? v : (v as any).target?.checked;
+                updateJavaSetting('autoDetect', isChecked);
+                // 💡 联动优化：如果开启了自动检测，顺手把已有的手动路径清空
+                if (isChecked) {
+                  updateJavaSetting('javaPath', '');
+                }
+              }} 
             />
           }
         />
@@ -43,18 +46,28 @@ export const JavaSettings: React.FC = () => {
           description="为所有未开启独立 Java 设置的实例提供默认的运行环境。"
           vertical={true}
           control={
-            <div className="w-full">
+            <div className="w-full relative">
               <JavaSelector 
                 value={java.javaPath} 
-                onChange={(v) => updateJavaSetting('javaPath', v)} 
-                disabled={false} 
+                onChange={(v) => {
+                  updateJavaSetting('javaPath', v);
+                  // 💡 联动优化：如果用户手动选择了一个具体路径，就自动关闭“自动检测”
+                  if (v) {
+                    updateJavaSetting('autoDetect', false);
+                  }
+                }} 
+                // 💡 视觉防呆：当自动检测开启且路径为空时，让它看起来是禁用或被接管的状态
+                disabled={java.autoDetect} 
               />
+              {/* 💡 给用户一个视觉提示 */}
+              {java.autoDetect && (
+                <div className="absolute inset-0 z-10 cursor-not-allowed" title="自动检测已开启，无需手动指定" />
+              )}
             </div>
           }
         />
       </SettingsSection>
 
-      {/* ==================== 2. 全局内存与参数 ==================== */}
       <SettingsSection title="全局内存与参数" icon={<Cpu size={18} />}>
         <div className="px-6 py-4 bg-[#141415]/50">
           <p className="font-minecraft text-sm text-ore-text-muted leading-relaxed">

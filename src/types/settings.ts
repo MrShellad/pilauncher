@@ -105,7 +105,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     windowTitle: 'Minecraft',
     launcherVisibility: 'minimize', 
     resolution: '854x480',          
-    fullscreen: false,
+    fullscreen: true,
   },
   download: {
     // ✅ 赋予四个通道初始的默认源 (匹配你的 JSON 数据)

@@ -2,42 +2,89 @@
 @layer components {
   /* 开关最外层容器，统一管理点击和禁用状态 */
   .ore-switch-wrapper {
-    @apply inline-flex items-center cursor-pointer select-none outline-none;
+    @apply inline-flex items-center cursor-pointer select-none outline-none transition-none;
   }
   .ore-switch-wrapper.disabled {
-    @apply opacity-50 cursor-not-allowed;
+    @apply opacity-80 cursor-not-allowed;
   }
 
-  /* 凹陷的滑轨 (Track) */
-  .ore-switch-track {
-    @apply relative block w-[50px] h-[24px] border-2 border-ore-gray-border transition-all duration-300;
-    box-shadow: inset 2px 2px rgba(0, 0, 0, 0.4), inset -2px -2px rgba(255, 255, 255, 0.1);
-  }
-
-  /* ✅ 核心增强：当被手柄/键盘聚焦时的滑轨特效（发光、放大、提亮） */
+  /* ============================================== */
+  /* ✅ 高光焦点导航环 (完美对接 HDR 空间导航) */
+  /* ============================================== */
   .ore-switch-wrapper.is-focused .ore-switch-track {
-    @apply ring-2 ring-white ring-offset-2 ring-offset-[#18181B] brightness-125 scale-110 shadow-lg z-10;
+    outline: 2px solid var(--ore-focus-ringFallback);
+    outline: 2px solid var(--ore-focus-ring);
+    outline-offset: 4px;
+    filter: drop-shadow(0 0 6px var(--ore-focus-glow)) brightness(1.1);
   }
 
-  /* 厚重的推钮 (Thumb) */
+  /* ============================================== */
+  /* ✅ 轨道背景 (Track) */
+  /* ============================================== */
+  .ore-switch-track {
+    @apply relative block w-[58px] h-[24px] border-[2px] transition-none overflow-visible;
+    border-color: var(--ore-border-color);
+    /* 经典基岩版视效：左半绿，右半灰。滑块遮住一半露出另一半 */
+    background: linear-gradient(to right, var(--ore-btn-primary-bg) 50%, #8C8D90 50%);
+    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.2), inset -2px -2px rgba(255, 255, 255, 0.1);
+  }
+
+  /* 禁用时的底轨背景 */
+  .ore-switch-wrapper.disabled .ore-switch-track {
+    background: var(--ore-btn-secondary-bg); 
+  }
+
+  /* ============================================== */
+  /* ✅ 滑块 (Thumb) */
+  /* ============================================== */
   .ore-switch-thumb {
-    @apply absolute w-[24px] h-[24px] bg-ore-button border-2 border-ore-gray-border transition-all duration-200;
-    top: -2px;
-    box-shadow: inset 0 -4px theme('colors.ore.button.shadow'), inset 2px 2px rgba(255, 255, 255, 0.6), inset -2px -6px rgba(255, 255, 255, 0.4);
+    @apply absolute w-[28px] h-[28px] border-[2px] z-10;
+    top: -4px;
+    left: -2px;
+    /* 保留原汁原味的丝滑回弹曲线 */
+    transition: left 125ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    border-color: var(--ore-border-color);
+    background-color: var(--ore-btn-secondary-bg);
+    /* 全面使用 CSS Token 替代 theme() */
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-secondary-shadow), 
+      inset 2px 2px var(--ore-btn-secondary-highlight), 
+      inset -2px -6px rgba(255, 255, 255, 0.4);
   }
 
-  /* 悬停 / 聚焦 时的推钮增亮 */
+  /* 开启状态下滑块位移 */
+  .ore-switch-wrapper.is-on .ore-switch-thumb {
+    left: 28px;
+  }
+
+  /* ============================================== */
+  /* ✅ 悬停与聚焦态 */
+  /* ============================================== */
   .ore-switch-wrapper:hover:not(.disabled) .ore-switch-thumb,
   .ore-switch-wrapper.is-focused:not(.disabled) .ore-switch-thumb {
-    @apply bg-ore-button-hover;
-    box-shadow: inset 0 -4px theme('colors.ore.button.shadow'), inset 2px 2px rgba(255, 255, 255, 0.8), inset -2px -6px rgba(255, 255, 255, 0.6);
+    background-color: var(--ore-btn-secondary-hover);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-secondary-shadow), 
+      inset 2px 2px rgba(255, 255, 255, 0.8), 
+      inset -2px -6px rgba(255, 255, 255, 0.6);
   }
 
   /* 鼠标按压时的真实物理下沉效果 */
   .ore-switch-wrapper:active:not(.disabled) .ore-switch-thumb {
-    @apply bg-ore-button-hover;
-    top: 2px;
-    height: 20px;
-    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.8), inset -2px -2px rgba(255, 255, 255, 0.6);
+    background-color: var(--ore-btn-secondary-hover);
+    top: -2px;
+    height: 24px;
+    box-shadow: 
+      inset 2px 2px var(--ore-btn-secondary-highlight), 
+      inset -2px -2px var(--ore-btn-secondary-press);
+  }
+
+  /* ============================================== */
+  /* ✅ 禁用态滑块 */
+  /* ============================================== */
+  .ore-switch-wrapper.disabled .ore-switch-thumb {
+    background-color: var(--ore-btn-disabled-bg);
+    border-color: var(--ore-border-color);
+    box-shadow: inset 0 -4px var(--ore-btn-disabled-shadow);
   }
 }

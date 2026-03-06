@@ -12,8 +12,7 @@ interface OreSliderProps {
   valueFormatter?: (val: number) => string; 
   disabled?: boolean;
   className?: string;
-  fillColorClass?: string;  
-  thumbColorClass?: string; 
+  focusKey?: string;
 }
 
 export const OreSlider: React.FC<OreSliderProps> = ({
@@ -26,8 +25,7 @@ export const OreSlider: React.FC<OreSliderProps> = ({
   valueFormatter,
   disabled = false,
   className = '',
-  fillColorClass,
-  thumbColorClass,
+  focusKey,
 }) => {
   const trackRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -78,23 +76,24 @@ export const OreSlider: React.FC<OreSliderProps> = ({
         </div>
       )}
 
-      <FocusItem disabled={disabled}>
+      {/* ✅ 使用 FocusItem 接入底层空间导航引擎 */}
+      <FocusItem focusKey={focusKey} disabled={disabled}>
         {({ ref: focusRef, focused }) => (
           <div 
-            // ✅ 核心修复：完美合并内部 DOM ref 与 Norigin 空间导航需要的 Ref 对象！
+            // 完美合并内部 DOM 测距 Ref 与 Norigin 导航 Ref
             ref={(node) => {
               trackRef.current = node;
               if (focusRef) {
                 if (typeof focusRef === 'function') {
                   (focusRef as (node: HTMLDivElement | null) => void)(node);
                 } else {
-                  // 强行写入 Norigin 引擎的 ref.current
                   (focusRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
                 }
               }
             }}
             tabIndex={disabled ? -1 : 0}
-            className={`ore-slider-wrapper outline-none ${disabled ? 'disabled' : ''}`}
+            // ✅ 焦点控制权全部交由外层 wrapper，CSS 响应 .is-focused
+            className={`ore-slider-wrapper ${disabled ? 'disabled' : ''} ${focused ? 'is-focused' : ''}`}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
@@ -110,19 +109,20 @@ export const OreSlider: React.FC<OreSliderProps> = ({
               }
             }}
           >
-            <div className={`ore-slider-track transition-all duration-300 ${focused ? 'ring-2 ring-white ring-offset-2 ring-offset-[#2A2A2C]' : ''}`}>
+            {/* 底层凹陷轨道 */}
+            <div className="ore-slider-track">
+              {/* 进度填充槽：拖拽时无延迟 (transition-none)，点击时有补间动画 */}
               <div 
-                className={`ore-slider-fill transition-colors duration-300 ${fillColorClass || ''}`}
+                className={`ore-slider-fill ${isDragging ? 'transition-none' : 'transition-[width] duration-100 ease-linear'}`}
                 style={{ width: `${percentage}%` }}
               />
             </div>
 
+            {/* 物理滑块：脱离轨道高度，绝对居中 */}
             <div 
               className={`
-                ore-slider-thumb transition-colors duration-300
-                ${isDragging ? 'active' : ''} 
-                ${focused ? 'ring-4 ring-white/40 brightness-125 scale-110' : ''}
-                ${thumbColorClass || ''}
+                ore-slider-thumb 
+                ${isDragging ? 'active transition-none' : 'transition-[left] duration-100 ease-linear'}
               `}
               style={{ left: `${percentage}%` }}
             />

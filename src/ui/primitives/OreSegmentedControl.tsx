@@ -1,6 +1,6 @@
 // /src/ui/primitives/OreSegmentedControl.tsx
 import React, { useState } from 'react';
-import { useInputAction } from '../focus/InputDriver'; // ✅ 引入全局输入驱动
+import { useInputAction } from '../focus/InputDriver';
 
 export interface TabItem {
   id: string;
@@ -21,7 +21,6 @@ export const OreSegmentedControl: React.FC<OreSegmentedControlProps> = ({
   onChange,
   className = ''
 }) => {
-  // 用于渲染物理按下的视觉反馈
   const [visualPress, setVisualPress] = useState<'prev' | 'next' | null>(null);
 
   const triggerPrev = () => {
@@ -29,7 +28,7 @@ export const OreSegmentedControl: React.FC<OreSegmentedControlProps> = ({
     if (idx > 0) {
       onChange(tabs[idx - 1].id);
       setVisualPress('prev');
-      setTimeout(() => setVisualPress(null), 100); // 100ms后回弹
+      setTimeout(() => setVisualPress(null), 100);
     }
   };
 
@@ -42,23 +41,22 @@ export const OreSegmentedControl: React.FC<OreSegmentedControlProps> = ({
     }
   };
 
-  // ✅ 完美接管：全局监听 [ ] 键和手柄扳机键
   useInputAction('PAGE_LEFT', triggerPrev);
   useInputAction('PAGE_RIGHT', triggerNext);
 
   return (
-    <div className={`flex items-start space-x-2 h-ore-nav ${className}`}>
+    // ✅ 修复1：使用 items-start (顶部对齐)，这样按钮下沉时也不会拉扯周围的元素
+    <div className={`flex items-start space-x-2 h-[40px] ${className}`}>
       
       {/* 左侧快捷键提示 '[' */}
-      <div className="h-full w-[32px] inline-flex items-start">
-        <button 
-          onClick={triggerPrev}
-          tabIndex={-1} // 禁用原生焦点
-          className={`ore-shortcut-btn w-full h-full focus:outline-none ${visualPress === 'prev' ? 'is-pressed' : ''}`}
-        >
-          [
-        </button>
-      </div>
+      <button 
+        onClick={triggerPrev}
+        tabIndex={-1} 
+        // 移除了 absolute 等多余样式，回归最纯粹的组件类名
+        className={`ore-shortcut-btn ${visualPress === 'prev' ? 'is-pressed' : ''}`}
+      >
+        [
+      </button>
 
       {/* 选项卡容器 */}
       <div className="ore-segmented-track">
@@ -68,9 +66,9 @@ export const OreSegmentedControl: React.FC<OreSegmentedControlProps> = ({
             <button
               key={tab.id}
               onClick={() => onChange(tab.id)}
-              tabIndex={-1} // 禁用原生焦点
+              tabIndex={-1} 
               className={`
-                ore-segmented-tab px-6 min-w-[120px] h-full focus:outline-none
+                ore-segmented-tab px-6 min-w-[120px]
                 ${isActive ? 'active' : ''}
               `}
             >
@@ -86,15 +84,13 @@ export const OreSegmentedControl: React.FC<OreSegmentedControlProps> = ({
       </div>
 
       {/* 右侧快捷键提示 ']' */}
-      <div className="h-full w-[32px] inline-flex items-start">
-        <button 
-          onClick={triggerNext}
-          tabIndex={-1} // 禁用原生焦点
-          className={`ore-shortcut-btn w-full h-full focus:outline-none ${visualPress === 'next' ? 'is-pressed' : ''}`}
-        >
-          ]
-        </button>
-      </div>
+      <button 
+        onClick={triggerNext}
+        tabIndex={-1} 
+        className={`ore-shortcut-btn ${visualPress === 'next' ? 'is-pressed' : ''}`}
+      >
+        ]
+      </button>
 
     </div>
   );

@@ -36,7 +36,8 @@ export default {
         }
       },
       fontFamily: {
-        minecraft: ['"NotoSans Bold"', '"Noto Sans SC"', 'sans-serif'], 
+    
+        minecraft: ['var(--ore-global-font, "Minecraft")', '"NotoSans Bold"', '"Noto Sans SC"', 'sans-serif'], 
       },
       // 这里的尺寸变量如果其他地方还在用就保留，按钮内部已经改用刚性尺寸了
       spacing: {

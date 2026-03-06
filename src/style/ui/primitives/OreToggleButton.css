@@ -1,49 +1,84 @@
 /* /src/style/ui/primitives/OreToggleButton.css */
 @layer components {
+  /* ============================================== */
   /* 按钮组外层容器 */
+  /* ============================================== */
   .ore-toggle-btn-group {
-    @apply flex w-full border-2 border-ore-gray-border bg-ore-gray-border overflow-hidden rounded-sm;
+    @apply flex w-full border-[2px] rounded-sm;
+    /* 容器底色即为按钮间的缝隙颜色 */
+    background-color: var(--ore-border-color);
+    border-color: var(--ore-border-color);
     gap: 2px; 
   }
 
+  /* ============================================== */
   /* 单个 Toggle 按钮基础样式 */
+  /* ============================================== */
   .ore-toggle-btn-item {
     @apply relative flex-1 text-sm font-minecraft font-bold cursor-pointer select-none transition-none focus:outline-none flex items-center justify-center;
   }
 
   /* --- 未选中状态 (凸起的灰色按钮) --- */
   .ore-toggle-btn-item:not(.is-active) {
-    @apply bg-ore-button text-ore-text-dark;
-    box-shadow: inset 0 -4px theme('colors.ore.button.shadow'), inset 2px 2px rgba(255, 255, 255, 0.6), inset -2px -6px rgba(255, 255, 255, 0.4);
+    background-color: var(--ore-btn-secondary-bg);
+    color: var(--ore-btn-secondary-text);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-secondary-shadow), 
+      inset 2px 2px var(--ore-btn-secondary-highlight), 
+      inset -2px -6px rgba(255, 255, 255, 0.4);
     /* 视觉补偿：抵消底部 4px 阴影 */
     padding-bottom: 4px; 
   }
   
   .ore-toggle-btn-item:not(.is-active):hover {
-    @apply bg-ore-button-hover;
-    box-shadow: inset 0 -4px theme('colors.ore.button.shadow'), inset 2px 2px rgba(255, 255, 255, 0.8), inset -2px -6px rgba(255, 255, 255, 0.6);
+    background-color: var(--ore-btn-secondary-hover);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-secondary-shadow), 
+      inset 2px 2px rgba(255, 255, 255, 0.8), 
+      inset -2px -6px rgba(255, 255, 255, 0.6);
   }
   
   .ore-toggle-btn-item:not(.is-active):active {
-    @apply bg-ore-button-hover;
-    padding-top: 4px; /* 按下 */
+    background-color: var(--ore-btn-secondary-hover);
+    padding-top: 4px; /* 按下位移 */
     padding-bottom: 0px; 
-    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.8), inset -2px -2px rgba(255, 255, 255, 0.6);
+    box-shadow: 
+      inset 2px 2px rgba(255, 255, 255, 0.8), 
+      inset -2px -2px rgba(255, 255, 255, 0.6);
   }
 
-  /* --- 选中状态 (按下的绿色按钮) --- */
+  /* --- 选中状态 (按下的绿色主色调) --- */
   .ore-toggle-btn-item.is-active {
-    @apply bg-ore-green text-white cursor-default;
+    background-color: var(--ore-btn-primary-bg);
+    color: var(--ore-btn-primary-text);
+    cursor: default;
+    /* 强烈的下陷阴影 */
     box-shadow: inset 0 3px rgba(0, 0, 0, 0.2), inset 2px 0 rgba(255, 255, 255, 0.1);
-    /* 视觉补偿：抵消顶部 3px 阴影 */
+    /* 视觉补偿：抵消顶部阴影产生的位置偏移 */
     padding-top: 3px;
   }
 
-  /* ✅ 修正：将指示短线移至最底部的底色区域 */
+  /* 底部白色小指示条 */
   .ore-toggle-btn-item.is-active::after {
     content: '';
-    /* 旧：bottom-1 (4px) -> 新：bottom-0 (0px) */
     @apply absolute bottom-0 left-1/2 -translate-x-1/2 h-[3px] w-[35%] bg-white rounded-t-sm;
     box-shadow: 0 -1px 2px rgba(0,0,0,0.2);
+  }
+
+  /* ============================================== */
+  /* ✅ 高光焦点导航环 (对接 HDR 空间导航) */
+  /* ============================================== */
+  .ore-toggle-btn-item.is-focused {
+    outline: 2px solid var(--ore-focus-ringFallback);
+    outline: 2px solid var(--ore-focus-ring);
+    outline-offset: 2px;
+    z-index: 20;
+    filter: drop-shadow(0 0 6px var(--ore-focus-glow)) brightness(1.1);
+  }
+
+  /* 物理按下时的光环下陷反馈 */
+  .ore-toggle-btn-item.is-focused:active {
+    outline-offset: 0px;
+    filter: drop-shadow(0 0 3px var(--ore-focus-glow)) brightness(1.1);
   }
 }

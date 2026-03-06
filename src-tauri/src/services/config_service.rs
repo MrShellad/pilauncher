@@ -130,9 +130,20 @@ impl ConfigService {
 
     pub fn set_base_path<R: Runtime>(app: &AppHandle<R>, target_path: &str) -> Result<(), String> {
         let target = Path::new(target_path);
+        
         if target.exists() {
             let mut entries = fs::read_dir(target).map_err(|e| e.to_string())?;
-            if entries.next().is_some() { return Err("所选目录不为空！".to_string()); }
+            // 如果目录不为空
+            if entries.next().is_some() { 
+                // ✅ 核心修改：检测是否为旧版数据目录特征
+                let is_old_dir = target.join("instances").exists() 
+                              || target.join("config").join("settings.json").exists();
+                
+                // 如果既不为空，又不是旧目录，则拦截
+                if !is_old_dir {
+                    return Err("所选目录不为空，且未检测到旧版 PiLauncher 数据！请选择空目录。".to_string()); 
+                }
+            }
         } else {
             fs::create_dir_all(target).map_err(|e| e.to_string())?;
         }
@@ -141,8 +152,12 @@ impl ConfigService {
             target.join("runtime").join("assets"), target.join("runtime").join("libraries"), target.join("runtime").join("versions"),
             target.join("instances"), target.join("config"),
         ];
+        
+        // 创建缺失的子层级（如果旧目录缺少某一项，顺手补齐）
         for dir in dirs_to_create {
-            fs::create_dir_all(&dir).map_err(|e| format!("创建目录失败 {}: {}", dir.display(), e))?;
+            if !dir.exists() {
+                fs::create_dir_all(&dir).map_err(|e| format!("创建目录失败 {}: {}", dir.display(), e))?;
+            }
         }
 
         let meta_path = Self::get_meta_path(app).map_err(|e| e.to_string())?;
