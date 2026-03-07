@@ -30,10 +30,24 @@ export const useMicrosoftAuth = () => {
       setIsLoading(false); 
       
       setLoginStatusMsg("正在后台静默等待授权与换牌 (不要关闭弹窗)...");
-      const accountData = await invoke<MinecraftAccount>('poll_and_exchange_microsoft_token', {
+      const rawAccount = await invoke<any>('poll_and_exchange_microsoft_token', {
         deviceCode: info.device_code, 
         interval: info.interval
       });
+
+      // ✅ 核心排错：打印 Rust 后端传来的原始 JSON
+      console.log("[微软登录] Rust 返回的原始数据:", rawAccount);
+
+      // 极其贪婪的提取逻辑
+      const accountData: MinecraftAccount = {
+        uuid: rawAccount.uuid || rawAccount.id || rawAccount.profileId || '',
+        name: rawAccount.username || rawAccount.name || rawAccount.displayName || '未知玩家',
+        type: 'microsoft', // 既然从这里登录，就强行锁定为 microsoft 类型
+        accessToken: rawAccount.access_token || rawAccount.accessToken || '',
+        refreshToken: rawAccount.refresh_token || rawAccount.refreshToken || null,
+        expiresAt: rawAccount.expires_at || rawAccount.expiresAt || null,
+        skinUrl: rawAccount.skin_url || rawAccount.skinUrl || null,
+      };
 
       addAccount(accountData);
       setIsLoginModalOpen(false); 

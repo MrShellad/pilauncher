@@ -11,7 +11,7 @@ pub mod resource_cmd;
 pub mod runtime_cmd;
 pub mod settings_cmd;
 pub mod system_cmd;
-pub mod modpack_cmd; // ✅ 新增 modpack_cmd 模块
+pub mod modpack_cmd; // 新增 modpack_cmd 模块
 pub mod java_cmd;
 pub mod fs_cmd;
 
@@ -72,13 +72,14 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         auth_cmd::delete_offline_account_dir,
         modpack_cmd::parse_modpack_metadata,
         modpack_cmd::import_modpack,
-        modpack_cmd::download_and_import_modpack, // ✅ 新增在线下载并导入整合包的命令
+        modpack_cmd::download_and_import_modpack, // 新增在线下载并导入整合包的命令
         java_cmd::download_java_env,
         fs_cmd::get_drives,
         fs_cmd::list_valid_dirs,
         fs_cmd::create_valid_dir,
-        fs_cmd::get_parent_dir
-
+        fs_cmd::get_parent_dir,
+        auth_cmd::refresh_microsoft_token,
+        auth_cmd::get_or_fetch_account_avatar,
 
     ])
 }

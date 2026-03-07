@@ -1,28 +1,71 @@
-// src/features/Settings/components/AccountCard.tsx
-import React from 'react';
+// src/features/Settings/components/tabs/AS/AccountCard.tsx
+import React, { useEffect, useState } from 'react';
 import { Pencil, ImagePlus, Trash2, CheckCircle2 } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { OreTag } from '../../../../../ui/primitives/OreTag';
-import type { MinecraftAccount } from '../../../../../store/useAccountStore';
+import { FocusItem } from '../../../../../ui/focus/FocusItem';
+
 
 interface AccountCardProps {
-  account: MinecraftAccount;
+  account: {
+    uuid: string;
+    name: string;
+    type: string;
+    skinUrl?: string | null;
+  };
   isActive: boolean;
   onSetCurrent: (uuid: string) => void;
   onRemove: (uuid: string) => void;
-  onEdit: (acc: MinecraftAccount) => void;
+  onEdit: (acc: any) => void;
   onUploadSkin: (uuid: string) => void;
 }
 
 export const AccountCard: React.FC<AccountCardProps> = ({
   account, isActive, onSetCurrent, onRemove, onEdit, onUploadSkin
 }) => {
-  const isMS = account.type === 'microsoft';
+  const rawType = account.type || (account as any).account_type || (account as any).accountType || '';
+  const isMS = rawType.toLowerCase() === 'microsoft';
+  const displayName = account.name || (account as any).username || '未知玩家';
+  
+  const rawUuid = account.uuid || (account as any).id || '';
+  const isValidUuid = rawUuid.length >= 32;
+  const displayUuid = rawUuid || '8667ba71-b85a-4004-af54-457a9734eed7'; 
+
+  // ✅ 新增状态：存储 Rust 后端返回的本地物理头像路径
+  const [avatarSrc, setAvatarSrc] = useState<string | null>(null);
+
+  // ✅ 核心机制：组件挂载时，命令 Rust 后端去拉取并返回本地缓存地址
+  useEffect(() => {
+    if (isMS) {
+      const fetchBackendAvatar = async () => {
+        try {
+          const validId = isValidUuid ? rawUuid : '8667ba71b85a4004af54457a9734eed7';
+          // 调用 Rust 后端指令获取或下载头像
+          const localPath = await invoke<string>('get_or_fetch_account_avatar', { uuid: validId });
+          // 将本地绝对路径转换为 WebView 可读的安全 URL，加时间戳破除浏览器强缓存
+          setAvatarSrc(`${convertFileSrc(localPath)}?t=${Date.now()}`);
+        } catch (e) {
+          console.error("[AccountCard] 后端拉取头像失败:", e);
+          // 如果后端报错，直接由前端充当最后的保险丝去访问 mc-heads
+          setAvatarSrc(`https://mc-heads.net/avatar/${isValidUuid ? rawUuid : '8667ba71b85a4004af54457a9734eed7'}/128.png`);
+        }
+      };
+      fetchBackendAvatar();
+    }
+  }, [isMS, rawUuid, isValidUuid]);
 
   const renderAvatar = () => {
     if (isMS) {
-      return <img src={`https://crafatar.com/avatars/${account.uuid}?overlay=true&size=64`} alt="Avatar" className="w-full h-full rendering-pixelated" />;
+      return (
+        <img 
+          // 初始时使用史蒂夫占位，等后端返回了本地路径再无缝切换
+          src={avatarSrc || `https://mc-heads.net/avatar/8667ba71b85a4004af54457a9734eed7/128.png`} 
+          alt="Premium Avatar" 
+          className={`w-full h-full rendering-pixelated object-cover transition-opacity duration-300 ${avatarSrc ? 'opacity-100' : 'opacity-40'}`} 
+        />
+      );
     }
+    
     if (account.skinUrl) {
       const basePath = account.skinUrl.split('?')[0];
       const ts = account.skinUrl.split('?')[1];
@@ -33,66 +76,87 @@ export const AccountCard: React.FC<AccountCardProps> = ({
         </div>
       );
     }
-    return <img src="https://crafatar.com/avatars/8667ba71b85a4004af54457a9734eed7?overlay=true" alt="Steve" className="w-full h-full rendering-pixelated" />;
+    
+    return <img src="https://mc-heads.net/avatar/8667ba71b85a4004af54457a9734eed7/128.png" alt="Steve" className="w-full h-full rendering-pixelated object-cover" />;
   };
 
   return (
     <div className={`
-      relative flex flex-col p-5 border-2 rounded-xl transition-all duration-300 
-      ${isMS ? 'border-yellow-500/60 bg-gradient-to-b from-yellow-500/10 to-[#141415] shadow-[0_0_20px_rgba(234,179,8,0.15)]' : 'border-[#1E1E1F] bg-[#141415] hover:border-white/10'}
-      ${isActive && !isMS ? 'border-ore-green shadow-[0_0_15px_rgba(56,133,39,0.15)]' : ''}
+      relative flex flex-col p-5 rounded-sm ore-account-card transition-colors duration-300 outline-none
+      ${isMS ? 'is-premium' : ''}
+      ${isActive ? 'is-active' : ''}
     `}>
-      {/* 卡片头部 */}
-      <div className="flex flex-col mb-4">
-        <div className="flex items-center justify-between min-w-0">
-          <span className="text-white font-minecraft text-xl font-bold truncate pr-2">{account.name}</span>
-          {isMS ? (
-            <OreTag className="!bg-yellow-500/20 !text-yellow-500 !border-yellow-500/30">微软正版</OreTag>
-          ) : (
-            <OreTag className="!bg-gray-600/30 !text-gray-300 !border-white/10">离线账号</OreTag>
-          )}
+      <div className="flex items-center mb-6">
+        <div className="ore-card-avatar-wrapper flex-shrink-0 mr-4">
+          <div className="ore-card-avatar-inner relative w-full h-full bg-[#111112] border shadow-inner overflow-hidden rounded-sm">
+            {renderAvatar()}
+          </div>
         </div>
-        <span className="text-[10px] text-gray-500 font-mono truncate mt-1.5 opacity-80" title={account.uuid}>
-          {isMS ? ((account as any).email || 'Microsoft Account / 隐藏邮箱') : account.uuid}
-        </span>
-      </div>
 
-      {/* 卡片中心：皮肤头像 */}
-      <div className="flex justify-center my-2">
-        <div className={`w-20 h-20 bg-[#111112] border-2 shadow-inner overflow-hidden rounded-sm ${isMS ? 'border-yellow-500/30' : 'border-[#2A2A2C]'}`}>
-          {renderAvatar()}
+        <div className="flex flex-col min-w-0 flex-1">
+          <span className="font-minecraft text-xl font-bold truncate ore-account-name">
+            {displayName}
+          </span>
+          <span className="text-[10px] font-mono truncate opacity-60 mt-1 ore-account-subtitle" title={displayUuid}>
+            {isMS ? 'Minecraft Java Edition' : `Offline UUID: ${displayUuid}`}
+          </span>
         </div>
       </div>
 
-      {/* 卡片下部：操作图标组 */}
-      <div className="flex justify-center gap-3 mt-4 mb-5">
+      <div className="flex justify-center gap-3 mb-5 mt-auto">
         {!isMS && (
           <>
-            <button onClick={() => onUploadSkin(account.uuid)} className="p-2 text-gray-400 hover:text-blue-400 hover:bg-white/10 rounded-lg transition-colors" title="上传自定义皮肤"><ImagePlus size={18} /></button>
-            <button onClick={() => onEdit(account)} className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors" title="修改名称"><Pencil size={18} /></button>
+            <FocusItem focusKey={`btn-skin-${account.uuid}`} onEnter={() => onUploadSkin(account.uuid)}>
+              {({ ref, focused }) => (
+                <button 
+                  ref={ref as any} onClick={() => onUploadSkin(account.uuid)} tabIndex={-1}
+                  className={`p-2 rounded-lg transition-colors outline-none ${focused ? 'outline outline-[2px] outline-white bg-white/10 text-blue-400' : 'text-gray-400 hover:text-blue-400 hover:bg-white/10'}`} 
+                  title="上传自定义皮肤"
+                ><ImagePlus size={18} /></button>
+              )}
+            </FocusItem>
+            
+            <FocusItem focusKey={`btn-edit-${account.uuid}`} onEnter={() => onEdit(account)}>
+              {({ ref, focused }) => (
+                <button 
+                  ref={ref as any} onClick={() => onEdit(account)} tabIndex={-1}
+                  className={`p-2 rounded-lg transition-colors outline-none ${focused ? 'outline outline-[2px] outline-white bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/10'}`} 
+                  title="修改名称"
+                ><Pencil size={18} /></button>
+              )}
+            </FocusItem>
           </>
         )}
-        <button onClick={() => onRemove(account.uuid)} className="p-2 text-gray-400 hover:text-red-400 hover:bg-white/10 rounded-lg transition-colors" title="移除账号"><Trash2 size={18} /></button>
+        
+        <FocusItem focusKey={`btn-del-${account.uuid}`} onEnter={() => onRemove(account.uuid)}>
+          {({ ref, focused }) => (
+            <button 
+              ref={ref as any} onClick={() => onRemove(account.uuid)} tabIndex={-1}
+              className={`p-2 rounded-lg transition-colors outline-none ${focused ? 'outline outline-[2px] outline-white bg-white/10 text-red-400' : 'text-gray-400 hover:text-red-400 hover:bg-white/10'}`} 
+              title="移除账号"
+            ><Trash2 size={18} /></button>
+          )}
+        </FocusItem>
       </div>
 
-      {/* 卡片底部：设为当前按钮 */}
-      <div className="mt-auto">
+      <div className="w-full">
         {isActive ? (
-          <div className="w-full py-2.5 flex items-center justify-center bg-white/5 border border-white/10 text-gray-400 text-sm font-minecraft rounded-md cursor-default">
-            <CheckCircle2 size={16} className={`mr-2 ${isMS ? 'text-yellow-500' : 'text-ore-green'}`} /> 当前使用中
+          <div className="ore-account-active-tag">
+            <CheckCircle2 size={16} className="mr-2 ore-active-check" /> 正在使用
           </div>
         ) : (
-          <button
-            onClick={() => onSetCurrent(account.uuid)}
-            className={`w-full py-2.5 flex items-center justify-center text-sm font-minecraft font-bold transition-all rounded-md tracking-wider
-              ${isMS 
-                ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_15px_rgba(147,51,234,0.4)] border-none' 
-                : 'bg-[#2A2A2C] hover:bg-ore-green hover:text-black text-gray-300 border border-[#1E1E1F]'
-              }
-            `}
-          >
-            设为当前账号
-          </button>
+          <FocusItem focusKey={`btn-active-${account.uuid}`} onEnter={() => onSetCurrent(account.uuid)}>
+            {({ ref, focused }) => (
+              <button
+                ref={ref as any}
+                onClick={() => onSetCurrent(account.uuid)}
+                tabIndex={-1}
+                className={`ore-account-set-active-btn ${focused ? 'is-focused' : ''}`}
+              >
+                设为当前身份
+              </button>
+            )}
+          </FocusItem>
         )}
       </div>
     </div>

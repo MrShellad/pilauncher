@@ -6,7 +6,7 @@ import { FocusItem } from '../focus/FocusItem';
 import '../../style/tokens/designToken'; 
 
 interface OreButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'purple' | 'hero';
+  variant?: 'primary' | 'secondary' | 'danger' | 'purple' | 'hero' | 'ghost';
   size?: 'sm' | 'md' | 'lg' | 'auto' | 'full'; 
   focusKey?: string; 
 }
@@ -44,6 +44,7 @@ export const OreButton: React.FC<OreButtonProps> = ({
     secondary: "ore-btn-secondary",
     danger: "ore-btn-danger ore-text-shadow",
     purple: "ore-btn-purple ore-text-shadow", 
+    ghost: "ore-btn-ghost",
   };
 
   return (

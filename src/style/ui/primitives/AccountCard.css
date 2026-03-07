@@ -1,0 +1,155 @@
+/* src/features/Settings/components/tabs/AS/AccountCard.css */
+@layer components {
+
+  /* ============================================== */
+  /* ✅ 全局流动动画定义 */
+  /* ============================================== */
+  @keyframes card-flow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* ============================================== */
+  /* 基础卡片：摒弃发光与浮动，采用描边方案 */
+  /* ============================================== */
+  .ore-account-card {
+    @apply flex border-[2px] box-border select-none overflow-hidden rounded-sm;
+    background: #141415;
+    border-color: #2A2A2C;
+    color: #9CA3AF; /* gray-400 */
+    height: 100%;
+    /* 背景尺寸放大 300%，为流体动画做准备 */
+    background-size: 300% 100%;
+    background-position: 0% 50%;
+    /* 彻底去除所有 translateY 的物理浮动 */
+    transition: border-color 0.3s ease, filter 0.3s ease, transform 0.1s ease;
+  }
+
+  /* 普通离线卡片激活时仅变色 */
+  .ore-account-card.is-active:not(.is-premium) {
+    border-color: var(--ore-btn-primary-bg);
+  }
+
+  /* 基础：头像框样式 */
+  .ore-card-avatar-wrapper {
+    @apply w-16 h-16;
+  }
+  .ore-card-avatar-inner {
+    border-color: var(--ore-border-color);
+  }
+
+  .ore-account-name {
+    color: white;
+    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.8);
+  }
+  
+  .ore-account-subtitle {
+    color: #9CA3AF;
+  }
+
+  /* ============================================== */
+  /* ✅ 正版卡片：流动金砖背景 + 锐利金色描边 */
+  /* ============================================== */
+  .ore-account-card.is-premium {
+    /* 极具深度的黑金交错流体底色 */
+    background-image: linear-gradient(120deg, #1C1D1F, #362A15, #211B29, #1C1D1F);
+    /* 纯净的硬派金色描边，无外发光 */
+    border-color: #EAB308 !important; 
+    box-shadow: none; 
+  }
+
+  /* 悬停与焦点包含时：触发流动背景 */
+  .ore-account-card.is-premium:hover,
+  .ore-account-card.is-premium:focus-within {
+    animation: card-flow 4s ease-in-out infinite;
+    filter: brightness(1.15); /* 仅提亮，不浮动 */
+  }
+
+  /* 紫金选中态 */
+  .ore-account-card.is-premium.is-active {
+    background-image: linear-gradient(120deg, #2D1A3F, #362A15, #2D1A3F);
+    border-color: #EAB308 !important;
+  }
+
+  .ore-account-card.is-premium .ore-account-name {
+    color: #FBBF24;
+  }
+  .ore-account-card.is-premium .ore-account-subtitle {
+    color: rgba(251, 191, 36, 0.6);
+  }
+  .ore-account-card.is-premium .ore-card-avatar-inner {
+    border-color: #EAB308;
+  }
+
+  /* ============================================== */
+  /* ✅ 底部操作按钮：纯平、抗塌陷、焦点适配 */
+  /* ============================================== */
+  
+  .ore-account-set-active-btn {
+    @apply relative w-full h-[40px] flex items-center justify-center text-sm font-minecraft font-bold rounded-sm tracking-wider border-[2px] outline-none;
+    background-color: var(--ore-btn-secondary-bg);
+    color: var(--ore-btn-secondary-text);
+    border-color: var(--ore-border-color);
+    
+    /* 1. 彻底移除 3D 的 box-shadow 阴影，变为扁平化 */
+    box-shadow: none;
+    /* 2. 使用 scale 代替 margin 解决排版塌陷 */
+    transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), filter 0.3s ease, outline-offset 0.2s ease;
+  }
+
+  .ore-account-set-active-btn:hover {
+    background-color: var(--ore-btn-secondary-hover);
+  }
+
+  /* 核心抗塌陷机制：只缩放，不动真实高度！ */
+  .ore-account-set-active-btn:active {
+    transform: scale(0.96);
+  }
+
+  /* ✅ 焦点导航适配：空间引流的高亮白框，替代模糊发光 */
+  .ore-account-set-active-btn.is-focused {
+    outline: 2px solid white;
+    outline-offset: 2px;
+    filter: brightness(1.1);
+    z-index: 10;
+  }
+  /* 焦点按下时，外框向内撞击，打击感十足 */
+  .ore-account-set-active-btn.is-focused:active {
+    outline-offset: 0px;
+  }
+
+  /* 微软正版专属紫金按钮 */
+  .ore-account-card.is-premium .ore-account-set-active-btn {
+    background-image: linear-gradient(120deg, #7E22CE, #9333EA, #7E22CE);
+    background-size: 300% 100%;
+    color: white;
+    border-color: #4C1D95;
+  }
+  
+  /* 正版按钮悬停流动效果 */
+  .ore-account-card.is-premium .ore-account-set-active-btn:hover,
+  .ore-account-card.is-premium .ore-account-set-active-btn.is-focused {
+    animation: card-flow 3s ease infinite;
+    border-color: #D8B4FE;
+  }
+
+  /* ============================================== */
+  /* 正在使用状态标签 (无交互，纯展示) */
+  /* ============================================== */
+  .ore-account-active-tag {
+    @apply w-full h-[40px] flex items-center justify-center text-sm font-minecraft font-bold rounded-sm border-[2px] cursor-default;
+    background-color: var(--ore-btn-primary-bg);
+    color: white;
+    border-color: var(--ore-border-color);
+  }
+  
+  .ore-active-check {
+    color: white;
+  }
+  
+  /* 正版钩子变为金色 */
+  .ore-account-card.is-premium .ore-active-check {
+    color: #EAB308;
+  }
+}

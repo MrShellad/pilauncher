@@ -17,7 +17,7 @@
 @import './ui/primitives/OreSlider.css';
 @import './ui/primitives/OreDropdown.css';
 @import './ui/primitives/OreToggleButton.css';
-
+@import './ui/primitives/AccountCard.css'
 
 @tailwind base;
 @tailwind components;
