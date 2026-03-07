@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useHome } from '../hooks/pages/Home/useHome';
 import { useInstances } from '../hooks/pages/Instances/useInstances';
-import { useLauncherStore } from '../store/useLauncherStore'; // ✅ 引入全局 Store
+import { useLauncherStore } from '../store/useLauncherStore'; 
 
 import { PlayStats } from '../features/home/components/PlayStats';
 import { SkinViewerPlaceholder } from '../features/home/components/SkinViewerPlaceholder';
@@ -11,19 +11,24 @@ import { LaunchControls } from '../features/home/components/LaunchControls';
 import { InstanceSelectModal } from '../features/home/components/InstanceSelectModal';
 
 const Home: React.FC = () => {
-  const { playTime, lastPlayed, handleLaunch } = useHome();
+  // ✅ 修复 1：移除 playTime 和 lastPlayed 解构，只保留 handleLaunch
+  const { handleLaunch } = useHome();
   const { instances } = useInstances();
   
-  // ✅ 接入全局 Store：获取当前选中的实例 ID 和路由切换方法
   const selectedInstanceId = useLauncherStore(state => state.selectedInstanceId);
   const setSelectedInstanceId = useLauncherStore(state => state.setSelectedInstanceId);
   const setActiveTab = useLauncherStore(state => state.setActiveTab);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // 1. 确定当前应该显示的实例（如果有全局选中的就用全局，没有就默认列表第一个）
+  // 1. 确定当前应该显示的实例 ID
   const currentId = selectedInstanceId || (instances.length > 0 ? instances[0].id : '');
-  const currentInstanceName = instances.find(i => i.id === currentId)?.name || "选择实例";
+  
+  // ✅ 修复 2：获取完整的当前实例对象，从中提取所有需要的展示数据
+  const currentInstance = instances.find(i => i.id === currentId);
+  const currentInstanceName = currentInstance?.name || "选择实例";
+  const playTime = currentInstance?.playTime || 0;
+  const lastPlayed = currentInstance?.lastPlayed || "从未进行游戏";
 
   // 2. 弹窗中点击实例的逻辑
   const handleCardClick = (id: string) => {
@@ -35,12 +40,13 @@ const Home: React.FC = () => {
   const handleSettingsClick = () => {
     if (currentId) {
       setSelectedInstanceId(currentId);
-      setActiveTab('instance-detail'); // 确保这里的命名与你侧边栏路由的定义一致
+      setActiveTab('instance-detail'); 
     }
   };
 
   return (
     <div className="w-full h-full relative">
+      {/* ✅ 修复 3：将提取出的数据传给 PlayStats */}
       <PlayStats playTime={playTime} lastPlayed={lastPlayed} />
       <SkinViewerPlaceholder />
 
@@ -50,13 +56,9 @@ const Home: React.FC = () => {
 
       <div className="absolute bottom-[13vh] left-1/2 -translate-x-1/2 w-full flex justify-center z-20">
         <LaunchControls 
-          instanceId={currentId} // ✅ 核心修复 1：把当前高亮的 ID 传给控制组件
+          instanceId={currentId} 
           instanceName={currentInstanceName}
-          
-          // ✅ 核心修复 2：极其重要！必须把 currentId 传给 handleLaunch！
-          // 否则后端将不知道你要启动哪个实例，导致启动失败。
           onLaunch={() => handleLaunch(currentId)} 
-          
           onSettings={handleSettingsClick}
           onSelectInstance={() => setIsModalOpen(true)} 
         />

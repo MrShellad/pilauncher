@@ -1,5 +1,5 @@
 // /src/pages/NewInstance.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, type Variants } from 'framer-motion';
 import { Hammer, PackagePlus, FolderArchive, ArrowLeft, Zap, Server as ServerIcon } from 'lucide-react';
 import { CustomInstanceView } from '../features/Instances/components/CustomInstanceView';

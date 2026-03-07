@@ -35,6 +35,9 @@ export default {
           }
         }
       },
+      dropShadow: {
+        'ore-glow': '0 0 6px var(--ore-focus-glow)',
+      },
       fontFamily: {
     
         minecraft: ['var(--ore-global-font, "Minecraft")', '"NotoSans Bold"', '"Noto Sans SC"', 'sans-serif'], 

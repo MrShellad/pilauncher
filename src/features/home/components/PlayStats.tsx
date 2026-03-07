@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { Bell, Book, MessageCircle, Twitter, Youtube, Github, Globe } from 'lucide-react';
 import { OreButton } from '../../../ui/primitives/OreButton';
-import { FocusItem } from '../../../ui/focus/FocusItem';
 import { useLauncherStore } from '../../../store/useLauncherStore';
 
 // ✅ 引入真实账号状态与我们做好的弹窗/侧边栏
@@ -11,6 +10,7 @@ import { useAccountStore } from '../../../store/useAccountStore';
 import { useMicrosoftAuth } from '../../Settings/hooks/useMicrosoftAuth';
 import { MicrosoftAuthModal } from '../../Settings/components/modals/MicrosoftAuthModal';
 import { MicrosoftAccountSidebar } from './MicrosoftAccountSidebar';
+import { LanTrustModal } from '../../lan/LanTrustModal';
 
 interface PlayStatsProps {
   playTime: number;
@@ -218,6 +218,7 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
+      <LanTrustModal />
     </>
   );
 };

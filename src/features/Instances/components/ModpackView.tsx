@@ -9,7 +9,6 @@ import { DownloadDetailModal } from '../../Download/components/DownloadDetailMod
 
 import { useLauncherStore } from '../../../store/useLauncherStore';
 import { useDownloadStore } from '../../../store/useDownloadStore';
-import type { OreProjectVersion } from '../../InstanceDetail/logic/modrinthApi';
 
 export const ModpackView: React.FC = () => {
   // ✅ 使用特殊 ID 隔离缓存，防止和普通的实例模组下载冲突

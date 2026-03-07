@@ -64,7 +64,9 @@ const ResourceDownloadPage: React.FC = () => {
     const subFolderMap: Record<TabType, string> = {
       'mod': 'mods',
       'resourcepack': 'resourcepacks',
-      'shader': 'shaderpacks'
+      'shader': 'shaderpacks',
+      'modpack': 'modpacks',
+      
     };
     const subFolder = subFolderMap[activeTab];
 

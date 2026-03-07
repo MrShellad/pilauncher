@@ -26,7 +26,7 @@ export interface SearchParams {
   loader?: string;
   category?: string;
   sort?: 'relevance' | 'downloads' | 'updated' | 'newest';
-  projectType?: 'mod' | 'resourcepack' | 'shader';
+  projectType?: 'mod' | 'resourcepack' | 'shader' | 'modpack';
   limit?: number;
   offset?: number;
 }

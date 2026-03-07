@@ -9,3 +9,4 @@ pub mod resource_service; // ✅ 新增 resource 模块
 pub mod runtime_service; // ✅ 新增 launcher 模块
 pub mod modpack_service; // ✅ 新增 modpack 模块
 pub mod auth_service; 
+pub mod lan;

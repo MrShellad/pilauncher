@@ -100,6 +100,28 @@ pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, Str
         }
     }
 
+    // ✅ 新增：深度扫描 PiLauncher 自己的 runtime/java 目录
+    if let Some(base_path) = cache_file.parent().and_then(|p| p.parent()) {
+        let runtime_java_dir = base_path.join("runtime").join("java");
+        if runtime_java_dir.exists() {
+            for entry in walkdir::WalkDir::new(runtime_java_dir)
+                .max_depth(5) // 层级适当放宽，包含解压出的内部 jdk 文件夹
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                let p = entry.path();
+                #[cfg(target_os = "windows")]
+                let is_java = p.is_file() && p.file_name().unwrap_or_default() == "java.exe";
+                #[cfg(not(target_os = "windows"))]
+                let is_java = p.is_file() && p.file_name().unwrap_or_default() == "java";
+
+                if is_java {
+                    paths_to_check.push(p.to_path_buf());
+                }
+            }
+        }
+    }
+
     paths_to_check.sort();
     paths_to_check.dedup();
 

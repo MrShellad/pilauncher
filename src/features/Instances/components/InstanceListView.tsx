@@ -20,11 +20,10 @@ export const InstanceListView: React.FC<InstanceListViewProps> = ({ instance, on
   const { isLaunching, launchGame } = useGameLaunch();
 
   return (
-    // ✅ 核心修复：彻底移除了 hover:-translate-x-1 的横向物理位移
     <div className="relative flex flex-row w-full h-[88px] bg-[#4B4C50] border-2 border-b-[4px] border-[#1E1E1F] overflow-hidden shadow-md">
       
-      {/* ================= 焦点热区 1：左侧封面 (回车启动游戏) ================= */}
-      <FocusItem focusKey={`list-play-${instance.id}`} onEnter={(e) => launchGame(instance.id, e as any)}>
+      {/* ✅ 修复 3：去除 (e) */}
+      <FocusItem focusKey={`list-play-${instance.id}`} onEnter={() => launchGame(instance.id)}>
         {({ ref, focused }) => (
           <motion.div 
             ref={ref}
@@ -58,7 +57,6 @@ export const InstanceListView: React.FC<InstanceListViewProps> = ({ instance, on
         )}
       </FocusItem>
 
-      {/* ================= 焦点热区 2：中部文字 (回车进入详情) ================= */}
       <FocusItem focusKey={`list-detail-${instance.id}`} onEnter={onClick}>
         {({ ref, focused }) => (
           <div 
@@ -75,8 +73,8 @@ export const InstanceListView: React.FC<InstanceListViewProps> = ({ instance, on
         )}
       </FocusItem>
 
-      {/* ================= 焦点热区 3：右侧编辑 (回车打开设置) ================= */}
-      <FocusItem focusKey={`list-edit-${instance.id}`} onEnter={(e) => { e?.stopPropagation(); onEdit(); }}>
+      {/* ✅ 修复 4：去除 (e) 与 stopPropagation */}
+      <FocusItem focusKey={`list-edit-${instance.id}`} onEnter={() => onEdit()}>
         {({ ref, focused }) => (
           <button
             ref={ref} onClick={(e) => { e.stopPropagation(); onEdit(); }}

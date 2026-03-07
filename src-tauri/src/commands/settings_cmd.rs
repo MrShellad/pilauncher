@@ -100,3 +100,49 @@ pub async fn delete_background_image(path: String) -> Result<(), String> {
     }
     Ok(())
 }
+
+// 获取按键映射
+#[tauri::command]
+pub async fn get_keybindings<R: Runtime>(app: AppHandle<R>) -> Result<serde_json::Value, String> {
+    let base_path_str = ConfigService::get_base_path(&app)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "尚未配置基础数据目录".to_string())?;
+
+    let file_path = PathBuf::from(base_path_str)
+        .join("config")
+        .join("keybindings.json");
+
+    if file_path.exists() {
+        let content = fs::read_to_string(file_path).map_err(|e| e.to_string())?;
+        let json: serde_json::Value =
+            serde_json::from_str(&content).unwrap_or(serde_json::json!({}));
+        Ok(json)
+    } else {
+        // 如果文件不存在，返回空对象，前端检测到后会使用默认配置
+        Ok(serde_json::json!({}))
+    }
+}
+
+// 保存按键映射
+#[tauri::command]
+pub async fn save_keybindings<R: Runtime>(
+    app: AppHandle<R>,
+    bindings: serde_json::Value,
+) -> Result<(), String> {
+    let base_path_str = ConfigService::get_base_path(&app)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "尚未配置基础数据目录".to_string())?;
+
+    let config_dir = PathBuf::from(base_path_str).join("config");
+
+    if !config_dir.exists() {
+        fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
+    }
+
+    let file_path = config_dir.join("keybindings.json");
+
+    let content = serde_json::to_string_pretty(&bindings).map_err(|e| e.to_string())?;
+    fs::write(file_path, content).map_err(|e| e.to_string())?;
+
+    Ok(())
+}

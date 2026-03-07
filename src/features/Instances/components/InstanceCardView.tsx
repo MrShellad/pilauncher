@@ -20,20 +20,18 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
   const { isLaunching, launchGame } = useGameLaunch();
 
   return (
-    // ✅ 核心修复：死死锁定 w-[260px]，彻底移除 hover:-translate-y-1 的物理位移
     <div className="relative flex flex-col w-[260px] bg-[#4B4C50] border-2 border-b-[6px] border-[#1E1E1F] overflow-hidden shadow-lg">
       
-      {/* ================= 焦点热区 1：封面图 (回车启动游戏) ================= */}
-      <FocusItem focusKey={`card-play-${instance.id}`} onEnter={(e) => launchGame(instance.id, e as any)}>
+      {/* ✅ 修复 1：去除无效的 (e)，直接调用无参闭包 */}
+      <FocusItem focusKey={`card-play-${instance.id}`} onEnter={() => launchGame(instance.id)}>
         {({ ref, focused }) => (
           <motion.div 
             ref={ref}
+            // 这里保留 e，因为这是真实的鼠标点击事件
             onClick={(e) => launchGame(instance.id, e as any)}
             initial="rest"
-            // ✅ 当手柄焦点位于此时，强制触发 Framer Motion 的内部 Hover 动画
             animate={focused ? "hover" : "rest"}
             whileHover="hover"
-            // ✅ 使用向内生长的 outline，绝不撑开外部布局
             className={`relative w-full aspect-video bg-[#141415] overflow-hidden cursor-pointer ${focused ? 'outline outline-[4px] outline-offset-[-4px] outline-ore-green z-20' : ''}`}
           >
             {instance.coverUrl ? (
@@ -63,11 +61,9 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
         )}
       </FocusItem>
 
-      {/* ================= 下半部分：名称、时间与操作 ================= */}
       <div className="flex w-full h-[68px] border-t-2 border-[#1E1E1F] relative">
         <div className="absolute top-0 left-0 w-full h-[1px] bg-white/10 pointer-events-none" />
         
-        {/* ================= 焦点热区 2：文字区域 (回车进入详情) ================= */}
         <FocusItem focusKey={`card-detail-${instance.id}`} onEnter={onClick}>
           {({ ref, focused }) => (
             <div 
@@ -83,11 +79,12 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
           )}
         </FocusItem>
 
-        {/* ================= 焦点热区 3：编辑按钮 (回车打开设置) ================= */}
-        <FocusItem focusKey={`card-edit-${instance.id}`} onEnter={(e) => { e?.stopPropagation(); onEdit(); }}>
+        {/* ✅ 修复 2：去除无效的 (e) 及其阻止冒泡逻辑 */}
+        <FocusItem focusKey={`card-edit-${instance.id}`} onEnter={() => onEdit()}>
           {({ ref, focused }) => (
             <button
               ref={ref}
+              // 鼠标点击依然保留 e.stopPropagation() 以防止误触进入详情页
               onClick={(e) => { e.stopPropagation(); onEdit(); }}
               className={`w-[68px] h-full flex-shrink-0 flex items-center justify-center border-l-2 border-[#1E1E1F] transition-colors focus:outline-none relative group/edit ${focused ? 'bg-white/20 outline outline-[3px] outline-offset-[-3px] outline-white z-20' : 'hover:bg-white/10'}`}
               title="编辑配置"

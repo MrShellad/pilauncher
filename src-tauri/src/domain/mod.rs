@@ -9,3 +9,4 @@ pub mod resource;
 pub mod runtime;
 pub mod modpack;
 pub mod auth;
+pub mod lan;

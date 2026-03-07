@@ -22,3 +22,11 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer utilities {
+  /* 注册一个自定义类，完美处理 P3 色域的向下兼容 */
+  .outline-ore-focus {
+    outline-color: var(--ore-focus-ringFallback); /* 先给普通白 */
+    outline-color: var(--ore-focus-ring);         /* 支持 P3 的设备会覆盖上一行，实现 HDR 高亮 */
+  }
+}

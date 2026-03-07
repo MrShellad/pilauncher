@@ -37,7 +37,7 @@ export const JavaGuard: React.FC = () => {
       isOpen={missingJavas.length > 0} 
       onClose={() => setMissingJavas([])} 
       title="环境异常检测"
-      closeOnOverlayClick={false}
+      closeOnOutsideClick={false}
     >
       <div className="flex flex-col items-center text-center space-y-4 pt-2">
         <div className="p-3 bg-yellow-500/10 rounded-full">

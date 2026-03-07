@@ -25,22 +25,26 @@ export const OreAccordion: React.FC<OreAccordionProps> = ({
   return (
     <div className={`flex flex-col w-full ${className}`}>
       
-      {/* 标题栏 ✅ 包裹 FocusItem */}
       <FocusItem onEnter={() => setIsExpanded(!isExpanded)}>
         {({ ref, focused }) => (
           <button
-            ref={ref as any}
             onClick={() => setIsExpanded(!isExpanded)}
             tabIndex={-1} // 禁用浏览器原生焦点
             className={`
-              ore-accordion-header outline-none
+              ore-accordion-header outline-none flex items-center justify-between
               ${isExpanded ? 'bg-ore-nav-active' : ''}
               ${focused ? 'is-focused' : ''}
             `}
           >
-            <span className="font-minecraft font-bold text-white ore-text-shadow uppercase tracking-wider">
-              {title}
-            </span>
+            {/* ✅ 核心修复：将 ref 绑定到紧贴文字的 div 上，而非全宽的 button。
+              引擎现在会认为这个组件的中心点在“左侧”，当你按下 ↓ 键时，
+              它会笔直地找到同样靠左排列的第一个版本卡片！
+            */}
+            <div ref={ref as any} className="flex items-center">
+              <span className="font-minecraft font-bold text-white ore-text-shadow uppercase tracking-wider">
+                {title}
+              </span>
+            </div>
             
             {/* 旋转箭头 */}
             <motion.div

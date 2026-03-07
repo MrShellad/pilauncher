@@ -1,18 +1,16 @@
 // src/ui/focus/FocusProvider.tsx
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { init } from '@noriginmedia/norigin-spatial-navigation';
+import { invoke } from '@tauri-apps/api/core';
 
-// 引入全新设计的超级输入驱动和成就弹窗组件
-import { useInputDriver, type InputMode } from './InputDriver';
+import { useInputDriver, type InputMode, defaultBindings } from './InputDriver';
 import { GamepadToast } from './GamepadToast';
 
 interface GlobalFocusContextType {
   inputMode: InputMode;
 }
 
-// 1. 创建全局输入模式 Context
 const GlobalFocusContext = createContext<GlobalFocusContextType>({ inputMode: 'mouse' });
-
 export const useInputMode = () => useContext(GlobalFocusContext).inputMode;
 
 interface FocusProviderProps {
@@ -23,41 +21,57 @@ interface FocusProviderProps {
 export const FocusProvider: React.FC<FocusProviderProps> = ({ children, debug = false }) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [inputMode, setInputMode] = useState<InputMode>('mouse');
+  const [activeBindings, setActiveBindings] = useState(defaultBindings);
   
-  // 使用 ref 避免在事件回调中产生闭包陷阱
   const currentModeRef = useRef<InputMode>('mouse');
 
-  // 2. 初始化空间导航引擎
   useEffect(() => {
-    init({
-      debug: debug,
-      visualDebug: debug,
-    });
-    setIsInitialized(true);
+    // 异步加载流程：读取按键映射 -> 初始化焦点引擎
+    const setupEngine = async () => {
+      try {
+        const savedBindings = await invoke<any>('get_keybindings');
+        
+        // 如果后端返回了有效的配置（不是空对象），则进行合并或替换
+        if (savedBindings && Object.keys(savedBindings).length > 0) {
+          // 这里做一个简单的合并，防止后端 json 缺少某些必须的键
+          setActiveBindings((prev) => ({
+            keyboard: { ...prev.keyboard, ...savedBindings.keyboard },
+            gamepad: {
+              buttons: { ...prev.gamepad.buttons, ...savedBindings.gamepad?.buttons },
+              axes: { ...prev.gamepad.axes, ...savedBindings.gamepad?.axes }
+            }
+          }));
+        }
+      } catch (err) {
+        console.error("加载按键映射失败，使用默认配置:", err);
+      }
+
+      // 初始化空间导航引擎
+      init({ debug, visualDebug: debug });
+      setIsInitialized(true);
+    };
+
+    setupEngine();
   }, [debug]);
 
-  // 3. 全局模式切换方法
   const updateMode = useCallback((mode: InputMode) => {
     if (currentModeRef.current !== mode) {
       currentModeRef.current = mode;
       setInputMode(mode);
-      // 将模式注入到 body class，方便纯 CSS 使用 (如 .intent-mouse)
       document.body.classList.remove('intent-mouse', 'intent-keyboard', 'intent-controller');
       document.body.classList.add(`intent-${mode}`);
     }
   }, []);
 
-  // 4. 挂载底层超级驱动，接管所有输入设备的识别与转化
-  useInputDriver(updateMode);
+  // 挂载底层超级驱动，并传入动态加载的按键映射
+  useInputDriver(updateMode, activeBindings);
 
-  // 如果引擎还没初始化完毕，先不渲染子树
+  // 如果引擎还没初始化完毕，展示黑屏或 loading
   if (!isInitialized) return null;
 
   return (
     <GlobalFocusContext.Provider value={{ inputMode }}>
       {children}
-      
-      {/* 5. 挂载全局游戏手柄成就提示吐司 */}
       <GamepadToast />
     </GlobalFocusContext.Provider>
   );

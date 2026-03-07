@@ -14,7 +14,7 @@ pub mod system_cmd;
 pub mod modpack_cmd; // 新增 modpack_cmd 模块
 pub mod java_cmd;
 pub mod fs_cmd;
-
+pub mod lan_cmd;
 
 use tauri::{Builder, Runtime};
 
@@ -33,6 +33,8 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         system_cmd::get_system_fonts,
         settings_cmd::import_background_image,
         settings_cmd::delete_background_image,
+        settings_cmd::get_keybindings,
+        settings_cmd::save_keybindings,
         system_cmd::check_steam_deck,
         runtime_cmd::get_system_memory,
         runtime_cmd::validate_java_cache,
@@ -80,6 +82,10 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         fs_cmd::get_parent_dir,
         auth_cmd::refresh_microsoft_token,
         auth_cmd::get_or_fetch_account_avatar,
+        lan_cmd::scan_lan_devices,
+        lan_cmd::send_trust_request,
+        lan_cmd::resolve_trust_request,
+        lan_cmd::get_trusted_devices,
 
     ])
 }
