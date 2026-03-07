@@ -1,4 +1,4 @@
-// /src/ui/primitives/OreSlider.tsx
+// src/ui/primitives/OreSlider.tsx
 import React, { useRef, useState, useCallback } from 'react';
 import { FocusItem } from '../focus/FocusItem';
 
@@ -13,6 +13,9 @@ interface OreSliderProps {
   disabled?: boolean;
   className?: string;
   focusKey?: string;
+  // ✅ 修复报错：补充颜色扩展属性的类型定义
+  fillColorClass?: string;
+  thumbColorClass?: string;
 }
 
 export const OreSlider: React.FC<OreSliderProps> = ({
@@ -26,6 +29,8 @@ export const OreSlider: React.FC<OreSliderProps> = ({
   disabled = false,
   className = '',
   focusKey,
+  fillColorClass = '',  // ✅ 接收传入的颜色
+  thumbColorClass = '', // ✅ 接收传入的颜色
 }) => {
   const trackRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -76,11 +81,18 @@ export const OreSlider: React.FC<OreSliderProps> = ({
         </div>
       )}
 
-      {/* ✅ 使用 FocusItem 接入底层空间导航引擎 */}
-      <FocusItem focusKey={focusKey} disabled={disabled}>
+      {/* ✅ 接入底层空间导航引擎 */}
+      <FocusItem 
+        focusKey={focusKey} 
+        disabled={disabled}
+        onFocus={() => {
+          // 🎮 核心修复：当空间引擎的“虚拟焦点”移到这里时，强制抓取底层的“物理 DOM 焦点”
+          // preventScroll 保证获取焦点时屏幕不会出现原生浏览器的生硬跳跃
+          trackRef.current?.focus({ preventScroll: true });
+        }}
+      >
         {({ ref: focusRef, focused }) => (
           <div 
-            // 完美合并内部 DOM 测距 Ref 与 Norigin 导航 Ref
             ref={(node) => {
               trackRef.current = node;
               if (focusRef) {
@@ -92,14 +104,15 @@ export const OreSlider: React.FC<OreSliderProps> = ({
               }
             }}
             tabIndex={disabled ? -1 : 0}
-            // ✅ 焦点控制权全部交由外层 wrapper，CSS 响应 .is-focused
             className={`ore-slider-wrapper ${disabled ? 'disabled' : ''} ${focused ? 'is-focused' : ''}`}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
-            onKeyDownCapture={(e) => {
+            onKeyDown={(e) => {
               if (disabled) return;
+              
+              // 🎮 手柄拦截：阻止事件冒泡，防止空间引擎切走焦点，将其转化为数据调整
               if (e.key === 'ArrowLeft') {
                 e.stopPropagation(); e.preventDefault();
                 onChange(Math.max(min, value - step));
@@ -111,17 +124,18 @@ export const OreSlider: React.FC<OreSliderProps> = ({
           >
             {/* 底层凹陷轨道 */}
             <div className="ore-slider-track">
-              {/* 进度填充槽：拖拽时无延迟 (transition-none)，点击时有补间动画 */}
+              {/* ✅ 将 fillColorClass 拼接入 Tailwind 类名中，当内存变红时动态生效 */}
               <div 
-                className={`ore-slider-fill ${isDragging ? 'transition-none' : 'transition-[width] duration-100 ease-linear'}`}
+                className={`ore-slider-fill ${fillColorClass} ${isDragging ? 'transition-none' : 'transition-[width] duration-100 ease-linear'}`}
                 style={{ width: `${percentage}%` }}
               />
             </div>
 
-            {/* 物理滑块：脱离轨道高度，绝对居中 */}
+            {/* 物理滑块：同样注入 thumbColorClass */}
             <div 
               className={`
                 ore-slider-thumb 
+                ${thumbColorClass}
                 ${isDragging ? 'active transition-none' : 'transition-[left] duration-100 ease-linear'}
               `}
               style={{ left: `${percentage}%` }}
