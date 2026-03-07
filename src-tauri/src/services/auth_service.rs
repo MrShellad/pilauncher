@@ -10,7 +10,7 @@ use tauri::{AppHandle, Runtime};
 use base64::{engine::general_purpose, Engine as _};
 
 // ✅ 修复：被截断的 Client ID
-const CLIENT_ID: &str = "e84ecb12-50ce-431f-be1c-fc9db4de5022"; 
+const CLIENT_ID: &str = "e84ecb12-50ce-431f-be1c-fc94de5022"; 
 const SCOPE: &str = "XboxLive.signin offline_access";
 // ✅ 核心：配置专属启动器 User-Agent，防止 Mojang/微软 盾拦截请求
 const USER_AGENT: &str = "PiLauncher/1.0";
