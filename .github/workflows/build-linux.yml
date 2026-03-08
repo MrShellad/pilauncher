@@ -1,4 +1,4 @@
-name: Build Tauri Linux
+name: Build SteamDeck AppImage
 
 on:
   push:
@@ -9,12 +9,6 @@ jobs:
   build-linux:
     runs-on: ubuntu-22.04
 
-    strategy:
-      matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          - aarch64-unknown-linux-gnu
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,7 +16,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: x86_64-unknown-linux-gnu
 
       - name: Install system dependencies
         run: |
@@ -34,38 +28,28 @@ jobs:
             librsvg2-dev \
             patchelf \
             build-essential \
+            pkg-config \
             curl \
             wget \
-            file \
-            pkg-config
+            file
 
-      - name: Install Node
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install frontend deps
+      - name: Install frontend dependencies
         run: npm install
 
       - name: Install Tauri CLI
-        run: cargo install tauri-cli
+        run: cargo install tauri-cli --locked
 
-      - name: Add ARM64 cross tools
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
+      - name: Build Tauri (SteamDeck)
         run: |
-          sudo apt install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          npm run tauri build -- --target x86_64-unknown-linux-gnu
 
-      - name: Build Tauri
-        run: |
-          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
-            export CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
-            export CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++
-          fi
-
-          npm run tauri build -- --target ${{ matrix.target }}
-
-      - name: Upload artifact
+      - name: Upload AppImage
         uses: actions/upload-artifact@v4
         with:
-          name: tauri-${{ matrix.target }}
-          path: src-tauri/target/${{ matrix.target }}/release/bundle
+          name: steamdeck-build
+          path: src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
