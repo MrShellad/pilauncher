@@ -15,6 +15,7 @@ pub mod modpack_cmd; // 新增 modpack_cmd 模块
 pub mod java_cmd;
 pub mod fs_cmd;
 pub mod lan_cmd;
+pub mod qrcode_cmd;
 
 use tauri::{Builder, Runtime};
 
@@ -86,7 +87,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         lan_cmd::scan_lan_devices,
         lan_cmd::send_trust_request,
         lan_cmd::resolve_trust_request,
-        lan_cmd::get_trusted_devices,
+        qrcode_cmd::generate_device_auth_qr,
 
     ])
 }

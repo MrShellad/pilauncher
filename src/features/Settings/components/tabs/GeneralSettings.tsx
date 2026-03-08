@@ -3,6 +3,7 @@ import React from 'react';
 import { OreSwitch } from '../../../../ui/primitives/OreSwitch';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreDropdown } from '../../../../ui/primitives/OreDropdown';
+import { OreInput } from '../../../../ui/primitives/OreInput'; // ✅ 引入输入框组件
 import { RotateCcw, Monitor, AlertTriangle } from 'lucide-react';
 import { useSettingsStore } from '../../../../store/useSettingsStore';
 
@@ -11,11 +12,11 @@ import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { SettingsSection } from '../../../../ui/layout/SettingsSection';
 import { FormRow } from '../../../../ui/layout/FormRow';
 
-// ✅ 引入焦点导航核心组件
+// 引入焦点导航核心组件
 import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 
-// ✅ 封装一个支持空间导航的 Switch 组件
+// 封装一个支持空间导航的 Switch 组件
 const FocusableSwitch = ({ checked, onChange }: { checked: boolean, onChange: (v: boolean) => void }) => (
   <FocusItem onEnter={() => onChange(!checked)}>
     {({ ref, focused }) => (
@@ -48,7 +49,7 @@ export const GeneralSettings: React.FC = () => {
   ];
 
   return (
-    // ✅ 整个标签页包裹在 FocusBoundary 中，便于引擎管理层级
+    // 整个标签页包裹在 FocusBoundary 中，便于引擎管理层级
     <FocusBoundary id="settings-general-boundary" className="w-full h-full outline-none">
       <SettingsPageLayout 
         title="常规设置" 
@@ -56,16 +57,39 @@ export const GeneralSettings: React.FC = () => {
       >
         {/* ==================== 1. 基础模块 ==================== */}
         <SettingsSection title="基础" icon={<Monitor size={18} />}>
+          
+          {/* ✅ 新增：设备名称配置 */}
+          <FormRow 
+            label="设备名称" 
+            description="用于局域网发现与互联传输时的身份展示标识。"
+            control={
+              <div className="relative focus-within:z-50">
+                <OreInput 
+                  focusKey="settings-device-name"
+                  width="180px"
+                  height="36px"
+                  value={general.deviceName} 
+                  onChange={(e) => updateGeneralSetting('deviceName', e.target.value)} 
+                  placeholder="输入设备名称"
+                  containerClassName="!space-y-0"
+                />
+              </div>
+            }
+          />
+
           <FormRow 
             label="启动器语言" 
             description="更改启动器的显示语言。重启后完全生效。"
             control={
-              <OreDropdown 
-                options={languageOptions}
-                value={general.language}
-                onChange={(val) => updateGeneralSetting('language', val)}
-                className="w-40"
-              />
+              <div className="relative focus-within:z-50">
+                <OreDropdown 
+                  options={languageOptions}
+                  value={general.language}
+                  onChange={(val) => updateGeneralSetting('language', val)}
+                  className="w-40"
+                  focusKey="settings-language"
+                />
+              </div>
             }
           />
           <FormRow 
@@ -87,12 +111,15 @@ export const GeneralSettings: React.FC = () => {
             label="关闭按钮行为" 
             description="点击右上角 'X' 时执行的操作。"
             control={
-              <OreDropdown 
-                options={closeBehaviorOptions}
-                value={general.closeBehavior}
-                onChange={(val) => updateGeneralSetting('closeBehavior', val as 'tray' | 'exit')}
-                className="w-40"
-              />
+              <div className="relative focus-within:z-50">
+                <OreDropdown 
+                  options={closeBehaviorOptions}
+                  value={general.closeBehavior}
+                  onChange={(val) => updateGeneralSetting('closeBehavior', val as 'tray' | 'exit')}
+                  className="w-40"
+                  focusKey="settings-close-behavior"
+                />
+              </div>
             }
           />
           <FormRow 

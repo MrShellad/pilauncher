@@ -2,7 +2,7 @@
 import React from 'react';
 
 interface FormRowProps {
-  label: string;
+  label: React.ReactNode; // ✅ 核心修复：将 string 改为 React.ReactNode，支持传入图标和复杂的 DOM 结构
   description?: React.ReactNode;
   control: React.ReactNode;
   className?: string;
@@ -28,13 +28,13 @@ export const FormRow: React.FC<FormRowProps> = ({
       <div onClick={onClick} className={`flex flex-col ${baseClasses}`}>
         {/* 上半部：文字说明 */}
         <div className="flex flex-col w-full mb-4 mt-1">
-          <span className="text-white font-minecraft text-lg mb-1.5 drop-shadow-sm">
+          <div className="text-white font-minecraft text-lg mb-1.5 drop-shadow-sm flex items-center">
             {label}
-          </span>
+          </div>
           {description && (
-            <span className="text-sm text-[#A0A0A0] font-minecraft leading-relaxed opacity-90 max-w-xl">
+            <div className="text-sm text-[#A0A0A0] font-minecraft leading-relaxed opacity-90 max-w-xl">
               {description}
-            </span>
+            </div>
           )}
         </div>
         
@@ -53,21 +53,19 @@ export const FormRow: React.FC<FormRowProps> = ({
     <div onClick={onClick} className={`flex flex-col lg:flex-row lg:items-start justify-between ${baseClasses}`}>
       {/* 左侧文字 */}
       <div className="flex flex-col flex-1 pr-6 mb-5 lg:mb-0 mt-1">
-        <span className="text-white font-minecraft text-lg mb-1.5 drop-shadow-sm">
+        <div className="text-white font-minecraft text-lg mb-1.5 drop-shadow-sm flex items-center">
           {label}
-        </span>
+        </div>
         {description && (
-          <span className="text-sm text-[#A0A0A0] font-minecraft leading-relaxed opacity-90 max-w-xl">
+          <div className="text-sm text-[#A0A0A0] font-minecraft leading-relaxed opacity-90 max-w-xl">
             {description}
-          </span>
+          </div>
         )}
       </div>
 
       {/* 右侧控件 */}
-      <div className="flex-shrink-0 flex items-start w-full lg:w-auto lg:max-w-[55%] xl:max-w-[60%]">
-        <div className="w-full flex lg:justify-end">
-          {control}
-        </div>
+      <div className="flex-shrink-0 flex items-center justify-end min-w-[120px] lg:mt-1">
+        {control}
       </div>
     </div>
   );

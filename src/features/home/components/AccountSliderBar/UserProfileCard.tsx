@@ -113,8 +113,8 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
       {/* 下半部分：在线信任设备 */}
       <div className="relative z-10 p-4 bg-black/20">
         <div className="flex items-center text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">
-          <Monitor size={14} className="mr-2"/> 当前信任设备 ({trusted.length})
-        </div>
+  <Monitor size={14} className="mr-2"/> 信任的好友与设备 ({trusted.length})
+</div>
         
         <div className="flex flex-col gap-2 max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
           {trusted.length === 0 && <div className="text-xs text-gray-500 text-center py-2">暂无信任的其他设备</div>}

@@ -6,8 +6,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-22.04
+  build:
+    strategy:
+      fail-fast: false # 即使某个平台的构建失败，也不要取消其他平台的构建
+      matrix:
+        platform: [ubuntu-22.04, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.platform }}
 
     env:
       CARGO_TERM_COLOR: always
@@ -23,7 +28,7 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
 
-      # pnpm 及 Node (利用内置缓存)
+      # pnpm 及 Node
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -33,10 +38,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm' # 自动基于 pnpm-lock.yaml 缓存依赖
+          cache: 'pnpm'
 
-      # 安装 Linux 系统依赖 (Tauri v2 适配)
+      # 安装 Linux 系统依赖 (仅在 Ubuntu 环境下运行)
       - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt update
           sudo apt install -y \
@@ -56,16 +62,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # 编译打包 (如果 tauri.conf 中配置了 beforeBuildCommand，这里会自动构建前端)
+      # 编译打包跨平台应用
       - name: Build Tauri app
         run: pnpm tauri build
 
-      # 上传构建产物
+      # 上传各平台的构建产物
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: tauri-linux-build
-          if-no-files-found: warn # 避免缺失部分格式导致报错
+          name: tauri-build-${{ matrix.platform }} # 动态命名，防止各平台产物相互覆盖
+          if-no-files-found: warn
           path: |
+            # Linux 产物
             src-tauri/target/release/bundle/appimage/*.AppImage
             src-tauri/target/release/bundle/deb/*.deb
+            # macOS 产物
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/macos/*.app
+            # Windows 产物
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi

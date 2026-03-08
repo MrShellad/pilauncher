@@ -3,7 +3,6 @@ use crate::domain::lan::{DeviceIdentity, TrustedDevice};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 
-// ✅ 去掉了繁琐的 RngCore 和 OsRng 导入，只保留标准库
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -11,39 +10,73 @@ use std::path::Path;
 pub struct TrustStore;
 
 impl TrustStore {
-    /// 获取设备自己的身份 (没有则自动生成 ed25519 密钥对)
     pub fn get_or_create_identity(config_dir: &Path) -> DeviceIdentity {
+        let mut settings_file = config_dir.join("settings.json");
+        if !settings_file.exists() {
+            if let Some(parent) = config_dir.parent() {
+                settings_file = parent.join("settings.json");
+            }
+        }
+
+        let mut device_id = String::new();
+        let mut device_name = String::new();
+
+        if let Ok(data) = fs::read_to_string(&settings_file) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&data) {
+                // ✅ 核心修复：Zustand Persist 默认会将数据包裹在 "state.settings.general" 下
+                if let Some(general) = json.pointer("/state/settings/general") {
+                    if let Some(id) = general.get("deviceId").and_then(|v| v.as_str()) {
+                        device_id = id.to_string();
+                    }
+                    if let Some(name) = general.get("deviceName").and_then(|v| v.as_str()) {
+                        device_name = name.to_string();
+                    }
+                }
+            }
+        }
+
+        // 兜底逻辑
+        if device_id.is_empty() {
+            device_id = uuid::Uuid::new_v4().to_string();
+        }
+        if device_name.is_empty() {
+            device_name = format!("Pi-Device-{:03}", rand::random::<u16>() % 1000);
+        }
+
         let id_file = config_dir.join("device_identity.json");
+        
         if id_file.exists() {
             if let Ok(data) = fs::read_to_string(&id_file) {
-                if let Ok(identity) = serde_json::from_str(&data) {
+                if let Ok(mut identity) = serde_json::from_str::<DeviceIdentity>(&data) {
+                    // 同步最新设置
+                    let needs_update = identity.device_id != device_id || identity.device_name != device_name;
+                    identity.device_id = device_id;
+                    identity.device_name = device_name;
+                    
+                    if needs_update {
+                        let _ = fs::write(&id_file, serde_json::to_string_pretty(&identity).unwrap());
+                    }
                     return identity;
                 }
             }
         }
 
-        // =====================================================================
-        // ✅ 终极解法：极其优雅地生成 32 字节密码学随机数
-        // =====================================================================
-        // 1. 直接使用 rand 0.9 的 random() 生成 32 字节数组，底层使用高强度 ThreadRng
+        // 首次生成密钥对
         let secret_bytes: [u8; 32] = rand::random();
-        
-        // 2. 将纯字节数组喂给 ed25519_dalek，彻底切断它与 rand_core 的 Trait 绑定
         let signing_key = SigningKey::from_bytes(&secret_bytes);
         let verifying_key = signing_key.verifying_key();
 
         let identity = DeviceIdentity {
-            device_id: uuid::Uuid::new_v4().to_string(),
-            device_name: format!("PC-{}", rand::random::<u16>()), 
+            device_id,
+            device_name,
             private_key_b64: BASE64.encode(signing_key.to_bytes()),
             public_key_b64: BASE64.encode(verifying_key.to_bytes()),
         };
 
-        fs::write(id_file, serde_json::to_string_pretty(&identity).unwrap()).ok();
+        let _ = fs::write(&id_file, serde_json::to_string_pretty(&identity).unwrap());
         identity
     }
 
-    /// 获取受信任设备列表 (供内部校验快速寻址使用)
     pub fn get_trusted_devices_map(config_dir: &Path) -> HashMap<String, TrustedDevice> {
         let file = config_dir.join("devices").join("trusted_devices.json");
         if let Ok(data) = fs::read_to_string(file) {
@@ -53,8 +86,6 @@ impl TrustStore {
         }
     }
 
-    // ... 下方的代码保持原样完全不动 ...
-    
     pub fn get_trusted_devices_list(config_dir: &Path) -> Vec<TrustedDevice> {
         Self::get_trusted_devices_map(config_dir).into_values().collect()
     }
@@ -93,9 +124,7 @@ impl TrustStore {
         signature_b64: &str,
     ) -> bool {
         let now = chrono::Utc::now().timestamp();
-        if (now - timestamp).abs() > 300 {
-            return false;
-        }
+        if (now - timestamp).abs() > 300 { return false; }
 
         let trusted = Self::get_trusted_devices_map(config_dir);
         let device = match trusted.get(device_id) {

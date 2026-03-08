@@ -1,6 +1,5 @@
 // /src/ui/primitives/OreSegmentedControl.tsx
-import React, { useState } from 'react';
-import { useInputAction } from '../focus/InputDriver';
+import React from 'react';
 
 export interface TabItem {
   id: string;
@@ -21,44 +20,11 @@ export const OreSegmentedControl: React.FC<OreSegmentedControlProps> = ({
   onChange,
   className = ''
 }) => {
-  const [visualPress, setVisualPress] = useState<'prev' | 'next' | null>(null);
-
-  const triggerPrev = () => {
-    const idx = tabs.findIndex(t => t.id === activeTab);
-    if (idx > 0) {
-      onChange(tabs[idx - 1].id);
-      setVisualPress('prev');
-      setTimeout(() => setVisualPress(null), 100);
-    }
-  };
-
-  const triggerNext = () => {
-    const idx = tabs.findIndex(t => t.id === activeTab);
-    if (idx < tabs.length - 1) {
-      onChange(tabs[idx + 1].id);
-      setVisualPress('next');
-      setTimeout(() => setVisualPress(null), 100);
-    }
-  };
-
-  useInputAction('PAGE_LEFT', triggerPrev);
-  useInputAction('PAGE_RIGHT', triggerNext);
-
+  // ✅ 已经移除了所有内部的按键监听 (useInputAction) 和左右两个固定按钮
+  // 现在它是一个极其纯净的无状态受控组件
+  
   return (
-    // ✅ 修复1：使用 items-start (顶部对齐)，这样按钮下沉时也不会拉扯周围的元素
-    <div className={`flex items-start space-x-2 h-[40px] ${className}`}>
-      
-      {/* 左侧快捷键提示 '[' */}
-      <button 
-        onClick={triggerPrev}
-        tabIndex={-1} 
-        // 移除了 absolute 等多余样式，回归最纯粹的组件类名
-        className={`ore-shortcut-btn ${visualPress === 'prev' ? 'is-pressed' : ''}`}
-      >
-        [
-      </button>
-
-      {/* 选项卡容器 */}
+    <div className={`flex items-start h-[40px] ${className}`}>
       <div className="ore-segmented-track">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -82,16 +48,6 @@ export const OreSegmentedControl: React.FC<OreSegmentedControlProps> = ({
           );
         })}
       </div>
-
-      {/* 右侧快捷键提示 ']' */}
-      <button 
-        onClick={triggerNext}
-        tabIndex={-1} 
-        className={`ore-shortcut-btn ${visualPress === 'next' ? 'is-pressed' : ''}`}
-      >
-        ]
-      </button>
-
     </div>
   );
 };

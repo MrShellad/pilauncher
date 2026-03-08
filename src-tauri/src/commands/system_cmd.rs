@@ -1,8 +1,12 @@
 // src-tauri/src/commands/system_cmd.rs
 use font_kit::source::SystemSource;
 use std::collections::HashSet;
+// ✅ 核心修复：导入缺失的路径和文件操作模块
+use std::path::Path;
+use std::fs;
 use tauri::command;
 use tauri::{AppHandle, Runtime};
+
 #[command]
 pub async fn get_system_fonts() -> Result<Vec<String>, String> {
     // 由于读取字体可能较慢，建议放在异步线程中执行
@@ -33,7 +37,7 @@ pub async fn check_steam_deck() -> Result<bool, String> {
         // 1. 检查 SteamOS 的标志性发行版文件
         let has_steamos = Path::new("/etc/steamos-release").exists();
 
-        // 2. 检查 CPU 型号是否为 AMD Custom APU (Aerith / Sephiroth 等掌机芯片)
+        // 2. 检查 CPU 型号是否为 AMD Custom APU
         let cpuinfo = fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
         let is_custom_apu = cpuinfo.contains("AMD Custom APU");
 

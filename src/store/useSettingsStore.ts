@@ -7,7 +7,6 @@ import { invoke } from '@tauri-apps/api/core';
 import type { AppSettings } from '../types/settings';
 import { DEFAULT_SETTINGS } from '../types/settings';
 
-// 定义与 Rust 后端通信的自定义存储引擎
 const tauriStorage: StateStorage = {
   getItem: async (_name: string): Promise<string | null> => {
     try {
@@ -68,7 +67,6 @@ export const useSettingsStore = create<SettingsStore>()(
     {
       name: 'pilauncher-settings-storage',
       storage: createJSONStorage(() => tauriStorage),
-      // ✅ 核心修复：拦截浅合并，执行深层合并，保证新增加的 java 等默认节点强制写入！
       merge: (persistedState: any, currentState: SettingsStore) => {
         if (!persistedState) return currentState;
         return {
@@ -86,8 +84,46 @@ export const useSettingsStore = create<SettingsStore>()(
           _hasHydrated: persistedState._hasHydrated,
         };
       },
+      // ✅ 核心注入点：在配置唤醒时安全生成 UUID 与设备名
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
+        if (state && (!state.settings.general.deviceName || !state.settings.general.deviceId)) {
+          (async () => {
+            try {
+              // 1. 生成唯一隐藏 UUID
+              const deviceId = state.settings.general.deviceId || crypto.randomUUID();
+              
+              // 2. 根据系统环境生成专属设备名
+              let deviceName = state.settings.general.deviceName;
+              if (!deviceName) {
+                let os = 'Unknown';
+                const ua = navigator.userAgent.toLowerCase();
+                if (ua.includes('win')) os = 'Windows';
+                else if (ua.includes('mac')) os = 'Mac';
+                else if (ua.includes('linux')) os = 'Linux';
+
+                // 探测 SteamDeck 专属标识
+                try {
+                  const isSteamDeck = await invoke<boolean>('check_steam_deck');
+                  if (isSteamDeck) os = 'SteamDeck';
+                } catch (e) {}
+
+                // 生成三位混合随机码
+                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                let randomCode = '';
+                for (let i = 0; i < 3; i++) randomCode += chars.charAt(Math.floor(Math.random() * chars.length));
+
+                deviceName = `Pi-${os}-${randomCode}`;
+              }
+
+              // 3. 回写到配置中保存
+              state.updateGeneralSetting('deviceId', deviceId);
+              state.updateGeneralSetting('deviceName', deviceName);
+            } catch (e) {
+              console.error("生成设备标识信息失败:", e);
+            }
+          })();
+        }
       },
     }
   )

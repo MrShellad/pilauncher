@@ -60,11 +60,15 @@ pub async fn refresh_microsoft_token<R: Runtime>(
     auth_service::refresh_microsoft_token(&app, &refresh_token).await
 }
 
-// 新增：供前端调用，返回本地头像的物理绝对路径
+// =======================================================
+// ✅ 修复拼写错误：Strin -> String
+// =======================================================
 #[tauri::command]
-pub async fn get_or_fetch_account_avatar<R: Runtime>(
-    app: AppHandle<R>, 
-    uuid: String
+pub async fn get_or_fetch_account_avatar<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>, 
+    uuid: String,
+    username: String 
 ) -> Result<String, String> {
-    auth_service::get_or_fetch_account_avatar(&app, &uuid).await
+    crate::services::auth_service::get_or_fetch_account_avatar(&app, &uuid, &username).await
+        .map(|p| p.to_string_lossy().to_string())
 }

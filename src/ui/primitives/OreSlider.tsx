@@ -13,7 +13,6 @@ interface OreSliderProps {
   disabled?: boolean;
   className?: string;
   focusKey?: string;
-  // ✅ 修复报错：补充颜色扩展属性的类型定义
   fillColorClass?: string;
   thumbColorClass?: string;
 }
@@ -29,8 +28,8 @@ export const OreSlider: React.FC<OreSliderProps> = ({
   disabled = false,
   className = '',
   focusKey,
-  fillColorClass = '',  // ✅ 接收传入的颜色
-  thumbColorClass = '', // ✅ 接收传入的颜色
+  fillColorClass = '',  
+  thumbColorClass = '', 
 }) => {
   const trackRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -81,13 +80,11 @@ export const OreSlider: React.FC<OreSliderProps> = ({
         </div>
       )}
 
-      {/* ✅ 接入底层空间导航引擎 */}
+      {/* 接入底层空间导航引擎 */}
       <FocusItem 
         focusKey={focusKey} 
         disabled={disabled}
         onFocus={() => {
-          // 🎮 核心修复：当空间引擎的“虚拟焦点”移到这里时，强制抓取底层的“物理 DOM 焦点”
-          // preventScroll 保证获取焦点时屏幕不会出现原生浏览器的生硬跳跃
           trackRef.current?.focus({ preventScroll: true });
         }}
       >
@@ -110,9 +107,10 @@ export const OreSlider: React.FC<OreSliderProps> = ({
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
             onKeyDown={(e) => {
-              if (disabled) return;
+              // ✅ 核心修复：只有当空间引擎将焦点落在该组件上时，才允许响应按键，否则直接拦截
+              if (disabled || !focused) return; 
               
-              // 🎮 手柄拦截：阻止事件冒泡，防止空间引擎切走焦点，将其转化为数据调整
+              // 手柄拦截：阻止事件冒泡，防止空间引擎切走焦点，将其转化为数据调整
               if (e.key === 'ArrowLeft') {
                 e.stopPropagation(); e.preventDefault();
                 onChange(Math.max(min, value - step));
@@ -124,14 +122,13 @@ export const OreSlider: React.FC<OreSliderProps> = ({
           >
             {/* 底层凹陷轨道 */}
             <div className="ore-slider-track">
-              {/* ✅ 将 fillColorClass 拼接入 Tailwind 类名中，当内存变红时动态生效 */}
               <div 
                 className={`ore-slider-fill ${fillColorClass} ${isDragging ? 'transition-none' : 'transition-[width] duration-100 ease-linear'}`}
                 style={{ width: `${percentage}%` }}
               />
             </div>
 
-            {/* 物理滑块：同样注入 thumbColorClass */}
+            {/* 物理滑块 */}
             <div 
               className={`
                 ore-slider-thumb 

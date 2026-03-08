@@ -18,6 +18,7 @@ interface OreToggleButtonProps {
   className?: string;        
   buttonClassName?: string;  
   size?: 'sm' | 'md' | 'lg' | 'full'; 
+  focusable?: boolean; // ✅ 新增：允许关闭该组件的焦点获取功能
 }
 
 export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
@@ -30,6 +31,7 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
   className = '',
   buttonClassName = '',
   size = 'full', 
+  focusable = true, // 默认依然可以获取焦点
 }) => {
   const activeOption = options.find((opt) => opt.value === value);
 
@@ -50,35 +52,42 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
         </div>
       )}
 
-      {/* ✅ 移除了溢出隐藏 (overflow-hidden)，确保高光环可以完美展示 */}
       <div className={`ore-toggle-btn-group flex items-stretch w-full ${sizeClasses[size]}`}>
         {options.map((option) => {
           const isActive = option.value === value;
+
+          // ✅ 将按钮渲染逻辑抽取出来
+          const renderButton = (ref?: any, focused: boolean = false) => (
+            <button
+              ref={ref}
+              onClick={() => !isActive && onChange(option.value)}
+              className={`
+                ore-toggle-btn-item 
+                px-2 outline-none
+                ${isActive ? 'is-active z-10' : ''}
+                ${focused ? 'is-focused' : ''}
+                ${buttonClassName}
+              `}
+              tabIndex={-1} 
+            >
+              <div className={`flex items-center justify-center w-full transition-none ${isActive ? 'ore-text-shadow' : ''}`}>
+                {option.label}
+              </div>
+            </button>
+          );
+
+          // ✅ 如果不允许获取焦点，则抛弃 FocusItem 包裹，直接输出纯静态按钮 (仅保留鼠标点击能力)
+          if (!focusable) {
+            return <React.Fragment key={option.value}>{renderButton()}</React.Fragment>;
+          }
+
           return (
             <FocusItem
               key={option.value}
               disabled={disabled}
               onEnter={() => !isActive && onChange(option.value)}
             >
-              {({ ref, focused }) => (
-                <button
-                  ref={ref as any}
-                  onClick={() => !isActive && onChange(option.value)}
-                  className={`
-                    ore-toggle-btn-item 
-                    px-2 outline-none
-                    ${isActive ? 'is-active z-10' : ''}
-                    ${focused ? 'is-focused' : ''}
-                    ${buttonClassName}
-                  `}
-                  tabIndex={-1} 
-                >
-                  {/* 去除导致像素扭曲的 scale 缩放，保持纯粹的刚性 UI */}
-                  <div className={`flex items-center justify-center w-full transition-none ${isActive ? 'ore-text-shadow' : ''}`}>
-                    {option.label}
-                  </div>
-                </button>
-              )}
+              {({ ref, focused }) => renderButton(ref as any, focused)}
             </FocusItem>
           );
         })}

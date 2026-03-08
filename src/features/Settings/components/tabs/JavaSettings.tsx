@@ -1,6 +1,6 @@
 // src/features/Settings/components/tabs/JavaSettings.tsx
-import React from 'react';
-import { Coffee, Cpu } from 'lucide-react';
+import React, { useState } from 'react';
+import { Coffee, Cpu, Loader2 } from 'lucide-react';
 
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { SettingsSection } from '../../../../ui/layout/SettingsSection';
@@ -12,38 +12,70 @@ import { MemorySlider } from '../../../runtime/components/MemorySlider';
 import { JVMParamsEditor } from '../../../runtime/components/JVMParamsEditor';
 
 import { useSettingsStore } from '../../../../store/useSettingsStore';
+// ✅ 引入 Java 检测引擎
+import { validateCachedJava, scanJava } from '../../../runtime/logic/javaDetector';
 
 export const JavaSettings: React.FC = () => {
   const { settings, updateJavaSetting } = useSettingsStore();
+  // ✅ 新增状态：用于在自动检测时展示 Loading 动画防抖
+  const [isDetecting, setIsDetecting] = useState(false);
   
-  // ✅ 结构已被 Store 深度合并保证，直接安全使用
   const java = settings.java;
+
+  // ✅ 核心修复：重写 Switch 的 onChange 逻辑
+  const handleAutoDetectToggle = async (v: boolean | React.ChangeEvent<HTMLInputElement>) => {
+    const isChecked = typeof v === 'boolean' ? v : (v as any).target?.checked;
+    updateJavaSetting('autoDetect', isChecked);
+    
+    // 如果开启了自动检测，去抓取最新的 Java 填入输入框
+    if (isChecked) {
+      setIsDetecting(true);
+      try {
+        // 先尝试从缓存中快速读取有效列表
+        let { valid } = await validateCachedJava();
+        
+        // 如果缓存彻底空了，自动触发一次深扫
+        if (valid.length === 0) {
+          valid = await scanJava();
+        }
+        
+        if (valid.length > 0) {
+          // 按照版本号降序排列，拿到最新的 JDK
+          const sorted = valid.sort((a, b) => b.version.localeCompare(a.version));
+          updateJavaSetting('javaPath', sorted[0].path);
+        }
+      } catch (e) {
+        console.error("自动回填 Java 路径失败:", e);
+      } finally {
+        setIsDetecting(false);
+      }
+    }
+  };
 
   return (
     <SettingsPageLayout title="Java 运行环境" subtitle="Global Java & Runtime Allocation">
       
       <SettingsSection title="环境配置" icon={<Coffee size={18} />}>
         <FormRow 
-          label="自动检测 Java 环境" 
-          description="启动游戏时，若未指定路径，自动匹配对应版本最适合的 JDK。"
+          label={
+            <div className="flex items-center gap-2">
+              自动检测 Java 环境
+              {isDetecting && <Loader2 size={14} className="animate-spin text-ore-green" />}
+            </div>
+          } 
+          description="启动游戏时，自动匹配对应版本最适合的 JDK。开启后将自动扫描并回填本机最新的 Java 路径。"
           control={
             <OreSwitch 
               checked={java.autoDetect} 
-              onChange={(v) => {
-                const isChecked = typeof v === 'boolean' ? v : (v as any).target?.checked;
-                updateJavaSetting('autoDetect', isChecked);
-                // 💡 联动优化：如果开启了自动检测，顺手把已有的手动路径清空
-                if (isChecked) {
-                  updateJavaSetting('javaPath', '');
-                }
-              }} 
+              onChange={handleAutoDetectToggle} 
+              disabled={isDetecting}
             />
           }
         />
 
         <FormRow 
           label="全局 Java 运行时路径" 
-          description="为所有未开启独立 Java 设置的实例提供默认的运行环境。"
+          description="为所有未开启独立 Java 设置的实例提供默认的运行环境。点击选择可扫描或手动浏览本机目录。"
           vertical={true}
           control={
             <div className="w-full relative">
@@ -51,17 +83,14 @@ export const JavaSettings: React.FC = () => {
                 value={java.javaPath} 
                 onChange={(v) => {
                   updateJavaSetting('javaPath', v);
-                  // 💡 联动优化：如果用户手动选择了一个具体路径，就自动关闭“自动检测”
-                  if (v) {
-                    updateJavaSetting('autoDetect', false);
-                  }
+                  // 手动修改路径后，自动关闭“自动检测”开关
+                  if (v) updateJavaSetting('autoDetect', false);
                 }} 
-                // 💡 视觉防呆：当自动检测开启且路径为空时，让它看起来是禁用或被接管的状态
-                disabled={java.autoDetect} 
+                // 检测期间也临时禁用，防止冲突
+                disabled={java.autoDetect || isDetecting} 
               />
-              {/* 💡 给用户一个视觉提示 */}
               {java.autoDetect && (
-                <div className="absolute inset-0 z-10 cursor-not-allowed" title="自动检测已开启，无需手动指定" />
+                <div className="absolute inset-0 z-10 cursor-not-allowed" title="自动检测已开启，已锁定最佳路径" />
               )}
             </div>
           }
@@ -105,7 +134,6 @@ export const JavaSettings: React.FC = () => {
           }
         />
       </SettingsSection>
-      
     </SettingsPageLayout>
   );
 };

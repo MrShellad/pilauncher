@@ -12,6 +12,8 @@ export interface GeneralSettings {
   autoRestartOnCrash: boolean;
   showLogOnFailure: boolean;
   basePath: string;
+  deviceName: string;
+  deviceId: string;
 }
 
 export interface AppearanceSettings {
@@ -85,6 +87,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     autoRestartOnCrash: true,
     showLogOnFailure: true,
     basePath: '',
+    deviceName: '',
+    deviceId: '',   
   } as any,
   appearance: {
     backgroundImage: null,

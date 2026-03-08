@@ -9,6 +9,7 @@ import { useLan } from '../../../hooks/useLan';
 
 import { UserProfileCard } from './AccountSliderBar/UserProfileCard';
 import { LanRadar } from './AccountSliderBar/LanRadar';
+import defaultAvatar from '../../../assets/home/account/128.png';
 
 interface MicrosoftAccountSidebarProps {
   isOpen: boolean;
@@ -23,11 +24,8 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
 
   const currentAccount = accounts.find(acc => acc.uuid === activeAccountId);
   const isPremium = currentAccount?.type?.toLowerCase() === 'microsoft';
-  
-  // ✅ 核心判断：当前全局是否绑定过正版账号
   const hasPremiumAnywhere = accounts.some(acc => acc.type?.toLowerCase() === 'microsoft');
 
-  // ✅ 账号切换逻辑：循环切换当前选中的账号
   const handleCycleAccount = () => {
     if (accounts.length <= 1) return;
     const currentIndex = accounts.findIndex(a => a.uuid === activeAccountId);
@@ -43,16 +41,19 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
     if (currentAccount && isOpen) {
       const fetchAvatar = async () => {
         try {
-          const localPath = await invoke<string>('get_or_fetch_account_avatar', { uuid: currentAccount.uuid });
+          const localPath = await invoke<string>('get_or_fetch_account_avatar', { 
+            uuid: currentAccount.uuid,
+            username: currentAccount.name
+          });
           setAvatarSrc(`${convertFileSrc(localPath)}?t=${Date.now()}`);
         } catch (e) {
-          const fetchId = isPremium ? currentAccount.uuid : currentAccount.name;
-          setAvatarSrc(`https://cravatar.cn/avatars/${fetchId}?size=128&overlay=true`);
+          // ✅ 失败直接用本地兜底
+          setAvatarSrc(defaultAvatar);
         }
       };
       fetchAvatar();
     }
-  }, [currentAccount, isOpen, isPremium]);
+  }, [currentAccount, isOpen]);
 
   if (!currentAccount) return null;
 
@@ -78,18 +79,16 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
             <div className="flex-1 flex flex-col sm:flex-row gap-6 p-6 pt-10 overflow-y-auto custom-scrollbar">
               
               <div className="w-full sm:w-[320px] flex flex-col flex-shrink-0 gap-6">
-                
-                {/* 注入全新的属性系统，驱动银色边框降级与切换功能 */}
                 <UserProfileCard 
-                  name={currentAccount.name} 
-                  isPremium={isPremium} 
-                  hasPremiumAnywhere={hasPremiumAnywhere}
-                  accountsCount={accounts.length}
-                  avatarSrc={avatarSrc}
-                  trusted={trusted}
-                  onScan={scan}
-                  isScanning={isScanning}
-                  onCycleAccount={handleCycleAccount}
+             name={currentAccount.name} 
+             isPremium={isPremium} 
+             hasPremiumAnywhere={hasPremiumAnywhere}
+             accountsCount={accounts.length}
+             avatarSrc={avatarSrc}
+             trusted={trusted}
+             onScan={scan}
+             isScanning={isScanning}
+             onCycleAccount={handleCycleAccount}
                 />
                 
                 <LanRadar 

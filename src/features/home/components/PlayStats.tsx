@@ -11,6 +11,9 @@ import { MicrosoftAuthModal } from '../../Settings/components/modals/MicrosoftAu
 import { MicrosoftAccountSidebar } from './MicrosoftAccountSidebar';
 import { LanTrustModal } from '../../lan/LanTrustModal';
 
+// ✅ 引入本地默认头像作为终极兜底
+import defaultAvatar from '../../../assets/home/account/128.png';
+
 interface PlayStatsProps {
   playTime: number;
   lastPlayed: string;
@@ -52,12 +55,17 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
     if (currentAccount) {
       const fetchAvatar = async () => {
         try {
-          const localPath = await invoke<string>('get_or_fetch_account_avatar', { uuid: currentAccount.uuid });
-          setAvatarSrc(`${convertFileSrc(localPath)}?t=${Date.now()}`);
+          const localPath = await invoke<string>('get_or_fetch_account_avatar', { 
+            uuid: currentAccount.uuid,
+            username: currentAccount.name 
+          });
+          
+          // ✅ 核心修复：使用与 3D 皮肤同源的稳定时间戳，杜绝切页重载
+          const cacheBuster = currentAccount.skinUrl?.split('?t=')[1] || 'init';
+          setAvatarSrc(`${convertFileSrc(localPath)}?t=${cacheBuster}`);
+          
         } catch (e) {
-          // 兜底：正版使用 UUID，离线使用 Name 尝试获取皮肤
-          const fetchId = currentAccount.type?.toLowerCase() === 'microsoft' ? currentAccount.uuid : currentAccount.name;
-          setAvatarSrc(`https://cravatar.cn/avatars/${fetchId}?size=64&overlay=true`);
+          setAvatarSrc(defaultAvatar);
         }
       };
       fetchAvatar();
@@ -137,9 +145,10 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
             </OreButton>
           ) : (
             <OreButton focusKey="btn-profile" variant="secondary" size="auto" className="!h-12 !px-3 [&>button]:!justify-start" style={piConfig?.buttonStyle} onClick={() => setIsSidebarOpen(true)}>
+              {/* ✅ 彻底采用本地图片作为 onerror 断网兜底 */}
               <img 
-                src={avatarSrc || `https://cravatar.cn/avatars/8667ba71b85a4004af54457a9734eed7?overlay=true&size=64`} 
-                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "https://cravatar.cn/avatars/8667ba71b85a4004af54457a9734eed7?overlay=true&size=64"; }}
+                src={avatarSrc || defaultAvatar} 
+                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultAvatar; }}
                 alt="Profile" 
                 className={`w-7 h-7 mr-3 border border-black/20 shadow-sm transition-opacity duration-300 ${avatarSrc ? 'opacity-100' : 'opacity-30'}`}
                 style={{ imageRendering: 'pixelated' }} 

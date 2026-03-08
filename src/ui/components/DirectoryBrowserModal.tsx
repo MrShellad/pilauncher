@@ -7,7 +7,6 @@ import { OreButton } from '../primitives/OreButton';
 
 import { FocusBoundary } from '../focus/FocusBoundary';
 import { FocusItem } from '../focus/FocusItem';
-// ✅ 引入 setFocus 用于处理极端空状态下的焦点兜底
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
 interface DirNode {
@@ -20,9 +19,10 @@ interface DirectoryBrowserModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (path: string) => void;
+  initialPath?: string; // ✅ 新增：允许从外部指定初始打开的路径
 }
 
-export const DirectoryBrowserModal: React.FC<DirectoryBrowserModalProps> = ({ isOpen, onClose, onSelect }) => {
+export const DirectoryBrowserModal: React.FC<DirectoryBrowserModalProps> = ({ isOpen, onClose, onSelect, initialPath }) => {
   const [currentPath, setCurrentPath] = useState<string>('');
   const [nodes, setNodes] = useState<DirNode[]>([]);
   const [loading, setLoading] = useState(false);
@@ -32,6 +32,14 @@ export const DirectoryBrowserModal: React.FC<DirectoryBrowserModalProps> = ({ is
   const [newDirName, setNewDirName] = useState('PiLauncher'); 
 
   const listContainerRef = useRef<HTMLDivElement>(null);
+
+  // ✅ 核心机制：当弹窗开启且有 initialPath 时，立刻跳转
+  useEffect(() => {
+    if (isOpen) {
+      if (initialPath) setCurrentPath(initialPath);
+      else setCurrentPath('');
+    }
+  }, [isOpen, initialPath]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -78,8 +86,6 @@ export const DirectoryBrowserModal: React.FC<DirectoryBrowserModalProps> = ({ is
     }
   };
 
-  // ✅ 焦点兜底安全机制：如果这个文件夹是空的，没有任何列表项可以获得焦点，
-  // 强制把焦点丢给底部的“取消”按钮，防止手柄死机卡死。
   useEffect(() => {
     if (isOpen && !loading && nodes.length === 0 && !isCreating) {
       setTimeout(() => setFocus('dir-btn-cancel'), 100);
@@ -100,11 +106,8 @@ export const DirectoryBrowserModal: React.FC<DirectoryBrowserModalProps> = ({ is
           initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
           className="w-[700px] h-[560px] bg-[#18181B] border-2 border-[#1E1E1F] shadow-2xl flex flex-col overflow-hidden"
         >
-          {/* Header */}
           <div className="bg-[#1E1E1F] p-5 border-b-2 border-[#1E1E1F] flex flex-col gap-4 shrink-0">
-            {/* ✅ 移除了顶部的关闭 X 按钮，让界面更纯净，逼迫用户通过手柄 B键/ESC 或底部取消退出 */}
             <h3 className="text-white text-xl">选择存放目录</h3>
-            
             <div className="flex items-center gap-3">
               <OreButton onClick={handleGoUp} disabled={!currentPath} variant="secondary" size="auto" focusKey="dir-btn-up" className="!h-10">
                 <CornerLeftUp size={18} />
@@ -120,7 +123,6 @@ export const DirectoryBrowserModal: React.FC<DirectoryBrowserModalProps> = ({ is
             </div>
           </div>
 
-          {/* List Body */}
           <div ref={listContainerRef} className="flex-1 overflow-y-auto custom-scrollbar p-3 bg-[#141415] relative">
             {error && (
               <div className="mx-2 mb-3 bg-red-500/10 text-red-400 p-3 text-sm border border-red-500/50 flex items-center">
@@ -157,11 +159,8 @@ export const DirectoryBrowserModal: React.FC<DirectoryBrowserModalProps> = ({ is
               <div className="space-y-1">
                 {nodes.map((node, index) => (
                   <FocusItem 
-                    key={node.path}
-                    focusKey={getDirFocusKey(node.path)}
+                    key={node.path} focusKey={getDirFocusKey(node.path)}
                     onEnter={() => setCurrentPath(node.path)}
-                    // ✅ 核心修复：移除了 currentPath !== '' 的阻断条件！
-                    // 现在即使是刚打开模态框（加载所有磁盘的根目录阶段），第一个磁盘也会立刻拿到焦点，手柄就能开始导航了。
                     defaultFocused={index === 0 && !isCreating}
                   >
                     {({ ref, focused }) => (
@@ -169,13 +168,7 @@ export const DirectoryBrowserModal: React.FC<DirectoryBrowserModalProps> = ({ is
                         ref={ref as any}
                         onClick={() => { (ref.current as any)?.focus(); }}
                         onDoubleClick={() => setCurrentPath(node.path)} 
-                        className={`
-                          flex items-center p-3 rounded-sm transition-all select-none cursor-pointer outline-none group border-2
-                          ${focused 
-                            ? 'bg-ore-green/15 border-ore-green shadow-lg scale-[1.01] z-10 text-white' 
-                            : 'bg-transparent border-transparent text-ore-text-muted hover:bg-white/5 hover:text-white'
-                          }
-                        `}
+                        className={`flex items-center p-3 rounded-sm transition-all select-none cursor-pointer outline-none group border-2 ${focused ? 'bg-ore-green/15 border-ore-green shadow-lg scale-[1.01] z-10 text-white' : 'bg-transparent border-transparent text-ore-text-muted hover:bg-white/5 hover:text-white'}`}
                       >
                         {node.is_drive ? <HardDrive size={28} className={`mr-4 shrink-0 transition-colors ${focused ? 'text-ore-green' : 'group-hover:text-white'}`} /> : <Folder size={28} className={`mr-4 shrink-0 transition-colors ${focused ? 'text-ore-green' : 'group-hover:text-white'}`} />}
                         <span className="flex-1 truncate text-lg font-minecraft">{node.name}</span>
@@ -203,16 +196,9 @@ export const DirectoryBrowserModal: React.FC<DirectoryBrowserModalProps> = ({ is
             )}
           </div>
 
-          {/* Footer */}
           <div className="bg-[#1E1E1F] p-4 border-t-2 border-[#1E1E1F] flex justify-end gap-4 shrink-0">
             <OreButton onClick={onClose} variant="ghost" size="lg" focusKey="dir-btn-cancel">取消</OreButton>
-            <OreButton 
-              onClick={() => onSelect(currentPath)} 
-              disabled={!currentPath} 
-              variant="primary" 
-              size="lg"
-              focusKey="dir-btn-select"
-            >
+            <OreButton onClick={() => onSelect(currentPath)} disabled={!currentPath} variant="primary" size="lg" focusKey="dir-btn-select">
               选择当前目录
             </OreButton>
           </div>

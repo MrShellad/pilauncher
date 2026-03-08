@@ -32,6 +32,14 @@ pub async fn get_drives() -> Result<Vec<DirNode>, String> {
             path: "/".to_string(),
             is_drive: true,
         });
+        // ✅ 核心兼容：为 macOS 和 Linux 加入用户主目录的快速入口
+        if let Ok(home) = std::env::var("HOME") {
+            drives.push(DirNode {
+                name: "用户目录 (~)".to_string(),
+                path: home,
+                is_drive: true,
+            });
+        }
     }
     Ok(drives)
 }
@@ -50,7 +58,6 @@ pub async fn list_valid_dirs(path: String) -> Result<Vec<DirNode>, String> {
             if let Ok(file_type) = entry.file_type() {
                 if file_type.is_dir() {
                     let name = entry.file_name().to_string_lossy().to_string();
-                    // ✅ 核心屏蔽逻辑：隐藏隐藏文件夹，并彻底封杀所有包含非 ASCII 字符（如中文）的目录
                     if !name.starts_with('.') && name.is_ascii() {
                         dirs.push(DirNode {
                             name,
@@ -84,7 +91,6 @@ pub async fn get_parent_dir(path: String) -> Result<Option<String>, String> {
     let p = Path::new(&path);
     if let Some(parent) = p.parent() {
         let parent_str = parent.to_string_lossy().to_string();
-        // 如果抵达盘符根目录，向上就是虚拟的设备列表（用 None 表示）
         if parent_str.is_empty() || parent_str == path {
             Ok(None)
         } else {

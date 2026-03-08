@@ -49,7 +49,7 @@ pub fn validate_java_cache(cache_file: &Path) -> Result<ValidationResult, String
     Ok(ValidationResult { valid, missing })
 }
 
-// ================= 3. 深度受限的物理扫描 =================
+// ================= 3. 深度受限的物理扫描 (加强 Linux/Mac 软连与深度兼容) =================
 pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, String> {
     let mut installs = Vec::new();
     let mut paths_to_check = Vec::new();
@@ -65,21 +65,23 @@ pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, Str
     ];
 
     #[cfg(target_os = "macos")]
-    let base_dirs = vec!["/Library/Java/JavaVirtualMachines"];
+    let base_dirs = vec!["/Library/Java/JavaVirtualMachines", "/System/Library/Java/JavaVirtualMachines"];
 
     #[cfg(target_os = "linux")]
-    let base_dirs = vec!["/usr/lib/jvm"];
+    let base_dirs = vec!["/usr/lib/jvm", "/usr/java", "/opt/jdk"];
 
     for dir in base_dirs {
         if Path::new(dir).exists() {
+            // ✅ macOS/Linux 下由于 JDK 目录经常包含替身/软链接，必须启用 follow_links
             for entry in WalkDir::new(dir)
-                .max_depth(3)
+                .follow_links(true) 
+                .max_depth(6) // ✅ 扩大层级以穿透 macOS (jdk/Contents/Home/bin/java 刚好 5 级)
                 .into_iter()
                 .filter_map(|e| e.ok())
             {
                 let p = entry.path();
                 #[cfg(target_os = "windows")]
-                let is_java = p.is_file() && p.file_name().unwrap_or_default() == "java.exe";
+                let is_java = p.is_file() && (p.file_name().unwrap_or_default() == "java.exe" || p.file_name().unwrap_or_default() == "javaw.exe");
                 #[cfg(not(target_os = "windows"))]
                 let is_java = p.is_file() && p.file_name().unwrap_or_default() == "java";
 
@@ -100,18 +102,19 @@ pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, Str
         }
     }
 
-    // ✅ 新增：深度扫描 PiLauncher 自己的 runtime/java 目录
+    // ✅ 深度扫描 PiLauncher 自己的 runtime/java 目录
     if let Some(base_path) = cache_file.parent().and_then(|p| p.parent()) {
         let runtime_java_dir = base_path.join("runtime").join("java");
         if runtime_java_dir.exists() {
             for entry in walkdir::WalkDir::new(runtime_java_dir)
-                .max_depth(5) // 层级适当放宽，包含解压出的内部 jdk 文件夹
+                .follow_links(true) // ✅ 跨越软连
+                .max_depth(8)       // ✅ 放宽层级，避免解压嵌套过深导致漏扫
                 .into_iter()
                 .filter_map(|e| e.ok())
             {
                 let p = entry.path();
                 #[cfg(target_os = "windows")]
-                let is_java = p.is_file() && p.file_name().unwrap_or_default() == "java.exe";
+                let is_java = p.is_file() && (p.file_name().unwrap_or_default() == "java.exe" || p.file_name().unwrap_or_default() == "javaw.exe");
                 #[cfg(not(target_os = "windows"))]
                 let is_java = p.is_file() && p.file_name().unwrap_or_default() == "java";
 
@@ -158,7 +161,7 @@ fn get_java_version(path: &Path) -> Option<String> {
     }
 
     let first_line = lines[0];
-    let is_64_bit = stderr.contains("64-Bit");
+    let is_64_bit = stderr.contains("64-Bit") || stderr.contains("64-bit");
     let bitness = if is_64_bit { "64-bit" } else { "32-bit" };
 
     let parts: Vec<&str> = first_line.split('"').collect();
@@ -173,7 +176,6 @@ fn get_java_version(path: &Path) -> Option<String> {
 pub fn get_instance_runtime(instance_dir: &Path) -> Result<RuntimeConfig, String> {
     let file_path = instance_dir.join("instance.json");
 
-    // 默认的配置回退方案
     let default_config = RuntimeConfig {
         use_global_java: true,
         use_global_memory: true,
@@ -190,7 +192,6 @@ pub fn get_instance_runtime(instance_dir: &Path) -> Result<RuntimeConfig, String
     let data = fs::read_to_string(&file_path).map_err(|e| e.to_string())?;
     let json: Value = serde_json::from_str(&data).unwrap_or(Value::Null);
 
-    // 尝试提取 "runtime" 节点
     if let Some(runtime_val) = json.get("runtime") {
         if let Ok(config) = serde_json::from_value(runtime_val.clone()) {
             return Ok(config);
@@ -208,11 +209,9 @@ pub fn save_instance_runtime(instance_dir: &Path, config: RuntimeConfig) -> Resu
         let data = fs::read_to_string(&file_path).map_err(|e| e.to_string())?;
         serde_json::from_str::<Value>(&data).unwrap_or(serde_json::json!({}))
     } else {
-        // 如果文件压根不存在，就建一个空对象
         serde_json::json!({})
     };
 
-    // 仅覆盖或插入 "runtime" 节点，其余数据原封不动
     json["runtime"] = serde_json::to_value(config).map_err(|e| e.to_string())?;
 
     let new_data = serde_json::to_string_pretty(&json).map_err(|e| e.to_string())?;

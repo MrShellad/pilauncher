@@ -1,11 +1,17 @@
-// /src/features/home/components/SkinViewerPlaceholder.tsx
+// src/features/home/components/SkinViewerPlaceholder.tsx
 import React, { useEffect, useRef } from 'react';
 import { SkinViewer, IdleAnimation, WalkingAnimation } from 'skinview3d';
+import { invoke, convertFileSrc } from '@tauri-apps/api/core';
+import { useAccountStore } from '../../../store/useAccountStore';
 
 export const SkinViewerPlaceholder: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const viewerRef = useRef<SkinViewer | null>(null);
+
+  // ✅ 获取当前活跃的账号
+  const { accounts, activeAccountId } = useAccountStore();
+  const currentAccount = accounts.find(acc => acc.uuid === activeAccountId);
 
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
@@ -15,16 +21,15 @@ export const SkinViewerPlaceholder: React.FC = () => {
       canvas: canvasRef.current,
       width: containerRef.current.clientWidth,
       height: containerRef.current.clientHeight,
-      // 替换为实际皮肤 URL
       skin: 'https://minotar.net/skin/Steve.png', 
     });
 
     viewerRef.current = viewer;
 
-    // 2. 基础配置与默认动作 (Idle) - 【修复点：使用 new 赋值】
+    // 2. 基础配置与默认动作 (Idle)
     viewer.animation = new IdleAnimation();
-    viewer.autoRotate = true;
-    viewer.autoRotateSpeed = 0.5;
+    // ✅ 去掉转动动画，默认为 false 即面朝用户
+    viewer.autoRotate = false; 
 
     // 3. 自适应模型大小
     const resizeObserver = new ResizeObserver((entries) => {
@@ -37,17 +42,14 @@ export const SkinViewerPlaceholder: React.FC = () => {
 
     // 4. 性能优化：窗口最小化、切换页面、失去焦点时自动暂停渲染
     const handlePause = () => {
-      if (viewerRef.current) {
-        // 【修复点：直接操作 animation.paused】
-        if (viewerRef.current.animation) viewerRef.current.animation.paused = true;
-        viewerRef.current.autoRotate = false;
+      if (viewerRef.current?.animation) {
+        viewerRef.current.animation.paused = true;
       }
     };
 
     const handleResume = () => {
-      if (!document.hidden && viewerRef.current) {
-        if (viewerRef.current.animation) viewerRef.current.animation.paused = false;
-        viewerRef.current.autoRotate = true;
+      if (!document.hidden && viewerRef.current?.animation) {
+        viewerRef.current.animation.paused = false;
       }
     };
 
@@ -69,7 +71,48 @@ export const SkinViewerPlaceholder: React.FC = () => {
     };
   }, []);
 
-  // 6. 动作扩展示例 - 【修复点：直接赋新动作实例】
+  // ✅ 新增：核心联动模块。当账户切换时，实时拉取本地对应目录的皮肤！
+  useEffect(() => {
+    if (!viewerRef.current) return;
+    const viewer = viewerRef.current;
+
+    const loadSkin = async () => {
+      if (!currentAccount) {
+        viewer.loadSkin('https://minotar.net/skin/Steve.png');
+        return;
+      }
+
+      try {
+        const basePath = await invoke<string | null>('get_base_directory');
+        if (basePath) {
+          const separator = basePath.includes('\\') ? '\\' : '/';
+          const localSkinPath = `${basePath}${separator}runtime${separator}accounts${separator}${currentAccount.uuid}${separator}skin.png`;
+          
+          // ✅ 核心修复：提取账户库中随皮肤更新才变化的时间戳，否则默认为 'init'
+          const cacheBuster = currentAccount.skinUrl?.split('?t=')[1] || 'init';
+          
+          // 只有当用户真正修改皮肤时，cacheBuster 才会改变，否则 WebView 会瞬间从 RAM 中读取！
+          const assetUrl = `${convertFileSrc(localSkinPath)}?t=${cacheBuster}`;
+          
+          await viewer.loadSkin(assetUrl);
+          return; 
+        }
+      } catch (e) {
+        console.warn("加载本地皮肤模型失败，准备尝试网络兜底:", e);
+      }
+
+      // 如果由于某种原因（比如刚创建离线号，后台还没下载完），走网络 fallback
+      try {
+        await viewer.loadSkin(`https://minotar.net/skin/${currentAccount.name}.png`);
+      } catch (err) {
+        viewer.loadSkin('https://minotar.net/skin/Steve.png'); // 终极断网兜底
+      }
+    };
+
+    loadSkin();
+  }, [currentAccount]); // 监听当前账号变化
+
+  // 6. 动作扩展示例
   const handleMouseEnter = () => {
     if (!viewerRef.current) return;
     viewerRef.current.animation = new WalkingAnimation(); 

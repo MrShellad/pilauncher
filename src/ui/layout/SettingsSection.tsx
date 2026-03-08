@@ -18,7 +18,8 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
   const indicatorColor = danger ? 'bg-red-600' : 'bg-ore-green shadow-[0_0_8px_rgba(56,133,39,0.4)]';
 
   return (
-    <div className={`${bgClass} border-2 ${borderClass} shadow-sm relative overflow-hidden`}>
+    // ✅ 修复截断：移除了原有的 overflow-hidden，让下拉菜单得以跨越容器边界显示
+    <div className={`${bgClass} border-2 ${borderClass} shadow-sm relative`}>
       {/* 危险模式的左侧红色粗条纹侧边 */}
       {danger && <div className="absolute top-0 left-0 w-2 h-full bg-red-600" />}
 
