@@ -2,20 +2,28 @@ name: Build Tauri App
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
   build-linux:
     runs-on: ubuntu-22.04
 
+    env:
+      CARGO_TERM_COLOR: always
+
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Rust 及缓存
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      # pnpm 及 Node (利用内置缓存)
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -25,26 +33,39 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
+          cache: 'pnpm' # 自动基于 pnpm-lock.yaml 缓存依赖
 
+      # 安装 Linux 系统依赖 (Tauri v2 适配)
       - name: Install Linux dependencies
         run: |
           sudo apt update
           sudo apt install -y \
             libwebkit2gtk-4.1-dev \
             libgtk-3-dev \
-            libappindicator3-dev \
+            libayatana-appindicator3-dev \
             librsvg2-dev \
-            patchelf
+            patchelf \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev
 
-      - name: Install frontend deps
-        run: pnpm install
+      # 安装前端与 Tauri 依赖
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Build Tauri
-        run: pnpm tauri build --target x86_64-unknown-linux-gnu
+      # 编译打包 (如果 tauri.conf 中配置了 beforeBuildCommand，这里会自动构建前端)
+      - name: Build Tauri app
+        run: pnpm tauri build
 
-      - name: Upload artifact
+      # 上传构建产物
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: tauri-build
-          path: src-tauri/target/x86_64-unknown-linux-gnu/release/bundle
+          name: tauri-linux-build
+          if-no-files-found: warn # 避免缺失部分格式导致报错
+          path: |
+            src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/deb/*.deb
