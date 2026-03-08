@@ -15,6 +15,10 @@ import { TitleBar } from './ui/layout/TitleBar';
 import { DownloadManager } from './features/Download/components/DownloadManager/index';
 import { SetupWizard } from './features/Setup/components/SetupWizard';
 import { JavaGuard } from './features/runtime/components/JavaGuard';
+
+// ✅ 1. 引入我们刚刚写好的游戏日志侧边栏
+import { GameLogSidebar } from './features/GameLog/components/GameLogSidebar';
+
 // 引入样式与动画 Token
 import { OreMotionTokens } from './style/tokens/motion'; 
 import './style/index.css';
@@ -34,21 +38,18 @@ const App: React.FC = () => {
   const activeTab = useLauncherStore(state => state.activeTab);
   const { appearance } = useSettingsStore(state => state.settings);
 
-  // ✅ 核心修复：使用 useLayoutEffect，确保在组件挂载、DOM 渲染前，同步注入 CSS 变量。
-  // 彻底解决首次加载或热更新时，CSS 变量丢失导致按钮变透明的问题！
+  // 核心修复：使用 useLayoutEffect，确保在组件挂载、DOM 渲染前，同步注入 CSS 变量。
   useLayoutEffect(() => {
     injectDesignTokens();
   }, []);
 
-
-
- useLayoutEffect(() => {
+  useLayoutEffect(() => {
     const currentFont = appearance?.fontFamily || 'Minecraft';
     // 强制全局更新字体变量
     document.documentElement.style.setProperty('--ore-global-font', `"${currentFont}"`);
   }, [appearance?.fontFamily]);
 
-    const PageLoader = () => (
+  const PageLoader = () => (
     <div className="absolute inset-0 flex items-center justify-center">
       <span className="text-ore-text-muted font-minecraft animate-pulse">Loading...</span>
     </div>
@@ -81,10 +82,14 @@ const App: React.FC = () => {
           </AnimatePresence>
         </main>
 
-        {/* 全局悬浮与拦截层 */}
+        {/* ================= 全局悬浮与拦截层 ================= */}
         <DownloadManager />
         <JavaGuard />
         <SetupWizard />
+        
+        {/* ✅ 2. 将侧边栏挂载在最外层，保证它的 z-index 能够覆盖主界面 */}
+        <GameLogSidebar />
+        
       </div>
     </FocusProvider>
   );

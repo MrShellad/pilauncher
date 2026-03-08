@@ -5,12 +5,12 @@ pub mod resolver;
 
 use std::path::PathBuf;
 use std::process::Stdio;
-use tauri::{AppHandle, Runtime};
+// ✅ 核心修改 1：引入 Emitter 模块，赋予发送事件给前端的能力
+use tauri::{AppHandle, Emitter, Runtime}; 
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
 use crate::domain::instance::InstanceConfig;
-// ✅ 将 AccountPayload 替换为 Account
 use crate::domain::launcher::{Account, LoaderType};
 use crate::error::AppResult;
 
@@ -24,7 +24,7 @@ impl LauncherService {
     pub async fn launch_instance<R: Runtime>(
         app: &AppHandle<R>,
         instance_id: &str,
-        account: Account, // ✅ 接收新模型
+        account: Account, 
     ) -> AppResult<()> {
         let base_path = crate::services::config_service::ConfigService::get_base_path(app)?
             .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "未配置数据目录"))?;
@@ -40,7 +40,6 @@ impl LauncherService {
 
         let resolved_config = ConfigResolver::resolve(app, &instance_cfg);
         
-        // ✅ 核心修改：将 runtime_dir 传给 AuthService 以触发 JSON 落盘
         let auth_session = AuthService::build_session(account, &runtime_dir);
 
         let loader_type = match instance_cfg.loader.r#type.to_lowercase().as_str() {
@@ -96,11 +95,16 @@ impl LauncherService {
         println!("👤 玩家 ID: {}", builder.build_args().iter().skip_while(|&x| x != "--username").nth(1).unwrap_or(&"Unknown".to_string()));
         println!("==================================================");
 
+        // 如果在 Windows 下不想弹出原生的黑框，可以解开这句注释：
+        // #[cfg(target_os = "windows")]
+        // use std::os::windows::process::CommandExt;
+
         let mut child = Command::new(&actual_java_path)
             .args(args)
             .current_dir(&instance_dir)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
+            // .creation_flags(0x08000000) // Windows 隐藏黑框
             .spawn()
             .map_err(|e| {
                 std::io::Error::new(
@@ -116,14 +120,33 @@ impl LauncherService {
         let stdout = child.stdout.take().unwrap();
         let stderr = child.stderr.take().unwrap();
 
+        // ✅ 终极修复：使用按字节读取 + Lossy 容错解析，彻底解决碰到中文路径/GBK乱码时线程直接崩溃退出的惨案！
+        let app_out = app.clone();
         tokio::spawn(async move {
-            let mut reader = BufReader::new(stdout).lines();
-            while let Ok(Some(line)) = reader.next_line().await { println!("[Game INFO] {}", line); }
+            let mut reader = BufReader::new(stdout);
+            let mut buf = Vec::new();
+            // 一直读到换行符 (\n)
+            while let Ok(n) = reader.read_until(b'\n', &mut buf).await {
+                if n == 0 { break; } // EOF (进程结束)
+                // 使用容错模式将字节转换为字符串，去掉末尾的回车换行
+                let line = String::from_utf8_lossy(&buf).trim_end().to_string();
+                println!("[Game INFO] {}", line);
+                let _ = app_out.emit("game-log", line);
+                buf.clear(); // 别忘了清空缓冲区给下一行用
+            }
         });
 
+        let app_err = app.clone();
         tokio::spawn(async move {
-            let mut reader = BufReader::new(stderr).lines();
-            while let Ok(Some(line)) = reader.next_line().await { eprintln!("[Game ERROR] {}", line); }
+            let mut reader = BufReader::new(stderr);
+            let mut buf = Vec::new();
+            while let Ok(n) = reader.read_until(b'\n', &mut buf).await {
+                if n == 0 { break; }
+                let line = String::from_utf8_lossy(&buf).trim_end().to_string();
+                eprintln!("[Game ERROR] {}", line);
+                let _ = app_err.emit("game-log", line);
+                buf.clear();
+            }
         });
 
         let status = child.wait().await.map_err(|e| {
@@ -131,6 +154,10 @@ impl LauncherService {
         })?;
         
         println!("🛑 游戏进程已退出，状态: {}", status);
+        
+        let code = status.code().unwrap_or(1);
+        let _ = app.emit("game-exit", serde_json::json!({ "code": code }));
+
         Ok(())
     }
 }

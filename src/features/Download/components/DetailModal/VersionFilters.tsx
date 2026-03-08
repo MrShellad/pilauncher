@@ -1,4 +1,4 @@
-// /src/features/Download/components/DetailModal/VersionFilters.tsx
+// src/features/Download/components/DetailModal/VersionFilters.tsx
 import React, { useMemo } from 'react';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { OreToggleButton } from '../../../../ui/primitives/OreToggleButton';
@@ -44,8 +44,8 @@ export const VersionFilters: React.FC<VersionFiltersProps> = ({
       return numB - numA;
     });
 
-    const top5 = sortedMajors.slice(0, 5); 
-    const rest = sortedMajors.slice(5);
+    const top4 = sortedMajors.slice(0, 4); 
+    const rest = sortedMajors.slice(4);
 
     const moreRels: string[] = [];
     rest.forEach(m => {
@@ -53,93 +53,99 @@ export const VersionFilters: React.FC<VersionFiltersProps> = ({
       moreRels.push(...groups[m]);
     });
 
-    top5.forEach(m => groups[m].sort(versionSortDesc));
+    top4.forEach(m => groups[m].sort(versionSortDesc));
     snaps.sort(versionSortDesc); 
 
-    return { majorGroups: groups, topMajors: top5, moreReleases: moreRels, snapshots: snaps };
+    return { majorGroups: groups, topMajors: top4, moreReleases: moreRels, snapshots: snaps };
   }, [availableVersions]);
 
   return (
-    // ✅ 修复 1：增加 relative 属性，确立更高的层叠上下文基准，防止面板掉入下方的 VersionList 中
-    <div className="flex flex-col p-4 lg:p-5 border-b border-white/5 bg-black/20 gap-3 shadow-md z-20 relative flex-shrink-0">
+    <div className="flex flex-col px-5 py-4 border-b border-white/5 bg-[#141415] gap-4 shadow-xl z-50 relative flex-shrink-0 w-full box-border">
       
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <span className="text-sm font-minecraft text-gray-400 flex-shrink-0 w-[70px]">引导器:</span>
-        <FocusItem 
-          onEnter={() => {
-            if (!loaderOptions || loaderOptions.length === 0) return;
-            const currentIndex = loaderOptions.findIndex((opt: any) => opt.value === activeLoader);
-            const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % loaderOptions.length;
-            setActiveLoader(loaderOptions[nextIndex].value);
-          }}
-        >
-          {({ ref, focused }) => (
-            <div ref={ref as any} className={`w-full max-w-[800px] h-9 transition-all ${focused ? 'ring-2 ring-white rounded-sm scale-[1.01] brightness-110' : ''}`}>
-              <OreToggleButton options={loaderOptions} value={activeLoader} onChange={setActiveLoader} className="!m-0 h-full [&>.ore-toggle-btn-group]:!h-full text-xs" />
-            </div>
-          )}
-        </FocusItem>
+      {/* ================= 行 1：引导器 ================= */}
+      <div className="flex items-center gap-3 w-full">
+        <span className="text-sm font-minecraft text-gray-400 flex-shrink-0 w-[60px]">引导器:</span>
+        {/* ✅ 核心修复：统一使用 flex-1 min-w-0 占据相同的剩余宽度 */}
+        <div className="flex-1 min-w-0">
+          <FocusItem 
+            onEnter={() => {
+              if (!loaderOptions || loaderOptions.length === 0) return;
+              const currentIndex = loaderOptions.findIndex((opt: any) => opt.value === activeLoader);
+              const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % loaderOptions.length;
+              setActiveLoader(loaderOptions[nextIndex].value);
+            }}
+          >
+            {({ ref, focused }) => (
+              // ✅ 核心修复：移除 max-w-[800px]，使用 w-full 彻底撑满右侧边界
+              <div ref={ref as any} className={`w-full h-9 transition-all ${focused ? 'ring-2 ring-white rounded-sm scale-[1.01] brightness-110' : ''}`}>
+                <OreToggleButton 
+                  options={loaderOptions} 
+                  value={activeLoader} 
+                  onChange={setActiveLoader} 
+                  // 强制内部组件也 100% 拉伸
+                  className="!m-0 w-full h-full flex [&>.ore-toggle-btn-group]:!h-full [&>.ore-toggle-btn-group]:!w-full text-xs" 
+                />
+              </div>
+            )}
+          </FocusItem>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-2 mt-1 lg:mt-0">
-        <div className="flex items-start lg:items-center gap-3">
-          <span className="text-sm font-minecraft text-gray-400 flex-shrink-0 w-[70px] mt-1 lg:mt-0">游戏版本:</span>
+      {/* ================= 行 2：游戏版本 ================= */}
+      <div className="flex items-center gap-3 w-full">
+        <span className="text-sm font-minecraft text-gray-400 flex-shrink-0 w-[60px]">版本:</span>
+        {/* ✅ 核心修复：统一使用 flex-1 min-w-0 占据相同的剩余宽度 */}
+        <div className="flex-1 min-w-0 flex gap-2 flex-wrap items-center">
           
-          {/* ✅ 修复 2：彻底移除 overflow-x-auto，改用 flex-wrap！这样子元素再长都会自动换行，且不会截断悬浮层 */}
-          <div className="flex flex-1 gap-2.5 flex-wrap pb-2 items-center min-h-[40px]">
-            
-            <FocusItem onEnter={() => setActiveVersion('')}>
-              {({ ref, focused }) => (
-                <button 
-                  ref={ref as any} onClick={() => setActiveVersion('')} 
-                  className={`h-[34px] px-3 rounded-sm font-minecraft text-xs font-bold transition-all whitespace-nowrap border flex-shrink-0 outline-none 
-                  ${activeVersion === '' ? 'bg-ore-green text-black border-ore-green shadow-[0_0_10px_rgba(74,222,128,0.3)]' : 'bg-[#1E1E1F] border-white/10 text-gray-300 hover:bg-white/10 hover:border-white/30'} 
-                  ${focused ? 'ring-2 ring-white scale-[1.05] z-10 brightness-125' : ''}`}
-                >
-                  清除过滤
-                </button>
-              )}
-            </FocusItem>
+          {/* ✅ 核心修复：移除所有的 max-w，仅保留 flex-1 和 min-w，让它们自动平分且完全填满父容器 */}
+          {topMajors.map(major => (
+            <OreDropdown
+              key={major}
+              searchable
+              className="flex-1 min-w-[100px]" 
+              placeholder={major}
+              value={activeVersion}
+              onChange={setActiveVersion}
+              options={[
+                { label: `清除选择 (${major})`, value: '' },
+                ...majorGroups[major].map(v => ({ label: v, value: v }))
+              ]}
+            />
+          ))}
 
-            {topMajors.map(major => (
-              <OreDropdown
-                key={major}
-                searchable
-                className="w-28 h-[34px] text-xs font-minecraft" 
-                placeholder={`${major}.x`}
-                value={activeVersion}
-                onChange={setActiveVersion}
-                options={majorGroups[major].map(v => ({ label: v, value: v }))}
-              />
-            ))}
+          {moreReleases.length > 0 && (
+            <OreDropdown
+               searchable
+               className="flex-1 min-w-[100px]"
+               placeholder="更多历史"
+               value={activeVersion}
+               onChange={setActiveVersion}
+               options={[
+                { label: '清除选择 (历史)', value: '' },
+                ...moreReleases.map(v => ({ label: v, value: v }))
+               ]}
+            />
+          )}
 
-            {moreReleases.length > 0 && (
-              <OreDropdown
-                 searchable
-                 className="w-32 h-[34px] text-xs font-minecraft"
-                 placeholder="更多历史版本"
-                 value={activeVersion}
-                 onChange={setActiveVersion}
-                 options={moreReleases.map(v => ({ label: v, value: v }))}
-              />
-            )}
-
-            {snapshots.length > 0 && (
-              <OreDropdown
-                 searchable
-                 className="w-32 h-[34px] text-xs font-minecraft"
-                 placeholder="快照 / 预览版"
-                 value={activeVersion}
-                 onChange={setActiveVersion}
-                 options={snapshots.map(v => ({ label: v, value: v }))}
-              />
-            )}
-          </div>
+          {snapshots.length > 0 && (
+            <OreDropdown
+               searchable
+               className="flex-1 min-w-[100px]"
+               placeholder="快照/预览"
+               value={activeVersion}
+               onChange={setActiveVersion}
+               options={[
+                { label: '清除选择 (快照)', value: '' },
+                ...snapshots.map(v => ({ label: v, value: v }))
+               ]}
+            />
+          )}
         </div>
-        
-        <div className="text-[11px] text-gray-500 font-minecraft ml-[82px] mb-1">
-          共找到 <span className="text-white font-bold mx-0.5">{versionsCount}</span> 个匹配的有效文件，已按大版本为您归类梳理。
-        </div>
+      </div>
+      
+      {/* 行 3：结果统计 */}
+      <div className="text-[11px] text-gray-500 font-minecraft ml-[72px]">
+        共找到 <span className="text-white font-bold mx-0.5">{versionsCount}</span> 个匹配的文件
       </div>
     </div>
   );

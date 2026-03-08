@@ -2,7 +2,8 @@
 use crate::domain::lan::{DeviceIdentity, TrustedDevice};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use rand::rngs::OsRng;
+
+// ✅ 去掉了繁琐的 RngCore 和 OsRng 导入，只保留标准库
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -21,14 +22,19 @@ impl TrustStore {
             }
         }
 
-        // 生成全新的 ed25519 密钥对
-        let mut csprng = OsRng;
-        let signing_key = SigningKey::generate(&mut csprng);
+        // =====================================================================
+        // ✅ 终极解法：极其优雅地生成 32 字节密码学随机数
+        // =====================================================================
+        // 1. 直接使用 rand 0.9 的 random() 生成 32 字节数组，底层使用高强度 ThreadRng
+        let secret_bytes: [u8; 32] = rand::random();
+        
+        // 2. 将纯字节数组喂给 ed25519_dalek，彻底切断它与 rand_core 的 Trait 绑定
+        let signing_key = SigningKey::from_bytes(&secret_bytes);
         let verifying_key = signing_key.verifying_key();
 
         let identity = DeviceIdentity {
             device_id: uuid::Uuid::new_v4().to_string(),
-            device_name: format!("PC-{}", rand::random::<u16>()),
+            device_name: format!("PC-{}", rand::random::<u16>()), 
             private_key_b64: BASE64.encode(signing_key.to_bytes()),
             public_key_b64: BASE64.encode(verifying_key.to_bytes()),
         };
@@ -47,12 +53,12 @@ impl TrustStore {
         }
     }
 
-    /// 获取受信任设备列表 (供 Command 转换为 Vec 返回给前端 UI 使用)
+    // ... 下方的代码保持原样完全不动 ...
+    
     pub fn get_trusted_devices_list(config_dir: &Path) -> Vec<TrustedDevice> {
         Self::get_trusted_devices_map(config_dir).into_values().collect()
     }
 
-    /// 新增信任设备并持久化到硬盘
     pub fn add_trusted_device(
         config_dir: &Path,
         id: String,
@@ -79,7 +85,6 @@ impl TrustStore {
         Ok(())
     }
 
-    /// Axum 中间件专用的验证拦截器：防重放攻击 + ED25519 签名校验
     pub fn verify_request(
         config_dir: &Path,
         device_id: &str,
@@ -87,20 +92,17 @@ impl TrustStore {
         timestamp: i64,
         signature_b64: &str,
     ) -> bool {
-        // 1. 防止重放攻击 (前后时间差不超过 5 分钟)
         let now = chrono::Utc::now().timestamp();
         if (now - timestamp).abs() > 300 {
             return false;
         }
 
-        // 2. 检查是否在信任名单
         let trusted = Self::get_trusted_devices_map(config_dir);
         let device = match trusted.get(device_id) {
             Some(d) => d,
             None => return false,
         };
 
-        // 3. 校验 ED25519 签名
         let pub_key_bytes = match BASE64.decode(&device.public_key_b64) {
             Ok(b) => b,
             Err(_) => return false,
@@ -119,7 +121,6 @@ impl TrustStore {
             Err(_) => return false,
         };
 
-        // 签名算法: base64(ed25519( timestamp + "|" + uri ))
         let message = format!("{}|{}", timestamp, uri);
         verifying_key.verify(message.as_bytes(), &signature).is_ok()
     }

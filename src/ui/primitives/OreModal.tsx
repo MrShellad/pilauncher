@@ -1,4 +1,4 @@
-// /src/ui/primitives/OreModal.tsx
+// src/ui/primitives/OreModal.tsx
 import React, { useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,6 +16,7 @@ interface OreModalProps {
   title?: string;
   hideTitleBar?: boolean;
   className?: string;
+  contentClassName?: string; // ✅ 新增：允许自定义内容区样式，打破内边距束缚
   children: React.ReactNode;
   actions?: React.ReactNode; 
   closeOnOutsideClick?: boolean;
@@ -27,6 +28,7 @@ export const OreModal: React.FC<OreModalProps> = ({
   title, 
   hideTitleBar = false, 
   className = 'w-[480px]', 
+  contentClassName,
   children,
   actions,
   closeOnOutsideClick = true 
@@ -61,8 +63,6 @@ export const OreModal: React.FC<OreModalProps> = ({
   return createPortal(
     <AnimatePresence>
       {isOpen && (
-        // ✅ 核心修复 1：将点击事件挂载到最外层 flex 容器。
-        // 使用 onMouseDown 体验更好：防止用户在弹窗内按下鼠标，拖拽到外部松开时发生误触关闭。
         <div 
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
           onMouseDown={(e) => {
@@ -72,7 +72,6 @@ export const OreModal: React.FC<OreModalProps> = ({
           }}
         >
           
-          {/* ✅ 核心修复 2：背景现在只作为纯视觉层，加入 pointer-events-none 让出鼠标事件 */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -81,7 +80,6 @@ export const OreModal: React.FC<OreModalProps> = ({
             className="absolute inset-0 bg-black/70 backdrop-blur-sm pointer-events-none"
           />
 
-          {/* ✅ 核心修复 3：移除了冗余的 w-full flex justify-center，让它缩紧贴合 Modal */}
           <FocusBoundary id={boundaryId} trapFocus={isOpen} onEscape={onClose} className="relative z-10 outline-none">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -89,18 +87,16 @@ export const OreModal: React.FC<OreModalProps> = ({
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.15, ease: 'easeOut' }} 
               className={`
-                relative flex flex-col overflow-hidden rounded-sm
+                relative flex flex-col overflow-hidden rounded-[2px]
                 bg-[var(--ore-modal-bg)] border-[3px] border-[var(--ore-border-color)]
                 shadow-[var(--ore-modal-shadow)]
                 ${className}
               `}
               style={{ maxHeight: '85vh' }}
-              // ✅ 核心修复 4：全面阻断点击穿透，保护弹窗内部区域不触发外层关闭
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
             >
               
-              {/* ======================= 1. Header ======================= */}
               {!hideTitleBar && title && (
                 <div 
                   className="flex-shrink-0 flex items-center justify-center h-12 px-4 relative bg-[var(--ore-modal-header-bg)] border-b-[3px] border-[var(--ore-border-color)] z-20"
@@ -137,15 +133,14 @@ export const OreModal: React.FC<OreModalProps> = ({
                 </div>
               )}
 
-              {/* ======================= 2. Body ======================= */}
+              {/* ✅ 修复：利用 contentClassName 赋予子组件彻底接管布局的权力 */}
               <div 
-                className="flex-1 overflow-y-auto p-6 font-minecraft text-[var(--ore-modal-content-text)] custom-scrollbar z-10"
+                className={`flex-1 font-minecraft text-[var(--ore-modal-content-text)] z-10 ${contentClassName || 'p-6 overflow-y-auto custom-scrollbar'}`}
                 style={{ boxShadow: 'var(--ore-modal-content-shadow)' }}
               >
                 {children}
               </div>
 
-              {/* ======================= 3. Footer ======================= */}
               {actions && (
                 <div 
                   className="flex-shrink-0 flex items-center justify-end space-x-4 px-6 py-4 bg-[var(--ore-modal-footer-bg)] border-t-[3px] border-[var(--ore-border-color)] relative z-20"

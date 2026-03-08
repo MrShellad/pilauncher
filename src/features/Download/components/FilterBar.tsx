@@ -1,4 +1,4 @@
-// /src/features/Download/components/FilterBar.tsx
+// src/features/Download/components/FilterBar.tsx
 import React from 'react';
 import { Search, RotateCcw } from 'lucide-react';
 import { OreToggleButton } from '../../../ui/primitives/OreToggleButton';
@@ -29,7 +29,6 @@ interface FilterBarProps {
 }
 
 export const FilterBar: React.FC<FilterBarProps> = (props) => {
-  // ✅ 核心修复：在 label 内层包裹里加上 justify-center w-full，强制图标和文字组合水平居中
   const sourceOptions = [
     { label: <div className="flex items-center justify-center w-full font-minecraft tracking-wider"><ModrinthIcon className={`mr-1.5 text-[18px] ${props.source === 'modrinth' ? 'text-white' : 'text-ore-green'}`} /> Modrinth</div>, value: 'modrinth' },
     { label: <div className="flex items-center justify-center w-full font-minecraft tracking-wider"><CurseforgeIcon className={`mr-1.5 text-[18px] ${props.source === 'curseforge' ? 'text-white' : 'text-[#F16436]'}`} /> CurseForge</div>, value: 'curseforge' }
@@ -57,45 +56,59 @@ export const FilterBar: React.FC<FilterBarProps> = (props) => {
       <div className="grid grid-cols-[280px_repeat(4,minmax(100px,1fr))] gap-x-5 gap-y-4 w-full">
         
         {/* ================= 第一行 ================= */}
-        <div className="col-span-1">
-          <FocusItem onEnter={() => props.setSource(props.source === 'modrinth' ? 'curseforge' : 'modrinth')}>
+        {/* ✅ 修复截断：加入 relative focus-within:z-50，当元素被 Focus 放大时，它所在的网格单元会置于顶层，绝不被右侧元素遮挡切边！ */}
+        <div className="col-span-1 relative focus-within:z-50">
+          <FocusItem focusKey="filter-source-toggle" onEnter={() => props.setSource(props.source === 'modrinth' ? 'curseforge' : 'modrinth')}>
             {({ ref, focused }) => (
-              <div ref={ref as any} className={`w-full h-10 transition-all ${focused ? 'ring-2 ring-white scale-[1.02] z-10 brightness-110' : ''}`}>
-                {/* ✅ 移除外部那些复杂的 hack 类，直接让组件填充 h-full 即可 */}
+              // ✅ 强制高度对齐：h-[44px]
+              <div ref={ref as any} className={`w-full h-[44px] transition-all rounded-sm ${focused ? 'ring-[2px] ring-white scale-[1.02] z-50 brightness-110 shadow-lg' : ''}`}>
                 <OreToggleButton options={sourceOptions} value={props.source} onChange={props.setSource} className="!m-0 h-full" />
               </div>
             )}
           </FocusItem>
         </div>
 
-        <div className="col-span-1"><OreDropdown options={mcVersionOptions} value={props.mcVersion} onChange={props.setMcVersion} className="w-full" /></div>
-        <div className="col-span-1"><OreDropdown options={loaderOptions} value={props.loaderType} onChange={props.setLoaderType} className="w-full" /></div>
-        <div className="col-span-1"><OreDropdown options={categoryOptions} value={props.category} onChange={props.setCategory} className="w-full" /></div>
-        <div className="col-span-1"><OreDropdown options={sortOptions} value={props.sort} onChange={props.setSort} className="w-full" /></div>
+        {/* ✅ 默认选中首项：利用逻辑或 (||) 判断。当父组件状态为空时，强行让其显示 Options 的第 0 个值，确保不再渲染空白。 */}
+        {/* ✅ 强制高度对齐：利用 !h-[44px] 霸道地覆盖掉 Dropdown 内部的 36px 默认值 */}
+        <div className="col-span-1 relative focus-within:z-50">
+          <OreDropdown focusKey="filter-mc-version" options={mcVersionOptions} value={props.mcVersion || mcVersionOptions[0].value} onChange={props.setMcVersion} className="w-full !h-[44px]" />
+        </div>
+        <div className="col-span-1 relative focus-within:z-50">
+          <OreDropdown focusKey="filter-loader" options={loaderOptions} value={props.loaderType || loaderOptions[0].value} onChange={props.setLoaderType} className="w-full !h-[44px]" />
+        </div>
+        <div className="col-span-1 relative focus-within:z-50">
+          <OreDropdown focusKey="filter-category" options={categoryOptions} value={props.category || categoryOptions[0].value} onChange={props.setCategory} className="w-full !h-[44px]" />
+        </div>
+        <div className="col-span-1 relative focus-within:z-50">
+          <OreDropdown focusKey="filter-sort" options={sortOptions} value={props.sort || sortOptions[0].value} onChange={props.setSort} className="w-full !h-[44px]" />
+        </div>
 
         {/* ================= 第二行 ================= */}
-        <div className="col-span-2 flex items-center">
+        <div className="col-span-2 flex items-center relative focus-within:z-50">
+          {/* ✅ 强制高度对齐：搜索框内部和外部容器统统设置为 44px */}
           <OreInput
             focusKey="download-search-input"
             width="100%"
-            height="100%"
+            height="44px"
             value={props.query}
             onChange={(e) => props.setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && props.onSearch()}
             placeholder="搜索模组名称..."
             prefixNode={<Search size={16} />} 
-            containerClassName="!space-y-0 h-10 w-full"
+            containerClassName="!space-y-0 !h-[44px] w-full"
           />
         </div>
 
         <div className="col-span-3 grid grid-cols-3 gap-5 items-start">
-          <div className="col-span-2 w-full h-10">
-            <OreButton variant="primary" size="auto" onClick={props.onSearch} className="w-full !h-10 font-bold tracking-wider text-black">
+          <div className="col-span-2 w-full relative focus-within:z-50">
+            {/* ✅ 强制高度对齐：搜索按钮 */}
+            <OreButton focusKey="download-btn-search" variant="primary" size="auto" onClick={props.onSearch} className="w-full !h-[44px] font-bold tracking-wider text-black">
               <Search size={16} className="mr-1.5" /> 搜索
             </OreButton>
           </div>
-          <div className="col-span-1 w-full h-10">
-            <OreButton variant="secondary" size="auto" onClick={props.onReset} className="w-full !h-10 text-gray-300">
+          <div className="col-span-1 w-full relative focus-within:z-50">
+            {/* ✅ 强制高度对齐：重置按钮 (黑色字体以适配银色底) */}
+            <OreButton focusKey="download-btn-reset" variant="secondary" size="auto" onClick={props.onReset} className="w-full !h-[44px] text-black">
               <RotateCcw size={16} className="mr-1.5" /> 重置
             </OreButton>
           </div>

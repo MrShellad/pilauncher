@@ -1,4 +1,4 @@
-name: Build SteamDeck AppImage
+name: Build Tauri App
 
 on:
   push:
@@ -10,15 +10,24 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-unknown-linux-gnu
 
-      - name: Install system dependencies
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install Linux dependencies
         run: |
           sudo apt update
           sudo apt install -y \
@@ -26,30 +35,16 @@ jobs:
             libgtk-3-dev \
             libappindicator3-dev \
             librsvg2-dev \
-            patchelf \
-            build-essential \
-            pkg-config \
-            curl \
-            wget \
-            file
+            patchelf
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - name: Install frontend deps
+        run: pnpm install
 
-      - name: Install frontend dependencies
-        run: npm install
+      - name: Build Tauri
+        run: pnpm tauri build --target x86_64-unknown-linux-gnu
 
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --locked
-
-      - name: Build Tauri (SteamDeck)
-        run: |
-          npm run tauri build -- --target x86_64-unknown-linux-gnu
-
-      - name: Upload AppImage
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: steamdeck-build
-          path: src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
+          name: tauri-build
+          path: src-tauri/target/x86_64-unknown-linux-gnu/release/bundle

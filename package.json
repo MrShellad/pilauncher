@@ -4,11 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
-  },
+  "dev": "vite",
+  "build": "tsc -b && vite build",
+  "lint": "eslint .",
+  "preview": "vite preview",
+  "tauri": "tauri"
+},
   "dependencies": {
     "@noriginmedia/norigin-spatial-navigation": "^2.3.0",
     "@tauri-apps/api": "^2.10.1",

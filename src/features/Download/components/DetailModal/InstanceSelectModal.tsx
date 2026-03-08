@@ -13,7 +13,7 @@ interface InstanceSelectModalProps {
   version: OreProjectVersion | null;
   onClose: () => void;
   onConfirm: (instanceId: string) => void;
-  ignoreLoader?: boolean; // ✅ 新增：是否忽略 Loader 检查
+  ignoreLoader?: boolean; 
 }
 
 export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({ 
@@ -29,7 +29,7 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
       invoke<any[]>('get_compatible_instances', {
         gameVersions: version.game_versions,
         loaders: version.loaders,
-        ignoreLoader // ✅ 传给后端
+        ignoreLoader 
       })
         .then(list => {
           setInstances(list || []);
@@ -46,60 +46,84 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
   if (!isOpen || !version) return null;
 
   return (
-    <OreModal isOpen={isOpen} onClose={onClose} hideTitleBar={false} className="w-full max-w-lg bg-[#18181B] p-0">
-      <FocusBoundary id="instance-select-boundary" className="flex flex-col max-h-[70vh]">
-        <div className="p-5 border-b border-white/5 bg-black/40 text-sm text-gray-300">
-          <div className="font-minecraft text-lg text-white mb-1">选择目标实例</div>
-          即将下载：<span className="text-ore-green font-bold">{version.file_name}</span>
-          <div className="text-xs text-gray-500 mt-1">
-            要求：{version.game_versions[0]} {ignoreLoader ? '' : `| ${version.loaders.join(', ')}`}
+    <OreModal 
+      isOpen={isOpen} 
+      onClose={onClose} 
+      hideTitleBar={false} 
+      title="选择安装目标"
+      className="w-full max-w-lg bg-[#18181B] border-[2px] border-[#313233]"
+      contentClassName="p-0 flex flex-col overflow-hidden" // 移除默认 padding 方便分段布局
+    >
+      {/* 1. 顶部提示区 */}
+      <div className="p-5 border-b border-white/5 bg-black/40 text-sm text-gray-300 flex-shrink-0">
+        <div className="font-minecraft text-lg text-white mb-1">目标实例确认</div>
+        准备部署：<span className="text-ore-green font-bold truncate inline-block max-w-full align-bottom">{version.file_name}</span>
+        <div className="text-[10px] text-gray-500 mt-1 uppercase tracking-tighter">
+          环境需求：MC {version.game_versions[0]} {ignoreLoader ? '' : `| ${version.loaders.join(', ')}`}
+        </div>
+      </div>
+
+      {/* 2. 实例列表区：使用独立 Boundary 隔离导航 */}
+      <FocusBoundary id="instance-list-boundary" className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar min-h-[300px] max-h-[50vh] bg-[#111112]">
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center h-full text-ore-green opacity-80 py-12">
+            <Loader2 className="animate-spin mb-3" size={32} />
+            <span className="font-minecraft text-sm">正在匹配兼容的实例...</span>
           </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar min-h-[250px]">
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center h-full text-ore-green opacity-80 py-12">
-              <Loader2 className="animate-spin mb-3" size={32} />
-              <span className="font-minecraft text-sm">正在匹配兼容的实例...</span>
-            </div>
-          ) : instances.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-              <BoxSelect size={48} className="mb-4 opacity-50" />
-              <div className="font-minecraft text-lg text-white mb-1">无兼容的游戏实例</div>
-              <div className="text-sm">当前 Mod 版本没有可用的本地实例</div>
-            </div>
-          ) : (
-            instances.map(inst => {
-              const isSelected = selectedId === inst.id;
-              return (
-                <FocusItem key={inst.id} onEnter={() => setSelectedId(inst.id)}>
-                  {({ ref, focused }) => (
-                    <div
-                      ref={ref as any}
-                      onClick={() => setSelectedId(inst.id)}
-                      className={`flex items-center p-3 rounded-sm border transition-all cursor-pointer
-                        ${isSelected ? 'border-ore-green bg-ore-green/10' : 'border-white/10 hover:border-white/30 bg-black/40'}
-                        ${focused ? 'ring-2 ring-white scale-[1.02] brightness-110 shadow-lg z-10' : ''}`}
-                    >
-                      <Monitor size={24} className="mr-4 text-blue-400" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-white font-minecraft truncate text-base">{inst.name}</div>
-                        <div className="text-xs text-gray-400 mt-0.5">{inst.version} | {inst.loader}</div>
-                      </div>
-                      {isSelected && <CheckCircle2 className="text-ore-green ml-3" size={24} />}
+        ) : instances.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+            <BoxSelect size={48} className="mb-4 opacity-50" />
+            <div className="font-minecraft text-lg text-white mb-1 text-center">未找到匹配实例</div>
+            <div className="text-xs text-center px-8">此 Mod 的运行环境与您现有的实例不兼容，请先创建一个匹配的实例。</div>
+          </div>
+        ) : (
+          instances.map(inst => {
+            const isSelected = selectedId === inst.id;
+            return (
+              <FocusItem key={inst.id} focusKey={`inst-item-${inst.id}`} onEnter={() => setSelectedId(inst.id)}>
+                {({ ref, focused }) => (
+                  <div
+                    ref={ref as any}
+                    onClick={() => setSelectedId(inst.id)}
+                    className={`
+                      relative group flex items-center p-3 rounded-sm border transition-all cursor-pointer overflow-hidden
+                      ${isSelected ? 'border-ore-green bg-ore-green/10' : 'border-white/5 bg-black/30 hover:border-white/20'}
+                      ${focused ? 'ring-2 ring-white scale-[1.02] brightness-110 z-10 shadow-[0_0_15px_rgba(255,255,255,0.1)]' : ''}
+                    `}
+                  >
+                    <Monitor size={24} className={`mr-4 transition-colors ${isSelected ? 'text-ore-green' : 'text-blue-400 opacity-60'}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className={`font-minecraft truncate text-base ${isSelected ? 'text-white font-bold' : 'text-gray-300'}`}>{inst.name}</div>
+                      <div className="text-[10px] text-gray-500 font-mono mt-0.5">{inst.version} | {inst.loader}</div>
                     </div>
-                  )}
-                </FocusItem>
-              );
-            })
-          )}
-        </div>
-
-        <div className="p-4 border-t border-white/5 bg-black/60 flex justify-end gap-3">
-          <OreButton variant="secondary" onClick={onClose}>取消</OreButton>
-          <OreButton variant="primary" disabled={!selectedId} onClick={() => onConfirm(selectedId)}>确认下载</OreButton>
-        </div>
+                    {isSelected && <CheckCircle2 className="text-ore-green ml-3" size={20} />}
+                  </div>
+                )}
+              </FocusItem>
+            );
+          })
+        )}
       </FocusBoundary>
+
+      {/* 3. 底部操作区：为 OreButton 显式指定 focusKey */}
+      <div className="p-4 border-t border-white/10 bg-black/60 flex justify-end gap-4 flex-shrink-0">
+        <OreButton 
+          focusKey="modal-inst-cancel" 
+          variant="secondary" 
+          onClick={onClose}
+        >
+          取消
+        </OreButton>
+        <OreButton 
+          focusKey="modal-inst-confirm" 
+          variant="primary" 
+          disabled={!selectedId || isLoading} 
+          onClick={() => onConfirm(selectedId)}
+          className="font-bold tracking-widest text-black"
+        >
+          确认并安装
+        </OreButton>
+      </div>
     </OreModal>
   );
 };
