@@ -1,4 +1,4 @@
-// /src/features/Download/components/DownloadManager/TaskPanel.tsx
+// src/features/Download/components/DownloadManager/TaskPanel.tsx
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X } from 'lucide-react';
 import { TaskItem } from './TaskItem';
@@ -6,16 +6,18 @@ import type { DownloadTask } from '../../../../store/useDownloadStore';
 import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { useEffect } from 'react';
-import { focusManager } from '../../../../ui/focus/FocusManager';
+import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
 export const TaskPanel = ({ isOpen, onClose, taskList, setActiveTab, removeTask }: any) => {
   const activeTasksCount = taskList.filter((t: DownloadTask) => t.status === 'downloading').length;
 
-  // ✅ 面板打开时，强制将焦点移入面板内的关闭按钮上
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
     if (isOpen) {
-      setTimeout(() => focusManager.focus('btn-close-taskpanel'), 100);
+      // ✅ 延迟挂载并确保在卸载时清理定时器
+      timer = setTimeout(() => setFocus('btn-close-taskpanel'), 150);
     }
+    return () => clearTimeout(timer);
   }, [isOpen]);
 
   return (
@@ -25,11 +27,10 @@ export const TaskPanel = ({ isOpen, onClose, taskList, setActiveTab, removeTask 
           initial={{ opacity: 0, y: 20, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.95, transition: { duration: 0.2 } }}
-          className="mb-4 w-[400px] bg-[#18181B] border-2 border-ore-gray-border shadow-2xl flex flex-col z-50 origin-bottom-right"
+          className="mb-4 w-96 max-w-[90vw] bg-[#141415] border-2 border-[#2A2A2C] shadow-2xl rounded-sm overflow-hidden flex flex-col"
         >
-          {/* ✅ trapFocus 焦点囚禁：开启时无法导航到外部。onEscape 绑定关闭 */}
-          <FocusBoundary id="download-task-panel" trapFocus={isOpen} onEscape={onClose} className="flex flex-col h-full overflow-hidden">
-            <div className="bg-[#1E1E1F] p-3 border-b-2 border-ore-gray-border flex justify-between items-center">
+          <FocusBoundary id="download-task-panel" trapFocus={isOpen} onEscape={onClose} className="flex flex-col h-full overflow-hidden outline-none">
+            <div className="bg-[#1E1E1F] p-3 border-b-2 border-ore-gray-border flex justify-between items-center shrink-0">
               <h3 className="font-minecraft text-white text-sm flex items-center">
                 <Download size={16} className="mr-2 text-ore-green" /> 
                 任务管理 ({activeTasksCount} 进行中)

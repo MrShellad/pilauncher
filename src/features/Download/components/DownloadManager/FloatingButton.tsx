@@ -1,12 +1,13 @@
-// /src/features/Download/components/DownloadManager/FloatingButton.tsx
+// src/features/Download/components/DownloadManager/FloatingButton.tsx
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download } from 'lucide-react';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 
-export const FloatingButton = ({ isOpen, onClick, activeCount, progress }: any) => {
+export const FloatingButton = ({ isOpen, onClick, activeCount, hasTasks }: any) => {
   return (
     <AnimatePresence>
-      {!isOpen && activeCount > 0 && (
+      {/* ✅ 修复核心：只要还有任务(hasTasks)，悬浮球就不允许消失，以充当焦点锚点！ */}
+      {!isOpen && hasTasks && (
         <FocusItem focusKey="btn-floating-download" onEnter={onClick}>
           {({ ref, focused }) => (
             <motion.button
@@ -14,20 +15,23 @@ export const FloatingButton = ({ isOpen, onClick, activeCount, progress }: any) 
               initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
               whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
               onClick={onClick}
-              // ✅ 增加 focused 的光环反馈
               className={`relative w-14 h-14 bg-[#1E1E1F] border-2 border-ore-gray-border rounded-full flex items-center justify-center shadow-lg group hover:border-ore-green transition-all outline-none
                 ${focused ? 'ring-4 ring-ore-green shadow-[0_0_20px_rgba(34,197,94,0.5)] z-50 scale-105' : ''}
               `}
             >
               <Download size={24} className="text-white" />
-              <span className="absolute -top-1 -right-1 bg-ore-green text-[#1E1E1F] text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">
-                {activeCount}
-              </span>
+              
+              {/* 角标：仅在有正在下载的任务时显示 */}
+              {activeCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-ore-green text-[#1E1E1F] text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">
+                  {activeCount}
+                </span>
+              )}
+
               <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="46" fill="transparent" stroke="#333" strokeWidth="4" />
-                <circle cx="50" cy="50" r="46" fill="transparent" stroke="#22C55E" strokeWidth="4" 
-                  strokeDasharray={`${(progress || 0) * 2.89} 289`} 
-                  className="transition-all duration-500" 
+                <circle cx="50" cy="50" r="46" fill="transparent" stroke="currentColor" strokeWidth="4" 
+                  className={activeCount > 0 ? "text-ore-green animate-[spin_3s_linear_infinite] stroke-dasharray-[100_200]" : "hidden"} 
                 />
               </svg>
             </motion.button>

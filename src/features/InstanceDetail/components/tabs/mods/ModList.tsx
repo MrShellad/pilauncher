@@ -3,6 +3,7 @@ import React from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { OreList } from '../../../../../ui/primitives/OreList';
 import { Blocks, Loader2 } from 'lucide-react';
+import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary'; // ✅ 引入焦点边界
 import type { ModMeta } from '../../../logic/modService';
 
 interface ModListProps {
@@ -17,18 +18,19 @@ export const ModList: React.FC<ModListProps> = ({ mods, isLoading, onSelectMod }
   }
 
   return (
-    // ✅ 修复 1：增加 px-2。为滚动容器撑开左右安全距离，防止内部的 scale/ring 特效被 overflow-y-auto 切割截断！
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-0 overflow-y-auto px-2 pb-4 custom-scrollbar">
+    // ✅ 套上 FocusBoundary，记住玩家上一次浏览的位置
+    <FocusBoundary id="mod-list-grid" className="grid grid-cols-1 xl:grid-cols-2 gap-0 overflow-y-auto px-2 pb-4 custom-scrollbar">
       {mods.map((mod, i) => {
         const displayName = mod.name || mod.networkInfo?.title || mod.fileName;
         const displayDesc = mod.description || mod.networkInfo?.description || "没有提供该模组的描述。";
         const iconUrl = mod.iconAbsolutePath 
-          ? `${convertFileSrc(mod.iconAbsolutePath)}?t=${Date.now()}` 
+          ? `${convertFileSrc(mod.iconAbsolutePath)}?t=${mod.modifiedAt || Date.now()}` 
           : (mod.networkIconUrl || mod.networkInfo?.icon_url);
 
         return (
           <OreList
             key={i}
+            focusKey={`mod-item-${i}`} // ✅ 给每个模组一个确切的坐标键
             isInactive={!mod.isEnabled}
             onClick={() => onSelectMod(mod)}
             title={
@@ -42,13 +44,12 @@ export const ModList: React.FC<ModListProps> = ({ mods, isLoading, onSelectMod }
               </div>
             }
             subtitle={mod.fileName}
-            description={displayDesc}
-            icon={
+            content={displayDesc}  // ✅ 修复报错：description -> content
+            leading={              // ✅ 修复报错：icon -> leading
               mod.isFetchingNetwork ? (
                 <Loader2 size={24} className="animate-spin text-ore-text-muted" />
               ) : iconUrl ? (
-                // ✅ 修复 3：移除之前加的 p-2，改回 object-cover，让图片完美填满整个 w-20/h-20 的容器，消除黑边
-                <img src={iconUrl} alt="icon" className="w-full h-full object-cover" />
+                <img src={iconUrl} alt="icon" className="w-full h-full object-cover rounded-sm border-[2px] border-[#18181B] shadow-md" />
               ) : (
                 <Blocks size={32} className="text-ore-text-muted/50 drop-shadow-md" />
               )
@@ -56,6 +57,6 @@ export const ModList: React.FC<ModListProps> = ({ mods, isLoading, onSelectMod }
           />
         );
       })}
-    </div>
+    </FocusBoundary>
   );
 };

@@ -95,6 +95,6 @@ export const useModManager = (instanceId: string) => {
   return { 
     mods: sortedMods, // ✅ 吐出排序后的数据
     isLoading, instanceConfig, isCreatingSnapshot, sortType, setSortType, 
-    toggleMod, deleteMod, createSnapshot, openModFolder 
+    toggleMod, deleteMod, createSnapshot, openModFolder,loadMods
   };
 };

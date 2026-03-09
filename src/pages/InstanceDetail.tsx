@@ -1,8 +1,7 @@
 // /src/pages/InstanceDetail.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // ✅ 补充引入 useRef
 import { ArrowLeft, LayoutTemplate, Settings, Coffee, FolderOpen, Blocks, Package, Image as ImageIcon, Download } from 'lucide-react';
-import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
-import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { useFocusable, FocusContext, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { useInstanceDetail, type DetailTab } from '../hooks/pages/InstanceDetail/useInstanceDetail';
 import { OverviewPanel } from '../features/InstanceDetail/components/tabs/OverviewPanel';
 import { BasicPanel } from '../features/InstanceDetail/components/tabs/BasicPanel'; 
@@ -14,8 +13,6 @@ import { ModPanel } from '../features/InstanceDetail/components/tabs/ModPanel';
 import { SavePanel } from '../features/InstanceDetail/components/tabs/SavePanel';
 import { ResourcePackPanel } from '../features/InstanceDetail/components/tabs/ResourcePackPanel';
 import { ShaderPanel } from '../features/InstanceDetail/components/tabs/ShaderPanel';
-
-
 
 const TABS: { id: DetailTab; label: string; icon: React.FC<any> }[] = [
   { id: 'overview', label: '概览', icon: LayoutTemplate },
@@ -42,14 +39,29 @@ const InstanceDetail: React.FC = () => {
   const instanceId = useLauncherStore(state => state.selectedInstanceId) || "demo-id-123"; 
   const { 
     activeTab, setActiveTab, data, isInitializing, currentImageIndex, handlePlay,
+    handleOpenFolder, 
     handleUpdateName, handleUpdateCover, handleVerifyFiles, handleDeleteInstance 
   } = useInstanceDetail(instanceId);
   const setActiveTabGlobal = useLauncherStore(state => state.setActiveTab);
 
   const { ref: pageFocusRef, focusKey } = useFocusable();
 
-  // ✅ 核心魔法：上帝视角的激活面板记录器，脱离空间引擎的不可控状态
   const [activePane, setActivePane] = useState<'sidebar' | 'content'>('sidebar');
+  
+  // ✅ 新增：用于记录初始焦点是否已经设置过
+  const initialFocusRef = useRef(false);
+
+  // ✅ 新增：在数据加载完毕并挂载完真实 DOM 后，主动将焦点锁死在左侧导航栏
+  useEffect(() => {
+    if (data && !initialFocusRef.current) {
+      initialFocusRef.current = true;
+      // 延迟 150ms 等待 Framer Motion 页面切换动画结束，以及空间导航节点向引擎注册完毕
+      const timer = setTimeout(() => {
+        setFocus(activeTab); 
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [data, activeTab]);
 
   const handleTabPreview = (id: string) => {
     setActiveTab(id as DetailTab);
@@ -57,37 +69,28 @@ const InstanceDetail: React.FC = () => {
 
   const handleTabSelect = (id: string) => {
     setActiveTab(id as DetailTab);
-    setActivePane('content'); // 明确进入右侧
+    setActivePane('content'); 
     setTimeout(() => setFocus('instance-detail-content'), 50);
   };
 
-  // ✅ 终极 ESC 退出链条（接管一切路由与回退）
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        
-        // 1. 防御机制：如果在输入框里打字，只取消焦点，绝对不越级退出
         const activeEl = document.activeElement as HTMLElement;
         if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
           activeEl.blur();
           return;
         }
-
         e.preventDefault();
         e.stopPropagation();
-
-        // 2. 完美的层级穿越逻辑
         if (activePane === 'content') {
           setActivePane('sidebar');
-          setFocus(activeTab); // 从右侧退回侧边栏，并精准选中刚刚的 Tab！
+          setFocus(activeTab); 
         } else {
-          setActiveTabGlobal('instances'); // 从侧边栏退出整个设置页
+          setActiveTabGlobal('instances'); 
         }
       }
     };
-    
-    // 注意：这里用普通阶段监听。因为之前在 OreModal 里我们加了 capture: true。
-    // 所以如果是“弹窗打开”状态，弹窗会最先抢走 ESC 并拦截，这里根本不会执行。简直天衣无缝！
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, [activePane, activeTab, setActiveTabGlobal]);
@@ -104,7 +107,6 @@ const InstanceDetail: React.FC = () => {
 
         <div className="flex flex-1 overflow-hidden">
           
-          {/* ✅ 左侧容器：通过 Capture 捕获任何流经这里的交互 */}
           <div 
             className="w-56 bg-[#18181B] border-r-2 border-black flex-shrink-0 flex flex-col py-2 overflow-y-auto custom-scrollbar"
             onFocusCapture={() => setActivePane('sidebar')}
@@ -119,7 +121,6 @@ const InstanceDetail: React.FC = () => {
             />
           </div>
 
-          {/* ✅ 右侧容器：同样通过 Capture 捕获鼠标或键盘产生的任何微小动作 */}
           <div 
             className="flex-1 overflow-hidden relative flex flex-col"
             onFocusCapture={() => setActivePane('content')}
@@ -127,9 +128,15 @@ const InstanceDetail: React.FC = () => {
           >
   
             <FocusBoundary id="instance-detail-content" trapFocus={true} className="w-full h-full">
-              {activeTab === 'overview' && <OverviewPanel data={data} currentImageIndex={currentImageIndex} onPlay={handlePlay} />}
+              {activeTab === 'overview' && (
+                <OverviewPanel 
+                  data={data} 
+                  currentImageIndex={currentImageIndex} 
+                  onPlay={handlePlay} 
+                  onOpenFolder={handleOpenFolder} 
+                />
+              )}
               
-              {/* ✅ 修改这里：传入 isInitializing，并处理删除成功后的路由回退 */}
               {activeTab === 'basic' && (
                 <BasicPanel 
                   data={data} 
@@ -140,7 +147,7 @@ const InstanceDetail: React.FC = () => {
                   onDelete={async () => {
                     const success = await handleDeleteInstance();
                     if (success) {
-                      setActiveTabGlobal('instances'); // 成功删除后，跳回全局的实例列表
+                      setActiveTabGlobal('instances'); 
                     }
                   }} 
                 />

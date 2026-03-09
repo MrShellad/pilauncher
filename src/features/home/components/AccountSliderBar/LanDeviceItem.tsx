@@ -41,6 +41,12 @@ export const LanDeviceItem: React.FC<LanDeviceItemProps> = ({
 }) => {
   const [avatarSrc, setAvatarSrc] = useState<string | null>(null);
 
+  // ✅ 修复 2 & 3：将 displayName 和 canSeeInstance 的声明移动到 useEffect 之前
+  // 显示的用户名 (名片没拉到时用设备名兜底)
+  const displayName = richInfo?.username || device.device_name;
+  // 是否允许查看正在游玩的实例 (自己的设备 或 已经加为好友的设备)
+  const canSeeInstance = isFriend || isOwnAccount;
+
   // 利用已有的 auth 方法拉取对方头像
   useEffect(() => {
     if (richInfo?.user_uuid) {
@@ -52,17 +58,13 @@ export const LanDeviceItem: React.FC<LanDeviceItemProps> = ({
           });
           setAvatarSrc(`${convertFileSrc(localPath)}?t=${Date.now()}`);
         } catch (e) {
-          setAvatarSrc(defaultAvatar); // ✅ 断网时，别人的设备头像也显示为你本地的默认头像
+          // ✅ 修复 1：报错时直接设为 null，让底部的 <img> 标签触发自己的 || 兜底展示默认头像
+          setAvatarSrc(null); 
         }
       };
       fetchAvatar();
     }
   }, [richInfo, displayName]);
-
-  // 显示的用户名 (名片没拉到时用设备名兜底)
-  const displayName = richInfo?.username || device.device_name;
-  // 是否允许查看正在游玩的实例 (自己的设备 或 已经加为好友的设备)
-  const canSeeInstance = isFriend || isOwnAccount;
 
   return (
     <div className={`relative flex flex-col border-[2px] rounded-sm overflow-hidden transition-all duration-200 bg-[#2A2A2C]

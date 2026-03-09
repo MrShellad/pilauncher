@@ -24,95 +24,94 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({ mod, instanceCon
   const [isLoadingVersions, setIsLoadingVersions] = useState(false);
   const [displayMod, setDisplayMod] = useState<ModMeta | null>(null);
 
+  // 当外部的 mod 改变时，同步给 displayMod
+  useEffect(() => {
+    if (mod) setDisplayMod(mod);
+  }, [mod]);
+
+  // ✅ 核心导航修复：打开模态框时，延迟 100ms 强制将焦点落在“启用/禁用”按钮上
   useEffect(() => {
     if (mod) {
-      setDisplayMod(mod);
-      setModVersions([]);
-      setTimeout(() => setFocus('mod-btn-toggle'), 50);
+      setTimeout(() => setFocus('btn-mod-toggle'), 100);
+    }
+  }, [mod]);
 
-      if (mod.networkInfo?.id && instanceConfig?.game_version) {
-        setIsLoadingVersions(true);
-        fetchModrinthVersions(mod.networkInfo.id, instanceConfig.game_version, instanceConfig.loader_type)
-          .then(setModVersions)
-          .catch(console.error)
-          .finally(() => setIsLoadingVersions(false));
-      }
+  useEffect(() => {
+    if (mod?.networkInfo && instanceConfig) {
+      setIsLoadingVersions(true);
+      const targetLoader = instanceConfig.loader?.type?.toLowerCase() === 'vanilla' ? '' : instanceConfig.loader?.type?.toLowerCase();
+      fetchModrinthVersions(mod.networkInfo.id, instanceConfig.mcVersion, targetLoader)
+        .then(res => setModVersions(res.slice(0, 5))) // 只看最近的5个版本
+        .catch(err => console.error("获取版本失败:", err))
+        .finally(() => setIsLoadingVersions(false));
+    } else {
+      setModVersions([]);
     }
   }, [mod, instanceConfig]);
 
-  if (!displayMod) return null;
-
-  const handleToggle = () => onToggle(displayMod.fileName, displayMod.isEnabled);
-  
   const handleDelete = async () => {
-    const confirmed = await ask(`确定要彻底删除模组 "${displayMod.fileName}" 吗？此操作不可逆！`, { title: '危险操作确认', kind: 'warning' });
-    if (confirmed) {
-      onDelete(displayMod.fileName);
+    if (!mod) return;
+    const directDelete = await ask(`确定要删除模组 ${mod.fileName} 吗？\n该操作无法撤销。`, { title: '删除模组确认', kind: 'warning' });
+    if (directDelete) {
+      onDelete(mod.fileName);
       onClose();
     }
   };
 
+  if (!mod) return null;
+
+  const displayDesc = displayMod?.description || displayMod?.networkInfo?.description || "没有提供该模组的描述。";
+
   return (
-    // ✅ 修复 2：将 max-w-3xl 缩小到 max-w-2xl，并且彻底干掉固定高度属性 (h-[80vh] min-h-[500px])
-    <OreModal isOpen={!!mod} onClose={onClose} hideTitleBar={true} className="w-full max-w-2xl">
-      <FocusBoundary id="mod-modal-boundary" className="flex flex-col">
-        
-        {/* 信息展示区域 */}
-        <div className="flex flex-col items-center justify-center p-8 pt-10 text-center">
-          <div className={`w-24 h-24 bg-[#18181B] border-2 border-[#2A2A2C] flex items-center justify-center p-2 rounded shadow-lg ${!displayMod.isEnabled ? 'grayscale opacity-50' : ''}`}>
-            {displayMod.iconAbsolutePath ? <img src={`${convertFileSrc(displayMod.iconAbsolutePath)}?t=${Date.now()}`} className="w-full h-full object-contain" />
-              : (displayMod.networkIconUrl || displayMod.networkInfo?.icon_url) ? <img src={displayMod.networkIconUrl || displayMod.networkInfo?.icon_url} className="w-full h-full object-contain" />
-              : <Blocks size={40} className="text-ore-text-muted/50 drop-shadow-[0_0_5px_rgba(255,255,255,0.2)]" />}
+    <OreModal isOpen={!!mod} onClose={onClose} title={displayMod?.name || displayMod?.networkInfo?.title || displayMod?.fileName} className="w-[800px] h-[70vh]">
+      {/* ✅ trapFocus 囚禁焦点：开启弹窗期间，无论怎么乱按，焦点都跑不到外层 */}
+      <FocusBoundary id="mod-detail-boundary" trapFocus onEscape={onClose} className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-[#141415]">
+        <div className="flex space-x-6">
+          <div className="w-32 h-32 flex-shrink-0 bg-[#1E1E1F] border-2 border-[#2A2A2C] shadow-inner flex items-center justify-center p-2 rounded-sm relative">
+            {mod.isFetchingNetwork && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><Loader2 className="animate-spin text-ore-green" /></div>}
+            {displayMod?.iconAbsolutePath || displayMod?.networkIconUrl || displayMod?.networkInfo?.icon_url ? (
+              <img src={displayMod.iconAbsolutePath ? `${convertFileSrc(displayMod.iconAbsolutePath)}?t=${Date.now()}` : (displayMod.networkIconUrl || displayMod.networkInfo?.icon_url)} alt="icon" className="w-full h-full object-cover" />
+            ) : <Blocks size={48} className="text-gray-600" />}
           </div>
-          
-          <h2 className={`mt-5 text-3xl font-minecraft drop-shadow-md ${!displayMod.isEnabled ? 'text-gray-500 line-through' : 'text-white'}`}>
-            {displayMod.name || displayMod.networkInfo?.title || displayMod.fileName}
-          </h2>
-          
-          <p className="mt-3 text-sm text-gray-400 max-w-xl line-clamp-3 leading-snug">
-            {displayMod.description || displayMod.networkInfo?.description || "该模组暂无描述。"}
-          </p>
+          <div className="flex-1">
+            <h2 className="text-2xl font-minecraft text-white drop-shadow-sm flex items-center">
+              {displayMod?.name || displayMod?.networkInfo?.title || displayMod?.fileName}
+              {!displayMod?.isEnabled && <span className="ml-3 text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/30">已禁用</span>}
+            </h2>
+            <div className="mt-2 text-sm text-gray-400 space-y-1">
+              <p>文件名称: {displayMod?.fileName}</p>
+              <p>文件大小: {displayMod?.fileSize ? (displayMod.fileSize / 1024 / 1024).toFixed(2) + ' MB' : '未知'}</p>
+              <p>识别状态: {mod.isFetchingNetwork ? '正在匹配...' : (displayMod?.networkInfo ? '✅ 已链接至 Modrinth' : '未找到匹配项目')}</p>
+            </div>
+          </div>
         </div>
 
-        {/* 核心操作栏 */}
-        <div className="flex items-center justify-center space-x-6 px-8 py-5 border-t-2 border-[#1E1E1F] bg-[#141415]/50">
-          <OreButton 
-            focusKey="mod-btn-toggle" 
-            variant={displayMod.isEnabled ? 'secondary' : 'primary'} 
-            onClick={handleToggle}
-            className="w-48"
-          >
-            <Power size={18} className="mr-2" />
-            {displayMod.isEnabled ? '禁用该模组' : '重新启用模组'}
+        {/* ✅ 为操作按钮注入固定的 focusKey */}
+        <div className="mt-6 flex gap-3 border-b-2 border-white/5 pb-6">
+          <OreButton focusKey="btn-mod-toggle" variant={displayMod?.isEnabled ? 'secondary' : 'primary'} onClick={() => onToggle(mod.fileName, !!displayMod?.isEnabled)}>
+            <Power size={18} className="mr-2" /> {displayMod?.isEnabled ? "点击禁用" : "点击启用"}
           </OreButton>
-
-          <OreButton 
-            focusKey="mod-btn-delete" 
-            variant="danger" 
-            onClick={handleDelete}
-            className="w-48"
-          >
-            <Trash2 size={18} className="mr-2" />
-            彻底删除
+          <OreButton focusKey="btn-mod-delete" variant="danger" onClick={handleDelete}>
+            <Trash2 size={18} className="mr-2" /> 删除该模组
           </OreButton>
         </div>
 
-        {/* ✅ 修复 3：移除 flex-1 撑满属性，将其作为一个普通流块展示 */}
-        <div className="bg-[#18181B] border-t-2 border-[#2A2A2C] flex flex-col">
-          <div className="flex justify-between items-center px-8 py-3 border-b-2 border-[#1E1E1F]">
-            <h3 className="text-gray-400 font-minecraft text-sm">可用版本更新 / 回滚</h3>
-            {instanceConfig?.game_version && <span className="text-xs text-ore-green bg-ore-green/10 px-2 py-0.5 rounded">匹配: {instanceConfig?.game_version}</span>}
-          </div>
-          
+        <div className="mt-6">
+          <h3 className="font-minecraft text-white text-lg mb-2">描述</h3>
+          <p className="text-sm text-gray-300 leading-relaxed bg-[#1E1E1F] p-4 rounded-sm border-2 border-[#2A2A2C] shadow-inner">{displayDesc}</p>
+        </div>
+
+        <div className="mt-6">
+          <h3 className="font-minecraft text-white text-lg mb-2">版本历史 (当前实例)</h3>
           {isLoadingVersions ? (
-            <div className="flex justify-center items-center py-8"><Loader2 className="animate-spin text-ore-text-muted" /></div>
+            <div className="flex justify-center py-8"><Loader2 className="animate-spin text-ore-green" /></div>
           ) : modVersions.length > 0 ? (
-            // ✅ 设定一个极限最大高度 (max-h-[35vh])，超过才会出现滚动条，不足则完美收缩贴合内容！
-            <div className="overflow-y-auto custom-scrollbar max-h-[35vh]">
-              {modVersions.map(v => (
-                <FocusItem key={v.id} onEnter={() => alert(`准备下载版本: ${v.version_number}`)}>
-                  {({ref, focused}) => (
-                    <div ref={ref as any} onClick={() => alert(`准备下载版本: ${v.version_number}`)}
+            <div className="bg-[#1E1E1F] border-2 border-[#2A2A2C] rounded-sm shadow-inner overflow-hidden">
+              {modVersions.map((v, i) => (
+                <FocusItem key={i} focusKey={`mod-version-${i}`}>
+                  {({ ref, focused }) => (
+                    <div 
+                      ref={ref as any}
                       className={`flex justify-between items-center py-3.5 px-8 bg-[#18181B] border-b-2 outline-none transition-all cursor-pointer ${focused ? 'border-white bg-[#2A2A2C] scale-[1.002] z-10 brightness-110' : 'border-[#1E1E1F] hover:bg-[#1C1C1E]'}`}
                     >
                       <div className="flex items-center flex-1 min-w-0 pr-4">
@@ -131,12 +130,9 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({ mod, instanceCon
               ))}
             </div>
           ) : (
-            <div className="text-center text-ore-text-muted py-8 font-minecraft text-sm mx-8 my-6 border-2 border-[#1E1E1F] border-dashed">
-              未找到匹配的 MOD 版本。
-            </div>
+            <div className="text-center text-ore-text-muted py-8 font-minecraft text-sm mx-8 my-6 border-2 border-dashed border-[#2A2A2C] bg-[#1A1A1C]">暂无适配当前实例的额外版本记录</div>
           )}
         </div>
-        
       </FocusBoundary>
     </OreModal>
   );

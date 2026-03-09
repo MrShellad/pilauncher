@@ -18,30 +18,36 @@ export const useInstanceDetail = (instanceId: string) => {
   const [data, setData] = useState<InstanceDetailData | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   
-  // 新增：向 UI 层暴露全局的初始化加载状态
   const [isInitializing, setIsInitializing] = useState(true);
 
-  // 1. 全局数据拉取（包含真实名称与绝对路径封面）
+  // 1. 全局数据拉取（包含真实名称与绝对路径封面、动态截图）
   useEffect(() => {
     const fetchDetail = async () => {
       try {
         setIsInitializing(true);
-        const realData = await invoke<any>('get_instance_detail', { id: instanceId });
+        // 并发拉取基础详情和截图目录
+        const [realData, screenshotsRaw] = await Promise.all([
+          invoke<any>('get_instance_detail', { id: instanceId }),
+          invoke<string[]>('get_instance_screenshots', { id: instanceId }).catch(() => []) // 容错处理
+        ]);
         
+        // 转换封面 URL
         let coverUrl = '';
         if (realData.cover_absolute_path) {
           coverUrl = `${convertFileSrc(realData.cover_absolute_path)}?t=${Date.now()}`;
         }
+
+        // ✅ 核心修复：将 Rust 返回的物理绝对路径转换为前端资源 URL
+        const screenshotsUrls = screenshotsRaw.map(
+          path => `${convertFileSrc(path)}?t=${Date.now()}`
+        );
 
         setData({
           id: instanceId,
           name: realData.name || instanceId,
           description: realData.description || '这个实例还没有添加任何描述...',
           coverUrl: coverUrl,
-          screenshots: [
-            'https://images.unsplash.com/photo-1627856013091-fed6e4e048c1?w=800&q=80',
-            'https://images.unsplash.com/photo-1607513837770-49272336db8a?w=800&q=80',
-          ]
+          screenshots: screenshotsUrls // ✅ 完美替换掉以前的占位图
         });
       } catch (e) {
         console.error("获取实例详情失败:", e);
@@ -63,7 +69,16 @@ export const useInstanceDetail = (instanceId: string) => {
 
   const handlePlay = () => console.log(`启动实例: ${data?.name}`);
 
-  // ================= 核心业务逻辑层 (供 UI 组件调用) =================
+  // ================= 核心业务逻辑层 =================
+
+  // ✅ 新增：打开当前实例文件夹
+  const handleOpenFolder = async () => {
+    try {
+      await invoke('open_instance_folder', { id: instanceId });
+    } catch (error) {
+      console.error('打开实例目录失败:', error);
+    }
+  };
 
   const handleUpdateName = async (newName: string) => {
     await invoke('rename_instance', { id: instanceId, newName });
@@ -82,7 +97,6 @@ export const useInstanceDetail = (instanceId: string) => {
       const assetUrl = `${convertFileSrc(newAbsPath)}?t=${Date.now()}`;
       setData(prev => prev ? { ...prev, coverUrl: assetUrl } : null);
     } else {
-      // 抛出特定的错误，让 UI 知道是用户主动取消，而不是报错
       throw new Error("USER_CANCELED");
     }
   };
@@ -99,7 +113,7 @@ export const useInstanceDetail = (instanceId: string) => {
 
     if (confirmed) {
       await invoke('delete_instance', { id: instanceId });
-      return true; // 告知外部：已成功删除
+      return true;
     }
     return false;
   };
@@ -111,6 +125,7 @@ export const useInstanceDetail = (instanceId: string) => {
     isInitializing,
     currentImageIndex,
     handlePlay,
+    handleOpenFolder, // ✅ 导出这个方法供 OverviewPanel 使用
     handleUpdateName,
     handleUpdateCover,
     handleVerifyFiles,

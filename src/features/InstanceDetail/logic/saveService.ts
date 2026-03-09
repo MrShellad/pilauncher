@@ -26,6 +26,7 @@ export interface SaveItem {
   sizeBytes: number;
   lastPlayedTime: number;
   createdTime: number;
+  iconPath?: string;
 }
 
 export const saveService = {
@@ -41,9 +42,9 @@ export const saveService = {
   verifyRestore: (id: string, backupUuid: string) => 
     invoke<string[]>('verify_save_restore', { id, backupUuid }),
 
-  // 预留：打开存档所在目录
+  // 找到这段代码并替换为调用新指令
   openSavesFolder: (id: string) => 
-    invoke('open_mod_folder', { id }), // 你可以复用之前写的打开目录指令，或者后端新建一个 open_saves_folder
+    invoke('open_saves_folder', { id }),
 
   getBackups: (id: string) => 
     invoke<SaveBackupMetadata[]>('get_save_backups', { id }),

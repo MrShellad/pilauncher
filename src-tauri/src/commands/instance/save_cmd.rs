@@ -34,10 +34,16 @@ pub async fn verify_save_restore<R: Runtime>(
 ) -> Result<Vec<String>, String> {
     SaveManagerService::verify_restore(&app, &id, &backup_uuid)
 }
+
 #[tauri::command]
 pub async fn get_save_backups<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     id: String,
 ) -> Result<Vec<SaveBackupMetadata>, String> {
     crate::services::instance::save_manager::SaveManagerService::get_backups(&app, &id)
+}
+
+#[tauri::command]
+pub async fn open_saves_folder<R: Runtime>(app: AppHandle<R>, id: String) -> Result<(), String> {
+    SaveManagerService::open_saves_folder(&app, &id)
 }

@@ -15,7 +15,7 @@ export interface InstanceItem {
 // 假设你在 src/assets/instances 目录下放了 3 张默认图
 import defaultImg1 from '../../../assets/instances/default-1.jpg';
 import defaultImg2 from '../../../assets/instances/default-2.jpg';
-import defaultImg3 from '../../../assets/instances/default-3.jpg';
+import defaultImg3 from '../../../assets/instances/default-3.png';
 
 const DEFAULT_IMAGES = [defaultImg1, defaultImg2, defaultImg3];
 
