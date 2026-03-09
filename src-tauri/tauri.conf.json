@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "pilauncher",
+        "title": "PiLauncher",
         "width": 1280,
         "height": 800,
         "minWidth": 1280,
@@ -21,7 +21,7 @@
         "fullscreen": false,
         "decorations": false,  
         "transparent": true,
-        "devtools": true
+        "devtools": false
       }
     ],
     "security": {

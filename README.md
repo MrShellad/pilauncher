@@ -130,7 +130,7 @@ PiLauncher 专注于：
 
 ```bash
 # Clone repository
-git clone https://github.com/yourname/PiLauncher.git
+git clone https://github.com/MrShellad/pilauncher.git
 
 # Install dependencies
 pnpm install

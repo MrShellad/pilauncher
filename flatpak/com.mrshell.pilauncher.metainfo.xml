@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop">
+  <id>com.mrshell.pilauncher</id>
+
+  <name>PiLauncher</name>
+
+  <summary>Minecraft Launcher designed for controllers</summary>
+
+  <description>
+    <p>
+      PiLauncher is a Minecraft launcher designed for SteamDeck,
+      game controllers and living room gaming.
+    </p>
+
+    <p>
+      Features:
+    </p>
+
+    <ul>
+      <li>Controller friendly UI</li>
+      <li>Fast Minecraft installation</li>
+      <li>LAN multiplayer discovery</li>
+      <li>Optimized for SteamOS</li>
+    </ul>
+
+  </description>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+
+  <developer_name>PiLauncher Team</developer_name>
+
+  <launchable type="desktop-id">
+    com.mrshell.pilauncher.desktop
+  </launchable>
+
+  <url type="homepage">
+    https://github.com/MrShellad/pilauncher
+  </url>
+
+</component>
