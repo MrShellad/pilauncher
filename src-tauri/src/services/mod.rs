@@ -11,3 +11,4 @@ pub mod modpack_service; // ✅ 新增 modpack 模块
 pub mod auth_service; 
 pub mod lan;
 pub mod qrcode_service;
+pub mod db_service;

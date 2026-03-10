@@ -1,7 +1,19 @@
 // src/features/home/components/AccountSliderBar/UserProfileCard.tsx
-import React from 'react';
-import { Monitor, Laptop, Smartphone, Gamepad2, Plus, Loader2, RefreshCcw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+import { Monitor, Laptop, Smartphone, Gamepad2, Loader2, RefreshCcw, Send, CheckCircle, X } from 'lucide-react';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
+import { OreButton } from '../../../../ui/primitives/OreButton';
+import { OreModal } from '../../../../ui/primitives/OreModal';
+
+interface DiscoveredDevice {
+  device_id: string;
+  device_name: string;
+  ip: string;
+  port: number;
+}
 
 interface TrustedDevice {
   device_id: string;
@@ -11,139 +23,284 @@ interface TrustedDevice {
 interface UserProfileCardProps {
   name: string;
   isPremium: boolean;
-  hasPremiumAnywhere: boolean; // ✅ 新增：用于判断是否享有继承特权
-  accountsCount: number;       // ✅ 新增：用于判断是否显示切换按钮
+  hasPremiumAnywhere: boolean; 
+  accountsCount: number;       
   avatarSrc: string | null;
   trusted: TrustedDevice[];
+  discovered: DiscoveredDevice[]; // ✅ 新增：用于匹配在线状态
   onScan: () => void;
   isScanning: boolean;
-  onCycleAccount: () => void;  // ✅ 新增：一键循环切换账号
+  onCycleAccount: () => void;  
 }
 
 export const UserProfileCard: React.FC<UserProfileCardProps> = ({ 
-  name, isPremium, hasPremiumAnywhere, accountsCount, avatarSrc, trusted, onScan, isScanning, onCycleAccount
+  name, isPremium, hasPremiumAnywhere, accountsCount, avatarSrc, trusted, discovered, onScan, isScanning, onCycleAccount
 }) => {
+  // 推送抽屉状态
+  const [transferTarget, setTransferTarget] = useState<DiscoveredDevice | null>(null);
+  const [transferType, setTransferType] = useState<'instance' | 'save'>('instance');
+  const [instances, setInstances] = useState<{id: string, name: string}[]>([]);
+  const [saves, setSaves] = useState<string[]>([]);
+  const [selectedInstance, setSelectedInstance] = useState<string>('');
+  const [selectedSave, setSelectedSave] = useState<string>('');
+  const [isPushing, setIsPushing] = useState(false);
 
-  const renderMediaBackground = (src: string) => {
-    if (src.endsWith('.webm') || src.endsWith('.mp4')) {
-      return <video src={src} autoPlay loop muted className="w-full h-full object-cover opacity-60 mix-blend-screen" />;
+  // 接收弹窗状态
+  const [incomingData, setIncomingData] = useState<any>(null);
+  const [receiveTargetInstance, setReceiveTargetInstance] = useState<string>('');
+  const [isApplying, setIsApplying] = useState(false);
+
+  // 监听底层发来的文件接收事件
+  useEffect(() => {
+    const unlisten = listen('transfer_received', (event) => {
+      setIncomingData(event.payload);
+      // 顺手拉取本地实例列表，以便接收存档时选择目标
+      invoke<any[]>('get_local_instances').then(setInstances).catch(() => {});
+    });
+    return () => { unlisten.then(f => f()); }
+  }, []);
+
+  const handleOpenTransfer = async (device: DiscoveredDevice) => {
+    setTransferTarget(device);
+    try {
+      const list = await invoke<any[]>('get_local_instances');
+      setInstances(list);
+      if (list.length > 0) setSelectedInstance(list[0].id);
+    } catch (e) {}
+  };
+
+  const handleFetchSaves = async (instanceId: string) => {
+    setSelectedInstance(instanceId);
+    try {
+      const saveList = await invoke<string[]>('get_instance_saves', { instanceId });
+      setSaves(saveList);
+      if (saveList.length > 0) setSelectedSave(saveList[0]);
+    } catch (e) {}
+  };
+
+  const executePush = async () => {
+    if (!transferTarget || !selectedInstance) return;
+    setIsPushing(true);
+    try {
+      await invoke('push_to_device', {
+        targetIp: transferTarget.ip,
+        targetPort: transferTarget.port,
+        transferType: transferType,
+        targetId: selectedInstance,
+        saveName: transferType === 'save' ? selectedSave : null
+      });
+      alert("推送成功！");
+      setTransferTarget(null);
+    } catch (e) {
+      alert(`推送失败: ${e}`);
+    } finally {
+      setIsPushing(false);
     }
-    return <img src={src} className="w-full h-full object-cover opacity-60 mix-blend-screen" alt="background" />;
   };
 
-  const renderDeviceIcon = (deviceName: string) => {
-    const lower = deviceName.toLowerCase();
-    if (lower.includes('deck') || lower.includes('steam')) return <Gamepad2 size={16} className="text-orange-400" />;
-    if (lower.includes('mac') || lower.includes('book')) return <Laptop size={16} className="text-gray-300" />;
-    if (lower.includes('phone') || lower.includes('pad')) return <Smartphone size={16} className="text-green-400" />;
-    return <Monitor size={16} className="text-blue-400" />;
+  const executeApply = async () => {
+    if (!incomingData) return;
+    setIsApplying(true);
+    try {
+      await invoke('apply_received_transfer', {
+        tempPath: incomingData.tempPath,
+        transferType: incomingData.type,
+        targetInstanceId: incomingData.type === 'save' ? receiveTargetInstance : null
+      });
+      alert("解压/部署完成！");
+      setIncomingData(null);
+    } catch (e) {
+      alert(`部署失败: ${e}`);
+    } finally {
+      setIsApplying(false);
+    }
   };
 
-  // ✅ 核心样式降级与特权继承逻辑
-  const showMediaBg = isPremium || hasPremiumAnywhere;
-  
-  let wrapperClass = 'border-[#313233] bg-[#2A2A2C]'; // 默认离线：深灰边框、纯色底
-  let avatarBorderClass = 'border-black/50';
-  let nameColorClass = 'text-white';
-
-  if (isPremium) {
-    // 纯正版：黄金边框、外发光、金色名字
-    wrapperClass = 'border-[#EAB308] bg-[#1A1A1C] shadow-[0_0_15px_rgba(234,179,8,0.15)]';
-    avatarBorderClass = 'border-[#EAB308]';
-    nameColorClass = 'text-[#FBBF24]';
-  } else if (hasPremiumAnywhere) {
-    // 离线账号 + 继承特权：银色边框、继承壁纸
-    wrapperClass = 'border-[#D1D5DB] bg-[#1A1A1C] shadow-[0_0_15px_rgba(209,213,219,0.15)]';
-    avatarBorderClass = 'border-[#D1D5DB]';
-    nameColorClass = 'text-white';
-  }
+  const renderDeviceIcon = (name: string) => {
+    const lower = name.toLowerCase();
+    if (lower.includes('windows') || lower.includes('mac')) return <Laptop size={16} className="text-gray-400" />;
+    if (lower.includes('steamdeck') || lower.includes('rog')) return <Gamepad2 size={16} className="text-gray-400" />;
+    if (lower.includes('tv') || lower.includes('box')) return <Monitor size={16} className="text-gray-400" />;
+    return <Smartphone size={16} className="text-gray-400" />;
+  };
 
   return (
-    <div className={`relative flex flex-col border-[2px] overflow-hidden rounded-sm transition-colors duration-500 ${wrapperClass}`}>
-      
-      {/* 统一壁纸层：正版或特权继承者可见 */}
-      {showMediaBg && (
-        <div className="absolute inset-0 z-0 overflow-hidden">
-          {renderMediaBackground('/src/assets/home/account/bg.jpg')}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#141415] via-[#141415]/80 to-transparent" />
-        </div>
-      )}
-
-      {/* ✅ 账号切换按钮 (仅当账号数量 > 1 时显示) */}
-      {accountsCount > 1 && (
-        <div className="absolute top-3 right-3 z-20">
-          <FocusItem focusKey="btn-cycle-account" onEnter={onCycleAccount}>
-            {({ ref, focused }) => (
-              <button 
-                ref={ref as any} 
-                onClick={onCycleAccount}
-                title="切换账号"
-                className={`p-1.5 rounded-sm transition-all outline-none backdrop-blur-md ${focused ? 'bg-white text-black ring-2 ring-white/50' : 'bg-black/40 text-gray-300 hover:text-white hover:bg-black/60'}`}
-              >
-                <RefreshCcw size={16} className={focused ? 'animate-spin-slow' : ''} />
-              </button>
-            )}
-          </FocusItem>
-        </div>
-      )}
-
-      {/* 上半部分：身份头衔与头像 */}
-      <div className="relative z-10 p-5 pb-4 border-b border-white/10 mt-2">
-        <div className="flex items-start mb-1 pr-8">
-          <div className={`relative w-16 h-16 bg-[#111112] border-[2px] mr-4 flex-shrink-0 transition-colors duration-500 ${avatarBorderClass}`}>
-            <img 
-              src={avatarSrc || `https://cravatar.cn/avatars/8667ba71b85a4004af54457a9734eed7?overlay=true&size=64`} 
-              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "https://cravatar.cn/avatars/8667ba71b85a4004af54457a9734eed7?overlay=true&size=64"; }}
-              className="w-full h-full rendering-pixelated object-cover" 
-              alt="Avatar" 
-            />
-            <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[#3C8527] border-[2px] border-[#2A2A2C] rounded-full" title="在线" />
-          </div>
-          <div className="flex flex-col min-w-0 flex-1 pt-1">
-            <span className={`text-xl font-bold truncate tracking-wider drop-shadow-md transition-colors duration-500 ${nameColorClass}`}>
-              {name}
-            </span>
-            <span className="text-gray-400 text-xs truncate mt-0.5">
-              {isPremium ? 'Premium (Microsoft)' : (hasPremiumAnywhere ? 'Offline (Premium Benefits)' : 'Offline Account')}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* 下半部分：在线信任设备 */}
-      <div className="relative z-10 p-4 bg-black/20">
-        <div className="flex items-center text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">
-  <Monitor size={14} className="mr-2"/> 信任的好友与设备 ({trusted.length})
-</div>
-        
-        <div className="flex flex-col gap-2 max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
-          {trusted.length === 0 && <div className="text-xs text-gray-500 text-center py-2">暂无信任的其他设备</div>}
-          
-          {trusted.map(device => (
-            <div key={device.device_id} className="flex items-center justify-between bg-white/5 border border-white/5 p-2 rounded-sm hover:bg-white/10 transition-colors backdrop-blur-sm">
-              <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                {renderDeviceIcon(device.device_name)}
-                <span className="text-sm text-gray-200 truncate">{device.device_name}</span>
+    <>
+      <div className="flex flex-col border-[2px] border-[#313233] bg-[#1E1E1F] rounded-sm overflow-hidden shadow-xl">
+        {/* 头像与名片区保持不变... */}
+        <div className="relative h-28 w-full bg-[#111112] overflow-hidden">
+          {avatarSrc ? (
+             <img src={avatarSrc} className="w-full h-full object-cover opacity-60 mix-blend-screen blur-sm" />
+          ) : (
+            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent" />
+          )}
+          <div className="absolute inset-0 flex items-end p-4 bg-gradient-to-t from-[#1E1E1F] to-transparent">
+            <div className="flex items-center gap-3">
+              <div className={`w-14 h-14 bg-black/80 border-[2px] rounded-sm shadow-lg overflow-hidden flex-shrink-0 ${isPremium ? 'border-[#EAB308]' : 'border-[#313233]'}`}>
+                <img src={avatarSrc || `https://cravatar.cn/avatars/8667ba71b85a4004af54457a9734eed7?size=64&overlay=true`} className="w-full h-full rendering-pixelated object-cover" alt="Avatar"/>
+              </div>
+              <div className="flex flex-col drop-shadow-md">
+                <span className={`text-lg font-minecraft font-bold ${isPremium ? 'text-[#FBBF24]' : 'text-white'}`}>{name}</span>
+                <span className="text-[10px] text-gray-300 flex items-center mt-0.5">
+                  {hasPremiumAnywhere ? <span className="bg-[#EAB308]/20 text-[#FBBF24] border border-[#EAB308]/30 px-1.5 py-0.5 rounded-sm mr-1.5">Premium 尊享</span> : <span className="bg-white/10 text-gray-300 border border-white/10 px-1.5 py-0.5 rounded-sm mr-1.5">Offline 离线</span>}
+                </span>
               </div>
             </div>
-          ))}
+          </div>
+        </div>
+
+        <div className="p-3 bg-[#1A1A1B] border-t-2 border-[#2A2A2C] flex justify-between items-center">
+          <span className="text-xs text-gray-400 font-minecraft">当前活动身份</span>
+          {accountsCount > 1 && (
+            <OreButton variant="secondary" size="sm" onClick={onCycleAccount} className="!py-1 !px-2 !h-auto text-[10px]">
+              <RefreshCcw size={12} className="mr-1" /> 切换
+            </OreButton>
+          )}
+        </div>
+
+        {/* ✅ 修复的信任设备列表 */}
+        <div className="flex flex-col bg-[#141415] p-3">
+          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center justify-between">
+            <span>授信的设备 ({trusted.length})</span>
+          </div>
+          
+          <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
+            {trusted.length === 0 && <div className="text-xs text-gray-500 text-center py-2">暂无信任的其他设备</div>}
+            
+            {trusted.map(device => {
+              // 实时匹配发现的在线设备
+              const onlineInfo = discovered.find(d => d.device_id === device.device_id);
+              const isOnline = !!onlineInfo;
+
+              return (
+                <FocusItem key={device.device_id} focusKey={`trusted-${device.device_id}`} onEnter={() => isOnline && handleOpenTransfer(onlineInfo)}>
+                  {({ ref, focused }) => (
+                    <button 
+                      ref={ref as any}
+                      onClick={() => isOnline && handleOpenTransfer(onlineInfo)}
+                      className={`flex items-center justify-between bg-white/5 border p-2 rounded-sm transition-all text-left outline-none ${
+                        isOnline ? 'border-white/10 cursor-pointer hover:bg-white/10' : 'border-transparent opacity-50 cursor-not-allowed'
+                      } ${focused && isOnline ? 'ring-2 ring-white bg-white/10' : ''}`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                        {renderDeviceIcon(device.device_name)}
+                        <span className="text-sm text-gray-200 truncate">{device.device_name}</span>
+                      </div>
+                      <div className="flex items-center">
+                        {isOnline ? (
+                          <span className="text-[10px] text-ore-green flex items-center bg-ore-green/10 px-1.5 py-0.5 rounded-sm border border-ore-green/20">
+                            <span className="w-1.5 h-1.5 bg-ore-green rounded-full mr-1 animate-pulse" /> 在线
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-gray-500">离线</span>
+                        )}
+                      </div>
+                    </button>
+                  )}
+                </FocusItem>
+              );
+            })}
+          </div>
           
           <FocusItem focusKey="btn-rescan-device" onEnter={onScan}>
             {({ ref, focused }) => (
               <button 
                 ref={ref as any} onClick={onScan} disabled={isScanning}
-                className={`flex items-center justify-center gap-1.5 w-full mt-1 p-2 rounded-sm text-sm transition-all outline-none border-[2px] border-dashed backdrop-blur-sm
+                className={`flex items-center justify-center gap-1.5 w-full mt-2 p-2 rounded-sm text-sm transition-all outline-none border-[2px] border-dashed backdrop-blur-sm
                   ${focused ? 'border-white text-white bg-white/10' : 'border-white/10 text-gray-400 bg-white/5 hover:text-white hover:border-white/30'}
                   ${isScanning ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                {isScanning ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} 
-                {isScanning ? '雷达扫描中...' : '扫描局域网设备'}
+                {isScanning ? <Loader2 size={14} className="animate-spin text-ore-green" /> : <RefreshCcw size={14} />}
+                {isScanning ? '正在扫描局域网...' : '扫描新设备'}
               </button>
             )}
           </FocusItem>
         </div>
       </div>
 
-    </div>
+      {/* ✅ 侧边滑出：推送控制台抽屉 */}
+      <AnimatePresence>
+        {transferTarget && (
+          <motion.div 
+            initial={{ x: '100%', opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: '100%', opacity: 0 }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed inset-y-0 right-0 w-[340px] bg-[#1E1E1F] border-l-2 border-[#2A2A2C] z-[9999] shadow-2xl flex flex-col font-minecraft"
+          >
+            <div className="p-5 border-b-2 border-[#2A2A2C] flex justify-between items-center bg-[#141415]">
+              <div>
+                <h3 className="text-white text-lg font-bold flex items-center"><Send size={18} className="mr-2 text-blue-400" /> 隔空投送</h3>
+                <span className="text-xs text-gray-400 mt-1 block">目标: {transferTarget.device_name}</span>
+              </div>
+              <button onClick={() => setTransferTarget(null)} className="p-1 hover:bg-white/10 text-gray-400 rounded-sm transition-colors"><X size={20}/></button>
+            </div>
+
+            <div className="flex p-3 gap-2 bg-[#1A1A1B]">
+              <button onClick={() => setTransferType('instance')} className={`flex-1 py-2 text-sm border-b-2 transition-colors ${transferType === 'instance' ? 'border-blue-400 text-blue-400' : 'border-transparent text-gray-500'}`}>打包实例</button>
+              <button onClick={() => setTransferType('save')} className={`flex-1 py-2 text-sm border-b-2 transition-colors ${transferType === 'save' ? 'border-green-400 text-green-400' : 'border-transparent text-gray-500'}`}>提取存档</button>
+            </div>
+
+            <div className="p-5 flex-1 overflow-y-auto">
+              <label className="text-xs text-gray-400 mb-2 block">{transferType === 'instance' ? '选择要发送的实例' : '从实例中提取'}</label>
+              <select className="w-full bg-[#141415] border-2 border-[#2A2A2C] text-white p-2 rounded-sm outline-none mb-4" value={selectedInstance} onChange={(e) => transferType === 'save' ? handleFetchSaves(e.target.value) : setSelectedInstance(e.target.value)}>
+                <option value="" disabled>-- 请选择 --</option>
+                {instances.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
+              </select>
+
+              {transferType === 'save' && (
+                <>
+                  <label className="text-xs text-gray-400 mb-2 block mt-2">选择世界存档</label>
+                  <select className="w-full bg-[#141415] border-2 border-[#2A2A2C] text-white p-2 rounded-sm outline-none" value={selectedSave} onChange={(e) => setSelectedSave(e.target.value)}>
+                    <option value="" disabled>-- 请选择 --</option>
+                    {saves.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </>
+              )}
+            </div>
+
+            <div className="p-5 border-t-2 border-[#2A2A2C] bg-[#141415]">
+              <OreButton onClick={executePush} disabled={isPushing || !selectedInstance || (transferType === 'save' && !selectedSave)} variant="primary" className="w-full flex justify-center !h-12">
+                {isPushing ? <Loader2 size={18} className="animate-spin mr-2" /> : <Send size={18} className="mr-2" />}
+                {isPushing ? '打包并发送中...' : '开始传送'}
+              </OreButton>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ✅ 接收确认弹窗 */}
+      <OreModal isOpen={!!incomingData} onClose={() => setIncomingData(null)} title="📥 收到局域网投送" closeOnOutsideClick={false}>
+        {incomingData && (
+          <div className="p-6 font-minecraft flex flex-col items-center">
+            <div className="bg-blue-500/10 p-4 rounded-full mb-4">
+              <CheckCircle size={40} className="text-blue-400" />
+            </div>
+            <p className="text-center text-white mb-2">
+              来自 <strong>{incomingData.from}</strong> 的文件传输已送达本地。
+            </p>
+            <div className="bg-[#141415] border border-[#2A2A2C] p-3 w-full my-4 text-center">
+              <span className="text-xs text-gray-500 block mb-1">内容类型: {incomingData.type === 'instance' ? '完整游戏实例' : '世界存档'}</span>
+              <span className="text-lg text-ore-green">{incomingData.name}</span>
+            </div>
+
+            {incomingData.type === 'save' && (
+              <div className="w-full mb-4 text-left">
+                <label className="text-xs text-gray-400 mb-2 block">请指定接收该存档的本地实例：</label>
+                <select className="w-full bg-[#141415] border-2 border-[#2A2A2C] text-white p-2 rounded-sm outline-none" value={receiveTargetInstance} onChange={(e) => setReceiveTargetInstance(e.target.value)}>
+                  <option value="" disabled>-- 选择本地实例 --</option>
+                  {instances.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
+                </select>
+              </div>
+            )}
+
+            <div className="flex gap-4 w-full mt-4">
+              <OreButton className="flex-1" variant="secondary" onClick={() => setIncomingData(null)}>拒绝并丢弃</OreButton>
+              <OreButton className="flex-1 flex justify-center" variant="primary" onClick={executeApply} disabled={isApplying || (incomingData.type === 'save' && !receiveTargetInstance)}>
+                {isApplying ? <Loader2 size={16} className="animate-spin mr-2"/> : null}
+                {isApplying ? '正在解压部署...' : '接收并解压'}
+              </OreButton>
+            </div>
+          </div>
+        )}
+      </OreModal>
+    </>
   );
 };

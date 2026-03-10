@@ -1,8 +1,7 @@
 // src/features/home/components/AccountSliderBar/LanRadar.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Users } from 'lucide-react';
 
-// ✅ 核心修复：分离组件导入与类型导入，并加上 type 关键字
 import { LanDeviceItem } from './LanDeviceItem';
 import type { DeviceInitInfo } from './LanDeviceItem';
 
@@ -31,47 +30,48 @@ interface LanRadarProps {
 export const LanRadar: React.FC<LanRadarProps> = ({ discovered, trusted, isScanning, isRequesting, onRequestTrust }) => {
   const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null);
   const [richInfos, setRichInfos] = useState<Record<string, DeviceInitInfo>>({});
+  const fetchedRef = useRef<Set<string>>(new Set());
   
-  // 获取本机设备ID与账号列表
   const { settings } = useSettingsStore();
   const { accounts } = useAccountStore();
-  const localDeviceId = settings.general.deviceId;
+  
+  const validDevices = discovered.filter(dev => dev.device_id !== settings.general.deviceId);
 
-  // 当雷达发现新设备时，主动去拉取对方的富文本名片
   useEffect(() => {
-    discovered.forEach(dev => {
-      // 1. 过滤掉自己发出的广播回音
-      if (dev.device_id === localDeviceId) return;
-      
-      // 2. 如果还没拉取过该设备的名片，发起 HTTP 请求
-      if (!richInfos[dev.device_id]) {
+    validDevices.forEach(dev => {
+      if (!fetchedRef.current.has(dev.device_id)) {
+        fetchedRef.current.add(dev.device_id);
         fetch(`http://${dev.ip}:${dev.port}/device/init`)
           .then(res => {
-            if (!res.ok) throw new Error('网络请求失败');
+            if(!res.ok) throw new Error("HTTP Status Error");
             return res.json();
           })
-          .then((info: DeviceInitInfo) => {
-            setRichInfos(prev => ({ ...prev, [dev.device_id]: info }));
+          .then((data: DeviceInitInfo) => {
+            setRichInfos(prev => ({ ...prev, [dev.device_id]: data }));
           })
-          .catch(e => console.warn(`无法获取设备 ${dev.device_name} 的名片信息:`, e));
+          // ✅ 修复：将未使用的 e 改为下划线 _e 或直接不传参 () =>
+          .catch(() => {
+            // 如果对方 HTTP 服务还没起好，移除标记以允许下次重新尝试抓取
+            fetchedRef.current.delete(dev.device_id);
+          });
       }
     });
-  }, [discovered, localDeviceId]);
+  }, [validDevices]);
 
-  // 过滤出有效设备（剔除本机）
-  const validDevices = discovered.filter(d => d.device_id !== localDeviceId);
-
-  // 智能排序逻辑
   const sortedDevices = [...validDevices].sort((a, b) => {
-    const infoA = richInfos[a.device_id];
-    const infoB = richInfos[b.device_id];
-    
-    // 判断该设备的当前游玩账号，是否和本机的某个账号 UUID 一致 (即：这是我的另一台设备)
-    const aIsOwn = infoA ? accounts.some(acc => acc.uuid === infoA.user_uuid) : false;
-    const bIsOwn = infoB ? accounts.some(acc => acc.uuid === infoB.user_uuid) : false;
+    const aIsFriend = trusted.some(t => t.device_id === a.device_id);
+    const bIsFriend = trusted.some(t => t.device_id === b.device_id);
+    const aRich = richInfos[a.device_id];
+    const bRich = richInfos[b.device_id];
+    const aIsOwn = aRich ? accounts.some(acc => acc.uuid === aRich.user_uuid) : false;
+    const bIsOwn = bRich ? accounts.some(acc => acc.uuid === bRich.user_uuid) : false;
 
-    if (aIsOwn && !bIsOwn) return -1; // 我的设备优先靠前
+    if (aIsOwn && !bIsOwn) return -1;
     if (!aIsOwn && bIsOwn) return 1;
+
+    if (aIsFriend && !bIsFriend) return -1;
+    if (!aIsFriend && bIsFriend) return 1;
+
     return 0;
   });
 
@@ -100,9 +100,9 @@ export const LanRadar: React.FC<LanRadarProps> = ({ discovered, trusted, isScann
               richInfo={richInfo}
               isFriend={isFriend}
               isOwnAccount={isOwnAccount}
-              isExpanded={expandedPlayerId === dev.device_id}
               isRequesting={isRequesting}
-              onToggleExpand={() => setExpandedPlayerId(expandedPlayerId === dev.device_id ? null : dev.device_id)}
+              isExpanded={expandedPlayerId === dev.device_id}
+              onToggleExpand={() => setExpandedPlayerId(prev => prev === dev.device_id ? null : dev.device_id)}
               onRequestTrust={onRequestTrust}
             />
           );

@@ -89,7 +89,13 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         auth_cmd::get_or_fetch_account_avatar,
         lan_cmd::scan_lan_devices,
         lan_cmd::send_trust_request,
+        lan_cmd::get_trusted_devices,
         lan_cmd::resolve_trust_request,
+        lan_cmd::sync_lan_avatar,
+        lan_cmd::get_local_instances,
+        lan_cmd::get_instance_saves,
+        lan_cmd::push_to_device,
+        lan_cmd::apply_received_transfer,
         qrcode_cmd::generate_device_auth_qr,
 
     ])

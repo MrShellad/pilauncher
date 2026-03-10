@@ -11,12 +11,12 @@ pub mod services;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // ✅ 初始化局域网共享状态 (用于 Tauri 和 Axum HTTP 跨线程握手通信)
+    // 初始化局域网共享状态 (用于 Tauri 和 Axum HTTP 跨线程握手通信)
     let lan_state = Arc::new(services::lan::http_api::SharedLanState::new());
 
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        // ✅ 将状态托管给 Tauri，以便在 Command 中通过 State<'_, SharedLanState> 提取
+        // 将状态托管给 Tauri，以便在 Command 中通过 State<'_, SharedLanState> 提取
         .manage(lan_state.clone()); 
 
     // 2. 挂载所有模块化的 IPC Commands
@@ -34,10 +34,26 @@ pub fn run() {
                 )?;
             }
 
+            // ==========================================
+            // ✅ 核心修改：在 setup 中同步挂载异步的 SQLite 数据库
+            // ==========================================
+            // 我们把数据库统一放到系统的 AppData/config 目录下，确保数据安全
+            let app_dir = app.path().app_data_dir().expect("无法获取系统应用数据目录");
+            let db_config_dir = app_dir.join("config");
+            
+            // 因为 setup 是同步函数，而 sqlx 是异步的，所以必须用 block_on 阻塞等待建表完成
+            let pool = tauri::async_runtime::block_on(async {
+                services::db_service::DbService::init_db(&db_config_dir).await
+            }).expect("数据库初始化崩溃！请检查文件读写权限！");
+
+            // 将数据库连接池注入到 Tauri 的全局状态中
+            app.manage(services::db_service::AppDatabase { pool });
+            // ==========================================
+
             let handle = app.handle().clone();
             let state_clone = lan_state.clone();
 
-            // ✅ 3. 在后台独立线程中派发常驻网络服务
+            // 3. 在后台独立线程中派发常驻网络服务
             tauri::async_runtime::spawn(async move {
                 println!("\n[PiLauncher] ========================================");
                 println!("[PiLauncher] 🚀 正在初始化后台局域网核心引擎...");
