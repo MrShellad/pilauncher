@@ -10,11 +10,12 @@ interface OreInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>
   width?: string | number;
   height?: string | number;
   focusKey?: string;
+  onArrowPress?: (direction: string) => boolean | void;
   prefixNode?: React.ReactNode; // ✅ 新增：用于在左侧内嵌图标 (如搜索放大镜)
 }
 
 export const OreInput = React.forwardRef<HTMLInputElement, OreInputProps>(
-  ({ label, description, error, containerClassName = '', width = '100%', height = '40px', disabled, className = '', style, focusKey, prefixNode, onKeyDown, ...props }, forwardedRef) => {
+  ({ label, description, error, containerClassName = '', width = '100%', height = '40px', disabled, className = '', style, focusKey, onArrowPress, prefixNode, onKeyDown, ...props }, forwardedRef) => {
     const id = useId(); 
     const internalRef = useRef<HTMLInputElement>(null);
 
@@ -37,6 +38,7 @@ export const OreInput = React.forwardRef<HTMLInputElement, OreInputProps>(
       <FocusItem 
         focusKey={focusKey} 
         disabled={disabled} 
+        onArrowPress={onArrowPress}
         onEnter={() => internalRef.current?.focus()} // ✅ 手柄按下确认时，激活原生输入模式
       >
         {({ ref: focusRef, focused }) => (

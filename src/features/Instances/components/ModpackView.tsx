@@ -1,11 +1,14 @@
 // /src/features/Instances/components/ModpackView.tsx
 import React, { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { Package } from 'lucide-react';
 
 import { useResourceDownload } from '../../Download/hooks/useResourceDownload';
 import { FilterBar } from '../../Download/components/FilterBar';
 import { ResourceGrid } from '../../Download/components/ResourceGrid';
 import { DownloadDetailModal } from '../../Download/components/DownloadDetailModal';
+import type { ModrinthProject, OreProjectVersion } from '../../InstanceDetail/logic/modrinthApi';
 
 import { useLauncherStore } from '../../../store/useLauncherStore';
 import { useDownloadStore } from '../../../store/useDownloadStore';
@@ -15,29 +18,24 @@ export const ModpackView: React.FC = () => {
   const downloadState = useResourceDownload('__modpack_market__');
   const setActiveTab = useLauncherStore(state => state.setActiveTab);
   const setPopupOpen = useDownloadStore(state => state.setPopupOpen);
+  const setActiveDownloadTab = downloadState.setActiveTab;
   
-  const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [selectedProject, setSelectedProject] = useState<ModrinthProject | null>(null);
 
   // ✅ 强制锁定为 modpack 模式，这样底层的 Modrinth API 会自动去搜索整合包
   useEffect(() => {
-    downloadState.setActiveTab('modpack');
-  }, [downloadState.setActiveTab]);
+    setActiveDownloadTab('modpack');
+  }, [setActiveDownloadTab]);
+
+  useEffect(() => {
+    if (selectedProject) return;
+    const timer = setTimeout(() => setFocus('download-search-input'), 100);
+    return () => clearTimeout(timer);
+  }, [selectedProject]);
 
   // ✅ 核心下载与跳转逻辑
-  const handleDownload = async (version: any, instanceName: string) => {
-    let targetUrl = '';
-
-    // 1. 兼容你自定义的 OreProjectVersion 结构 (蛇形命名或驼峰命名)
-    if (version.download_url) {
-      targetUrl = version.download_url;
-    } else if (version.downloadUrl) {
-      targetUrl = version.downloadUrl;
-    } 
-    // 2. 兼容原生的 Modrinth API 结构
-    else if (version.files && version.files.length > 0) {
-      const primaryFile = version.files.find((f: any) => f.primary) || version.files[0];
-      targetUrl = primaryFile.url;
-    }
+  const handleDownload = async (version: OreProjectVersion, instanceName: string) => {
+    const targetUrl = version.download_url;
 
     if (!targetUrl) {
       console.error("异常的版本数据结构:", version);
@@ -69,6 +67,9 @@ export const ModpackView: React.FC = () => {
     <div className="flex flex-col h-full w-full relative animate-fade-in bg-[#111112]">
       {/* 搜索与过滤器生态复用 */}
       <FilterBar
+        activeTab={downloadState.activeTab}
+        tabs={[{ id: 'modpack', label: '整合包', icon: Package }]}
+        onTabChange={downloadState.setActiveTab}
         query={downloadState.query} setQuery={downloadState.setQuery}
         source={downloadState.source} setSource={downloadState.setSource}
         mcVersion={downloadState.mcVersion} setMcVersion={downloadState.setMcVersion}

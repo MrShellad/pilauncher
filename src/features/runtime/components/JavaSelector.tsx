@@ -1,5 +1,5 @@
 // src/features/runtime/components/JavaSelector.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { OreInput } from '../../../ui/primitives/OreInput';
 import { OreButton } from '../../../ui/primitives/OreButton';
@@ -8,22 +8,49 @@ import { FocusItem } from '../../../ui/focus/FocusItem';
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary'; 
 import { Search, FolderOpen, Loader2, CheckCircle2, RefreshCw } from 'lucide-react';
 import { validateCachedJava, scanJava, getJavaRecommendation, type JavaInstall } from '../logic/javaDetector';
-import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
-// ✅ 引入我们自己写的沉浸式目录选择器
 import { DirectoryBrowserModal } from '../../../ui/components/DirectoryBrowserModal';
 
 export const JavaSelector: React.FC<{ value: string; onChange: (path: string) => void; disabled?: boolean }> = ({ value, onChange, disabled }) => {
-  // Java 列表弹窗状态
   const [isModalOpen, setModalOpen] = useState(false);
   const [javaList, setJavaList] = useState<JavaInstall[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   
-  // 目录选择器弹窗状态
   const [isBrowserOpen, setIsBrowserOpen] = useState(false);
   const [browserStartPath, setBrowserStartPath] = useState('');
 
   const wasModalOpen = useRef(false);
+  const wasBrowserOpen = useRef(false);
+  const returnFocusKeyRef = useRef<string>('java-input-path');
+
+  const restoreFocusAfterClose = useCallback(() => {
+    const candidates = [
+      returnFocusKeyRef.current,
+      'java-input-path',
+      'java-btn-browse'
+    ];
+
+    setTimeout(() => {
+      const next = candidates.find((k) => !!k && doesFocusableExist(k));
+      if (next) setFocus(next);
+    }, 80);
+  }, []);
+
+  const openSelectorModal = useCallback((fallbackFocusKey: string) => {
+    if (disabled) return;
+
+    const current = getCurrentFocusKey();
+    const isValidCurrent = current && current !== 'SN:ROOT' && current.startsWith('java-');
+    returnFocusKeyRef.current = isValidCurrent ? current : fallbackFocusKey;
+
+    setModalOpen(true);
+  }, [disabled]);
+
+  const closeSelectorModal = useCallback((nextFocusKey?: string) => {
+    if (nextFocusKey) returnFocusKeyRef.current = nextFocusKey;
+    setModalOpen(false);
+  }, []);
 
   const loadFromCache = async () => {
     setIsScanning(true);
@@ -37,8 +64,22 @@ export const JavaSelector: React.FC<{ value: string; onChange: (path: string) =>
       loadFromCache();
       setTimeout(() => setFocus('btn-java-scan'), 100);
     }
+    if (!isModalOpen && wasModalOpen.current && !isBrowserOpen) {
+      restoreFocusAfterClose();
+    }
     wasModalOpen.current = isModalOpen;
-  }, [isModalOpen]);
+  }, [isModalOpen, isBrowserOpen, restoreFocusAfterClose]);
+
+  useEffect(() => {
+    if (!isBrowserOpen && wasBrowserOpen.current && isModalOpen) {
+      setTimeout(() => {
+        if (doesFocusableExist('btn-java-browse')) {
+          setFocus('btn-java-browse');
+        }
+      }, 80);
+    }
+    wasBrowserOpen.current = isBrowserOpen;
+  }, [isBrowserOpen, isModalOpen]);
 
   const handleScan = async () => {
     setIsScanning(true);
@@ -47,7 +88,6 @@ export const JavaSelector: React.FC<{ value: string; onChange: (path: string) =>
     setIsScanning(false);
   };
 
-  // ✅ 唤起我们自己的浏览器，并自动定位到 runtime/java
   const handleBrowse = async () => {
     try {
       const basePath = await invoke<string | null>('get_base_directory');
@@ -63,26 +103,23 @@ export const JavaSelector: React.FC<{ value: string; onChange: (path: string) =>
     setIsBrowserOpen(true);
   };
 
-  // ✅ 选择目录后，智能推导系统后缀
   const handleDirSelect = (dirPath: string) => {
     const isWin = dirPath.includes('\\');
     const sep = isWin ? '\\' : '/';
     const exeName = isWin ? 'javaw.exe' : 'java';
-    
-    // 智能判断用户选到了哪一层
     let executable = dirPath.endsWith('bin') ? `${dirPath}${sep}${exeName}` : `${dirPath}${sep}bin${sep}${exeName}`;
     
     onChange(executable);
     setIsBrowserOpen(false);
-    setModalOpen(false); // 同时关闭底层的 Java 列表弹窗
+    closeSelectorModal('java-input-path');
   };
 
   return (
     <>
-      {/* 入口触发器 */}
       <div className="flex gap-2">
-        <div className="flex-1 cursor-pointer" onClick={() => !disabled && setModalOpen(true)}>
+        <div className="flex-1 cursor-pointer" onClick={() => openSelectorModal('java-input-path')}>
           <OreInput 
+            focusKey="java-input-path" // ✅ 补充焦点ID
             value={value} 
             readOnly 
             placeholder="点击选择 Java 路径..." 
@@ -91,15 +128,19 @@ export const JavaSelector: React.FC<{ value: string; onChange: (path: string) =>
             containerClassName="!space-y-0"
           />
         </div>
-        <OreButton variant="secondary" onClick={() => setModalOpen(true)} disabled={disabled} className="!px-4">
+        <OreButton 
+          focusKey="java-btn-browse" // ✅ 补充焦点ID
+          variant="secondary" 
+          onClick={() => openSelectorModal('java-btn-browse')} 
+          disabled={disabled} 
+          className="!px-4"
+        >
           选择...
         </OreButton>
       </div>
 
-      {/* Java 列表弹窗 */}
-      <OreModal isOpen={isModalOpen} onClose={() => setModalOpen(false)} title="选择 Java 运行时" className="w-[600px] h-[500px]">
-        <FocusBoundary id="java-selector-boundary" trapFocus={isModalOpen} onEscape={() => setModalOpen(false)} className="flex flex-col h-full outline-none">
-          
+      <OreModal isOpen={isModalOpen} onClose={() => closeSelectorModal()} title="选择 Java 运行时" className="w-[600px] h-[500px]">
+        <FocusBoundary id="java-selector-boundary" trapFocus={isModalOpen} onEscape={() => closeSelectorModal()} className="flex flex-col h-full outline-none">
           <div className="flex gap-3 mb-4 shrink-0">
             <FocusItem focusKey="btn-java-scan" onEnter={handleScan}>
               {({ ref, focused }) => (
@@ -132,10 +173,10 @@ export const JavaSelector: React.FC<{ value: string; onChange: (path: string) =>
               javaList.map((java, idx) => {
                 const rec = getJavaRecommendation(java.version);
                 return (
-                  <FocusItem key={java.path} focusKey={`java-item-${idx}`} onEnter={() => { onChange(java.path); setModalOpen(false); }}>
+                  <FocusItem key={java.path} focusKey={`java-item-${idx}`} onEnter={() => { onChange(java.path); closeSelectorModal('java-input-path'); }}>
                     {({ ref, focused }) => (
                       <div
-                        ref={ref as any} onClick={() => { onChange(java.path); setModalOpen(false); }}
+                        ref={ref as any} onClick={() => { onChange(java.path); closeSelectorModal('java-input-path'); }}
                         className={`
                           flex flex-col p-4 bg-[#141415] border-2 cursor-pointer outline-none transition-all duration-200
                           ${value === java.path ? 'border-ore-green shadow-[0_0_10px_rgba(56,133,39,0.2)]' : 'border-[#1E1E1F] hover:border-white/30'}
@@ -160,7 +201,6 @@ export const JavaSelector: React.FC<{ value: string; onChange: (path: string) =>
         </FocusBoundary>
       </OreModal>
 
-      {/* ✅ 挂载嵌套的目录浏览器弹窗 */}
       <DirectoryBrowserModal 
         isOpen={isBrowserOpen} 
         onClose={() => setIsBrowserOpen(false)} 

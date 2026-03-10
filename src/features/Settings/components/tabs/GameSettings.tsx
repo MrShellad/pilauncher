@@ -71,6 +71,7 @@ export const GameSettings: React.FC = () => {
           control={
             <div className="w-56">
               <OreInput 
+                focusKey="settings-game-window-title"
                 value={game.windowTitle} 
                 onChange={(e) => updateGameSetting('windowTitle', e.target.value)} 
                 placeholder="Minecraft"

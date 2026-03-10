@@ -16,11 +16,13 @@ interface OreDropdownProps {
   disabled?: boolean;
   className?: string; 
   focusKey?: string;
+  onArrowPress?: (direction: string) => boolean | void;
   searchable?: boolean; 
+  onOpenChange?: (isOpen: boolean) => void;
 }
 
 export const OreDropdown: React.FC<OreDropdownProps> = ({
-  options, value, onChange, placeholder = 'Select...', disabled = false, className = '', focusKey, searchable = false
+  options, value, onChange, placeholder = 'Select...', disabled = false, className = '', focusKey, onArrowPress, searchable = false, onOpenChange
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [placement, setPlacement] = useState<'bottom' | 'top'>('bottom');
@@ -38,16 +40,20 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
 
   useEffect(() => {
     const handleGlobalToggle = (e: any) => {
-      if (e.detail !== dropdownId) setIsOpen(false);
+      if (e.detail !== dropdownId) {
+        setIsOpen(false);
+        onOpenChange?.(false);
+      }
     };
     window.addEventListener('ore-dropdown-toggle', handleGlobalToggle);
     return () => window.removeEventListener('ore-dropdown-toggle', handleGlobalToggle);
-  }, [dropdownId]);
+  }, [dropdownId, onOpenChange]);
 
   const toggleDropdown = () => {
     if (disabled) return;
     const nextState = !isOpen;
     setIsOpen(nextState);
+    onOpenChange?.(nextState);
     if (nextState) {
       window.dispatchEvent(new CustomEvent('ore-dropdown-toggle', { detail: dropdownId }));
     }
@@ -111,20 +117,27 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
         if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
           onChange(filteredOptions[highlightedIndex].value);
           setIsOpen(false);
+          onOpenChange?.(false);
         }
-      } else if (e.key === 'Escape') setIsOpen(false);
+      } else if (e.key === 'Escape') {
+        setIsOpen(false);
+        onOpenChange?.(false);
+      }
     };
     window.addEventListener('keydown', handleKeyDown, { capture: true });
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
-  }, [isOpen, highlightedIndex, filteredOptions, onChange]);
+  }, [isOpen, highlightedIndex, filteredOptions, onChange, onOpenChange]);
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setIsOpen(false);
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+        onOpenChange?.(false);
+      }
     };
     if (isOpen) document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [isOpen]);
+  }, [isOpen, onOpenChange]);
 
   useLayoutEffect(() => {
     if (isOpen && triggerRef.current && panelRef.current) {
@@ -142,7 +155,7 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
   }, [isOpen, options]);
 
   return (
-    <FocusItem focusKey={focusKey} disabled={disabled} onEnter={toggleDropdown}>
+    <FocusItem focusKey={focusKey} disabled={disabled} onArrowPress={onArrowPress} onEnter={toggleDropdown}>
       {({ ref: focusRef, focused }) => (
         <div 
           ref={focusRef as any} 
@@ -209,7 +222,7 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
                           <div
                             key={opt.value}
                             onMouseEnter={() => setHighlightedIndex(idx)} 
-                            onClick={() => { onChange(opt.value); setIsOpen(false); }}
+                            onClick={() => { onChange(opt.value); setIsOpen(false); onOpenChange?.(false); }}
                             className={`ore-dropdown-item ${isSelected ? 'is-selected' : ''} ${isHighlighted ? 'is-highlighted' : ''}`}
                           >
                             <span className="font-minecraft whitespace-normal break-words pr-2">{opt.label}</span>

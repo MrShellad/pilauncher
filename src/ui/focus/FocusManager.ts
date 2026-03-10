@@ -13,6 +13,15 @@ class FocusManager {
   }
 
   /**
+   * Register a first-available focus target for a boundary without overriding history.
+   */
+  seedFocus(boundaryId: string, focusKey: string) {
+    if (!this.history.has(boundaryId)) {
+      this.history.set(boundaryId, focusKey);
+    }
+  }
+
+  /**
    * 恢复容器的焦点，如果没记录过，可以选择回退到默认 key
    */
   restoreFocus(boundaryId: string, fallbackFocusKey?: string) {

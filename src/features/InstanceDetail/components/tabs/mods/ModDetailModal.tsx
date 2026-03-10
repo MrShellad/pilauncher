@@ -24,12 +24,10 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({ mod, instanceCon
   const [isLoadingVersions, setIsLoadingVersions] = useState(false);
   const [displayMod, setDisplayMod] = useState<ModMeta | null>(null);
 
-  // 当外部的 mod 改变时，同步给 displayMod
   useEffect(() => {
     if (mod) setDisplayMod(mod);
   }, [mod]);
 
-  // ✅ 核心导航修复：打开模态框时，延迟 100ms 强制将焦点落在“启用/禁用”按钮上
   useEffect(() => {
     if (mod) {
       setTimeout(() => setFocus('btn-mod-toggle'), 100);
@@ -41,7 +39,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({ mod, instanceCon
       setIsLoadingVersions(true);
       const targetLoader = instanceConfig.loader?.type?.toLowerCase() === 'vanilla' ? '' : instanceConfig.loader?.type?.toLowerCase();
       fetchModrinthVersions(mod.networkInfo.id, instanceConfig.mcVersion, targetLoader)
-        .then(res => setModVersions(res.slice(0, 5))) // 只看最近的5个版本
+        .then(res => setModVersions(res.slice(0, 5))) 
         .catch(err => console.error("获取版本失败:", err))
         .finally(() => setIsLoadingVersions(false));
     } else {
@@ -61,18 +59,23 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({ mod, instanceCon
   if (!mod) return null;
 
   const displayDesc = displayMod?.description || displayMod?.networkInfo?.description || "没有提供该模组的描述。";
+  
+  // ✅ 修复缓存穿透：生成稳定的 CacheKey
+  const cacheKey = displayMod?.modifiedAt || displayMod?.fileSize || displayMod?.fileName || 'cache';
 
   return (
     <OreModal isOpen={!!mod} onClose={onClose} title={displayMod?.name || displayMod?.networkInfo?.title || displayMod?.fileName} className="w-[800px] h-[70vh]">
-      {/* ✅ trapFocus 囚禁焦点：开启弹窗期间，无论怎么乱按，焦点都跑不到外层 */}
       <FocusBoundary id="mod-detail-boundary" trapFocus onEscape={onClose} className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-[#141415]">
         <div className="flex space-x-6">
           <div className="w-32 h-32 flex-shrink-0 bg-[#1E1E1F] border-2 border-[#2A2A2C] shadow-inner flex items-center justify-center p-2 rounded-sm relative">
             {mod.isFetchingNetwork && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><Loader2 className="animate-spin text-ore-green" /></div>}
+            
             {displayMod?.iconAbsolutePath || displayMod?.networkIconUrl || displayMod?.networkInfo?.icon_url ? (
-              <img src={displayMod.iconAbsolutePath ? `${convertFileSrc(displayMod.iconAbsolutePath)}?t=${Date.now()}` : (displayMod.networkIconUrl || displayMod.networkInfo?.icon_url)} alt="icon" className="w-full h-full object-cover" />
+              // ✅ 移除 Date.now()，使用稳定的 t 参数
+              <img src={displayMod.iconAbsolutePath ? `${convertFileSrc(displayMod.iconAbsolutePath)}?t=${cacheKey}` : (displayMod.networkIconUrl || displayMod.networkInfo?.icon_url)} alt="icon" className="w-full h-full object-cover" />
             ) : <Blocks size={48} className="text-gray-600" />}
           </div>
+          
           <div className="flex-1">
             <h2 className="text-2xl font-minecraft text-white drop-shadow-sm flex items-center">
               {displayMod?.name || displayMod?.networkInfo?.title || displayMod?.fileName}
@@ -86,7 +89,6 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({ mod, instanceCon
           </div>
         </div>
 
-        {/* ✅ 为操作按钮注入固定的 focusKey */}
         <div className="mt-6 flex gap-3 border-b-2 border-white/5 pb-6">
           <OreButton focusKey="btn-mod-toggle" variant={displayMod?.isEnabled ? 'secondary' : 'primary'} onClick={() => onToggle(mod.fileName, !!displayMod?.isEnabled)}>
             <Power size={18} className="mr-2" /> {displayMod?.isEnabled ? "点击禁用" : "点击启用"}

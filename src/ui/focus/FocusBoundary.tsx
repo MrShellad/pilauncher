@@ -1,10 +1,12 @@
 // src/ui/focus/FocusBoundary.tsx
 import React, { useEffect, createContext } from 'react';
-import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
+import { FocusContext, useFocusable } from '@noriginmedia/norigin-spatial-navigation';
 import { focusManager } from './FocusManager';
 
-// ✅ 新增：创建一个上下文，把 Boundary 的 ID 传递给内部的 Item
-export const BoundaryContext = createContext<string | null>(null);
+export const BoundaryContext = createContext<{ id: string | null; isActive: boolean }>({
+  id: null,
+  isActive: true
+});
 
 interface FocusBoundaryProps {
   id: string;
@@ -12,50 +14,61 @@ interface FocusBoundaryProps {
   children: React.ReactNode;
   trapFocus?: boolean;
   onEscape?: () => void;
+  isActive?: boolean;
+  defaultFocusKey?: string;
 }
 
 export const FocusBoundary: React.FC<FocusBoundaryProps> = ({
-  id, className, children, trapFocus = false, onEscape
+  id,
+  className,
+  children,
+  trapFocus = false,
+  onEscape,
+  isActive = true,
+  defaultFocusKey
 }) => {
   const { ref, focusKey, focused, hasFocusedChild } = useFocusable({
-    focusable: true,
+    // Boundary itself must never become a focus target.
+    focusable: false,
     focusKey: id,
-    isFocusBoundary: trapFocus,
+    isFocusBoundary: isActive && trapFocus
   });
 
-  // ✅ 核心机制 1：当边界组件挂载时，尝试自动恢复之前的焦点记忆
   useEffect(() => {
+    if (!isActive) return;
+
     const timer = setTimeout(() => {
-      // 只有在当前边界内部没有活跃焦点时，才触发恢复逻辑
-      if (!focused && !hasFocusedChild) {
-        focusManager.restoreFocus(id);
+      // If focus was forced onto boundary itself, redirect to remembered/default child.
+      if (focused && !hasFocusedChild) {
+        focusManager.restoreFocus(id, defaultFocusKey);
       }
-    }, 50); // 给 DOM 渲染留一点时间
+    }, 50);
+
     return () => clearTimeout(timer);
-  }, [id]);
+  }, [id, isActive, focused, hasFocusedChild, defaultFocusKey]);
 
   useEffect(() => {
     const handleGlobalEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (focused || hasFocusedChild) {
-          const activeEl = document.activeElement as HTMLElement;
-          if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
-            activeEl.blur();
-            return; 
-          }
-          if (onEscape) onEscape();
-        }
+      if (!isActive) return;
+      if (e.key !== 'Escape' || (!focused && !hasFocusedChild)) return;
+
+      const activeEl = document.activeElement as HTMLElement | null;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        activeEl.blur();
+        return;
       }
+
+      onEscape?.();
     };
+
     window.addEventListener('keydown', handleGlobalEsc);
     return () => window.removeEventListener('keydown', handleGlobalEsc);
-  }, [focused, hasFocusedChild, onEscape]);
+  }, [focused, hasFocusedChild, onEscape, isActive]);
 
   return (
-    // ✅ 注入 BoundaryContext
-    <BoundaryContext.Provider value={id}>
+    <BoundaryContext.Provider value={{ id, isActive }}>
       <FocusContext.Provider value={focusKey}>
-        <div ref={ref} className={className}>
+        <div ref={ref} className={className} tabIndex={-1} style={{ outline: 'none' }}>
           {children}
         </div>
       </FocusContext.Provider>

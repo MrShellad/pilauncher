@@ -1,13 +1,27 @@
 // /src/pages/InstanceDetail.tsx
-import React, { useState, useEffect, useRef } from 'react'; // ✅ 补充引入 useRef
-import { ArrowLeft, LayoutTemplate, Settings, Coffee, FolderOpen, Blocks, Package, Image as ImageIcon, Download } from 'lucide-react';
-import { useFocusable, FocusContext, setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import React, { useEffect, useMemo, useCallback } from 'react';
+import {
+  LayoutTemplate,
+  Settings,
+  Coffee,
+  FolderOpen,
+  Blocks,
+  Package,
+  Image as ImageIcon,
+  Download,
+} from 'lucide-react';
+import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
+
 import { useInstanceDetail, type DetailTab } from '../hooks/pages/InstanceDetail/useInstanceDetail';
-import { OverviewPanel } from '../features/InstanceDetail/components/tabs/OverviewPanel';
-import { BasicPanel } from '../features/InstanceDetail/components/tabs/BasicPanel'; 
-import { useLauncherStore } from '../store/useLauncherStore'; 
+import { useLauncherStore } from '../store/useLauncherStore';
+
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
-import { VerticalNav } from '../ui/navigation/VerticalNav';
+import { focusManager } from '../ui/focus/FocusManager';
+import { useInputAction } from '../ui/focus/InputDriver';
+import { OreToggleButton, type ToggleOption } from '../ui/primitives/OreToggleButton';
+
+import { OverviewPanel } from '../features/InstanceDetail/components/tabs/OverviewPanel';
+import { BasicPanel } from '../features/InstanceDetail/components/tabs/BasicPanel';
 import { JavaPanel } from '../features/InstanceDetail/components/tabs/JavaPanel';
 import { ModPanel } from '../features/InstanceDetail/components/tabs/ModPanel';
 import { SavePanel } from '../features/InstanceDetail/components/tabs/SavePanel';
@@ -18,155 +32,240 @@ const TABS: { id: DetailTab; label: string; icon: React.FC<any> }[] = [
   { id: 'overview', label: '概览', icon: LayoutTemplate },
   { id: 'basic', label: '基础', icon: Settings },
   { id: 'java', label: 'Java', icon: Coffee },
-  { id: 'saves', label: '存档管理', icon: FolderOpen },
-  { id: 'mods', label: 'MOD管理', icon: Blocks },
+  { id: 'saves', label: '存档', icon: FolderOpen },
+  { id: 'mods', label: 'MOD', icon: Blocks },
   { id: 'resourcepacks', label: '资源包', icon: Package },
-  { id: 'shaders', label: '光影管理', icon: ImageIcon },
-  { id: 'export', label: '整合包导出', icon: Download },
+  { id: 'shaders', label: '光影', icon: ImageIcon },
+  { id: 'export', label: '导出', icon: Download },
 ];
 
-const FocusableBackButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
-  const { ref, focused } = useFocusable({ onEnterPress: onClick });
-  return (
-    <button ref={ref} onClick={onClick} className={`flex items-center transition-colors font-minecraft px-3 py-1.5 rounded-sm outline-none ${focused ? 'text-white bg-white/10 ring-2 ring-white shadow-lg' : 'text-ore-text-muted hover:text-white hover:bg-white/5'}`}>
-      <ArrowLeft size={18} className="mr-2" />
-      返回实例列表
-    </button>
-  );
-};
-
 const InstanceDetail: React.FC = () => {
-  const instanceId = useLauncherStore(state => state.selectedInstanceId) || "demo-id-123"; 
-  const { 
-    activeTab, setActiveTab, data, isInitializing, currentImageIndex, handlePlay,
-    handleOpenFolder, 
-    handleUpdateName, handleUpdateCover, handleVerifyFiles, handleDeleteInstance 
+  const instanceId = useLauncherStore((state) => state.selectedInstanceId) || 'demo-id-123';
+  const setActiveTabGlobal = useLauncherStore((state) => state.setActiveTab);
+
+  const {
+    activeTab,
+    setActiveTab,
+    data,
+    isInitializing,
+    currentImageIndex,
+    handlePlay,
+    handleOpenFolder,
+    handleUpdateName,
+    handleUpdateCover,
+    handleVerifyFiles,
+    handleDeleteInstance,
   } = useInstanceDetail(instanceId);
-  const setActiveTabGlobal = useLauncherStore(state => state.setActiveTab);
 
   const { ref: pageFocusRef, focusKey } = useFocusable();
 
-  const [activePane, setActivePane] = useState<'sidebar' | 'content'>('sidebar');
-  
-  // ✅ 新增：用于记录初始焦点是否已经设置过
-  const initialFocusRef = useRef(false);
+  const tabFallbackFocusKeys = useMemo<Record<DetailTab, string | undefined>>(
+    () => ({
+      overview: 'overview-btn-play',
+      basic: 'basic-input-name',
+      java: 'java-entry-point', // ✅ 核心修复 1：将旧的 java-loading-anchor 修正为现在的 java-entry-point
+      saves: 'save-btn-history',
+      mods: 'mod-btn-history',
+      resourcepacks: 'btn-open-resourcepack-folder',
+      shaders: 'btn-open-shader-folder',
+      export: undefined,
+    }),
+    []
+  );
 
-  // ✅ 新增：在数据加载完毕并挂载完真实 DOM 后，主动将焦点锁死在左侧导航栏
+  const restoreTabFocus = useCallback(
+    (tab: DetailTab) => {
+      const boundaryId = `tab-boundary-${tab}`;
+      const fallbackKey = tabFallbackFocusKeys[tab];
+
+      const attempt = () => {
+        if (!fallbackKey) {
+          focusManager.restoreFocus(boundaryId);
+          return;
+        }
+        focusManager.restoreFocus(boundaryId, fallbackKey);
+      };
+
+      const timerA = setTimeout(attempt, 0);
+      const timerB = setTimeout(attempt, 120);
+      return () => {
+        clearTimeout(timerA);
+        clearTimeout(timerB);
+      };
+    },
+    [tabFallbackFocusKeys]
+  );
+
+  const toggleOptions: ToggleOption[] = useMemo(
+    () =>
+      TABS.map((tab) => ({
+        value: tab.id,
+        label: (
+          <div className="flex items-center justify-center whitespace-nowrap gap-2 px-1 pointer-events-none">
+            <tab.icon size={16} className={activeTab === tab.id ? 'text-ore-black' : 'text-inherit'} />
+            <span>{tab.label}</span>
+          </div>
+        ),
+      })),
+    [activeTab]
+  );
+
+  const handleTabSelect = useCallback(
+    (id: string) => {
+      setActiveTab(id as DetailTab);
+    },
+    [setActiveTab]
+  );
+
   useEffect(() => {
-    if (data && !initialFocusRef.current) {
-      initialFocusRef.current = true;
-      // 延迟 150ms 等待 Framer Motion 页面切换动画结束，以及空间导航节点向引擎注册完毕
-      const timer = setTimeout(() => {
-        setFocus(activeTab); 
-      }, 150);
-      return () => clearTimeout(timer);
-    }
-  }, [data, activeTab]);
+    if (!data) return;
+    return restoreTabFocus(activeTab);
+  }, [data, activeTab, restoreTabFocus]);
 
-  const handleTabPreview = (id: string) => {
-    setActiveTab(id as DetailTab);
-  };
+  const isTextEntryActive = useCallback(() => {
+    const el = document.activeElement as HTMLElement | null;
+    if (!el) return false;
+    return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable;
+  }, []);
 
-  const handleTabSelect = (id: string) => {
-    setActiveTab(id as DetailTab);
-    setActivePane('content'); 
-    setTimeout(() => setFocus('instance-detail-content'), 50);
-  };
+  useInputAction('PAGE_LEFT', () => {
+    if (isTextEntryActive()) return;
+    const currentIndex = TABS.findIndex((t) => t.id === activeTab);
+    const prevIndex = (currentIndex - 1 + TABS.length) % TABS.length;
+    handleTabSelect(TABS[prevIndex].id);
+  });
+
+  useInputAction('PAGE_RIGHT', () => {
+    if (isTextEntryActive()) return;
+    const currentIndex = TABS.findIndex((t) => t.id === activeTab);
+    const nextIndex = (currentIndex + 1) % TABS.length;
+    handleTabSelect(TABS[nextIndex].id);
+  });
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        const activeEl = document.activeElement as HTMLElement;
-        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
-          activeEl.blur();
-          return;
-        }
-        e.preventDefault();
-        e.stopPropagation();
-        if (activePane === 'content') {
-          setActivePane('sidebar');
-          setFocus(activeTab); 
-        } else {
-          setActiveTabGlobal('instances'); 
-        }
+      if (e.key !== 'Escape') return;
+
+      const activeEl = document.activeElement as HTMLElement;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        activeEl.blur();
+        return;
       }
+
+      e.preventDefault();
+      e.stopPropagation();
+      setActiveTabGlobal('instances');
     };
+
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [activePane, activeTab, setActiveTabGlobal]);
+  }, [setActiveTabGlobal]);
 
-  if (!data) return <div className="w-full h-full flex items-center justify-center text-white font-minecraft">加载中...</div>;
+  if (!data) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-[#0F0F11] text-white font-minecraft">
+        加载中...
+      </div>
+    );
+  }
 
   return (
     <FocusContext.Provider value={focusKey}>
-      <div ref={pageFocusRef} className="w-full h-full flex flex-col bg-[#141415] overflow-hidden">
-        
-        <div className="h-12 bg-[#1E1E1F] border-b-2 border-black flex items-center px-2 flex-shrink-0 z-20">
-          <FocusableBackButton onClick={() => setActiveTabGlobal('instances')} />
+      <div ref={pageFocusRef} className="w-full h-full flex flex-col bg-[#0F0F11] overflow-hidden">
+        <div className="flex flex-col flex-shrink-0 z-20 bg-[#1E1E1F] border-b-[3px] border-[#18181B] shadow-md">
+          <div className="w-full pt-4 pb-4 px-4 md:px-8 bg-[#18181B]">
+            <div className="max-w-6xl mx-auto w-full flex items-center">
+              <div className="hidden md:flex flex-shrink-0 text-gray-500 font-minecraft text-xs items-center mr-4 bg-black/30 px-2.5 py-1.5 rounded-sm border-b-2 border-white/5 shadow-inner">
+                <span className="text-gray-300 font-bold mx-1">LT</span> / <span className="text-gray-300 font-bold mx-1">;</span>
+              </div>
+
+              <div className="flex-1 overflow-x-auto custom-scrollbar pb-2">
+                <div className="min-w-max h-[44px]">
+                  <OreToggleButton
+                    options={toggleOptions}
+                    value={activeTab}
+                    onChange={handleTabSelect}
+                    size="md"
+                    focusable={false}
+                  />
+                </div>
+              </div>
+
+              <div className="hidden md:flex flex-shrink-0 text-gray-500 font-minecraft text-xs items-center ml-4 bg-black/30 px-2.5 py-1.5 rounded-sm border-b-2 border-white/5 shadow-inner">
+                <span className="text-gray-300 font-bold mx-1">RT</span> / <span className="text-gray-300 font-bold mx-1">'</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="flex flex-1 overflow-hidden">
-          
-          <div 
-            className="w-56 bg-[#18181B] border-r-2 border-black flex-shrink-0 flex flex-col py-2 overflow-y-auto custom-scrollbar"
-            onFocusCapture={() => setActivePane('sidebar')}
-            onClickCapture={() => setActivePane('sidebar')}
-          >
-            <VerticalNav 
-              boundaryId="instance-detail-sidebar" 
-              items={TABS} 
-              activeId={activeTab} 
-              onPreview={handleTabPreview}
-              onSelect={handleTabSelect} 
-            />
-          </div>
-
-          <div 
-            className="flex-1 overflow-hidden relative flex flex-col"
-            onFocusCapture={() => setActivePane('content')}
-            onClickCapture={() => setActivePane('content')}
-          >
-  
-            <FocusBoundary id="instance-detail-content" trapFocus={true} className="w-full h-full">
-              {activeTab === 'overview' && (
-                <OverviewPanel 
-                  data={data} 
-                  currentImageIndex={currentImageIndex} 
-                  onPlay={handlePlay} 
-                  onOpenFolder={handleOpenFolder} 
-                />
-              )}
-              
-              {activeTab === 'basic' && (
-                <BasicPanel 
-                  data={data} 
-                  isInitializing={isInitializing}
-                  onUpdateName={handleUpdateName} 
-                  onUpdateCover={handleUpdateCover} 
-                  onVerifyFiles={handleVerifyFiles} 
-                  onDelete={async () => {
-                    const success = await handleDeleteInstance();
-                    if (success) {
-                      setActiveTabGlobal('instances'); 
-                    }
-                  }} 
-                />
-              )}
-              
-              {activeTab === 'java' && <JavaPanel instanceId={instanceId} />}
-              {activeTab === 'mods' && <ModPanel instanceId={instanceId} />}
-              {activeTab === 'saves' && <SavePanel instanceId={instanceId} />}
-              {activeTab === 'resourcepacks' && <ResourcePackPanel instanceId={instanceId} />}
-              {activeTab === 'shaders' && <ShaderPanel instanceId={instanceId} />}
-
-              {activeTab !== 'overview' && activeTab !== 'basic' && activeTab !== 'java' && activeTab !== 'mods' && activeTab !== 'saves' && activeTab !== 'resourcepacks' && activeTab !== 'shaders' &&(
-                <div className="w-full h-full flex items-center justify-center text-ore-text-muted font-minecraft text-xl">
-                  {TABS.find(t => t.id === activeTab)?.label} 页面开发中...
-                </div>
-              )}
+        <div className="flex-1 overflow-hidden relative flex flex-col bg-[#141415]">
+          <div className={activeTab === 'overview' ? 'w-full h-full flex flex-col min-h-0' : 'hidden'}>
+            <FocusBoundary id="tab-boundary-overview" isActive={activeTab === 'overview'} trapFocus className="w-full h-full">
+              <OverviewPanel
+                data={data}
+                currentImageIndex={currentImageIndex}
+                onPlay={handlePlay}
+                onOpenFolder={handleOpenFolder}
+              />
             </FocusBoundary>
           </div>
 
+          <div className={activeTab === 'basic' ? 'w-full h-full flex flex-col min-h-0' : 'hidden'}>
+            <FocusBoundary id="tab-boundary-basic" isActive={activeTab === 'basic'} trapFocus className="w-full h-full">
+              <BasicPanel
+                data={data}
+                isInitializing={isInitializing}
+                onUpdateName={handleUpdateName}
+                onUpdateCover={handleUpdateCover}
+                onVerifyFiles={handleVerifyFiles}
+                onDelete={async () => {
+                  const success = await handleDeleteInstance();
+                  if (success) setActiveTabGlobal('instances');
+                }}
+              />
+            </FocusBoundary>
+          </div>
+
+          <div className={activeTab === 'java' ? 'w-full h-full flex flex-col min-h-0' : 'hidden'}>
+            <FocusBoundary id="tab-boundary-java" isActive={activeTab === 'java'} trapFocus className="w-full h-full">
+              <JavaPanel instanceId={instanceId} isActive={activeTab === 'java'} />
+            </FocusBoundary>
+          </div>
+
+          <div className={activeTab === 'mods' ? 'w-full h-full flex flex-col min-h-0' : 'hidden'}>
+            <FocusBoundary id="tab-boundary-mods" isActive={activeTab === 'mods'} trapFocus className="w-full h-full">
+              <ModPanel instanceId={instanceId} />
+            </FocusBoundary>
+          </div>
+
+          <div className={activeTab === 'saves' ? 'w-full h-full flex flex-col min-h-0' : 'hidden'}>
+            <FocusBoundary id="tab-boundary-saves" isActive={activeTab === 'saves'} trapFocus className="w-full h-full">
+              <SavePanel instanceId={instanceId} />
+            </FocusBoundary>
+          </div>
+
+          <div className={activeTab === 'resourcepacks' ? 'w-full h-full flex flex-col min-h-0' : 'hidden'}>
+            <FocusBoundary id="tab-boundary-resourcepacks" isActive={activeTab === 'resourcepacks'} trapFocus className="w-full h-full">
+              <ResourcePackPanel instanceId={instanceId} />
+            </FocusBoundary>
+          </div>
+
+          <div className={activeTab === 'shaders' ? 'w-full h-full flex flex-col min-h-0' : 'hidden'}>
+            <FocusBoundary id="tab-boundary-shaders" isActive={activeTab === 'shaders'} trapFocus className="w-full h-full">
+              <ShaderPanel instanceId={instanceId} />
+            </FocusBoundary>
+          </div>
+
+          {activeTab === 'export' && (
+            <FocusBoundary
+              id="tab-boundary-export"
+              isActive
+              trapFocus
+              className="w-full h-full flex items-center justify-center text-ore-text-muted font-minecraft text-xl"
+            >
+              导出页面开发中...
+            </FocusBoundary>
+          )}
         </div>
       </div>
     </FocusContext.Provider>

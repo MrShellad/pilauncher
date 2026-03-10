@@ -9,6 +9,7 @@ interface OreSwitchProps {
   disabled?: boolean;
   className?: string;
   focusKey?: string; 
+  onArrowPress?: (direction: string) => boolean | void;
 }
 
 export const OreSwitch: React.FC<OreSwitchProps> = ({
@@ -18,10 +19,16 @@ export const OreSwitch: React.FC<OreSwitchProps> = ({
   disabled = false,
   className = '',
   focusKey,
+  onArrowPress,
 }) => {
   return (
     // 1. 使用 FocusItem 接管组件，支持手柄 A 键和键盘 Enter 键直接切换
-    <FocusItem focusKey={focusKey} disabled={disabled} onEnter={() => !disabled && onChange(!checked)}>
+    <FocusItem
+      focusKey={focusKey}
+      disabled={disabled}
+      onEnter={() => !disabled && onChange(!checked)}
+      onArrowPress={onArrowPress}
+    >
       {({ ref, focused }) => (
         <div 
           ref={ref as any}

@@ -1,13 +1,16 @@
 // /src/features/InstanceDetail/components/tabs/BasicPanel.tsx
 import React, { useState, useEffect } from 'react';
+import { Image as ImageIcon, Trash2, ShieldCheck, Save, Loader2, CheckCircle2 } from 'lucide-react';
+import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+
 import { OreInput } from '../../../../ui/primitives/OreInput';
 import { OreButton } from '../../../../ui/primitives/OreButton';
-import { Image as ImageIcon, Trash2, ShieldCheck, Save, Loader2, CheckCircle2 } from 'lucide-react';
-import type { InstanceDetailData } from '../../../../hooks/pages/InstanceDetail/useInstanceDetail';
-
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { SettingsSection } from '../../../../ui/layout/SettingsSection';
 import { FormRow } from '../../../../ui/layout/FormRow';
+import { FocusItem } from '../../../../ui/focus/FocusItem';
+
+import type { InstanceDetailData } from '../../../../hooks/pages/InstanceDetail/useInstanceDetail';
 
 interface BasicPanelProps {
   data: InstanceDetailData;
@@ -18,16 +21,18 @@ interface BasicPanelProps {
   onDelete: () => Promise<void>;
 }
 
-export const BasicPanel: React.FC<BasicPanelProps> = ({ 
-  data, isInitializing, onUpdateName, onUpdateCover, onVerifyFiles, onDelete 
+export const BasicPanel: React.FC<BasicPanelProps> = ({
+  data,
+  isInitializing,
+  onUpdateName,
+  onUpdateCover,
+  onVerifyFiles,
+  onDelete,
 }) => {
   const [editName, setEditName] = useState(data.name || '');
-  
-  // 仅负责 UI 的保存状态反馈
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
-  // 监听外部数据变化
   useEffect(() => {
     setEditName(data.name);
   }, [data.name]);
@@ -37,138 +42,163 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
     setTimeout(() => setSuccessMsg(''), 2000);
   };
 
-  // 1. 触发修改名称
   const handleSaveName = async () => {
-    if (!editName.trim() || editName === data.name) return;
-    setIsSaving(true);
-    try {
-      await onUpdateName(editName.trim());
-      triggerSuccess('名称已更新');
-    } catch (error) {
-      console.error('修改名称失败:', error);
-      setEditName(data.name); // 失败时回退输入框
-    } finally {
+    if (editName !== data.name && editName.trim() !== '') {
+      setIsSaving(true);
+      await onUpdateName(editName);
       setIsSaving(false);
+      triggerSuccess('名称已保存');
+    } else {
+      setEditName(data.name || '');
     }
   };
 
-  // 2. 触发更换封面
   const handleChangeCover = async () => {
     setIsSaving(true);
-    try {
-      await onUpdateCover();
-      triggerSuccess('封面已更新');
-    } catch (error: any) {
-      if (error.message !== "USER_CANCELED") {
-        console.error('更换封面失败:', error);
-      }
-    } finally {
-      setIsSaving(false);
+    await onUpdateCover();
+    setIsSaving(false);
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm(`确定要彻底删除实例 "${data.name}" 吗？此操作无法撤销！`)) {
+      setIsSaving(true);
+      await onDelete();
     }
   };
 
-  // 3. 触发彻底删除
-  const handleDelete = async () => {
-    setIsSaving(true);
-    try {
-      await onDelete();
-    } catch (error) {
-      console.error('删除实例失败:', error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const isNameChanged = editName !== data.name && editName.trim() !== '';
 
   return (
-    <SettingsPageLayout title="基础设置" subtitle="Basic Configuration">
-      <div className="flex justify-end h-6 mb-2 pr-6 font-minecraft transition-opacity duration-300">
-        {isSaving && (
-          <span className="text-ore-text-muted text-sm flex items-center">
-            <Loader2 size={14} className="animate-spin mr-1.5" /> 处理中...
-          </span>
-        )}
-        {successMsg && !isSaving && (
-          <span className="text-ore-green text-sm flex items-center drop-shadow-[0_0_5px_rgba(56,133,39,0.5)]">
-            <CheckCircle2 size={14} className="mr-1.5" /> {successMsg}
-          </span>
-        )}
-      </div>
+    <SettingsPageLayout title="基础设置" subtitle="Basic Settings">
+      {/* 移除了导致双重滚动条的 overflow-x-hidden */}
+      <div className="relative flex flex-col w-full h-full">
 
-      <SettingsSection title="实例信息">
-        <FormRow 
-          label="实例名称"
-          description="修改该实例在启动器中显示的名称标识。"
-          control={
-            <div className="flex items-center space-x-2">
-              <OreInput 
-                value={editName} 
-                onChange={(e) => setEditName(e.target.value)} 
-                containerClassName="w-48 md:w-64"
-                disabled={isSaving || isInitializing}
-              />
-              <OreButton 
-                variant="secondary" 
-                onClick={handleSaveName} 
-                disabled={editName === data.name || !editName.trim() || isSaving || isInitializing}
-              >
-                <Save size={18} />
-              </OreButton>
-            </div>
-          }
-        />
+        {/* ======================================================== */}
+        {/* ✅ 新版焦点保险杠 (Focus Bumpers)：1px 贴边，完美 0 溢出！  */}
+        {/* ======================================================== */}
+        <FocusItem focusKey="basic-guard-top" onFocus={() => setFocus('basic-input-name')}>
+          {({ ref }) => <div ref={ref as any} className="absolute top-0 left-0 w-full h-[1px] opacity-0 pointer-events-none" tabIndex={-1} />}
+        </FocusItem>
+        <FocusItem focusKey="basic-guard-left" onFocus={() => setFocus('basic-input-name')}>
+          {({ ref }) => <div ref={ref as any} className="absolute top-0 left-0 w-[1px] h-full opacity-0 pointer-events-none" tabIndex={-1} />}
+        </FocusItem>
+        <FocusItem focusKey="basic-guard-right" onFocus={() => setFocus('basic-btn-change-cover')}>
+          {({ ref }) => <div ref={ref as any} className="absolute top-0 right-0 w-[1px] h-full opacity-0 pointer-events-none" tabIndex={-1} />}
+        </FocusItem>
+        <FocusItem focusKey="basic-guard-bottom" onFocus={() => setFocus('basic-btn-delete-instance')}>
+          {({ ref }) => <div ref={ref as any} className="absolute bottom-0 left-0 w-full h-[1px] opacity-0 pointer-events-none" tabIndex={-1} />}
+        </FocusItem>
 
-        <FormRow 
-          label="封面图像"
-          description="推荐使用 16:9 比例的图片。更换后图片将自动拷贝至实例专属的 piconfig 配置目录中。"
-          control={
-            <div className="flex items-center space-x-4">
-              <div className="w-32 md:w-40 aspect-video bg-[#141415] border-2 border-dashed border-ore-gray-border flex items-center justify-center overflow-hidden shadow-inner flex-shrink-0 relative">
-                
-                {isInitializing ? (
-                  <Loader2 size={24} className="animate-spin text-ore-text-muted opacity-50" />
-                ) : data.coverUrl ? (
-                  <img src={data.coverUrl} className="w-full h-full object-cover" alt="Cover" draggable={false} />
-                ) : (
-                  <ImageIcon size={24} className="text-ore-text-muted opacity-60" />
-                )}
+        <div className="flex justify-end h-6 mb-2 pr-6 font-minecraft transition-opacity duration-300">
+          {successMsg && !isSaving && (
+            <span className="text-ore-green text-sm flex items-center">
+              <CheckCircle2 size={14} className="mr-1.5" /> {successMsg}
+            </span>
+          )}
+        </div>
 
-                {isSaving && (
-                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                      <Loader2 size={24} className="animate-spin text-white" />
-                   </div>
-                )}
+        <SettingsSection title="基本信息">
+          
+          {/* ✅ 恢复 FormRow 布局，输入框和按钮紧密同行排布，不破坏页面整体样式 */}
+          <FormRow
+            label="实例名称"
+            description="用于在列表中显示的自定义名称。"
+            control={
+              // 设置 max-w-md 让整个控件区域有足够但不失控的宽度
+              <div className="flex items-center space-x-2 w-full max-w-sm md:max-w-md">
+                <div className="flex-1 min-w-0">
+                  <OreInput
+                    focusKey="basic-input-name"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onBlur={handleSaveName}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveName();
+                    }}
+                    disabled={isSaving || isInitializing}
+                    className="w-full bg-[#18181B] border-[#2A2A2C]"
+                    placeholder="输入实例名称"
+                  />
+                </div>
+                <OreButton
+                  focusKey="basic-btn-save-name"
+                  variant={isNameChanged ? 'primary' : 'secondary'}
+                  onClick={handleSaveName}
+                  disabled={!isNameChanged || isSaving || isInitializing}
+                  className="flex-shrink-0"
+                >
+                  {isSaving ? <Loader2 size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />}
+                  保存
+                </OreButton>
               </div>
-              <OreButton variant="secondary" onClick={handleChangeCover} disabled={isSaving || isInitializing}>
-                更换封面
+            }
+          />
+
+          <FormRow
+            label="实例封面"
+            description="支持 .png 或 .jpg 格式，建议比例 16:9。"
+            control={
+              <div className="flex items-center space-x-4">
+                <div className="w-32 h-20 bg-[#18181B] border-2 border-[#2A2A2C] rounded-sm flex items-center justify-center overflow-hidden shadow-inner relative">
+                  {data.coverUrl ? (
+                    <img src={data.coverUrl} alt="Cover" className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon size={24} className="text-ore-text-muted opacity-60" />
+                  )}
+                  {isSaving && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <Loader2 size={24} className="animate-spin text-white" />
+                    </div>
+                  )}
+                </div>
+                <OreButton
+                  focusKey="basic-btn-change-cover"
+                  variant="secondary"
+                  onClick={handleChangeCover}
+                  disabled={isSaving || isInitializing}
+                >
+                  更换封面
+                </OreButton>
+              </div>
+            }
+          />
+        </SettingsSection>
+
+        <SettingsSection title="实例维护">
+          <FormRow
+            label="补全缺失文件"
+            description="自动检查并重新下载缺失的核心文件、运行库或依赖资源。"
+            control={
+              <OreButton
+                focusKey="basic-btn-verify-files"
+                variant="primary"
+                onClick={onVerifyFiles}
+                disabled={isSaving || isInitializing}
+              >
+                <ShieldCheck size={18} className="mr-2" /> 校验并补全
               </OreButton>
-            </div>
-          }
-        />
-      </SettingsSection>
+            }
+          />
+        </SettingsSection>
 
-      <SettingsSection title="实例维护">
-        <FormRow 
-          label="补全缺失文件"
-          description="自动检查并重新下载实例缺失的 Minecraft 核心文件、运行库或依赖资源。"
-          control={
-            <OreButton variant="primary" onClick={onVerifyFiles} disabled={isSaving || isInitializing}>
-              <ShieldCheck size={18} className="mr-2" /> 校验并补全
-            </OreButton>
-          }
-        />
-      </SettingsSection>
+        <SettingsSection title="危险区域" danger>
+          <FormRow
+            label="彻底删除实例"
+            description="此操作不可逆，将永久删除该实例的所有文件。"
+            control={
+              <OreButton
+                focusKey="basic-btn-delete-instance"
+                variant="danger"
+                onClick={handleDelete}
+                disabled={isSaving || isInitializing}
+              >
+                <Trash2 size={18} className="mr-2" /> 彻底删除
+              </OreButton>
+            }
+          />
+        </SettingsSection>
 
-      <SettingsSection title="危险区域" danger>
-        <FormRow 
-          label="彻底删除实例"
-          description="此操作不可逆！将会彻底从硬盘中删除该实例的所有文件、MOD 和存档。"
-          control={
-            <OreButton variant="danger" onClick={handleDelete} disabled={isSaving || isInitializing}>
-              <Trash2 size={18} className="mr-2" /> 彻底删除
-            </OreButton>
-          }
-        />
-      </SettingsSection>
+      </div>
     </SettingsPageLayout>
   );
 };

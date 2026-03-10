@@ -1,7 +1,10 @@
 import React from 'react';
-import { Image as ImageIcon } from 'lucide-react';
-import { OreButton } from '../../../../ui/primitives/OreButton';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronDown, Image as ImageIcon } from 'lucide-react';
+
 import type { ModrinthProject, OreProjectDetail } from '../../../InstanceDetail/logic/modrinthApi';
+import { OreButton } from '../../../../ui/primitives/OreButton';
+import { OreMotionTokens } from '../../../../style/tokens/motion';
 
 interface ProjectGalleryProps {
   project: ModrinthProject;
@@ -11,30 +14,83 @@ interface ProjectGalleryProps {
   setShowGallery: (show: boolean) => void;
 }
 
-export const ProjectGallery: React.FC<ProjectGalleryProps> = ({ project, details, isScrolled, showGallery, setShowGallery }) => {
+export const ProjectGallery: React.FC<ProjectGalleryProps> = ({
+  project,
+  details,
+  isScrolled,
+  showGallery,
+  setShowGallery
+}) => {
+  const description = details?.description || project.description || '该资源暂无更多说明。';
+  const galleryUrls = details?.gallery_urls ?? [];
+
   return (
-    <div 
-      className={`px-5 lg:px-6 border-b border-white/5 bg-[#141415] flex-shrink-0 transition-all duration-500 ease-in-out overflow-hidden
-        ${isScrolled ? 'max-h-0 opacity-0 py-0 border-transparent' : 'max-h-[800px] opacity-100 py-3'}
-      `}
+    <motion.div
+      initial={false}
+      animate={isScrolled ? 'collapsed' : 'expanded'}
+      variants={OreMotionTokens.downloadDetailSection}
+      className="flex-shrink-0 overflow-hidden border-b-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] px-4"
     >
-      <p className="text-sm text-gray-300 line-clamp-2 leading-relaxed">{details?.description || project.description}</p>
-      
-      {details?.gallery_urls && details.gallery_urls.length > 0 && (
-        <div className="mt-3">
-          {!showGallery ? (
-            <OreButton size="sm" variant="secondary" className="h-8 px-3 text-xs" onClick={() => setShowGallery(true)}>
-              <ImageIcon size={14} className="mr-2" /> 展开游戏内展示图 ({details.gallery_urls.length} 张)
-            </OreButton>
-          ) : (
-            <div className="flex gap-3 overflow-x-auto custom-scrollbar pb-2">
-              {details.gallery_urls.map((url: string, idx: number) => (
-                <img key={idx} src={url} className="h-24 lg:h-32 rounded-sm border border-white/10 object-cover shadow-lg" alt="Gallery preview" />
-              ))}
+      <div
+        className="border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-surface)] px-3.5 py-2.5"
+        style={{ boxShadow: 'var(--ore-downloadDetail-sectionInset)' }}
+      >
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between lg:gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[var(--ore-downloadDetail-labelText)]">
+              资源说明
+            </div>
+            <p className="line-clamp-2 text-[13px] leading-5 text-white/90">{description}</p>
+          </div>
+
+          {galleryUrls.length > 0 && (
+            <div className="flex shrink-0 items-center justify-end">
+              <OreButton
+                size="sm"
+                variant="secondary"
+                className="!h-8 min-w-[132px] px-3 text-[11px]"
+                onClick={() => setShowGallery(!showGallery)}
+              >
+                <ImageIcon size={14} className="mr-1.5" />
+                {showGallery ? '收起预览' : `预览图 ${galleryUrls.length}`}
+                <motion.span
+                  initial={false}
+                  animate={showGallery ? 'open' : 'closed'}
+                  variants={OreMotionTokens.downloadDetailChevron}
+                  className="ml-1.5 inline-flex"
+                >
+                  <ChevronDown size={14} />
+                </motion.span>
+              </OreButton>
             </div>
           )}
         </div>
-      )}
-    </div>
+
+        <AnimatePresence initial={false}>
+          {galleryUrls.length > 0 && showGallery && !isScrolled && (
+            <motion.div
+              key="gallery-preview-strip"
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
+              variants={OreMotionTokens.downloadDetailPreview}
+              className="overflow-hidden"
+            >
+              <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-1">
+                {galleryUrls.map((url, index) => (
+                  <img
+                    key={index}
+                    src={url}
+                    alt={`preview-${index}`}
+                    className="h-20 w-auto shrink-0 border-[2px] border-[var(--ore-downloadDetail-divider)] object-cover lg:h-24"
+                    style={{ boxShadow: 'var(--ore-downloadDetail-imageShadow)' }}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
   );
 };

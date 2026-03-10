@@ -9,6 +9,7 @@ interface OreButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'purple' | 'hero' | 'ghost';
   size?: 'sm' | 'md' | 'lg' | 'auto' | 'full'; 
   focusKey?: string; 
+  onArrowPress?: (direction: string) => boolean | void;
 }
 
 export const OreButton: React.FC<OreButtonProps> = ({ 
@@ -19,6 +20,7 @@ export const OreButton: React.FC<OreButtonProps> = ({
   disabled,
   onClick,
   focusKey, 
+  onArrowPress,
   ...props 
 }) => {
 
@@ -51,6 +53,7 @@ export const OreButton: React.FC<OreButtonProps> = ({
     <FocusItem 
       focusKey={focusKey} 
       disabled={disabled} 
+      onArrowPress={onArrowPress}
       onEnter={() => onClick && onClick({ preventDefault: () => {}, stopPropagation: () => {} } as any)}
     >
       {({ ref, focused }) => (

@@ -2,21 +2,20 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useLauncherStore } from '../store/useLauncherStore';
-import { Blocks, Package, Image as ImageIcon } from 'lucide-react';
-import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { Blocks, Package, Image as ImageIcon, type LucideIcon } from 'lucide-react';
+import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { FocusBoundary } from '../ui/focus/FocusBoundary'; 
 
 import { useResourceDownload, type TabType } from '../features/Download/hooks/useResourceDownload';
 import { FilterBar } from '../features/Download/components/FilterBar';
 import { ResourceGrid } from '../features/Download/components/ResourceGrid';
-import { BottomNav } from '../features/Download/components/BottomNav';
 import { DownloadDetailModal } from '../features/Download/components/DownloadDetailModal';
 import type { ModrinthProject, OreProjectVersion } from '../features/InstanceDetail/logic/modrinthApi';
 
 // ✅ 引入全局下载 Store
 import { useDownloadStore } from '../store/useDownloadStore';
 
-const TABS: { id: TabType, label: string, icon: any }[] = [
+const TABS: { id: TabType; label: string; icon: LucideIcon }[] = [
   { id: 'mod', label: '模组 (Mods)', icon: Blocks },
   { id: 'resourcepack', label: '资源包', icon: Package },
   { id: 'shader', label: '光影', icon: ImageIcon },
@@ -35,26 +34,21 @@ const ResourceDownloadPage: React.FC = () => {
   } = useResourceDownload(instanceId);
 
   const [selectedProject, setSelectedProject] = useState<ModrinthProject | null>(null);
+  const lastFocusBeforeModalRef = React.useRef<string>('download-search-input');
+  const didInitialFocusRef = React.useRef(false);
 
   useEffect(() => {
-    const handleGamepad = (e: KeyboardEvent) => {
-      if (e.key === 'PageUp' || e.key === 'PageDown') {
-        const currentIndex = TABS.findIndex(t => t.id === activeTab);
-        let nextIndex = e.key === 'PageDown' ? currentIndex + 1 : currentIndex - 1;
-        if (nextIndex < 0) nextIndex = TABS.length - 1;
-        if (nextIndex >= TABS.length) nextIndex = 0;
-        setActiveTab(TABS[nextIndex].id);
-      }
+    const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !selectedProject) setActiveTabGlobal('instances');
     };
-    window.addEventListener('keydown', handleGamepad);
-    return () => window.removeEventListener('keydown', handleGamepad);
-  }, [activeTab, selectedProject, setActiveTabGlobal, setActiveTab]);
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [selectedProject, setActiveTabGlobal]);
 
   useEffect(() => {
-    if (isEnvLoaded && !selectedProject) {
-      setTimeout(() => setFocus('download-search-input'), 100);
-    }
+    if (!isEnvLoaded || !!selectedProject || didInitialFocusRef.current) return;
+    didInitialFocusRef.current = true;
+    setTimeout(() => setFocus('download-search-input'), 100);
   }, [isEnvLoaded, selectedProject]);
 
   // ==========================================
@@ -105,6 +99,9 @@ const ResourceDownloadPage: React.FC = () => {
   return (
     <FocusBoundary id="resource-download-page" className="w-full h-full flex flex-col bg-transparent text-white relative">
       <FilterBar 
+        activeTab={activeTab}
+        tabs={TABS}
+        onTabChange={setActiveTab}
         query={query} setQuery={setQuery} source={source} setSource={setSource}
         mcVersion={mcVersion} setMcVersion={setMcVersion} loaderType={loaderType} setLoaderType={setLoaderType}
         category={category} setCategory={setCategory} sort={sort} setSort={setSort}
@@ -113,15 +110,33 @@ const ResourceDownloadPage: React.FC = () => {
 
       <ResourceGrid 
         results={results} installedMods={installedMods} isLoading={isLoading && results.length === 0} 
-        hasMore={hasMore} onLoadMore={loadMore} onSelectProject={setSelectedProject} 
+        hasMore={hasMore} onLoadMore={loadMore} onSelectProject={(project) => {
+          const currentFocus = getCurrentFocusKey();
+          if (currentFocus && currentFocus !== 'SN:ROOT') {
+            lastFocusBeforeModalRef.current = currentFocus;
+          }
+          setSelectedProject(project);
+        }} 
       />
-
-      <BottomNav activeTab={activeTab} tabs={TABS} onTabChange={setActiveTab} />
 
       <DownloadDetailModal 
         project={selectedProject} 
         instanceConfig={instanceConfig} 
-        onClose={() => { setSelectedProject(null); setTimeout(() => setFocus('download-results-grid'), 50); }}
+        onClose={() => {
+          setSelectedProject(null);
+          setTimeout(() => {
+            const lastFocus = lastFocusBeforeModalRef.current;
+            if (lastFocus && doesFocusableExist(lastFocus)) {
+              setFocus(lastFocus);
+              return;
+            }
+            if (doesFocusableExist('download-grid-item-0')) {
+              setFocus('download-grid-item-0');
+              return;
+            }
+            setFocus('download-search-input');
+          }, 50);
+        }}
         onDownload={handleStartDownload}
         installedVersionIds={installedMods.map(m => m.modId || '').filter(Boolean)}
         searchMcVersion={mcVersion}

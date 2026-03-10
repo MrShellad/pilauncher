@@ -12,6 +12,7 @@ export const JVMParamsEditor: React.FC<JVMParamsEditorProps> = ({ value, onChang
   return (
     <div className="w-full max-w-md">
       <OreInput 
+        focusKey="java-input-jvm" // ✅ 补充焦点ID
         value={value} 
         onChange={(e) => onChange(e.target.value)}
         placeholder="-XX:+UseG1GC -XX:+UnlockExperimentalVMOptions..."

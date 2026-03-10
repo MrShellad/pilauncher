@@ -89,22 +89,48 @@ export const OreTokens = {
       bg: '#313233',
       shadow: 'inset 2px 2px rgba(255, 255, 255, 0.05)',
     }
+  },
+  downloadDetail: {
+    base: '#313233',
+    surface: '#48494A',
+    divider: '#1E1E1F',
+    headerShadow: 'inset 0 2px 0 rgba(255, 255, 255, 0.12)',
+    sectionShadow: 'inset 0 -4px 0 #313233, inset 2px 2px 0 rgba(255, 255, 255, 0.12)',
+    sectionInset: 'inset 0 2px 0 rgba(255, 255, 255, 0.1)',
+    listShadow: 'inset 0 10px 20px -10px rgba(0, 0, 0, 0.55)',
+    labelText: '#D0D1D4',
+    mutedText: '#B1B2B5',
+    hintText: '#E6E8EB',
+    rowBg: '#D0D1D4',
+    rowShadow: 'inset 0 -4px 0 #58585A, inset 2px 2px 0 rgba(255, 255, 255, 0.68)',
+    installedBg: 'rgba(108, 195, 73, 0.7)',
+    installedShadow: 'inset 0 -4px 0 #3C8527, inset 2px 2px 0 rgba(255, 255, 255, 0.18)',
+    idleAccent: '#48494A',
+    installedAccent: '#3C8527',
+    loaderMeta: '#6B4F00',
+    versionMeta: '#24563C',
+    imageShadow: 'inset 0 -4px 0 rgba(0, 0, 0, 0.25)'
   }
+};
+
+type DesignTokenPrimitive = string | number | boolean;
+type DesignTokenTree = {
+  [key: string]: DesignTokenPrimitive | DesignTokenTree;
 };
 
 /**
  * 🚀 自动展平注入引擎
  */
-export const injectDesignTokens = (themeObj: Record<string, any> = OreTokens) => {
+export const injectDesignTokens = (themeObj: DesignTokenTree = OreTokens) => {
   // 防御性检查，确保在浏览器环境下运行
   if (typeof document === 'undefined') return;
   
   const root = document.documentElement;
   
-  const flattenAndInject = (obj: Record<string, any>, prefix: string) => {
+  const flattenAndInject = (obj: DesignTokenTree, prefix: string) => {
     for (const [key, value] of Object.entries(obj)) {
       if (typeof value === 'object' && value !== null) {
-        flattenAndInject(value, `${prefix}-${key}`);
+        flattenAndInject(value as DesignTokenTree, `${prefix}-${key}`);
       } else {
         root.style.setProperty(`${prefix}-${key}`, String(value));
       }

@@ -1,7 +1,7 @@
-// /src/features/Download/hooks/useDownloadDetail.tsx
-import { useState, useEffect, useMemo } from 'react';
-import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
-import { getProjectDetails, fetchModrinthVersions, type OreProjectDetail, type OreProjectVersion, type ModrinthProject } from '../../InstanceDetail/logic/modrinthApi';
+﻿import { useEffect, useMemo, useState } from 'react';
+
+import { getProjectDetails, fetchModrinthVersions, type ModrinthProject, type OreProjectDetail, type OreProjectVersion } from '../../InstanceDetail/logic/modrinthApi';
+import type { ToggleOption } from '../../../ui/primitives/OreToggleButton';
 
 import fabricIcon from '../../../assets/icons/tags/loaders/fabric.svg';
 import forgeIcon from '../../../assets/icons/tags/loaders/forge.svg';
@@ -10,115 +10,133 @@ import quiltIcon from '../../../assets/icons/tags/loaders/quilt.svg';
 import liteloaderIcon from '../../../assets/icons/tags/loaders/liteloader.svg';
 
 const loaderIconMap: Record<string, string> = {
-  fabric: fabricIcon, forge: forgeIcon, neoforge: neoforgeIcon, quilt: quiltIcon, liteloader: liteloaderIcon
+  fabric: fabricIcon,
+  forge: forgeIcon,
+  neoforge: neoforgeIcon,
+  quilt: quiltIcon,
+  liteloader: liteloaderIcon
+};
+
+interface DownloadInstanceConfig {
+  game_version?: string;
+  gameVersion?: string;
+  loader_type?: string;
+  loaderType?: string;
+}
+
+const getProjectId = (project: ModrinthProject | null) => {
+  const extendedProject = project as (ModrinthProject & { project_id?: string }) | null;
+  return extendedProject?.id || extendedProject?.project_id || '';
 };
 
 export const useDownloadDetail = (
-  project: ModrinthProject | null, 
-  instanceConfig: any,
-  searchMcVersion?: string, 
-  searchLoader?: string     
+  project: ModrinthProject | null,
+  instanceConfig: DownloadInstanceConfig | null,
+  searchMcVersion?: string,
+  searchLoader?: string
 ) => {
   const [details, setDetails] = useState<OreProjectDetail | null>(null);
   const [versions, setVersions] = useState<OreProjectVersion[]>([]);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [isLoadingVersions, setIsLoadingVersions] = useState(false);
+  const [activeLoader, setActiveLoader] = useState('');
+  const [activeVersion, setActiveVersion] = useState('');
 
-  const [activeLoader, setActiveLoader] = useState<string>('');
-  const [activeVersion, setActiveVersion] = useState<string>('');
-
-  // 1. 初始化读取：提取真实的 ID，防止发送 undefined 导致 Rust 崩溃
   useEffect(() => {
-    if (project) {
-      // ✅ 终极双保险防御：同时兼容 id 和 project_id
-      const projectId = project.id || (project as any).project_id;
-      if (!projectId) return; 
+    if (!project) return;
 
-      const preferredVer = searchMcVersion || instanceConfig?.game_version || instanceConfig?.gameVersion || '';
-      const preferredLoader = (searchLoader || instanceConfig?.loader_type || instanceConfig?.loaderType || '').toLowerCase();
-      
-      setActiveVersion(preferredVer);
-      setActiveLoader(preferredLoader === 'vanilla' ? '' : preferredLoader);
+    const projectId = getProjectId(project);
+    if (!projectId) return;
 
-      setIsLoadingDetails(true);
-      getProjectDetails(projectId)
-        .then(setDetails)
-        .catch(console.error)
-        .finally(() => setIsLoadingDetails(false));
-    }
+    const preferredVersion = searchMcVersion || instanceConfig?.game_version || instanceConfig?.gameVersion || '';
+    const preferredLoader = (searchLoader || instanceConfig?.loader_type || instanceConfig?.loaderType || '').toLowerCase();
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setActiveVersion(preferredVersion);
+    setActiveLoader(preferredLoader === 'vanilla' ? '' : preferredLoader);
+    setIsLoadingDetails(true);
+
+    getProjectDetails(projectId)
+      .then(setDetails)
+      .catch(console.error)
+      .finally(() => setIsLoadingDetails(false));
   }, [project, instanceConfig, searchMcVersion, searchLoader]);
 
-  // 2. 核心纠偏拦截
   useEffect(() => {
-    if (details) {
-      if (activeLoader && !details.loaders.includes(activeLoader)) setActiveLoader('');
-      if (activeVersion && !details.game_versions.includes(activeVersion)) setActiveVersion('');
-    }
+    if (!details) return;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (activeLoader && !details.loaders.includes(activeLoader)) setActiveLoader('');
+    if (activeVersion && !details.game_versions.includes(activeVersion)) setActiveVersion('');
   }, [details, activeLoader, activeVersion]);
 
-  // 3. 拉取版本列表
   useEffect(() => {
-    if (project) {
-      const projectId = project.id || (project as any).project_id;
-      if (!projectId) return;
+    if (!project) return;
 
-      setIsLoadingVersions(true);
-      fetchModrinthVersions(projectId, activeVersion, activeLoader)
-        .then(data => {
-          setVersions(data || []);
-          setTimeout(() => setFocus('download-modal-versions-list'), 100);
-        })
-        .catch(console.error)
-        .finally(() => setIsLoadingVersions(false));
-    }
+    const projectId = getProjectId(project);
+    if (!projectId) return;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoadingVersions(true);
+    fetchModrinthVersions(projectId, activeVersion, activeLoader)
+      .then((data) => setVersions(data || []))
+      .catch(console.error)
+      .finally(() => setIsLoadingVersions(false));
   }, [project, activeVersion, activeLoader]);
 
-  // 4. 动态计算 Loader
-  const loaderOptions = useMemo(() => {
-    const options: any[] = [{ label: '所有 Loader', value: '' }];
-    if (!details) return options; 
+  const loaderOptions = useMemo<ToggleOption[]>(() => {
+    const options: ToggleOption[] = [{ label: '全部 Loader', value: '' }];
+    if (!details) return options;
 
     const uniqueLoaders = Array.from(new Set((details.loaders || []).filter(Boolean)));
-
-    uniqueLoaders.forEach((loader: string) => {
-      const l = loader.toLowerCase();
-      const icon = loaderIconMap[l];
-      const Name = l === 'neoforge' ? 'NeoForge' : l.charAt(0).toUpperCase() + l.slice(1);
+    uniqueLoaders.forEach((loader) => {
+      const normalized = loader.toLowerCase();
+      const icon = loaderIconMap[normalized];
+      const name = normalized === 'neoforge' ? 'NeoForge' : normalized.charAt(0).toUpperCase() + normalized.slice(1);
 
       options.push({
         label: (
           <div className="flex items-center justify-center">
-            {icon && <img src={icon} className="w-4 h-4 mr-2 object-contain" alt={l} />}
-            {Name}
+            {icon && <img src={icon} className="mr-2 h-4 w-4 object-contain" alt={normalized} />}
+            {name}
           </div>
         ),
-        value: l
+        value: normalized
       });
     });
+
     return options;
   }, [details]);
 
-  // 5. 动态计算版本
   const availableVersions = useMemo(() => {
     if (!details) return [];
-    
-    const set = new Set<string>(details.game_versions || []);
-    
-    return Array.from(set).sort((a, b) => {
+
+    const versionSet = new Set<string>(details.game_versions || []);
+
+    return Array.from(versionSet).sort((a, b) => {
       const pa = a.split('.').map(Number);
       const pb = b.split('.').map(Number);
-      for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-         const na = pa[i] || 0;
-         const nb = pb[i] || 0;
-         if (na !== nb) return nb - na;
+
+      for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
+        const na = pa[i] || 0;
+        const nb = pb[i] || 0;
+        if (na !== nb) return nb - na;
       }
+
       return 0;
     });
   }, [details]);
 
   return {
-    details, versions, isLoadingDetails, isLoadingVersions,
-    activeLoader, setActiveLoader, activeVersion, setActiveVersion,
-    loaderOptions, availableVersions
+    details,
+    versions,
+    isLoadingDetails,
+    isLoadingVersions,
+    activeLoader,
+    setActiveLoader,
+    activeVersion,
+    setActiveVersion,
+    loaderOptions,
+    availableVersions
   };
 };

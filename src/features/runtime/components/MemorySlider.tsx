@@ -8,18 +8,14 @@ import { Zap, Loader2 } from 'lucide-react';
 import { OreMotionTokens } from '../../../style/tokens/motion';
 
 export const MemorySlider: React.FC<{ maxMemory: number; onChange: (maxMem: number) => void; disabled?: boolean }> = ({ maxMemory, onChange, disabled }) => {
-  // 本地状态维护系统内存信息
   const [stats, setStats] = useState({ total: 0, available: 0, recommended: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchMemory = async () => {
       try {
-        // ✅ 调用 Rust 获取系统真实物理内存 (MB)
         const res = await invoke<{total: number, available: number}>('get_system_memory');
-        // 智能推荐逻辑：不超过 8GB，不超可用内存，占总内存的一半
         const recommended = Math.min(Math.floor(res.total / 2), res.available, 8192);
-        
         setStats({ total: res.total, available: res.available, recommended });
       } catch (err) {
         console.error("读取内存失败:", err);
@@ -49,7 +45,6 @@ export const MemorySlider: React.FC<{ maxMemory: number; onChange: (maxMem: numb
 
   return (
     <div className="flex flex-col w-full lg:w-[400px] xl:w-[460px] flex-shrink-0">
-      {/* 顶部数据看板 */}
       <div className="flex justify-between items-center bg-[#141415] p-3 border-2 border-[#1E1E1F] rounded-sm shadow-inner mb-4">
         <div className="flex flex-col">
           <span className="text-xs text-ore-text-muted font-minecraft mb-1">分配上限</span>
@@ -64,17 +59,31 @@ export const MemorySlider: React.FC<{ maxMemory: number; onChange: (maxMem: numb
         </div>
       </div>
       
-      {/* 滑动条与快捷按钮 */}
       <div className="flex items-center space-x-4">
         <div className="flex-1 mt-1">
-          <OreSlider value={maxMemory} min={1024} max={total} step={512} onChange={onChange} disabled={disabled} fillColorClass={fillColor} thumbColorClass={thumbColor} />
+          <OreSlider 
+            focusKey="java-slider-memory" // ✅ 补充焦点ID
+            value={maxMemory} 
+            min={1024} 
+            max={total} 
+            step={512} 
+            onChange={onChange} 
+            disabled={disabled} 
+            fillColorClass={fillColor} 
+            thumbColorClass={thumbColor} 
+          />
         </div>
-        <OreButton size="sm" variant="secondary" onClick={() => onChange(recommended)} disabled={disabled || maxMemory === recommended}>
+        <OreButton 
+          focusKey="java-btn-recommend" // ✅ 补充焦点ID
+          size="sm" 
+          variant="secondary" 
+          onClick={() => onChange(recommended)} 
+          disabled={disabled || maxMemory === recommended}
+        >
           <Zap size={15} className="mr-1.5" /> 自动推荐
         </OreButton>
       </div>
 
-      {/* 警告折叠面板 */}
       <AnimatePresence mode="wait">
         {!disabled && isRed ? (
           <motion.div key="red-warning" initial={OreMotionTokens.collapseInitial} animate={OreMotionTokens.collapseAnimate} exit={OreMotionTokens.collapseExit} className="text-xs text-red-400 font-minecraft bg-[#2a1717] p-3 border-l-2 border-red-500 leading-relaxed shadow-sm break-words whitespace-normal">

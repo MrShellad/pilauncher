@@ -38,6 +38,7 @@ export const InstanceModDownloadView: React.FC<{ instanceId: string, onBack: () 
       if (mcVersion !== targetMc) setMcVersion(targetMc);
       if (loaderType !== targetLoader) setLoaderType(targetLoader);
       if (activeTab !== 'mod') setActiveTab('mod');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSyncStep(1);
     } else if (syncStep === 1) {
       // Step 1: 等待 React 将状态写入组件闭包，只有当它们完全相等时才允许触发搜索！
@@ -113,7 +114,10 @@ export const InstanceModDownloadView: React.FC<{ instanceId: string, onBack: () 
       <DownloadDetailModal 
         project={selectedProject} 
         instanceConfig={instanceConfig} 
-        onClose={() => { setSelectedProject(null); setTimeout(() => setFocus('download-results-grid'), 50); }}
+        onClose={() => {
+          setSelectedProject(null);
+          setTimeout(() => setFocus('download-grid-item-0'), 50);
+        }}
         onDownload={handleStartDownload}
         installedVersionIds={installedMods.map(m => m.modId || '').filter(Boolean)}
         // ✅ 强制传参为当前实例的属性，保障模态框筛选精准无误

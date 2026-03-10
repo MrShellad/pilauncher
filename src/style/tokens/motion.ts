@@ -1,5 +1,5 @@
 // /src/style/tokens/motion.ts
-import type { TargetAndTransition} from "framer-motion"; // 引入 Variants 类型
+import type { TargetAndTransition, Variants } from "framer-motion"; // 引入 Variants 类型
 
 export const OreMotionTokens = {
   // 按钮交互动画 (保持不变)
@@ -142,6 +142,49 @@ export const OreMotionTokens = {
       y: -5,
       transition: { duration: 0.4, ease: "easeInOut" } 
     }
-  }
+  },
+
+  downloadDetailSection: {
+    expanded: {
+      opacity: 1,
+      height: 'auto',
+      paddingTop: 12,
+      paddingBottom: 12,
+      transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] }
+    },
+    collapsed: {
+      opacity: 0,
+      height: 0,
+      paddingTop: 0,
+      paddingBottom: 0,
+      transition: { duration: 0.16, ease: [0.4, 0, 1, 1] }
+    }
+  } as Variants,
+
+  downloadDetailPreview: {
+    visible: {
+      opacity: 1,
+      height: 'auto',
+      marginTop: 12,
+      transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] }
+    },
+    hidden: {
+      opacity: 0,
+      height: 0,
+      marginTop: 0,
+      transition: { duration: 0.16, ease: [0.4, 0, 1, 1] }
+    }
+  } as Variants,
+
+  downloadDetailChevron: {
+    closed: {
+      rotate: 0,
+      transition: { duration: 0.18, ease: "easeOut" }
+    },
+    open: {
+      rotate: 180,
+      transition: { duration: 0.18, ease: "easeOut" }
+    }
+  } as Variants
 
 };

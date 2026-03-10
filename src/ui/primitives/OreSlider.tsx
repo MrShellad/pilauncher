@@ -13,6 +13,7 @@ interface OreSliderProps {
   disabled?: boolean;
   className?: string;
   focusKey?: string;
+  onArrowPress?: (direction: string) => boolean | void;
   fillColorClass?: string;
   thumbColorClass?: string;
 }
@@ -28,6 +29,7 @@ export const OreSlider: React.FC<OreSliderProps> = ({
   disabled = false,
   className = '',
   focusKey,
+  onArrowPress,
   fillColorClass = '',  
   thumbColorClass = '', 
 }) => {
@@ -84,6 +86,7 @@ export const OreSlider: React.FC<OreSliderProps> = ({
       <FocusItem 
         focusKey={focusKey} 
         disabled={disabled}
+        onArrowPress={onArrowPress}
         onFocus={() => {
           trackRef.current?.focus({ preventScroll: true });
         }}

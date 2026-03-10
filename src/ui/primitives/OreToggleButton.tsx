@@ -1,9 +1,9 @@
 // /src/ui/primitives/OreToggleButton.tsx
 import React from 'react';
-import { FocusItem } from '../focus/FocusItem'; 
+import { FocusItem } from '../focus/FocusItem';
 
 export interface ToggleOption {
-  label: React.ReactNode; 
+  label: React.ReactNode;
   value: string;
   description?: string;
 }
@@ -15,10 +15,12 @@ interface OreToggleButtonProps {
   title?: string;
   description?: string;
   disabled?: boolean;
-  className?: string;        
-  buttonClassName?: string;  
-  size?: 'sm' | 'md' | 'lg' | 'full'; 
-  focusable?: boolean; // ✅ 新增：允许关闭该组件的焦点获取功能
+  className?: string;
+  buttonClassName?: string;
+  size?: 'sm' | 'md' | 'lg' | 'full';
+  focusable?: boolean;
+  focusKeyPrefix?: string;
+  onArrowPress?: (direction: string) => boolean | void;
 }
 
 export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
@@ -30,21 +32,22 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
   disabled = false,
   className = '',
   buttonClassName = '',
-  size = 'full', 
-  focusable = true, // 默认依然可以获取焦点
+  size = 'full',
+  focusable = true,
+  focusKeyPrefix,
+  onArrowPress,
 }) => {
   const activeOption = options.find((opt) => opt.value === value);
 
   const sizeClasses = {
-    sm: 'h-[40px] text-xs', 
-    md: 'h-[44px] text-sm', 
+    sm: 'h-[40px] text-xs',
+    md: 'h-[44px] text-sm',
     lg: 'h-[48px] text-base',
-    full: 'h-full min-h-[44px]', 
+    full: 'h-full min-h-[44px]',
   };
 
   return (
     <div className={`flex flex-col w-full ${className} ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
-      
       {(title || description) && (
         <div className="mb-2 px-1">
           {title && <div className="font-minecraft font-bold text-white ore-text-shadow text-lg">{title}</div>}
@@ -53,22 +56,22 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
       )}
 
       <div className={`ore-toggle-btn-group flex items-stretch w-full ${sizeClasses[size]}`}>
-        {options.map((option) => {
+        {options.map((option, idx) => {
           const isActive = option.value === value;
+          const optionFocusKey = focusKeyPrefix ? `${focusKeyPrefix}-${idx}` : undefined;
 
-          // ✅ 将按钮渲染逻辑抽取出来
           const renderButton = (ref?: any, focused: boolean = false) => (
             <button
               ref={ref}
               onClick={() => !isActive && onChange(option.value)}
               className={`
-                ore-toggle-btn-item 
+                ore-toggle-btn-item
                 px-2 outline-none
                 ${isActive ? 'is-active z-10' : ''}
                 ${focused ? 'is-focused' : ''}
                 ${buttonClassName}
               `}
-              tabIndex={-1} 
+              tabIndex={-1}
             >
               <div className={`flex items-center justify-center w-full transition-none ${isActive ? 'ore-text-shadow' : ''}`}>
                 {option.label}
@@ -76,7 +79,6 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
             </button>
           );
 
-          // ✅ 如果不允许获取焦点，则抛弃 FocusItem 包裹，直接输出纯静态按钮 (仅保留鼠标点击能力)
           if (!focusable) {
             return <React.Fragment key={option.value}>{renderButton()}</React.Fragment>;
           }
@@ -84,7 +86,9 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
           return (
             <FocusItem
               key={option.value}
+              focusKey={optionFocusKey}
               disabled={disabled}
+              onArrowPress={onArrowPress}
               onEnter={() => !isActive && onChange(option.value)}
             >
               {({ ref, focused }) => renderButton(ref as any, focused)}
@@ -93,7 +97,7 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
         })}
       </div>
 
-      {options.some(opt => opt.description) && (
+      {options.some((opt) => opt.description) && (
         <div className="mt-2 px-1 min-h-[20px]">
           {activeOption?.description && (
             <div className="font-minecraft text-ore-text-muted text-xs">
@@ -102,7 +106,6 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
           )}
         </div>
       )}
-
     </div>
   );
 };

@@ -1,6 +1,7 @@
 // src/features/Settings/components/tabs/JavaSettings.tsx
 import React, { useState } from 'react';
 import { Coffee, Cpu, Loader2 } from 'lucide-react';
+import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { SettingsSection } from '../../../../ui/layout/SettingsSection';
@@ -66,9 +67,15 @@ export const JavaSettings: React.FC = () => {
           description="启动游戏时，自动匹配对应版本最适合的 JDK。开启后将自动扫描并回填本机最新的 Java 路径。"
           control={
             <OreSwitch 
+              focusKey="settings-java-autodetect"
               checked={java.autoDetect} 
               onChange={handleAutoDetectToggle} 
               disabled={isDetecting}
+              onArrowPress={(direction) => {
+                if (direction !== 'down') return true;
+                setFocus(java.autoDetect ? 'java-slider-memory' : 'java-input-path');
+                return false;
+              }}
             />
           }
         />
