@@ -218,8 +218,8 @@ const InstanceDetail: React.FC = () => {
                 onUpdateName={handleUpdateName}
                 onUpdateCover={handleUpdateCover}
                 onVerifyFiles={handleVerifyFiles}
-                onDelete={async () => {
-                  const success = await handleDeleteInstance();
+                onDelete={async (skipConfirm?: boolean) => {
+                  const success = await handleDeleteInstance(skipConfirm);
                   if (success) setActiveTabGlobal('instances');
                 }}
               />

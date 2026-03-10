@@ -50,7 +50,7 @@ export const DownloadManager: React.FC = () => {
   }, [isPopupOpen, hasTasks]);
   
   useEffect(() => {
-    const unlistenInstance = listen('instance-download-progress', (event: any) => {
+    const unlistenInstance = listen('instance-deployment-progress', (event: any) => {
       const payload = event.payload;
       addOrUpdateTask({
         id: payload.task_id || payload.instance_id,

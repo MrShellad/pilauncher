@@ -32,6 +32,7 @@ pub struct InstanceConfig {
     #[serde(rename = "createdAt")]
     pub created_at: String,
     pub cover_image: Option<String>,
+    pub gamepad: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -68,4 +69,5 @@ pub struct InstanceItem {
     pub play_time: f64,
     pub last_played: String,
     pub cover_path: Option<String>,
+    pub gamepad: Option<bool>,
 }

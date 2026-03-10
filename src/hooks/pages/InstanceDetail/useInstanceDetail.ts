@@ -131,16 +131,18 @@ export const useInstanceDetail = (instanceId: string) => {
     console.log(`调用 Rust 校验并补全实例 ${instanceId} 的文件`);
   };
 
-  const handleDeleteInstance = async (): Promise<boolean> => {
-    const confirmed = await ask(
-      '确定要彻底删除该实例吗？\n该操作不可逆转，所有存档和 MOD 将被永久清除。',
-      {
-        title: '危险操作确认',
-        kind: 'warning'
-      }
-    );
+  const handleDeleteInstance = async (skipConfirm: boolean = false): Promise<boolean> => {
+    if (!skipConfirm) {
+      const confirmed = await ask(
+        '确定要彻底删除该实例吗？\n该操作不可逆转，所有存档和 MOD 将被永久清除。',
+        {
+          title: '危险操作确认',
+          kind: 'warning'
+        }
+      );
 
-    if (!confirmed) return false;
+      if (!confirmed) return false;
+    }
 
     await invoke('delete_instance', { id: instanceId });
     return true;

@@ -10,7 +10,10 @@ import { useResourceDownload, type TabType } from '../features/Download/hooks/us
 import { FilterBar } from '../features/Download/components/FilterBar';
 import { ResourceGrid } from '../features/Download/components/ResourceGrid';
 import { DownloadDetailModal } from '../features/Download/components/DownloadDetailModal';
-import type { ModrinthProject, OreProjectVersion } from '../features/InstanceDetail/logic/modrinthApi';
+
+// ✅ 引入获取版本详情的 API 和 本地 Mod 服务
+import { fetchModrinthVersions, type ModrinthProject, type OreProjectVersion } from '../features/InstanceDetail/logic/modrinthApi';
+import { modService } from '../features/InstanceDetail/logic/modService';
 
 // ✅ 引入全局下载 Store
 import { useDownloadStore } from '../store/useDownloadStore';
@@ -52,45 +55,84 @@ const ResourceDownloadPage: React.FC = () => {
   }, [isEnvLoaded, selectedProject]);
 
   // ==========================================
-  // ✅ 核心：真实派发下载任务给 Rust 并唤醒 UI
+  // ✅ 核心：真实派发下载任务给 Rust 并唤醒 UI (支持自动补全前置)
   // ==========================================
-  const handleStartDownload = async (version: OreProjectVersion, targetInstanceId: string) => {
+  const handleStartDownload = async (version: OreProjectVersion, targetInstanceId: string, autoInstallDeps: boolean = false) => {
     const subFolderMap: Record<TabType, string> = {
       'mod': 'mods',
       'resourcepack': 'resourcepacks',
       'shader': 'shaderpacks',
       'modpack': 'modpacks',
-      
     };
     const subFolder = subFolderMap[activeTab];
 
-    // 1. 提前把任务塞进 Store，让 UI 瞬间弹出来，提供极速响应感
-    useDownloadStore.getState().addOrUpdateTask({
-      id: version.file_name, // 用文件名做唯一任务 ID
-      taskType: 'resource',
-      title: version.file_name,
-      stage: 'DOWNLOADING_MOD',
-      current: 0,
-      total: 100, // 随便给个非0值防止算进度时除以0导致 NaN
-      message: '正在建立连接...'
-    });
+    // 1. 提取封装单体下载逻辑
+    const executeDownload = (targetVersion: OreProjectVersion) => {
+      useDownloadStore.getState().addOrUpdateTask({
+        id: targetVersion.file_name, 
+        taskType: 'resource',
+        title: targetVersion.file_name,
+        stage: 'DOWNLOADING_MOD',
+        current: 0,
+        total: 100, 
+        message: '正在建立连接...'
+      });
 
-    try {
-      // 2. 正式调用后端的下载指令（由于耗时，这里是异步，但 UI 已经显示进去了）
-      await invoke('download_resource', {
-        url: version.download_url,
-        fileName: version.file_name,
+      invoke('download_resource', {
+        url: targetVersion.download_url,
+        fileName: targetVersion.file_name,
         instanceId: targetInstanceId,
         subFolder: subFolder
+      }).catch(e => {
+        console.error(`下载 ${targetVersion.file_name} 抛出异常:`, e);
+        useDownloadStore.getState().addOrUpdateTask({
+          id: targetVersion.file_name,
+          message: `下载失败: ${e}`
+        });
       });
+    };
 
-    } catch (e) {
-      console.error("下载请求抛出异常:", e);
-      // 如果报错，推一条失败日志进去，DownloadManager 里的高亮正则会捕捉到“失败”并标红
-      useDownloadStore.getState().addOrUpdateTask({
-        id: version.file_name,
-        message: `下载失败: ${e}`
-      });
+    // 2. 派发主文件下载
+    executeDownload(version);
+
+    // 3. 处理自动补全前置逻辑
+    if (autoInstallDeps && version.dependencies) {
+      const requiredDeps = version.dependencies.filter(d => d.dependency_type === 'required' && d.project_id);
+      
+      if (requiredDeps.length > 0) {
+        try {
+          // 获取目标实例真实已安装的 Mod（防止重复下载）
+          const currentInstalledMods = await modService.getMods(targetInstanceId);
+          const installedIds = currentInstalledMods.map(m => m.modId).filter(Boolean);
+          const missingDeps = requiredDeps.filter(d => !installedIds.includes(d.project_id!));
+          
+          // 获取目标实例的环境，优先采用当前下载的主 Mod 的版本和 Loader ，保证前置环境和主体绝对一致
+          const targetGameVersion = version.game_versions && version.game_versions.length > 0 
+            ? version.game_versions[0] 
+            : (instanceConfig?.game_version || instanceConfig?.gameVersion || mcVersion);
+          
+          const targetLoader = version.loaders && version.loaders.length > 0
+            ? version.loaders[0]
+            : (instanceConfig?.loader_type || instanceConfig?.loaderType || loaderType);
+
+          for (const dep of missingDeps) {
+            // 请求 Modrinth 获取兼容的前置版本
+            const depVersions = await fetchModrinthVersions(
+              dep.project_id!,
+              targetGameVersion && targetGameVersion !== 'all' ? targetGameVersion : undefined,
+              targetLoader && targetLoader !== 'all' ? targetLoader : undefined
+            );
+
+            // 如果找到兼容版本，触发并发下载
+            if (depVersions && depVersions.length > 0) {
+              const bestDep = depVersions[0];
+              executeDownload(bestDep);
+            }
+          }
+        } catch (error) {
+          console.error('处理前置依赖下载时发生异常:', error);
+        }
+      }
     }
   };
 

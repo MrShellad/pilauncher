@@ -21,7 +21,14 @@ pub async fn install_vanilla_core<R: Runtime>(
 
     let dl_settings = ConfigService::get_download_settings(app);
 
-    if !json_path.exists() {
+    let need_download = if json_path.exists() {
+        let content = fs::read_to_string(&json_path).unwrap_or_default();
+        serde_json::from_str::<serde_json::Value>(&content).is_err()
+    } else {
+        true
+    };
+
+    if need_download {
         let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {
             instance_id: instance_id.to_string(), stage: "VANILLA_CORE".to_string(), file_name: format!("{}.json", version_id), current: 10, total: 100,
             message: "正在获取版本清单...".to_string(),
@@ -34,7 +41,11 @@ pub async fn install_vanilla_core<R: Runtime>(
             format!("{}/mc/game/version_manifest_v2.json", dl_settings.vanilla_source_url)
         };
 
-        let manifest_res: serde_json::Value = client.get(&manifest_url).send().await?.json().await?;
+        let manifest_res_raw = client.get(&manifest_url).send().await?;
+        if !manifest_res_raw.status().is_success() {
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, format!("获取版本列表失败: {}", manifest_res_raw.status())).into());
+        }
+        let manifest_res: serde_json::Value = manifest_res_raw.json().await?;
 
         let version_url = manifest_res["versions"]
             .as_array().unwrap().iter()
@@ -48,12 +59,17 @@ pub async fn install_vanilla_core<R: Runtime>(
             version_url.replace("https://piston-meta.mojang.com", &dl_settings.vanilla_source_url)
         };
 
-        let version_json_text = client.get(&mirror_url).send().await?.text().await?;
+        let res = client.get(&mirror_url).send().await?;
+        if !res.status().is_success() {
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, format!("下载版本清单 {} 失败: {}", version_id, res.status())).into());
+        }
+        let version_json_text = res.text().await?;
         fs::write(&json_path, &version_json_text)?;
     }
 
     let json_content = fs::read_to_string(&json_path)?;
-    let parsed_json: serde_json::Value = serde_json::from_str(&json_content)?;
+    let parsed_json: serde_json::Value = serde_json::from_str(&json_content)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("解析版本 JSON 失败: {}", e)))?;
 
     if !jar_path.exists() {
         let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {

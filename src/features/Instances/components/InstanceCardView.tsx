@@ -7,7 +7,7 @@ import { useGameLaunch } from '../../../hooks/useGameLaunch';
 
 import { OreButton } from '../../../ui/primitives/OreButton';
 import { FocusItem } from '../../../ui/focus/FocusItem';
-import { OreMotionTokens } from '../../../style/tokens/motion'; 
+import { OreMotionTokens } from '../../../style/tokens/motion';
 
 // ✅ 1. 引入你的超级输入驱动
 import { useInputAction } from '../../../ui/focus/InputDriver';
@@ -43,7 +43,7 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
         <>
           {/* ✅ 3. 将窃听器挂载到这里，接收 focused 状态 */}
           <CardFocusHandler focused={focused} onAction={onClick} />
-          
+
           <motion.div
             ref={ref}
             tabIndex={-1}
@@ -59,13 +59,13 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
             animate={focused ? "hover" : "rest"}
             whileHover="hover"
             className={`
-              relative flex flex-col w-[260px] md:w-[280px] rounded-[4px] cursor-pointer select-none group
+              relative flex flex-col w-[240px] md:w-[260px] lg:w-[270px] xl:w-[280px] rounded-[4px] cursor-pointer select-none group
               transition-all duration-200 transform-gpu
               border-[4px] ${focused ? 'border-white shadow-[0_0_30px_rgba(255,255,255,0.2)] z-50' : 'border-transparent shadow-lg'}
             `}
           >
             <div className="flex flex-col h-full bg-[#141415] border-[3px] border-black border-b-[6px] rounded-[2px] overflow-hidden">
-              
+
               <div className="relative w-full aspect-video bg-[#0A0A0C] overflow-hidden border-b-[3px] border-black">
                 {instance.coverUrl ? (
                   <motion.img
@@ -88,9 +88,9 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                       <span className="text-[10px] text-white font-minecraft font-bold tracking-widest uppercase">详情</span>
                     </motion.div>
                   ) : (
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); onEdit(); }} 
-                      className="opacity-0 group-hover:opacity-100 p-2 bg-black/60 hover:bg-[#3C8527] rounded-sm border-[2px] border-transparent hover:border-black text-gray-300 hover:text-white backdrop-blur-sm transition-all duration-200 outline-none shadow-md" 
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                      className="opacity-0 group-hover:opacity-100 p-2 bg-black/60 hover:bg-[#3C8527] rounded-sm border-[2px] border-transparent hover:border-black text-gray-300 hover:text-white backdrop-blur-sm transition-all duration-200 outline-none shadow-md"
                       title="编辑配置"
                     >
                       <Settings size={18} />
@@ -104,9 +104,9 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                   variant="primary"
                   size="full"
                   className={`!h-[44px] shadow-inner transition-all duration-300 ${focused ? 'brightness-110' : ''}`}
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    launchGame(instance.id); 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    launchGame(instance.id);
                   }}
                   tabIndex={-1}
                 >
@@ -119,18 +119,18 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                 <span className="text-white font-minecraft text-lg truncate drop-shadow-md tracking-wide">
                   {instance.name}
                 </span>
-                
+
                 <div className="flex items-center text-gray-500 font-minecraft text-[11px] mt-1.5 space-x-2 truncate">
                   <span className="bg-black/50 px-1.5 py-0.5 rounded-sm text-gray-300 border border-white/5 shadow-inner">
                     {instance.version}
                   </span>
-                  
+
                   {instance.loader && instance.loader !== 'Vanilla' && (
                     <span className="bg-black/50 px-1.5 py-0.5 rounded-sm text-gray-300 border border-white/5 shadow-inner">
                       {instance.loader}
                     </span>
                   )}
-                  
+
                   {instance.playTime > 0 && (
                     <>
                       <span className="opacity-30">|</span>

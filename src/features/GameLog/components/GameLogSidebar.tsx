@@ -1,29 +1,103 @@
 // src/features/GameLog/components/GameLogSidebar.tsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Loader2, AlertTriangle, Bug, Activity, Copy, Check, FileText, Share2, ChevronRight } from 'lucide-react';
 import { listen } from '@tauri-apps/api/event'; 
 import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow, UserAttentionType } from '@tauri-apps/api/window';
 
 // ✅ 引入空间导航与输入驱动引擎
-import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { useInputAction } from '../../../ui/focus/InputDriver';
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 
 import { useGameLogStore } from '../../../store/useGameLogStore';
+import { useLauncherStore } from '../../../store/useLauncherStore';
 import { renderHighlightedLog, defaultHighlightRules } from '../logic/LogHighlighter';
 import { OreButton } from '../../../ui/primitives/OreButton';
 
 export const GameLogSidebar: React.FC = () => {
   const { isOpen, setOpen, currentInstanceId, logs, gameState, crashReason, telemetry } = useGameLogStore();
+  const activeTab = useLauncherStore((state) => state.activeTab);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const appWindowRef = useRef(getCurrentWindow());
+  const lastFocusBeforeOpenRef = useRef<string | null>(null);
+  const foregroundLockRef = useRef(false);
   
   const [showTelemetry, setShowTelemetry] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   
   const [copiedLine, setCopiedLine] = useState<number | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
+
+  const fallbackFocusKeysByTab = useMemo<Record<string, string[]>>(() => ({
+    home: ['play-button', 'instance-button', 'settings-button', 'btn-profile', 'btn-login'],
+    instances: ['action-new', 'view-grid', 'view-list'],
+    downloads: ['download-search-input', 'download-grid-item-0'],
+    settings: [
+      'settings-device-name',
+      'settings-java-autodetect',
+      'settings-download-source-vanilla',
+      'btn-add-ms',
+      'color-preset-0',
+    ],
+    'new-instance': ['card-custom', 'btn-back-menu'],
+    'instance-detail': [
+      'overview-btn-play',
+      'basic-input-name',
+      'java-entry-point',
+      'save-btn-history',
+      'mod-btn-history',
+      'btn-open-resourcepack-folder',
+      'btn-open-shader-folder',
+    ],
+  }), []);
+
+  const restoreFocusToCurrentPage = useCallback(() => {
+    const lastFocus = lastFocusBeforeOpenRef.current;
+    if (lastFocus && doesFocusableExist(lastFocus)) {
+      setFocus(lastFocus);
+      return;
+    }
+
+    const candidates = fallbackFocusKeysByTab[activeTab] || [];
+    const target = candidates.find((focusKey) => doesFocusableExist(focusKey));
+    if (target) setFocus(target);
+  }, [activeTab, fallbackFocusKeysByTab]);
+
+  const closeSidebarAndRestoreFocus = useCallback(() => {
+    setOpen(false);
+    setTimeout(() => restoreFocusToCurrentPage(), 80);
+  }, [restoreFocusToCurrentPage, setOpen]);
+
+  const forceLauncherToFront = useCallback(async () => {
+    if (foregroundLockRef.current) return;
+    foregroundLockRef.current = true;
+
+    const appWindow = appWindowRef.current;
+    try {
+      const minimized = await appWindow.isMinimized().catch(() => false);
+      if (minimized) {
+        await appWindow.unminimize().catch(() => undefined);
+      }
+
+      await appWindow.show().catch(() => undefined);
+      await appWindow.setAlwaysOnTop(true).catch(() => undefined);
+      await appWindow.setFocus().catch(() => undefined);
+      await appWindow.requestUserAttention(UserAttentionType.Critical).catch(() => undefined);
+    } finally {
+      setTimeout(() => {
+        appWindow.requestUserAttention(null).catch(() => undefined);
+        appWindow.setAlwaysOnTop(false).catch(() => undefined);
+        foregroundLockRef.current = false;
+      }, 900);
+    }
+  }, []);
+
+  const isMinecraftStoppingLog = useCallback((line: string) => {
+    return line.includes('[minecraft/Minecraft]: Stopping!');
+  }, []);
 
   // 1. 日志刷新时的自动滚底
   useEffect(() => {
@@ -33,6 +107,11 @@ export const GameLogSidebar: React.FC = () => {
   // ✅ 2. 焦点锁定：当侧边栏打开时，强制将空间焦点拉入日志区域
   useEffect(() => {
     if (isOpen) {
+      const currentFocus = getCurrentFocusKey();
+      if (currentFocus && currentFocus !== 'SN:ROOT' && !currentFocus.startsWith('log-')) {
+        lastFocusBeforeOpenRef.current = currentFocus;
+      }
+
       // 延迟 100ms 等待抽屉动画和 DOM 挂载完成
       const timer = setTimeout(() => setFocus('log-area'), 100);
       return () => clearTimeout(timer);
@@ -67,19 +146,29 @@ export const GameLogSidebar: React.FC = () => {
 
   useEffect(() => {
     const unlistenLog = listen<string>('game-log', (event) => {
-      useGameLogStore.getState().addLog(event.payload);
+      const store = useGameLogStore.getState();
+      const line = event.payload;
+
+      store.addLog(line);
+
+      if (isMinecraftStoppingLog(line)) {
+        store.setGameState('idle');
+        closeSidebarAndRestoreFocus();
+        void forceLauncherToFront();
+      }
     });
     const unlistenExit = listen<{code: number}>('game-exit', (event) => {
       const store = useGameLogStore.getState();
       if (event.payload.code !== 0) {
         store.analyzeCrash();
         store.setOpen(true);
+        void forceLauncherToFront();
       } else {
         store.setGameState('idle');
       }
     });
     return () => { unlistenLog.then(f => f()); unlistenExit.then(f => f()); };
-  }, []); 
+  }, [closeSidebarAndRestoreFocus, forceLauncherToFront, isMinecraftStoppingLog]); 
 
   const handleCopyLine = (line: string, idx: number) => {
     navigator.clipboard.writeText(line);
@@ -137,7 +226,7 @@ export const GameLogSidebar: React.FC = () => {
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
           className="fixed top-0 right-0 h-full w-[600px] bg-[#141415] border-l-[3px] border-[#1E1E1F] shadow-2xl z-[99999] flex flex-col font-minecraft"
         >
-          <FocusBoundary id="game-log-sidebar" trapFocus={isOpen} onEscape={() => setOpen(false)} className="flex flex-col h-full outline-none">
+          <FocusBoundary id="game-log-sidebar" trapFocus={isOpen} onEscape={closeSidebarAndRestoreFocus} className="flex flex-col h-full outline-none">
             
             <div className="h-14 bg-[#1E1E1F] flex items-center justify-between px-4 shrink-0 shadow-sm z-20">
               <div className="flex items-center text-white">
@@ -303,7 +392,7 @@ export const GameLogSidebar: React.FC = () => {
 
                 <div className="w-px h-4 bg-white/10 mx-1"></div>
                 
-                <OreButton focusKey="log-btn-hide-panel" variant="primary" size="md" onClick={() => setOpen(false)}>
+                <OreButton focusKey="log-btn-hide-panel" variant="primary" size="md" onClick={closeSidebarAndRestoreFocus}>
                   隐藏面板 <ChevronRight size={16} className="ml-1" />
                 </OreButton>
 

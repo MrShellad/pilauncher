@@ -31,4 +31,13 @@ pub struct OreProjectVersion {
     pub game_versions: Vec<String>,
     pub file_name: String,
     pub download_url: String,
+    pub dependencies: Option<Vec<OreProjectDependency>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OreProjectDependency {
+    pub version_id: Option<String>,
+    pub project_id: Option<String>,
+    pub file_name: Option<String>,
+    pub dependency_type: String,
 }

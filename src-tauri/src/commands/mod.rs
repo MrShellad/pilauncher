@@ -46,6 +46,8 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         instance::action_cmd::change_instance_cover,
         instance::action_cmd::delete_instance,
         instance::action_cmd::get_instance_detail,
+        instance::action_cmd::check_instance_gamepad,
+        instance::action_cmd::install_remote_mod,
         instance::mod_cmd::get_instance_mods,
         instance::mod_cmd::create_mod_snapshot,
         instance::mod_cmd::rollback_mod_snapshot,

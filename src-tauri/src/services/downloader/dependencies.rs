@@ -23,7 +23,8 @@ pub async fn download_dependencies<R: Runtime>(
 
     let json_path = global_mc_root.join("versions").join(version_id).join(format!("{}.json", version_id));
     let json_content = tokio::fs::read_to_string(&json_path).await?;
-    let manifest: Value = serde_json::from_str(&json_content)?;
+    let manifest: Value = serde_json::from_str(&json_content)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("解析版本清单 JSON 失败: {}", e)))?;
 
     download_libraries(app, instance_id, &client, &manifest, global_mc_root).await?;
     download_assets(app, instance_id, &client, &manifest, global_mc_root).await?;
@@ -141,21 +142,36 @@ async fn download_assets<R: Runtime>(
     tokio::fs::create_dir_all(&index_dir).await?;
     let index_path = index_dir.join(format!("{}.json", index_id));
 
-    if !index_path.exists() {
+    let need_download = if index_path.exists() {
+        let content = tokio::fs::read_to_string(&index_path).await.unwrap_or_default();
+        serde_json::from_str::<serde_json::Value>(&content).is_err()
+    } else {
+        true
+    };
+
+    if need_download {
         let mirror_url = if dl_settings.vanilla_source == "official" {
             index_url.to_string()
         } else {
             index_url.replace("https://launchermeta.mojang.com", &dl_settings.vanilla_source_url)
         };
+        
         if let Ok(res) = client.get(&mirror_url).send().await {
-            if let Ok(text) = res.text().await { let _ = tokio::fs::write(&index_path, text).await; }
+            if res.status().is_success() {
+                if let Ok(text) = res.text().await { 
+                    let _ = tokio::fs::write(&index_path, text).await; 
+                }
+            } else {
+                return Err(std::io::Error::new(std::io::ErrorKind::Other, format!("下载资源索引失败: {}", res.status())).into());
+            }
         }
     }
 
     if !index_path.exists() { return Ok(()); }
 
     let index_content = tokio::fs::read_to_string(&index_path).await?;
-    let index_json: Value = serde_json::from_str(&index_content)?;
+    let index_json: Value = serde_json::from_str(&index_content)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("解析资源索引 JSON 失败: {}", e)))?;
     let mut tasks: Vec<(String, PathBuf, String)> = Vec::new();
 
     if let Some(objects) = index_json["objects"].as_object() {

@@ -5,7 +5,7 @@ import { invoke } from '@tauri-apps/api/core';
 // 1. 搜索列表原始模型
 // ==========================================
 export interface ModrinthProject {
-  id: string; // 我们在搜索结果映射后保证这个字段存在
+  id: string; 
   slug: string;
   title: string;
   description: string;
@@ -53,7 +53,6 @@ export const searchModrinth = async (params: SearchParams): Promise<{ hits: Modr
   
   const data = await res.json();
 
-  // ✅ 核心修复：Modrinth 搜索接口返回的是 project_id，我们在这里统一映射为 id
   data.hits = data.hits.map((hit: any) => ({
     ...hit,
     id: hit.project_id || hit.id 
@@ -81,6 +80,14 @@ export interface OreProjectDetail {
   gallery_urls: string[]; 
 }
 
+// ✅ 新增：定义依赖项数据结构
+export interface OreProjectDependency {
+  version_id: string | null;
+  project_id: string | null;
+  file_name: string | null;
+  dependency_type: 'required' | 'optional' | 'incompatible' | 'embedded';
+}
+
 export interface OreProjectVersion {
   id: string;
   name: string;
@@ -90,6 +97,7 @@ export interface OreProjectVersion {
   game_versions: string[];
   file_name: string;      
   download_url: string;   
+  dependencies?: OreProjectDependency[]; // ✅ 注入依赖字段
 }
 
 // ==========================================

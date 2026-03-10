@@ -20,11 +20,11 @@ export type StepProps = ReturnType<typeof useCustomInstance>;
 const VERSION_TYPES = ['release', 'snapshot', 'rc', 'pre', 'special'] as const;
 
 // 🎮 手柄按键 SVG 图标组件
-const GamepadBtn = ({ letter, color, shadow }: { letter: string, color: string, shadow: string }) => (
+const GamepadBtn = ({ text, color, shadow, fontSize = "13" }: { text: string, color: string, shadow: string, fontSize?: string }) => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline-block flex-shrink-0">
     <circle cx="12" cy="12" r="10" fill={color} className={shadow} />
-    <text x="12" y="16.5" fontSize="13" fontWeight="900" fontFamily="system-ui, sans-serif" fill="#1E1E1F" textAnchor="middle">
-      {letter}
+    <text x="12" y="16.5" fontSize={fontSize} fontWeight="900" fontFamily="system-ui, sans-serif" fill="#1E1E1F" textAnchor="middle">
+      {text}
     </text>
   </svg>
 );
@@ -37,14 +37,20 @@ export const VersionSelectStep: React.FC<StepProps> = ({
 
   // ======================= 🎮 快捷键挂载 =======================
   
-  // 监听 Y 键：循环切换版本分类
-  const cycleVersionType = useCallback(() => {
+  // 监听 LT / RT 键：循环切换版本分类
+  const cycleVersionType = useCallback((direction: 1 | -1) => {
     const currentIndex = VERSION_TYPES.indexOf(versionType as any);
-    const nextIndex = (currentIndex + 1) % VERSION_TYPES.length;
+    const nextIndex = (currentIndex + direction + VERSION_TYPES.length) % VERSION_TYPES.length;
     setVersionType(VERSION_TYPES[nextIndex]);
   }, [versionType, setVersionType]);
 
-  useInputAction('ACTION_Y', cycleVersionType);
+  useInputAction('PAGE_LEFT', () => cycleVersionType(-1)); // LT
+  useInputAction('PAGE_RIGHT', () => cycleVersionType(1)); // RT
+  
+  // 监听 Y 键：进入下一步
+  useInputAction('ACTION_Y', () => {
+    if (gameVersion) handleNextStep();
+  });
 
   // 监听 X 键：刷新列表
   useInputAction('ACTION_X', () => {
@@ -59,7 +65,11 @@ export const VersionSelectStep: React.FC<StepProps> = ({
           <p className="text-ore-text-muted font-minecraft text-sm mt-1 tracking-widest">Step 1: 确定核心游戏版本</p>
         </div>
         <OreButton variant="primary" size="auto" onClick={handleNextStep} disabled={!gameVersion}>
-          <span className="flex items-center">下一步 <ArrowRight size={18} className="ml-2" /></span>
+          <span className="flex items-center">
+            {/* ✅ Y 键 UI 提示 */}
+            <GamepadBtn text="Y" color="#FACC15" shadow="drop-shadow-[0_0_4px_rgba(250,204,21,0.5)]" />
+            <span className="ml-1.5 flex items-center">下一步 <ArrowRight size={18} className="ml-1" /></span>
+          </span>
         </OreButton>
       </div>
 
@@ -94,9 +104,10 @@ export const VersionSelectStep: React.FC<StepProps> = ({
               </button>
             ))}
           </div>
-          {/* ✅ Y 键 UI 提示 */}
-          <div className="flex items-center text-ore-text-muted font-minecraft text-xs select-none">
-            <GamepadBtn letter="Y" color="#FACC15" shadow="drop-shadow-[0_0_4px_rgba(250,204,21,0.5)]" />
+          {/* ✅ LT / RT 键 UI 提示 */}
+          <div className="flex items-center text-ore-text-muted font-minecraft text-xs select-none gap-0.5">
+            <GamepadBtn text="LT" color="#48494A" shadow="drop-shadow-[0_0_2px_rgba(255,255,255,0.2)]" fontSize="10" />
+            <GamepadBtn text="RT" color="#48494A" shadow="drop-shadow-[0_0_2px_rgba(255,255,255,0.2)]" fontSize="10" />
             <span className="ml-1.5 mt-0.5 tracking-wider">切换分类</span>
           </div>
         </div>
@@ -105,7 +116,7 @@ export const VersionSelectStep: React.FC<StepProps> = ({
         <div className="flex items-center gap-3">
           {/* ✅ X 键 UI 提示 */}
           <div className="flex items-center text-ore-text-muted font-minecraft text-xs select-none">
-            <GamepadBtn letter="X" color="#60A5FA" shadow="drop-shadow-[0_0_4px_rgba(96,165,250,0.5)]" />
+            <GamepadBtn text="X" color="#60A5FA" shadow="drop-shadow-[0_0_4px_rgba(96,165,250,0.5)]" />
             <span className="ml-1.5 mt-0.5 tracking-wider">刷新列表</span>
           </div>
           <button 

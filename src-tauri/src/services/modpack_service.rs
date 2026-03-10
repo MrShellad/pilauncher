@@ -135,6 +135,7 @@ pub async fn execute_import<R: Runtime>(
         last_played: "从未游玩".to_string(),
         created_at: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
         cover_image: None, // ✅ 核心修复：补全缺失的 cover_image 字段
+        gamepad: None,
     };
     fs::write(
         instance_root.join("instance.json"),

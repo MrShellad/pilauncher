@@ -221,6 +221,87 @@ impl ModManagerService {
         Ok(())
     }
 
+    // ✅ 新增：检测手柄 Mod 并更新 instance.json
+    pub fn check_and_update_gamepad<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+    ) -> Result<bool, String> {
+        let instance_dir = Self::get_instance_dir(app, instance_id)?;
+        let config_path = instance_dir.join("instance.json");
+        let mods_dir = instance_dir.join("mods");
+
+        // 读取当前 instance.json
+        let mut config: Option<crate::domain::instance::InstanceConfig> = None;
+        if config_path.exists() {
+            if let Ok(content) = fs::read_to_string(&config_path) {
+                config = serde_json::from_str(&content).ok();
+            }
+        }
+
+        let mut has_gamepad = false;
+        if let Ok(entries) = fs::read_dir(&mods_dir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let path = entry.path();
+                if path.is_file() {
+                    let file_name = path.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
+                    // 仅判断启用的 mod (.jar)
+                    if file_name.ends_with(".jar") && !file_name.ends_with(".disabled") {
+                        if file_name.contains("controllable") || file_name.contains("midnightcontrols") || file_name.contains("controlify") {
+                            has_gamepad = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 保存检测结果回 instance.json
+        if let Some(mut cfg) = config {
+            cfg.gamepad = Some(has_gamepad);
+            if let Ok(new_content) = serde_json::to_string_pretty(&cfg) {
+                let _ = fs::write(&config_path, new_content);
+            }
+        }
+
+        Ok(has_gamepad)
+    }
+
+    // ✅ 新增：从远端 URL 下载指定 Mod 到实例的 mods 文件夹
+    pub async fn install_remote_mod<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        download_url: &str,
+        file_name: &str,
+    ) -> Result<(), String> {
+        let instance_dir = Self::get_instance_dir(app, instance_id)?;
+        let mods_dir = instance_dir.join("mods");
+        fs::create_dir_all(&mods_dir).ok();
+
+        let target_path = mods_dir.join(file_name);
+
+        println!("正在下载推荐 Mod: {}", download_url);
+        let client = reqwest::Client::new();
+        let response = client
+            .get(download_url)
+            .send()
+            .await
+            .map_err(|e| format!("下载请求失败: {}", e))?;
+
+        if !response.status().is_success() {
+            return Err(format!("下载失败，状态码: {}", response.status()));
+        }
+
+        let bytes = response
+            .bytes()
+            .await
+            .map_err(|e| format!("读取文件字节流失败: {}", e))?;
+
+        fs::write(&target_path, bytes)
+            .map_err(|e| format!("写入文件失败: {}", e))?;
+
+        Ok(())
+    }
+
     // 保持你原有的快照功能不变...
     pub fn create_snapshot<R: Runtime>(
         app: &AppHandle<R>,

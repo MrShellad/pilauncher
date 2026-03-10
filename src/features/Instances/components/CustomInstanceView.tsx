@@ -7,7 +7,7 @@ import { VersionSelectStep } from './steps/VersionSelectStep';
 import { LoaderSelectStep } from './steps/LoaderSelectStep';
 import { FinalConfigStep } from './steps/FinalConfigStep';
 
-export const CustomInstanceView: React.FC = () => {
+export const CustomInstanceView: React.FC<{ onSuccess?: () => void }> = ({ onSuccess }) => {
   // ✅ 1. 整个流程只在这里调用一次 Hook
   const instanceState = useCustomInstance();
   const { step, direction } = instanceState;
@@ -26,7 +26,12 @@ export const CustomInstanceView: React.FC = () => {
           {/* ✅ 2. 把所有状态和方法通过 props 传给子组件 */}
           {step === 1 && <VersionSelectStep {...instanceState} />}
           {step === 2 && <LoaderSelectStep {...instanceState} />}
-          {step === 3 && <FinalConfigStep {...instanceState} />}
+          {step === 3 && (
+            <FinalConfigStep 
+              {...instanceState} 
+              handleCreate={() => instanceState.handleCreate(onSuccess)} 
+            />
+          )}
         </motion.div>
       </AnimatePresence>
     </div>

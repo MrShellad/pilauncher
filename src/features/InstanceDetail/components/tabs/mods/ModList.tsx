@@ -64,7 +64,7 @@ export const ModList: React.FC<ModListProps> = ({ mods, isLoading, onSelectMod }
                 </div>
               }
               subtitle={mod.fileName}
-              content={displayDesc}  
+              content={<div className="truncate">{displayDesc}</div>}  
               leading={             
                 mod.isFetchingNetwork ? (
                   <Loader2 size={24} className="animate-spin text-ore-text-muted" />

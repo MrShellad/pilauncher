@@ -1,13 +1,12 @@
 // /src/features/InstanceDetail/components/tabs/mods/ModDetailModal.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { ask } from '@tauri-apps/plugin-dialog';
 import { OreModal } from '../../../../../ui/primitives/OreModal';
 import { OreButton } from '../../../../../ui/primitives/OreButton';
 import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../../ui/focus/FocusItem';
-import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
-import { Blocks, Loader2, Trash2, Power, ChevronRight } from 'lucide-react';
+import { setFocus, getCurrentFocusKey, doesFocusableExist } from '@noriginmedia/norigin-spatial-navigation';
+import { Blocks, Loader2, Trash2, Power, ChevronRight, AlertTriangle } from 'lucide-react';
 import { fetchModrinthVersions } from '../../../logic/modrinthApi';
 import type { ModMeta } from '../../../logic/modService';
 
@@ -23,6 +22,11 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({ mod, instanceCon
   const [modVersions, setModVersions] = useState<any[]>([]);
   const [isLoadingVersions, setIsLoadingVersions] = useState(false);
   const [displayMod, setDisplayMod] = useState<ModMeta | null>(null);
+  const lastFocusBeforeModalRef = useRef<string | null>(null);
+
+  // 删除确认弹窗状态
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const lastFocusBeforeDeleteRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (mod) setDisplayMod(mod);
@@ -30,9 +34,25 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({ mod, instanceCon
 
   useEffect(() => {
     if (mod) {
+      const currentFocus = getCurrentFocusKey();
+      if (currentFocus && currentFocus !== 'SN:ROOT') {
+        lastFocusBeforeModalRef.current = currentFocus;
+      }
       setTimeout(() => setFocus('btn-mod-toggle'), 100);
+    } else {
+      setShowDeleteConfirm(false);
     }
   }, [mod]);
+
+  useEffect(() => {
+    if (showDeleteConfirm) {
+      const currentFocus = getCurrentFocusKey();
+      if (currentFocus && currentFocus !== 'SN:ROOT') {
+        lastFocusBeforeDeleteRef.current = currentFocus;
+      }
+      setTimeout(() => setFocus('btn-delete-cancel'), 100);
+    }
+  }, [showDeleteConfirm]);
 
   useEffect(() => {
     if (mod?.networkInfo && instanceConfig) {
@@ -47,13 +67,33 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({ mod, instanceCon
     }
   }, [mod, instanceConfig]);
 
-  const handleDelete = async () => {
+  const handleClose = () => {
+    onClose();
+    setTimeout(() => {
+      const lastFocus = lastFocusBeforeModalRef.current;
+      if (lastFocus && doesFocusableExist(lastFocus)) {
+        setFocus(lastFocus);
+      }
+    }, 50);
+  };
+
+  const handleCloseDeleteConfirm = () => {
+    setShowDeleteConfirm(false);
+    setTimeout(() => {
+      const lastFocus = lastFocusBeforeDeleteRef.current;
+      if (lastFocus && doesFocusableExist(lastFocus)) {
+        setFocus(lastFocus);
+      } else {
+        setFocus('btn-mod-delete');
+      }
+    }, 50);
+  };
+
+  const handleExecuteDelete = () => {
     if (!mod) return;
-    const directDelete = await ask(`确定要删除模组 ${mod.fileName} 吗？\n该操作无法撤销。`, { title: '删除模组确认', kind: 'warning' });
-    if (directDelete) {
-      onDelete(mod.fileName);
-      onClose();
-    }
+    onDelete(mod.fileName);
+    setShowDeleteConfirm(false);
+    handleClose();
   };
 
   if (!mod) return null;
@@ -64,78 +104,111 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({ mod, instanceCon
   const cacheKey = displayMod?.modifiedAt || displayMod?.fileSize || displayMod?.fileName || 'cache';
 
   return (
-    <OreModal isOpen={!!mod} onClose={onClose} title={displayMod?.name || displayMod?.networkInfo?.title || displayMod?.fileName} className="w-[800px] h-[70vh]">
-      <FocusBoundary id="mod-detail-boundary" trapFocus onEscape={onClose} className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-[#141415]">
-        <div className="flex space-x-6">
-          <div className="w-32 h-32 flex-shrink-0 bg-[#1E1E1F] border-2 border-[#2A2A2C] shadow-inner flex items-center justify-center p-2 rounded-sm relative">
-            {mod.isFetchingNetwork && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><Loader2 className="animate-spin text-ore-green" /></div>}
+    <>
+      <OreModal isOpen={!!mod && !showDeleteConfirm} onClose={handleClose} title={displayMod?.name || displayMod?.networkInfo?.title || displayMod?.fileName} className="w-[800px] h-[70vh]">
+        <FocusBoundary id="mod-detail-boundary" trapFocus onEscape={handleClose} className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-[#141415]">
+          <div className="flex gap-6 border-b-2 border-white/5 pb-6">
+            <div className="w-24 h-24 flex-shrink-0 bg-[#1E1E1F] border-2 border-[#2A2A2C] shadow-inner flex items-center justify-center p-2 rounded-sm relative">
+              {mod.isFetchingNetwork && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><Loader2 className="animate-spin text-ore-green" /></div>}
+              
+              {displayMod?.iconAbsolutePath || displayMod?.networkIconUrl || displayMod?.networkInfo?.icon_url ? (
+                // ✅ 移除 Date.now()，使用稳定的 t 参数
+                <img src={displayMod.iconAbsolutePath ? `${convertFileSrc(displayMod.iconAbsolutePath)}?t=${cacheKey}` : (displayMod.networkIconUrl || displayMod.networkInfo?.icon_url)} alt="icon" className="w-full h-full object-cover" />
+              ) : <Blocks size={40} className="text-gray-600" />}
+            </div>
             
-            {displayMod?.iconAbsolutePath || displayMod?.networkIconUrl || displayMod?.networkInfo?.icon_url ? (
-              // ✅ 移除 Date.now()，使用稳定的 t 参数
-              <img src={displayMod.iconAbsolutePath ? `${convertFileSrc(displayMod.iconAbsolutePath)}?t=${cacheKey}` : (displayMod.networkIconUrl || displayMod.networkInfo?.icon_url)} alt="icon" className="w-full h-full object-cover" />
-            ) : <Blocks size={48} className="text-gray-600" />}
-          </div>
-          
-          <div className="flex-1">
-            <h2 className="text-2xl font-minecraft text-white drop-shadow-sm flex items-center">
-              {displayMod?.name || displayMod?.networkInfo?.title || displayMod?.fileName}
-              {!displayMod?.isEnabled && <span className="ml-3 text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/30">已禁用</span>}
-            </h2>
-            <div className="mt-2 text-sm text-gray-400 space-y-1">
-              <p>文件名称: {displayMod?.fileName}</p>
-              <p>文件大小: {displayMod?.fileSize ? (displayMod.fileSize / 1024 / 1024).toFixed(2) + ' MB' : '未知'}</p>
-              <p>识别状态: {mod.isFetchingNetwork ? '正在匹配...' : (displayMod?.networkInfo ? '✅ 已链接至 Modrinth' : '未找到匹配项目')}</p>
+            <div className="flex-1 min-w-0 flex flex-col justify-center">
+              <h2 className="text-xl font-minecraft text-white drop-shadow-sm flex items-center truncate">
+                <span className="truncate">{displayMod?.name || displayMod?.networkInfo?.title || displayMod?.fileName}</span>
+                {!displayMod?.isEnabled && <span className="ml-3 flex-shrink-0 text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/30">已禁用</span>}
+              </h2>
+              <div className="mt-1.5 text-[13px] text-gray-400 space-y-0.5">
+                <p className="truncate">文件名称: {displayMod?.fileName}</p>
+                <p>文件大小: {displayMod?.fileSize ? (displayMod.fileSize / 1024 / 1024).toFixed(2) + ' MB' : '未知'}</p>
+                <p>识别状态: {mod.isFetchingNetwork ? '正在匹配...' : (displayMod?.networkInfo ? '✅ 已链接至 Modrinth' : '未找到匹配项目')}</p>
+              </div>
+            </div>
+            
+            <div className="flex flex-col justify-center gap-2 flex-shrink-0 pl-2">
+              <OreButton focusKey="btn-mod-toggle" variant={displayMod?.isEnabled ? 'secondary' : 'primary'} size="sm" onClick={() => onToggle(mod.fileName, !!displayMod?.isEnabled)} className="w-[124px]">
+                <Power size={14} className="mr-1.5" /> {displayMod?.isEnabled ? "禁用" : "启用"}
+              </OreButton>
+              <OreButton focusKey="btn-mod-delete" variant="danger" size="sm" onClick={() => setShowDeleteConfirm(true)} className="w-[124px]">
+                <Trash2 size={14} className="mr-1.5" /> 删除
+              </OreButton>
             </div>
           </div>
-        </div>
 
-        <div className="mt-6 flex gap-3 border-b-2 border-white/5 pb-6">
-          <OreButton focusKey="btn-mod-toggle" variant={displayMod?.isEnabled ? 'secondary' : 'primary'} onClick={() => onToggle(mod.fileName, !!displayMod?.isEnabled)}>
-            <Power size={18} className="mr-2" /> {displayMod?.isEnabled ? "点击禁用" : "点击启用"}
-          </OreButton>
-          <OreButton focusKey="btn-mod-delete" variant="danger" onClick={handleDelete}>
-            <Trash2 size={18} className="mr-2" /> 删除该模组
-          </OreButton>
-        </div>
+          <div className="mt-6">
+            <h3 className="font-minecraft text-white text-base mb-2">描述</h3>
+            <p className="text-[13px] text-gray-300 leading-relaxed bg-[#1E1E1F] p-4 rounded-sm border-2 border-[#2A2A2C] shadow-inner">{displayDesc}</p>
+          </div>
 
-        <div className="mt-6">
-          <h3 className="font-minecraft text-white text-lg mb-2">描述</h3>
-          <p className="text-sm text-gray-300 leading-relaxed bg-[#1E1E1F] p-4 rounded-sm border-2 border-[#2A2A2C] shadow-inner">{displayDesc}</p>
-        </div>
-
-        <div className="mt-6">
-          <h3 className="font-minecraft text-white text-lg mb-2">版本历史 (当前实例)</h3>
-          {isLoadingVersions ? (
-            <div className="flex justify-center py-8"><Loader2 className="animate-spin text-ore-green" /></div>
-          ) : modVersions.length > 0 ? (
-            <div className="bg-[#1E1E1F] border-2 border-[#2A2A2C] rounded-sm shadow-inner overflow-hidden">
-              {modVersions.map((v, i) => (
-                <FocusItem key={i} focusKey={`mod-version-${i}`}>
-                  {({ ref, focused }) => (
-                    <div 
-                      ref={ref as any}
-                      className={`flex justify-between items-center py-3.5 px-8 bg-[#18181B] border-b-2 outline-none transition-all cursor-pointer ${focused ? 'border-white bg-[#2A2A2C] scale-[1.002] z-10 brightness-110' : 'border-[#1E1E1F] hover:bg-[#1C1C1E]'}`}
-                    >
-                      <div className="flex items-center flex-1 min-w-0 pr-4">
-                        <div className={`w-3 h-3 rounded-full mr-3 flex-shrink-0 ${focused ? 'bg-white' : 'bg-ore-green'}`}></div>
-                        <div className="flex flex-col flex-1 min-w-0">
-                          <span className={`font-minecraft truncate ${focused ? 'text-white' : 'text-gray-200'}`}>{v.name}</span>
-                          <span className="text-xs text-ore-text-muted mt-1 truncate">
-                            版本: {v.version_number} • {new Date(v.date_published).toLocaleDateString()} 发布
-                          </span>
+          <div className="mt-6">
+            <h3 className="font-minecraft text-white text-base mb-2">版本历史 (当前实例)</h3>
+            {isLoadingVersions ? (
+              <div className="flex justify-center py-6"><Loader2 className="animate-spin text-ore-green" /></div>
+            ) : modVersions.length > 0 ? (
+              <div className="bg-[#1E1E1F] border-2 border-[#2A2A2C] rounded-sm shadow-inner overflow-hidden">
+                {modVersions.map((v, i) => (
+                  <FocusItem key={i} focusKey={`mod-version-${i}`}>
+                    {({ ref, focused }) => (
+                      <div 
+                        ref={ref as any}
+                        className={`flex justify-between items-center py-3 px-6 bg-[#18181B] border-b-[1px] outline-none transition-all cursor-pointer ${focused ? 'border-white bg-[#2A2A2C] scale-[1.002] z-10 brightness-110' : 'border-[#2A2A2C]/50 hover:bg-[#1C1C1E]'}`}
+                      >
+                        <div className="flex items-center flex-1 min-w-0 pr-4">
+                          <div className={`w-2.5 h-2.5 rounded-full mr-3 flex-shrink-0 ${focused ? 'bg-white' : 'bg-ore-green'}`}></div>
+                          <div className="flex flex-col flex-1 min-w-0">
+                            <span className={`font-minecraft text-[15px] truncate ${focused ? 'text-white' : 'text-gray-200'}`}>{v.name}</span>
+                            <span className="text-[11px] text-ore-text-muted mt-0.5 truncate">
+                              版本: {v.version_number} • {new Date(v.date_published).toLocaleDateString()} 发布
+                            </span>
+                          </div>
                         </div>
+                        <ChevronRight size={18} className={focused ? 'text-white' : 'text-gray-600'} />
                       </div>
-                      <ChevronRight size={20} className={focused ? 'text-white' : 'text-gray-600'} />
-                    </div>
-                  )}
-                </FocusItem>
-              ))}
+                    )}
+                  </FocusItem>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center text-ore-text-muted py-6 font-minecraft text-[13px] mx-8 my-4 border-2 border-dashed border-[#2A2A2C] bg-[#1A1A1C]">暂无适配当前实例的额外版本记录</div>
+            )}
+          </div>
+        </FocusBoundary>
+      </OreModal>
+
+      <OreModal 
+        isOpen={showDeleteConfirm} 
+        onClose={handleCloseDeleteConfirm} 
+        title="删除模组" 
+        className="w-[450px]"
+      >
+        <FocusBoundary id="mod-delete-confirm-boundary" trapFocus onEscape={handleCloseDeleteConfirm} className="flex flex-col p-6 bg-[#141415]">
+          <div className="flex items-start gap-4 mb-8">
+            <div className="p-3 bg-red-500/10 rounded-sm border border-red-500/20">
+              <AlertTriangle className="text-red-500" size={28} />
             </div>
-          ) : (
-            <div className="text-center text-ore-text-muted py-8 font-minecraft text-sm mx-8 my-6 border-2 border-dashed border-[#2A2A2C] bg-[#1A1A1C]">暂无适配当前实例的额外版本记录</div>
-          )}
-        </div>
-      </FocusBoundary>
-    </OreModal>
+            <div className="flex-1 mt-1">
+              <h3 className="text-white font-minecraft text-base mb-2 relative">
+                确定要删除 
+                <span className="font-bold underline decoration-red-500/50 underline-offset-4 mx-1.5 inline-block text-[15px] align-baseline leading-none break-all">{displayMod?.fileName}</span> 
+                吗？
+              </h3>
+              <p className="text-gray-400 text-sm">此操作将会把该模组从实例的 mods 文件夹中移除，删除后无法通过启动器撤销恢复该文件。</p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 mt-auto">
+            <OreButton focusKey="btn-delete-cancel" variant="secondary" onClick={handleCloseDeleteConfirm} className="w-[100px]">
+              取消
+            </OreButton>
+            <OreButton focusKey="btn-delete-confirm" variant="danger" onClick={handleExecuteDelete} className="w-[140px] font-bold">
+              确认删除
+            </OreButton>
+          </div>
+        </FocusBoundary>
+      </OreModal>
+    </>
   );
 };

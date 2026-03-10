@@ -39,6 +39,7 @@ impl InstanceListingService {
                             play_time: m.play_time,
                             last_played: m.last_played,
                             cover_path: Self::resolve_cover(&path),
+                            gamepad: m.gamepad,
                         });
                     }
                 }

@@ -9,6 +9,7 @@ import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { SettingsSection } from '../../../../ui/layout/SettingsSection';
 import { FormRow } from '../../../../ui/layout/FormRow';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
+import { OreModal } from '../../../../ui/primitives/OreModal';
 
 import type { InstanceDetailData } from '../../../../hooks/pages/InstanceDetail/useInstanceDetail';
 
@@ -18,7 +19,7 @@ interface BasicPanelProps {
   onUpdateName: (newName: string) => Promise<void>;
   onUpdateCover: () => Promise<void>;
   onVerifyFiles: () => Promise<void>;
-  onDelete: () => Promise<void>;
+  onDelete: (skipConfirm?: boolean) => Promise<void>;
 }
 
 export const BasicPanel: React.FC<BasicPanelProps> = ({
@@ -32,6 +33,7 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
   const [editName, setEditName] = useState(data.name || '');
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   useEffect(() => {
     setEditName(data.name);
@@ -59,11 +61,14 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
     setIsSaving(false);
   };
 
-  const handleDelete = async () => {
-    if (window.confirm(`确定要彻底删除实例 "${data.name}" 吗？此操作无法撤销！`)) {
-      setIsSaving(true);
-      await onDelete();
-    }
+  const handleDelete = () => {
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    setIsSaving(true);
+    setIsDeleteModalOpen(false);
+    await onDelete(true); // Bypass native confirm inside hook
   };
 
   const isNameChanged = editName !== data.name && editName.trim() !== '';
@@ -197,6 +202,50 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
             }
           />
         </SettingsSection>
+
+        {/* ======================================================== */}
+        {/*           删除确认弹窗 (Delete Confirmation)              */}
+        {/* ======================================================== */}
+        <OreModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          title="警告：彻底删除实例"
+          className="w-[450px]"
+          actions={
+            <>
+              <OreButton
+                focusKey="basic-modal-btn-cancel"
+                variant="secondary"
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="flex-1"
+              >
+                取消
+              </OreButton>
+              <OreButton
+                focusKey="basic-modal-btn-confirm"
+                variant="danger"
+                onClick={confirmDelete}
+                className="flex-1"
+                disabled={isSaving}
+              >
+                {isSaving ? <Loader2 size={16} className="animate-spin mr-2" /> : <Trash2 size={16} className="mr-2" />}
+                彻底删除
+              </OreButton>
+            </>
+          }
+        >
+          <div className="flex flex-col items-center justify-center py-4 text-center">
+            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+              <Trash2 size={32} className="text-red-500" />
+            </div>
+            <p className="text-white text-lg mb-2">
+              您确定要彻底删除实例 <span className="font-bold text-ore-red">"{data.name}"</span> 吗？
+            </p>
+            <p className="text-ore-text-muted text-sm px-4">
+              此操作无法撤销，与其相关的所有存档和 MOD 都将被永久清除！
+            </p>
+          </div>
+        </OreModal>
 
       </div>
     </SettingsPageLayout>

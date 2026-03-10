@@ -18,6 +18,7 @@ import { JavaGuard } from './features/runtime/components/JavaGuard';
 
 // ✅ 1. 引入我们刚刚写好的游戏日志侧边栏
 import { GameLogSidebar } from './features/GameLog/components/GameLogSidebar';
+import { GamepadModPrompt } from './features/Instances/components/GamepadModPrompt';
 
 // 引入样式与动画 Token
 import { OreMotionTokens } from './style/tokens/motion'; 
@@ -89,6 +90,7 @@ const App: React.FC = () => {
         
         {/* ✅ 2. 将侧边栏挂载在最外层，保证它的 z-index 能够覆盖主界面 */}
         <GameLogSidebar />
+        <GamepadModPrompt />
         
       </div>
     </FocusProvider>

@@ -84,6 +84,7 @@ impl InstanceCreationService {
             last_played: "从未游玩".to_string(),
             created_at: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
             cover_image: saved_cover_path,
+            gamepad: None,
         };
         fs::write(
             instance_root.join("instance.json"),

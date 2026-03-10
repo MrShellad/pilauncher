@@ -1,6 +1,6 @@
-// /src/hooks/pages/Instances/useCustomInstance.ts
 import { useState, useEffect, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { useDownloadStore } from '../../../store/useDownloadStore';
 
 export type McVersionType = 'release' | 'snapshot' | 'rc' | 'pre' | 'special';
 export interface McVersion {
@@ -140,7 +140,7 @@ export const useCustomInstance = () => {
   const handleNextStep = () => { setDirection(1); setStep(s => s + 1); };
   const handlePrevStep = () => { setDirection(-1); setStep(s => s - 1); };
 
-  const handleCreate = async () => {
+  const handleCreate = async (onSuccess?: () => void) => {
     const payload = {
       name: instanceName || folderName,
       folder_name: folderName,
@@ -148,9 +148,16 @@ export const useCustomInstance = () => {
       loader_type: loaderType,
       loader_version: loaderVersion,
       save_path: savePath,
-      cover_image: coverImage, // ✅ 补全被遗漏的封面图路径
+      cover_image: coverImage, 
     };
-    await invoke('create_instance', { payload });
+    try {
+      await invoke('create_instance', { payload });
+      // ✅ 触发全局下载任务面板展开
+      useDownloadStore.getState().setPopupOpen(true);
+      if (onSuccess) onSuccess();
+    } catch (e) {
+      console.error("创建失败", e);
+    }
   };
 
   return {

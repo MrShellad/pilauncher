@@ -13,6 +13,7 @@ import { OreMotionTokens } from '../style/tokens/motion';
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { FocusItem } from '../ui/focus/FocusItem';
 import { focusManager } from '../ui/focus/FocusManager';
+import { useInputAction } from '../ui/focus/InputDriver';
 
 // 引入本地 JSON
 import localSponsorData from '../assets/config/sponsor.json';
@@ -35,6 +36,16 @@ interface SponsorItem {
   backgroundColor?: string;  // 新增：背景色
   textColor?: string;        // 新增：文字颜色
 }
+
+// 🎮 手柄按键 SVG 图标组件
+const GamepadBtn = ({ text, color, shadow, fontSize = "13" }: { text: string, color: string, shadow: string, fontSize?: string }) => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline-block flex-shrink-0">
+    <circle cx="12" cy="12" r="10" fill={color} className={shadow} />
+    <text x="12" y="16.5" fontSize={fontSize} fontWeight="900" fontFamily="system-ui, sans-serif" fill="#1E1E1F" textAnchor="middle">
+      {text}
+    </text>
+  </svg>
+);
 
 export default function NewInstance() {
   const [view, setView] = useState<CreationView>('menu');
@@ -77,6 +88,13 @@ export default function NewInstance() {
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, [view]);
+
+  // ✅ 监听手柄 B 键 (CANCEL) 返回主菜单
+  useInputAction('CANCEL', () => {
+    if (view !== 'menu') {
+      setView('menu');
+    }
+  });
 
   // 调用系统原生浏览器打开推广链接
   const handleOpenLink = async (url: string) => {
@@ -248,17 +266,17 @@ export default function NewInstance() {
       {view !== 'menu' && (
         <div className="flex flex-col w-full h-full">
           <div className="h-14 bg-[#1E1E1F] border-b-2 border-[#141415] flex items-center px-4 flex-shrink-0 z-20">
-            <FocusItem focusKey="btn-back-menu" onEnter={() => setView('menu')}>
-              {({ ref, focused }) => (
-                <button 
-                  ref={ref} 
-                  onClick={() => setView('menu')} 
-                  className={`flex items-center transition-colors font-minecraft px-4 py-2 rounded-sm outline-none ${focused ? 'text-white bg-white/10 ring-2 ring-white shadow-lg' : 'text-ore-text-muted hover:text-white hover:bg-white/5'}`}
-                >
-                  <ArrowLeft size={18} className="mr-2" />返回创建菜单
-                </button>
-              )}
-            </FocusItem>
+            <button 
+              onClick={() => setView('menu')} 
+              tabIndex={-1}
+              className="flex items-center transition-colors font-minecraft px-4 py-2 rounded-sm outline-none text-ore-text-muted hover:text-white hover:bg-white/5"
+            >
+              <ArrowLeft size={18} className="mr-2" />
+              返回创建菜单
+              <div className="ml-3 flex items-center text-[10px] text-ore-text-muted/60">
+                <GamepadBtn text="B" color="#EF4444" shadow="drop-shadow-[0_0_2px_rgba(239,68,68,0.5)]" fontSize="11" />
+              </div>
+            </button>
             
             <div className="ml-auto flex items-center pr-4">
               <span className="text-white font-minecraft text-lg font-bold">
@@ -270,7 +288,7 @@ export default function NewInstance() {
           </div>
 
           <div className="flex-1 overflow-hidden relative">
-            {view === 'custom' && <CustomInstanceView />}
+            {view === 'custom' && <CustomInstanceView onSuccess={() => setView('menu')} />}
             {view === 'download' && <ModpackView />}
             {view === 'import' && <LocalImportView />}
           </div>

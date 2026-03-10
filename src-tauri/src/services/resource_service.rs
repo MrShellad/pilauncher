@@ -5,7 +5,7 @@ use tauri::{AppHandle, Emitter, Runtime};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 // 引入跨层的 DTO
-use crate::domain::resource::{OreProjectDetail, OreProjectVersion};
+use crate::domain::resource::{OreProjectDetail, OreProjectVersion, OreProjectDependency};
 
 // ==========================================
 // 第三方 API (Modrinth) 的私有 DTO 模型
@@ -33,6 +33,14 @@ struct ModrinthRawGallery {
 }
 
 #[derive(Deserialize)]
+struct ModrinthRawDependency {
+    version_id: Option<String>,
+    project_id: Option<String>,
+    file_name: Option<String>,
+    dependency_type: String,
+}
+
+#[derive(Deserialize)]
 struct ModrinthRawVersion {
     id: String,
     name: String,
@@ -41,6 +49,7 @@ struct ModrinthRawVersion {
     loaders: Vec<String>,
     game_versions: Vec<String>,
     files: Vec<ModrinthRawFile>,
+    dependencies: Option<Vec<ModrinthRawDependency>>,
 }
 
 #[derive(Deserialize)]
@@ -143,6 +152,16 @@ impl ResourceService {
                 .or_else(|| v.files.first());
 
             if let Some(file) = primary_file {
+                // ✅ 映射依赖关系
+                let deps = v.dependencies.map(|d_list| {
+                    d_list.into_iter().map(|d| OreProjectDependency {
+                        version_id: d.version_id,
+                        project_id: d.project_id,
+                        file_name: d.file_name,
+                        dependency_type: d.dependency_type,
+                    }).collect()
+                });
+
                 clean_versions.push(OreProjectVersion {
                     id: v.id,
                     name: v.name,
@@ -152,6 +171,7 @@ impl ResourceService {
                     game_versions: v.game_versions,
                     file_name: file.filename.clone(),
                     download_url: file.url.clone(),
+                    dependencies: deps, // ✅ 赋值给前端需要的字段
                 });
             }
         }
