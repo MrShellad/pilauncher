@@ -1,8 +1,87 @@
 {
   "download": {
+    "tabs": {
+      "mod": "模组",
+      "resourcepack": "资源包",
+      "shader": "光影"
+    },
+    "source": {
+      "modrinth": "Modrinth",
+      "curseforge": "CurseForge"
+    },
+    "filters": {
+      "source": "资源来源",
+      "keyword": "关键词",
+      "gameVersion": "游戏版本",
+      "loader": "加载器",
+      "loaderAll": "全部加载器",
+      "category": "分类",
+      "categoryAll": "全部分类",
+      "versionAll": "全部版本",
+      "sort": "排序",
+      "versionFilters": "版本筛选",
+      "moreHistory": "更多历史版本",
+      "snapshots": "快照 / 预览"
+    },
+    "sort": {
+      "relevance": "综合排序",
+      "downloads": "下载量",
+      "updated": "最近更新"
+    },
+    "actions": {
+      "search": "搜索",
+      "reset": "重置",
+      "details": "详情",
+      "downloadVersion": "下载此版本",
+      "hidePreview": "收起预览",
+      "previewCount": "预览 {{count}}",
+      "cycleLoader": "切换加载器",
+      "clearSelection": "清除当前分组筛选",
+      "clearHistory": "清除历史版本筛选",
+      "clearSnapshots": "清除快照筛选",
+      "openProject": "查看 {{project}}"
+    },
+    "status": {
+      "installed": "已安装",
+      "loadingEnv": "正在加载环境...",
+      "loadingVersions": "正在同步版本列表...",
+      "alreadyInInstance": "实例内已存在"
+    },
+    "progress": {
+      "connecting": "正在建立连接...",
+      "failed": "下载失败: {{error}}"
+    },
+    "placeholders": {
+      "search": "搜索资源或作者..."
+    },
+    "empty": {
+      "noDescription": "该资源暂时没有描述。",
+      "noFilesMatch": "没有匹配 {{version}} + {{loader}} 的可用文件。"
+    },
+    "meta": {
+      "author": "作者",
+      "unknownAuthor": "未知",
+      "byAuthor": "作者：{{author}}",
+      "description": "资源说明",
+      "matchedFiles": "共找到 {{count}} 个匹配文件",
+      "current": "当前"
+    },
+    "env": {
+      "client": "客户端",
+      "server": "服务端",
+      "required": "必需",
+      "optional": "可选"
+    },
+    "loader": {
+      "universal": "通用",
+      "noneAvailable": "无可用加载器"
+    },
+    "curseforge": {
+      "apiKeyMissing": "未配置 `VITE_CURSEFORGE_API_KEY`，CurseForge 接口不可用。"
+    },
     "tags": {
       "clientSide": "客户端",
-      "optimization": "优化",
+      "optimization": "性能优化",
       "technology": "科技",
       "magic": "魔法",
       "utility": "实用工具",
@@ -10,11 +89,10 @@
       "loader": {
         "fabric": "Fabric",
         "forge": "Forge",
-        "neoforge": "NeoForge"
+        "neoforge": "NeoForge",
+        "quilt": "Quilt",
+        "liteloader": "LiteLoader"
       }
-    },
-    "status": {
-      "installed": "已安装"
     },
     "time": {
       "unknown": "未知时间",
@@ -22,6 +100,50 @@
       "daysAgo": "{{count}} 天前",
       "monthsAgo": "{{count}} 个月前",
       "yearsAgo": "{{count}} 年前"
+    },
+    "categories": {
+      "technology": "科技",
+      "magic": "魔法",
+      "optimization": "性能优化",
+      "utility": "实用工具",
+      "decoration": "装饰",
+      "adventure_and_rpg": "冒险与 RPG",
+      "api_and_library": "API 与前置库",
+      "armor_tools_and_weapons": "盔甲、工具与武器",
+      "cosmetic": "外观装饰",
+      "education": "教育",
+      "food": "食物",
+      "mc_food": "食物",
+      "farming": "农业",
+      "game_mechanics": "游戏机制",
+      "library": "前置库",
+      "magic_blood_magic": "血魔法",
+      "map_and_information": "地图与信息",
+      "map_information": "地图与信息",
+      "miscellaneous": "杂项",
+      "mobs": "生物",
+      "storage": "仓储",
+      "redstone": "红石",
+      "server_utility": "服务端工具",
+      "social": "社交",
+      "world_gen": "世界生成",
+      "worldgen": "世界生成",
+      "biomes": "群系",
+      "dimensions": "维度",
+      "quests": "任务",
+      "structures": "结构",
+      "adventure": "冒险",
+      "applied_energistics_2": "应用能源 2",
+      "cosmetic_armor": "外观护甲",
+      "resource_packs": "资源包",
+      "texture_packs": "纹理包",
+      "shaders": "光影",
+      "modded_world": "模组世界",
+      "map": "地图",
+      "audio": "音频",
+      "fonts": "字体",
+      "gui": "界面",
+      "vanilla_like": "原版风格"
     }
   }
 }

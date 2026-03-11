@@ -1,5 +1,84 @@
 {
   "download": {
+    "tabs": {
+      "mod": "Mods",
+      "resourcepack": "Resource Packs",
+      "shader": "Shaders"
+    },
+    "source": {
+      "modrinth": "Modrinth",
+      "curseforge": "CurseForge"
+    },
+    "filters": {
+      "source": "Source",
+      "keyword": "Keyword",
+      "gameVersion": "Game Version",
+      "loader": "Loader",
+      "loaderAll": "All Loaders",
+      "category": "Category",
+      "categoryAll": "All Categories",
+      "versionAll": "All Versions",
+      "sort": "Sort",
+      "versionFilters": "Version Filters",
+      "moreHistory": "More History",
+      "snapshots": "Snapshots / Preview"
+    },
+    "sort": {
+      "relevance": "Relevance",
+      "downloads": "Downloads",
+      "updated": "Recently Updated"
+    },
+    "actions": {
+      "search": "Search",
+      "reset": "Reset",
+      "details": "Details",
+      "downloadVersion": "Download Version",
+      "hidePreview": "Hide Preview",
+      "previewCount": "Preview {{count}}",
+      "cycleLoader": "Cycle Loader",
+      "clearSelection": "Clear current group filter",
+      "clearHistory": "Clear history filter",
+      "clearSnapshots": "Clear snapshot filter",
+      "openProject": "Open {{project}}"
+    },
+    "status": {
+      "installed": "Installed",
+      "loadingEnv": "Loading environment...",
+      "loadingVersions": "Syncing version list...",
+      "alreadyInInstance": "Already in instance"
+    },
+    "progress": {
+      "connecting": "Connecting...",
+      "failed": "Download failed: {{error}}"
+    },
+    "placeholders": {
+      "search": "Search resources or authors..."
+    },
+    "empty": {
+      "noDescription": "No description provided yet.",
+      "noFilesMatch": "No files matched {{version}} + {{loader}}."
+    },
+    "meta": {
+      "author": "Author",
+      "unknownAuthor": "Unknown",
+      "byAuthor": "by {{author}}",
+      "description": "Description",
+      "matchedFiles": "{{count}} matching files",
+      "current": "Current"
+    },
+    "env": {
+      "client": "Client",
+      "server": "Server",
+      "required": "Required",
+      "optional": "Optional"
+    },
+    "loader": {
+      "universal": "Universal",
+      "noneAvailable": "No loaders available"
+    },
+    "curseforge": {
+      "apiKeyMissing": "CurseForge requires `VITE_CURSEFORGE_API_KEY`."
+    },
     "tags": {
       "clientSide": "Client-side",
       "optimization": "Optimization",
@@ -10,18 +89,61 @@
       "loader": {
         "fabric": "Fabric",
         "forge": "Forge",
-        "neoforge": "NeoForge"
+        "neoforge": "NeoForge",
+        "quilt": "Quilt",
+        "liteloader": "LiteLoader"
       }
     },
-    "status": {
-      "installed": "Installed"
-    },
     "time": {
-      "unknown": "Unknown Time",
+      "unknown": "Unknown time",
       "today": "Today",
       "daysAgo": "{{count}} days ago",
       "monthsAgo": "{{count}} months ago",
       "yearsAgo": "{{count}} years ago"
+    },
+    "categories": {
+      "technology": "Technology",
+      "magic": "Magic",
+      "optimization": "Optimization",
+      "utility": "Utility",
+      "decoration": "Decoration",
+      "adventure_and_rpg": "Adventure and RPG",
+      "api_and_library": "API and Library",
+      "armor_tools_and_weapons": "Armor, Tools, and Weapons",
+      "cosmetic": "Cosmetic",
+      "education": "Education",
+      "food": "Food",
+      "mc_food": "Food",
+      "farming": "Farming",
+      "game_mechanics": "Game Mechanics",
+      "library": "Library",
+      "magic_blood_magic": "Blood Magic",
+      "map_and_information": "Map and Information",
+      "map_information": "Map and Information",
+      "miscellaneous": "Miscellaneous",
+      "mobs": "Mobs",
+      "storage": "Storage",
+      "redstone": "Redstone",
+      "server_utility": "Server Utility",
+      "social": "Social",
+      "world_gen": "World Gen",
+      "worldgen": "World Gen",
+      "biomes": "Biomes",
+      "dimensions": "Dimensions",
+      "quests": "Quests",
+      "structures": "Structures",
+      "adventure": "Adventure",
+      "applied_energistics_2": "Applied Energistics 2",
+      "cosmetic_armor": "Cosmetic Armor",
+      "resource_packs": "Resource Packs",
+      "texture_packs": "Texture Packs",
+      "shaders": "Shaders",
+      "modded_world": "Modded World",
+      "map": "Map",
+      "audio": "Audio",
+      "fonts": "Fonts",
+      "gui": "GUI",
+      "vanilla_like": "Vanilla-like"
     }
   }
 }

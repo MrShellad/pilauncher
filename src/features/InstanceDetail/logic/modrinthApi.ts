@@ -18,6 +18,9 @@ export interface ModrinthProject {
   follows?: number;
   categories?: string[];
   display_categories?: string[];
+  source?: 'modrinth' | 'curseforge';
+  project_id?: string;
+  gallery_urls?: string[];
 }
 
 export interface SearchParams {

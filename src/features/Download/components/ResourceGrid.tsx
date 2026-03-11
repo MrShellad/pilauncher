@@ -1,13 +1,17 @@
-// src/features/Download/components/ResourceGrid.tsx
 import React, { useEffect, useRef } from 'react';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
-import { Blocks, CheckCircle2, Clock3, Download, Heart, Monitor, Tags, Loader2 } from 'lucide-react';
+import { Blocks, CheckCircle2, Clock3, Download, Heart, Loader2, Monitor, Tags } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { ControlHint } from '../../../ui/components/ControlHint';
 import type { ModMeta } from '../../InstanceDetail/logic/modService';
 import type { ModrinthProject } from '../../InstanceDetail/logic/modrinthApi';
+import {
+  getCurseForgeCategoryFallbackLabel,
+  getCurseForgeCategoryTranslationKey
+} from '../logic/curseforgeApi';
 
 interface ResourceGridProps {
   results: ModrinthProject[];
@@ -31,29 +35,19 @@ interface ResourceCardProps {
 
 const KNOWN_LOADERS = ['fabric', 'forge', 'neoforge', 'quilt', 'liteloader'];
 
-const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1).replace(/-/g, ' ');
-
 const formatNumber = (value?: number) => {
   if (!value) return '0';
-  if (value >= 1000000) return `${(value / 1000000).toFixed(2)}M`;
-  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
   return value.toString();
 };
 
-const timeAgo = (dateStr?: string) => {
-  if (!dateStr) return '未知时间';
-
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const days = Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
-
-  if (days === 0) return '今天更新';
-  if (days < 30) return `${days} 天前`;
-
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months} 个月前`;
-
-  return `${Math.floor(months / 12)} 年前`;
-};
+const prettifyLabel = (value: string) =>
+  value
+    .split(/[-_]/g)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 
 const centerFocusedCard = (element: HTMLElement | null, scrollHost: HTMLDivElement | null) => {
   if (!element || !scrollHost) return;
@@ -91,14 +85,48 @@ const ResourceCard = React.memo(({
   isNearBottom,
   scrollContainerRef
 }: ResourceCardProps) => {
+  const { t } = useTranslation();
   const cardRef = useRef<HTMLButtonElement | null>(null);
   const rawProject = project as ModrinthProject & { display_categories?: string[]; followers?: number };
-  const categories = rawProject.categories || rawProject.display_categories || [];
-  const loaders = categories.filter((category) => KNOWN_LOADERS.includes(category.toLowerCase())).slice(0, 2);
-  const features = categories.filter((category) => !KNOWN_LOADERS.includes(category.toLowerCase())).slice(0, 3);
+
+  const categoryItems = (rawProject.categories || []).map((raw, idx) => ({
+    raw,
+    display: rawProject.display_categories?.[idx] || raw
+  }));
+
+  const loaders = categoryItems.filter((item) => KNOWN_LOADERS.includes(item.raw.toLowerCase())).slice(0, 2);
+  const features = categoryItems.filter((item) => !KNOWN_LOADERS.includes(item.raw.toLowerCase())).slice(0, 3);
   const followerCount = rawProject.followers || rawProject.follows || 0;
   const supportsClient = project.client_side !== 'unsupported' && !!project.client_side;
   const focusKey = `download-grid-item-${index}`;
+
+  const localizeTag = (raw: string, display: string) => {
+    if (project.source === 'curseforge') {
+      return t(getCurseForgeCategoryTranslationKey(raw), {
+        defaultValue: getCurseForgeCategoryFallbackLabel(raw, display)
+      });
+    }
+
+    return t(`download.categories.${raw.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`, {
+      defaultValue: prettifyLabel(display || raw)
+    });
+  };
+
+  const timeAgo = (dateStr?: string) => {
+    if (!dateStr) return t('download.time.unknown', { defaultValue: 'Unknown time' });
+
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const days = Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+
+    if (days === 0) return t('download.time.today', { defaultValue: 'Today' });
+    if (days < 30) return t('download.time.daysAgo', { count: days, defaultValue: `${days} days ago` });
+
+    const months = Math.floor(days / 30);
+    if (months < 12) return t('download.time.monthsAgo', { count: months, defaultValue: `${months} months ago` });
+
+    const years = Math.floor(months / 12);
+    return t('download.time.yearsAgo', { count: years, defaultValue: `${years} years ago` });
+  };
 
   return (
     <FocusItem
@@ -116,6 +144,7 @@ const ResourceCard = React.memo(({
           'download-search-input',
           'filter-source-toggle'
         ].find((key) => doesFocusableExist(key));
+
         if (target) setFocus(target);
         return false;
       }}
@@ -137,11 +166,14 @@ const ResourceCard = React.memo(({
             type="button"
             onClick={() => onSelectProject(project)}
             tabIndex={-1}
-            aria-label={`查看 ${project.title}`}
+            aria-label={t('download.actions.openProject', {
+              defaultValue: `Open ${project.title}`,
+              project: project.title
+            })}
             className={`
               group relative flex min-h-[160px] w-full overflow-hidden border-[2px] border-[#1E1E1F] text-left outline-none transition-none
               ${focused
-                ? 'z-20 bg-[#E6E8EB] brightness-[1.02] outline outline-2 outline-offset-[3px] outline-white drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]'
+                ? 'z-20 bg-[#E6E8EB] brightness-[1.02] outline outline-[3px] outline-offset-[1px] outline-white drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]'
                 : 'bg-[#D0D1D4] hover:bg-[#E6E8EB]'}
             `}
             style={{
@@ -157,13 +189,11 @@ const ResourceCard = React.memo(({
             {isInstalled && (
               <div className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#6CC349] px-1.5 py-0.5 text-[9px] font-minecraft uppercase tracking-[0.16em] text-black shadow-[inset_0_-2px_0_#3C8527]">
                 <CheckCircle2 size={10} />
-                已安装
+                {t('download.status.installed', { defaultValue: 'Installed' })}
               </div>
             )}
 
             <div className="flex w-full gap-3 p-3 pr-4">
-              
-              {/* 左侧：Logo 与作者区 */}
               <div className="flex w-20 shrink-0 flex-col gap-1.5">
                 <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden border-[2px] border-[#1E1E1F] bg-[#48494A] shadow-[inset_0_-4px_0_#313233,inset_2px_2px_0_rgba(255,255,255,0.15)]">
                   {project.icon_url ? (
@@ -173,73 +203,75 @@ const ResourceCard = React.memo(({
                   )}
                 </div>
 
-                <div className="border-[2px] border-[#1E1E1F] bg-[#48494A] px-1 py-1 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.08)]">
-                  <div className="font-minecraft text-[9px] uppercase tracking-[0.18em] text-[#B1B2B5]">Author</div>
-                  <div className="truncate pt-0.5 text-[11px] font-bold text-white">{project.author || 'Unknown'}</div>
+                <div className="mt-auto flex h-[38px] flex-col items-center justify-center overflow-hidden border-[2px] border-[#1E1E1F] bg-[#48494A] px-1 shadow-[inset_0_2px_0_rgba(255,255,255,0.08)]">
+                  <div className="font-minecraft text-[9px] uppercase tracking-[0.18em] text-[#B1B2B5] leading-none">
+                    {t('download.meta.author', { defaultValue: 'Author' })}
+                  </div>
+                  <div className="w-full truncate pt-1 text-center text-[11px] font-bold leading-none text-white">
+                    {project.author || t('download.meta.unknownAuthor', { defaultValue: 'Unknown' })}
+                  </div>
                 </div>
               </div>
 
-              {/* 右侧：描述区 */}
               <div className="flex min-w-0 flex-1 flex-col">
                 <div className="pr-16">
-                  {/* 标题 */}
-                  <div className="font-minecraft text-lg font-bold leading-tight text-black truncate">{project.title}</div>
-                  
-                  {/* 描述限定 2 行 */}
-                  <p className="mt-1.5 line-clamp-2 text-xs leading-[18px] text-[#313233]">
-                    {project.description?.trim() || '该资源暂无简介，进入详情页后可查看详细信息。'}
+                  <div className="truncate font-minecraft text-lg font-bold leading-tight text-black">{project.title}</div>
+                  <p className="mt-1.5 line-clamp-1 text-xs leading-[18px] text-[#313233]">
+                    {project.description?.trim() || t('download.empty.noDescription', { defaultValue: 'No description provided yet.' })}
                   </p>
                 </div>
 
-                {/* ✅ 标签区：增加 mb-2.5 和 shrink-0，严防与底部模块挤压重合 */}
-                <div className="mt-2 mb-2.5 flex flex-wrap gap-1.5 h-[22px] overflow-hidden shrink-0">
+                <div className="mt-2 mb-2.5 flex h-[22px] shrink-0 flex-wrap gap-1.5 overflow-hidden">
                   {supportsClient && (
                     <span className="inline-flex items-center gap-1 whitespace-nowrap border-[2px] border-[#1E1E1F] bg-[#313233] px-1.5 py-0.5 text-[9px] font-minecraft uppercase tracking-[0.14em] text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.12)]">
                       <Monitor size={10} />
-                      客户端
+                      {t('download.tags.clientSide', { defaultValue: 'Client-side' })}
                     </span>
                   )}
 
                   {loaders.map((loader) => (
                     <span
-                      key={loader}
+                      key={loader.raw}
                       className="inline-flex items-center gap-1 whitespace-nowrap border-[2px] border-[#1E1E1F] bg-[#FFE866] px-1.5 py-0.5 text-[9px] font-minecraft uppercase tracking-[0.14em] text-black shadow-[inset_0_-2px_0_#C9B12D]"
                     >
-                      {capitalize(loader)}
+                      {t(`download.tags.loader.${loader.raw.toLowerCase()}`, {
+                        defaultValue: prettifyLabel(loader.display)
+                      })}
                     </span>
                   ))}
 
                   {features.map((feature) => (
                     <span
-                      key={feature}
+                      key={`${feature.raw}-${feature.display}`}
                       className="inline-flex items-center gap-1 whitespace-nowrap border-[2px] border-[#1E1E1F] bg-[#8CB3FF] px-1.5 py-0.5 text-[9px] font-minecraft uppercase tracking-[0.14em] text-black shadow-[inset_0_-2px_0_#5C82CA]"
                     >
                       <Tags size={9} />
-                      {capitalize(feature)}
+                      {localizeTag(feature.raw, feature.display)}
                     </span>
                   ))}
                 </div>
 
-                {/* ✅ 底部：数据区字号和图标增大，间距调优，并增加 shrink-0 防挤压 */}
-                <div className="mt-auto shrink-0 flex items-center justify-between gap-2 border-[2px] border-[#1E1E1F] bg-[#48494A] px-2.5 py-1.5 shadow-[inset_0_2px_0_rgba(255,255,255,0.08)]">
+                <div className="mt-auto flex h-[38px] shrink-0 items-center justify-between gap-2 overflow-hidden border-[2px] border-[#1E1E1F] bg-[#48494A] px-2.5 shadow-[inset_0_2px_0_rgba(255,255,255,0.08)]">
                   <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-xs font-minecraft uppercase tracking-[0.08em] text-[#E6E8EB]">
-                    <span className="inline-flex items-center gap-1.5">
+                    <span className="flex items-center gap-1.5">
                       <Download size={12} />
                       {formatNumber(project.downloads)}
                     </span>
-                    <span className="inline-flex items-center gap-1.5">
+                    <span className="flex items-center gap-1.5">
                       <Heart size={12} />
                       {formatNumber(followerCount)}
                     </span>
-                    <span className="inline-flex items-center gap-1.5 text-[#FFE866]">
+                    <span className="flex items-center gap-1.5 text-[#FFE866]">
                       <Clock3 size={12} />
-                      {timeAgo(project.date_modified)}
+                      <span className="mt-0.5">{timeAgo(project.date_modified)}</span>
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex shrink-0 items-center gap-1.5">
                     <ControlHint label="A" variant="face" tone="green" />
-                    <span className="font-minecraft text-[10px] uppercase tracking-[0.16em] text-[#E6E8EB]">详情</span>
+                    <span className="font-minecraft text-[10px] uppercase tracking-[0.16em] text-[#E6E8EB]">
+                      {t('download.actions.details', { defaultValue: 'Details' })}
+                    </span>
                   </div>
                 </div>
               </div>

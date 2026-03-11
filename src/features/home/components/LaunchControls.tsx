@@ -5,6 +5,7 @@ import { Play, Folder, Settings, AlertTriangle, UserPlus } from 'lucide-react';
 
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { focusManager } from '../../../ui/focus/FocusManager';
+import { useInputMode } from '../../../ui/focus/FocusProvider';
 import { OreModal } from '../../../ui/primitives/OreModal'; // ✅ 引入绝美弹窗组件
 
 import { useLauncherStore } from '../../../store/useLauncherStore';
@@ -13,7 +14,7 @@ import { useAccountStore } from '../../../store/useAccountStore'; // ✅ 引入�
 interface LaunchControlsProps {
   instanceId?: string; 
   instanceName: string;
-  onLaunch: () => void;
+  onLaunch: (isGamepad: boolean) => void;
   onSettings?: () => void; 
   onSelectInstance: () => void;
 }
@@ -31,6 +32,7 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
 
   // ✅ 控制缺失账号弹窗的显示状态
   const [showNoAccountModal, setShowNoAccountModal] = useState(false);
+  const inputMode = useInputMode(); // 获取当前的输入模型
 
   const innerButtonClass = "h-[clamp(48px,6vh,64px)] text-[clamp(16px,1.8vh,20px)] flex items-center justify-center gap-3 w-full transition-colors duration-200";
   const iconClass = "flex-shrink-0 w-[clamp(20px,2.5vh,28px)] h-[clamp(20px,2.5vh,28px)]";
@@ -63,8 +65,8 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
       return;
     }
     
-    // 校验通过，放行调用原本的启动逻辑
-    onLaunch(); 
+    // 校验通过，放行调用原本的启动逻辑，根据当前输入模式判断是否是手柄启动
+    onLaunch(inputMode === 'controller'); 
   };
 
   // ✅ 一键跳转路由到设置页的快捷方法

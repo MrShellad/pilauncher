@@ -279,25 +279,49 @@ impl ModManagerService {
 
         let target_path = mods_dir.join(file_name);
 
-        println!("正在下载推荐 Mod: {}", download_url);
-        let client = reqwest::Client::new();
-        let response = client
-            .get(download_url)
-            .send()
-            .await
-            .map_err(|e| format!("下载请求失败: {}", e))?;
+        let base_path_str = ConfigService::get_base_path(app)
+            .map_err(|e| e.to_string())?
+            .unwrap_or_default();
+        let shared_mods_dir = PathBuf::from(base_path_str).join("shared_mods");
+        fs::create_dir_all(&shared_mods_dir).ok();
 
-        if !response.status().is_success() {
-            return Err(format!("下载失败，状态码: {}", response.status()));
+        let shared_target = shared_mods_dir.join(file_name);
+        let mut needs_download = true;
+
+        if shared_target.exists() {
+            if let Ok(file) = File::open(&shared_target) {
+                if let Ok(_) = zip::ZipArchive::new(file) {
+                    needs_download = false;
+                }
+            }
         }
 
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(|e| format!("读取文件字节流失败: {}", e))?;
+        if needs_download {
+            println!("正在下载推荐 Mod: {}", download_url);
+            let client = reqwest::Client::new();
+            let response = client
+                .get(download_url)
+                .send()
+                .await
+                .map_err(|e| format!("下载请求失败: {}", e))?;
 
-        fs::write(&target_path, bytes)
-            .map_err(|e| format!("写入文件失败: {}", e))?;
+            if !response.status().is_success() {
+                return Err(format!("下载失败，状态码: {}", response.status()));
+            }
+
+            let bytes = response
+                .bytes()
+                .await
+                .map_err(|e| format!("读取文件字节流失败: {}", e))?;
+
+            fs::write(&shared_target, bytes)
+                .map_err(|e| format!("写入文件失败: {}", e))?;
+        } else {
+            println!("从缓存中发现有效的 Mod: {}", file_name);
+        }
+
+        fs::copy(&shared_target, &target_path)
+            .map_err(|e| format!("复制文件到实例 mods 目录失败: {}", e))?;
 
         Ok(())
     }

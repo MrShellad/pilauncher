@@ -10,10 +10,10 @@ export const useHome = () => {
   // 2. 引入实际的启动逻辑（我们在上几步中重构过的带 Account 验证的启动逻辑）
   const { launchGame, isLaunching } = useGameLaunch();
 
-  // ✅ 核心修复：让 handleLaunch 接收 instanceId 参数，解决 TS 报错
-  const handleLaunch = useCallback(async (instanceId: string) => {
+  // ✅ 核心修复：让 handleLaunch 接收 instanceId 和 isGamepad 参数
+  const handleLaunch = useCallback(async (instanceId: string, isGamepad?: boolean) => {
     if (!instanceId) return;
-    await launchGame(instanceId);
+    await launchGame(instanceId, isGamepad);
   }, [launchGame]);
 
   // ✅ 优化细节：点击“设置”时，锁定当前实例 ID 并跳转到详情页

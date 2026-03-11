@@ -58,7 +58,7 @@ const Home: React.FC = () => {
         <LaunchControls 
           instanceId={currentId} 
           instanceName={currentInstanceName}
-          onLaunch={() => handleLaunch(currentId)} 
+          onLaunch={(isGamepad) => handleLaunch(currentId, isGamepad)} 
           onSettings={handleSettingsClick}
           onSelectInstance={() => setIsModalOpen(true)} 
         />

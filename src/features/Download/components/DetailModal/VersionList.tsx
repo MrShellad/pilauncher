@@ -1,6 +1,7 @@
 import React from 'react';
-import { CheckCircle2, Clock3, Download, Loader2 } from 'lucide-react';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { CheckCircle2, Clock3, Download, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import type { OreProjectVersion } from '../../../InstanceDetail/logic/modrinthApi';
 import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
@@ -30,6 +31,8 @@ export const VersionList: React.FC<VersionListProps> = ({
   visibleCount,
   observerTarget
 }) => {
+  const { t } = useTranslation();
+
   const handleVersionArrow = (idx: number) => (direction: string) => {
     if (direction === 'up' && idx === 0) return false;
 
@@ -46,15 +49,20 @@ export const VersionList: React.FC<VersionListProps> = ({
       {isLoadingVersions ? (
         <div className="flex flex-col items-center justify-center py-16 text-ore-green">
           <Loader2 className="mb-4 animate-spin" size={32} />
-          <span className="font-minecraft text-sm text-[var(--ore-downloadDetail-labelText)]">正在与数据源通信...</span>
+          <span className="font-minecraft text-sm text-[var(--ore-downloadDetail-labelText)]">
+            {t('download.status.loadingVersions', { defaultValue: 'Syncing version list...' })}
+          </span>
         </div>
       ) : versions.length === 0 ? (
         <div
           className="border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-surface)] px-6 py-10 text-center font-minecraft text-sm text-[var(--ore-downloadDetail-labelText)]"
           style={{ boxShadow: 'var(--ore-downloadDetail-sectionShadow)' }}
         >
-          没有找到匹配 <span className="text-white">{activeVersion || '全部版本'}</span> +{' '}
-          <span className="text-white">{activeLoader || '全部 Loader'}</span> 的可用文件。
+          {t('download.empty.noFilesMatch', {
+            defaultValue: 'No files matched {{version}} + {{loader}}.',
+            version: activeVersion || t('download.filters.versionAll', { defaultValue: 'All Versions' }),
+            loader: activeLoader || t('download.filters.loaderAll', { defaultValue: 'All Loaders' })
+          })}
         </div>
       ) : (
         <>
@@ -96,7 +104,7 @@ export const VersionList: React.FC<VersionListProps> = ({
                       {formatDate(version.date_published)}
                     </span>
                     <span className="text-[var(--ore-downloadDetail-loaderMeta)]">
-                      {version.loaders.join(', ') || 'Universal'}
+                      {version.loaders.join(', ') || t('download.loader.universal', { defaultValue: 'Universal' })}
                     </span>
                     <span className="text-[var(--ore-downloadDetail-versionMeta)]">{version.game_versions.join(', ')}</span>
                   </div>
@@ -113,7 +121,7 @@ export const VersionList: React.FC<VersionListProps> = ({
                       onClick={() => {}}
                     >
                       <CheckCircle2 size={14} className="mr-1.5" />
-                      已在实例中
+                      {t('download.status.alreadyInInstance', { defaultValue: 'Already in instance' })}
                     </OreButton>
                   ) : (
                     <OreButton
@@ -125,7 +133,7 @@ export const VersionList: React.FC<VersionListProps> = ({
                       onClick={() => onDownload(version)}
                     >
                       <Download size={14} className="mr-1.5" />
-                      下载此版本
+                      {t('download.actions.downloadVersion', { defaultValue: 'Download Version' })}
                     </OreButton>
                   )}
                 </div>

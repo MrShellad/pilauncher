@@ -1,7 +1,19 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
-import { getProjectDetails, fetchModrinthVersions, type ModrinthProject, type OreProjectDetail, type OreProjectVersion } from '../../InstanceDetail/logic/modrinthApi';
+import {
+  fetchCurseForgeVersions,
+  getCurseForgeProjectDetails
+} from '../logic/curseforgeApi';
+import {
+  fetchModrinthVersions,
+  getProjectDetails,
+  type ModrinthProject,
+  type OreProjectDetail,
+  type OreProjectVersion
+} from '../../InstanceDetail/logic/modrinthApi';
 import type { ToggleOption } from '../../../ui/primitives/OreToggleButton';
+import type { DownloadInstanceConfig, DownloadSource } from './useResourceDownload';
 
 import fabricIcon from '../../../assets/icons/tags/loaders/fabric.svg';
 import forgeIcon from '../../../assets/icons/tags/loaders/forge.svg';
@@ -17,13 +29,6 @@ const loaderIconMap: Record<string, string> = {
   liteloader: liteloaderIcon
 };
 
-interface DownloadInstanceConfig {
-  game_version?: string;
-  gameVersion?: string;
-  loader_type?: string;
-  loaderType?: string;
-}
-
 const getProjectId = (project: ModrinthProject | null) => {
   const extendedProject = project as (ModrinthProject & { project_id?: string }) | null;
   return extendedProject?.id || extendedProject?.project_id || '';
@@ -32,9 +37,11 @@ const getProjectId = (project: ModrinthProject | null) => {
 export const useDownloadDetail = (
   project: ModrinthProject | null,
   instanceConfig: DownloadInstanceConfig | null,
+  source: DownloadSource,
   searchMcVersion?: string,
   searchLoader?: string
 ) => {
+  const { t } = useTranslation();
   const [details, setDetails] = useState<OreProjectDetail | null>(null);
   const [versions, setVersions] = useState<OreProjectVersion[]>([]);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
@@ -51,24 +58,26 @@ export const useDownloadDetail = (
     const preferredVersion = searchMcVersion || instanceConfig?.game_version || instanceConfig?.gameVersion || '';
     const preferredLoader = (searchLoader || instanceConfig?.loader_type || instanceConfig?.loaderType || '').toLowerCase();
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveVersion(preferredVersion);
     setActiveLoader(preferredLoader === 'vanilla' ? '' : preferredLoader);
     setIsLoadingDetails(true);
 
-    getProjectDetails(projectId)
+    const request = source === 'curseforge'
+      ? getCurseForgeProjectDetails(projectId)
+      : getProjectDetails(projectId);
+
+    request
       .then(setDetails)
       .catch(console.error)
       .finally(() => setIsLoadingDetails(false));
-  }, [project, instanceConfig, searchMcVersion, searchLoader]);
+  }, [instanceConfig, project, searchLoader, searchMcVersion, source]);
 
   useEffect(() => {
     if (!details) return;
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (activeLoader && !details.loaders.includes(activeLoader)) setActiveLoader('');
     if (activeVersion && !details.game_versions.includes(activeVersion)) setActiveVersion('');
-  }, [details, activeLoader, activeVersion]);
+  }, [activeLoader, activeVersion, details]);
 
   useEffect(() => {
     if (!project) return;
@@ -76,29 +85,40 @@ export const useDownloadDetail = (
     const projectId = getProjectId(project);
     if (!projectId) return;
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsLoadingVersions(true);
-    fetchModrinthVersions(projectId, activeVersion, activeLoader)
+
+    const request = source === 'curseforge'
+      ? fetchCurseForgeVersions(projectId, activeVersion, activeLoader)
+      : fetchModrinthVersions(projectId, activeVersion, activeLoader);
+
+    request
       .then((data) => setVersions(data || []))
       .catch(console.error)
       .finally(() => setIsLoadingVersions(false));
-  }, [project, activeVersion, activeLoader]);
+  }, [activeLoader, activeVersion, project, source]);
 
   const loaderOptions = useMemo<ToggleOption[]>(() => {
-    const options: ToggleOption[] = [{ label: '全部 Loader', value: '' }];
+    const options: ToggleOption[] = [
+      { label: t('download.filters.loaderAll', { defaultValue: 'All Loaders' }), value: '' }
+    ];
+
     if (!details) return options;
 
     const uniqueLoaders = Array.from(new Set((details.loaders || []).filter(Boolean)));
     uniqueLoaders.forEach((loader) => {
       const normalized = loader.toLowerCase();
       const icon = loaderIconMap[normalized];
-      const name = normalized === 'neoforge' ? 'NeoForge' : normalized.charAt(0).toUpperCase() + normalized.slice(1);
+      const label = t(`download.tags.loader.${normalized}`, {
+        defaultValue: normalized === 'neoforge'
+          ? 'NeoForge'
+          : normalized.charAt(0).toUpperCase() + normalized.slice(1)
+      });
 
       options.push({
         label: (
           <div className="flex items-center justify-center">
             {icon && <img src={icon} className="mr-2 h-4 w-4 object-contain" alt={normalized} />}
-            {name}
+            {label}
           </div>
         ),
         value: normalized
@@ -106,12 +126,13 @@ export const useDownloadDetail = (
     });
 
     return options;
-  }, [details]);
+  }, [details, t]);
 
   const availableVersions = useMemo(() => {
     if (!details) return [];
 
     const versionSet = new Set<string>(details.game_versions || []);
+    versions.forEach((version) => version.game_versions.forEach((item) => versionSet.add(item)));
 
     return Array.from(versionSet).sort((a, b) => {
       const pa = a.split('.').map(Number);
@@ -123,9 +144,9 @@ export const useDownloadDetail = (
         if (na !== nb) return nb - na;
       }
 
-      return 0;
+      return b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' });
     });
-  }, [details]);
+  }, [details, versions]);
 
   return {
     details,

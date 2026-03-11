@@ -1,6 +1,7 @@
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, Image as ImageIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import type { ModrinthProject, OreProjectDetail } from '../../../InstanceDetail/logic/modrinthApi';
 import { OreButton } from '../../../../ui/primitives/OreButton';
@@ -21,8 +22,11 @@ export const ProjectGallery: React.FC<ProjectGalleryProps> = ({
   showGallery,
   setShowGallery
 }) => {
-  const description = details?.description || project.description || '该资源暂无更多说明。';
-  const galleryUrls = details?.gallery_urls ?? [];
+  const { t } = useTranslation();
+  const description = details?.description || project.description || t('download.empty.noDescription', {
+    defaultValue: 'No description provided yet.'
+  });
+  const galleryUrls = details?.gallery_urls ?? project.gallery_urls ?? [];
 
   return (
     <motion.div
@@ -38,7 +42,7 @@ export const ProjectGallery: React.FC<ProjectGalleryProps> = ({
         <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between lg:gap-4">
           <div className="min-w-0 flex-1">
             <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[var(--ore-downloadDetail-labelText)]">
-              资源说明
+              {t('download.meta.description', { defaultValue: 'Description' })}
             </div>
             <p className="line-clamp-2 text-[13px] leading-5 text-white/90">{description}</p>
           </div>
@@ -52,7 +56,12 @@ export const ProjectGallery: React.FC<ProjectGalleryProps> = ({
                 onClick={() => setShowGallery(!showGallery)}
               >
                 <ImageIcon size={14} className="mr-1.5" />
-                {showGallery ? '收起预览' : `预览图 ${galleryUrls.length}`}
+                {showGallery
+                  ? t('download.actions.hidePreview', { defaultValue: 'Hide Preview' })
+                  : t('download.actions.previewCount', {
+                      defaultValue: 'Preview {{count}}',
+                      count: galleryUrls.length
+                    })}
                 <motion.span
                   initial={false}
                   animate={showGallery ? 'open' : 'closed'}

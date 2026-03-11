@@ -1,5 +1,6 @@
 import React from 'react';
 import { Blocks, Clock3, Download, Heart, Monitor, Server } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import type { ModrinthProject, OreProjectDetail } from '../../../InstanceDetail/logic/modrinthApi';
 import { formatDate, formatNumber } from '../../../../utils/formatters';
@@ -9,12 +10,18 @@ interface ProjectHeaderProps {
   details: OreProjectDetail | null;
 }
 
-const renderEnvChip = (env: string | undefined, type: 'client' | 'server') => {
+const renderEnvChip = (
+  env: string | undefined,
+  type: 'client' | 'server',
+  t: ReturnType<typeof useTranslation>['t']
+) => {
   if (!env || env === 'unsupported') return null;
 
   const Icon = type === 'client' ? Monitor : Server;
   const isRequired = env === 'required';
-  const label = type === 'client' ? '客户端' : '服务端';
+  const label = type === 'client'
+    ? t('download.env.client', { defaultValue: 'Client' })
+    : t('download.env.server', { defaultValue: 'Server' });
 
   return (
     <span
@@ -28,13 +35,16 @@ const renderEnvChip = (env: string | undefined, type: 'client' | 'server') => {
     >
       <Icon size={10} />
       {label}
-      {isRequired ? ' 必需' : ' 可选'}
+      {isRequired
+        ? t('download.env.required', { defaultValue: 'Required' })
+        : t('download.env.optional', { defaultValue: 'Optional' })}
     </span>
   );
 };
 
 export const ProjectHeader: React.FC<ProjectHeaderProps> = ({ project, details }) => {
-  const author = project.author || details?.author || 'Unknown';
+  const { t } = useTranslation();
+  const author = project.author || details?.author || t('download.meta.unknownAuthor', { defaultValue: 'Unknown' });
 
   return (
     <div
@@ -56,11 +66,11 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({ project, details }
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
           <h2 className="min-w-0 truncate font-minecraft text-lg text-white xl:text-xl">{project.title}</h2>
           <span className="font-minecraft text-[10px] uppercase tracking-[0.14em] text-[var(--ore-downloadDetail-labelText)]">
-            by {author}
+            {t('download.meta.byAuthor', { defaultValue: 'by {{author}}', author })}
           </span>
           <div className="ml-1 flex flex-wrap items-center gap-1.5">
-            {renderEnvChip(details?.client_side || project.client_side, 'client')}
-            {renderEnvChip(details?.server_side || project.server_side, 'server')}
+            {renderEnvChip(details?.client_side || project.client_side, 'client', t)}
+            {renderEnvChip(details?.server_side || project.server_side, 'server', t)}
           </div>
         </div>
 

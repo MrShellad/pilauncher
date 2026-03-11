@@ -1,9 +1,8 @@
-// src/features/Download/components/FilterBar.tsx
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { RotateCcw, Search, type LucideIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
-import mcvData from '../../../assets/download/mcv.json';
 import { ControlHint } from '../../../ui/components/ControlHint';
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../ui/focus/FocusItem';
@@ -12,7 +11,11 @@ import { OreButton } from '../../../ui/primitives/OreButton';
 import { OreDropdown } from '../../../ui/primitives/OreDropdown';
 import { OreInput } from '../../../ui/primitives/OreInput';
 import { OreToggleButton, type ToggleOption } from '../../../ui/primitives/OreToggleButton';
-import type { TabType } from '../hooks/useResourceDownload';
+import {
+  getCurseForgeCategoryFallbackLabel,
+  getCurseForgeCategoryTranslationKey
+} from '../logic/curseforgeApi';
+import type { DownloadSource, FilterOption, TabType } from '../hooks/useResourceDownload';
 
 export const ModrinthIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" {...props}>
@@ -32,8 +35,6 @@ export const CurseforgeIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-const MC_VERSIONS: string[] = Array.isArray(mcvData) ? mcvData : (mcvData as { versions?: string[] }).versions || [];
-
 interface DownloadTabConfig {
   id: TabType;
   label: string;
@@ -46,8 +47,8 @@ interface FilterBarProps {
   onTabChange: (tab: TabType) => void;
   query: string;
   setQuery: (v: string) => void;
-  source: string;
-  setSource: (v: string) => void;
+  source: DownloadSource;
+  setSource: (v: DownloadSource) => void;
   mcVersion: string;
   setMcVersion: (v: string) => void;
   loaderType: string;
@@ -56,6 +57,9 @@ interface FilterBarProps {
   setCategory: (v: string) => void;
   sort: string;
   setSort: (v: string) => void;
+  mcVersionOptions: FilterOption[];
+  categoryOptions: FilterOption[];
+  isCurseForgeAvailable: boolean;
   onSearch: () => void;
   onReset: () => void;
 }
@@ -98,6 +102,13 @@ const rowMap: Record<FilterKey, FilterKey[]> = {
 const blockClassName =
   'relative min-w-0 border-[2px] border-[#1E1E1F] bg-[#48494A] px-2.5 py-1.5 shadow-[inset_0_-3px_0_#313233,inset_2px_2px_0_rgba(255,255,255,0.12)]';
 
+const prettifyCategoryLabel = (value: string) =>
+  value
+    .split(/[-_]/g)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+
 export const FilterBar: React.FC<FilterBarProps> = ({
   activeTab,
   tabs,
@@ -114,9 +125,28 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   setCategory,
   sort,
   setSort,
+  mcVersionOptions,
+  categoryOptions,
+  isCurseForgeAvailable,
   onSearch,
   onReset
 }) => {
+  const { t } = useTranslation();
+
+  const localizeCategoryLabel = useCallback((option: FilterOption) => {
+    const slug = option.slug || option.label || option.value;
+
+    if (source === 'curseforge') {
+      return t(getCurseForgeCategoryTranslationKey(slug), {
+        defaultValue: getCurseForgeCategoryFallbackLabel(slug, option.label)
+      });
+    }
+
+    return t(`download.categories.${slug.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`, {
+      defaultValue: option.label ? prettifyCategoryLabel(option.label) : prettifyCategoryLabel(slug)
+    });
+  }, [source, t]);
+
   const switchTabBy = useCallback((direction: -1 | 1) => {
     const activeElement = document.activeElement as HTMLElement | null;
     if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) return;
@@ -129,8 +159,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     if (nextIndex < 0) nextIndex = tabs.length - 1;
     if (nextIndex >= tabs.length) nextIndex = 0;
 
-    const nextTab = tabs[nextIndex];
-    onTabChange(nextTab.id);
+    onTabChange(tabs[nextIndex].id);
   }, [activeTab, onTabChange, tabs]);
 
   useInputAction('PAGE_LEFT', () => switchTabBy(-1));
@@ -183,10 +212,9 @@ export const FilterBar: React.FC<FilterBarProps> = ({
       const nextIndex = direction === 'right'
         ? (index + 1) % row.length
         : (index - 1 + row.length) % row.length;
+
       const nextKey = row[nextIndex];
-      if (doesFocusableExist(nextKey)) {
-        setFocus(nextKey);
-      }
+      if (doesFocusableExist(nextKey)) setFocus(nextKey);
       return false;
     }
 
@@ -198,7 +226,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
       label: (
         <div className="flex w-full items-center justify-center gap-1 font-minecraft tracking-wider">
           <ModrinthIcon className={`text-[16px] ${source === 'modrinth' ? 'text-white' : 'text-ore-green'}`} />
-          Modrinth
+          {t('download.source.modrinth', { defaultValue: 'Modrinth' })}
         </div>
       ),
       value: 'modrinth'
@@ -207,38 +235,45 @@ export const FilterBar: React.FC<FilterBarProps> = ({
       label: (
         <div className="flex w-full items-center justify-center gap-1 font-minecraft tracking-wider">
           <CurseforgeIcon className={`text-[16px] ${source === 'curseforge' ? 'text-white' : 'text-[#F16436]'}`} />
-          CurseForge
+          {t('download.source.curseforge', { defaultValue: 'CurseForge' })}
         </div>
       ),
       value: 'curseforge'
     }
   ];
 
-  const mcVersionOptions = [{ label: '全部版本', value: '' }, ...MC_VERSIONS.map((v) => ({ label: v, value: v }))];
-  if (mcVersion && !MC_VERSIONS.includes(mcVersion)) {
-    mcVersionOptions.push({ label: mcVersion, value: mcVersion });
-  }
-
   const loaderOptions = [
-    { label: '全部', value: '' },
-    { label: 'Fabric', value: 'fabric' },
-    { label: 'Forge', value: 'forge' },
-    { label: 'NeoForge', value: 'neoforge' },
-    { label: 'Quilt', value: 'quilt' }
+    { label: t('download.filters.loaderAll', { defaultValue: 'All' }), value: '' },
+    { label: t('download.tags.loader.fabric', { defaultValue: 'Fabric' }), value: 'fabric' },
+    { label: t('download.tags.loader.forge', { defaultValue: 'Forge' }), value: 'forge' },
+    { label: t('download.tags.loader.neoforge', { defaultValue: 'NeoForge' }), value: 'neoforge' },
+    { label: t('download.tags.loader.quilt', { defaultValue: 'Quilt' }), value: 'quilt' }
   ];
 
-  const categoryOptions = [
-    { label: '全部分类', value: '' },
-    { label: '科技', value: 'technology' },
-    { label: '魔法', value: 'magic' },
-    { label: '性能优化', value: 'optimization' },
-    { label: '实用工具', value: 'utility' }
-  ];
+  const translatedMcVersionOptions = useMemo(() => {
+    const options = [...mcVersionOptions];
+    if (mcVersion && !options.some((item) => item.value === mcVersion)) {
+      options.push({ label: mcVersion, value: mcVersion });
+    }
+
+    return [
+      { label: t('download.filters.versionAll', { defaultValue: 'All Versions' }), value: '' },
+      ...options
+    ];
+  }, [mcVersion, mcVersionOptions, t]);
+
+  const translatedCategoryOptions = useMemo(() => [
+    { label: t('download.filters.categoryAll', { defaultValue: 'All Categories' }), value: '' },
+    ...categoryOptions.map((option) => ({
+      label: localizeCategoryLabel(option),
+      value: option.value
+    }))
+  ], [categoryOptions, localizeCategoryLabel, t]);
 
   const sortOptions = [
-    { label: '综合排序', value: 'relevance' },
-    { label: '下载量最高', value: 'downloads' },
-    { label: '最近更新', value: 'updated' }
+    { label: t('download.sort.relevance', { defaultValue: 'Relevance' }), value: 'relevance' },
+    { label: t('download.sort.downloads', { defaultValue: 'Downloads' }), value: 'downloads' },
+    { label: t('download.sort.updated', { defaultValue: 'Recently Updated' }), value: 'updated' }
   ];
 
   return (
@@ -252,7 +287,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           <div className="hidden shrink-0 items-center intent-gamepad:flex">
             <ControlHint label="LT" variant="trigger" tone="dark" />
           </div>
-          <div className="shrink-0 items-center intent-gamepad:hidden flex">
+          <div className="flex shrink-0 items-center intent-gamepad:hidden">
             <ControlHint label="PgUp" variant="keyboard" tone="neutral" />
           </div>
 
@@ -292,14 +327,16 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           <div className="hidden shrink-0 items-center intent-gamepad:flex">
             <ControlHint label="RT" variant="trigger" tone="dark" />
           </div>
-          <div className="shrink-0 items-center intent-gamepad:hidden flex">
+          <div className="flex shrink-0 items-center intent-gamepad:hidden">
             <ControlHint label="PgDn" variant="keyboard" tone="neutral" />
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-12">
           <div className={`${blockClassName} md:col-span-1 lg:col-span-3`}>
-            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">资源来源</div>
+            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">
+              {t('download.filters.source', { defaultValue: 'Source' })}
+            </div>
             <FocusItem
               focusKey="filter-source-toggle"
               onArrowPress={handleFilterArrow('filter-source-toggle')}
@@ -313,7 +350,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                   <OreToggleButton
                     options={sourceOptions}
                     value={source}
-                    onChange={setSource}
+                    onChange={(value) => setSource(value as DownloadSource)}
                     focusable={false}
                     className="!m-0 !h-[36px]"
                     size="sm"
@@ -321,10 +358,19 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                 </div>
               )}
             </FocusItem>
+            {source === 'curseforge' && !isCurseForgeAvailable && (
+              <div className="mt-1 text-[10px] text-[#FFD166]">
+                {t('download.curseforge.apiKeyMissing', {
+                  defaultValue: 'Set VITE_CURSEFORGE_API_KEY to enable CurseForge requests.'
+                })}
+              </div>
+            )}
           </div>
 
           <div className={`${blockClassName} md:col-span-1 lg:col-span-5`}>
-            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">关键词</div>
+            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">
+              {t('download.filters.keyword', { defaultValue: 'Keyword' })}
+            </div>
             <OreInput
               focusKey="download-search-input"
               width="100%"
@@ -335,14 +381,16 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               onKeyDown={(event) => {
                 if (event.key === 'Enter') onSearch();
               }}
-              placeholder="搜索模组或作者..."
+              placeholder={t('download.placeholders.search', { defaultValue: 'Search resources or authors...' })}
               prefixNode={<Search size={14} />}
               containerClassName="!space-y-0 w-full"
             />
           </div>
 
           <div className={`${blockClassName} md:col-span-1 lg:col-span-2`}>
-            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">执行搜索</div>
+            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">
+              {t('download.actions.search', { defaultValue: 'Search' })}
+            </div>
             <OreButton
               focusKey="download-btn-search"
               onArrowPress={handleFilterArrow('download-btn-search')}
@@ -352,12 +400,14 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               className="w-full !h-[36px] text-[13px] font-bold tracking-wider text-black"
             >
               <Search size={14} className="mr-1.5" />
-              搜索
+              {t('download.actions.search', { defaultValue: 'Search' })}
             </OreButton>
           </div>
 
           <div className={`${blockClassName} md:col-span-1 lg:col-span-2`}>
-            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">恢复默认</div>
+            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">
+              {t('download.actions.reset', { defaultValue: 'Reset' })}
+            </div>
             <OreButton
               focusKey="download-btn-reset"
               onArrowPress={handleFilterArrow('download-btn-reset')}
@@ -367,25 +417,29 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               className="w-full !h-[36px] text-[13px] text-black"
             >
               <RotateCcw size={14} className="mr-1.5" />
-              重置
+              {t('download.actions.reset', { defaultValue: 'Reset' })}
             </OreButton>
           </div>
 
           <div className={`${blockClassName} md:col-span-1 lg:col-span-3`}>
-            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">游戏版本</div>
+            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">
+              {t('download.filters.gameVersion', { defaultValue: 'Game Version' })}
+            </div>
             <OreDropdown
               focusKey="filter-mc-version"
               onArrowPress={handleFilterArrow('filter-mc-version')}
-              options={mcVersionOptions}
+              options={translatedMcVersionOptions}
               value={mcVersion || ''}
               onChange={setMcVersion}
               className="w-full !h-[36px]"
-              placeholder="全部版本"
+              placeholder={t('download.filters.versionAll', { defaultValue: 'All Versions' })}
             />
           </div>
 
           <div className={`${blockClassName} md:col-span-1 lg:col-span-3`}>
-            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">加载器</div>
+            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">
+              {t('download.filters.loader', { defaultValue: 'Loader' })}
+            </div>
             <OreDropdown
               focusKey="filter-loader"
               onArrowPress={handleFilterArrow('filter-loader')}
@@ -393,25 +447,29 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               value={loaderType || ''}
               onChange={setLoaderType}
               className="w-full !h-[36px]"
-              placeholder="全部"
+              placeholder={t('download.filters.loaderAll', { defaultValue: 'All' })}
             />
           </div>
 
           <div className={`${blockClassName} md:col-span-1 lg:col-span-3`}>
-            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">分类</div>
+            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">
+              {t('download.filters.category', { defaultValue: 'Category' })}
+            </div>
             <OreDropdown
               focusKey="filter-category"
               onArrowPress={handleFilterArrow('filter-category')}
-              options={categoryOptions}
+              options={translatedCategoryOptions}
               value={category || ''}
               onChange={setCategory}
               className="w-full !h-[36px]"
-              placeholder="全部分类"
+              placeholder={t('download.filters.categoryAll', { defaultValue: 'All Categories' })}
             />
           </div>
 
           <div className={`${blockClassName} md:col-span-1 lg:col-span-3`}>
-            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">排序方式</div>
+            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">
+              {t('download.filters.sort', { defaultValue: 'Sort' })}
+            </div>
             <OreDropdown
               focusKey="filter-sort"
               onArrowPress={handleFilterArrow('filter-sort')}
@@ -419,7 +477,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               value={sort || 'relevance'}
               onChange={setSort}
               className="w-full !h-[36px]"
-              placeholder="综合排序"
+              placeholder={t('download.sort.relevance', { defaultValue: 'Relevance' })}
             />
           </div>
         </div>

@@ -11,7 +11,7 @@ import gamepadConfig from '../assets/config/gamepad.json';
 export const useGameLaunch = () => {
   const [isLaunching, setIsLaunching] = useState(false);
 
-  const launchGame = useCallback(async (instanceId: string, e?: React.MouseEvent | React.KeyboardEvent) => {
+  const launchGame = useCallback(async (instanceId: string, isGamepad?: boolean, e?: React.MouseEvent | React.KeyboardEvent) => {
     if (e) {
       e.stopPropagation();
     }
@@ -55,8 +55,8 @@ export const useGameLaunch = () => {
           logStore.addLog("[INFO] 执行手柄 Mod 深度扫描...");
           const backendHasGamepad = await invoke<boolean>('check_instance_gamepad', { id: instanceId });
           
-          // 3. 扫描依然没有发现手柄 mod，开始尝试推荐下载
-          if (!backendHasGamepad) {
+          // 3. 扫描依然没有发现手柄 mod，且当前是通过手柄启动，开始尝试推荐下载
+          if (!backendHasGamepad && isGamepad) {
             logStore.addLog("[WARN] 未检测到手柄支持模块！");
             
             const mcVersion = instanceDetail?.game_version;
@@ -65,23 +65,24 @@ export const useGameLaunch = () => {
             if (mcVersion && loaderType) {
               const versionConfig: any = (gamepadConfig as any)[mcVersion];
               if (versionConfig && versionConfig[loaderType]) {
-                const targetMod = versionConfig[loaderType];
+                const targetModsInfo = versionConfig[loaderType];
+                const targetModsArray = Array.isArray(targetModsInfo) ? targetModsInfo : [targetModsInfo];
                 
-                logStore.addLog(`[INFO] 发现适配此实例 (${mcVersion} ${loaderType}) 的手柄支持: ${targetMod.name}`);
+                logStore.addLog(`[INFO] 发现适配此实例 (${mcVersion} ${loaderType}) 的 ${targetModsArray.length} 个手柄支持`);
                 logStore.addLog(`[INFO] 正在挂起启动进程，等待玩家确认安装...`);
                 
                 // 唤出前端 UI
-                const shouldDownload = await useGamepadModStore.getState().promptDownload(instanceId, targetMod);
+                const selectedMod = await useGamepadModStore.getState().promptDownload(instanceId, targetModsArray);
                 
-                if (shouldDownload) {
-                  logStore.addLog(`[INFO] 玩家同意安装，下发下载任务: ${targetMod.fileName}`);
+                if (selectedMod) {
+                  logStore.addLog(`[INFO] 玩家同意安装，下发下载任务: ${selectedMod.fileName}`);
                   
                   // TODO: 这里直接下发 mod 下载任务给后端或 DownloadStore 处理...
                   try {
                     await invoke('install_remote_mod', { 
                       instanceId, 
-                      downloadUrl: targetMod.downloadUrl,
-                      fileName: targetMod.fileName
+                      downloadUrl: selectedMod.downloadUrl,
+                      fileName: selectedMod.fileName
                     });
                     logStore.addLog(`[INFO] 手柄支持模块安装成功！`);
                     
@@ -95,6 +96,8 @@ export const useGameLaunch = () => {
                 }
               }
             }
+          } else if (!backendHasGamepad && !isGamepad) {
+            logStore.addLog("[INFO] 键鼠模式启动，跳过手柄模块检测与提示。");
           } else {
              logStore.addLog("[INFO] 手柄模块就绪。");
           }

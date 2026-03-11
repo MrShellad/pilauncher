@@ -11,27 +11,27 @@ interface GamepadModInfo {
 interface GamepadModStore {
   isOpen: boolean;
   instanceId: string | null;
-  modInfo: GamepadModInfo | null;
-  promptDownload: (instanceId: string, modInfo: GamepadModInfo) => Promise<boolean>;
-  resolvePrompt: (shouldDownload: boolean) => void;
+  modInfos: GamepadModInfo[];
+  promptDownload: (instanceId: string, modInfos: GamepadModInfo[]) => Promise<GamepadModInfo | null>;
+  resolvePrompt: (selectedMod: GamepadModInfo | null) => void;
   closePrompt: () => void;
 }
 
 export const useGamepadModStore = create<GamepadModStore>((set, get) => ({
   isOpen: false,
   instanceId: null,
-  modInfo: null,
+  modInfos: [],
   resolvePrompt: () => {}, // placeholder
   
-  promptDownload: (instanceId, modInfo) => {
+  promptDownload: (instanceId, modInfos) => {
     return new Promise((resolve) => {
       set({
         isOpen: true,
         instanceId,
-        modInfo,
-        resolvePrompt: Object.assign((shouldDownload: boolean) => {
+        modInfos,
+        resolvePrompt: Object.assign((selectedMod: GamepadModInfo | null) => {
           set({ isOpen: false });
-          resolve(shouldDownload);
+          resolve(selectedMod);
         }, { _isResolver: true })
       });
     });
@@ -39,6 +39,6 @@ export const useGamepadModStore = create<GamepadModStore>((set, get) => ({
   
   closePrompt: () => {
     const { resolvePrompt } = get();
-    resolvePrompt(false);
+    resolvePrompt(null);
   }
 }));

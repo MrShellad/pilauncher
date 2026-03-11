@@ -1,7 +1,6 @@
 // /src/features/InstanceDetail/hooks/useSaveManager.ts
 import { useState, useEffect, useCallback } from 'react';
 import { saveService, type SaveItem, type SaveBackupMetadata } from '../logic/saveService';
-import { ask } from '@tauri-apps/plugin-dialog';
 
 export const useSaveManager = (instanceId: string) => {
   const [saves, setSaves] = useState<SaveItem[]>([]);
@@ -40,14 +39,13 @@ export const useSaveManager = (instanceId: string) => {
     }
   };
 
-  const deleteSave = async (folderName: string) => {
-    const directDelete = await ask(`是否要彻底删除 "${folderName}"？\n\n点击"取消"将把它移入回收站 (保留7天)。`, { title: '删除存档', kind: 'warning' });
+  const deleteSave = async (folderName: string, directDelete: boolean) => {
     try {
-      setSaves(prev => prev.filter(s => s.folderName !== folderName));
+      setSaves((prev) => prev.filter((s) => s.folderName !== folderName));
       await saveService.deleteSave(instanceId, folderName, directDelete);
     } catch (e) {
       console.error('删除失败:', e);
-      loadSavesAndBackups(); 
+      loadSavesAndBackups();
     }
   };
 

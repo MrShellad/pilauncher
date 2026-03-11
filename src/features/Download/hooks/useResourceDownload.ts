@@ -1,58 +1,97 @@
-// /src/features/Download/hooks/useResourceDownload.ts
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+
+import mcvData from '../../../assets/download/mcv.json';
 import { searchModrinth, type ModrinthProject } from '../../InstanceDetail/logic/modrinthApi';
 import { modService, type ModMeta } from '../../InstanceDetail/logic/modService';
+import {
+  getCachedCurseForgeCategories,
+  getCachedCurseForgeMinecraftVersions,
+  hasCurseForgeApiKey,
+  searchCurseForge,
+  type CurseForgeCategoryOption
+} from '../logic/curseforgeApi';
 
 export type TabType = 'mod' | 'resourcepack' | 'shader' | 'modpack';
+export type DownloadSource = 'modrinth' | 'curseforge';
 
-// ================= 定义缓存结构 =================
+export interface FilterOption {
+  label: string;
+  value: string;
+  slug?: string;
+}
+
+export interface DownloadInstanceConfig {
+  game_version?: string;
+  gameVersion?: string;
+  loader_type?: string;
+  loaderType?: string;
+  [key: string]: unknown;
+}
+
 interface DownloadCache {
   instanceId: string;
-  instanceConfig: any;
+  instanceConfig: DownloadInstanceConfig | null;
   activeTab: TabType;
   query: string;
   mcVersion: string;
   loaderType: string;
   category: string;
   sort: string;
-  source: string;
+  source: DownloadSource;
   results: ModrinthProject[];
   offset: number;
   hasMore: boolean;
 }
 
-// ✅ 声明模块级内存缓存：随页面跳转保留，软件关闭即刻销毁
+const FALLBACK_MC_VERSIONS: string[] = Array.isArray(mcvData)
+  ? mcvData
+  : (mcvData as { versions?: string[] }).versions || [];
+
 let globalCache: DownloadCache | null = null;
 
+const MODRINTH_CATEGORY_OPTIONS: Record<TabType, FilterOption[]> = {
+  mod: [
+    { label: 'technology', value: 'technology', slug: 'technology' },
+    { label: 'magic', value: 'magic', slug: 'magic' },
+    { label: 'optimization', value: 'optimization', slug: 'optimization' },
+    { label: 'utility', value: 'utility', slug: 'utility' },
+    { label: 'decoration', value: 'decoration', slug: 'decoration' }
+  ],
+  resourcepack: [],
+  shader: [],
+  modpack: []
+};
+
+const getDefaultVersions = (): FilterOption[] => FALLBACK_MC_VERSIONS.map((version) => ({ label: version, value: version }));
+
 export const useResourceDownload = (instanceId?: string | null) => {
-  // 1. 判断当前实例 ID 是否命中了我们刚才存下的缓存
   const isCacheValid = Boolean(instanceId && globalCache?.instanceId === instanceId);
 
-  // 2. 将所有状态的初始值设置为：如果缓存有效则读取缓存，否则恢复默认值
-  const [activeTab, setActiveTab] = useState<TabType>(() => isCacheValid ? globalCache!.activeTab : 'mod');
-  const [instanceConfig, setInstanceConfig] = useState<any>(() => isCacheValid ? globalCache!.instanceConfig : null);
+  const [activeTab, setActiveTab] = useState<TabType>(() => (isCacheValid ? globalCache!.activeTab : 'mod'));
+  const [instanceConfig, setInstanceConfig] = useState<DownloadInstanceConfig | null>(() => (isCacheValid ? globalCache!.instanceConfig : null));
   const [isEnvLoaded, setIsEnvLoaded] = useState(() => isCacheValid);
   const [installedMods, setInstalledMods] = useState<ModMeta[]>([]);
-  
-  const [query, setQuery] = useState(() => isCacheValid ? globalCache!.query : '');
-  const [mcVersion, setMcVersion] = useState(() => isCacheValid ? globalCache!.mcVersion : '');
-  const [loaderType, setLoaderType] = useState(() => isCacheValid ? globalCache!.loaderType : '');
-  const [category, setCategory] = useState(() => isCacheValid ? globalCache!.category : '');
-  const [sort, setSort] = useState<any>(() => isCacheValid ? globalCache!.sort : 'relevance');
-  const [source, setSource] = useState(() => isCacheValid ? globalCache!.source : 'modrinth');
 
-  const [results, setResults] = useState<ModrinthProject[]>(() => isCacheValid ? globalCache!.results : []);
-  const [offset, setOffset] = useState(() => isCacheValid ? globalCache!.offset : 0);
-  const [hasMore, setHasMore] = useState(() => isCacheValid ? globalCache!.hasMore : true);
-  
+  const [query, setQuery] = useState(() => (isCacheValid ? globalCache!.query : ''));
+  const [mcVersion, setMcVersion] = useState(() => (isCacheValid ? globalCache!.mcVersion : ''));
+  const [loaderType, setLoaderType] = useState(() => (isCacheValid ? globalCache!.loaderType : ''));
+  const [category, setCategory] = useState(() => (isCacheValid ? globalCache!.category : ''));
+  const [sort, setSort] = useState(() => (isCacheValid ? globalCache!.sort : 'relevance'));
+  const [source, setSource] = useState<DownloadSource>(() => (isCacheValid ? globalCache!.source : 'modrinth'));
+
+  const [results, setResults] = useState<ModrinthProject[]>(() => (isCacheValid ? globalCache!.results : []));
+  const [offset, setOffset] = useState(() => (isCacheValid ? globalCache!.offset : 0));
+  const [hasMore, setHasMore] = useState(() => (isCacheValid ? globalCache!.hasMore : true));
+
+  const [mcVersionOptions, setMcVersionOptions] = useState<FilterOption[]>(getDefaultVersions);
+  const [categoryOptions, setCategoryOptions] = useState<FilterOption[]>(MODRINTH_CATEGORY_OPTIONS.mod);
+
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // 使用 Ref 记录是否为第一次渲染，用于拦截初始化时的无效拉取
   const isFirstMount = useRef(true);
 
-  // 3. 初始化环境
   useEffect(() => {
     const initEnv = async () => {
       if (!instanceId) {
@@ -60,123 +99,224 @@ export const useResourceDownload = (instanceId?: string | null) => {
         return;
       }
 
-      // ⚠️ 极其关键：无论是否命中缓存，【已安装的本地Mod列表】必须每次都去底层拉取一次最新的！
-      // 否则用户如果在外边删除了某个 Mod 切回来，会显示错误的“已安装”状态。
       try {
         const mods = await modService.getMods(instanceId);
         setInstalledMods(mods || []);
-      } catch (err) {
+      } catch {
         setInstalledMods([]);
       }
 
-      // 如果命中了缓存，就不需要再去 Rust 后端请求 instanceConfig 了
-      if (isCacheValid) return; 
+      if (isCacheValid) return;
 
       try {
-        const config = await invoke<any>('get_instance_detail', { id: instanceId });
+        const config = await invoke<DownloadInstanceConfig>('get_instance_detail', { id: instanceId });
         const safeConfig = config || {};
         setInstanceConfig(safeConfig);
-        
-        const gameVer = safeConfig.game_version || safeConfig.gameVersion || '';
-        const loader = safeConfig.loader_type || safeConfig.loaderType || '';
+
+        const gameVer = String(safeConfig.game_version || safeConfig.gameVersion || '');
+        const loader = String(safeConfig.loader_type || safeConfig.loaderType || '');
         setMcVersion(gameVer);
-        setLoaderType((loader || '').toLowerCase() === 'vanilla' ? '' : loader);
-      } catch (err) {
-        console.error('获取环境失败:', err);
+        setLoaderType(loader.toLowerCase() === 'vanilla' ? '' : loader.toLowerCase());
+      } catch (error) {
+        console.error('获取实例环境失败:', error);
       } finally {
         setIsEnvLoaded(true);
       }
     };
-    initEnv();
+
+    void initEnv();
   }, [instanceId, isCacheValid]);
 
-  // 4. 核心搜索逻辑
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadMetadata = async () => {
+      const modrinthCategories = MODRINTH_CATEGORY_OPTIONS[activeTab] || [];
+
+      if (source !== 'curseforge') {
+        if (!cancelled) {
+          setMcVersionOptions(getDefaultVersions());
+          setCategoryOptions(modrinthCategories);
+        }
+        return;
+      }
+
+      const versionTask = hasCurseForgeApiKey()
+        ? getCachedCurseForgeMinecraftVersions().catch((error) => {
+            console.error('加载 CurseForge 版本列表失败:', error);
+            return getDefaultVersions();
+          })
+        : Promise.resolve(getDefaultVersions());
+
+      const categoryTask = activeTab === 'mod' || activeTab === 'resourcepack' || activeTab === 'shader'
+        ? getCachedCurseForgeCategories(activeTab).catch((error) => {
+            console.error('加载 CurseForge 分类失败:', error);
+            return [] as CurseForgeCategoryOption[];
+          })
+        : Promise.resolve([] as CurseForgeCategoryOption[]);
+
+      const [versions, categories] = await Promise.all([versionTask, categoryTask]);
+      if (cancelled) return;
+
+      setMcVersionOptions(versions.length > 0 ? versions : getDefaultVersions());
+      setCategoryOptions(categories);
+    };
+
+    void loadMetadata();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, source]);
+
+  useEffect(() => {
+    if (!category) return;
+    const validValues = new Set(categoryOptions.map((item) => item.value));
+    if (!validValues.has(category)) setCategory('');
+  }, [category, categoryOptions]);
+
+  useEffect(() => {
+    if (!mcVersion) return;
+    const validValues = new Set(mcVersionOptions.map((item) => item.value));
+    if (!validValues.has(mcVersion) && source === 'curseforge') setMcVersion('');
+  }, [mcVersion, mcVersionOptions, source]);
+
   const executeSearch = useCallback(async (currentOffset: number, isLoadMore = false) => {
     if (!isEnvLoaded) return;
+
     if (isLoadMore) setIsLoadingMore(true);
     else setIsLoading(true);
 
     try {
-      const data = await searchModrinth({
-        query, category, sort, projectType: activeTab,
-        version: mcVersion || undefined, 
-        loader: loaderType || undefined,
-        offset: currentOffset, 
-        limit: 20
-      });
+      const data = source === 'curseforge'
+        ? await searchCurseForge({
+            query,
+            category,
+            sort: sort as 'relevance' | 'downloads' | 'updated' | 'newest',
+            projectType: activeTab,
+            version: mcVersion || undefined,
+            loader: activeTab === 'mod' ? loaderType || undefined : undefined,
+            offset: currentOffset,
+            limit: 20
+          })
+        : await searchModrinth({
+            query,
+            category,
+            sort: sort as 'relevance' | 'downloads' | 'updated' | 'newest',
+            projectType: activeTab,
+            version: mcVersion || undefined,
+            loader: loaderType || undefined,
+            offset: currentOffset,
+            limit: 20
+          });
 
-      if (isLoadMore) setResults(prev => [...prev, ...data.hits]);
+      if (isLoadMore) setResults((prev) => [...prev, ...data.hits]);
       else setResults(data.hits);
-      
+
       setHasMore(currentOffset + data.hits.length < data.total_hits);
-    } catch (e) { 
-      console.error(e); 
-    } finally { 
-      setIsLoading(false); 
-      setIsLoadingMore(false); 
+    } catch (error) {
+      console.error(error);
+      if (!isLoadMore) setResults([]);
+      setHasMore(false);
+    } finally {
+      setIsLoading(false);
+      setIsLoadingMore(false);
     }
-  }, [query, category, sort, activeTab, mcVersion, loaderType, source, isEnvLoaded]);
+  }, [activeTab, category, isEnvLoaded, loaderType, mcVersion, query, sort, source]);
 
-  // 5. Tab 切换自动搜索拦截器
   useEffect(() => {
-    if (isEnvLoaded) {
-      // 检查是不是组件刚挂载
-      if (isFirstMount.current) {
-        isFirstMount.current = false;
-        // ✅ 核心拦截：如果是带着缓存进来的第一次挂载，绝对静默！不发请求覆盖数据。
-        if (isCacheValid) return; 
-      }
-      
-      // 如果不是初次挂载（用户手动切了 Tab），或者是没缓存的全新挂载，则触发搜索
-      setOffset(0);
-      executeSearch(0, false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, isEnvLoaded]); // 注意：只依赖 activeTab，保证切换时刷新
+    if (!isEnvLoaded) return;
 
-  // 6. 实时同步快照到全局缓存
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      if (isCacheValid) return;
+    }
+
+    setOffset(0);
+    void executeSearch(0, false);
+  }, [activeTab, executeSearch, isCacheValid, isEnvLoaded, source]);
+
   useEffect(() => {
     if (instanceId && isEnvLoaded) {
       globalCache = {
-        instanceId, instanceConfig, activeTab, query, mcVersion,
-        loaderType, category, sort, source, results, offset, hasMore
+        instanceId,
+        instanceConfig,
+        activeTab,
+        query,
+        mcVersion,
+        loaderType,
+        category,
+        sort,
+        source,
+        results,
+        offset,
+        hasMore
       };
     }
-  }, [instanceId, instanceConfig, activeTab, query, mcVersion, loaderType, category, sort, source, results, offset, hasMore, isEnvLoaded]);
+  }, [activeTab, category, hasMore, instanceConfig, instanceId, isEnvLoaded, loaderType, mcVersion, offset, query, results, sort, source]);
 
-  // 动作分发
-  const handleSearchClick = () => { setOffset(0); executeSearch(0, false); };
-  
+  const handleSearchClick = () => {
+    setOffset(0);
+    void executeSearch(0, false);
+  };
+
   const handleResetClick = () => {
-    setQuery(''); setCategory(''); setSort('relevance'); setSource('modrinth');
+    setQuery('');
+    setCategory('');
+    setSort('relevance');
+
     if (instanceConfig) {
       const gameVer = instanceConfig.game_version || instanceConfig.gameVersion || '';
       const loader = instanceConfig.loader_type || instanceConfig.loaderType || '';
       setMcVersion(gameVer);
-      setLoaderType((loader || '').toLowerCase() === 'vanilla' ? '' : loader);
+      setLoaderType((loader || '').toLowerCase() === 'vanilla' ? '' : (loader || '').toLowerCase());
     } else {
-      setMcVersion(''); setLoaderType('');
+      setMcVersion('');
+      setLoaderType('');
     }
+
     setOffset(0);
     setResults([]);
-    setTimeout(() => executeSearch(0, false), 50);
+    setTimeout(() => {
+      void executeSearch(0, false);
+    }, 50);
   };
 
-  // ✅ 懒加载：直接计算 nextOffset 并发起请求，剔除了可能导致缓存状态错乱的监听器
   const loadMore = useCallback(() => {
-    if (hasMore && !isLoading && !isLoadingMore && results.length > 0) {
-      const nextOffset = offset + 20;
-      setOffset(nextOffset);
-      executeSearch(nextOffset, true);
-    }
-  }, [hasMore, isLoading, isLoadingMore, results.length, offset, executeSearch]);
+    if (!hasMore || isLoading || isLoadingMore || results.length === 0) return;
+
+    const nextOffset = offset + 20;
+    setOffset(nextOffset);
+    void executeSearch(nextOffset, true);
+  }, [executeSearch, hasMore, isLoading, isLoadingMore, offset, results.length]);
 
   return {
-    activeTab, setActiveTab,
-    query, setQuery, mcVersion, setMcVersion, loaderType, setLoaderType,
-    category, setCategory, sort, setSort, source, setSource,
-    results, hasMore, isLoading, isLoadingMore,
-    instanceConfig, isEnvLoaded, installedMods,
-    handleSearchClick, handleResetClick, loadMore
+    activeTab,
+    setActiveTab,
+    query,
+    setQuery,
+    mcVersion,
+    setMcVersion,
+    loaderType,
+    setLoaderType,
+    category,
+    setCategory,
+    sort,
+    setSort,
+    source,
+    setSource,
+    results,
+    hasMore,
+    isLoading,
+    isLoadingMore,
+    instanceConfig,
+    isEnvLoaded,
+    installedMods,
+    mcVersionOptions,
+    categoryOptions,
+    isCurseForgeAvailable: hasCurseForgeApiKey(),
+    handleSearchClick,
+    handleResetClick,
+    loadMore
   };
 };

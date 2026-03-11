@@ -11,6 +11,7 @@ import { Globe, FolderOpen, Archive, Trash2, Loader2, HardDrive, History } from 
 
 import { useSaveManager } from '../../hooks/useSaveManager';
 import { saveService } from '../../logic/saveService'; 
+import { OreModal } from '../../../../ui/primitives/OreModal'; // ✅ 引入 OreModal
 import { SaveRestoreModal } from './saves/SaveRestoreModal';
 import { BackupListModal } from './saves/BackupListModal';
 import type { SaveBackupMetadata } from '../../logic/saveService';
@@ -20,6 +21,7 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   
   const [isBackupListOpen, setIsBackupListOpen] = useState(false);
   const [verifyingBackup, setVerifyingBackup] = useState<SaveBackupMetadata | null>(null);
+  const [saveToDelete, setSaveToDelete] = useState<string | null>(null);
 
   const handleSelectBackup = (backup: SaveBackupMetadata) => {
     setIsBackupListOpen(false);
@@ -110,7 +112,7 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
                       focusKey={`save-btn-delete-${i}`}
                       variant="danger" 
                       size="sm"
-                      onClick={() => deleteSave(save.folderName)}
+                      onClick={() => setSaveToDelete(save.folderName)}
                     >
                       <Trash2 size={16} className="mr-2" />
                       删除
@@ -141,6 +143,49 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
             setVerifyingBackup(null);
           }}
         />
+
+        {/* 删除存档确认弹窗 */}
+        <OreModal
+          isOpen={saveToDelete !== null}
+          onClose={() => setSaveToDelete(null)}
+          title="删除存档确认"
+          actions={
+            <>
+              <OreButton
+                focusKey="save-del-cancel"
+                variant="secondary"
+                onClick={() => setSaveToDelete(null)}
+                className="flex-1"
+              >
+                移入回收站
+              </OreButton>
+              <OreButton
+                focusKey="save-del-confirm"
+                variant="danger"
+                onClick={() => {
+                  if (saveToDelete) {
+                    deleteSave(saveToDelete, true);
+                    setSaveToDelete(null);
+                  }
+                }}
+                className="flex-1"
+              >
+                强制彻底删除
+              </OreButton>
+            </>
+          }
+        >
+          <div className="flex flex-col items-center justify-center p-6 text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 mb-2 border-2 border-red-500/20 shadow-[inset_0_0_15px_rgba(239,68,68,0.2)]">
+               <Trash2 size={32} />
+            </div>
+            <h3 className="text-xl font-bold text-white font-minecraft">确认删除此存档？</h3>
+            <p className="text-ore-text-muted font-minecraft px-4">
+              您即将操作存档 <span className="text-red-400 font-bold">"{saveToDelete}"</span>。<br />
+              您可以选择将其<strong>移入回收站</strong>（保留7天），或选择<strong>强制彻底删除</strong>（无法恢复）。
+            </p>
+          </div>
+        </OreModal>
         
       </div>
     </SettingsPageLayout>

@@ -2,6 +2,7 @@
 
 pub mod animation_cmd;
 pub mod auth_cmd;
+pub mod cache_cmd;
 pub mod config_cmd;
 pub mod instance;
 pub mod launcher_cmd;
@@ -23,6 +24,10 @@ use tauri::{Builder, Runtime};
 pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
     builder.invoke_handler(tauri::generate_handler![
         animation_cmd::load_custom_animation,
+        cache_cmd::read_session_cache,
+        cache_cmd::read_persistent_cache,
+        cache_cmd::write_session_cache,
+        cache_cmd::write_persistent_cache,
         instance::listing_cmd::get_all_instances,
         instance::creation_cmd::create_instance,
         minecraft_cmd::get_minecraft_versions,
