@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronUp, ChevronDown, CheckCircle, Box, Trash2, List, Terminal, FileDown, AlertTriangle } from 'lucide-react';
 import type { DownloadTask } from '../../../../store/useDownloadStore';
-import { FocusItem } from '../../../../ui/focus/FocusItem'; // ✅ 引入焦点控制
+import { OreButton } from '../../../../ui/primitives/OreButton'; // ✅ 引入 OreUI 标准按钮
 
 export const TaskItem = ({ task, setActiveTab, removeTask }: { task: DownloadTask, setActiveTab: any, removeTask: any }) => {
   const [showLogs, setShowLogs] = useState(false);
@@ -14,12 +14,11 @@ export const TaskItem = ({ task, setActiveTab, removeTask }: { task: DownloadTas
 
   const latestLogs = task.logs.slice(-3);
 
-  // ✅ 根据标题长度计算动态字体大小
+  // ✅ 增强标题响应式长度
   const titleLength = task.title.length;
-  let titleSizeClass = "text-base";
-  if (titleLength > 30) titleSizeClass = "text-[10px] leading-tight";
-  else if (titleLength > 18) titleSizeClass = "text-xs";
-  else if (titleLength > 12) titleSizeClass = "text-sm";
+  let titleSizeClass = "text-[clamp(12px,1.2vw,16px)]";
+  if (titleLength > 30) titleSizeClass = "text-[clamp(10px,1vw,12px)] leading-tight";
+  else if (titleLength > 20) titleSizeClass = "text-[clamp(11px,1.1vw,14px)]";
 
   const renderLogLine = (log: string, index: number) => {
     const timeMatch = log.match(/^(\[.*?\])\s(.*)$/);
@@ -85,58 +84,51 @@ export const TaskItem = ({ task, setActiveTab, removeTask }: { task: DownloadTas
 
       <div className="flex justify-between items-center mt-1">
         {/* ✅ 日志展开按钮接入焦点 */}
-        <FocusItem focusKey={`btn-log-${task.id}`} onEnter={() => setShowLogs(!showLogs)}>
-          {({ ref, focused }) => (
-            <button 
-              ref={ref as any} 
-              onClick={() => setShowLogs(!showLogs)} 
-              className={`text-[11px] flex items-center transition-colors px-1.5 py-1 rounded-sm outline-none ${focused ? 'bg-white/20 text-white ring-1 ring-white' : 'text-ore-text-muted hover:text-white'}`}
-            >
-              <List size={12} className="mr-1" /> 全部日志 {showLogs ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-            </button>
-          )}
-        </FocusItem>
+        <div className="scale-90 origin-left">
+          <OreButton 
+            focusKey={`btn-log-${task.id}`} 
+            variant="ghost" 
+            size="auto"
+            autoScroll={false}
+            onClick={() => setShowLogs(!showLogs)} 
+            className="!h-8 !px-2 !min-w-0"
+          >
+            <div className="flex items-center text-xs text-ore-text-muted hover:text-white transition-colors">
+              <List size={12} className="mr-1" /> 全部日志 {showLogs ? <ChevronUp size={12} className="ml-1" /> : <ChevronDown size={12} className="ml-1" />}
+            </div>
+          </OreButton>
+        </div>
         
-        <div className="flex space-x-2">
+        <div className="flex space-x-2 scale-90 origin-right">
           {!isDone && !isError ? (
-            <FocusItem focusKey={`btn-cancel-${task.id}`} onEnter={() => removeTask(task.id)}>
-              {({ ref, focused }) => (
-                <button 
-                  ref={ref as any} onClick={() => removeTask(task.id)} 
-                  className={`p-1.5 transition-colors rounded-sm outline-none ${focused ? 'bg-red-500/80 text-white ring-2 ring-red-400 scale-110' : 'hover:bg-red-500/20 text-ore-text-muted hover:text-red-400'}`} title="取消任务"
-                >
-                  <Trash2 size={14} />
-                </button>
-              )}
-            </FocusItem>
+            <OreButton 
+              focusKey={`btn-cancel-${task.id}`} 
+              variant="danger" 
+              size="auto"
+              autoScroll={false}
+              onClick={() => removeTask(task.id)} 
+              className="!h-8 !px-3 !min-w-0 text-white"
+            >
+              <Trash2 size={14} />
+            </OreButton>
           ) : (
-            <FocusItem 
+            <OreButton 
               focusKey={`btn-complete-${task.id}`} 
-              onEnter={() => { 
+              variant={isError ? "danger" : "primary"}
+              size="auto"
+              autoScroll={false}
+              onClick={() => { 
                 removeTask(task.id); 
                 if (!isResource && isDone) setActiveTab('instances'); 
               }}
+              className="!h-8 !px-3 !min-w-0 text-sm"
+              style={isResource ? { backgroundColor: '#3b82f6', borderColor: '#2563eb' } : {}} // 资源下载显示蓝色完成
             >
-              {({ ref, focused }) => (
-                <button 
-                  ref={ref as any}
-                  onClick={() => { 
-                    removeTask(task.id); 
-                    if (!isResource && isDone) setActiveTab('instances'); 
-                  }}
-                  className={`px-2 py-1 text-xs font-minecraft transition-colors flex items-center rounded-sm outline-none
-                    ${isError 
-                        ? (focused ? 'bg-red-500 text-white ring-2 ring-white scale-105' : 'bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white') 
-                        : (isResource 
-                            ? (focused ? 'bg-blue-500 text-white ring-2 ring-white scale-105' : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white') 
-                            : (focused ? 'bg-ore-green text-black ring-2 ring-white scale-105' : 'bg-ore-green/20 text-ore-green hover:bg-ore-green hover:text-[#1E1E1F]'))}
-                  `}
-                >
-                  {isError ? <Trash2 size={12} className="mr-1" /> : <CheckCircle size={12} className="mr-1" />} 
-                  {isError ? '清除异常任务' : (isResource ? '关闭' : '前往配置')}
-                </button>
-              )}
-            </FocusItem>
+              <div className="flex items-center">
+                {isError ? <Trash2 size={14} className="mr-1" /> : <CheckCircle size={14} className="mr-1" />} 
+                {isError ? '清除异常任务' : (isResource ? '关闭' : '前往配置')}
+              </div>
+            </OreButton>
           )}
         </div>
       </div>

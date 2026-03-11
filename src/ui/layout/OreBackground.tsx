@@ -2,6 +2,7 @@
 import React, { useMemo } from 'react';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import defaultBackground from '../../assets/home/wallpaper/1.png';
 
 export const OreBackground: React.FC = () => {
   const { appearance } = useSettingsStore(state => state.settings);
@@ -12,10 +13,10 @@ export const OreBackground: React.FC = () => {
         return convertFileSrc(appearance.backgroundImage);
       } catch (e) {
         console.error("转换图片路径失败:", e);
-        return null;
+        return defaultBackground;
       }
     }
-    return null;
+    return defaultBackground;
   }, [appearance.backgroundImage]);
 
   return (
@@ -26,14 +27,12 @@ export const OreBackground: React.FC = () => {
       <div className="absolute inset-0 bg-[#18181B]" />
 
       {/* Layer 2: 自定义本地图片与模糊度 */}
-      {bgUrl && (
-        <img 
-          src={bgUrl} 
-          alt="OreLauncher Background" 
-          className="absolute inset-0 w-full h-full object-cover transition-all duration-700 ease-in-out" 
-          style={{ filter: `blur(${appearance.backgroundBlur}px)` }} 
-        />
-      )}
+      <img
+        src={bgUrl}
+        alt="OreLauncher Background"
+        className="absolute inset-0 w-full h-full object-cover transition-all duration-700 ease-in-out"
+        style={{ filter: `blur(${appearance.backgroundBlur}px)` }}
+      />
 
       {/* Layer 3: 遮罩 (动态颜色与透明度) */}
       <div 

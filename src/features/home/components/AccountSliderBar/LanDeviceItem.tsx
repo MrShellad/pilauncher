@@ -57,7 +57,7 @@ export const LanDeviceItem: React.FC<LanDeviceItemProps> = ({
   onRequestTrust,
 }) => {
   const [avatarSrc, setAvatarSrc] = useState<string | null>(null);
-  const username = richInfo?.username?.trim() ?? '';
+  const username = richInfo?.username?.trim() || '';
   const hasRichProfile = username.length > 0;
   const displayName = hasRichProfile ? username : device.device_name;
   const canSeeInstance = isFriend || isOwnAccount;
@@ -211,38 +211,60 @@ export const LanDeviceItem: React.FC<LanDeviceItemProps> = ({
             <div className="flex gap-2 p-2">
               {isFriend ? (
                 <>
-                  <button className="flex-1 bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/20 p-2 flex justify-center items-center text-xs rounded-sm transition-colors">
-                    <Link size={14} className="mr-1.5" />
-                    联机 (施工中)
-                  </button>
-                  <button className="flex-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 p-2 flex justify-center items-center text-xs rounded-sm transition-colors">
-                    <Send size={14} className="mr-1.5" />
-                    传输
-                  </button>
-                  <button className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 p-2 flex justify-center items-center text-xs rounded-sm transition-colors">
-                    <Trash2 size={14} className="mr-1.5" />
-                    删除
-                  </button>
+                  <FocusItem focusKey={`lan-conn-${device.device_id}`}>
+                    {({ ref, focused }) => (
+                      <button ref={ref as any} className={`flex-1 bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/20 p-2 flex justify-center items-center text-xs rounded-sm transition-colors outline-none ${focused ? 'ring-2 ring-white' : ''}`}>
+                        <Link size={14} className="mr-1.5" />
+                        联机 (施工中)
+                      </button>
+                    )}
+                  </FocusItem>
+                  <FocusItem focusKey={`lan-send-${device.device_id}`}>
+                    {({ ref, focused }) => (
+                      <button ref={ref as any} className={`flex-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 p-2 flex justify-center items-center text-xs rounded-sm transition-colors outline-none ${focused ? 'ring-2 ring-white' : ''}`}>
+                        <Send size={14} className="mr-1.5" />
+                        传输
+                      </button>
+                    )}
+                  </FocusItem>
+                  <FocusItem focusKey={`lan-del-${device.device_id}`}>
+                    {({ ref, focused }) => (
+                      <button ref={ref as any} className={`flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 p-2 flex justify-center items-center text-xs rounded-sm transition-colors outline-none ${focused ? 'ring-2 ring-white' : ''}`}>
+                        <Trash2 size={14} className="mr-1.5" />
+                        删除
+                      </button>
+                    )}
+                  </FocusItem>
                 </>
               ) : (
                 <>
-                  <button
-                    onClick={() => onRequestTrust(device.ip, device.port)}
-                    disabled={isRequesting}
-                    className={`flex-1 p-2 flex justify-center items-center text-xs rounded-sm transition-colors border
-                      ${isOwnAccount ? 'bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border-blue-500/30' : 'bg-white/5 hover:bg-white/10 text-white border-white/10'}
-                    `}
-                  >
-                    {isRequesting
-                      ? <Loader2 size={14} className="animate-spin mr-1.5" />
-                      : (isOwnAccount ? <MonitorSmartphone size={14} className="mr-1.5" /> : <UserPlus size={14} className="mr-1.5" />)}
-                    {isRequesting ? '请求中...' : (isOwnAccount ? '信任此设备' : '添加好友')}
-                  </button>
+                  <FocusItem focusKey={`lan-req-${device.device_id}`} onEnter={() => onRequestTrust(device.ip, device.port)}>
+                    {({ ref, focused }) => (
+                      <button
+                        ref={ref as any}
+                        onClick={() => onRequestTrust(device.ip, device.port)}
+                        disabled={isRequesting}
+                        className={`flex-1 p-2 flex justify-center items-center text-xs rounded-sm transition-colors border outline-none
+                          ${isOwnAccount ? 'bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border-blue-500/30' : 'bg-white/5 hover:bg-white/10 text-white border-white/10'}
+                          ${focused ? 'ring-2 ring-white' : ''}
+                        `}
+                      >
+                        {isRequesting
+                          ? <Loader2 size={14} className="animate-spin mr-1.5" />
+                          : (isOwnAccount ? <MonitorSmartphone size={14} className="mr-1.5" /> : <UserPlus size={14} className="mr-1.5" />)}
+                        {isRequesting ? '请求中...' : (isOwnAccount ? '信任此设备' : '添加好友')}
+                      </button>
+                    )}
+                  </FocusItem>
                   {!isOwnAccount && (
-                    <button className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 p-2 flex justify-center items-center text-xs rounded-sm transition-colors">
-                      <Ban size={14} className="mr-1.5" />
-                      屏蔽
-                    </button>
+                    <FocusItem focusKey={`lan-ban-${device.device_id}`}>
+                      {({ ref, focused }) => (
+                        <button ref={ref as any} className={`flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 p-2 flex justify-center items-center text-xs rounded-sm transition-colors outline-none ${focused ? 'ring-2 ring-white' : ''}`}>
+                          <Ban size={14} className="mr-1.5" />
+                          屏蔽
+                        </button>
+                      )}
+                    </FocusItem>
                   )}
                 </>
               )}

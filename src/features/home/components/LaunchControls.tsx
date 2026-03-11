@@ -80,7 +80,7 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
       <div className="flex flex-col items-center justify-center space-y-[clamp(20px,3vh,32px)] w-[clamp(280px,25vw,420px)]">
         
         {/* 1. Play 主按钮 (✅ 绑定为新的拦截方法 handlePlayClick) */}
-        <FocusItem focusKey="play-button" onEnter={handlePlayClick}>
+        <FocusItem focusKey="play-button" onEnter={handlePlayClick} autoScroll={false}>
           {({ ref, focused }) => (
             <div className="relative w-full group">
               <div 
@@ -117,7 +117,7 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
         </FocusItem>
 
         {/* 2. 实例选择按钮 */}
-        <FocusItem focusKey="instance-button" onEnter={onSelectInstance}>
+        <FocusItem focusKey="instance-button" onEnter={onSelectInstance} autoScroll={false}>
           {({ ref, focused }) => (
             <div 
               ref={ref} 
@@ -146,7 +146,7 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
         </FocusItem>
 
         {/* 3. 设置按钮 */}
-        <FocusItem focusKey="settings-button" onEnter={handleSettingsClick}>
+        <FocusItem focusKey="settings-button" onEnter={handleSettingsClick} autoScroll={false}>
           {({ ref, focused }) => (
             <div 
               ref={ref} 

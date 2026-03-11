@@ -5,29 +5,21 @@ import { TaskItem } from './TaskItem';
 import type { DownloadTask } from '../../../../store/useDownloadStore';
 import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
-import { useEffect } from 'react';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { OreMotionTokens } from '../../../../style/tokens/motion';
 
 export const TaskPanel = ({ isOpen, onClose, taskList, setActiveTab, removeTask }: any) => {
   const activeTasksCount = taskList.filter((t: DownloadTask) => t.status === 'downloading').length;
-
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    if (isOpen) {
-      // ✅ 延迟挂载并确保在卸载时清理定时器
-      timer = setTimeout(() => setFocus('btn-close-taskpanel'), 150);
-    }
-    return () => clearTimeout(timer);
-  }, [isOpen]);
-
   return (
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 20, scale: 0.95, transition: { duration: 0.2 } }}
-          className="mb-4 w-96 max-w-[90vw] bg-[#141415] border-2 border-[#2A2A2C] shadow-2xl rounded-sm overflow-hidden flex flex-col"
+          variants={OreMotionTokens.downloadPanelContainer}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+          onAnimationComplete={() => setFocus('btn-close-taskpanel')}
+          className="mb-4 w-[clamp(320px,40vw,500px)] bg-[#141415] border-2 border-[#2A2A2C] shadow-2xl rounded-sm overflow-hidden flex flex-col"
         >
           <FocusBoundary id="download-task-panel" trapFocus={isOpen} onEscape={onClose} className="flex flex-col h-full overflow-hidden outline-none">
             <div className="bg-[#1E1E1F] p-3 border-b-2 border-ore-gray-border flex justify-between items-center shrink-0">
@@ -49,11 +41,13 @@ export const TaskPanel = ({ isOpen, onClose, taskList, setActiveTab, removeTask 
               </FocusItem>
             </div>
 
-            <div className="max-h-[65vh] overflow-y-auto custom-scrollbar p-3 space-y-4">
+            <motion.div className="max-h-[65vh] overflow-y-auto overflow-x-hidden custom-scrollbar p-3 space-y-4">
               {taskList.map((task: DownloadTask) => (
-                <TaskItem key={task.id} task={task} setActiveTab={setActiveTab} removeTask={removeTask} />
+                <motion.div key={task.id} variants={OreMotionTokens.downloadPanelItem}>
+                  <TaskItem task={task} setActiveTab={setActiveTab} removeTask={removeTask} />
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           </FocusBoundary>
         </motion.div>
       )}

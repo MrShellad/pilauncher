@@ -8,6 +8,7 @@ import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { useAccountStore } from '../../../store/useAccountStore';
 import { useSettingsStore } from '../../../store/useSettingsStore'; // ✅ 引入设置库获取设备信息
 import { useLan } from '../../../hooks/useLan';
+import { useInputAction } from '../../../ui/focus/InputDriver';
 
 import { UserProfileCard } from './AccountSliderBar/UserProfileCard';
 import { LanRadar } from './AccountSliderBar/LanRadar';
@@ -43,9 +44,14 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
     setActiveAccount(accounts[nextIndex].uuid);
   };
 
+  useInputAction('CANCEL', () => {
+    if (isOpen) {
+      onClose();
+    }
+  });
+
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => setFocus('account-sidebar-boundary'), 100);
       fetchTrusted();
       scan();
     }
@@ -111,6 +117,7 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
               animate={{ x: 0, opacity: 1 }} 
               exit={{ x: '-100%', opacity: 0 }} 
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              onAnimationComplete={() => setFocus('account-sidebar-boundary')}
               className="absolute left-0 top-0 bottom-0 w-full md:w-[70vw] lg:w-[55vw] xl:w-[900px] bg-[#18181B] border-r-2 border-[#2A2A2C] shadow-2xl flex flex-col"
             >
               <div className="flex flex-col h-full overflow-y-auto custom-scrollbar p-6">

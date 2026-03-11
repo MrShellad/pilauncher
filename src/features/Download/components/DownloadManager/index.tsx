@@ -88,8 +88,9 @@ export const DownloadManager: React.FC = () => {
   }, [addOrUpdateTask, updateJavaSetting]); 
 
   return (
-    <div className="fixed bottom-6 right-6 z-[999] flex flex-col items-end pointer-events-none">
-      <div className="pointer-events-auto flex flex-col items-end">
+    <div className="fixed bottom-6 right-6 z-[999] pointer-events-none">
+      {/* TaskPanel 使用绝对定位，不被下方气泡的出现/消失影响高度 */}
+      <div className="absolute bottom-0 right-0 pointer-events-auto flex flex-col items-end origin-bottom-right">
         <TaskPanel 
           isOpen={isPopupOpen} 
           onClose={() => setPopupOpen(false)} 
@@ -97,6 +98,10 @@ export const DownloadManager: React.FC = () => {
           setActiveTab={setActiveTab} 
           removeTask={removeTask} 
         />
+      </div>
+
+      {/* 气泡悬浮球同样使用绝对定位独立存在 */}
+      <div className="absolute bottom-0 right-0 pointer-events-auto flex justify-end items-end">
         <FloatingButton 
           isOpen={isPopupOpen} 
           onClick={() => setPopupOpen(true)} 

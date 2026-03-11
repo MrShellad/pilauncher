@@ -111,7 +111,7 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
         
         <div className="flex flex-col space-y-3 mb-2">
           {piConfig?.wiki && (
-            <OreButton focusKey="btn-wiki" variant="secondary" size="auto" className={squareBtnClass} style={piConfig.buttonStyle} onClick={() => window.open(piConfig.wiki!.url)} title={piConfig.wiki!.label || 'Wiki'}>
+            <OreButton focusKey="btn-wiki" variant="secondary" size="auto" className={squareBtnClass} style={piConfig.buttonStyle} onClick={() => window.open(piConfig.wiki!.url)} title={piConfig.wiki!.label || 'Wiki'} autoScroll={false}>
               <Book size={20} />
             </OreButton>
           )}
@@ -119,7 +119,7 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
           {piConfig?.socials && piConfig.socials.length > 0 && (
             <div className="flex space-x-3">
               {piConfig.socials.slice(0, 5).map((social, index) => (
-                <OreButton key={index} focusKey={`btn-social-${index}`} variant="secondary" size="auto" className={squareBtnClass} style={piConfig.buttonStyle} onClick={() => window.open(social.url)} title={social.type}>
+                <OreButton key={index} focusKey={`btn-social-${index}`} variant="secondary" size="auto" className={squareBtnClass} style={piConfig.buttonStyle} onClick={() => window.open(social.url)} title={social.type} autoScroll={false}>
                   {renderSocialIcon(social.type)}
                 </OreButton>
               ))}
@@ -129,7 +129,7 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
 
         <div className="flex items-center space-x-3">
           <div className="relative">
-            <OreButton focusKey="btn-notification" variant="secondary" size="auto" className={accountSquareClass} style={piConfig?.buttonStyle} onClick={() => setUnreadNewsCount(0)} title="通知与新闻">
+            <OreButton focusKey="btn-notification" variant="secondary" size="auto" className={accountSquareClass} style={piConfig?.buttonStyle} onClick={() => setUnreadNewsCount(0)} title="通知与新闻" autoScroll={false}>
               <Bell size={24} fill="#FACC15" className="text-yellow-600 drop-shadow-md" />
             </OreButton>
             {unreadNewsCount > 0 && (
@@ -140,11 +140,11 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
           </div>
 
           {!currentAccount ? (
-            <OreButton focusKey="btn-login" variant="secondary" size="auto" className="!h-12 !px-6" style={piConfig?.buttonStyle} onClick={msAuthState.startMicrosoftLogin}>
+            <OreButton focusKey="btn-login" variant="secondary" size="auto" className="!h-12 !px-6" style={piConfig?.buttonStyle} onClick={msAuthState.startMicrosoftLogin} autoScroll={false}>
               <span className="text-lg tracking-widest leading-none mt-0.5">添加账号</span>
             </OreButton>
           ) : (
-            <OreButton focusKey="btn-profile" variant="secondary" size="auto" className="!h-12 !px-3 [&>button]:!justify-start" style={piConfig?.buttonStyle} onClick={() => setIsSidebarOpen(true)}>
+            <OreButton focusKey="btn-profile" variant="secondary" size="auto" className="!h-12 !px-3 [&>button]:!justify-start" style={piConfig?.buttonStyle} onClick={() => setIsSidebarOpen(true)} autoScroll={false}>
               {/* ✅ 彻底采用本地图片作为 onerror 断网兜底 */}
               <img 
                 src={avatarSrc || defaultAvatar} 

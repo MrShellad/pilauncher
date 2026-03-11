@@ -5,6 +5,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { Monitor, Laptop, Smartphone, Gamepad2, Loader2, RefreshCcw, Send, CheckCircle, X } from 'lucide-react';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
+import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreModal } from '../../../../ui/primitives/OreModal';
 
@@ -221,47 +222,69 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
       {/* ✅ 侧边滑出：推送控制台抽屉 */}
       <AnimatePresence>
         {transferTarget && (
-          <motion.div 
+          <motion.div
             initial={{ x: '100%', opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: '100%', opacity: 0 }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             className="fixed inset-y-0 right-0 w-[340px] bg-[#1E1E1F] border-l-2 border-[#2A2A2C] z-[9999] shadow-2xl flex flex-col font-minecraft"
           >
-            <div className="p-5 border-b-2 border-[#2A2A2C] flex justify-between items-center bg-[#141415]">
-              <div>
-                <h3 className="text-white text-lg font-bold flex items-center"><Send size={18} className="mr-2 text-blue-400" /> 隔空投送</h3>
+            <FocusBoundary id="transfer-drawer-boundary" trapFocus={true} onEscape={() => setTransferTarget(null)} className="flex flex-col h-full outline-none">
+              <div className="p-5 border-b-2 border-[#2A2A2C] flex justify-between items-center bg-[#141415]">
+                <div>
+                  <h3 className="text-white text-lg font-bold flex items-center"><Send size={18} className="mr-2 text-blue-400" /> 隔空投送</h3>
                 <span className="text-xs text-gray-400 mt-1 block">目标: {transferTarget.device_name}</span>
               </div>
-              <button onClick={() => setTransferTarget(null)} className="p-1 hover:bg-white/10 text-gray-400 rounded-sm transition-colors"><X size={20}/></button>
-            </div>
+                <FocusItem focusKey="btn-close-transfer" onEnter={() => setTransferTarget(null)}>
+                  {({ ref, focused }) => (
+                    <button ref={ref as any} onClick={() => setTransferTarget(null)} className={`p-1 hover:bg-white/10 text-gray-400 rounded-sm transition-colors outline-none ${focused ? 'ring-2 ring-white scale-110' : ''}`}><X size={20}/></button>
+                  )}
+                </FocusItem>
+              </div>
 
-            <div className="flex p-3 gap-2 bg-[#1A1A1B]">
-              <button onClick={() => setTransferType('instance')} className={`flex-1 py-2 text-sm border-b-2 transition-colors ${transferType === 'instance' ? 'border-blue-400 text-blue-400' : 'border-transparent text-gray-500'}`}>打包实例</button>
-              <button onClick={() => setTransferType('save')} className={`flex-1 py-2 text-sm border-b-2 transition-colors ${transferType === 'save' ? 'border-green-400 text-green-400' : 'border-transparent text-gray-500'}`}>提取存档</button>
-            </div>
+              <div className="flex p-3 gap-2 bg-[#1A1A1B]">
+                <FocusItem focusKey="btn-transfer-type-instance">
+                  {({ ref, focused }) => (
+                    <button ref={ref as any} onClick={() => setTransferType('instance')} className={`flex-1 py-2 text-sm border-b-2 transition-colors outline-none ${transferType === 'instance' ? 'border-blue-400 text-blue-400' : 'border-transparent text-gray-500'} ${focused ? 'bg-white/5' : ''}`}>打包实例</button>
+                  )}
+                </FocusItem>
+                <FocusItem focusKey="btn-transfer-type-save">
+                  {({ ref, focused }) => (
+                    <button ref={ref as any} onClick={() => setTransferType('save')} className={`flex-1 py-2 text-sm border-b-2 transition-colors outline-none ${transferType === 'save' ? 'border-green-400 text-green-400' : 'border-transparent text-gray-500'} ${focused ? 'bg-white/5' : ''}`}>提取存档</button>
+                  )}
+                </FocusItem>
+              </div>
 
-            <div className="p-5 flex-1 overflow-y-auto">
-              <label className="text-xs text-gray-400 mb-2 block">{transferType === 'instance' ? '选择要发送的实例' : '从实例中提取'}</label>
-              <select className="w-full bg-[#141415] border-2 border-[#2A2A2C] text-white p-2 rounded-sm outline-none mb-4" value={selectedInstance} onChange={(e) => transferType === 'save' ? handleFetchSaves(e.target.value) : setSelectedInstance(e.target.value)}>
-                <option value="" disabled>-- 请选择 --</option>
-                {instances.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
-              </select>
+              <div className="p-5 flex-1 overflow-y-auto">
+                <label className="text-xs text-gray-400 mb-2 block">{transferType === 'instance' ? '选择要发送的实例' : '从实例中提取'}</label>
+                <FocusItem focusKey="select-transfer-inst">
+                  {({ ref, focused }) => (
+                    <select ref={ref as any} className={`w-full bg-[#141415] border-2 border-[#2A2A2C] text-white p-2 rounded-sm outline-none mb-4 transition-all ${focused ? 'ring-2 ring-blue-500' : ''}`} value={selectedInstance} onChange={(e) => transferType === 'save' ? handleFetchSaves(e.target.value) : setSelectedInstance(e.target.value)}>
+                      <option value="" disabled>-- 请选择 --</option>
+                      {instances.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
+                    </select>
+                  )}
+                </FocusItem>
 
-              {transferType === 'save' && (
-                <>
-                  <label className="text-xs text-gray-400 mb-2 block mt-2">选择世界存档</label>
-                  <select className="w-full bg-[#141415] border-2 border-[#2A2A2C] text-white p-2 rounded-sm outline-none" value={selectedSave} onChange={(e) => setSelectedSave(e.target.value)}>
-                    <option value="" disabled>-- 请选择 --</option>
-                    {saves.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </>
-              )}
-            </div>
+                {transferType === 'save' && (
+                  <>
+                    <label className="text-xs text-gray-400 mb-2 block mt-2">选择世界存档</label>
+                    <FocusItem focusKey="select-transfer-save">
+                      {({ ref, focused }) => (
+                        <select ref={ref as any} className={`w-full bg-[#141415] border-2 border-[#2A2A2C] text-white p-2 rounded-sm outline-none transition-all ${focused ? 'ring-2 ring-green-500' : ''}`} value={selectedSave} onChange={(e) => setSelectedSave(e.target.value)}>
+                          <option value="" disabled>-- 请选择 --</option>
+                          {saves.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      )}
+                    </FocusItem>
+                  </>
+                )}
+              </div>
 
-            <div className="p-5 border-t-2 border-[#2A2A2C] bg-[#141415]">
-              <OreButton onClick={executePush} disabled={isPushing || !selectedInstance || (transferType === 'save' && !selectedSave)} variant="primary" className="w-full flex justify-center !h-12">
-                {isPushing ? <Loader2 size={18} className="animate-spin mr-2" /> : <Send size={18} className="mr-2" />}
-                {isPushing ? '打包并发送中...' : '开始传送'}
-              </OreButton>
-            </div>
+              <div className="p-5 border-t-2 border-[#2A2A2C] bg-[#141415]">
+                <OreButton onClick={executePush} disabled={isPushing || !selectedInstance || (transferType === 'save' && !selectedSave)} variant="primary" className="w-full flex justify-center !h-12">
+                  {isPushing ? <Loader2 size={18} className="animate-spin mr-2" /> : <Send size={18} className="mr-2" />}
+                  {isPushing ? '打包并发送中...' : '开始传送'}
+                </OreButton>
+              </div>
+            </FocusBoundary>
           </motion.div>
         )}
       </AnimatePresence>
@@ -284,10 +307,14 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
             {incomingData.type === 'save' && (
               <div className="w-full mb-4 text-left">
                 <label className="text-xs text-gray-400 mb-2 block">请指定接收该存档的本地实例：</label>
-                <select className="w-full bg-[#141415] border-2 border-[#2A2A2C] text-white p-2 rounded-sm outline-none" value={receiveTargetInstance} onChange={(e) => setReceiveTargetInstance(e.target.value)}>
-                  <option value="" disabled>-- 选择本地实例 --</option>
-                  {instances.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
-                </select>
+                <FocusItem focusKey="select-receive-instance">
+                  {({ ref, focused }) => (
+                    <select ref={ref as any} className={`w-full bg-[#141415] border-2 border-[#2A2A2C] text-white p-2 rounded-sm outline-none transition-all ${focused ? 'ring-2 ring-white' : ''}`} value={receiveTargetInstance} onChange={(e) => setReceiveTargetInstance(e.target.value)}>
+                      <option value="" disabled>-- 选择本地实例 --</option>
+                      {instances.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
+                    </select>
+                  )}
+                </FocusItem>
               </div>
             )}
 

@@ -185,6 +185,46 @@ export const OreMotionTokens = {
       rotate: 180,
       transition: { duration: 0.18, ease: "easeOut" }
     }
+  } as Variants,
+
+  // ================= 下载任务管理器动画 =================
+  downloadPanelContainer: {
+    hidden: { opacity: 0, x: 50, scale: 0.98 },
+    visible: {
+      opacity: 1,
+      x: 0,
+      scale: 1,
+      transition: {
+        type: 'tween',
+        ease: 'linear',
+        duration: 0.15,
+        when: 'beforeChildren',
+        staggerChildren: 0.05
+      }
+    },
+    exit: {
+      opacity: 0,
+      x: 50,
+      scale: 0.98,
+      transition: { 
+        type: 'tween',
+        ease: 'linear',
+        duration: 0.15 
+      }
+    }
+  } as Variants,
+
+  downloadPanelItem: {
+    hidden: { opacity: 0, x: 20 },
+    visible: { 
+      opacity: 1, 
+      x: 0, 
+      transition: { 
+        type: 'tween', 
+        ease: 'linear', 
+        duration: 0.1 
+      } 
+    }
   } as Variants
 
 };

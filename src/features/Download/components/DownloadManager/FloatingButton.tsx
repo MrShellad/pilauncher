@@ -8,7 +8,7 @@ export const FloatingButton = ({ isOpen, onClick, activeCount, hasTasks }: any) 
     <AnimatePresence>
       {/* ✅ 修复核心：只要还有任务(hasTasks)，悬浮球就不允许消失，以充当焦点锚点！ */}
       {!isOpen && hasTasks && (
-        <FocusItem focusKey="btn-floating-download" onEnter={onClick}>
+        <FocusItem focusKey="btn-floating-download" onEnter={onClick} autoScroll={false}>
           {({ ref, focused }) => (
             <motion.button
               ref={ref as any}

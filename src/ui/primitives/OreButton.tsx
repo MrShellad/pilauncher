@@ -10,6 +10,7 @@ interface OreButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   size?: 'sm' | 'md' | 'lg' | 'auto' | 'full'; 
   focusKey?: string; 
   onArrowPress?: (direction: string) => boolean | void;
+  autoScroll?: boolean;
 }
 
 export const OreButton: React.FC<OreButtonProps> = ({ 
@@ -21,6 +22,7 @@ export const OreButton: React.FC<OreButtonProps> = ({
   onClick,
   focusKey, 
   onArrowPress,
+  autoScroll,
   ...props 
 }) => {
 
@@ -54,6 +56,7 @@ export const OreButton: React.FC<OreButtonProps> = ({
       focusKey={focusKey} 
       disabled={disabled} 
       onArrowPress={onArrowPress}
+      autoScroll={autoScroll}
       onEnter={() => onClick && onClick({ preventDefault: () => {}, stopPropagation: () => {} } as any)}
     >
       {({ ref, focused }) => (

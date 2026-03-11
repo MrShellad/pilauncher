@@ -20,9 +20,6 @@ export const OreSegmentedControl: React.FC<OreSegmentedControlProps> = ({
   onChange,
   className = ''
 }) => {
-  // ✅ 已经移除了所有内部的按键监听 (useInputAction) 和左右两个固定按钮
-  // 现在它是一个极其纯净的无状态受控组件
-  
   return (
     <div className={`flex items-start h-[40px] ${className}`}>
       <div className="ore-segmented-track">
@@ -43,7 +40,7 @@ export const OreSegmentedControl: React.FC<OreSegmentedControlProps> = ({
                   {tab.icon}
                 </span>
               )}
-              <span className="ore-text-shadow tracking-wide">{tab.label}</span>
+              <span className="ore-text-shadow tracking-wide drop-shadow-md text-[15px]">{tab.label}</span>
             </button>
           );
         })}
