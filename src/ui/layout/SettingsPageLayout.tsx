@@ -14,7 +14,7 @@ export const SettingsPageLayout: React.FC<SettingsPageLayoutProps> = ({
   return (
     <div className={`w-full h-full overflow-y-auto custom-scrollbar p-6 md:p-8 ${className}`}>
       {/* 最大宽度限制，保证表单在宽屏下的阅读体验 */}
-      <div className="max-w-4xl mx-auto w-full">
+      <div className="max-w-5xl mx-auto w-full">
         
         {/* 页面级大标题 */}
         <div className="mb-8">

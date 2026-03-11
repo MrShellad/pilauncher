@@ -1,155 +1,282 @@
-/* src/features/Settings/components/tabs/AS/AccountCard.css */
+/* src/style/ui/primitives/AccountCard.css */
 @layer components {
-
-  /* ============================================== */
-  /* ✅ 全局流动动画定义 */
-  /* ============================================== */
-  @keyframes card-flow {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-
-  /* ============================================== */
-  /* 基础卡片：摒弃发光与浮动，采用描边方案 */
-  /* ============================================== */
   .ore-account-card {
-    @apply flex border-[2px] box-border select-none overflow-hidden rounded-sm;
-    background: #141415;
-    border-color: #2A2A2C;
-    color: #9CA3AF; /* gray-400 */
-    height: 100%;
-    /* 背景尺寸放大 300%，为流体动画做准备 */
-    background-size: 300% 100%;
-    background-position: 0% 50%;
-    /* 彻底去除所有 translateY 的物理浮动 */
-    transition: border-color 0.3s ease, filter 0.3s ease, transform 0.1s ease;
+    @apply relative flex h-full flex-col overflow-hidden rounded-[2px] border-[3px] p-5 select-none;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 26%),
+      linear-gradient(180deg, #3f4042 0%, #313233 8%, #242426 100%);
+    border-color: #1e1e1f;
+    box-shadow:
+      inset 0 2px rgba(255, 255, 255, 0.18),
+      inset 0 -4px rgba(0, 0, 0, 0.35),
+      0 16px 30px rgba(0, 0, 0, 0.16);
+    color: #e6e8eb;
+    min-height: 320px;
   }
 
-  /* 普通离线卡片激活时仅变色 */
-  .ore-account-card.is-active:not(.is-premium) {
-    border-color: var(--ore-btn-primary-bg);
+  .ore-account-card.is-offline.is-active {
+    border-color: #6cc349;
+    box-shadow:
+      inset 0 2px rgba(255, 255, 255, 0.2),
+      inset 0 -4px rgba(29, 77, 19, 0.5),
+      0 0 0 1px rgba(108, 195, 73, 0.32);
   }
 
-  /* 基础：头像框样式 */
+  .ore-account-card.is-premium {
+    background:
+      linear-gradient(180deg, rgba(255, 247, 214, 0.12), rgba(255, 247, 214, 0) 24%),
+      linear-gradient(135deg, #292011 0%, #1e1e1f 34%, #47361a 68%, #21180d 100%);
+    border-color: #eab308;
+    box-shadow:
+      inset 0 2px rgba(255, 248, 214, 0.28),
+      inset 0 -4px rgba(78, 55, 12, 0.42),
+      0 0 0 1px rgba(234, 179, 8, 0.22);
+  }
+
+  .ore-account-card.is-premium.is-active {
+    box-shadow:
+      inset 0 2px rgba(255, 248, 214, 0.3),
+      inset 0 -4px rgba(120, 53, 15, 0.5),
+      0 0 0 2px rgba(251, 191, 36, 0.3);
+  }
+
+  .ore-account-head {
+    @apply mb-4 flex items-start justify-between gap-3;
+  }
+
+  .ore-account-tags {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .ore-account-type-tag,
+  .ore-account-status-tag {
+    @apply inline-flex items-center rounded-sm border-[2px] px-2.5 py-1 text-[11px] font-minecraft uppercase tracking-wider;
+    line-height: 1;
+  }
+
+  .ore-account-type-tag.is-offline {
+    background: #d0d1d4;
+    border-color: #1e1e1f;
+    box-shadow: inset 0 -3px #8c8d90, inset 2px 2px rgba(255, 255, 255, 0.55);
+    color: #111112;
+  }
+
+  .ore-account-type-tag.is-premium {
+    background: #ffe866;
+    border-color: #1e1e1f;
+    box-shadow: inset 0 -3px #c99714, inset 2px 2px rgba(255, 255, 255, 0.45);
+    color: #111112;
+  }
+
+  .ore-account-status-tag {
+    background: rgba(17, 17, 18, 0.44);
+    border-color: rgba(255, 255, 255, 0.14);
+    color: rgba(255, 255, 255, 0.74);
+  }
+
+  .ore-account-status-tag.is-active {
+    background: rgba(108, 195, 73, 0.15);
+    border-color: rgba(108, 195, 73, 0.65);
+    color: #d8f2d0;
+  }
+
+  .ore-account-hero {
+    @apply mb-5 flex items-center gap-4;
+  }
+
   .ore-card-avatar-wrapper {
-    @apply w-16 h-16;
+    @apply relative h-[84px] w-[84px] shrink-0;
   }
+
   .ore-card-avatar-inner {
-    border-color: var(--ore-border-color);
+    @apply relative h-full w-full overflow-hidden rounded-[2px];
+    background: #111112;
+    border: 3px solid #1e1e1f;
+    box-shadow:
+      inset 0 2px rgba(255, 255, 255, 0.14),
+      inset 0 -4px rgba(0, 0, 0, 0.45);
+  }
+
+  .ore-account-card.is-premium .ore-card-avatar-inner {
+    border-color: #fbbf24;
+  }
+
+  .ore-account-avatar-emblem {
+    @apply absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-sm border-[2px];
+    box-shadow: inset 0 -2px rgba(0, 0, 0, 0.35), 0 6px 10px rgba(0, 0, 0, 0.22);
+  }
+
+  .ore-account-avatar-emblem.is-offline {
+    background: #3c8527;
+    border-color: #1e1e1f;
+    color: white;
+  }
+
+  .ore-account-avatar-emblem.is-premium {
+    background: #ffe866;
+    border-color: #1e1e1f;
+    color: #111112;
   }
 
   .ore-account-name {
-    color: white;
-    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.8);
-  }
-  
-  .ore-account-subtitle {
-    color: #9CA3AF;
-  }
-
-  /* ============================================== */
-  /* ✅ 正版卡片：流动金砖背景 + 锐利金色描边 */
-  /* ============================================== */
-  .ore-account-card.is-premium {
-    /* 极具深度的黑金交错流体底色 */
-    background-image: linear-gradient(120deg, #1C1D1F, #362A15, #211B29, #1C1D1F);
-    /* 纯净的硬派金色描边，无外发光 */
-    border-color: #EAB308 !important; 
-    box-shadow: none; 
-  }
-
-  /* 悬停与焦点包含时：触发流动背景 */
-  .ore-account-card.is-premium:hover,
-  .ore-account-card.is-premium:focus-within {
-    animation: card-flow 4s ease-in-out infinite;
-    filter: brightness(1.15); /* 仅提亮，不浮动 */
-  }
-
-  /* 紫金选中态 */
-  .ore-account-card.is-premium.is-active {
-    background-image: linear-gradient(120deg, #2D1A3F, #362A15, #2D1A3F);
-    border-color: #EAB308 !important;
+    font-family: var(--ore-global-font, 'Minecraft');
+    font-size: 1.15rem;
+    line-height: 1.2;
+    color: #ffffff;
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.55);
+    word-break: break-word;
   }
 
   .ore-account-card.is-premium .ore-account-name {
-    color: #FBBF24;
-  }
-  .ore-account-card.is-premium .ore-account-subtitle {
-    color: rgba(251, 191, 36, 0.6);
-  }
-  .ore-account-card.is-premium .ore-card-avatar-inner {
-    border-color: #EAB308;
+    color: #fff3b0;
   }
 
-  /* ============================================== */
-  /* ✅ 底部操作按钮：纯平、抗塌陷、焦点适配 */
-  /* ============================================== */
-  
+  .ore-account-subtitle {
+    @apply mt-1 truncate font-mono text-[10px];
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .ore-account-card.is-premium .ore-account-subtitle {
+    color: rgba(255, 244, 200, 0.7);
+  }
+
+  .ore-account-note {
+    @apply mt-3 rounded-sm border-[2px] px-3 py-2 text-xs font-minecraft leading-relaxed;
+    background: rgba(17, 17, 18, 0.34);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: rgba(230, 232, 235, 0.78);
+  }
+
+  .ore-account-card.is-premium .ore-account-note {
+    background: rgba(17, 17, 18, 0.4);
+    border-color: rgba(251, 191, 36, 0.22);
+    color: rgba(255, 244, 200, 0.86);
+  }
+
+  .ore-account-divider {
+    @apply mb-4 mt-auto h-[4px] w-full;
+    box-shadow: inset 0 2px #5a5b5c, inset 0 -2px #1e1e1f;
+    opacity: 0.85;
+  }
+
+  .ore-account-card.is-premium .ore-account-divider {
+    box-shadow: inset 0 2px rgba(255, 232, 102, 0.55), inset 0 -2px rgba(78, 55, 12, 0.8);
+  }
+
+  .ore-account-toolbar {
+    @apply mb-5 flex min-h-[52px] flex-wrap items-center gap-3;
+  }
+
+  .ore-account-icon-btn {
+    @apply flex h-11 w-11 items-center justify-center rounded-[2px] border-[2px] outline-none transition-none;
+    background: #d0d1d4;
+    border-color: #1e1e1f;
+    box-shadow:
+      inset 0 -4px #58585a,
+      inset 2px 2px rgba(255, 255, 255, 0.6),
+      inset -2px -6px rgba(255, 255, 255, 0.35);
+    color: #111112;
+  }
+
+  .ore-account-icon-btn:hover {
+    background: #b1b2b5;
+  }
+
+  .ore-account-icon-btn:active {
+    transform: translateY(2px);
+    box-shadow:
+      inset 2px 2px rgba(255, 255, 255, 0.45),
+      inset -2px -3px rgba(255, 255, 255, 0.2);
+  }
+
+  .ore-account-icon-btn.accent {
+    background: #8cb3ff;
+    color: #111112;
+  }
+
+  .ore-account-icon-btn.accent:hover {
+    background: #a6c4ff;
+  }
+
+  .ore-account-icon-btn.danger {
+    background: #c33636;
+    color: #ffffff;
+    box-shadow:
+      inset 0 -4px #8f2020,
+      inset 2px 2px rgba(255, 255, 255, 0.24),
+      inset -2px -6px rgba(255, 255, 255, 0.12);
+  }
+
+  .ore-account-icon-btn.danger:hover {
+    background: #d04444;
+  }
+
+  .ore-account-icon-btn.is-focused {
+    outline: 2px solid var(--ore-focus-ringFallback);
+    outline: 2px solid var(--ore-focus-ring);
+    outline-offset: 2px;
+    filter: brightness(1.08);
+  }
+
   .ore-account-set-active-btn {
-    @apply relative w-full h-[40px] flex items-center justify-center text-sm font-minecraft font-bold rounded-sm tracking-wider border-[2px] outline-none;
-    background-color: var(--ore-btn-secondary-bg);
-    color: var(--ore-btn-secondary-text);
-    border-color: var(--ore-border-color);
-    
-    /* 1. 彻底移除 3D 的 box-shadow 阴影，变为扁平化 */
-    box-shadow: none;
-    /* 2. 使用 scale 代替 margin 解决排版塌陷 */
-    transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), filter 0.3s ease, outline-offset 0.2s ease;
+    @apply relative flex h-[42px] w-full items-center justify-center rounded-[2px] border-[2px] text-sm font-minecraft font-bold tracking-wider outline-none;
+    background: #3c8527;
+    border-color: #1e1e1f;
+    box-shadow:
+      inset 0 -4px #1d4d13,
+      inset 2px 2px rgba(255, 255, 255, 0.22),
+      inset -2px -6px rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.45);
   }
 
   .ore-account-set-active-btn:hover {
-    background-color: var(--ore-btn-secondary-hover);
+    background: #2f6f20;
   }
 
-  /* 核心抗塌陷机制：只缩放，不动真实高度！ */
   .ore-account-set-active-btn:active {
-    transform: scale(0.96);
+    transform: translateY(2px);
+    box-shadow:
+      inset 2px 2px rgba(255, 255, 255, 0.24),
+      inset -2px -3px rgba(255, 255, 255, 0.12);
   }
 
-  /* ✅ 焦点导航适配：空间引流的高亮白框，替代模糊发光 */
   .ore-account-set-active-btn.is-focused {
-    outline: 2px solid white;
-    outline-offset: 2px;
-    filter: brightness(1.1);
-    z-index: 10;
-  }
-  /* 焦点按下时，外框向内撞击，打击感十足 */
-  .ore-account-set-active-btn.is-focused:active {
-    outline-offset: 0px;
+    outline: 2px solid var(--ore-focus-ringFallback);
+    outline: 2px solid var(--ore-focus-ring);
+    outline-offset: 3px;
+    filter: brightness(1.08);
   }
 
-  /* 微软正版专属紫金按钮 */
   .ore-account-card.is-premium .ore-account-set-active-btn {
-    background-image: linear-gradient(120deg, #7E22CE, #9333EA, #7E22CE);
-    background-size: 300% 100%;
-    color: white;
-    border-color: #4C1D95;
-  }
-  
-  /* 正版按钮悬停流动效果 */
-  .ore-account-card.is-premium .ore-account-set-active-btn:hover,
-  .ore-account-card.is-premium .ore-account-set-active-btn.is-focused {
-    animation: card-flow 3s ease infinite;
-    border-color: #D8B4FE;
+    background: #ffe866;
+    border-color: #1e1e1f;
+    box-shadow:
+      inset 0 -4px #c99714,
+      inset 2px 2px rgba(255, 255, 255, 0.4),
+      inset -2px -6px rgba(255, 255, 255, 0.18);
+    color: #111112;
+    text-shadow: none;
   }
 
-  /* ============================================== */
-  /* 正在使用状态标签 (无交互，纯展示) */
-  /* ============================================== */
+  .ore-account-card.is-premium .ore-account-set-active-btn:hover {
+    background: #ffd84d;
+  }
+
   .ore-account-active-tag {
-    @apply w-full h-[40px] flex items-center justify-center text-sm font-minecraft font-bold rounded-sm border-[2px] cursor-default;
-    background-color: var(--ore-btn-primary-bg);
-    color: white;
-    border-color: var(--ore-border-color);
+    @apply flex h-[42px] w-full items-center justify-center rounded-[2px] border-[2px] text-sm font-minecraft font-bold tracking-wider;
+    background: rgba(108, 195, 73, 0.16);
+    border-color: rgba(108, 195, 73, 0.64);
+    color: #efffe8;
   }
-  
+
+  .ore-account-card.is-premium .ore-account-active-tag {
+    background: rgba(255, 232, 102, 0.14);
+    border-color: rgba(255, 232, 102, 0.65);
+    color: #fff4c8;
+  }
+
   .ore-active-check {
-    color: white;
-  }
-  
-  /* 正版钩子变为金色 */
-  .ore-account-card.is-premium .ore-active-check {
-    color: #EAB308;
+    color: currentColor;
   }
 }

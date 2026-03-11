@@ -12,7 +12,7 @@ use base64::{engine::general_purpose, Engine as _};
 // ✅ 核心修复：引入 ConfigService 解决未声明类型报错
 use crate::services::config_service::ConfigService;
 
-const CLIENT_ID: &str = "e84ecb12-50ce-431f-be1c-fc9db4de5022"; 
+const CLIENT_ID: &str = env!("MICROSOFT_CLIENT_ID");
 const SCOPE: &str = "XboxLive.signin offline_access";
 const USER_AGENT: &str = "PiLauncher/1.0";
 

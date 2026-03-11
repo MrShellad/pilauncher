@@ -30,7 +30,7 @@ export const AccountSettings: React.FC = () => {
 
   const {
     isOfflineModalOpen, setIsOfflineModalOpen,
-    offlineForm, setOfflineForm, offlineError,
+    offlineForm, setOfflineForm, offlineError, setOfflineError,
     openAddOffline, openEditOffline, handleSaveOffline, handleUploadSkin
   } = useOfflineAuth();
 
@@ -135,6 +135,7 @@ export const AccountSettings: React.FC = () => {
         offlineForm={offlineForm}
         setOfflineForm={setOfflineForm}
         offlineError={offlineError}
+        setOfflineError={setOfflineError}
         handleSaveOffline={handleSaveOffline}
       />
 
