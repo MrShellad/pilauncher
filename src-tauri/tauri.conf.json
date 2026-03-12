@@ -19,16 +19,18 @@
         "minHeight": 800,
         "resizable": true,
         "fullscreen": false,
-        "decorations": false,  
+        "decorations": false,
         "transparent": true,
-        "devtools": true
+        "devtools": false
       }
     ],
     "security": {
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["**"] 
+        "scope": [
+          "**"
+        ]
       }
     }
   },
