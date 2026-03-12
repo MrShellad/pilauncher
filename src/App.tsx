@@ -19,6 +19,7 @@ import './ui/i18';
 
 const Home = lazy(() => import('./pages/Home'));
 const Instances = lazy(() => import('./pages/Instances'));
+const Multiplayer = lazy(() => import('./pages/Multiplayer'));
 const NewInstance = lazy(() => import('./pages/NewInstance'));
 const Settings = lazy(() => import('./pages/Settings'));
 const InstanceDetail = lazy(() => import('./pages/InstanceDetail'));
@@ -68,6 +69,7 @@ const App: React.FC = () => {
               <Suspense fallback={<PageLoader />}>
                 {activeTab === 'home' && <Home />}
                 {activeTab === 'instances' && <Instances />}
+                {activeTab === 'multiplayer' && <Multiplayer />}
                 {activeTab === 'new-instance' && <NewInstance />}
                 {activeTab === 'instance-detail' && <InstanceDetail />}
                 {activeTab === 'downloads' && <ResourceDownloadPage />}

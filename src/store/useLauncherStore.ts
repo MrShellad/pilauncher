@@ -2,7 +2,14 @@
 import { create } from 'zustand';
 
 // 1. 定义全局合法的路由 Tab 类型 (在这里新增了 'new-instance')
-export type TabType = 'home' | 'instances' | 'downloads' | 'settings' | 'new-instance' | 'instance-detail';
+export type TabType =
+  | 'home'
+  | 'instances'
+  | 'multiplayer'
+  | 'downloads'
+  | 'settings'
+  | 'new-instance'
+  | 'instance-detail';
 
 export interface InstanceData {
   id: string;
