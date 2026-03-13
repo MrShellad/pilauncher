@@ -53,6 +53,28 @@ const App: React.FC = () => {
     });
   }, []);
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "F5") {
+        e.preventDefault();
+      }
+    };
+    useEffect(() => {
+      const disableContextMenu = (e: MouseEvent) => {
+        e.preventDefault();
+      };
+
+      document.addEventListener("contextmenu", disableContextMenu);
+
+      return () => {
+        document.removeEventListener("contextmenu", disableContextMenu);
+      };
+    }, []);
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   const PageLoader = () => (
     <div className="absolute inset-0 flex items-center justify-center">
       <span className="animate-pulse font-minecraft text-ore-text-muted">Loading...</span>
