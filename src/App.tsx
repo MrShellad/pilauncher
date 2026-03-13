@@ -53,26 +53,11 @@ const App: React.FC = () => {
     });
   }, []);
 
+  // 禁用默认右键菜单
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "F5") {
-        e.preventDefault();
-      }
-    };
-    useEffect(() => {
-      const disableContextMenu = (e: MouseEvent) => {
-        e.preventDefault();
-      };
-
-      document.addEventListener("contextmenu", disableContextMenu);
-
-      return () => {
-        document.removeEventListener("contextmenu", disableContextMenu);
-      };
-    }, []);
-
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    const handleContextMenu = (e: MouseEvent) => e.preventDefault();
+    document.addEventListener('contextmenu', handleContextMenu);
+    return () => document.removeEventListener('contextmenu', handleContextMenu);
   }, []);
 
   const PageLoader = () => (
