@@ -1,42 +1,46 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<component type="desktop">
+<component type="desktop-application">
   <id>com.mrshell.PiLauncher</id>
-
+  
   <name>PiLauncher</name>
+  
+  <summary>Minecraft Launcher for Gamepad</summary>
+  <summary xml:lang="zh_CN">专为手柄设计的 Minecraft 启动器</summary>
 
-  <summary>为手柄与客厅游戏设计的 Minecraft 启动器</summary>
-
-  <description>
-    <p>
-      PiLauncher 是一款专为 SteamDeck、游戏手柄和客厅游戏环境设计的
-      Minecraft 启动器。它提供适合手柄操作的界面和简洁的使用体验，
-      让玩家可以在沙发上轻松启动并管理 Minecraft。
-    </p>
-
-    <p>
-      主要功能：
-    </p>
-
-    <ul>
-      <li>为手柄操作优化的界面设计</li>
-      <li>快速安装与管理 Minecraft</li>
-      <li>自动发现局域网多人游戏</li>
-      <li>针对 SteamOS 和 Linux 游戏环境优化</li>
-    </ul>
-
-  </description>
+  <developer id="com.mrshell">
+    <name>MrShell</name>
+  </developer>
 
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
 
-  <developer_name>PiLauncher Team</developer_name>
+  <description>
+    <p xml:lang="zh_CN">PiLauncher 是一款为游戏手柄和掌机量身定制的 Minecraft 启动器。它拥有为主机式体验优化的全屏用户界面，让你可以轻松地使用手柄管理、配置和运行你的 Minecraft 游戏实例。</p>
+    <p>PiLauncher is a Minecraft launcher tailored for gamepads and handheld consoles. It features a full-screen, console-like user interface optimized for controller inputs, allowing you to easily manage and launch your Minecraft instances.</p>
+    <ul>
+      <li xml:lang="zh_CN">完全支持手柄操作，提供沉浸式大屏体验。</li>
+      <li>Full gamepad support for an immersive large-screen experience.</li>
+      <li xml:lang="zh_CN">自动识别和配置手柄相关模组。</li>
+      <li>Automatic detection and configuration of gamepad-related mods.</li>
+      <li xml:lang="zh_CN">极简且现代化的实例和模组管理。</li>
+      <li>Minimalist and modern instance and mod management.</li>
+    </ul>
+  </description>
 
-  <launchable type="desktop-id">
-    com.mrshell.pilauncher.desktop
-  </launchable>
+  <launchable type="desktop-id">com.mrshell.PiLauncher.desktop</launchable>
 
-  <url type="homepage">
-    https://github.com/MrShellad/pilauncher
-  </url>
+  <categories>
+    <category>Game</category>
+  </categories>
 
+  <releases>
+    <release version="0.1.0" date="2024-03-13">
+      <description>
+        <p xml:lang="zh_CN">首个测试版本发布。</p>
+        <p>Initial alpha release.</p>
+      </description>
+    </release>
+  </releases>
+
+  <content_rating type="oars-1.1" />
 </component>

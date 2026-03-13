@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useInstances } from '../hooks/pages/Instances/useInstances';
 import { OreButton } from '../ui/primitives/OreButton';
-import { Plus, Download, FolderPlus, List, LayoutGrid } from 'lucide-react';
+import { Plus, FolderPlus, List, LayoutGrid } from 'lucide-react';
 
 import { InstanceListView } from '../features/Instances/components/InstanceListView';
 import { InstanceCardView } from '../features/Instances/components/InstanceCardView';
@@ -16,7 +16,6 @@ const Instances: React.FC = () => {
   const {
     instances,
     handleCreate,
-    handleImport,
     handleAddFolder,
     handleEdit,
     handleCardClick
@@ -92,19 +91,6 @@ const Instances: React.FC = () => {
                   <span className="flex items-center justify-center whitespace-nowrap">
                     <Plus size={18} className="mr-2 flex-shrink-0" />
                     <span className="font-minecraft tracking-wider">新建实例</span>
-                  </span>
-                </OreButton>
-              </div>
-            )}
-          </FocusItem>
-
-          <FocusItem focusKey="action-import" onEnter={handleImport}>
-            {({ ref, focused }) => (
-              <div ref={ref} className={`rounded-sm transition-shadow duration-150 flex-shrink-0 ${focused ? 'outline outline-2 outline-offset-[4px] outline-white' : 'outline outline-2 outline-offset-[4px] outline-transparent'}`}>
-                <OreButton variant="secondary" size="auto" onClick={handleImport} tabIndex={-1}>
-                  <span className="flex items-center justify-center whitespace-nowrap">
-                    <Download size={18} className="mr-2 flex-shrink-0" />
-                    <span className="font-minecraft tracking-wider">导入实例</span>
                   </span>
                 </OreButton>
               </div>

@@ -4,7 +4,7 @@ runtime: org.gnome.Platform
 runtime-version: "49"
 sdk: org.gnome.Sdk
 
-command: pilauncher
+command: PiLauncher
 
 finish-args:
   - --share=network
@@ -17,30 +17,30 @@ finish-args:
   - --filesystem=xdg-documents
 
   - --filesystem=xdg-data/.minecraft
-  - --filesystem=xdg-data/PrismLauncher:create
+  - --filesystem=xdg-data/PiLauncher:create
 
   - --talk-name=org.freedesktop.Notifications
   - --talk-name=org.freedesktop.portal.Desktop
 
 modules:
-  - name: pilauncher
+  - name: PiLauncher
     buildsystem: simple
 
     build-commands:
-      - install -D pilauncher /app/bin/pilauncher
-      - install -D com.mrshell.pilauncher.desktop /app/share/applications/com.mrshell.pilauncher.desktop
-      - install -D icon.png /app/share/icons/hicolor/256x256/apps/com.mrshell.pilauncher.png
-      - install -D com.mrshell.pilauncher.metainfo.xml /app/share/metainfo/com.mrshell.pilauncher.metainfo.xml
+      - install -D PiLauncher /app/bin/PiLauncher
+      - install -D com.mrshell.PiLauncher.desktop /app/share/applications/com.mrshell.PiLauncher.desktop
+      - install -D com.mrshell.PiLauncher.png /app/share/icons/hicolor/256x256/apps/com.mrshell.PiLauncher.png
+      - install -D com.mrshell.PiLauncher.metainfo.xml /app/share/metainfo/com.mrshell.PiLauncher.metainfo.xml
 
     sources:
       - type: file
-        path: ../src-tauri/target/release/pilauncher
+        path: ../src-tauri/target/release/PiLauncher
 
       - type: file
-        path: com.mrshell.pilauncher.desktop
+        path: com.mrshell.PiLauncher.desktop
 
       - type: file
-        path: icon.png
+        path: com.mrshell.PiLauncher.png
 
       - type: file
-        path: com.mrshell.pilauncher.metainfo.xml
+        path: com.mrshell.PiLauncher.metainfo.xml

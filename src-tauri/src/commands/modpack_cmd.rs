@@ -3,6 +3,187 @@ use crate::services::modpack_service;
 use crate::domain::modpack::ModpackMetadata;
 use crate::domain::event::DownloadProgressEvent;
 use tauri::{AppHandle, Runtime, Emitter};
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::{Path, PathBuf};
+use crate::services::config_service::ConfigService;
+
+#[derive(Serialize, Deserialize)]
+pub struct MissingRuntime {
+    pub instance_id: String,
+    pub mc_version: String,
+    pub loader_type: String,
+    pub loader_version: String,
+}
+
+#[derive(Serialize)]
+pub struct ImportResult {
+    pub added: usize,
+    pub missing: Vec<MissingRuntime>,
+}
+
+// 简单递归拷贝目录
+fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result<()> {
+    fs::create_dir_all(&dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        if ty.is_dir() {
+            copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        } else {
+            fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        }
+    }
+    Ok(())
+}
+
+fn copy_and_check_instance(
+    src_dir: &Path,
+    dest_instances_dir: &Path,
+    runtime_dir: &Path,
+) -> Result<Option<MissingRuntime>, String> {
+    let instance_json_path = src_dir.join("instance.json");
+    let content = fs::read_to_string(&instance_json_path).map_err(|e| e.to_string())?;
+    
+    let config: crate::domain::instance::InstanceConfig = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    
+    let dest_dir = dest_instances_dir.join(&config.id);
+    if !dest_dir.exists() {
+        copy_dir_all(src_dir, &dest_dir).map_err(|e| e.to_string())?;
+    }
+
+    let mut is_missing = false;
+    
+    // Check core
+    let core_json = runtime_dir.join("versions").join(&config.mc_version).join(format!("{}.json", config.mc_version));
+    if !core_json.exists() {
+        is_missing = true;
+    }
+    
+    // Check loader
+    if !config.loader.r#type.eq_ignore_ascii_case("vanilla") && !config.loader.version.is_empty() {
+        let loader_folder = match config.loader.r#type.to_lowercase().as_str() {
+            "fabric" => format!("fabric-loader-{}-{}", config.loader.version, config.mc_version),
+            "forge" => format!("{}-forge-{}", config.mc_version, config.loader.version), 
+            "neoforge" => format!("neoforge-{}", config.loader.version),
+            _ => "".to_string(),
+        };
+        
+        if !loader_folder.is_empty() {
+            let loader_json = runtime_dir.join("versions").join(&loader_folder).join(format!("{}.json", loader_folder));
+            if !loader_json.exists() {
+                is_missing = true;
+            }
+        } else {
+            // Unrecognized loader, assume missing just in case? Let's just ignore to be safe.
+        }
+    }
+
+    if is_missing {
+        Ok(Some(MissingRuntime {
+            instance_id: config.id.clone(),
+            mc_version: config.mc_version,
+            loader_type: config.loader.r#type,
+            loader_version: config.loader.version,
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
+#[tauri::command]
+pub async fn import_local_instances_folders<R: Runtime>(
+    app: AppHandle<R>,
+    paths: Vec<String>,
+) -> Result<ImportResult, String> {
+    let base_path_str = ConfigService::get_base_path(&app)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "尚未配置基础数据目录".to_string())?;
+    let instances_dir = PathBuf::from(&base_path_str).join("instances");
+    let runtime_dir = PathBuf::from(&base_path_str).join("runtime");
+    
+    fs::create_dir_all(&instances_dir).map_err(|e| e.to_string())?;
+
+    let mut added_count = 0;
+    let mut missing_list = Vec::new();
+
+    for path_str in paths {
+        let root = PathBuf::from(&path_str);
+        if !root.exists() || !root.is_dir() { continue; }
+        
+        // Depth 1: The folder itself is an instance
+        if root.join("instance.json").exists() {
+            if let Ok(missing) = copy_and_check_instance(&root, &instances_dir, &runtime_dir) {
+                added_count += 1;
+                if let Some(m) = missing { missing_list.push(m); }
+            }
+        } else {
+            // Depth 2: Child folders might be instances
+            if let Ok(entries) = fs::read_dir(&root) {
+                for entry in entries.flatten() {
+                    let child = entry.path();
+                    if child.is_dir() && child.join("instance.json").exists() {
+                        if let Ok(missing) = copy_and_check_instance(&child, &instances_dir, &runtime_dir) {
+                            added_count += 1;
+                            if let Some(m) = missing { missing_list.push(m); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(ImportResult {
+        added: added_count,
+        missing: missing_list,
+    })
+}
+
+#[tauri::command]
+pub async fn download_missing_runtimes<R: Runtime>(
+    app: AppHandle<R>,
+    missing_list: Vec<MissingRuntime>,
+) -> Result<(), String> {
+    let base_path_str = ConfigService::get_base_path(&app)
+        .map_err(|e| e.to_string())?
+        .unwrap();
+    let runtime_dir = PathBuf::from(&base_path_str).join("runtime");
+
+    for m in missing_list {
+         let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {
+            instance_id: m.instance_id.clone(),
+            stage: "VANILLA_CORE".to_string(),
+            file_name: "".to_string(),
+            current: 0,
+            total: 100,
+            message: format!("正在下载缺少的环境: {}", m.mc_version),
+        });
+
+        // 补全核心
+        let _ = crate::services::downloader::core_installer::install_vanilla_core(
+            &app, &m.instance_id, &m.mc_version, &runtime_dir
+        ).await;
+        
+        let _ = crate::services::downloader::dependencies::download_dependencies(
+            &app, &m.instance_id, &m.mc_version, &runtime_dir
+        ).await;
+        
+        // 补全 Loader
+        let _ = crate::services::downloader::loader_installer::install_loader(
+            &app, &m.instance_id, &m.mc_version, &m.loader_type, &m.loader_version, &runtime_dir
+        ).await;
+        
+        let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {
+            instance_id: m.instance_id.clone(),
+            stage: "DONE".to_string(),
+            file_name: "".to_string(),
+            current: 100,
+            total: 100,
+            message: format!("环境补全完成"),
+        });
+    }
+    Ok(())
+}
 
 #[tauri::command]
 pub async fn parse_modpack_metadata(path: String) -> Result<ModpackMetadata, String> {

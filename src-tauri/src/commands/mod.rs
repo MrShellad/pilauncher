@@ -87,7 +87,9 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         auth_cmd::delete_offline_account_dir,
         modpack_cmd::parse_modpack_metadata,
         modpack_cmd::import_modpack,
-        modpack_cmd::download_and_import_modpack, // 新增在线下载并导入整合包的命令
+        modpack_cmd::download_and_import_modpack,
+        modpack_cmd::import_local_instances_folders,
+        modpack_cmd::download_missing_runtimes,
         java_cmd::download_java_env,
         fs_cmd::get_drives,
         fs_cmd::list_valid_dirs,

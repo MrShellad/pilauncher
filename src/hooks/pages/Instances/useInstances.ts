@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { useLauncherStore } from '../../../store/useLauncherStore';
+import { useDownloadStore } from '../../../store/useDownloadStore';
+import { open } from '@tauri-apps/plugin-dialog';
 export interface InstanceItem {
   id: string;
   name: string;
@@ -67,7 +69,72 @@ export const useInstances = () => {
     setActiveTab('new-instance');
   };
   const handleImport = () => console.log('触发: 导入实例');
-  const handleAddFolder = () => console.log('触发: 添加文件夹');
+  const handleAddFolder = async () => {
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: true,
+      });
+      if (!selected) return;
+      const paths = Array.isArray(selected) ? selected : [selected];
+
+      const result: any = await invoke('import_local_instances_folders', { paths });
+
+      if (result.added === 0) {
+        alert('未在选择的文件夹中找到有效的实例配置 (instance.json)。');
+        return;
+      }
+
+      const missing = result.missing || [];
+      if (missing.length > 0) {
+        // Collect missing text
+        const text = missing.map((m: any) => `Minecraft ${m.mc_version} (${m.loader_type} ${m.loader_version})`).join('\n');
+        const doDownload = window.confirm(`成功添加 ${result.added} 个实例。\n\n但发现以下实例缺少本地运行环境：\n${text}\n\n是否立即调用下载管理开始补全缺失的运行环境？`);
+        
+        if (doDownload) {
+          setActiveTab('home');
+          useDownloadStore.getState().setPopupOpen(true);
+          await invoke('download_missing_runtimes', { missingList: missing });
+        }
+      } else {
+        alert(`成功添加了 ${result.added} 个实例，且本地环境均满足！`);
+      }
+
+      // 重新拉取列表
+      const fetchInstances: () => Promise<void> = async () => {
+        try {
+          const data: any[] = await invoke('get_all_instances');
+          const formattedInstances = data.map(item => {
+            let finalCoverUrl = '';
+            if (item.cover_path) {
+              finalCoverUrl = convertFileSrc(item.cover_path);
+            } else {
+              const hash = item.id.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+              finalCoverUrl = DEFAULT_IMAGES[hash % DEFAULT_IMAGES.length];
+            }
+            return {
+              id: item.id,
+              name: item.name,
+              version: item.version,
+              loader: item.loader,
+              playTime: item.play_time,
+              lastPlayed: item.last_played,
+              coverUrl: finalCoverUrl
+            };
+          });
+          setInstances(formattedInstances);
+        } catch (error) {
+          console.error("刷新实例列表失败:", error);
+        }
+      };
+      
+      await fetchInstances();
+      
+    } catch (err) {
+      console.error("添加文件夹失败:", err);
+      alert(`添加实例文件夹失败: ${err}`);
+    }
+  };
   const handleEdit = (id: string) => {
     // 存入当前点击的 ID
     setSelectedInstanceId(id);
