@@ -45,6 +45,7 @@ pub async fn send_trust_request<R: Runtime>(
     let req_payload = TrustRequest {
         device_id: my_identity.device_id,
         device_name: my_identity.device_name,
+        user_uuid: my_identity.user_uuid,
         public_key: my_identity.public_key_b64, 
     };
 
@@ -59,6 +60,7 @@ pub async fn send_trust_request<R: Runtime>(
                 &db.pool, 
                 target_identity.device_id, 
                 target_identity.device_name, 
+                target_identity.user_uuid,
                 target_identity.public_key 
             ).await?;
             Ok(())
@@ -78,6 +80,7 @@ pub async fn resolve_trust_request<R: Runtime>(
     device_id: String,
     accept: bool,
     device_name: String,
+    user_uuid: String,
     public_key: String,
 ) -> Result<(), String> {
     let response_payload = if accept {
@@ -85,12 +88,13 @@ pub async fn resolve_trust_request<R: Runtime>(
         let config_dir = std::path::PathBuf::from(base_path).join("config");
         
         // ✅ 异步等待插入
-        TrustStore::add_trusted_device(&db.pool, device_id.clone(), device_name, public_key).await?;
+        TrustStore::add_trusted_device(&db.pool, device_id.clone(), device_name, user_uuid, public_key).await?;
         
         let my_identity = TrustStore::get_or_create_identity(&config_dir);
         Some(TrustRequest {
             device_id: my_identity.device_id,
             device_name: my_identity.device_name,
+            user_uuid: my_identity.user_uuid,
             public_key: my_identity.public_key_b64,
         })
     } else {
@@ -180,7 +184,7 @@ pub async fn sync_lan_avatar<R: Runtime>(
 #[tauri::command]
 pub async fn get_trusted_devices(db: State<'_, AppDatabase>) -> Result<Vec<TrustedDevice>, String> {
     let rows = sqlx::query(
-        "SELECT device_uuid, device_name, public_key_b64, strftime('%s', trusted_at) AS ts 
+        "SELECT device_uuid, device_name, user_uuid, public_key_b64, strftime('%s', trusted_at) AS ts 
          FROM trusted_devices 
          ORDER BY trusted_at DESC"
     )
@@ -196,6 +200,7 @@ pub async fn get_trusted_devices(db: State<'_, AppDatabase>) -> Result<Vec<Trust
         list.push(TrustedDevice {
             device_id: row.try_get("device_uuid").map_err(|e| e.to_string())?,
             device_name: row.try_get("device_name").map_err(|e| e.to_string())?,
+            user_uuid: row.try_get("user_uuid").map_err(|e| e.to_string())?,
             public_key_b64: row.try_get("public_key_b64").map_err(|e| e.to_string())?,
             trusted_at,
         });
@@ -260,17 +265,54 @@ pub async fn push_to_device<R: Runtime>(
 #[tauri::command]
 pub async fn apply_received_transfer<R: Runtime>(
     app: AppHandle<R>, temp_path: String, transfer_type: String, target_instance_id: Option<String>
-) -> Result<(), String> {
+) -> Result<String, String> {
     let base_path = ConfigService::get_base_path(&app).map_err(|e| e.to_string())?.unwrap_or_default();
     let zip_file = std::path::PathBuf::from(&temp_path);
-    let dest_dir = if transfer_type == "save" {
+    
+    // 1. 先解压到一个临时目录，以确定里面的文件夹名称
+    let temp_extract_dir = app.path().app_data_dir().unwrap().join(format!("ext_{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(&temp_extract_dir).map_err(|e| e.to_string())?;
+    
+    transfer_service::unzip_file(&zip_file, &temp_extract_dir)?;
+    
+    // 2. 找到解压出来的顶级文件夹
+    let entries = fs::read_dir(&temp_extract_dir).map_err(|e| e.to_string())?;
+    let mut root_entry = None;
+    for entry in entries.filter_map(|e| e.ok()) {
+        if entry.path().is_dir() {
+            root_entry = Some(entry);
+            break;
+        }
+    }
+    
+    let root_entry = root_entry.ok_or("ZIP 内未找到有效文件夹")?;
+    let original_name = root_entry.file_name().to_string_lossy().to_string();
+    let mut final_name = original_name.clone();
+    
+    // 3. 确定最终目的地
+    let dest_base = if transfer_type == "save" {
         let inst_id = target_instance_id.ok_or("必须指定目标实例")?;
-        std::path::PathBuf::from(base_path).join("instances").join(inst_id).join("saves")
+        std::path::PathBuf::from(&base_path).join("instances").join(inst_id).join("saves")
     } else {
-        std::path::PathBuf::from(base_path).join("instances")
+        std::path::PathBuf::from(&base_path).join("instances")
     };
-    fs::create_dir_all(&dest_dir).ok();
-    transfer_service::unzip_file(&zip_file, &dest_dir)?;
+    
+    fs::create_dir_all(&dest_base).ok();
+    
+    // 4. 冲突检查与重命名
+    let target_path = dest_base.join(&final_name);
+    if target_path.exists() {
+        let now = chrono::Local::now();
+        final_name = format!("{}_{}", original_name, now.format("%Y%m%d_%H%M%S"));
+    }
+    
+    // 5. 移动到最终目的地
+    let final_path = dest_base.join(&final_name);
+    fs::rename(root_entry.path(), &final_path).map_err(|e| format!("移动文件失败: {}", e))?;
+    
+    // 6. 清理
+    let _ = fs::remove_dir_all(temp_extract_dir);
     let _ = fs::remove_file(zip_file); 
-    Ok(())
+    
+    Ok(final_name)
 }

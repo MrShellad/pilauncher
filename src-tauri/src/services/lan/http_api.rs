@@ -2,7 +2,7 @@
 use axum::{
     body::Bytes,
     extract::{Query, State, WebSocketUpgrade, ws::{WebSocket, Message}},
-    http::{HeaderMap, Request, StatusCode, header, Method}, // ✅ 补充 Method
+    http::{HeaderMap, Request, StatusCode, header, Method},
     middleware::{self, Next},
     response::{Response, IntoResponse},
     routing::{get, post},
@@ -22,6 +22,7 @@ use tower_http::cors::{Any, CorsLayer};
 
 use crate::domain::lan::{TrustRequest, DeviceInitInfo};
 use crate::services::config_service::ConfigService;
+use crate::services::lan::trust_store::TrustStore;
 
 const PNG_SIGNATURE: [u8; 8] = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
@@ -89,6 +90,35 @@ async fn request_trust(
     State(state): State<Arc<AxumAppState>>,
     Json(payload): Json<TrustRequest>,
 ) -> Result<Json<TrustRequest>, StatusCode> {
+    // 检查是否拥有相同的游戏账号 UUID，如果是，则自动信任
+    let my_user_uuid = state.shared_state.current_device_info.lock().unwrap().user_uuid.clone();
+    let is_same_user = !my_user_uuid.is_empty() && my_user_uuid == payload.user_uuid;
+
+    if is_same_user {
+        let base_path = ConfigService::get_base_path(&state.tauri_app).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?.unwrap_or_default();
+        let config_dir = std::path::PathBuf::from(base_path).join("config");
+        let my_identity = TrustStore::get_or_create_identity(&config_dir);
+        
+        let db = state.tauri_app.state::<crate::services::db_service::AppDatabase>();
+        let _ = TrustStore::add_trusted_device(
+            &db.pool, 
+            payload.device_id.clone(), 
+            payload.device_name.clone(), 
+            payload.user_uuid.clone(),
+            payload.public_key.clone()
+        ).await;
+        
+        // 发送更新事件刷新前端
+        let _ = state.tauri_app.emit("trust_list_updated", json!({}));
+        
+        return Ok(Json(TrustRequest {
+            device_id: my_identity.device_id,
+            device_name: my_identity.device_name,
+            user_uuid: my_identity.user_uuid,
+            public_key: my_identity.public_key_b64,
+        }));
+    }
+
     let (tx, rx) = oneshot::channel();
     
     {
@@ -99,6 +129,7 @@ async fn request_trust(
     let _ = state.tauri_app.emit("trust_request_received", json!({
         "device_id": payload.device_id,
         "device_name": payload.device_name,
+        "user_uuid": payload.user_uuid,
         "public_key": payload.public_key 
     }));
 

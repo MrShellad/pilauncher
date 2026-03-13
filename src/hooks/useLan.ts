@@ -20,7 +20,8 @@ export interface TrustedDevice {
 export interface IncomingTrustRequest {
   device_id: string;
   device_name: string;
-  public_key_b64: string;
+  user_uuid: string; // ✅ 新增
+  public_key: string; // ✅ 修正字段名
 }
 
 export const useLan = () => {
@@ -84,7 +85,8 @@ export const useLan = () => {
         deviceId: incomingRequest.device_id,
         accept,
         deviceName: incomingRequest.device_name,
-        publicKey: incomingRequest.public_key_b64
+        user_uuid: incomingRequest.user_uuid, // ✅ 补充 UUID
+        publicKey: incomingRequest.public_key
       });
       if (accept) {
         fetchTrusted(); // 我同意了，刷新我的列表

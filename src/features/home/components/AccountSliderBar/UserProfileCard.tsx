@@ -103,12 +103,18 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
     if (!incomingData) return;
     setIsApplying(true);
     try {
-      await invoke('apply_received_transfer', {
+      const result = await invoke<string>('apply_received_transfer', {
         tempPath: incomingData.tempPath,
         transferType: incomingData.type,
         targetInstanceId: incomingData.type === 'save' ? receiveTargetInstance : null
       });
-      alert("解压/部署完成！");
+      
+      if (result !== incomingData.name) {
+        alert(`导入完成！检测到同名项目，已自动添加时间戳重命名为: ${result}`);
+      } else {
+        alert("导入完成！已解压并部署到对应目录。");
+      }
+      
       setIncomingData(null);
     } catch (e) {
       alert(`部署失败: ${e}`);

@@ -66,6 +66,7 @@ impl DbService {
             CREATE TABLE IF NOT EXISTS trusted_devices (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
+                user_uuid TEXT,
                 device_uuid TEXT UNIQUE NOT NULL,
                 device_name TEXT NOT NULL,
                 public_key_b64 TEXT NOT NULL, 

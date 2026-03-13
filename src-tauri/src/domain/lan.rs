@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub struct DeviceIdentity {
     pub device_id: String,
     pub device_name: String,
+    pub user_uuid: String,
     pub private_key_b64: String,
     pub public_key_b64: String,
 }
@@ -15,6 +16,7 @@ pub struct DeviceIdentity {
 pub struct TrustedDevice {
     pub device_id: String,
     pub device_name: String,
+    pub user_uuid: String,
     pub public_key_b64: String,
     pub trusted_at: i64,
 }
@@ -33,6 +35,7 @@ pub struct DiscoveredDevice {
 pub struct TrustRequest {
     pub device_id: String,
     pub device_name: String,
+    pub user_uuid: String,
     pub public_key: String,
 }
 
