@@ -43,11 +43,37 @@ pub async fn check_instance_gamepad<R: Runtime>(
 }
 
 #[tauri::command]
+pub async fn check_gamepad_mod_status<R: Runtime>(
+    app: AppHandle<R>,
+    instance_id: String,
+    mc_version: String,
+    loader_type: String,
+) -> Result<crate::services::instance::mod_manager::GamepadModStatus, String> {
+    crate::services::instance::mod_manager::ModManagerService::check_gamepad_mod_status(
+        &app,
+        &instance_id,
+        &mc_version,
+        &loader_type,
+    )
+    .await
+}
+
+#[tauri::command]
 pub async fn install_remote_mod<R: Runtime>(
     app: AppHandle<R>,
     instance_id: String,
     download_url: String,
     file_name: String,
+    mc_version: String,
+    loader_type: String,
 ) -> Result<(), String> {
-    crate::services::instance::mod_manager::ModManagerService::install_remote_mod(&app, &instance_id, &download_url, &file_name).await
+    crate::services::instance::mod_manager::ModManagerService::install_remote_mod(
+        &app,
+        &instance_id,
+        &download_url,
+        &file_name,
+        &mc_version,
+        &loader_type,
+    )
+    .await
 }

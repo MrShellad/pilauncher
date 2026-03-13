@@ -1,5 +1,5 @@
 [package]
-name = "pilauncher"
+name = "Pilauncher"
 version = "0.1.0"
 description = "A Minecraft Launcher"
 authors = ["mrshell"]

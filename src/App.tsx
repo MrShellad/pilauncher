@@ -1,4 +1,5 @@
 import React, { Suspense, lazy, useEffect, useLayoutEffect } from 'react';
+import { initGamepadModRegistry } from './services/gamepadModService';
 import { AnimatePresence, motion } from 'framer-motion';
 
 import { DownloadManager } from './features/Download/components/DownloadManager/index';
@@ -44,6 +45,13 @@ const App: React.FC = () => {
       void i18n.changeLanguage(language);
     }
   }, [general?.language]);
+
+  // ✅ 启动时初始化手柄 Mod 注册表（从 Modrinth/CurseForge API 拉取版本信息）
+  useEffect(() => {
+    initGamepadModRegistry().catch((err) => {
+      console.warn('[App] 手柄 Mod 注册表初始化失败（不影响使用）:', err);
+    });
+  }, []);
 
   const PageLoader = () => (
     <div className="absolute inset-0 flex items-center justify-center">

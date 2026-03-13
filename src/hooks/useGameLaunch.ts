@@ -6,7 +6,8 @@ import { useAccountStore } from '../store/useAccountStore';
 // ✅ 引入我们刚刚创建的游戏日志 Store
 import { useGameLogStore } from '../store/useGameLogStore';
 import { useGamepadModStore } from '../store/useGamepadModStore';
-import gamepadConfig from '../assets/config/gamepad.json';
+import { useSettingsStore } from '../store/useSettingsStore';
+import { resolveGamepadMod, resolveGamepadModOnDemand } from '../services/gamepadModService';
 
 export const useGameLaunch = () => {
   const [isLaunching, setIsLaunching] = useState(false);
@@ -41,70 +42,181 @@ export const useGameLaunch = () => {
       logStore.setOpen(true);
 
       // ================================================================
-      // ✅ 新增：手柄 Mod 自动检测与安装拦截支持
+      // ✅ 手柄 Mod 检测 / 阻断启动 / 版本校验（仅在手柄启动时执行）
+      // 前端通过 Modrinth/CurseForge API 动态解析下载链接
       // ================================================================
-      try {
-        logStore.addLog("[INFO] 正在检测实例运行环境...");
-        
-        // 1. 获取实例详细配置
-        const instanceDetail: any = await invoke('get_instance_detail', { id: instanceId });
-        const hasGamepad = instanceDetail?.gamepad;
+      const { settings } = useSettingsStore.getState();
+      const gamepadModCheckEnabled = settings.game.gamepadModCheck;
 
-        // 2. 如果 instance.json 里 gamepad 没有标记为 true，则调用 Rust 进行深层扫描检测
-        if (!hasGamepad) {
-          logStore.addLog("[INFO] 执行手柄 Mod 深度扫描...");
-          const backendHasGamepad = await invoke<boolean>('check_instance_gamepad', { id: instanceId });
+      if (isGamepad && gamepadModCheckEnabled) {
+        try {
+          logStore.addLog("[INFO] 手柄模式启动，正在检测手柄 Mod...");
           
-          // 3. 扫描依然没有发现手柄 mod，且当前是通过手柄启动，开始尝试推荐下载
-          if (!backendHasGamepad && isGamepad) {
-            logStore.addLog("[WARN] 未检测到手柄支持模块！");
-            
-            const mcVersion = instanceDetail?.game_version;
-            const loaderType = instanceDetail?.loader_type?.toLowerCase();
+          // 1. 获取实例详细配置
+          const instanceDetail: any = await invoke('get_instance_detail', { id: instanceId });
+          const mcVersion = instanceDetail?.mcVersion;
+          const loaderType = instanceDetail?.loader?.type?.toLowerCase();
 
-            if (mcVersion && loaderType) {
-              const versionConfig: any = (gamepadConfig as any)[mcVersion];
-              if (versionConfig && versionConfig[loaderType]) {
-                const targetModsInfo = versionConfig[loaderType];
-                const targetModsArray = Array.isArray(targetModsInfo) ? targetModsInfo : [targetModsInfo];
-                
-                logStore.addLog(`[INFO] 发现适配此实例 (${mcVersion} ${loaderType}) 的 ${targetModsArray.length} 个手柄支持`);
-                logStore.addLog(`[INFO] 正在挂起启动进程，等待玩家确认安装...`);
-                
-                // 唤出前端 UI
-                const selectedMod = await useGamepadModStore.getState().promptDownload(instanceId, targetModsArray);
-                
+          if (mcVersion && loaderType) {
+            // 2. 调用后端检测本地安装 + 缓存状态
+            logStore.addLog("[INFO] 执行手柄 Mod 状态检测...");
+            const status: any = await invoke('check_gamepad_mod_status', {
+              instanceId,
+              mcVersion,
+              loaderType,
+            });
+
+            if (status.installed) {
+              logStore.addLog("[INFO] 手柄模块就绪。");
+            }
+            else if (status.needsInstall || !status.hasCache) {
+              logStore.addLog("[WARN] 未检测到手柄支持模块！");
+
+              // 3. 从前端服务动态解析下载链接（先查缓存，缓存未命中则实时查 API）
+              let resolved = resolveGamepadMod(mcVersion, loaderType);
+              if (!resolved) {
+                logStore.addLog("[INFO] 缓存未命中，正在从 API 实时查询...");
+                resolved = await resolveGamepadModOnDemand(mcVersion, loaderType);
+              }
+
+              if (resolved) {
+                const modInfo = {
+                  id: 'gamepad-mod',
+                  name: resolved.name,
+                  slug: 'gamepad',
+                  fileName: resolved.fileName,
+                  downloadUrl: resolved.downloadUrl,
+                };
+
+                logStore.addLog(`[INFO] 发现适配此实例 (${mcVersion} ${loaderType}) 的手柄支持模块: ${resolved.name} [${resolved.source}]`);
+                logStore.addLog("[INFO] 正在挂起启动进程，等待玩家确认安装...");
+
+                const selectedMod = await useGamepadModStore.getState().promptDownload(
+                  instanceId, [modInfo], 'install'
+                );
+
                 if (selectedMod) {
                   logStore.addLog(`[INFO] 玩家同意安装，下发下载任务: ${selectedMod.fileName}`);
-                  
-                  // TODO: 这里直接下发 mod 下载任务给后端或 DownloadStore 处理...
                   try {
-                    await invoke('install_remote_mod', { 
-                      instanceId, 
+                    await invoke('install_remote_mod', {
+                      instanceId,
                       downloadUrl: selectedMod.downloadUrl,
-                      fileName: selectedMod.fileName
+                      fileName: selectedMod.fileName,
+                      mcVersion,
+                      loaderType,
                     });
-                    logStore.addLog(`[INFO] 手柄支持模块安装成功！`);
-                    
-                    // 安装成功后告诉后端更新标记
+                    logStore.addLog("[INFO] 手柄支持模块安装成功！");
                     await invoke('check_instance_gamepad', { id: instanceId });
                   } catch (installErr) {
-                    logStore.addLog(`[ERROR] 手柄支持模块安装失败，但将继续启动游戏。错误: ${installErr}`);
+                    logStore.addLog(`[ERROR] 手柄支持模块安装失败: ${installErr}`);
+                    logStore.setGameState('crashed');
+                    setIsLaunching(false);
+                    return;
                   }
                 } else {
-                  logStore.addLog(`[INFO] 玩家跳过了安装推荐。`);
+                  logStore.addLog("[INFO] 玩家取消了安装，启动中止。");
+                  logStore.setGameState('crashed');
+                  setIsLaunching(false);
+                  return;
+                }
+              } else {
+                logStore.addLog("[WARN] 未找到适配当前版本的手柄模块配置，跳过检测。");
+              }
+            }
+            else if (status.hasCache) {
+              // 有缓存但实例中未安装 → 检测是否有更新，然后安装
+              let resolved = resolveGamepadMod(mcVersion, loaderType);
+              if (!resolved) {
+                resolved = await resolveGamepadModOnDemand(mcVersion, loaderType);
+              }
+
+              const needsUpdate = resolved && status.localFileName && resolved.fileName !== status.localFileName;
+
+              if (needsUpdate && resolved) {
+                logStore.addLog("[INFO] 检测到手柄模块有新版本可用。");
+
+                const modInfo = {
+                  id: 'gamepad-mod-update',
+                  name: resolved.name,
+                  slug: 'gamepad',
+                  fileName: resolved.fileName,
+                  downloadUrl: resolved.downloadUrl,
+                };
+
+                const selectedMod = await useGamepadModStore.getState().promptDownload(
+                  instanceId, [modInfo], 'update',
+                  status.localFileName, resolved.fileName
+                );
+
+                if (selectedMod) {
+                  logStore.addLog(`[INFO] 玩家同意更新，下发下载任务: ${selectedMod.fileName}`);
+                  try {
+                    await invoke('install_remote_mod', {
+                      instanceId,
+                      downloadUrl: selectedMod.downloadUrl,
+                      fileName: selectedMod.fileName,
+                      mcVersion,
+                      loaderType,
+                    });
+                    logStore.addLog("[INFO] 手柄支持模块更新成功！");
+                    await invoke('check_instance_gamepad', { id: instanceId });
+                  } catch (updateErr) {
+                    logStore.addLog(`[WARN] 更新失败，将使用缓存版本继续: ${updateErr}`);
+                    try {
+                      await invoke('install_remote_mod', {
+                        instanceId,
+                        downloadUrl: '',
+                        fileName: status.localFileName || '',
+                        mcVersion,
+                        loaderType,
+                      });
+                    } catch (_) {
+                      logStore.addLog("[WARN] 缓存恢复也失败了，继续启动。");
+                    }
+                  }
+                } else {
+                  logStore.addLog("[INFO] 玩家跳过更新，使用已有缓存版本。");
+                  try {
+                    await invoke('install_remote_mod', {
+                      instanceId,
+                      downloadUrl: '',
+                      fileName: status.localFileName || '',
+                      mcVersion,
+                      loaderType,
+                    });
+                    logStore.addLog("[INFO] 已从缓存安装手柄模块。");
+                    await invoke('check_instance_gamepad', { id: instanceId });
+                  } catch (cacheErr) {
+                    logStore.addLog(`[WARN] 缓存安装失败: ${cacheErr}`);
+                  }
+                }
+              } else {
+                // 无更新，直接从缓存安装
+                logStore.addLog("[INFO] 从公共缓存安装手柄模块...");
+                try {
+                  await invoke('install_remote_mod', {
+                    instanceId,
+                    downloadUrl: '',
+                    fileName: status.localFileName || '',
+                    mcVersion,
+                    loaderType,
+                  });
+                  logStore.addLog("[INFO] 手柄模块已从缓存安装。");
+                  await invoke('check_instance_gamepad', { id: instanceId });
+                } catch (cacheErr) {
+                  logStore.addLog(`[WARN] 缓存安装失败: ${cacheErr}`);
                 }
               }
             }
-          } else if (!backendHasGamepad && !isGamepad) {
-            logStore.addLog("[INFO] 键鼠模式启动，跳过手柄模块检测与提示。");
           } else {
-             logStore.addLog("[INFO] 手柄模块就绪。");
+            logStore.addLog("[INFO] 无法获取实例版本信息，跳过手柄检测。");
           }
+        } catch (checkErr) {
+          console.error("手柄检测流程异常", checkErr);
+          logStore.addLog(`[WARN] 检测手柄状态时遇到小问题，跳过。`);
         }
-      } catch (checkErr) {
-        console.error("手柄检测流程异常", checkErr);
-        logStore.addLog(`[WARN] 检测手柄状态时遇到小问题，跳过。`);
+      } else if (isGamepad && !gamepadModCheckEnabled) {
+        logStore.addLog("[INFO] 手柄 Mod 检测已在设置中关闭，跳过。");
       }
 
       let mappedAccountType = 'offline';

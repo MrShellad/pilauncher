@@ -1,7 +1,8 @@
 app-id: com.mrshell.PiLauncher
-runtime: org.freedesktop.Platform
-runtime-version: "23.08"
-sdk: org.freedesktop.Sdk
+
+runtime: org.gnome.Platform
+runtime-version: "49"
+sdk: org.gnome.Sdk
 
 command: pilauncher
 
@@ -11,26 +12,29 @@ finish-args:
   - --socket=wayland
   - --socket=x11
   - --device=dri
-  - --filesystem=home
+
   - --filesystem=xdg-download
   - --filesystem=xdg-documents
+
+  - --filesystem=xdg-data/.minecraft
+  - --filesystem=xdg-data/PrismLauncher:create
+
   - --talk-name=org.freedesktop.Notifications
-  - --filesystem=xdg-data
-  - --filesystem=~/.minecraft
   - --talk-name=org.freedesktop.portal.Desktop
+
 modules:
   - name: pilauncher
     buildsystem: simple
 
     build-commands:
-      - install -D app /app/bin/pilauncher
+      - install -D pilauncher /app/bin/pilauncher
       - install -D com.mrshell.pilauncher.desktop /app/share/applications/com.mrshell.pilauncher.desktop
       - install -D icon.png /app/share/icons/hicolor/256x256/apps/com.mrshell.pilauncher.png
       - install -D com.mrshell.pilauncher.metainfo.xml /app/share/metainfo/com.mrshell.pilauncher.metainfo.xml
 
     sources:
       - type: file
-        path: ../src-tauri/target/release/app
+        path: ../src-tauri/target/release/pilauncher
 
       - type: file
         path: com.mrshell.pilauncher.desktop

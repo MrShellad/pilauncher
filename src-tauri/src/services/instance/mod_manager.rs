@@ -42,6 +42,27 @@ pub struct ModSnapshot {
     pub description: String,
 }
 
+// ✅ 手柄 Mod 缓存元数据（存储在 shared_mods/gamepad_meta.json）
+#[derive(Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct GamepadModMeta {
+    pub file_name: String,
+    pub download_url: String,
+    pub cached_at: u64,
+}
+
+// ✅ 手柄 Mod 状态检测结果，返回给前端
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GamepadModStatus {
+    pub installed: bool,           // 实例 mods/ 中是否已存在手柄 mod
+    pub needs_install: bool,       // 完全没有，需要安装
+    pub needs_update: bool,        // 有但版本旧，可以更新（由前端 API 比对）
+    pub local_file_name: Option<String>,  // 本地已安装/缓存的文件名
+    pub remote_file_name: Option<String>, // 远端最新文件名（由前端填充）
+    pub has_cache: bool,           // shared_mods 中是否有缓存
+}
+
 pub struct ModManagerService;
 
 impl ModManagerService {
@@ -266,31 +287,102 @@ impl ModManagerService {
         Ok(has_gamepad)
     }
 
-    // ✅ 新增：从远端 URL 下载指定 Mod 到实例的 mods 文件夹
+    // ✅ 获取 shared_mods 目录
+    fn get_shared_mods_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+        let base_path_str = ConfigService::get_base_path(app)
+            .map_err(|e| e.to_string())?
+            .unwrap_or_default();
+        let dir = PathBuf::from(base_path_str).join("shared_mods");
+        fs::create_dir_all(&dir).ok();
+        Ok(dir)
+    }
+
+    // ✅ 读取 gamepad_meta.json 缓存
+    fn read_gamepad_meta<R: Runtime>(app: &AppHandle<R>) -> Result<HashMap<String, GamepadModMeta>, String> {
+        let shared_dir = Self::get_shared_mods_dir(app)?;
+        let meta_path = shared_dir.join("gamepad_meta.json");
+        if meta_path.exists() {
+            let content = fs::read_to_string(&meta_path).unwrap_or_default();
+            Ok(serde_json::from_str(&content).unwrap_or_default())
+        } else {
+            Ok(HashMap::new())
+        }
+    }
+
+    // ✅ 写入 gamepad_meta.json 缓存
+    fn write_gamepad_meta<R: Runtime>(app: &AppHandle<R>, meta: &HashMap<String, GamepadModMeta>) -> Result<(), String> {
+        let shared_dir = Self::get_shared_mods_dir(app)?;
+        let meta_path = shared_dir.join("gamepad_meta.json");
+        let content = serde_json::to_string_pretty(meta).map_err(|e| e.to_string())?;
+        fs::write(&meta_path, content).map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    // ✅ 手柄 Mod 状态检测（纯本地检测，不再拉取远端配置）
+    // 前端通过 Modrinth/CurseForge API 动态解析下载链接
+    pub async fn check_gamepad_mod_status<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        mc_version: &str,
+        loader_type: &str,
+    ) -> Result<GamepadModStatus, String> {
+        // 1. 检查实例 mods/ 中是否已安装手柄 mod
+        let installed = Self::check_and_update_gamepad(app, instance_id)?;
+
+        if installed {
+            return Ok(GamepadModStatus {
+                installed: true,
+                needs_install: false,
+                needs_update: false,
+                local_file_name: None,
+                remote_file_name: None,
+                has_cache: false,
+            });
+        }
+
+        // 2. 检查 shared_mods 缓存
+        let meta = Self::read_gamepad_meta(app)?;
+        let loader_key = loader_type.to_lowercase();
+        let cache_key = format!("{}_{}", mc_version, loader_key);
+        let cached = meta.get(&cache_key);
+        let has_cache = cached.map_or(false, |c| {
+            let shared_dir = Self::get_shared_mods_dir(app).unwrap_or_default();
+            shared_dir.join(&c.file_name).exists()
+        });
+
+        let local_fn = cached.map(|c| c.file_name.clone());
+
+        Ok(GamepadModStatus {
+            installed: false,
+            needs_install: !has_cache,
+            needs_update: false, // 更新检测由前端通过 API 比对完成
+            local_file_name: local_fn,
+            remote_file_name: None,
+            has_cache,
+        })
+    }
+
+    // ✅ 从远端 URL 下载指定 Mod 到实例的 mods 文件夹，并缓存到 shared_mods
     pub async fn install_remote_mod<R: Runtime>(
         app: &AppHandle<R>,
         instance_id: &str,
         download_url: &str,
         file_name: &str,
+        mc_version: &str,
+        loader_type: &str,
     ) -> Result<(), String> {
         let instance_dir = Self::get_instance_dir(app, instance_id)?;
         let mods_dir = instance_dir.join("mods");
         fs::create_dir_all(&mods_dir).ok();
 
         let target_path = mods_dir.join(file_name);
-
-        let base_path_str = ConfigService::get_base_path(app)
-            .map_err(|e| e.to_string())?
-            .unwrap_or_default();
-        let shared_mods_dir = PathBuf::from(base_path_str).join("shared_mods");
-        fs::create_dir_all(&shared_mods_dir).ok();
-
+        let shared_mods_dir = Self::get_shared_mods_dir(app)?;
         let shared_target = shared_mods_dir.join(file_name);
         let mut needs_download = true;
 
         if shared_target.exists() {
             if let Ok(file) = File::open(&shared_target) {
-                if let Ok(_) = zip::ZipArchive::new(file) {
+                if zip::ZipArchive::new(file).is_ok() {
                     needs_download = false;
                 }
             }
@@ -314,7 +406,7 @@ impl ModManagerService {
                 .await
                 .map_err(|e| format!("读取文件字节流失败: {}", e))?;
 
-            fs::write(&shared_target, bytes)
+            fs::write(&shared_target, &bytes)
                 .map_err(|e| format!("写入文件失败: {}", e))?;
         } else {
             println!("从缓存中发现有效的 Mod: {}", file_name);
@@ -322,6 +414,19 @@ impl ModManagerService {
 
         fs::copy(&shared_target, &target_path)
             .map_err(|e| format!("复制文件到实例 mods 目录失败: {}", e))?;
+
+        // ✅ 更新 gamepad_meta.json 缓存记录
+        let cache_key = format!("{}_{}", mc_version, loader_type.to_lowercase());
+        let mut meta = Self::read_gamepad_meta(app)?;
+        meta.insert(cache_key, GamepadModMeta {
+            file_name: file_name.to_string(),
+            download_url: download_url.to_string(),
+            cached_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
+        });
+        Self::write_gamepad_meta(app, &meta)?;
 
         Ok(())
     }

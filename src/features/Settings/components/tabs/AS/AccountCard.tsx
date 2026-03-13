@@ -133,7 +133,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
         <div className="min-w-0 flex-1">
           <div className="ore-account-name">{displayName}</div>
           <div className="ore-account-subtitle" title={displayUuid}>
-            {isMS ? 'Minecraft Java Edition' : `Offline UUID: ${displayUuid}`}
+            {isMS ? 'Minecraft Java Edition' : `${displayUuid}`}
           </div>
           <div className="ore-account-note">
             {isMS ? '身份信息与头像将自动同步。' : '当前为离线账户'}
@@ -143,7 +143,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
 
       <div className="ore-account-divider" />
 
-      <div className="ore-account-toolbar">
+      <div className="ore-account-toolbar justify-center">
         {!isMS && (
           <>
             {renderIconButton(

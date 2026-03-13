@@ -38,6 +38,7 @@ export interface GameSettings {
   launcherVisibility: 'keep' | 'minimize' | 'close';
   resolution: string; 
   fullscreen: boolean;
+  gamepadModCheck: boolean; // 手柄启动时自动检测手柄 Mod
 }
 
 export interface DownloadSettings {
@@ -110,6 +111,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     launcherVisibility: 'minimize', 
     resolution: '854x480',          
     fullscreen: true,
+    gamepadModCheck: true,
   },
   download: {
     // ✅ 赋予四个通道初始的默认源 (匹配你的 JSON 数据)

@@ -127,22 +127,7 @@ export const MicrosoftAuthModal: React.FC<MicrosoftAuthModalProps> = ({
             </div>
 
             <div className="flex w-full gap-3">
-              <OreButton
-                focusKey={CLOSE_BUTTON_FOCUS_KEY}
-                variant="secondary"
-                onClick={onClose}
-                onArrowPress={(direction) => {
-                  if (direction === 'RIGHT') {
-                    setFocus(COPY_BUTTON_FOCUS_KEY);
-                    return false;
-                  }
-                  return true;
-                }}
-                size="lg"
-                className="flex-1"
-              >
-                关闭
-              </OreButton>
+
               <OreButton
                 focusKey={COPY_BUTTON_FOCUS_KEY}
                 variant="primary"

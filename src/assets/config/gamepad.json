@@ -1,50 +1,28 @@
 {
-  "1.20.1": {
-    "forge": {
-      "id": "313076",
-      "name": "Controllable",
-      "slug": "controllable",
-      "fileName": "controllable-forge-1.20.1-0.20.3.jar",
-      "downloadUrl": "https://mediafilez.forgecdn.net/files/5176/993/controllable-forge-1.20.1-0.20.3.jar"
-    },
-    "fabric": {
-      "id": "408018",
+  "mods": [
+    {
       "name": "MidnightControls",
+      "source": "modrinth",
       "slug": "midnightcontrols",
-      "fileName": "midnightcontrols-1.8.18+1.20.1.jar",
-      "downloadUrl": "https://mediafilez.forgecdn.net/files/5465/327/midnightcontrols-1.8.18%2B1.20.1.jar"
+      "loaders": ["fabric", "quilt"]
     },
-    "neoforge": {
-      "id": "313076",
-      "name": "Controllable (NeoForge)",
-      "slug": "controllable",
-      "fileName": "controllable-neoforge-1.20.1-0.20.3.jar",
-      "downloadUrl": "https://mediafilez.forgecdn.net/files/5177/10/controllable-neoforge-1.20.1-0.20.3.jar"
-    }
-  },
-  "1.19.4": {
-    "forge": {
-      "id": "313076",
-      "name": "Controllable",
-      "slug": "controllable",
-      "fileName": "controllable-1.19.4-0.18.1.jar",
-      "downloadUrl": "https://mediafilez.forgecdn.net/files/4574/594/controllable-1.19.4-0.18.1.jar"
-    },
-    "fabric": {
-      "id": "408018",
+    {
       "name": "MidnightControls",
+      "source": "modrinth",
       "slug": "midnightcontrols",
-      "fileName": "midnightcontrols-1.7.3+1.19.4.jar",
-      "downloadUrl": "https://mediafilez.forgecdn.net/files/4462/481/midnightcontrols-1.7.3%2B1.19.4.jar"
-    }
-  },
-  "1.16.5": {
-    "forge": {
-      "id": "313076",
+      "loaders": ["neoforge"]
+    },
+    {
       "name": "Controllable",
-      "slug": "controllable",
-      "fileName": "controllable-1.16.5-0.15.5.jar",
-      "downloadUrl": "https://mediafilez.forgecdn.net/files/3516/231/controllable-1.16.5-0.15.5.jar"
+      "source": "curseforge",
+      "curseforgeId": "313076",
+      "loaders": ["forge"]
+    },
+    {
+      "name": "Controllable",
+      "source": "curseforge",
+      "curseforgeId": "313076",
+      "loaders": ["neoforge"]
     }
-  }
+  ]
 }

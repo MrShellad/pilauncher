@@ -133,7 +133,7 @@ export const OfflineAuthModal: React.FC<OfflineAuthModalProps> = ({
           focusKey={RANDOM_BUTTON_FOCUS_KEY}
           variant="secondary"
           size="auto"
-          className="mb-6 self-start"
+          className="mb-6 self-center"
           onClick={applyRandomName}
           onArrowPress={(direction) => {
             if (direction === 'UP') {
@@ -166,7 +166,7 @@ export const OfflineAuthModal: React.FC<OfflineAuthModalProps> = ({
           <div className="mb-4 text-xs font-minecraft text-red-400">{offlineError}</div>
         )}
 
-        <div className="mt-4 flex justify-end space-x-3">
+        <div className="mt-4 flex justify-center space-x-3">
           <OreButton
             focusKey={CANCEL_BUTTON_FOCUS_KEY}
             variant="secondary"

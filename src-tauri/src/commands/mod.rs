@@ -4,19 +4,19 @@ pub mod animation_cmd;
 pub mod auth_cmd;
 pub mod cache_cmd;
 pub mod config_cmd;
+pub mod fs_cmd;
 pub mod instance;
+pub mod java_cmd;
+pub mod lan_cmd;
 pub mod launcher_cmd;
 pub mod loader_cmd;
 pub mod minecraft_cmd;
+pub mod modpack_cmd; // 新增 modpack_cmd 模块
+pub mod qrcode_cmd;
 pub mod resource_cmd;
 pub mod runtime_cmd;
 pub mod settings_cmd;
 pub mod system_cmd;
-pub mod modpack_cmd; // 新增 modpack_cmd 模块
-pub mod java_cmd;
-pub mod fs_cmd;
-pub mod lan_cmd;
-pub mod qrcode_cmd;
 
 use tauri::{Builder, Runtime};
 
@@ -52,6 +52,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         instance::action_cmd::delete_instance,
         instance::action_cmd::get_instance_detail,
         instance::action_cmd::check_instance_gamepad,
+        instance::action_cmd::check_gamepad_mod_status,
         instance::action_cmd::install_remote_mod,
         instance::mod_cmd::get_instance_mods,
         instance::mod_cmd::create_mod_snapshot,
@@ -68,10 +69,10 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         instance::save_cmd::verify_save_restore,
         instance::save_cmd::get_save_backups,
         instance::resource_cmd::open_resource_folder,
-        instance::listing_cmd::get_compatible_instances, 
-        instance::listing_cmd::get_instance_screenshots, 
+        instance::listing_cmd::get_compatible_instances,
+        instance::listing_cmd::get_instance_screenshots,
         instance::listing_cmd::open_instance_folder,
-        instance::save_cmd::open_saves_folder, 
+        instance::save_cmd::open_saves_folder,
         resource_cmd::get_ore_project_detail,
         resource_cmd::get_ore_project_versions,
         resource_cmd::download_resource,
@@ -104,6 +105,5 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         lan_cmd::push_to_device,
         lan_cmd::apply_received_transfer,
         qrcode_cmd::generate_device_auth_qr,
-
     ])
 }
