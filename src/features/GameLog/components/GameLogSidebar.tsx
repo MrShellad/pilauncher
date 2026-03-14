@@ -14,6 +14,7 @@ import { FocusItem } from '../../../ui/focus/FocusItem';
 
 import { useGameLogStore } from '../../../store/useGameLogStore';
 import { useLauncherStore } from '../../../store/useLauncherStore';
+import { useGamepadModStore } from '../../../store/useGamepadModStore';
 import { renderHighlightedLog, defaultHighlightRules } from '../logic/LogHighlighter';
 import { OreButton } from '../../../ui/primitives/OreButton';
 
@@ -113,7 +114,12 @@ export const GameLogSidebar: React.FC = () => {
       }
 
       // 延迟 100ms 等待抽屉动画和 DOM 挂载完成
-      const timer = setTimeout(() => setFocus('log-area'), 100);
+      const timer = setTimeout(() => {
+        const isGamepadPromptOpen = useGamepadModStore.getState().isOpen;
+        if (!isGamepadPromptOpen) {
+          setFocus('log-area');
+        }
+      }, 100);
       return () => clearTimeout(timer);
     }
   }, [isOpen]);

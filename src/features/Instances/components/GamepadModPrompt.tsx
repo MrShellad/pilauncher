@@ -34,7 +34,9 @@ export const GamepadModPrompt: React.FC = () => {
       isOpen={isOpen}
       onClose={() => resolvePrompt(null)}
       title={isUpdate ? '手柄模块有可用更新' : '检测到缺少手柄支持'}
-      className="w-[500px] !z-[100000]"
+      className="w-[500px]"
+      wrapperClassName="!z-[100000]"
+      defaultFocusKey="gamepad-prompt-btn-download"
       actions={
         <>
           <OreButton

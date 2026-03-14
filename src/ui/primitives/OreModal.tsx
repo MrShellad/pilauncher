@@ -21,6 +21,7 @@ interface OreModalProps {
   children: React.ReactNode;
   actions?: React.ReactNode;
   closeOnOutsideClick?: boolean;
+  wrapperClassName?: string;
 }
 
 export const OreModal: React.FC<OreModalProps> = ({
@@ -33,7 +34,8 @@ export const OreModal: React.FC<OreModalProps> = ({
   contentClassName,
   children,
   actions,
-  closeOnOutsideClick = true
+  closeOnOutsideClick = true,
+  wrapperClassName = 'z-[100]',
 }) => {
   const modalId = useId();
   const boundaryId = `modal-boundary-${modalId.replace(/:/g, '')}`;
@@ -94,7 +96,7 @@ export const OreModal: React.FC<OreModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
+          className={`fixed inset-0 flex items-center justify-center p-4 sm:p-6 ${wrapperClassName}`}
           onMouseDown={(e) => {
             if (e.target === e.currentTarget && closeOnOutsideClick) {
               onClose();
