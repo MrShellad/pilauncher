@@ -9,10 +9,13 @@ import { DirectoryBrowserModal } from '../../../ui/components/DirectoryBrowserMo
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { DirectoryStep } from './step/DirectoryStep';
 import { JavaDownloadStep } from './step/JavaDownloadStep';
+import { SteamIntegrationStep } from './step/SteamIntegrationStep';
 
-const getDefaultFocusKey = (step: 'directory' | 'java_download') => (
-  step === 'directory' ? 'setup-btn-browse' : 'setup-btn-download'
-);
+const getDefaultFocusKey = (step: 'directory' | 'java_download' | 'steam_integration') => {
+  if (step === 'directory') return 'setup-btn-browse';
+  if (step === 'java_download') return 'setup-btn-download';
+  return 'setup-btn-steam-register';
+};
 
 const isSetupFocus = (focusKey: string | null) => {
   if (!focusKey || focusKey === 'SN:ROOT') return false;
@@ -21,10 +24,12 @@ const isSetupFocus = (focusKey: string | null) => {
 
 export const SetupWizard: React.FC = () => {
   const {
-    needsSetup, setNeedsSetup, isChecking, error, step,
+    needsSetup, isChecking, error, step,
     basePath, setBasePath, showBrowser, setShowBrowser,
     javaVersion, setJavaVersion, javaProvider, setJavaProvider,
-    handleSelectPath, handleConfirmDirectory, handleDownloadJava
+    isRegistering, registerSuccess, registerError, isGamepadMode,
+    handleSelectPath, handleConfirmDirectory, handleDownloadJava, handleSkipJava,
+    handleRegisterSteam, setGamepadModeSettings, finishSetup
   } = useSetupWizard();
 
   const lastFocusBeforeWizardRef = useRef<string | null>(null);
@@ -128,8 +133,21 @@ export const SetupWizard: React.FC = () => {
                   setJavaVersion={setJavaVersion}
                   javaProvider={javaProvider}
                   setJavaProvider={setJavaProvider}
-                  onSkip={() => setNeedsSetup(false)}
+                  onSkip={handleSkipJava}
                   onDownload={handleDownloadJava}
+                />
+              )}
+
+              {step === 'steam_integration' && (
+                <SteamIntegrationStep
+                  onSkip={finishSetup}
+                  onRegister={handleRegisterSteam}
+                  onFinish={finishSetup}
+                  isRegistering={isRegistering}
+                  registerSuccess={registerSuccess}
+                  registerError={registerError}
+                  isGamepadMode={isGamepadMode}
+                  setGamepadModeSettings={setGamepadModeSettings}
                 />
               )}
 

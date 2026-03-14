@@ -9,12 +9,17 @@ export const useSetupWizard = () => {
   const [isChecking, setIsChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  const [step, setStep] = useState<'directory' | 'java_download'>('directory');
+  const [step, setStep] = useState<'directory' | 'java_download' | 'steam_integration'>('directory');
   const [basePath, setBasePath] = useState('');
   const [showBrowser, setShowBrowser] = useState(false);
   
   const [javaVersion, setJavaVersion] = useState('21');
   const [javaProvider, setJavaProvider] = useState('adoptium');
+
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [registerSuccess, setRegisterSuccess] = useState(false);
+  const [registerError, setRegisterError] = useState<string | null>(null);
+  const [isGamepadMode, setIsGamepadMode] = useState(false);
 
   const updateGeneralSetting = useSettingsStore(state => state.updateGeneralSetting);
 
@@ -42,6 +47,21 @@ export const useSetupWizard = () => {
     setError(null);
   };
 
+  const checkAndTransition = async () => {
+      try {
+          const isGamepad = await invoke<boolean>('check_steamos_gamepad_mode');
+          setIsGamepadMode(isGamepad);
+          const hasSteam = await invoke<boolean>('check_steam_status');
+          if (hasSteam) {
+              setStep('steam_integration');
+          } else {
+              setNeedsSetup(false);
+          }
+      } catch {
+          setNeedsSetup(false);
+      }
+  };
+
   const handleConfirmDirectory = async () => {
     setError(null);
     if (!basePath.trim()) {
@@ -60,7 +80,7 @@ export const useSetupWizard = () => {
       
       const javas = await invoke<any[]>('scan_java_environments');
       if (javas && javas.length > 0) {
-        setNeedsSetup(false);
+        await checkAndTransition();
       } else {
         setStep('java_download');
       }
@@ -76,16 +96,49 @@ export const useSetupWizard = () => {
         version: parseInt(javaVersion), 
         provider: javaProvider 
       });
-      setNeedsSetup(false);
+      await checkAndTransition();
     } catch (err: any) {
       setError(String(err));
     }
+  };
+
+  const handleSkipJava = async () => {
+      await checkAndTransition();
+  };
+
+  // 4. Steam Integration Logic
+  const handleRegisterSteam = async () => {
+      setIsRegistering(true);
+      setRegisterError(null);
+      try {
+          const success = await invoke<boolean>('register_steam_shortcut');
+          if (success) {
+              setRegisterSuccess(true);
+          } else {
+              setRegisterError("未能注册快捷方式 (可能是未配置 Steam 或找不到路径)。您可以直接跳过。");
+          }
+      } catch (err: any) {
+          setRegisterError(String(err));
+      } finally {
+          setIsRegistering(false);
+      }
+  };
+
+  const setGamepadModeSettings = () => {
+      updateGeneralSetting('closeBehavior', 'exit');
+      // Set to gamepad mode UI if there is a setting for it
+  };
+
+  const finishSetup = () => {
+      setNeedsSetup(false);
   };
 
   return {
     needsSetup, setNeedsSetup, isChecking, error, step,
     basePath, setBasePath, showBrowser, setShowBrowser,
     javaVersion, setJavaVersion, javaProvider, setJavaProvider,
-    handleSelectPath, handleConfirmDirectory, handleDownloadJava
+    isRegistering, registerSuccess, registerError, isGamepadMode,
+    handleSelectPath, handleConfirmDirectory, handleDownloadJava, handleSkipJava,
+    handleRegisterSteam, setGamepadModeSettings, finishSetup
   };
 };

@@ -5,7 +5,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { fetchCurseForgeVersions } from '../features/Download/logic/curseforgeApi';
 import { hasCurseForgeApiKey } from '../features/Download/logic/curseforgeApi';
-import type { OreProjectVersion } from '../features/InstanceDetail/logic/modrinthApi';
+import type { OreProjectVersion, OreProjectDependency } from '../features/InstanceDetail/logic/modrinthApi';
 import gamepadConfig from '../assets/config/gamepad.json';
 
 // ==========================================
@@ -27,6 +27,7 @@ export interface ResolvedGamepadMod {
   fileName: string;
   downloadUrl: string;
   source: 'modrinth' | 'curseforge';
+  dependencies?: OreProjectDependency[];
 }
 
 /** gamepad.json 的根结构 */
@@ -128,6 +129,7 @@ async function resolveModEntry(entry: GamepadModEntry): Promise<void> {
             fileName: version.file_name,
             downloadUrl: version.download_url,
             source: entry.source,
+            dependencies: version.dependencies,
           });
         }
       }
@@ -227,6 +229,7 @@ export async function resolveGamepadModOnDemand(
           fileName: best.file_name,
           downloadUrl: best.download_url,
           source: entry.source,
+          dependencies: best.dependencies,
         };
         // 存入缓存
         const cacheKey = `${mcVersion}_${loader}`;
@@ -237,4 +240,65 @@ export async function resolveGamepadModOnDemand(
   }
 
   return null;
+}
+
+/**
+ * 递归解析并收集前置依赖 (Modrinth callback 解析)。
+ * 优先使用 Modrinth 源通过 project_id 获取对应游戏版本的依赖文件。
+ */
+export async function resolveRequiredDependencies(
+  dependencies: OreProjectDependency[],
+  mcVersion: string,
+  loaderType: string
+): Promise<ResolvedGamepadMod[]> {
+  const requiredDeps = dependencies.filter(d => d.dependency_type === 'required');
+  const results: ResolvedGamepadMod[] = [];
+
+  for (const dep of requiredDeps) {
+    if (!dep.project_id) continue;
+
+    try {
+      // 通过 Modrinth 获取依赖项在同一 MC 版本和加载器下的稳定版本
+      const depVersions = await fetchModrinthVersionsForGamepad(dep.project_id, mcVersion, loaderType);
+      if (depVersions.length > 0) {
+        const best = depVersions[0];
+        
+        // 尝试获取该依赖的项目详情以取得正确的 name，如果没有名字，就回退使用 project_id
+        let depName = dep.project_id;
+        try {
+          const detail = await invoke<any>('get_ore_project_detail', { projectId: dep.project_id });
+          if (detail && detail.title) {
+            depName = detail.title;
+          }
+        } catch (e) {
+          // ignore
+        }
+
+        const resolvedDep: ResolvedGamepadMod = {
+          name: depName,
+          fileName: best.file_name,
+          downloadUrl: best.download_url,
+          source: 'modrinth',
+          dependencies: best.dependencies,
+        };
+
+        results.push(resolvedDep);
+
+        // 如果这个依赖项还有它自己的 required 依赖，递归下载
+        if (best.dependencies && best.dependencies.length > 0) {
+          const nestedDeps = await resolveRequiredDependencies(best.dependencies, mcVersion, loaderType);
+          for (const nd of nestedDeps) {
+            // 去重
+            if (!results.some(r => r.fileName === nd.fileName)) {
+              results.push(nd);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`[GamepadMod] 无法解析前置依赖 ${dep.project_id}:`, err);
+    }
+  }
+
+  return results;
 }

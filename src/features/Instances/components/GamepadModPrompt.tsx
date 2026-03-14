@@ -34,7 +34,7 @@ export const GamepadModPrompt: React.FC = () => {
       isOpen={isOpen}
       onClose={() => resolvePrompt(null)}
       title={isUpdate ? '手柄模块有可用更新' : '检测到缺少手柄支持'}
-      className="w-[500px]"
+      className="w-[500px] !z-[100000]"
       actions={
         <>
           <OreButton
@@ -125,9 +125,9 @@ export const GamepadModPrompt: React.FC = () => {
             ))}
           </div>
         ) : !isUpdate && (
-          <div className="bg-[#18181A] border border-[#2A2A2C] rounded-md px-4 py-3 w-4/5 flex items-center justify-between">
-            <span className="text-gray-400 font-minecraft">目标文件</span>
-            <span className="text-gray-200 font-minecraft truncate max-w-[200px]" title={currentMod.fileName}>{currentMod.fileName}</span>
+          <div className="bg-[#18181A] border border-[#2A2A2C] rounded-md px-4 py-3 w-4/5 flex items-start justify-between">
+            <span className="text-gray-400 font-minecraft whitespace-nowrap mr-4 shrink-0 mt-0.5">目标文件</span>
+            <span className="text-gray-200 font-minecraft break-all text-right leading-relaxed text-sm" title={currentMod.fileName}>{currentMod.fileName}</span>
           </div>
         )}
       </div>

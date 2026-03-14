@@ -1,13 +1,12 @@
 // src-tauri/src/services/instance/mod_manager.rs
 use crate::services::config_service::ConfigService;
-use chrono::Local;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap; // ✅ 引入哈希表用于缓存
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Emitter, Runtime};
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -391,7 +390,7 @@ impl ModManagerService {
         if needs_download {
             println!("正在下载推荐 Mod: {}", download_url);
             let client = reqwest::Client::new();
-            let response = client
+            let mut response = client
                 .get(download_url)
                 .send()
                 .await
@@ -401,13 +400,44 @@ impl ModManagerService {
                 return Err(format!("下载失败，状态码: {}", response.status()));
             }
 
-            let bytes = response
-                .bytes()
-                .await
-                .map_err(|e| format!("读取文件字节流失败: {}", e))?;
+            let total_size = response.content_length().unwrap_or(0);
+            let mut downloaded: u64 = 0;
 
-            fs::write(&shared_target, &bytes)
-                .map_err(|e| format!("写入文件失败: {}", e))?;
+            use tokio::io::AsyncWriteExt;
+            let mut dest = tokio::fs::File::create(&shared_target)
+                .await
+                .map_err(|e| format!("无法创建缓存文件: {}", e))?;
+
+            while let Some(chunk) = response.chunk().await.map_err(|e| e.to_string())? {
+                dest.write_all(&chunk)
+                    .await
+                    .map_err(|e| format!("写入磁盘失败: {}", e))?;
+                downloaded += chunk.len() as u64;
+
+                let _ = app.emit(
+                    "resource-download-progress",
+                    crate::services::resource_service::ResourceProgressPayload {
+                        task_id: file_name.to_string(),
+                        file_name: file_name.to_string(),
+                        stage: "DOWNLOADING_MOD".to_string(),
+                        current: downloaded,
+                        total: total_size,
+                        message: format!("正在下载手柄组件: {}", file_name),
+                    },
+                );
+            }
+
+            let _ = app.emit(
+                "resource-download-progress",
+                crate::services::resource_service::ResourceProgressPayload {
+                    task_id: file_name.to_string(),
+                    file_name: file_name.to_string(),
+                    stage: "DONE".to_string(),
+                    current: total_size,
+                    total: total_size,
+                    message: format!("成功: {}", file_name),
+                },
+            );
         } else {
             println!("从缓存中发现有效的 Mod: {}", file_name);
         }

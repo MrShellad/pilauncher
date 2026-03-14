@@ -4,8 +4,10 @@ import { OreSwitch } from '../../../../ui/primitives/OreSwitch';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreDropdown } from '../../../../ui/primitives/OreDropdown';
 import { OreInput } from '../../../../ui/primitives/OreInput'; // ✅ 引入输入框组件
-import { RotateCcw, Monitor, AlertTriangle } from 'lucide-react';
+import { RotateCcw, Monitor, AlertTriangle, PowerOff, Maximize } from 'lucide-react';
 import { useSettingsStore } from '../../../../store/useSettingsStore';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { invoke } from '@tauri-apps/api/core';
 
 // 引入布局组件
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
@@ -126,6 +128,28 @@ export const GeneralSettings: React.FC = () => {
             label="开机自启动" 
             description="在操作系统登录后自动运行 PiLauncher。"
             control={<FocusableSwitch checked={general.runOnStartup} onChange={(v) => updateGeneralSetting('runOnStartup', v)} />}
+          />
+        </SettingsSection>
+
+        {/* ==================== 2. 窗口与应用 ==================== */}
+        <SettingsSection title="窗口与应用" icon={<PowerOff size={18} />}>
+          <FormRow 
+            label="退出全屏/手柄模式" 
+            description="如果您当前处于全屏模式，点击此项将恢复为普通窗口模式。"
+            control={
+              <OreButton focusKey="settings-btn-exit-fullscreen" size="sm" className="flex items-center" onClick={() => getCurrentWindow().setFullscreen(false)}>
+                <Maximize size={14} className="mr-1.5" /> 退出全屏
+              </OreButton>
+            }
+          />
+          <FormRow 
+            label="完全退出启动器" 
+            description="直接关闭 PiLauncher 应用程序的所有进程。"
+            control={
+              <OreButton focusKey="settings-btn-exit-app" variant="danger" size="sm" className="flex items-center" onClick={() => invoke('plugin:process|exit', { code: 0 })}>
+                <PowerOff size={14} className="mr-1.5" /> 退出应用
+              </OreButton>
+            }
           />
         </SettingsSection>
 

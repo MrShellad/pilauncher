@@ -7,7 +7,7 @@ import { useAccountStore } from '../store/useAccountStore';
 import { useGameLogStore } from '../store/useGameLogStore';
 import { useGamepadModStore } from '../store/useGamepadModStore';
 import { useSettingsStore } from '../store/useSettingsStore';
-import { resolveGamepadMod, resolveGamepadModOnDemand } from '../services/gamepadModService';
+import { resolveGamepadMod, resolveGamepadModOnDemand, resolveRequiredDependencies } from '../services/gamepadModService';
 
 export const useGameLaunch = () => {
   const [isLaunching, setIsLaunching] = useState(false);
@@ -97,15 +97,33 @@ export const useGameLaunch = () => {
 
                 if (selectedMod) {
                   logStore.addLog(`[INFO] 玩家同意安装，下发下载任务: ${selectedMod.fileName}`);
+                  
+                  // 解析并获取前置依赖
+                  let depsToInstall: any[] = [];
+                  if (resolved.dependencies && resolved.dependencies.length > 0) {
+                     logStore.addLog(`[INFO] 正在解析手柄模块前置依赖...`);
+                     const deps = await resolveRequiredDependencies(resolved.dependencies, mcVersion, loaderType);
+                     if (deps.length > 0) {
+                        logStore.addLog(`[INFO] 找到 ${deps.length} 个必须的前置依赖。`);
+                        depsToInstall = deps;
+                     }
+                  }
+
+                  const allModsToInstall = [resolved, ...depsToInstall];
+
                   try {
-                    await invoke('install_remote_mod', {
-                      instanceId,
-                      downloadUrl: selectedMod.downloadUrl,
-                      fileName: selectedMod.fileName,
-                      mcVersion,
-                      loaderType,
-                    });
-                    logStore.addLog("[INFO] 手柄支持模块安装成功！");
+                    for (const m of allModsToInstall) {
+                      logStore.addLog(`[INFO] 正在安装: ${m.fileName}`);
+                      await invoke('install_remote_mod', {
+                        instanceId,
+                        downloadUrl: m.downloadUrl,
+                        fileName: m.fileName,
+                        mcVersion,
+                        loaderType,
+                      });
+                    }
+                    
+                    logStore.addLog("[INFO] 手柄支持模块及依赖安装成功！");
                     await invoke('check_instance_gamepad', { id: instanceId });
                   } catch (installErr) {
                     logStore.addLog(`[ERROR] 手柄支持模块安装失败: ${installErr}`);
@@ -150,14 +168,30 @@ export const useGameLaunch = () => {
 
                 if (selectedMod) {
                   logStore.addLog(`[INFO] 玩家同意更新，下发下载任务: ${selectedMod.fileName}`);
+                  
+                  let depsToInstall: any[] = [];
+                  if (resolved.dependencies && resolved.dependencies.length > 0) {
+                     logStore.addLog(`[INFO] 正在解析手柄模块前置依赖...`);
+                     const deps = await resolveRequiredDependencies(resolved.dependencies, mcVersion, loaderType);
+                     if (deps.length > 0) {
+                        logStore.addLog(`[INFO] 找到 ${deps.length} 个必须的前置依赖。`);
+                        depsToInstall = deps;
+                     }
+                  }
+
+                  const allModsToInstall = [resolved, ...depsToInstall];
+
                   try {
-                    await invoke('install_remote_mod', {
-                      instanceId,
-                      downloadUrl: selectedMod.downloadUrl,
-                      fileName: selectedMod.fileName,
-                      mcVersion,
-                      loaderType,
-                    });
+                    for (const m of allModsToInstall) {
+                      logStore.addLog(`[INFO] 正在更新: ${m.fileName}`);
+                      await invoke('install_remote_mod', {
+                        instanceId,
+                        downloadUrl: m.downloadUrl,
+                        fileName: m.fileName,
+                        mcVersion,
+                        loaderType,
+                      });
+                    }
                     logStore.addLog("[INFO] 手柄支持模块更新成功！");
                     await invoke('check_instance_gamepad', { id: instanceId });
                   } catch (updateErr) {
