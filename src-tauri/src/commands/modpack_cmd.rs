@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use crate::services::config_service::ConfigService;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 #[derive(Serialize, Deserialize)]
 pub struct MissingRuntime {
@@ -159,18 +161,20 @@ pub async fn download_missing_runtimes<R: Runtime>(
             message: format!("正在下载缺少的环境: {}", m.mc_version),
         });
 
+        let no_cancel = Arc::new(AtomicBool::new(false));
+
         // 补全核心
         let _ = crate::services::downloader::core_installer::install_vanilla_core(
-            &app, &m.instance_id, &m.mc_version, &runtime_dir
+            &app, &m.instance_id, &m.mc_version, &runtime_dir, &no_cancel
         ).await;
         
         let _ = crate::services::downloader::dependencies::download_dependencies(
-            &app, &m.instance_id, &m.mc_version, &runtime_dir
+            &app, &m.instance_id, &m.mc_version, &runtime_dir, &no_cancel
         ).await;
         
         // 补全 Loader
         let _ = crate::services::downloader::loader_installer::install_loader(
-            &app, &m.instance_id, &m.mc_version, &m.loader_type, &m.loader_version, &runtime_dir
+            &app, &m.instance_id, &m.mc_version, &m.loader_type, &m.loader_version, &runtime_dir, &no_cancel
         ).await;
         
         let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {

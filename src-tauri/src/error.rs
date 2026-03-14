@@ -11,6 +11,7 @@ pub enum AppError {
     PathResolution,
     InstanceNotFound(PathBuf),
     Generic(String), // 通用字符串错误 (修复 E0599)
+    Cancelled,       // 用户取消部署
 }
 
 // 转换 std::io::Error
@@ -49,6 +50,7 @@ impl std::fmt::Display for AppError {
             AppError::InstanceNotFound(path) => write!(f, "Instance path not found: {:?}", path),
             AppError::Network(e) => write!(f, "Network Error: {}", e),
             AppError::Generic(s) => write!(f, "{}", s),
+            AppError::Cancelled => write!(f, "操作已被用户取消"),
         }
     }
 }

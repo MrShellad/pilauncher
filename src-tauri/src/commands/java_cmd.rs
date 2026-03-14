@@ -93,6 +93,12 @@ pub async fn download_java_env<R: Runtime>(
                 download_url = pkg.get("download_url").and_then(|l| l.as_str()).unwrap_or("").to_string();
                 file_name = pkg.get("name").and_then(|n| n.as_str()).unwrap_or(&format!("zulu-{}.{}", version, ext)).to_string();
             }
+        } else if provider == "aks" {
+            // "template":"https://aka.ms/download-jdk/microsoft-jdk-{version}-{os}-{arch}.tar.gz"
+            let aks_os = match os { "mac" => "macOS", "windows" => "windows", _ => "linux" };
+            let aks_arch = match arch { "x64" => "x64", "aarch64" => "aarch64", _ => "x64" };
+            download_url = format!("https://aka.ms/download-jdk/microsoft-jdk-{}-{}-{}.{}", version, aks_os, aks_arch, ext);
+            file_name = format!("microsoft-jdk-{}-{}-{}.{}", version, aks_os, aks_arch, ext);
         }
 
         if download_url.is_empty() { emit_err("该镜像源暂无适用于当前系统架构的 Java 包或网络异常"); return; }
@@ -124,6 +130,10 @@ pub async fn download_java_env<R: Runtime>(
                                 last_emit = std::time::Instant::now();
                             }
                         }
+
+                        // Close file so extraction can safely read it on Windows
+                        let _ = file.flush().await;
+                        drop(file);
                         
                         let _ = app.emit("resource-download-progress", ResourceDownloadEvent { task_id: "java_download".to_string(), file_name: file_name.clone(), stage: "EXTRACTING".to_string(), current: actual_size, total: actual_size, message: "正在解压 Java 运行环境...".to_string() });
 

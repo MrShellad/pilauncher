@@ -4,17 +4,20 @@ import { Coffee, Download } from 'lucide-react';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreDropdown } from '../../../../ui/primitives/OreDropdown';
 
+import downloadSource from '../../../../assets/config/downloadsource.json';
+
 const JAVA_OPTIONS = [
+  { label: 'Java 25 (适用于较新版本)', value: '25' },
   { label: 'Java 21 (适用于 MC 1.21+)', value: '21' },
   { label: 'Java 17 (适用于 MC 1.18 - 1.20)', value: '17' },
   { label: 'Java 16 (适用于 MC 1.17)', value: '16' },
   { label: 'Java 8  (适用于 MC 1.7 - 1.16)', value: '8' },
 ];
 
-const PROVIDER_OPTIONS = [
-  { label: 'Adoptium 官方直连 (推荐)', value: 'adoptium' },
-  { label: 'Azul Zulu (备选官方源)', value: 'zulu' }, 
-];
+const PROVIDER_OPTIONS = downloadSource.sources.java.map((source: any) => ({
+  label: source.name,
+  value: source.id
+}));
 
 interface JavaDownloadStepProps {
   javaVersion: string;

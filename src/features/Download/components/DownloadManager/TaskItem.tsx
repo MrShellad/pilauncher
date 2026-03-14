@@ -1,5 +1,6 @@
 // /src/features/Download/components/DownloadManager/TaskItem.tsx
 import { useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronUp, ChevronDown, CheckCircle, Box, Trash2, List, Terminal, FileDown, AlertTriangle } from 'lucide-react';
 import type { DownloadTask } from '../../../../store/useDownloadStore';
@@ -106,7 +107,12 @@ export const TaskItem = ({ task, setActiveTab, removeTask }: { task: DownloadTas
               variant="danger" 
               size="auto"
               autoScroll={false}
-              onClick={() => removeTask(task.id)} 
+              onClick={() => {
+                if (task.taskType === 'instance') {
+                  invoke('cancel_instance_deployment', { instanceId: task.id }).catch(console.error);
+                }
+                removeTask(task.id);
+              }}
               className="!h-8 !px-3 !min-w-0 text-white"
             >
               <Trash2 size={14} />

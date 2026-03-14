@@ -1,7 +1,8 @@
 // src/features/Settings/components/tabs/JavaSettings.tsx
 import React, { useState } from 'react';
-import { Coffee, Cpu, Loader2 } from 'lucide-react';
+import { Coffee, Cpu, Loader2, Download } from 'lucide-react';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { invoke } from '@tauri-apps/api/core';
 
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { SettingsSection } from '../../../../ui/layout/SettingsSection';
@@ -11,6 +12,9 @@ import { OreSwitch } from '../../../../ui/primitives/OreSwitch';
 import { JavaSelector } from '../../../runtime/components/JavaSelector';
 import { MemorySlider } from '../../../runtime/components/MemorySlider';
 import { JVMParamsEditor } from '../../../runtime/components/JVMParamsEditor';
+import { OreButton } from '../../../../ui/primitives/OreButton';
+import { OreDropdown } from '../../../../ui/primitives/OreDropdown';
+import downloadSource from '../../../../assets/config/downloadsource.json';
 
 import { useSettingsStore } from '../../../../store/useSettingsStore';
 // ✅ 引入 Java 检测引擎
@@ -21,7 +25,26 @@ export const JavaSettings: React.FC = () => {
   // ✅ 新增状态：用于在自动检测时展示 Loading 动画防抖
   const [isDetecting, setIsDetecting] = useState(false);
   
+  // Java 下载状态
+  const [javaVersion, setJavaVersion] = useState('21');
+  const [javaProvider, setJavaProvider] = useState(downloadSource.sources.java[0]?.id || 'adoptium');
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
   const java = settings.java;
+
+  const JAVA_OPTIONS = [
+    { label: 'Java 25 (适用于较新版本)', value: '25' },
+    { label: 'Java 21 (适用于 MC 1.21+)', value: '21' },
+    { label: 'Java 17 (适用于 MC 1.18 - 1.20)', value: '17' },
+    { label: 'Java 16 (适用于 MC 1.17)', value: '16' },
+    { label: 'Java 8  (适用于 MC 1.7 - 1.16)', value: '8' },
+  ];
+
+  const PROVIDER_OPTIONS = downloadSource.sources.java.map((source: any) => ({
+    label: source.name,
+    value: source.id
+  }));
 
   // ✅ 核心修复：重写 Switch 的 onChange 逻辑
   const handleAutoDetectToggle = async (v: boolean | React.ChangeEvent<HTMLInputElement>) => {
@@ -53,9 +76,78 @@ export const JavaSettings: React.FC = () => {
     }
   };
 
+  const handleDownloadJava = async () => {
+    setIsDownloading(true);
+    setDownloadError(null);
+    try {
+      await invoke('download_java_env', { 
+        version: parseInt(javaVersion), 
+        provider: javaProvider 
+      });
+      // 触发一次检测更新
+      setTimeout(async () => {
+        const valid = await scanJava();
+        if (valid.length > 0 && java.autoDetect) {
+          const sorted = valid.sort((a, b) => b.version.localeCompare(a.version));
+          updateJavaSetting('javaPath', sorted[0].path);
+        }
+      }, 3000);
+    } catch (err: any) {
+      setDownloadError(String(err));
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   return (
     <SettingsPageLayout title="Java 运行环境" subtitle="Global Java & Runtime Allocation">
       
+      <SettingsSection title="自动下载获取" icon={<Download size={18} />}>
+        <div className="px-6 py-4 bg-[#141415]/50 flex flex-col gap-4">
+          <p className="font-minecraft text-sm text-ore-text-muted leading-relaxed">
+            选择需要的 Java 版本和下载源，点击下载后将自动安装到本地 <code className="bg-black/30 px-1 rounded">runtime/Java</code> 目录。
+          </p>
+          
+          <div className="flex gap-4 items-end">
+            <div className="flex-1">
+              <label className="text-xs text-ore-text-muted mb-1 block">目标 Java 版本：</label>
+              <OreDropdown 
+                focusKey="settings-java-download-version" 
+                options={JAVA_OPTIONS} 
+                value={javaVersion} 
+                onChange={setJavaVersion}
+                disabled={isDownloading}
+              />
+            </div>
+            <div className="flex-1">
+              <label className="text-xs text-ore-text-muted mb-1 block">下载源：</label>
+              <OreDropdown 
+                focusKey="settings-java-download-provider" 
+                options={PROVIDER_OPTIONS} 
+                value={javaProvider} 
+                onChange={setJavaProvider}
+                disabled={isDownloading}
+              />
+            </div>
+            <div className="shrink-0 whitespace-nowrap">
+              <OreButton 
+                focusKey="settings-java-btn-download" 
+                onClick={handleDownloadJava} 
+                disabled={isDownloading}
+                variant="primary"
+                className="w-full"
+              >
+                {isDownloading ? <Loader2 size={16} className="animate-spin mr-2" /> : <Download size={16} className="mr-2" />}
+                {isDownloading ? '正在下载...' : '一键下载'}
+              </OreButton>
+            </div>
+          </div>
+          {downloadError && (
+             <div className="text-red-400 text-sm mt-2">{downloadError}</div>
+          )}
+        </div>
+      </SettingsSection>
+
       <SettingsSection title="环境配置" icon={<Coffee size={18} />}>
         <FormRow 
           label={

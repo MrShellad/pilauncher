@@ -14,7 +14,6 @@
         "url": "https://piston-meta.mojang.com"
       }
     ],
-
     "forge": [
       {
         "id": "bmclapi",
@@ -27,7 +26,6 @@
         "url": "https://maven.minecraftforge.net"
       }
     ],
-
     "fabric": [
       {
         "id": "official",
@@ -35,7 +33,6 @@
         "url": "https://meta.fabricmc.net"
       }
     ],
-
     "neoforge": [
       {
         "id": "bmclapi",
@@ -46,6 +43,37 @@
         "id": "official",
         "name": "NeoForge 官方",
         "url": "https://maven.neoforged.net/releases"
+      }
+    ],
+    "java": [
+      {
+        "id": "adoptium",
+        "name": "Adoptium官方源",
+        "type": "api",
+        "packages": [
+          "jre",
+          "jdk"
+        ],
+        "api": "https://api.adoptium.net/v3/assets/feature_releases/{version}/ga?architecture={arch}&heap_size=normal&image_type={package}&jvm_impl=hotspot&os={os}"
+      },
+      {
+        "id": "zulu",
+        "name": "Azul Zulu源",
+        "type": "api",
+        "packages": [
+          "jre",
+          "jdk"
+        ],
+        "api": "https://api.azul.com/metadata/v1/zulu/packages?java_version={version}&os={os}&arch={arch}&hw_bitness={bitness}&archive_type={archive}&java_package_type={package}&latest=true"
+      },
+      {
+        "id": "aks",
+        "name": "微软源",
+        "type": "direct",
+        "packages": [
+          "jdk"
+        ],
+        "template": "https://aka.ms/download-jdk/microsoft-jdk-{version}-{os}-{arch}.{ext}"
       }
     ]
   }

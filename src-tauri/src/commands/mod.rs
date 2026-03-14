@@ -30,6 +30,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         cache_cmd::write_persistent_cache,
         instance::listing_cmd::get_all_instances,
         instance::creation_cmd::create_instance,
+        instance::creation_cmd::cancel_instance_deployment,
         minecraft_cmd::get_minecraft_versions,
         loader_cmd::get_loader_versions,
         config_cmd::get_base_directory,

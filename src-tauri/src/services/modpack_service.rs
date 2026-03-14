@@ -15,6 +15,7 @@ use zip::ZipArchive;
 use futures::stream::{iter, StreamExt};
 use reqwest::Client;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use tokio::sync::Mutex;
 
 /// 1. 解析整合包元数据 (支持 CurseForge 和 Modrinth)
@@ -217,11 +218,14 @@ pub async fn execute_import<R: Runtime>(
         },
     );
 
+    let no_cancel = Arc::new(AtomicBool::new(false));
+
     crate::services::downloader::core_installer::install_vanilla_core(
         app,
         &instance_id,
         &metadata.version,
         &global_mc_root,
+        &no_cancel,
     )
     .await
     .map_err(|e| e.to_string())?;
@@ -231,6 +235,7 @@ pub async fn execute_import<R: Runtime>(
         &instance_id,
         &metadata.version,
         &global_mc_root,
+        &no_cancel,
     )
     .await
     .map_err(|e| e.to_string())?;
@@ -259,6 +264,7 @@ pub async fn execute_import<R: Runtime>(
         &metadata.loader,
         &metadata.loader_version,
         &global_mc_root,
+        &no_cancel,
     )
     .await
     .map_err(|e| e.to_string())?;

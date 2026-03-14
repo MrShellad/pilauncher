@@ -34,7 +34,7 @@
   </categories>
 
   <releases>
-    <release version="0.1.0" date="2024-03-13">
+    <release version="0.1.1" date="2024-03-14">
       <description>
         <p xml:lang="zh_CN">首个测试版本发布。</p>
         <p>Initial alpha release.</p>

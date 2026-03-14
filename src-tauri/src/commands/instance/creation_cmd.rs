@@ -13,3 +13,9 @@ pub async fn create_instance<R: Runtime>(
     // ✅ 修复：传递引用 &app 并使用 .await 等待异步任务完成
     InstanceCreationService::create(&app, payload).await
 }
+
+#[tauri::command]
+pub async fn cancel_instance_deployment(instance_id: String) -> AppResult<()> {
+    crate::services::deployment_cancel::cancel(&instance_id);
+    Ok(())
+}

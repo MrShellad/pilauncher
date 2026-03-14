@@ -5,5 +5,5 @@ Exec=PiLauncher
 Icon=com.mrshell.PiLauncher
 Terminal=false
 Type=Application
-Categories=Game;Utility;
+Categories=Game;
 StartupNotify=true

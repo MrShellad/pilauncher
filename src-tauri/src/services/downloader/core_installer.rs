@@ -1,16 +1,20 @@
 // src-tauri/src/services/downloader/core_installer.rs
 use crate::domain::event::DownloadProgressEvent;
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 use std::fs;
 use std::path::Path;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Runtime};
 use crate::services::config_service::ConfigService;
+use crate::services::deployment_cancel::is_cancelled;
 
 pub async fn install_vanilla_core<R: Runtime>(
     app: &AppHandle<R>,
     instance_id: &str, 
     version_id: &str,
     global_mc_root: &Path,
+    cancel: &Arc<AtomicBool>,
 ) -> AppResult<()> {
     let client = reqwest::Client::new();
     let version_dir = global_mc_root.join("versions").join(version_id);
@@ -29,6 +33,8 @@ pub async fn install_vanilla_core<R: Runtime>(
     };
 
     if need_download {
+        if is_cancelled(cancel) { return Err(AppError::Cancelled); }
+
         let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {
             instance_id: instance_id.to_string(), stage: "VANILLA_CORE".to_string(), file_name: format!("{}.json", version_id), current: 10, total: 100,
             message: "正在获取版本清单...".to_string(),
@@ -59,6 +65,8 @@ pub async fn install_vanilla_core<R: Runtime>(
             version_url.replace("https://piston-meta.mojang.com", &dl_settings.vanilla_source_url)
         };
 
+        if is_cancelled(cancel) { return Err(AppError::Cancelled); }
+
         let res = client.get(&mirror_url).send().await?;
         if !res.status().is_success() {
             return Err(std::io::Error::new(std::io::ErrorKind::Other, format!("下载版本清单 {} 失败: {}", version_id, res.status())).into());
@@ -72,6 +80,8 @@ pub async fn install_vanilla_core<R: Runtime>(
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("解析版本 JSON 失败: {}", e)))?;
 
     if !jar_path.exists() {
+        if is_cancelled(cancel) { return Err(AppError::Cancelled); }
+
         let _ = app.emit("instance-deployment-progress", DownloadProgressEvent {
             instance_id: instance_id.to_string(), stage: "VANILLA_CORE".to_string(), file_name: format!("{}.jar", version_id), current: 50, total: 100,
             message: "正在下载游戏核心...".to_string(),
