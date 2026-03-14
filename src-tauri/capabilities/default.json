@@ -21,10 +21,15 @@
     "shell:default",
     "dialog:default",
     "dialog:allow-open",
+    "core:window:allow-set-fullscreen",
+    "process:allow-exit",
+    "process:default",
     "fs:default",
     {
       "identifier": "fs:allow-read",
-      "allow": ["**"]
+      "allow": [
+        "**"
+      ]
     }
   ]
 }

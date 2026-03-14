@@ -16,6 +16,7 @@ pub fn run() {
 
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_process::init())
         // 将状态托管给 Tauri，以便在 Command 中通过 State<'_, SharedLanState> 提取
         .manage(lan_state.clone()); 
 
