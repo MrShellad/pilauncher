@@ -12,7 +12,7 @@ export const GamepadToast: React.FC = () => {
     // 监听手柄插入事件
     const handleGamepadConnected = async (e: GamepadEvent) => {
       console.log("Gamepad Connected:", e.gamepad.id);
-      
+
       try {
         // 调用 Rust 后端识别是否为 Steam Deck
         const isDeck = await invoke<boolean>('check_steam_deck');
@@ -20,7 +20,7 @@ export const GamepadToast: React.FC = () => {
       } catch (err) {
         console.error("SteamDeck 检测失败:", err);
       }
-      
+
       setShow(true);
       // 3秒后自动隐藏成就
       setTimeout(() => setShow(false), 3000);
@@ -44,12 +44,12 @@ export const GamepadToast: React.FC = () => {
           animate={{ y: 0, opacity: 1, scale: 1 }}
           exit={{ y: 20, opacity: 0, scale: 0.9 }}
           transition={{ type: "spring", stiffness: 400, damping: 25 }}
-          className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none"
+          className="fixed bottom-10 left-2/3 -translate-x-1/2 -translate-y-1/2 z-[9999] pointer-events-none"
         >
           {/* Xbox / Steam Deck 风格的成就弹窗 */}
           <div className={`
             flex items-center px-6 py-3 rounded-full bg-[#1E1E1F] border-2 shadow-2xl
-            ${isSteamDeck 
+            ${isSteamDeck
               ? 'border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.6)]' // Steam Deck 专属蓝色霓虹发光
               : 'border-ore-green shadow-[0_0_20px_rgba(56,133,39,0.4)]'   // 普通手柄绿色发光
             }

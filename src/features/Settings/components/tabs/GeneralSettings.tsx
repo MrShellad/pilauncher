@@ -1,5 +1,5 @@
 // /src/features/Settings/components/tabs/GeneralSettings.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { OreSwitch } from '../../../../ui/primitives/OreSwitch';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreDropdown } from '../../../../ui/primitives/OreDropdown';
@@ -38,6 +38,18 @@ const FocusableSwitch = ({ checked, onChange }: { checked: boolean, onChange: (v
 export const GeneralSettings: React.FC = () => {
   const { settings, updateGeneralSetting, resetSettings } = useSettingsStore();
   const { general } = settings;
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    getCurrentWindow().isFullscreen().then(setIsFullscreen);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    const win = getCurrentWindow();
+    const current = await win.isFullscreen();
+    await win.setFullscreen(!current);
+    setIsFullscreen(!current);
+  };
 
   // 下拉菜单选项定义
   const languageOptions = [
@@ -134,11 +146,11 @@ export const GeneralSettings: React.FC = () => {
         {/* ==================== 2. 窗口与应用 ==================== */}
         <SettingsSection title="窗口与应用" icon={<PowerOff size={18} />}>
           <FormRow 
-            label="退出全屏/手柄模式" 
-            description="如果您当前处于全屏模式，点击此项将恢复为普通窗口模式。"
+            label="切换全屏/手柄模式" 
+            description="您可以手动开启或关闭全屏模式（Gamepad 专属体验）。"
             control={
-              <OreButton focusKey="settings-btn-exit-fullscreen" size="sm" className="flex items-center" onClick={() => getCurrentWindow().setFullscreen(false)}>
-                <Maximize size={14} className="mr-1.5" /> 退出全屏
+              <OreButton focusKey="settings-btn-exit-fullscreen" size="sm" className="flex items-center" onClick={toggleFullscreen}>
+                <Maximize size={14} className="mr-1.5" /> {isFullscreen ? '退出全屏' : '进入全屏'}
               </OreButton>
             }
           />
