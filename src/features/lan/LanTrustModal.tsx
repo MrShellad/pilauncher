@@ -9,6 +9,8 @@ import { OreButton } from '../../ui/primitives/OreButton';
 interface TrustRequestPayload {
   device_id: string;
   device_name: string;
+  user_uuid: string;
+  username: string;
   public_key: string;
 }
 
@@ -36,6 +38,8 @@ export const LanTrustModal: React.FC = () => {
       await invoke('resolve_trust_request', {
         deviceId: request.device_id,
         deviceName: request.device_name,
+        userUuid: request.user_uuid || '',
+        username: request.username || '',
         publicKey: request.public_key,
         accept: accept
       });

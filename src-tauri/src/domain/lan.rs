@@ -39,8 +39,16 @@ pub struct TrustRequest {
     pub public_key: String,
 }
 
+// 5. 在线设备校验模型 (用于信任验证)
+#[derive(Deserialize, Clone)]
+pub struct OnlineDeviceCheck {
+    pub device_id: String,
+    pub device_name: String,
+    pub public_key: String,
+}
+
 // ==========================================
-// ✅ 5. 局域网富文本名片模型 (新增)
+// ✅ 6. 局域网富文本名片模型 (新增)
 // 对方通过 /device/init 获取此信息，用于在 UI 上展示极其华丽的动态背景与名片
 // ==========================================
 #[derive(Serialize, Deserialize, Clone)]

@@ -13,6 +13,7 @@ export interface DiscoveredDevice {
 export interface TrustedDevice {
   device_id: string;
   device_name: string;
+  user_uuid: string;
   public_key_b64: string;
   trusted_at: number;
 }
@@ -20,8 +21,15 @@ export interface TrustedDevice {
 export interface IncomingTrustRequest {
   device_id: string;
   device_name: string;
-  user_uuid: string; // ✅ 新增
-  public_key: string; // ✅ 修正字段名
+  user_uuid: string;
+  username: string;
+  public_key: string;
+}
+
+export interface OnlineDeviceCheck {
+  device_id: string;
+  device_name: string;
+  public_key: string;
 }
 
 export const useLan = () => {
@@ -30,15 +38,21 @@ export const useLan = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
   
-  // ✅ 新增：接收好友请求状态
+  // 接收好友请求状态
   const [incomingRequest, setIncomingRequest] = useState<IncomingTrustRequest | null>(null);
 
   // 监听底层事件
   useEffect(() => {
-    const unlisten = listen<IncomingTrustRequest>('trust_request_received', (event) => {
+    const unlistenTrust = listen<IncomingTrustRequest>('trust_request_received', (event) => {
       setIncomingRequest(event.payload);
     });
-    return () => { unlisten.then(f => f()); };
+    const unlistenUpdate = listen('trust_list_updated', () => {
+      fetchTrusted();
+    });
+    return () => {
+      unlistenTrust.then(f => f());
+      unlistenUpdate.then(f => f());
+    };
   }, []);
 
   const fetchTrusted = useCallback(async () => {
@@ -77,7 +91,7 @@ export const useLan = () => {
     }
   };
 
-  // ✅ 新增：处理收到的好友请求
+  // 处理收到的好友请求
   const resolveTrustRequest = async (accept: boolean) => {
     if (!incomingRequest) return;
     try {
@@ -85,7 +99,8 @@ export const useLan = () => {
         deviceId: incomingRequest.device_id,
         accept,
         deviceName: incomingRequest.device_name,
-        user_uuid: incomingRequest.user_uuid, // ✅ 补充 UUID
+        userUuid: incomingRequest.user_uuid,
+        username: incomingRequest.username || '',
         publicKey: incomingRequest.public_key
       });
       if (accept) {
@@ -98,15 +113,40 @@ export const useLan = () => {
     }
   };
 
+  // 删除信任设备
+  const removeTrustedDevice = async (deviceId: string) => {
+    try {
+      await invoke('remove_trusted_device', { deviceId });
+      fetchTrusted();
+    } catch (e) {
+      console.error("删除信任设备失败:", e);
+    }
+  };
+
+  // 验证在线设备的信任状态（设备名或密钥不匹配则自动移除）
+  const verifyTrustedDevices = async (onlineDevices: OnlineDeviceCheck[]) => {
+    try {
+      const removed = await invoke<string[]>('verify_trusted_devices', { onlineDevices });
+      if (removed.length > 0) {
+        console.warn("以下信任设备因信息不匹配已自动移除:", removed);
+        fetchTrusted();
+      }
+    } catch (e) {
+      console.error("验证信任设备失败:", e);
+    }
+  };
+
   return {
     discovered,
     trusted,
     isScanning,
     isRequesting,
-    incomingRequest, // 暴露给 UI 展示弹窗
+    incomingRequest,
     scan,
     fetchTrusted,
     sendTrustRequest,
-    resolveTrustRequest // 暴露给 UI 确认拒绝
+    resolveTrustRequest,
+    removeTrustedDevice,
+    verifyTrustedDevices,
   };
 };

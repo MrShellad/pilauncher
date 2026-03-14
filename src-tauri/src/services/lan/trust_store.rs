@@ -53,20 +53,23 @@ impl TrustStore {
         device_id: String,
         device_name: String,
         user_uuid: String,
+        username: String,
         public_key_b64: String,
     ) -> Result<(), String> {
         sqlx::query(
-            "INSERT INTO trusted_devices (device_uuid, device_name, user_uuid, public_key_b64, trusted_at)
-             VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+            "INSERT INTO trusted_devices (device_uuid, device_name, user_uuid, username, public_key_b64, trusted_at)
+             VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
              ON CONFLICT(device_uuid) DO UPDATE SET
                 device_name = excluded.device_name,
                 user_uuid = excluded.user_uuid,
+                username = excluded.username,
                 public_key_b64 = excluded.public_key_b64,
                 trusted_at = CURRENT_TIMESTAMP"
         )
         .bind(device_id)
         .bind(device_name)
         .bind(user_uuid)
+        .bind(username)
         .bind(public_key_b64)
         .execute(pool)
         .await

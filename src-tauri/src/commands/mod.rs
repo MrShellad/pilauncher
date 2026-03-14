@@ -106,6 +106,8 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         lan_cmd::get_instance_saves,
         lan_cmd::push_to_device,
         lan_cmd::apply_received_transfer,
+        lan_cmd::remove_trusted_device,
+        lan_cmd::verify_trusted_devices,
         qrcode_cmd::generate_device_auth_qr,
     ])
 }

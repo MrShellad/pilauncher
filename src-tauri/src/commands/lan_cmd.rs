@@ -2,7 +2,7 @@
 use tauri::{AppHandle, State, Runtime, Manager};
 use sqlx::Row; // 用于获取结果集的列
 
-use crate::domain::lan::{DiscoveredDevice, DeviceInitInfo, TrustedDevice, TrustRequest};
+use crate::domain::lan::{DiscoveredDevice, DeviceInitInfo, TrustedDevice, TrustRequest, OnlineDeviceCheck};
 use crate::services::config_service::ConfigService;
 use crate::services::lan::trust_store::TrustStore;
 use crate::services::lan::mdns_service::MdnsScanner;
@@ -55,12 +55,15 @@ pub async fn send_trust_request<R: Runtime>(
 
     if res.status().is_success() {
         if let Ok(target_identity) = res.json::<TrustRequest>().await {
-            // ✅ 使用 async await 进行数据库插入
+            // ✅ 使用 async await 进行数据库插入，包含 username
+            // 从对方的 /device/init 获取 username（此时 TrustRequest 没有 username，暂用空）
+            let target_username = String::new(); // 将在前端通过 richInfo 补充
             TrustStore::add_trusted_device(
                 &db.pool, 
                 target_identity.device_id, 
                 target_identity.device_name, 
                 target_identity.user_uuid,
+                target_username,
                 target_identity.public_key 
             ).await?;
             Ok(())
@@ -81,14 +84,15 @@ pub async fn resolve_trust_request<R: Runtime>(
     accept: bool,
     device_name: String,
     user_uuid: String,
+    username: String,
     public_key: String,
 ) -> Result<(), String> {
     let response_payload = if accept {
         let base_path = ConfigService::get_base_path(&app).map_err(|e| e.to_string())?.unwrap();
         let config_dir = std::path::PathBuf::from(base_path).join("config");
         
-        // ✅ 异步等待插入
-        TrustStore::add_trusted_device(&db.pool, device_id.clone(), device_name, user_uuid, public_key).await?;
+        // ✅ 异步等待插入（包含 username）
+        TrustStore::add_trusted_device(&db.pool, device_id.clone(), device_name, user_uuid, username, public_key).await?;
         
         let my_identity = TrustStore::get_or_create_identity(&config_dir);
         Some(TrustRequest {
@@ -184,7 +188,7 @@ pub async fn sync_lan_avatar<R: Runtime>(
 #[tauri::command]
 pub async fn get_trusted_devices(db: State<'_, AppDatabase>) -> Result<Vec<TrustedDevice>, String> {
     let rows = sqlx::query(
-        "SELECT device_uuid, device_name, user_uuid, public_key_b64, strftime('%s', trusted_at) AS ts 
+        "SELECT device_uuid, device_name, user_uuid, username, public_key_b64, strftime('%s', trusted_at) AS ts 
          FROM trusted_devices 
          ORDER BY trusted_at DESC"
     )
@@ -207,6 +211,50 @@ pub async fn get_trusted_devices(db: State<'_, AppDatabase>) -> Result<Vec<Trust
     }
     
     Ok(list)
+}
+
+#[tauri::command]
+pub async fn remove_trusted_device(db: State<'_, AppDatabase>, device_id: String) -> Result<(), String> {
+    sqlx::query("DELETE FROM trusted_devices WHERE device_uuid = $1")
+        .bind(&device_id)
+        .execute(&db.pool)
+        .await
+        .map_err(|e| format!("删除信任设备失败: {}", e))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn verify_trusted_devices(
+    db: State<'_, AppDatabase>,
+    online_devices: Vec<OnlineDeviceCheck>,
+) -> Result<Vec<String>, String> {
+    // 查询数据库中所有信任设备
+    let rows = sqlx::query("SELECT device_uuid, device_name, public_key_b64 FROM trusted_devices")
+        .fetch_all(&db.pool)
+        .await
+        .map_err(|e| format!("查询数据库失败: {}", e))?;
+
+    let mut removed = Vec::new();
+
+    for row in rows {
+        let db_device_id: String = row.try_get("device_uuid").unwrap_or_default();
+        let db_device_name: String = row.try_get("device_name").unwrap_or_default();
+        let db_public_key: String = row.try_get("public_key_b64").unwrap_or_default();
+
+        // 只检查当前在线的设备
+        if let Some(online) = online_devices.iter().find(|d| d.device_id == db_device_id) {
+            // 设备名或密钥不匹配 → 移除信任
+            if online.device_name != db_device_name || online.public_key != db_public_key {
+                let _ = sqlx::query("DELETE FROM trusted_devices WHERE device_uuid = $1")
+                    .bind(&db_device_id)
+                    .execute(&db.pool)
+                    .await;
+                removed.push(db_device_id);
+            }
+        }
+    }
+
+    Ok(removed)
 }
 
 #[tauri::command]

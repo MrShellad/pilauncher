@@ -99,12 +99,16 @@ async fn request_trust(
         let config_dir = std::path::PathBuf::from(base_path).join("config");
         let my_identity = TrustStore::get_or_create_identity(&config_dir);
         
+        // 获取对方的 username（从 payload 中没有，用空字符串；将在前端通过 richInfo 补充）
+        let target_username = String::new();
+        
         let db = state.tauri_app.state::<crate::services::db_service::AppDatabase>();
         let _ = TrustStore::add_trusted_device(
             &db.pool, 
             payload.device_id.clone(), 
             payload.device_name.clone(), 
             payload.user_uuid.clone(),
+            target_username,
             payload.public_key.clone()
         ).await;
         
@@ -126,11 +130,18 @@ async fn request_trust(
         pending.insert(payload.device_id.clone(), tx);
     }
 
+    // 获取当前设备的 username 用于前端弹窗展示
+    let requester_username = {
+        // 尝试从对方设备获取 username - 此时我们没有直接的方式，放在 payload 里
+        String::new()
+    };
+
     let _ = state.tauri_app.emit("trust_request_received", json!({
         "device_id": payload.device_id,
         "device_name": payload.device_name,
         "user_uuid": payload.user_uuid,
-        "public_key": payload.public_key 
+        "public_key": payload.public_key,
+        "username": requester_username
     }));
 
     match rx.await {

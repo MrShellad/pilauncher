@@ -1,9 +1,9 @@
 // src/features/home/components/AccountSliderBar/UserProfileCard.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { Monitor, Laptop, Smartphone, Gamepad2, Loader2, RefreshCcw, Send, CheckCircle, X } from 'lucide-react';
+import { Monitor, Laptop, Smartphone, Gamepad2, Loader2, RefreshCcw, Send, CheckCircle, X, Trash2 } from 'lucide-react';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
 import { OreButton } from '../../../../ui/primitives/OreButton';
@@ -28,76 +28,31 @@ interface UserProfileCardProps {
   accountsCount: number;       
   avatarSrc: string | null;
   trusted: TrustedDevice[];
-  discovered: DiscoveredDevice[]; // ✅ 新增：用于匹配在线状态
+  discovered: DiscoveredDevice[];
   onScan: () => void;
   isScanning: boolean;
-  onCycleAccount: () => void;  
+  onCycleAccount: () => void;
+  onRemoveTrust: (deviceId: string) => void;
+  onSelectTrustedDevice: (device: DiscoveredDevice | null) => void;
 }
 
 export const UserProfileCard: React.FC<UserProfileCardProps> = ({ 
-  name, isPremium, hasPremiumAnywhere, accountsCount, avatarSrc, trusted, discovered, onScan, isScanning, onCycleAccount
+  name, isPremium, hasPremiumAnywhere, accountsCount, avatarSrc, trusted, discovered, onScan, isScanning, onCycleAccount, onRemoveTrust, onSelectTrustedDevice
 }) => {
-  // 推送抽屉状态
-  const [transferTarget, setTransferTarget] = useState<DiscoveredDevice | null>(null);
-  const [transferType, setTransferType] = useState<'instance' | 'save'>('instance');
-  const [instances, setInstances] = useState<{id: string, name: string}[]>([]);
-  const [saves, setSaves] = useState<string[]>([]);
-  const [selectedInstance, setSelectedInstance] = useState<string>('');
-  const [selectedSave, setSelectedSave] = useState<string>('');
-  const [isPushing, setIsPushing] = useState(false);
-
   // 接收弹窗状态
   const [incomingData, setIncomingData] = useState<any>(null);
   const [receiveTargetInstance, setReceiveTargetInstance] = useState<string>('');
   const [isApplying, setIsApplying] = useState(false);
+  const [instances, setInstances] = useState<{id: string, name: string}[]>([]);
 
   // 监听底层发来的文件接收事件
   useEffect(() => {
     const unlisten = listen('transfer_received', (event) => {
       setIncomingData(event.payload);
-      // 顺手拉取本地实例列表，以便接收存档时选择目标
       invoke<any[]>('get_local_instances').then(setInstances).catch(() => {});
     });
     return () => { unlisten.then(f => f()); }
   }, []);
-
-  const handleOpenTransfer = async (device: DiscoveredDevice) => {
-    setTransferTarget(device);
-    try {
-      const list = await invoke<any[]>('get_local_instances');
-      setInstances(list);
-      if (list.length > 0) setSelectedInstance(list[0].id);
-    } catch (e) {}
-  };
-
-  const handleFetchSaves = async (instanceId: string) => {
-    setSelectedInstance(instanceId);
-    try {
-      const saveList = await invoke<string[]>('get_instance_saves', { instanceId });
-      setSaves(saveList);
-      if (saveList.length > 0) setSelectedSave(saveList[0]);
-    } catch (e) {}
-  };
-
-  const executePush = async () => {
-    if (!transferTarget || !selectedInstance) return;
-    setIsPushing(true);
-    try {
-      await invoke('push_to_device', {
-        targetIp: transferTarget.ip,
-        targetPort: transferTarget.port,
-        transferType: transferType,
-        targetId: selectedInstance,
-        saveName: transferType === 'save' ? selectedSave : null
-      });
-      alert("推送成功！");
-      setTransferTarget(null);
-    } catch (e) {
-      alert(`推送失败: ${e}`);
-    } finally {
-      setIsPushing(false);
-    }
-  };
 
   const executeApply = async () => {
     if (!incomingData) return;
@@ -134,7 +89,7 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
   return (
     <>
       <div className="flex flex-col border-[2px] border-[#313233] bg-[#1E1E1F] rounded-sm overflow-hidden shadow-xl">
-        {/* 头像与名片区保持不变... */}
+        {/* 头像与名片区 */}
         <div className="relative h-28 w-full bg-[#111112] overflow-hidden">
           {avatarSrc ? (
              <img src={avatarSrc} className="w-full h-full object-cover opacity-60 mix-blend-screen blur-sm" />
@@ -165,7 +120,7 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
           )}
         </div>
 
-        {/* ✅ 修复的信任设备列表 */}
+        {/* 信任设备列表 — 显示设备名 */}
         <div className="flex flex-col bg-[#141415] p-3">
           <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center justify-between">
             <span>授信的设备 ({trusted.length})</span>
@@ -175,25 +130,26 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
             {trusted.length === 0 && <div className="text-xs text-gray-500 text-center py-2">暂无信任的其他设备</div>}
             
             {trusted.map(device => {
-              // 实时匹配发现的在线设备
               const onlineInfo = discovered.find(d => d.device_id === device.device_id);
               const isOnline = !!onlineInfo;
 
               return (
-                <FocusItem key={device.device_id} focusKey={`trusted-${device.device_id}`} onEnter={() => isOnline && handleOpenTransfer(onlineInfo)}>
+                <FocusItem key={device.device_id} focusKey={`trusted-${device.device_id}`} onEnter={() => isOnline && onSelectTrustedDevice(onlineInfo)}>
                   {({ ref, focused }) => (
-                    <button 
-                      ref={ref as any}
-                      onClick={() => isOnline && handleOpenTransfer(onlineInfo)}
-                      className={`flex items-center justify-between bg-white/5 border p-2 rounded-sm transition-all text-left outline-none ${
-                        isOnline ? 'border-white/10 cursor-pointer hover:bg-white/10' : 'border-transparent opacity-50 cursor-not-allowed'
+                    <div 
+                      className={`flex items-center justify-between bg-white/5 border p-2 rounded-sm transition-all text-left ${
+                        isOnline ? 'border-white/10' : 'border-transparent opacity-50'
                       } ${focused && isOnline ? 'ring-2 ring-white bg-white/10' : ''}`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                      <button
+                        ref={ref as any}
+                        onClick={() => isOnline && onSelectTrustedDevice(onlineInfo)}
+                        className={`flex items-center gap-2.5 min-w-0 pr-2 outline-none flex-1 ${isOnline ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                      >
                         {renderDeviceIcon(device.device_name)}
                         <span className="text-sm text-gray-200 truncate">{device.device_name}</span>
-                      </div>
-                      <div className="flex items-center">
+                      </button>
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         {isOnline ? (
                           <span className="text-[10px] text-ore-green flex items-center bg-ore-green/10 px-1.5 py-0.5 rounded-sm border border-ore-green/20">
                             <span className="w-1.5 h-1.5 bg-ore-green rounded-full mr-1 animate-pulse" /> 在线
@@ -201,8 +157,15 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
                         ) : (
                           <span className="text-[10px] text-gray-500">离线</span>
                         )}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onRemoveTrust(device.device_id); }}
+                          className="p-1 hover:bg-red-500/20 text-gray-500 hover:text-red-400 rounded-sm transition-colors"
+                          title="移除信任"
+                        >
+                          <Trash2 size={12} />
+                        </button>
                       </div>
-                    </button>
+                    </div>
                   )}
                 </FocusItem>
               );
@@ -224,76 +187,6 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
           </FocusItem>
         </div>
       </div>
-
-      {/* ✅ 侧边滑出：推送控制台抽屉 */}
-      <AnimatePresence>
-        {transferTarget && (
-          <motion.div
-            initial={{ x: '100%', opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: '100%', opacity: 0 }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed inset-y-0 right-0 w-[340px] bg-[#1E1E1F] border-l-2 border-[#2A2A2C] z-[9999] shadow-2xl flex flex-col font-minecraft"
-          >
-            <FocusBoundary id="transfer-drawer-boundary" trapFocus={true} onEscape={() => setTransferTarget(null)} className="flex flex-col h-full outline-none">
-              <div className="p-5 border-b-2 border-[#2A2A2C] flex justify-between items-center bg-[#141415]">
-                <div>
-                  <h3 className="text-white text-lg font-bold flex items-center"><Send size={18} className="mr-2 text-blue-400" /> 隔空投送</h3>
-                <span className="text-xs text-gray-400 mt-1 block">目标: {transferTarget.device_name}</span>
-              </div>
-                <FocusItem focusKey="btn-close-transfer" onEnter={() => setTransferTarget(null)}>
-                  {({ ref, focused }) => (
-                    <button ref={ref as any} onClick={() => setTransferTarget(null)} className={`p-1 hover:bg-white/10 text-gray-400 rounded-sm transition-colors outline-none ${focused ? 'ring-2 ring-white scale-110' : ''}`}><X size={20}/></button>
-                  )}
-                </FocusItem>
-              </div>
-
-              <div className="flex p-3 gap-2 bg-[#1A1A1B]">
-                <FocusItem focusKey="btn-transfer-type-instance">
-                  {({ ref, focused }) => (
-                    <button ref={ref as any} onClick={() => setTransferType('instance')} className={`flex-1 py-2 text-sm border-b-2 transition-colors outline-none ${transferType === 'instance' ? 'border-blue-400 text-blue-400' : 'border-transparent text-gray-500'} ${focused ? 'bg-white/5' : ''}`}>打包实例</button>
-                  )}
-                </FocusItem>
-                <FocusItem focusKey="btn-transfer-type-save">
-                  {({ ref, focused }) => (
-                    <button ref={ref as any} onClick={() => setTransferType('save')} className={`flex-1 py-2 text-sm border-b-2 transition-colors outline-none ${transferType === 'save' ? 'border-green-400 text-green-400' : 'border-transparent text-gray-500'} ${focused ? 'bg-white/5' : ''}`}>提取存档</button>
-                  )}
-                </FocusItem>
-              </div>
-
-              <div className="p-5 flex-1 overflow-y-auto">
-                <label className="text-xs text-gray-400 mb-2 block">{transferType === 'instance' ? '选择要发送的实例' : '从实例中提取'}</label>
-                <FocusItem focusKey="select-transfer-inst">
-                  {({ ref, focused }) => (
-                    <select ref={ref as any} className={`w-full bg-[#141415] border-2 border-[#2A2A2C] text-white p-2 rounded-sm outline-none mb-4 transition-all ${focused ? 'ring-2 ring-blue-500' : ''}`} value={selectedInstance} onChange={(e) => transferType === 'save' ? handleFetchSaves(e.target.value) : setSelectedInstance(e.target.value)}>
-                      <option value="" disabled>-- 请选择 --</option>
-                      {instances.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
-                    </select>
-                  )}
-                </FocusItem>
-
-                {transferType === 'save' && (
-                  <>
-                    <label className="text-xs text-gray-400 mb-2 block mt-2">选择世界存档</label>
-                    <FocusItem focusKey="select-transfer-save">
-                      {({ ref, focused }) => (
-                        <select ref={ref as any} className={`w-full bg-[#141415] border-2 border-[#2A2A2C] text-white p-2 rounded-sm outline-none transition-all ${focused ? 'ring-2 ring-green-500' : ''}`} value={selectedSave} onChange={(e) => setSelectedSave(e.target.value)}>
-                          <option value="" disabled>-- 请选择 --</option>
-                          {saves.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                      )}
-                    </FocusItem>
-                  </>
-                )}
-              </div>
-
-              <div className="p-5 border-t-2 border-[#2A2A2C] bg-[#141415]">
-                <OreButton onClick={executePush} disabled={isPushing || !selectedInstance || (transferType === 'save' && !selectedSave)} variant="primary" className="w-full flex justify-center !h-12">
-                  {isPushing ? <Loader2 size={18} className="animate-spin mr-2" /> : <Send size={18} className="mr-2" />}
-                  {isPushing ? '打包并发送中...' : '开始传送'}
-                </OreButton>
-              </div>
-            </FocusBoundary>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* ✅ 接收确认弹窗 */}
       <OreModal isOpen={!!incomingData} onClose={() => setIncomingData(null)} title="📥 收到局域网投送" closeOnOutsideClick={false}>

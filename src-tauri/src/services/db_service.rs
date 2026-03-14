@@ -1,5 +1,5 @@
 // src-tauri/src/services/db_service.rs
-use sqlx::{sqlite::{SqliteConnectOptions, SqlitePoolOptions}, SqlitePool};
+use sqlx::{sqlite::{SqliteConnectOptions, SqlitePoolOptions}, SqlitePool, Row};
 use std::path::Path;
 use std::fs;
 
@@ -31,6 +31,9 @@ impl DbService {
 
         // 执行异步建表
         Self::create_tables(&pool).await.map_err(|e| e.to_string())?;
+
+        // 迁移：为旧数据库补充 user_uuid 列
+        Self::run_migrations(&pool).await.map_err(|e| e.to_string())?;
 
         Ok(pool)
     }
@@ -67,6 +70,7 @@ impl DbService {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
                 user_uuid TEXT,
+                username TEXT DEFAULT '',
                 device_uuid TEXT UNIQUE NOT NULL,
                 device_name TEXT NOT NULL,
                 public_key_b64 TEXT NOT NULL, 
@@ -94,6 +98,38 @@ impl DbService {
             );
             "
         ).execute(pool).await?;
+
+        Ok(())
+    }
+
+    async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
+        // 检查 trusted_devices 表是否已经有 user_uuid 列
+        let rows = sqlx::query("PRAGMA table_info(trusted_devices)")
+            .fetch_all(pool)
+            .await?;
+
+        let has_user_uuid = rows.iter().any(|row| {
+            let col_name: String = sqlx::Row::get(row, "name");
+            col_name == "user_uuid"
+        });
+
+        if !has_user_uuid {
+            sqlx::query("ALTER TABLE trusted_devices ADD COLUMN user_uuid TEXT DEFAULT ''")
+                .execute(pool)
+                .await?;
+        }
+
+        // 迁移 2: 补充 username 列
+        let has_username = rows.iter().any(|row| {
+            let col_name: String = sqlx::Row::get(row, "name");
+            col_name == "username"
+        });
+
+        if !has_username {
+            sqlx::query("ALTER TABLE trusted_devices ADD COLUMN username TEXT DEFAULT ''")
+                .execute(pool)
+                .await?;
+        }
 
         Ok(())
     }
