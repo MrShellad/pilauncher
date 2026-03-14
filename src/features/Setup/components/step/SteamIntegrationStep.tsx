@@ -23,8 +23,8 @@ export const SteamIntegrationStep: React.FC<SteamIntegrationStepProps> = ({
       <Gamepad2 size={48} className="text-blue-400 mb-4 relative z-10" />
       <h2 className="text-2xl text-white mb-2 relative z-10">Steam 库集成</h2>
       <p className="text-ore-text-muted text-sm leading-relaxed mb-6 relative z-10 text-center">
-        检测到您的系统的 Steam。<br />
-        是否将 PiLauncher 注册为 Steam 非 Steam 游戏，以便在库或大屏幕模式中直接启动？
+        检测您的系统是否存在 Steam。<br />
+        将 PiLauncher 注册为 Steam 非 Steam 游戏，以便在库或大屏幕模式中直接启动？
       </p>
 
       {registerSuccess ? (
