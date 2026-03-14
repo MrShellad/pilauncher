@@ -1,11 +1,9 @@
 // src/features/home/components/AccountSliderBar/UserProfileCard.tsx
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { Monitor, Laptop, Smartphone, Gamepad2, Loader2, RefreshCcw, Send, CheckCircle, X, Trash2 } from 'lucide-react';
+import { Monitor, Laptop, Smartphone, Gamepad2, Loader2, RefreshCcw, CheckCircle, Trash2 } from 'lucide-react';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
-import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreModal } from '../../../../ui/primitives/OreModal';
 
