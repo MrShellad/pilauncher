@@ -18,7 +18,7 @@ pub async fn download_dependencies<R: Runtime>(
     global_mc_root: &Path,
 ) -> AppResult<()> {
     let client = Client::builder()
-        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .user_agent("PiLauncher/1.0 (Minecraft Launcher)")
         .build()?;
 
     let json_path = global_mc_root.join("versions").join(version_id).join(format!("{}.json", version_id));
