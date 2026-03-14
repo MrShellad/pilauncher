@@ -9,10 +9,33 @@ import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
 import { TaskPanel } from './TaskPanel';
 import { FloatingButton } from './FloatingButton';
+import { getCurrentFocusKey, doesFocusableExist } from '@noriginmedia/norigin-spatial-navigation';
+
+const fallbackFocusKeysByTab: Record<string, string[]> = {
+  home: ['play-button', 'instance-button', 'settings-button', 'btn-profile', 'btn-login'],
+  instances: ['action-new', 'view-grid', 'view-list'],
+  downloads: ['download-search-input', 'download-grid-item-0'],
+  settings: [
+    'settings-device-name',
+    'settings-java-autodetect',
+    'settings-download-source-vanilla',
+    'btn-add-ms',
+    'color-preset-0',
+  ],
+  'new-instance': ['card-custom', 'btn-back-menu'],
+  'instance-detail': [
+    'overview-btn-play',
+    'basic-input-name',
+    'java-entry-point',
+    'save-btn-history',
+    'mod-btn-history',
+  ],
+};
 
 export const DownloadManager: React.FC = () => {
   const { tasks, isPopupOpen, setPopupOpen, addOrUpdateTask, removeTask } = useDownloadStore();
   const setActiveTab = useLauncherStore(state => state.setActiveTab); 
+  const activeTab = useLauncherStore(state => state.activeTab); 
   const updateJavaSetting = useSettingsStore(state => state.updateJavaSetting);
   
   const taskList = Object.values(tasks);
@@ -41,8 +64,12 @@ export const DownloadManager: React.FC = () => {
         if (hasTasks) {
           setFocus('btn-floating-download');
         } else {
-          setFocus('inst-filter-search'); 
-          setTimeout(() => setFocus('download-search-input'), 50); 
+          const current = getCurrentFocusKey();
+          if (!current || current === 'SN:ROOT' || current.startsWith('task-')) {
+            const candidates = fallbackFocusKeysByTab[activeTab] || [];
+            const target = candidates.find((focusKey) => doesFocusableExist(focusKey));
+            if (target) setFocus(target);
+          }
         }
       }, 150);
     }

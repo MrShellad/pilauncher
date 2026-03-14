@@ -139,7 +139,14 @@ export const JavaSelector: React.FC<{ value: string; onChange: (path: string) =>
         </OreButton>
       </div>
 
-      <OreModal isOpen={isModalOpen} onClose={() => closeSelectorModal()} title="选择 Java 运行时" className="w-[600px] h-[500px]">
+      <OreModal 
+        isOpen={isModalOpen} 
+        onClose={() => closeSelectorModal()} 
+        title="选择 Java 运行时" 
+        hideTitleBar={true}
+        defaultFocusKey="btn-java-scan"
+        className="w-[600px] h-[500px]"
+      >
         <FocusBoundary id="java-selector-boundary" trapFocus={isModalOpen} onEscape={() => closeSelectorModal()} className="flex flex-col h-full outline-none">
           <div className="flex gap-3 mb-4 shrink-0">
             <FocusItem focusKey="btn-java-scan" onEnter={handleScan}>
