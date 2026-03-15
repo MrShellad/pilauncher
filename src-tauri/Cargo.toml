@@ -29,6 +29,7 @@ tauri-plugin-fs = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-process = "2"
 md5 = "0.7.0"
+sha1 = "0.10"
 uuid = { version = "1", features = ["v4", "serde"] }
 zip = "8.2.0"
 tar = "0.4"

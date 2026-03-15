@@ -41,27 +41,42 @@ export const useDownloadStore = create<DownloadStore>((set, _get) => ({
     const downloadSettings = useSettingsStore.getState().settings?.download;
     const unit = downloadSettings?.speedUnit || 'MB/s';
 
-    // 动态计算速度
-    if (existingTask && update.current !== undefined && update.current > existingTask.lastCurrent) {
-      const timeDiff = (now - existingTask.lastUpdate) / 1000; 
-      if (timeDiff > 0.5) { 
+    // 仅在「按字节进度」时计算网速：资源下载或实例部署中的大文件（total>1000 视为字节）
+    const isByteProgress =
+      (update.taskType ?? existingTask?.taskType) === 'resource' ||
+      ((update.taskType ?? existingTask?.taskType) === 'instance' &&
+        (update.total ?? existingTask?.total ?? 0) > 1000);
+
+    if (
+      isByteProgress &&
+      existingTask &&
+      update.current !== undefined &&
+      update.current > existingTask.lastCurrent
+    ) {
+      const timeDiff = (now - existingTask.lastUpdate) / 1000;
+      if (timeDiff >= 0.2) {
         const bytesDiff = update.current - existingTask.lastCurrent;
         const speedMBps = (bytesDiff / (1024 * 1024)) / timeDiff;
-        
+
         if (unit === 'Mbps') {
-          const speedMbps = speedMBps * 8; 
+          const speedMbps = speedMBps * 8;
           speedStr = speedMbps > 1 ? `${speedMbps.toFixed(2)} Mbps` : `${(speedMbps * 1000).toFixed(2)} Kbps`;
         } else {
           speedStr = speedMBps > 1 ? `${speedMBps.toFixed(2)} MB/s` : `${(bytesDiff / 1024 / timeDiff).toFixed(2)} KB/s`;
         }
       }
     }
+    // 实例部署的步骤进度（如 Loader/库/资源）按个数而非字节，不显示网速
+    if (!isByteProgress && (update.taskType ?? existingTask?.taskType) === 'instance') {
+      speedStr = '—';
+    }
 
     // ✅ 修改点 1：将旧的映射表替换为完整的 6 步流水线，以及普通模组下载的文案
     const stageMap: Record<string, string> = {
       'DOWNLOADING_MODPACK': '步骤 0/6: 获取整合包本体',
       'EXTRACTING': '步骤 1/6: 解压整合包资源',
-      'VANILLA_CORE': '步骤 2/6: 安装游戏本体与 Loader',
+      'VANILLA_CORE': '步骤 2/6: 安装游戏本体',
+      'LOADER_CORE': '步骤 2.5/6: 安装 Loader 环境',
       'LIBRARIES': '步骤 3/6: 下载底层运行库',
       'ASSETS': '步骤 4/6: 补全原版声音与材质',
       'DOWNLOADING_MOD': update.taskType === 'resource' ? '正在下载模组文件' : '步骤 5/6: 按照队列拉取模组',

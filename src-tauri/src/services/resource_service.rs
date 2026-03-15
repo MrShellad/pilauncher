@@ -1,11 +1,13 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::time::Instant;
 use tauri::{AppHandle, Emitter, Runtime};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 // 引入跨层的 DTO
 use crate::domain::resource::{OreProjectDetail, OreProjectVersion, OreProjectDependency};
+use crate::services::file_write_lock;
 
 // ==========================================
 // 第三方 API (Modrinth) 的私有 DTO 模型
@@ -203,6 +205,11 @@ impl ResourceService {
         }
 
         let target_file_path = target_dir.join(file_name);
+        let path_key = target_file_path.to_string_lossy().to_string();
+
+        // 同一路径同时只允许一个写入，避免并发写导致文件损坏
+        let path_lock = file_write_lock::lock_for_path(&path_key);
+        let _write_guard = path_lock.lock().await;
 
         // 2. 发起请求
         let client = Client::new();
@@ -223,25 +230,30 @@ impl ResourceService {
             .await
             .map_err(|e| format!("无法创建文件: {}", e))?;
 
-        // 3. 边下载，边写入，边推送事件到前端的 DownloadManager
+        const PROGRESS_INTERVAL_MS: u128 = 200;
+        let mut last_emit = Instant::now();
+
+        // 3. 边下载，边写入，节流推送进度以便前端计算实时网速
         while let Some(chunk) = response.chunk().await.map_err(|e| e.to_string())? {
             dest.write_all(&chunk)
                 .await
                 .map_err(|e| format!("写入磁盘失败: {}", e))?;
             downloaded += chunk.len() as u64;
 
-            // 推送事件 (前端 index.tsx 里 listen 的就是 resource-download-progress)
-            let _ = app.emit(
-                "resource-download-progress",
-                ResourceProgressPayload {
-                    task_id: file_name.to_string(),
-                    file_name: file_name.to_string(),
-                    stage: "DOWNLOADING_MOD".to_string(),
-                    current: downloaded,
-                    total: total_size,
-                    message: format!("正在下载: {}", file_name),
-                },
-            );
+            if last_emit.elapsed().as_millis() >= PROGRESS_INTERVAL_MS || downloaded >= total_size {
+                let _ = app.emit(
+                    "resource-download-progress",
+                    ResourceProgressPayload {
+                        task_id: file_name.to_string(),
+                        file_name: file_name.to_string(),
+                        stage: "DOWNLOADING_MOD".to_string(),
+                        current: downloaded,
+                        total: total_size.max(1),
+                        message: format!("正在下载: {}", file_name),
+                    },
+                );
+                last_emit = Instant::now();
+            }
         }
 
         // 4. 下载完成封口事件

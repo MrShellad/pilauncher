@@ -82,11 +82,11 @@ export const DownloadManager: React.FC = () => {
       addOrUpdateTask({
         id: payload.task_id || payload.instance_id,
         taskType: 'instance',
-        title: payload.instance_name || '实例',
-        stage: payload.stage, 
+        title: payload.instance_name || payload.instance_id || '实例',
+        stage: payload.stage,
         current: payload.current,
         total: payload.total,
-        message: payload.message,
+        message: payload.message ?? '',
       });
     });
 
@@ -96,10 +96,10 @@ export const DownloadManager: React.FC = () => {
         id: payload.task_id || payload.file_name,
         taskType: 'resource',
         title: payload.file_name,
-        stage: payload.stage || 'DOWNLOADING_MOD', 
+        stage: payload.stage || 'DOWNLOADING_MOD',
         current: payload.current,
         total: payload.total,
-        message: payload.message,
+        message: payload.message ?? '',
       });
     });
 

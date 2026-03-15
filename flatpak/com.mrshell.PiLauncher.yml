@@ -7,17 +7,21 @@ sdk: org.gnome.Sdk
 command: PiLauncher
 
 finish-args:
+finish-args:
   - --share=network
   - --share=ipc
   - --socket=wayland
   - --socket=x11
   - --device=dri
+  - --device=all
 
   - --filesystem=xdg-download
   - --filesystem=xdg-documents
 
   - --filesystem=xdg-data/.minecraft
   - --filesystem=xdg-data/PiLauncher:create
+  - --filesystem=xdg-data/fonts
+  - --filesystem=/run/udev:ro
 
   - --talk-name=org.freedesktop.Notifications
   - --talk-name=org.freedesktop.portal.Desktop

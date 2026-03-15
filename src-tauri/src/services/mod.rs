@@ -1,6 +1,7 @@
 pub mod animation_service; // ✅ 新增 animation 模块
 pub mod config_service; // ✅ 新增 config 模块
 pub mod downloader; // ✅ 新增 downloader 模块
+pub mod file_write_lock; // 按路径串行化写入，避免并发写同一文件
 pub mod instance; // ✅ 新增 instance 模块
 pub mod launcher; // ✅ 新增 launcher 模块
 pub mod loader_service; // ✅ 新增 loader 模块

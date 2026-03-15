@@ -389,6 +389,10 @@ impl ModManagerService {
 
         if needs_download {
             println!("正在下载推荐 Mod: {}", download_url);
+            let path_key = shared_target.to_string_lossy().to_string();
+            let path_lock = crate::services::file_write_lock::lock_for_path(&path_key);
+            let _write_guard = path_lock.lock().await;
+
             let client = reqwest::Client::new();
             let mut response = client
                 .get(download_url)
@@ -403,7 +407,11 @@ impl ModManagerService {
             let total_size = response.content_length().unwrap_or(0);
             let mut downloaded: u64 = 0;
 
+            use std::time::Instant;
             use tokio::io::AsyncWriteExt;
+            const PROGRESS_MS: u128 = 200;
+            let mut last_emit = Instant::now();
+
             let mut dest = tokio::fs::File::create(&shared_target)
                 .await
                 .map_err(|e| format!("无法创建缓存文件: {}", e))?;
@@ -414,17 +422,20 @@ impl ModManagerService {
                     .map_err(|e| format!("写入磁盘失败: {}", e))?;
                 downloaded += chunk.len() as u64;
 
-                let _ = app.emit(
-                    "resource-download-progress",
-                    crate::services::resource_service::ResourceProgressPayload {
-                        task_id: file_name.to_string(),
-                        file_name: file_name.to_string(),
-                        stage: "DOWNLOADING_MOD".to_string(),
-                        current: downloaded,
-                        total: total_size,
-                        message: format!("正在下载手柄组件: {}", file_name),
-                    },
-                );
+                if last_emit.elapsed().as_millis() >= PROGRESS_MS || downloaded >= total_size {
+                    let _ = app.emit(
+                        "resource-download-progress",
+                        crate::services::resource_service::ResourceProgressPayload {
+                            task_id: file_name.to_string(),
+                            file_name: file_name.to_string(),
+                            stage: "DOWNLOADING_MOD".to_string(),
+                            current: downloaded,
+                            total: total_size.max(1),
+                            message: format!("正在下载手柄组件: {}", file_name),
+                        },
+                    );
+                    last_emit = Instant::now();
+                }
             }
 
             let _ = app.emit(
