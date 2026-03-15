@@ -37,8 +37,11 @@ pub async fn download_java_env<R: Runtime>(
     let ext = if os == "windows" { "zip" } else { "tar.gz" };
 
     tauri::async_runtime::spawn(async move {
+        // ✅ 修复 1：合理设置超时策略
+        // connect_timeout 保证 15 秒连不上就报错；timeout 给大文件充足的下载时间（1小时）
         let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(15))
+            .connect_timeout(std::time::Duration::from_secs(15))
+            .timeout(std::time::Duration::from_secs(3600)) 
             .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
             .build()
             .unwrap();
@@ -52,6 +55,12 @@ pub async fn download_java_env<R: Runtime>(
             });
         };
 
+        // ✅ 修复 2：提前拦截不支持 Java 8 的微软源
+        if provider == "aks" && version < 11 {
+            emit_err("微软官方源 (AKS) 不支持 Java 11 以下的版本，请切换至 Adoptium 或 Zulu");
+            return;
+        }
+
         let _ = app.emit("resource-download-progress", ResourceDownloadEvent {
             task_id: "java_download".to_string(), file_name: format!("Java {} ({}_{})", version, os, arch),
             stage: "DOWNLOADING_MOD".to_string(), current: 0, total: 100, message: "正在向 API 查询最新版本直链...".to_string(),
@@ -60,7 +69,6 @@ pub async fn download_java_env<R: Runtime>(
         let mut download_url = String::new();
         let mut file_name = String::new();
 
-        // ✅ 去除清华源逻辑，保留纯净的 Adoptium 与 Zulu 路由
         if provider == "adoptium" {
             let mut api_url = format!("https://api.adoptium.net/v3/assets/feature_releases/{}/ga?architecture={}&heap_size=normal&image_type=jre&jvm_impl=hotspot&os={}", version, arch, os);
             let mut json = match client.get(&api_url).send().await {
@@ -94,7 +102,6 @@ pub async fn download_java_env<R: Runtime>(
                 file_name = pkg.get("name").and_then(|n| n.as_str()).unwrap_or(&format!("zulu-{}.{}", version, ext)).to_string();
             }
         } else if provider == "aks" {
-            // "template":"https://aka.ms/download-jdk/microsoft-jdk-{version}-{os}-{arch}.tar.gz"
             let aks_os = match os { "mac" => "macOS", "windows" => "windows", _ => "linux" };
             let aks_arch = match arch { "x64" => "x64", "aarch64" => "aarch64", _ => "x64" };
             download_url = format!("https://aka.ms/download-jdk/microsoft-jdk-{}-{}-{}.{}", version, aks_os, aks_arch, ext);
@@ -121,20 +128,42 @@ pub async fn download_java_env<R: Runtime>(
                         use tokio::io::AsyncWriteExt;
                         let mut downloaded = 0;
                         let mut last_emit = std::time::Instant::now();
+                        let mut download_success = false;
                         
-                        while let Ok(Some(chunk)) = res.chunk().await {
-                            if file.write_all(&chunk).await.is_err() { break; }
-                            downloaded += chunk.len() as u64;
-                            if last_emit.elapsed().as_millis() > 250 || downloaded == actual_size {
-                                let _ = app.emit("resource-download-progress", ResourceDownloadEvent { task_id: "java_download".to_string(), file_name: file_name.clone(), stage: "DOWNLOADING_MOD".to_string(), current: downloaded, total: actual_size, message: format!("正在高速下载: {}", file_name) });
-                                last_emit = std::time::Instant::now();
+                        // ✅ 修复 3：严格拦截网络异常，避免残缺文件进入解压环节
+                        loop {
+                            match res.chunk().await {
+                                Ok(Some(chunk)) => {
+                                    if file.write_all(&chunk).await.is_err() { 
+                                        emit_err("写入本地磁盘失败");
+                                        break; 
+                                    }
+                                    downloaded += chunk.len() as u64;
+                                    if last_emit.elapsed().as_millis() > 250 || downloaded == actual_size {
+                                        let _ = app.emit("resource-download-progress", ResourceDownloadEvent { task_id: "java_download".to_string(), file_name: file_name.clone(), stage: "DOWNLOADING_MOD".to_string(), current: downloaded, total: actual_size, message: format!("正在高速下载: {}", file_name) });
+                                        last_emit = std::time::Instant::now();
+                                    }
+                                },
+                                Ok(None) => {
+                                    download_success = true; // 完整读取到文件末尾
+                                    break;
+                                },
+                                Err(e) => {
+                                    emit_err(&format!("网络传输中断或超时: {}", e));
+                                    break;
+                                }
                             }
                         }
 
-                        // Close file so extraction can safely read it on Windows
                         let _ = file.flush().await;
                         drop(file);
                         
+                        // 下载失败时自动清理损坏的文件，阻止继续运行
+                        if !download_success {
+                            let _ = tokio::fs::remove_file(&target_file).await;
+                            return;
+                        }
+
                         let _ = app.emit("resource-download-progress", ResourceDownloadEvent { task_id: "java_download".to_string(), file_name: file_name.clone(), stage: "EXTRACTING".to_string(), current: actual_size, total: actual_size, message: "正在解压 Java 运行环境...".to_string() });
 
                         let extract_target = java_dir.join(format!("jre-{}", version));
@@ -145,11 +174,9 @@ pub async fn download_java_env<R: Runtime>(
                         let extract_result = tokio::task::spawn_blocking(move || {
                             let res = extract_archive(&target_file_clone, &extract_target, is_zip);
                             if res.is_ok() {
-                                // 1. 让后端触发一次物理扫描，将新解压的 Java 录入 config/java_cache.json
                                 let cache_file = PathBuf::from(&base_path_clone).join("config").join("java_cache.json");
                                 let _ = crate::services::runtime_service::scan_java_environments(&cache_file);
 
-                                // 2. 深入解压出来的文件夹，揪出实际能运行的 java.exe
                                 let mut new_java_path = String::new();
                                 for entry in walkdir::WalkDir::new(&extract_target).into_iter().filter_map(|e| e.ok()) {
                                     let p = entry.path();
@@ -167,7 +194,6 @@ pub async fn download_java_env<R: Runtime>(
                             Ok(Ok(new_java_path)) => {
                                 let _ = app.emit("resource-download-progress", ResourceDownloadEvent { task_id: "java_download".to_string(), file_name: file_name.clone(), stage: "DONE".to_string(), current: actual_size, total: actual_size, message: format!("Java {} 部署完成！", version) });
                                 
-                                // ✅ 将找到的新 Java 路径发给前端，通知它设为默认
                                 if !new_java_path.is_empty() {
                                     let _ = app.emit("java-installed-auto-set", new_java_path);
                                 }

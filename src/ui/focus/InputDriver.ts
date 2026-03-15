@@ -228,7 +228,7 @@ export const useInputDriver = (
         return;
       }
 
-      // 🔘 更新按钮状态池 (支持双索引缓存)
+      // 🔘 更新按钮状态池 (支持双索引缓存，杜绝按键映射冲突)
       if (button_name || typeof button_code === 'number') {
         const name = button_name || 'unknown';
         const code = Number(button_code);
@@ -237,28 +237,55 @@ export const useInputDriver = (
         const isReleased = kind === 'ButtonReleased' || (kind === 'ButtonChanged' && (axis_value || 0) < 0.2);
 
         if (isPressed) {
-          if (name !== 'unknown') nativeButtonsRef.current.add(name);
-          if (typeof button_code === 'number') nativeButtonsRef.current.add(code);
+          // ✅ 核心修复：防止手柄驱动映射错乱导致一个按键同时触发 CONFIRM 和 CANCEL
+          const actionByName = name !== 'unknown' ? (bindings.gamepad.buttons as any)[name] : undefined;
+          const actionByCode = typeof button_code === 'number' ? (bindings.gamepad.buttons as any)[code] : undefined;
+
+          if (actionByName && actionByCode && actionByName !== actionByCode) {
+            // 发生冲突时，优先信任 Name (标准化语义)
+            nativeButtonsRef.current.add(name);
+          } else if (actionByName) {
+            nativeButtonsRef.current.add(name);
+          } else if (actionByCode) {
+            nativeButtonsRef.current.add(code);
+          } else {
+            // 如果都没映射，兜底存入
+            if (name !== 'unknown') nativeButtonsRef.current.add(name);
+            if (typeof button_code === 'number') nativeButtonsRef.current.add(code);
+          }
+
           if (DEBUG_GAMEPAD) {
-            const action = (bindings.gamepad.buttons as any)[name] || (bindings.gamepad.buttons as any)[code];
+            const action = actionByName || actionByCode;
             console.log(`[按键按下] ${name}(${code}) => ${action}`);
           }
         } else if (isReleased) {
+          // 释放时无论当时存的哪一个，统统清理以防万一
           if (name !== 'unknown') nativeButtonsRef.current.delete(name);
           if (typeof button_code === 'number') nativeButtonsRef.current.delete(code);
         }
       }
 
-      // 🕹️ 更新摇杆状态池 (支持双索引缓存)
+      // 🕹️ 更新摇杆状态池 (支持双索引缓存，杜绝摇杆映射冲突)
       if (kind === 'AxisChanged' && (axis_name || typeof axis_code === 'number') && typeof axis_value === 'number') {
         const name = axis_name || 'unknown';
         const code = Number(axis_code);
 
-        if (name !== 'unknown') nativeAxesRef.current[name] = axis_value;
-        nativeAxesRef.current[code] = axis_value;
+        const mappingByName = name !== 'unknown' ? (bindings.gamepad.axes as any)[name] : undefined;
+        const mappingByCode = typeof button_code === 'number' ? (bindings.gamepad.axes as any)[code] : undefined;
+
+        if (mappingByName && mappingByCode && mappingByName !== mappingByCode) {
+          nativeAxesRef.current[name] = axis_value;
+        } else if (mappingByName) {
+          nativeAxesRef.current[name] = axis_value;
+        } else if (mappingByCode) {
+          nativeAxesRef.current[code] = axis_value;
+        } else {
+          if (name !== 'unknown') nativeAxesRef.current[name] = axis_value;
+          nativeAxesRef.current[code] = axis_value;
+        }
 
         if (DEBUG_GAMEPAD) {
-          const mapping = (bindings.gamepad.axes as any)[name] || (bindings.gamepad.axes as any)[code];
+          const mapping = mappingByName || mappingByCode;
           let currentAction = 'DEADZONE';
           if (mapping) {
             if (axis_value < -AXIS_DEADZONE) currentAction = mapping.negative;

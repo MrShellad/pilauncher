@@ -1,9 +1,10 @@
 // src-tauri/src/services/launcher/builder.rs
 use crate::domain::launcher::{AuthSession, ResolvedLaunchConfig};
-use std::path::PathBuf;
-use std::fs;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::env;
+use std::fs;
+use std::path::PathBuf;
 
 pub struct LaunchCommandBuilder {
     config: ResolvedLaunchConfig,
@@ -24,25 +25,31 @@ impl LaunchCommandBuilder {
         runtime_dir: PathBuf,
     ) -> Self {
         Self {
-            config, auth, mc_version: mc_version.to_string(),
+            config,
+            auth,
+            mc_version: mc_version.to_string(),
             target_version_id: target_version_id.to_string(),
-            game_dir, runtime_dir,
+            game_dir,
+            runtime_dir,
         }
     }
 
-    // ✅ 核心修复：采用严格的特性 (Features) 白名单匹配机制，彻底杜绝参数冲突！
+    // ✅ 核心修复：采用严格的特性白名单机制与运行时的系统判定
     fn check_rules(rules: Option<&Vec<Value>>) -> bool {
         if let Some(rules_arr) = rules {
-            let mut result = false; 
+            let mut result = false;
             for rule in rules_arr {
                 let action = rule["action"].as_str().unwrap_or("");
-                
-                // 1. 判定操作系统
+
+                // 1. 运行时判定操作系统
                 let mut os_match = true;
                 if let Some(os) = rule.get("os") {
-                    #[cfg(target_os = "windows")] let current_os = "windows";
-                    #[cfg(target_os = "macos")] let current_os = "osx";
-                    #[cfg(target_os = "linux")] let current_os = "linux";
+                    let current_os = match env::consts::OS {
+                        "windows" => "windows",
+                        "macos" => "osx",
+                        "linux" => "linux",
+                        _ => env::consts::OS,
+                    };
                     if os.get("name").and_then(|n| n.as_str()) != Some(current_os) {
                         os_match = false;
                     }
@@ -53,7 +60,7 @@ impl LaunchCommandBuilder {
                 if let Some(features) = rule.get("features").and_then(|f| f.as_object()) {
                     for (feat_name, feat_val) in features {
                         let required_val = feat_val.as_bool().unwrap_or(false);
-                        
+
                         // ⚡️ 定义我们 PiLauncher 当前激活的特性状态
                         let our_val = match feat_name.as_str() {
                             "has_custom_resolution" => true,       // 我们确实手动注入了分辨率
@@ -71,47 +78,167 @@ impl LaunchCommandBuilder {
                         }
                     }
                 }
-                
+
                 // 3. 综合评估
                 if os_match && features_match {
-                    if action == "allow" { result = true; }
-                    else if action == "disallow" { result = false; }
+                    if action == "allow" {
+                        result = true;
+                    } else if action == "disallow" {
+                        result = false;
+                    }
                 }
             }
             result
         } else {
-            true 
+            true
         }
     }
 
     fn get_version_data(&self, version_id: &str) -> Option<Value> {
-        let path = self.runtime_dir.join("versions").join(version_id).join(format!("{}.json", version_id));
+        let path = self
+            .runtime_dir
+            .join("versions")
+            .join(version_id)
+            .join(format!("{}.json", version_id));
         if let Ok(content) = fs::read_to_string(&path) {
             serde_json::from_str(&content).ok()
-        } else { None }
+        } else {
+            None
+        }
     }
 
-    fn resolve_placeholders(&self, arg: &str, classpath: &str, natives_dir: &str, asset_index: &str) -> String {
+    // ✅ 新增：跨平台 Natives 原生库解压逻辑
+    pub fn extract_natives(&self) -> Result<(), String> {
+        let natives_dir = self
+            .runtime_dir
+            .join("versions")
+            .join(&self.mc_version)
+            .join("natives");
+
+        if !natives_dir.exists() {
+            fs::create_dir_all(&natives_dir).map_err(|e| e.to_string())?;
+        }
+
+        let current_os = match env::consts::OS {
+            "windows" => "windows",
+            "macos" => "osx",
+            "linux" => "linux",
+            _ => env::consts::OS,
+        };
+
+        let json = self
+            .get_version_data(&self.mc_version)
+            .ok_or("找不到核心版本 JSON")?;
+
+        if let Some(libs) = json["libraries"].as_array() {
+            for lib in libs {
+                if !Self::check_rules(lib.get("rules").and_then(|v| v.as_array())) {
+                    continue;
+                }
+
+                if let Some(classifiers) = lib
+                    .pointer("/downloads/classifiers")
+                    .and_then(|c| c.as_object())
+                {
+                    for (key, val) in classifiers {
+                        let match_os = key.contains(current_os)
+                            || (current_os == "osx" && key.contains("macos"));
+                        if match_os {
+                            if let Some(path_str) = val.get("path").and_then(|p| p.as_str()) {
+                                let jar_path = self.runtime_dir.join("libraries").join(path_str);
+                                if jar_path.exists() {
+                                    if let Ok(file) = fs::File::open(&jar_path) {
+                                        // 依赖 zip crate，需要在 Cargo.toml 中添加 `zip = "0.6"`
+                                        if let Ok(mut archive) = zip::ZipArchive::new(file) {
+                                            for i in 0..archive.len() {
+                                                if let Ok(mut file) = archive.by_index(i) {
+                                                    let file_name = file.name().to_string();
+                                                    // 排除 META-INF 目录和文件夹本身
+                                                    if file_name.contains("META-INF")
+                                                        || file_name.ends_with('/')
+                                                    {
+                                                        continue;
+                                                    }
+                                                    let outpath = natives_dir.join(&file_name);
+                                                    if let Some(p) = outpath.parent() {
+                                                        let _ = fs::create_dir_all(p);
+                                                    }
+                                                    if let Ok(mut outfile) =
+                                                        fs::File::create(&outpath)
+                                                    {
+                                                        let _ =
+                                                            std::io::copy(&mut file, &mut outfile);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn resolve_placeholders(
+        &self,
+        arg: &str,
+        classpath: &str,
+        natives_dir: &str,
+        asset_index: &str,
+    ) -> String {
         arg.replace("${auth_player_name}", &self.auth.player_name)
-           .replace("${version_name}", &self.mc_version)
-           .replace("${game_directory}", &self.game_dir.to_string_lossy().to_string())
-           .replace("${assets_root}", &self.runtime_dir.join("assets").to_string_lossy().to_string())
-           .replace("${assets_index_name}", asset_index)
-           .replace("${auth_uuid}", &self.auth.uuid)
-           .replace("${auth_access_token}", &self.auth.access_token)
-           .replace("${user_type}", &self.auth.user_type)
-           .replace("${version_type}", "PiLauncher")
-           .replace("${resolution_width}", &self.config.resolution_width.to_string())
-           .replace("${resolution_height}", &self.config.resolution_height.to_string())
-           .replace("${library_directory}", &self.runtime_dir.join("libraries").to_string_lossy().to_string())
-           .replace("${classpath}", classpath)
-           .replace("${natives_directory}", natives_dir)
-           .replace("${classpath_separator}", if cfg!(target_os = "windows") { ";" } else { ":" })
-           // ✅ 核心修复：补齐缺失的现代验证占位符，赋予合法的空 JSON 结构，完美避开试玩模式
-           .replace("${user_properties}", "{}") 
-           .replace("${auth_session}", "{}")
-           .replace("${auth_xuid}", "0")
-           .replace("${clientid}", "0")
+            .replace("${version_name}", &self.mc_version)
+            .replace(
+                "${game_directory}",
+                &self.game_dir.to_string_lossy().to_string(),
+            )
+            .replace(
+                "${assets_root}",
+                &self
+                    .runtime_dir
+                    .join("assets")
+                    .to_string_lossy()
+                    .to_string(),
+            )
+            .replace("${assets_index_name}", asset_index)
+            .replace("${auth_uuid}", &self.auth.uuid)
+            .replace("${auth_access_token}", &self.auth.access_token)
+            .replace("${user_type}", &self.auth.user_type)
+            .replace("${version_type}", "PiLauncher")
+            .replace(
+                "${resolution_width}",
+                &self.config.resolution_width.to_string(),
+            )
+            .replace(
+                "${resolution_height}",
+                &self.config.resolution_height.to_string(),
+            )
+            .replace(
+                "${library_directory}",
+                &self
+                    .runtime_dir
+                    .join("libraries")
+                    .to_string_lossy()
+                    .to_string(),
+            )
+            .replace("${classpath}", classpath)
+            .replace("${natives_directory}", natives_dir)
+            .replace(
+                "${classpath_separator}",
+                if cfg!(target_os = "windows") {
+                    ";"
+                } else {
+                    ":"
+                },
+            )
+            .replace("${user_properties}", "{}")
+            .replace("${auth_session}", "{}")
+            .replace("${auth_xuid}", "0")
+            .replace("${clientid}", "0")
     }
 
     pub fn build_args(&self) -> Vec<String> {
@@ -125,24 +252,31 @@ impl LaunchCommandBuilder {
         let mut all_libraries: Vec<Value> = Vec::new();
 
         let parent_json = self.get_version_data(&self.mc_version);
-        let target_json = if self.mc_version != self.target_version_id { self.get_version_data(&self.target_version_id) } else { None };
+        let target_json = if self.mc_version != self.target_version_id {
+            self.get_version_data(&self.target_version_id)
+        } else {
+            None
+        };
 
         let jsons = vec![parent_json, target_json];
         for json_opt in jsons {
             if let Some(json) = json_opt {
-                if let Some(id) = json.pointer("/assetIndex/id").and_then(|v| v.as_str()) { asset_index = id.to_string(); }
-                if let Some(mc) = json["mainClass"].as_str() { main_class = mc.to_string(); }
-                if let Some(la) = json["minecraftArguments"].as_str() { legacy_args = Some(la.to_string()); }
-                
+                if let Some(id) = json.pointer("/assetIndex/id").and_then(|v| v.as_str()) {
+                    asset_index = id.to_string();
+                }
+                if let Some(mc) = json["mainClass"].as_str() {
+                    main_class = mc.to_string();
+                }
+                if let Some(la) = json["minecraftArguments"].as_str() {
+                    legacy_args = Some(la.to_string());
+                }
+
                 if let Some(libs) = json["libraries"].as_array() {
                     for lib in libs {
                         if let Some(name) = lib["name"].as_str() {
                             let parts: Vec<&str> = name.split(':').collect();
                             let group = parts.get(0).unwrap_or(&"");
                             let artifact = parts.get(1).unwrap_or(&"");
-                            
-                            // ✅ 核心修复 1：将 classifier（如 natives-windows）加入哈希主键
-                            // 彻底解决 natives 包覆盖 core 包导致的 Module not found 崩溃！
                             let classifier = if parts.len() >= 4 { parts[3] } else { "" };
                             let key = format!("{}:{}:{}", group, artifact, classifier);
 
@@ -155,18 +289,23 @@ impl LaunchCommandBuilder {
                         }
                     }
                 }
-                
-                // 完美提取 target_json 中的 -p 和 --add-modules 等复杂 JPMS 参数
+
                 if let Some(args) = json.get("arguments").and_then(|v| v.as_object()) {
                     if let Some(jvm) = args.get("jvm").and_then(|v| v.as_array()) {
                         for arg in jvm {
-                            if let Some(s) = arg.as_str() { jvm_args_raw.push(s.to_string()); } 
-                            else if let Some(obj) = arg.as_object() {
+                            if let Some(s) = arg.as_str() {
+                                jvm_args_raw.push(s.to_string());
+                            } else if let Some(obj) = arg.as_object() {
                                 if Self::check_rules(obj.get("rules").and_then(|v| v.as_array())) {
                                     if let Some(values) = obj.get("value") {
-                                        if let Some(s) = values.as_str() { jvm_args_raw.push(s.to_string()); }
-                                        else if let Some(arr) = values.as_array() {
-                                            for v in arr { if let Some(s) = v.as_str() { jvm_args_raw.push(s.to_string()); } }
+                                        if let Some(s) = values.as_str() {
+                                            jvm_args_raw.push(s.to_string());
+                                        } else if let Some(arr) = values.as_array() {
+                                            for v in arr {
+                                                if let Some(s) = v.as_str() {
+                                                    jvm_args_raw.push(s.to_string());
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -175,13 +314,19 @@ impl LaunchCommandBuilder {
                     }
                     if let Some(game) = args.get("game").and_then(|v| v.as_array()) {
                         for arg in game {
-                            if let Some(s) = arg.as_str() { game_args_raw.push(s.to_string()); } 
-                            else if let Some(obj) = arg.as_object() {
+                            if let Some(s) = arg.as_str() {
+                                game_args_raw.push(s.to_string());
+                            } else if let Some(obj) = arg.as_object() {
                                 if Self::check_rules(obj.get("rules").and_then(|v| v.as_array())) {
                                     if let Some(values) = obj.get("value") {
-                                        if let Some(s) = values.as_str() { game_args_raw.push(s.to_string()); }
-                                        else if let Some(arr) = values.as_array() {
-                                            for v in arr { if let Some(s) = v.as_str() { game_args_raw.push(s.to_string()); } }
+                                        if let Some(s) = values.as_str() {
+                                            game_args_raw.push(s.to_string());
+                                        } else if let Some(arr) = values.as_array() {
+                                            for v in arr {
+                                                if let Some(s) = v.as_str() {
+                                                    game_args_raw.push(s.to_string());
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -193,27 +338,53 @@ impl LaunchCommandBuilder {
         }
 
         if jvm_args_raw.is_empty() {
-            jvm_args_raw = vec!["-Djava.library.path=${natives_directory}".to_string(), "-cp".to_string(), "${classpath}".to_string()];
+            jvm_args_raw = vec![
+                "-Djava.library.path=${natives_directory}".to_string(),
+                "-cp".to_string(),
+                "${classpath}".to_string(),
+            ];
         }
         if game_args_raw.is_empty() && legacy_args.is_some() {
-            for part in legacy_args.unwrap().split_whitespace() { game_args_raw.push(part.to_string()); }
+            for part in legacy_args.unwrap().split_whitespace() {
+                game_args_raw.push(part.to_string());
+            }
         }
 
         let mut cp = Vec::new();
         let libs_dir = self.runtime_dir.join("libraries");
+        let current_os = match env::consts::OS {
+            "windows" => "windows",
+            "macos" => "osx",
+            "linux" => "linux",
+            _ => env::consts::OS,
+        };
 
         for lib in all_libraries {
-            if !Self::check_rules(lib.get("rules").and_then(|v| v.as_array())) { continue; }
+            if !Self::check_rules(lib.get("rules").and_then(|v| v.as_array())) {
+                continue;
+            }
             let mut paths_to_check = Vec::new();
-            
-            if let Some(path) = lib.pointer("/downloads/artifact/path").and_then(|p| p.as_str()) { paths_to_check.push(path.to_string()); }
-            
-            if let Some(classifiers) = lib.pointer("/downloads/classifiers").and_then(|c| c.as_object()) {
+
+            if let Some(path) = lib
+                .pointer("/downloads/artifact/path")
+                .and_then(|p| p.as_str())
+            {
+                paths_to_check.push(path.to_string());
+            }
+
+            // 运行时判定收集当前系统的 jar 包路径
+            if let Some(classifiers) = lib
+                .pointer("/downloads/classifiers")
+                .and_then(|c| c.as_object())
+            {
                 for (key, val) in classifiers {
-                    #[cfg(target_os = "windows")] let match_os = key.contains("windows");
-                    #[cfg(target_os = "macos")] let match_os = key.contains("osx") || key.contains("macos");
-                    #[cfg(target_os = "linux")] let match_os = key.contains("linux");
-                    if match_os { if let Some(p) = val.get("path").and_then(|p| p.as_str()) { paths_to_check.push(p.to_string()); } }
+                    let match_os =
+                        key.contains(current_os) || (current_os == "osx" && key.contains("macos"));
+                    if match_os {
+                        if let Some(p) = val.get("path").and_then(|p| p.as_str()) {
+                            paths_to_check.push(p.to_string());
+                        }
+                    }
                 }
             }
 
@@ -224,8 +395,15 @@ impl LaunchCommandBuilder {
                         let group = parts[0].replace('.', "/");
                         let artifact = parts[1];
                         let version = parts[2];
-                        let classifier = if parts.len() >= 4 { format!("-{}", parts[3]) } else { "".to_string() };
-                        paths_to_check.push(format!("{}/{}/{}/{}-{}{}.jar", group, artifact, version, artifact, version, classifier));
+                        let classifier = if parts.len() >= 4 {
+                            format!("-{}", parts[3])
+                        } else {
+                            "".to_string()
+                        };
+                        paths_to_check.push(format!(
+                            "{}/{}/{}/{}-{}{}.jar",
+                            group, artifact, version, artifact, version, classifier
+                        ));
                     }
                 }
             }
@@ -234,44 +412,76 @@ impl LaunchCommandBuilder {
                 let jar_path = libs_dir.join(&dl_path);
                 if jar_path.exists() {
                     let path_str = jar_path.to_string_lossy().to_string();
-                    if !cp.contains(&path_str) { cp.push(path_str); }
+                    if !cp.contains(&path_str) {
+                        cp.push(path_str);
+                    }
                 }
             }
         }
 
-        let version_jar = self.runtime_dir.join("versions").join(&self.mc_version).join(format!("{}.jar", self.mc_version));
-        if version_jar.exists() { cp.push(version_jar.to_string_lossy().to_string()); }
+        let version_jar = self
+            .runtime_dir
+            .join("versions")
+            .join(&self.mc_version)
+            .join(format!("{}.jar", self.mc_version));
+        if version_jar.exists() {
+            cp.push(version_jar.to_string_lossy().to_string());
+        }
 
-        let cp_separator = if cfg!(target_os = "windows") { ";" } else { ":" };
+        let cp_separator = if cfg!(target_os = "windows") {
+            ";"
+        } else {
+            ":"
+        };
         let classpath_string = cp.join(cp_separator);
-        let natives_dir = self.runtime_dir.join("versions").join(&self.mc_version).join("natives").to_string_lossy().to_string();
+        let natives_dir = self
+            .runtime_dir
+            .join("versions")
+            .join(&self.mc_version)
+            .join("natives")
+            .to_string_lossy()
+            .to_string();
 
         let mut final_args = Vec::new();
-        
+
         final_args.push("-XX:+IgnoreUnrecognizedVMOptions".to_string());
         final_args.push("--enable-native-access=ALL-UNNAMED".to_string());
         final_args.push(format!("-Xms{}M", self.config.min_memory));
         final_args.push(format!("-Xmx{}M", self.config.max_memory));
         final_args.extend(self.config.custom_jvm_args.clone());
 
-        for arg in jvm_args_raw { final_args.push(self.resolve_placeholders(&arg, &classpath_string, &natives_dir, &asset_index)); }
-        final_args.push(main_class);
-        for arg in game_args_raw { final_args.push(self.resolve_placeholders(&arg, &classpath_string, &natives_dir, &asset_index)); }
+        for arg in jvm_args_raw {
+            final_args.push(self.resolve_placeholders(
+                &arg,
+                &classpath_string,
+                &natives_dir,
+                &asset_index,
+            ));
+        }
 
-        // ✅ 核心修复：去重判断！
-        // 现代版本的 JSON 已经包含了 --width，如果存在则绝对不重复添加。老版本没包含的，才进行兜底追加。
+        final_args.push(main_class);
+
+        for arg in game_args_raw {
+            final_args.push(self.resolve_placeholders(
+                &arg,
+                &classpath_string,
+                &natives_dir,
+                &asset_index,
+            ));
+        }
+
         if !final_args.contains(&"--width".to_string()) {
-            final_args.push("--width".to_string()); 
+            final_args.push("--width".to_string());
             final_args.push(self.config.resolution_width.to_string());
         }
-        
+
         if !final_args.contains(&"--height".to_string()) {
-            final_args.push("--height".to_string()); 
+            final_args.push("--height".to_string());
             final_args.push(self.config.resolution_height.to_string());
         }
-        
-        if self.config.fullscreen && !final_args.contains(&"--fullscreen".to_string()) { 
-            final_args.push("--fullscreen".to_string()); 
+
+        if self.config.fullscreen && !final_args.contains(&"--fullscreen".to_string()) {
+            final_args.push("--fullscreen".to_string());
         }
 
         final_args
