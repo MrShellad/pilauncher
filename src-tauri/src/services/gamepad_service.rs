@@ -1,59 +1,121 @@
+// src-tauri/src/services/gamepad_service.rs
 use gilrs::{Event, EventType, GamepadId, Gilrs};
-use serde::Serialize;
+use std::thread;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Runtime};
 
-#[derive(Debug, Clone, Serialize)]
-pub struct NativeGamepadEvent {
-    pub id: u32,
-    pub kind: String,          // "Connected", "Disconnected", "ButtonPressed", "ButtonReleased"
-    pub button_code: Option<u32>,
-}
+// 确保在 domain/gamepad.rs 中定义了模型
+use crate::domain::gamepad::NativeGamepadEvent;
 
-fn id_to_u32(id: GamepadId) -> u32 {
-    // GamepadId 内部就是一个小整数索引，这里用 debug 表示再解析，避免依赖不稳定 API
-    // 通常格式为 "GamepadId(0)"，解析数字部分失败时退回 0
-    let s = format!("{:?}", id);
-    s.chars()
-        .filter(|c| c.is_ascii_digit())
-        .collect::<String>()
-        .parse::<u32>()
-        .unwrap_or(0)
-}
+pub struct GamepadService;
 
-pub fn start_gamepad_listener<R: Runtime + 'static>(app: AppHandle<R>) {
-    tauri::async_runtime::spawn(async move {
-        let mut gilrs = match Gilrs::new() {
-            Ok(g) => g,
-            Err(e) => {
-                eprintln!("[Gamepad] 初始化 gilrs 失败: {}", e);
-                return;
+impl GamepadService {
+    /// 辅助函数：将 GamepadId 解析为 u32 索引
+    fn id_to_u32(id: GamepadId) -> u32 {
+        let s = format!("{:?}", id);
+        s.chars()
+            .filter(|c| c.is_ascii_digit())
+            .collect::<String>()
+            .parse::<u32>()
+            .unwrap_or(0)
+    }
+
+    /// 启动基于 XInput/WinNative 的手柄服务
+    pub fn start_listener<R: Runtime + 'static>(app: AppHandle<R>) {
+        thread::spawn(move || {
+            let mut gilrs = match Gilrs::new() {
+                Ok(g) => g,
+                Err(e) => {
+                    eprintln!("[Gamepad Service] 初始化失败: {}", e);
+                    return;
+                }
+            };
+
+            println!("[Gamepad Service] 监听线程启动成功");
+
+            let mut n: u64 = 0;
+
+            loop {
+                // 1. 处理事件队列
+                while let Some(Event { id, event, .. }) = gilrs.next_event() {
+                    n = 0;
+
+                    #[cfg(debug_assertions)]
+                    println!("[Rust Gamepad] 实时事件: {:?}", event);
+
+                    let (kind, b_code, b_name, a_code, a_name, val) = match event {
+                        EventType::Connected => ("Connected".to_string(), None, None, None, None, None),
+                        EventType::Disconnected => ("Disconnected".to_string(), None, None, None, None, None),
+                        EventType::ButtonPressed(btn, _) => (
+                            "ButtonPressed".to_string(),
+                            Some(btn as u32),
+                            Some(format!("{:?}", btn)),
+                            None,
+                            None,
+                            None
+                        ),
+                        EventType::ButtonReleased(btn, _) => (
+                            "ButtonReleased".to_string(),
+                            Some(btn as u32),
+                            Some(format!("{:?}", btn)),
+                            None,
+                            None,
+                            None
+                        ),
+                        EventType::ButtonChanged(btn, v, _) => (
+                            "ButtonChanged".to_string(),
+                            Some(btn as u32),
+                            Some(format!("{:?}", btn)),
+                            None,
+                            None,
+                            Some(v)
+                        ),
+                        EventType::AxisChanged(axis, v, _) => (
+                            "AxisChanged".to_string(),
+                            None,
+                            None,
+                            Some(axis as u32),
+                            Some(format!("{:?}", axis)),
+                            Some(v)
+                        ),
+                        _ => continue,
+                    };
+
+                    let payload = NativeGamepadEvent {
+                        id: Self::id_to_u32(id),
+                        kind,
+                        button_code: b_code,
+                        button_name: b_name,
+                        axis_code: a_code,
+                        axis_name: a_name,
+                        axis_value: val,
+                    };
+                    
+                    if let Err(e) = app.emit("native-gamepad-event", &payload) {
+                         eprintln!("[Gamepad Service] Emit failed: {}", e);
+                    }
+                }
+
+                // 2. 心跳诊断逻辑
+                n += 1;
+                if n % 250 == 0 {
+                    let count = gilrs.gamepads().count();
+                    if count > 0 {
+                        for (id, gp) in gilrs.gamepads() {
+                            #[cfg(debug_assertions)]
+                            println!(
+                                "[Gamepad Heartbeat] 活跃中: [{:?}] {} | 状态: {:?}",
+                                id,
+                                gp.name(),
+                                gp.power_info()
+                            );
+                        }
+                    }
+                    if n > 10000 { n = 1; }
+                }
+
+                thread::sleep(Duration::from_millis(8));
             }
-        };
-
-        println!("[Gamepad] gilrs gamepad listener started");
-
-        loop {
-            while let Some(Event { id, event, .. }) = gilrs.next_event() {
-                let (kind, button_code) = match event {
-                    EventType::Connected => ("Connected".to_string(), None),
-                    EventType::Disconnected => ("Disconnected".to_string(), None),
-                    EventType::ButtonPressed(btn, _) => ("ButtonPressed".to_string(), Some(btn as u32)),
-                    EventType::ButtonReleased(btn, _) => ("ButtonReleased".to_string(), Some(btn as u32)),
-                    _ => continue,
-                };
-
-                let payload = NativeGamepadEvent {
-                    id: id_to_u32(id),
-                    kind,
-                    button_code,
-                };
-
-                let _ = app.emit("native-gamepad-event", payload);
-            }
-
-            tokio::time::sleep(Duration::from_millis(8)).await;
-        }
-    });
+        });
+    }
 }
-

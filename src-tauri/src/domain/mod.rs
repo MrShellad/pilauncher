@@ -1,12 +1,13 @@
 pub mod animation;
+pub mod auth;
 pub mod event;
+pub mod gamepad;
 pub mod instance;
+pub mod lan;
 pub mod launcher;
 pub mod loader;
 pub mod minecraft;
 pub mod minecraft_json;
+pub mod modpack;
 pub mod resource;
 pub mod runtime;
-pub mod modpack;
-pub mod auth;
-pub mod lan;

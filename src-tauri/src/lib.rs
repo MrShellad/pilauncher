@@ -3,7 +3,6 @@
 use std::sync::Arc;
 use tauri::Manager;
 
-// 1. 声明顶级模块
 pub mod commands;
 pub mod domain;
 pub mod error;
@@ -11,22 +10,18 @@ pub mod services;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // 初始化局域网共享状态 (用于 Tauri 和 Axum HTTP 跨线程握手通信)
     let lan_state = Arc::new(services::lan::http_api::SharedLanState::new());
 
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
-        // 将状态托管给 Tauri，以便在 Command 中通过 State<'_, SharedLanState> 提取
         .manage(lan_state.clone()); 
 
-    // 2. 挂载所有模块化的 IPC Commands
     builder = commands::register(builder);
 
     builder
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
-            // 初始化日志插件
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -36,22 +31,21 @@ pub fn run() {
             }
 
             // ==========================================
-            // ✅ 核心修改：在 setup 中同步挂载异步的 SQLite 数据库
+            // 挂载异步的 SQLite 数据库
             // ==========================================
-            // 我们把数据库统一放到系统的 AppData/config 目录下，确保数据安全
             let app_dir = app.path().app_data_dir().expect("无法获取系统应用数据目录");
             let db_config_dir = app_dir.join("config");
             
-            // 因为 setup 是同步函数，而 sqlx 是异步的，所以必须用 block_on 阻塞等待建表完成
             let pool = tauri::async_runtime::block_on(async {
                 services::db_service::DbService::init_db(&db_config_dir).await
             }).expect("数据库初始化崩溃！请检查文件读写权限！");
 
-            // 将数据库连接池注入到 Tauri 的全局状态中
             app.manage(services::db_service::AppDatabase { pool });
             // ==========================================
 
-            let handle = app.handle().clone();
+            // 🌟 核心修改：为不同的后台线程单独克隆 AppHandle
+            let handle_for_lan = app.handle().clone();
+            let handle_for_gamepad = app.handle().clone(); // 👈 给手柄服务专属的 Handle
             let state_clone = lan_state.clone();
 
             // 3. 在后台独立线程中派发常驻网络服务
@@ -59,17 +53,13 @@ pub fn run() {
                 println!("\n[PiLauncher] ========================================");
                 println!("[PiLauncher] 🚀 正在初始化后台局域网核心引擎...");
 
-                // 读取基础目录。如果是首次全新启动 (向导未完成)，base_path 可能为 None
-                match services::config_service::ConfigService::get_base_path(&handle) {
+                match services::config_service::ConfigService::get_base_path(&handle_for_lan) {
                     Ok(Some(base_path_str)) => {
                         let config_dir = std::path::PathBuf::from(base_path_str).join("config");
-                        
-                        // 获取本机身份 (会自动从 settings.json 中读取最新的设备名)
                         let identity = services::lan::trust_store::TrustStore::get_or_create_identity(&config_dir);
                         
                         println!("[PiLauncher] 🏷️ 加载本机身份成功 -> ID: {}, Name: {}", identity.device_id, identity.device_name);
 
-                        // 启动 mDNS 局域网组播宣告
                         services::lan::mdns_service::MdnsScanner::start_broadcast(
                             &identity.device_id,
                             &identity.device_name,
@@ -77,7 +67,6 @@ pub fn run() {
                         );
                     }
                     _ => {
-                        // 首次运行向导时的友好提示
                         println!("[PiLauncher] ⚠️ 警告: 尚未配置游戏基础数据目录(base_path)。");
                         println!("[PiLauncher] ⚠️ mDNS 局域网广播已暂时挂起，将在您完成向导并重启启动器后生效。");
                     }
@@ -86,16 +75,15 @@ pub fn run() {
                 println!("[PiLauncher] 🌐 正在启动内部 HTTP RPC 服务器 (端口 9999)...");
                 println!("[PiLauncher] ========================================\n");
                 
-                // 启动 Axum RPC 服务器，持续监听 9999 端口
-                services::lan::http_api::start_http_server(handle, state_clone, 9999).await;
+                services::lan::http_api::start_http_server(handle_for_lan, state_clone, 9999).await;
             });
 
-            // 4. 启动跨平台手柄监听（基于 gilrs），向前端发送 native-gamepad-event
-            services::gamepad_service::start_gamepad_listener(app.handle().clone());
+            // 4. 启动跨平台手柄监听
+            // 🌟 使用专属的 clone 副本，完美避开所有权冲突
+            services::gamepad_service::GamepadService::start_listener(handle_for_gamepad);
 
             Ok(())
         })
-        // 4. 运行逻辑
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
