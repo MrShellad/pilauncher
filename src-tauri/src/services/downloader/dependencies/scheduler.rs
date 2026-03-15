@@ -43,6 +43,7 @@ pub async fn run_downloads<R: Runtime>(
             let app = app.clone();
             let instance_id = instance_id.to_string();
             let cancel = Arc::clone(cancel);
+
             async move {
                 if is_cancelled(&cancel) {
                     return;
@@ -56,24 +57,53 @@ pub async fn run_downloads<R: Runtime>(
                     Ok(mut res) => {
                         if res.status().is_success() {
                             let mut file_data = Vec::new();
-                            while let Ok(Some(chunk)) = res.chunk().await {
-                                if is_cancelled(&cancel) {
-                                    return;
-                                }
-                                file_data.extend_from_slice(&chunk);
-                                if limit_per_thread > 0 {
-                                    tokio::time::sleep(std::time::Duration::from_secs_f64(
-                                        chunk.len() as f64 / limit_per_thread as f64,
-                                    ))
-                                    .await;
+                            let mut download_success = false;
+
+                            // ✅ 核心修复：严格捕获传输错误，拒绝半截文件
+                            loop {
+                                match res.chunk().await {
+                                    Ok(Some(chunk)) => {
+                                        if is_cancelled(&cancel) {
+                                            return;
+                                        }
+                                        file_data.extend_from_slice(&chunk);
+                                        if limit_per_thread > 0 {
+                                            tokio::time::sleep(std::time::Duration::from_secs_f64(
+                                                chunk.len() as f64 / limit_per_thread as f64,
+                                            ))
+                                            .await;
+                                        }
+                                    }
+                                    Ok(None) => {
+                                        // 真正读取到了文件末尾 (EOF)
+                                        download_success = true;
+                                        break;
+                                    }
+                                    Err(e) => {
+                                        eprintln!(
+                                            "[Scheduler] 网络中断，文件被截断 (拒绝写入): {} -> {}",
+                                            task.url, e
+                                        );
+                                        break; // 跳出循环，且 success 保持为 false
+                                    }
                                 }
                             }
-                            if !is_cancelled(&cancel) {
+
+                            // ✅ 修复：只有完整下载的有效文件才允许落盘
+                            if download_success && !is_cancelled(&cancel) {
                                 let _ = tokio::fs::write(&task.path, file_data).await;
                             }
+                        } else {
+                            eprintln!(
+                                "[Scheduler] 请求失败，状态码: {} -> {}",
+                                res.status(),
+                                task.url
+                            );
                         }
                     }
-                    Err(_) => {}
+                    Err(e) => {
+                        eprintln!("[Scheduler] 连接建立失败: {} -> {}", task.url, e);
+                    }
                 }
 
                 let mut c = completed.lock().await;
@@ -81,14 +111,7 @@ pub async fn run_downloads<R: Runtime>(
 
                 // 按阶段配置的步长上报进度
                 if *c % stage.step() == 0 || *c == total {
-                    emit_download_progress(
-                        &app,
-                        &instance_id,
-                        stage,
-                        task.name,
-                        *c,
-                        total,
-                    );
+                    emit_download_progress(&app, &instance_id, stage, task.name, *c, total);
                 }
             }
         })
@@ -98,4 +121,3 @@ pub async fn run_downloads<R: Runtime>(
 
     Ok(())
 }
-
