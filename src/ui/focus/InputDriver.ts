@@ -42,13 +42,14 @@ export const defaultBindings = {
       0: 'CONFIRM', 1: 'CANCEL', 2: 'ACTION_Y', 3: 'ACTION_X',
       6: 'TAB_LEFT', 7: 'PAGE_LEFT', 8: 'TAB_RIGHT', 9: 'PAGE_RIGHT',
       10: 'VIEW', 11: 'MENU',
-      15: 'UP', 16: 'DOWN', 17: 'LEFT', 18: 'RIGHT'
+      16: 'UP', 17: 'DOWN', 18: 'LEFT', 19: 'RIGHT'
     } as Record<string | number, InputAction>,
     axes: {
       'LeftStickX': { negative: 'LEFT', positive: 'RIGHT' },
-      'LeftStickY': { negative: 'UP', positive: 'DOWN' }, // 🌟 尝试反转 Y：很多驱动 UP 是负值
+      // 修正：大多数驱动上，LeftStickY 向上为负值，向下为正值，这里反转映射
+      'LeftStickY': { negative: 'DOWN', positive: 'UP' },
       0: { negative: 'LEFT', positive: 'RIGHT' },
-      1: { negative: 'UP', positive: 'DOWN' }
+      1: { negative: 'DOWN', positive: 'UP' }
     } as Record<string | number, { negative: InputAction, positive: InputAction }>
   }
 };

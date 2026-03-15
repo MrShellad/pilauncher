@@ -169,20 +169,6 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
               );
             })}
           </div>
-          
-          <FocusItem focusKey="btn-rescan-device" onEnter={onScan}>
-            {({ ref, focused }) => (
-              <button 
-                ref={ref as any} onClick={onScan} disabled={isScanning}
-                className={`flex items-center justify-center gap-1.5 w-full mt-2 p-2 rounded-sm text-sm transition-all outline-none border-[2px] border-dashed backdrop-blur-sm
-                  ${focused ? 'border-white text-white bg-white/10' : 'border-white/10 text-gray-400 bg-white/5 hover:text-white hover:border-white/30'}
-                  ${isScanning ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {isScanning ? <Loader2 size={14} className="animate-spin text-ore-green" /> : <RefreshCcw size={14} />}
-                {isScanning ? '正在扫描局域网...' : '扫描新设备'}
-              </button>
-            )}
-          </FocusItem>
         </div>
       </div>
 

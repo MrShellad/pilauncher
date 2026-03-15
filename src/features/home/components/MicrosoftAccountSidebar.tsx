@@ -1,5 +1,5 @@
 // src/features/home/components/AccountSliderBar/MicrosoftAccountSidebar.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { UserPlus, Send, Loader2, ArrowLeft } from 'lucide-react'; 
@@ -14,7 +14,7 @@ import { useInputAction } from '../../../ui/focus/InputDriver';
 import { UserProfileCard } from './AccountSliderBar/UserProfileCard';
 import { LanRadar } from './AccountSliderBar/LanRadar';
 import defaultAvatar from '../../../assets/home/account/128.png';
-import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { setFocus, getCurrentFocusKey, doesFocusableExist } from '@noriginmedia/norigin-spatial-navigation';
 import { OreModal } from '../../../ui/primitives/OreModal'; 
 import { OreButton } from '../../../ui/primitives/OreButton'; 
 
@@ -62,9 +62,31 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
     setActiveAccount(accounts[nextIndex].uuid);
   };
 
+  // 记录打开侧边栏前的焦点，关闭时恢复
+  const lastFocusRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      const current = getCurrentFocusKey();
+      if (current && current !== 'SN:ROOT') {
+        lastFocusRef.current = current;
+      }
+    }
+  }, [isOpen]);
+
+  const handleClose = () => {
+    onClose();
+    const last = lastFocusRef.current;
+    const fallback = 'btn-profile';
+    const target = last && doesFocusableExist(last) ? last : (doesFocusableExist(fallback) ? fallback : null);
+    if (target) {
+      setTimeout(() => setFocus(target), 80);
+    }
+  };
+
   useInputAction('CANCEL', () => {
     if (isOpen) {
-      onClose();
+      handleClose();
     }
   });
 
@@ -163,13 +185,13 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
     <>
       <AnimatePresence>
         {isOpen && (
-          <FocusBoundary id="account-sidebar-boundary" trapFocus={true} onEscape={onClose} className="fixed inset-0 z-[100] flex outline-none">
+          <FocusBoundary id="account-sidebar-boundary" trapFocus={true} onEscape={handleClose} className="fixed inset-0 z-[100] flex outline-none">
             <motion.div 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 
               exit={{ opacity: 0 }} 
               className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer"
-              onClick={onClose}
+              onClick={handleClose}
             />
 
             <motion.div 
