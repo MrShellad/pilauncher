@@ -90,6 +90,9 @@ pub fn run() {
                 services::lan::http_api::start_http_server(handle, state_clone, 9999).await;
             });
 
+            // 4. 启动跨平台手柄监听（基于 gilrs），向前端发送 native-gamepad-event
+            services::gamepad_service::start_gamepad_listener(app.handle().clone());
+
             Ok(())
         })
         // 4. 运行逻辑

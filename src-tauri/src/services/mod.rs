@@ -14,3 +14,4 @@ pub mod lan;
 pub mod qrcode_service;
 pub mod db_service;
 pub mod deployment_cancel;
+pub mod gamepad_service;

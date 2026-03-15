@@ -1,5 +1,6 @@
 // /src/ui/focus/InputDriver.ts
 import { useEffect, useRef } from 'react';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
 export type InputAction = 
   | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' 
@@ -87,6 +88,7 @@ export const useInputDriver = (
   const requestRef = useRef<number>(0);
   const activeKeys = useRef<Set<string>>(new Set());
   const hasGamepadRef = useRef<boolean>(false);
+  const nativeButtonsRef = useRef<Set<number>>(new Set());
 
   const triggerAction = (action: InputAction, mode: InputMode, now: number) => {
     const record = activeActions.current.get(action);
@@ -114,25 +116,33 @@ export const useInputDriver = (
     };
 
     const loop = (now: number) => {
-      const gp = readFirstGamepad();
       const currentGamepadActions = new Set<InputAction>();
+      const useNative = nativeButtonsRef.current.size > 0;
 
-      if (gp) {
-        Object.entries(bindings.gamepad.axes).forEach(([axisIndexStr, mapping]) => {
-          const axisIndex = parseInt(axisIndexStr);
-          const value = gp.axes[axisIndex];
-          if (value < -AXIS_DEADZONE) currentGamepadActions.add(mapping.negative);
-          else if (value > AXIS_DEADZONE) currentGamepadActions.add(mapping.positive);
+      if (useNative) {
+        nativeButtonsRef.current.forEach((code) => {
+          const action = bindings.gamepad.buttons[code];
+          if (action) currentGamepadActions.add(action);
         });
+      } else {
+        const gp = readFirstGamepad();
+        if (gp) {
+          Object.entries(bindings.gamepad.axes).forEach(([axisIndexStr, mapping]) => {
+            const axisIndex = parseInt(axisIndexStr);
+            const value = gp.axes[axisIndex];
+            if (value < -AXIS_DEADZONE) currentGamepadActions.add(mapping.negative);
+            else if (value > AXIS_DEADZONE) currentGamepadActions.add(mapping.positive);
+          });
 
-        gp.buttons.forEach((button, index) => {
-          if (button.pressed && bindings.gamepad.buttons[index]) {
-            currentGamepadActions.add(bindings.gamepad.buttons[index]);
-          }
-        });
-
-        currentGamepadActions.forEach(action => triggerAction(action, 'controller', now));
+          gp.buttons.forEach((button, index) => {
+            if (button.pressed && bindings.gamepad.buttons[index]) {
+              currentGamepadActions.add(bindings.gamepad.buttons[index]);
+            }
+          });
+        }
       }
+
+      currentGamepadActions.forEach(action => triggerAction(action, 'controller', now));
 
       const currentKeyboardActions = new Set<InputAction>();
       activeKeys.current.forEach(key => {
@@ -204,7 +214,41 @@ export const useInputDriver = (
       }
     }, 1000);
 
-    // 只有在需要时才启动主输入循环：首次检测到手柄后或有键盘输入时
+    // 通过 Tauri 后端 (gilrs) 接收跨平台原生手柄事件
+    let unlistenNative: UnlistenFn | null = null;
+    listen<{
+      id: number;
+      kind: string;
+      button_code?: number | null;
+    }>('native-gamepad-event', (event) => {
+      const { kind, button_code } = event.payload;
+      if (kind === 'Connected') {
+        hasGamepadRef.current = true;
+        window.dispatchEvent(
+          new CustomEvent('ore-gamepad-connected', {
+            detail: { id: `native-${event.payload.id}` }
+          })
+        );
+        return;
+      }
+      if (kind === 'Disconnected') {
+        hasGamepadRef.current = false;
+        nativeButtonsRef.current.clear();
+        return;
+      }
+      if (typeof button_code === 'number') {
+        if (kind === 'ButtonPressed') {
+          nativeButtonsRef.current.add(button_code);
+        } else if (kind === 'ButtonReleased') {
+          nativeButtonsRef.current.delete(button_code);
+        }
+      }
+    }).then((fn) => {
+      unlistenNative = fn;
+    }).catch(() => {
+      // ignore if event bridge not available
+    });
+
     requestRef.current = requestAnimationFrame(loop);
 
     return () => {
@@ -215,6 +259,9 @@ export const useInputDriver = (
       window.removeEventListener('gamepadconnected', handleGamepadConnected as EventListener);
       window.removeEventListener('gamepaddisconnected', handleGamepadDisconnected as EventListener);
       window.clearInterval(connectionPoll);
+      if (unlistenNative) {
+        unlistenNative();
+      }
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
   }, [onModeChange, bindings]);
