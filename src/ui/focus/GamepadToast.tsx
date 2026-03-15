@@ -4,36 +4,38 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { invoke } from '@tauri-apps/api/core';
 import { Gamepad2 } from 'lucide-react';
 
+interface OreGamepadConnectedDetail {
+  id?: string;
+}
+
 export const GamepadToast: React.FC = () => {
   const [show, setShow] = useState(false);
   const [isSteamDeck, setIsSteamDeck] = useState(false);
 
   useEffect(() => {
-    // 监听手柄插入事件
-    const handleGamepadConnected = async (e: GamepadEvent) => {
-      console.log("Gamepad Connected:", e.gamepad.id);
+    // 统一通过 InputDriver 派发的 ore-gamepad-connected 事件来感知手柄连接
+    const handleOreGamepadConnected = async (e: Event) => {
+      const custom = e as CustomEvent<OreGamepadConnectedDetail>;
+      console.log('Gamepad Connected via InputDriver:', custom.detail?.id);
 
       try {
-        // 调用 Rust 后端识别是否为 Steam Deck
         const isDeck = await invoke<boolean>('check_steam_deck');
         setIsSteamDeck(isDeck);
       } catch (err) {
-        console.error("SteamDeck 检测失败:", err);
+        console.error('SteamDeck 检测失败:', err);
       }
 
       setShow(true);
-      // 3秒后自动隐藏成就
       setTimeout(() => setShow(false), 3000);
     };
 
-    window.addEventListener('gamepadconnected', handleGamepadConnected);
+    window.addEventListener('ore-gamepad-connected', handleOreGamepadConnected as EventListener);
 
-    // 如果应用刚打开时手柄已经连着了，手动触发一次
-    if (navigator.getGamepads && navigator.getGamepads().filter(Boolean).length > 0) {
-      handleGamepadConnected({ gamepad: navigator.getGamepads()[0] } as GamepadEvent);
-    }
+    // 打开时如果已经有手柄连接，由 InputDriver 的轮询逻辑触发一次 ore-gamepad-connected
 
-    return () => window.removeEventListener('gamepadconnected', handleGamepadConnected);
+    return () => {
+      window.removeEventListener('ore-gamepad-connected', handleOreGamepadConnected as EventListener);
+    };
   }, []);
 
   return (

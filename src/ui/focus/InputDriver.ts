@@ -86,6 +86,7 @@ export const useInputDriver = (
   const activeActions = useRef<Map<InputAction, { start: number; lastFire: number }>>(new Map());
   const requestRef = useRef<number>(0);
   const activeKeys = useRef<Set<string>>(new Set());
+  const hasGamepadRef = useRef<boolean>(false);
 
   const triggerAction = (action: InputAction, mode: InputMode, now: number) => {
     const record = activeActions.current.get(action);
@@ -102,8 +103,18 @@ export const useInputDriver = (
   };
 
   useEffect(() => {
+    const readFirstGamepad = () => {
+      if (!navigator.getGamepads) return null;
+      const pads = navigator.getGamepads();
+      for (let i = 0; i < pads.length; i++) {
+        const gp = pads[i];
+        if (gp && gp.connected) return gp;
+      }
+      return null;
+    };
+
     const loop = (now: number) => {
-      const gp = navigator.getGamepads ? navigator.getGamepads()[0] : null;
+      const gp = readFirstGamepad();
       const currentGamepadActions = new Set<InputAction>();
 
       if (gp) {
@@ -159,7 +170,41 @@ export const useInputDriver = (
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('mousemove', handleMouse, { passive: true });
     window.addEventListener('mousedown', handleMouse, { passive: true });
-    
+
+    const notifyGamepadConnected = (gp: Gamepad | null) => {
+      if (!gp) return;
+      if (!hasGamepadRef.current) {
+        hasGamepadRef.current = true;
+        window.dispatchEvent(
+          new CustomEvent('ore-gamepad-connected', {
+            detail: { id: gp.id }
+          })
+        );
+      }
+    };
+
+    const handleGamepadConnected = (e: GamepadEvent) => {
+      notifyGamepadConnected(e.gamepad);
+    };
+
+    const handleGamepadDisconnected = () => {
+      hasGamepadRef.current = false;
+    };
+
+    window.addEventListener('gamepadconnected', handleGamepadConnected as EventListener);
+    window.addEventListener('gamepaddisconnected', handleGamepadDisconnected as EventListener);
+
+    // Steam Deck Game Mode / Electron 环境下，原生事件可能不会触发，启用轻量轮询探测连接状态
+    const connectionPoll = window.setInterval(() => {
+      const gp = readFirstGamepad();
+      if (gp) {
+        notifyGamepadConnected(gp);
+      } else {
+        hasGamepadRef.current = false;
+      }
+    }, 1000);
+
+    // 只有在需要时才启动主输入循环：首次检测到手柄后或有键盘输入时
     requestRef.current = requestAnimationFrame(loop);
 
     return () => {
@@ -167,6 +212,9 @@ export const useInputDriver = (
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('mousemove', handleMouse);
       window.removeEventListener('mousedown', handleMouse);
+      window.removeEventListener('gamepadconnected', handleGamepadConnected as EventListener);
+      window.removeEventListener('gamepaddisconnected', handleGamepadDisconnected as EventListener);
+      window.clearInterval(connectionPoll);
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
   }, [onModeChange, bindings]);
