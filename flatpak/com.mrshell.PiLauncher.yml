@@ -7,14 +7,13 @@ sdk: org.gnome.Sdk
 command: PiLauncher
 
 finish-args:
-finish-args:
   - --share=network
   - --share=ipc
   - --socket=wayland
   - --socket=x11
   - --device=dri
   - --device=all
-
+  - --filesystem=~/.local/share/Steam/userdata
   - --filesystem=xdg-download
   - --filesystem=xdg-documents
 

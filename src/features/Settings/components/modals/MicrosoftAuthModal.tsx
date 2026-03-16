@@ -127,23 +127,7 @@ export const MicrosoftAuthModal: React.FC<MicrosoftAuthModalProps> = ({
             </div>
 
             <div className="flex w-full gap-3">
-              {/* ✅ 补全缺失的取消按钮，修复焦点断层问题 */}
-              <OreButton
-                focusKey={CLOSE_BUTTON_FOCUS_KEY}
-                variant="secondary"
-                onClick={onClose}
-                onArrowPress={(direction) => {
-                  if (direction === 'RIGHT') {
-                    setFocus(COPY_BUTTON_FOCUS_KEY);
-                    return false;
-                  }
-                  return true;
-                }}
-                size="lg"
-                className="flex-[0.4] font-minecraft"
-              >
-                取消
-              </OreButton>
+
 
               <OreButton
                 focusKey={COPY_BUTTON_FOCUS_KEY}
