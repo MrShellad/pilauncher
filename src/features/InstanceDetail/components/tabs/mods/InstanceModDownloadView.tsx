@@ -30,6 +30,7 @@ export const InstanceModDownloadView: React.FC<{ instanceId: string; onBack: () 
     results,
     hasMore,
     isLoading,
+    isLoadingMore,
     isEnvLoaded,
     installedMods,
     instanceConfig,
@@ -150,6 +151,7 @@ export const InstanceModDownloadView: React.FC<{ instanceId: string; onBack: () 
           results={results}
           installedMods={installedMods}
           isLoading={isLoading && results.length === 0}
+          isLoadingMore={isLoadingMore}
           hasMore={hasMore}
           onLoadMore={loadMore}
           onSelectProject={setSelectedProject}

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Blocks, CheckCircle2, Clock3, Download, Heart, Loader2, Monitor, Tags } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +17,7 @@ interface ResourceGridProps {
   results: ModrinthProject[];
   installedMods: ModMeta[];
   isLoading: boolean;
+  isLoadingMore?: boolean;
   hasMore: boolean;
   onLoadMore: () => void;
   onSelectProject: (project: ModrinthProject) => void;
@@ -27,6 +28,7 @@ interface ResourceCardProps {
   index: number;
   isInstalled: boolean;
   hasMore: boolean;
+  canLoadMore: () => boolean;
   onLoadMore: () => void;
   onSelectProject: (project: ModrinthProject) => void;
   isNearBottom: boolean;
@@ -80,6 +82,7 @@ const ResourceCard = React.memo(({
   index,
   isInstalled,
   hasMore,
+  canLoadMore,
   onLoadMore,
   onSelectProject,
   isNearBottom,
@@ -150,7 +153,7 @@ const ResourceCard = React.memo(({
       }}
       onFocus={() => {
         centerFocusedCard(cardRef.current, scrollContainerRef.current);
-        if (isNearBottom && hasMore) onLoadMore();
+        if (isNearBottom && hasMore && canLoadMore()) onLoadMore();
       }}
     >
       {({ ref, focused }) => {
@@ -289,25 +292,56 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   results,
   installedMods,
   isLoading,
+  isLoadingMore = false,
   hasMore,
   onLoadMore,
   onSelectProject
 }) => {
   const observerTarget = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const loadMoreLockRef = useRef(false);
+  const latestRef = useRef({
+    hasMore,
+    isLoading,
+    isLoadingMore,
+    onLoadMore
+  });
+
+  useEffect(() => {
+    latestRef.current = { hasMore, isLoading, isLoadingMore, onLoadMore };
+  }, [hasMore, isLoading, isLoadingMore, onLoadMore]);
+
+  useEffect(() => {
+    if (isLoading || isLoadingMore) return;
+    loadMoreLockRef.current = false;
+  }, [isLoading, isLoadingMore]);
+
+  const canLoadMore = useCallback(() => {
+    const latest = latestRef.current;
+    if (!latest.hasMore) return false;
+    if (latest.isLoading || latest.isLoadingMore) return false;
+    if (loadMoreLockRef.current) return false;
+    return true;
+  }, []);
+
+  const triggerLoadMore = useCallback(() => {
+    if (!canLoadMore()) return;
+    loadMoreLockRef.current = true;
+    latestRef.current.onLoadMore();
+  }, [canLoadMore]);
 
   useEffect(() => {
     const scrollHost = scrollContainerRef.current;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting) onLoadMore();
+        if (entries[0]?.isIntersecting) triggerLoadMore();
       },
       { root: scrollHost, threshold: 0.1 }
     );
 
     if (observerTarget.current) observer.observe(observerTarget.current);
     return () => observer.disconnect();
-  }, [onLoadMore]);
+  }, [triggerLoadMore]);
 
   const checkIsInstalled = (project: ModrinthProject) => (
     installedMods.some((mod) =>
@@ -336,7 +370,8 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
                   index={index}
                   isInstalled={checkIsInstalled(project)}
                   hasMore={hasMore}
-                  onLoadMore={onLoadMore}
+                  canLoadMore={canLoadMore}
+                  onLoadMore={triggerLoadMore}
                   onSelectProject={onSelectProject}
                   isNearBottom={index >= results.length - 6}
                   scrollContainerRef={scrollContainerRef}

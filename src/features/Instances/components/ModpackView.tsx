@@ -78,6 +78,7 @@ export const ModpackView: React.FC = () => {
         results={downloadState.results}
         installedMods={[]}
         isLoading={downloadState.isLoading}
+        isLoadingMore={downloadState.isLoadingMore}
         hasMore={downloadState.hasMore}
         onLoadMore={downloadState.loadMore}
         onSelectProject={setSelectedProject}

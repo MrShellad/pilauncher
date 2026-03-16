@@ -196,6 +196,7 @@ const ResourceDownloadPage: React.FC = () => {
         results={results}
         installedMods={installedMods}
         isLoading={isLoading && results.length === 0}
+        isLoadingMore={isLoadingMore}
         hasMore={hasMore}
         onLoadMore={loadMore}
         onSelectProject={(project) => {
