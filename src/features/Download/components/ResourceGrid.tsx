@@ -32,7 +32,6 @@ interface ResourceCardProps {
   onLoadMore: () => void;
   onSelectProject: (project: ModrinthProject) => void;
   isNearBottom: boolean;
-  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 const KNOWN_LOADERS = ['fabric', 'forge', 'neoforge', 'quilt', 'liteloader'];
@@ -51,25 +50,6 @@ const prettifyLabel = (value: string) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
-const centerFocusedCard = (element: HTMLElement | null, scrollHost: HTMLDivElement | null) => {
-  if (!element || !scrollHost) return;
-
-  const hostRect = scrollHost.getBoundingClientRect();
-  const elementRect = element.getBoundingClientRect();
-  const elementCenter = elementRect.top + elementRect.height / 2;
-  const hostCenter = hostRect.top + hostRect.height / 2;
-  const nextScrollTop = scrollHost.scrollTop + (elementCenter - hostCenter);
-  const maxScrollTop = Math.max(0, scrollHost.scrollHeight - scrollHost.clientHeight);
-  const clampedScrollTop = Math.min(Math.max(0, nextScrollTop), maxScrollTop);
-
-  if (Math.abs(clampedScrollTop - scrollHost.scrollTop) < 8) return;
-
-  scrollHost.scrollTo({
-    top: clampedScrollTop,
-    behavior: 'smooth'
-  });
-};
-
 const filterFallbackTargets = [
   'filter-mc-version',
   'filter-loader',
@@ -85,8 +65,7 @@ const ResourceCard = React.memo(({
   canLoadMore,
   onLoadMore,
   onSelectProject,
-  isNearBottom,
-  scrollContainerRef
+  isNearBottom
 }: ResourceCardProps) => {
   const { t } = useTranslation();
   const cardRef = useRef<HTMLButtonElement | null>(null);
@@ -134,7 +113,6 @@ const ResourceCard = React.memo(({
   return (
     <FocusItem
       focusKey={focusKey}
-      autoScroll={false}
       onEnter={() => onSelectProject(project)}
       onArrowPress={(direction) => {
         if (direction !== 'up') return true;
@@ -152,7 +130,6 @@ const ResourceCard = React.memo(({
         return false;
       }}
       onFocus={() => {
-        centerFocusedCard(cardRef.current, scrollContainerRef.current);
         if (isNearBottom && hasMore && canLoadMore()) onLoadMore();
       }}
     >
@@ -374,7 +351,6 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
                   onLoadMore={triggerLoadMore}
                   onSelectProject={onSelectProject}
                   isNearBottom={index >= results.length - 6}
-                  scrollContainerRef={scrollContainerRef}
                 />
               ))}
 
