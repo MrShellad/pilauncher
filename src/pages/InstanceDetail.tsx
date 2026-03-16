@@ -163,7 +163,7 @@ const InstanceDetail: React.FC = () => {
 
   if (!data) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-[#0F0F11] text-white font-minecraft">
+      <div className="w-full h-full flex items-center justify-center text-white font-minecraft">
         加载中...
       </div>
     );
@@ -171,7 +171,7 @@ const InstanceDetail: React.FC = () => {
 
   return (
     <FocusContext.Provider value={focusKey}>
-      <div ref={pageFocusRef} className="w-full h-full flex flex-col bg-[#0F0F11] overflow-hidden">
+      <div ref={pageFocusRef} className="w-full h-full flex flex-col overflow-hidden">
         <div className="flex flex-col flex-shrink-0 z-20 bg-[#1E1E1F] border-b-[3px] border-[#18181B] shadow-md">
           <div className="w-full pt-4 pb-4 px-4 md:px-8 bg-[#18181B]">
             <div className="max-w-6xl mx-auto w-full flex items-center">

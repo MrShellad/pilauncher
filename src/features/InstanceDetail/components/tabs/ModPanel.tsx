@@ -105,8 +105,8 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   };
 
   return (
-    <SettingsPageLayout 
-      title={viewMode === 'download' ? "下载 MOD" : "MOD 管理"} 
+    <SettingsPageLayout
+      title={viewMode === 'download' ? "下载 MOD" : "MOD 管理"}
       subtitle={viewMode === 'download' ? "Download & Auto Install" : "Modifications & Snapshot"}
     >
       {viewMode === 'list' ? (
@@ -145,7 +145,7 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
                 onEnter={() => setSortType('time')}
               >
                 {({ ref, focused }) => (
-                  <button 
+                  <button
                     ref={ref as React.RefObject<HTMLButtonElement>}
                     onClick={() => setSortType('time')}
                     className={`flex items-center px-3 py-1.5 font-minecraft text-sm transition-all outline-none ${sortType === 'time' ? 'bg-[#2A2A2C] text-white shadow-md' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'} ${focused ? 'ring-2 ring-white scale-105 z-20 shadow-lg' : ''}`}
@@ -161,7 +161,7 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
                 onEnter={() => setSortType('name')}
               >
                 {({ ref, focused }) => (
-                  <button 
+                  <button
                     ref={ref as React.RefObject<HTMLButtonElement>}
                     onClick={() => setSortType('name')}
                     className={`flex items-center px-3 py-1.5 font-minecraft text-sm transition-all outline-none ${sortType === 'name' ? 'bg-[#2A2A2C] text-white shadow-md' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'} ${focused ? 'ring-2 ring-white scale-105 z-20 shadow-lg' : ''}`}
