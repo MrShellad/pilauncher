@@ -44,6 +44,7 @@ const ResourceDownloadPage: React.FC = () => {
     results,
     hasMore,
     isLoading,
+    isLoadingMore,
     isEnvLoaded,
     installedMods,
     instanceConfig,
