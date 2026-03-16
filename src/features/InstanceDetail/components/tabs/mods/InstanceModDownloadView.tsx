@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Loader2 } from 'lucide-react';
@@ -9,7 +9,33 @@ import { useResourceDownload } from '../../../../Download/hooks/useResourceDownl
 import type { ModrinthProject, OreProjectVersion } from '../../../logic/modrinthApi';
 import { useDownloadStore } from '../../../../../store/useDownloadStore';
 import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary';
+import { useInputAction } from '../../../../../ui/focus/InputDriver';
 import { InstanceFilterBar } from './InstanceFilterBar';
+
+const GamepadBtn = ({ text, color }: { text: string; color: string }) => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className="inline-block flex-shrink-0"
+    aria-hidden="true"
+  >
+    <circle cx="12" cy="12" r="10" fill={color} className="drop-shadow-[0_0_4px_rgba(250,204,21,0.45)]" />
+    <text
+      x="12"
+      y="16.5"
+      fontSize="13"
+      fontWeight="900"
+      fontFamily="system-ui, sans-serif"
+      fill="#1E1E1F"
+      textAnchor="middle"
+    >
+      {text}
+    </text>
+  </svg>
+);
 
 export const InstanceModDownloadView: React.FC<{ instanceId: string; onBack: () => void }> = ({ instanceId, onBack }) => {
   const {
@@ -41,11 +67,14 @@ export const InstanceModDownloadView: React.FC<{ instanceId: string; onBack: () 
 
   const [selectedProject, setSelectedProject] = useState<ModrinthProject | null>(null);
   const [syncStep, setSyncStep] = useState(0);
+  const filterBarRef = useRef<HTMLDivElement | null>(null);
+  const [isFilterBarVisible, setIsFilterBarVisible] = useState(true);
 
   const config = (instanceConfig || {}) as Record<string, any>;
   const targetMc = config.game_version || config.gameVersion || config.mcVersion || '';
   const loaderRaw = (config.loader_type || config.loaderType || config.loader?.type || '').toLowerCase();
   const targetLoader = loaderRaw === 'vanilla' ? '' : loaderRaw;
+  const yHintText = useMemo(() => '回到筛选', []);
 
   useEffect(() => {
     if (!isEnvLoaded || !instanceConfig) return;
@@ -91,6 +120,29 @@ export const InstanceModDownloadView: React.FC<{ instanceId: string; onBack: () 
     return () => clearTimeout(timer);
   }, [syncStep]);
 
+  useEffect(() => {
+    const node = filterBarRef.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+        setIsFilterBarVisible(entry.isIntersecting);
+      },
+      { root: null, threshold: 0.01 }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useInputAction('ACTION_Y', () => {
+    const node = filterBarRef.current;
+    if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => setFocus('inst-filter-search'), 80);
+  });
+
   const handleStartDownload = async (version: OreProjectVersion, targetInstanceId: string) => {
     useDownloadStore.getState().addOrUpdateTask({
       id: version.file_name,
@@ -132,21 +184,29 @@ export const InstanceModDownloadView: React.FC<{ instanceId: string; onBack: () 
 
   return (
     <FocusBoundary id="instance-mod-download-view" className="flex h-full w-full animate-fade-in flex-col outline-none">
-      <InstanceFilterBar
-        onBack={onBack}
-        query={query}
-        setQuery={setQuery}
-        source={source}
-        setSource={(value) => setSource(value as any)}
-        category={category}
-        setCategory={setCategory}
-        sort={sort}
-        setSort={setSort}
-        onSearch={handleSearchClick}
-        onReset={handleResetClick}
-      />
+      <div ref={filterBarRef}>
+        <InstanceFilterBar
+          onBack={onBack}
+          query={query}
+          setQuery={setQuery}
+          source={source}
+          setSource={(value) => setSource(value as any)}
+          category={category}
+          setCategory={setCategory}
+          sort={sort}
+          setSort={setSort}
+          onSearch={handleSearchClick}
+          onReset={handleResetClick}
+        />
+      </div>
 
       <div className="relative flex-1 overflow-hidden rounded-sm border-2 border-[#1E1E1F] bg-black/20 shadow-inner">
+        {!isFilterBarVisible && (
+          <div className="pointer-events-none absolute right-4 top-4 z-50 flex items-center gap-2 rounded-sm border border-white/10 bg-black/60 px-3 py-2 text-xs font-minecraft tracking-wider text-gray-200 shadow-lg backdrop-blur">
+            <GamepadBtn text="Y" color="#FACC15" />
+            <span className="mt-[1px]">{yHintText}</span>
+          </div>
+        )}
         <ResourceGrid
           results={results}
           installedMods={installedMods}
