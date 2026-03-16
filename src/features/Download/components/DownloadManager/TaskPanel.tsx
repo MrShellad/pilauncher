@@ -1,6 +1,6 @@
 // src/features/Download/components/DownloadManager/TaskPanel.tsx
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, X } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { TaskItem } from './TaskItem';
 import type { DownloadTask } from '../../../../store/useDownloadStore';
 import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
@@ -18,30 +18,32 @@ export const TaskPanel = ({ isOpen, onClose, taskList, setActiveTab, removeTask 
           initial="hidden"
           animate="visible"
           exit="exit"
-          onAnimationComplete={() => setFocus('btn-close-taskpanel')}
-          className="mb-4 w-[clamp(320px,40vw,500px)] bg-[#141415] border-2 border-[#2A2A2C] shadow-2xl rounded-sm overflow-hidden flex flex-col"
+          onAnimationComplete={() => setFocus('btn-taskpanel-header')}
+          className="mb-5 w-[clamp(360px,50vw,640px)] bg-[#141415] border-2 border-[#2A2A2C] shadow-2xl rounded-md overflow-hidden flex flex-col z-[1000]"
         >
           <FocusBoundary id="download-task-panel" trapFocus={isOpen} onEscape={onClose} className="flex flex-col h-full overflow-hidden outline-none">
-            <div className="bg-[#1E1E1F] p-3 border-b-2 border-ore-gray-border flex justify-between items-center shrink-0">
-              <h3 className="font-minecraft text-white text-sm flex items-center">
-                <Download size={16} className="mr-2 text-ore-green" /> 
+            <div className="bg-[#1E1E1F] px-4 py-3 border-b-2 border-ore-gray-border flex justify-between items-center shrink-0">
+              <h3 className="font-minecraft text-white text-base flex items-center">
+                <Download size={18} className="mr-2 text-ore-green" /> 
                 任务管理 ({activeTasksCount} 进行中)
               </h3>
               
-              <FocusItem focusKey="btn-close-taskpanel" onEnter={onClose}>
+              <FocusItem focusKey="btn-taskpanel-header">
                 {({ ref, focused }) => (
-                  <button 
-                    ref={ref as any} 
-                    onClick={onClose} 
-                    className={`rounded-sm transition-colors outline-none p-1 ${focused ? 'bg-white/20 text-white ring-2 ring-white scale-110' : 'text-ore-text-muted hover:text-white'}`}
+                  <div
+                    ref={ref as any}
+                    className={`text-[11px] leading-snug text-ore-text-muted text-right max-w-[200px] select-none ${
+                      focused ? 'ring-2 ring-white rounded-sm px-1 py-0.5 bg-white/10' : ''
+                    }`}
                   >
-                    <X size={18} />
-                  </button>
+                    <div>手柄菜单键：打开/关闭任务面板</div>
+                    <div className="opacity-80">隐藏后焦点会回到当前页面</div>
+                  </div>
                 )}
               </FocusItem>
             </div>
 
-            <motion.div className="max-h-[65vh] overflow-y-auto overflow-x-hidden custom-scrollbar p-3 space-y-4">
+            <motion.div className="max-h-[75vh] overflow-y-auto overflow-x-hidden custom-scrollbar p-4 space-y-4">
               {taskList.map((task: DownloadTask) => (
                 <motion.div key={task.id} variants={OreMotionTokens.downloadPanelItem}>
                   <TaskItem task={task} setActiveTab={setActiveTab} removeTask={removeTask} />

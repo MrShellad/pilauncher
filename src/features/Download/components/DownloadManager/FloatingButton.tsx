@@ -6,7 +6,6 @@ import { FocusItem } from '../../../../ui/focus/FocusItem';
 export const FloatingButton = ({ isOpen, onClick, activeCount, hasTasks }: any) => {
   return (
     <AnimatePresence>
-      {/* ✅ 修复核心：只要还有任务(hasTasks)，悬浮球就不允许消失，以充当焦点锚点！ */}
       {!isOpen && hasTasks && (
         <FocusItem focusKey="btn-floating-download" onEnter={onClick} autoScroll={false}>
           {({ ref, focused }) => (
@@ -15,11 +14,11 @@ export const FloatingButton = ({ isOpen, onClick, activeCount, hasTasks }: any) 
               initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
               whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
               onClick={onClick}
-              className={`relative w-14 h-14 bg-[#1E1E1F] border-2 border-ore-gray-border rounded-full flex items-center justify-center shadow-lg group hover:border-ore-green transition-all outline-none
+              className={`relative w-16 h-16 bg-[#1E1E1F] border-2 border-ore-gray-border rounded-full flex items-center justify-center shadow-lg group hover:border-ore-green transition-all outline-none
                 ${focused ? 'ring-4 ring-ore-green shadow-[0_0_20px_rgba(34,197,94,0.5)] z-50 scale-105' : ''}
               `}
             >
-              <Download size={24} className="text-white" />
+              <Download size={26} className="text-white" />
               
               {/* 角标：仅在有正在下载的任务时显示 */}
               {activeCount > 0 && (
@@ -34,6 +33,9 @@ export const FloatingButton = ({ isOpen, onClick, activeCount, hasTasks }: any) 
                   className={activeCount > 0 ? "text-ore-green animate-[spin_3s_linear_infinite] stroke-dasharray-[100_200]" : "hidden"} 
                 />
               </svg>
+              <div className="absolute -top-6 right-0 text-[10px] text-ore-text-muted bg-black/70 px-2 py-0.5 rounded-sm shadow-sm pointer-events-none">
+                手柄菜单键：打开/关闭
+              </div>
             </motion.button>
           )}
         </FocusItem>

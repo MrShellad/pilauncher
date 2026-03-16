@@ -83,24 +83,24 @@ export const TaskItem = ({ task, setActiveTab, removeTask }: { task: DownloadTas
         {latestLogs.map((log, i) => renderLogLine(log, i))}
       </div>
 
-      <div className="flex justify-between items-center mt-1">
+      <div className="flex justify-between items-center mt-2">
         {/* ✅ 日志展开按钮接入焦点 */}
-        <div className="scale-90 origin-left">
+        <div className="origin-left">
           <OreButton 
             focusKey={`btn-log-${task.id}`} 
             variant="ghost" 
             size="auto"
             autoScroll={false}
             onClick={() => setShowLogs(!showLogs)} 
-            className="!h-8 !px-2 !min-w-0"
+            className="!h-10 !px-3 !min-w-0"
           >
-            <div className="flex items-center text-xs text-ore-text-muted hover:text-white transition-colors">
-              <List size={12} className="mr-1" /> 全部日志 {showLogs ? <ChevronUp size={12} className="ml-1" /> : <ChevronDown size={12} className="ml-1" />}
+            <div className="flex items-center text-sm text-ore-text-muted hover:text-white transition-colors">
+              <List size={14} className="mr-1" /> 全部日志 {showLogs ? <ChevronUp size={12} className="ml-1" /> : <ChevronDown size={12} className="ml-1" />}
             </div>
           </OreButton>
         </div>
         
-        <div className="flex space-x-2 scale-90 origin-right">
+        <div className="flex space-x-2 origin-right">
           {!isDone && !isError ? (
             <OreButton 
               focusKey={`btn-cancel-${task.id}`} 
@@ -113,9 +113,9 @@ export const TaskItem = ({ task, setActiveTab, removeTask }: { task: DownloadTas
                 }
                 removeTask(task.id);
               }}
-              className="!h-8 !px-3 !min-w-0 text-white"
+              className="!h-10 !px-4 !min-w-0 text-white"
             >
-              <Trash2 size={14} />
+              <Trash2 size={16} />
             </OreButton>
           ) : (
             <OreButton 
@@ -127,11 +127,11 @@ export const TaskItem = ({ task, setActiveTab, removeTask }: { task: DownloadTas
                 removeTask(task.id); 
                 if (!isResource && isDone) setActiveTab('instances'); 
               }}
-              className="!h-8 !px-3 !min-w-0 text-sm"
+              className="!h-10 !px-4 !min-w-0 text-sm"
               style={isResource ? { backgroundColor: '#3b82f6', borderColor: '#2563eb' } : {}} // 资源下载显示蓝色完成
             >
               <div className="flex items-center">
-                {isError ? <Trash2 size={14} className="mr-1" /> : <CheckCircle size={14} className="mr-1" />} 
+                {isError ? <Trash2 size={16} className="mr-1" /> : <CheckCircle size={16} className="mr-1" />} 
                 {isError ? '清除异常任务' : (isResource ? '关闭' : '前往配置')}
               </div>
             </OreButton>
