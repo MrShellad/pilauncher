@@ -68,13 +68,14 @@ export const InstanceModDownloadView: React.FC<{ instanceId: string; onBack: () 
   const [selectedProject, setSelectedProject] = useState<ModrinthProject | null>(null);
   const [syncStep, setSyncStep] = useState(0);
   const filterBarRef = useRef<HTMLDivElement | null>(null);
-  const [isFilterBarVisible, setIsFilterBarVisible] = useState(true);
+  const [resultsScrollTop, setResultsScrollTop] = useState(0);
+  const isHintVisible = resultsScrollTop > 48;
 
   const config = (instanceConfig || {}) as Record<string, any>;
   const targetMc = config.game_version || config.gameVersion || config.mcVersion || '';
   const loaderRaw = (config.loader_type || config.loaderType || config.loader?.type || '').toLowerCase();
   const targetLoader = loaderRaw === 'vanilla' ? '' : loaderRaw;
-  const yHintText = useMemo(() => '回到筛选', []);
+  const yHintText = useMemo(() => '回到顶部', []);
 
   useEffect(() => {
     if (!isEnvLoaded || !instanceConfig) return;
@@ -120,27 +121,12 @@ export const InstanceModDownloadView: React.FC<{ instanceId: string; onBack: () 
     return () => clearTimeout(timer);
   }, [syncStep]);
 
-  useEffect(() => {
-    const node = filterBarRef.current;
-    if (!node) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry) return;
-        setIsFilterBarVisible(entry.isIntersecting);
-      },
-      { root: null, threshold: 0.01 }
-    );
-
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
-
   useInputAction('ACTION_Y', () => {
-    const node = filterBarRef.current;
-    if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    setTimeout(() => setFocus('inst-filter-search'), 80);
+    const scrollHost = document.getElementById('instance-mod-download-results');
+    if (scrollHost) {
+      scrollHost.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    setTimeout(() => setFocus('inst-filter-search'), 120);
   });
 
   const handleStartDownload = async (version: OreProjectVersion, targetInstanceId: string) => {
@@ -201,7 +187,7 @@ export const InstanceModDownloadView: React.FC<{ instanceId: string; onBack: () 
       </div>
 
       <div className="relative flex-1 overflow-hidden rounded-sm border-2 border-[#1E1E1F] bg-black/20 shadow-inner">
-        {!isFilterBarVisible && (
+        {isHintVisible && (
           <div className="pointer-events-none absolute right-4 top-4 z-50 flex items-center gap-2 rounded-sm border border-white/10 bg-black/60 px-3 py-2 text-xs font-minecraft tracking-wider text-gray-200 shadow-lg backdrop-blur">
             <GamepadBtn text="Y" color="#FACC15" />
             <span className="mt-[1px]">{yHintText}</span>
@@ -215,6 +201,8 @@ export const InstanceModDownloadView: React.FC<{ instanceId: string; onBack: () 
           hasMore={hasMore}
           onLoadMore={loadMore}
           onSelectProject={setSelectedProject}
+          scrollContainerId="instance-mod-download-results"
+          onScrollTopChange={setResultsScrollTop}
         />
       </div>
 

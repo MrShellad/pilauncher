@@ -21,6 +21,8 @@ interface ResourceGridProps {
   hasMore: boolean;
   onLoadMore: () => void;
   onSelectProject: (project: ModrinthProject) => void;
+  scrollContainerId?: string;
+  onScrollTopChange?: (scrollTop: number) => void;
 }
 
 interface ResourceCardProps {
@@ -272,7 +274,9 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   isLoadingMore = false,
   hasMore,
   onLoadMore,
-  onSelectProject
+  onSelectProject,
+  scrollContainerId,
+  onScrollTopChange
 }) => {
   const observerTarget = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -309,6 +313,9 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
 
   useEffect(() => {
     const scrollHost = scrollContainerRef.current;
+    const target = observerTarget.current;
+    if (!scrollHost || !target) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) triggerLoadMore();
@@ -316,9 +323,9 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
       { root: scrollHost, threshold: 0.1 }
     );
 
-    if (observerTarget.current) observer.observe(observerTarget.current);
+    observer.observe(target);
     return () => observer.disconnect();
-  }, [triggerLoadMore]);
+  }, [triggerLoadMore, results.length, hasMore]);
 
   const checkIsInstalled = (project: ModrinthProject) => (
     installedMods.some((mod) =>
@@ -327,7 +334,16 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   );
 
   return (
-    <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto custom-scrollbar">
+    <div
+      id={scrollContainerId}
+      ref={scrollContainerRef}
+      className="min-h-0 flex-1 overflow-y-auto custom-scrollbar"
+      onScroll={(e) => {
+        if (!onScrollTopChange) return;
+        const el = e.currentTarget;
+        onScrollTopChange(el.scrollTop);
+      }}
+    >
       <FocusBoundary
         id="download-results-grid"
         defaultFocusKey="download-grid-item-0"
