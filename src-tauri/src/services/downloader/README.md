@@ -109,3 +109,11 @@ scheduler.rs
 > 修改版本清单解析逻辑时，优先修改 `game_core.rs`；  
 > 新增下载流程阶段时，建议在 `dependencies/mod.rs` 中编排，并按上述职责拆分到对应子模块。
 
+
+## Update Notes (2026-03-17)
+- `DownloadTask` now includes `temp_path`, `expected_sha1`, and `expected_size` for integrity-aware downloads.
+- Files are downloaded into the `temp` folder under the runtime root first, then verified and atomically moved to the final path.
+- Hash verification is controlled by `DownloadSettings.verifyAfterDownload`.
+- Retry count uses `DownloadSettings.retryCount` (minimum 1 attempt).
+- Progress emits are throttled by a dual threshold: file-count step + time interval.
+- The HTTP client timeout is sourced from `DownloadSettings.timeout`.

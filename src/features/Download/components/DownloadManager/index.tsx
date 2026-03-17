@@ -90,6 +90,22 @@ export const DownloadManager: React.FC = () => {
       });
     });
 
+    const unlistenDownloadLog = listen('download-task-log', (event: any) => {
+      const payload = event.payload;
+      const id = payload.task_id || payload.instance_id;
+      const existing = useDownloadStore.getState().tasks[id];
+      const levelPrefix = payload.level ? `[${payload.level}] ` : '';
+      addOrUpdateTask({
+        id,
+        taskType: payload.task_type || existing?.taskType || 'instance',
+        title: payload.title || existing?.title || payload.instance_id || id,
+        stage: payload.stage || existing?.stage,
+        current: existing?.current ?? 0,
+        total: existing?.total ?? 0,
+        message: `${levelPrefix}${payload.message ?? ''}`,
+      });
+    });
+
     const unlistenResource = listen('resource-download-progress', (event: any) => {
       const payload = event.payload;
       addOrUpdateTask({
@@ -109,6 +125,7 @@ export const DownloadManager: React.FC = () => {
 
     return () => { 
       unlistenInstance.then(f => f()); 
+      unlistenDownloadLog.then(f => f());
       unlistenResource.then(f => f()); 
       unlistenJava.then(f => f()); 
     };

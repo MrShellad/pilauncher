@@ -11,7 +11,7 @@ use crate::services::deployment_cancel::is_cancelled;
 
 use super::mirror::{route_asset_object_url, route_assets_index_url};
 use super::progress::DownloadStage;
-use super::scheduler::{run_downloads, DownloadTask};
+use super::scheduler::{run_downloads, sha1_file, DownloadTask};
 
 /// 资源部分：负责下载资源索引以及 assets 对象
 pub async fn download_assets<R: Runtime>(
@@ -37,6 +37,8 @@ pub async fn download_assets<R: Runtime>(
     } else {
         16
     };
+    let retry_count = dl_settings.retry_count;
+    let verify_hash = dl_settings.verify_after_download;
     let limit_per_thread = if dl_settings.speed_limit > 0 {
         (dl_settings.speed_limit * 1024 * 1024) / (concurrency as u64)
     } else {
@@ -97,6 +99,8 @@ pub async fn download_assets<R: Runtime>(
     })?;
 
     let mut tasks: Vec<DownloadTask> = Vec::new();
+    let temp_root = global_mc_root.join("temp");
+    tokio::fs::create_dir_all(&temp_root).await?;
 
     if let Some(objects) = index_json["objects"].as_object() {
         for (name, object) in objects {
@@ -112,22 +116,44 @@ pub async fn download_assets<R: Runtime>(
                 .join("objects")
                 .join(prefix)
                 .join(hash);
-            if target_path.exists()
-                && target_path
+            if target_path.exists() {
+                let size_matches = target_path
                     .metadata()
                     .map(|m| m.len())
                     .unwrap_or(0)
-                    == size
-            {
-                continue;
+                    == size;
+                if size_matches {
+                    if verify_hash {
+                        if let Ok(actual) = sha1_file(&target_path).await {
+                            if actual == hash.to_lowercase() {
+                                continue;
+                            }
+                        }
+                    } else {
+                        continue;
+                    }
+                }
+                let _ = tokio::fs::remove_file(&target_path).await;
             }
 
             let url = route_asset_object_url(prefix, hash, &dl_settings);
+            let temp_path = temp_root
+                .join("assets")
+                .join("objects")
+                .join(prefix)
+                .join(hash);
 
             tasks.push(DownloadTask {
                 url,
                 path: target_path,
+                temp_path,
                 name: name.clone(),
+                expected_sha1: if verify_hash {
+                    Some(hash.to_lowercase())
+                } else {
+                    None
+                },
+                expected_size: Some(size),
             });
         }
     }
@@ -140,6 +166,8 @@ pub async fn download_assets<R: Runtime>(
         DownloadStage::Assets,
         concurrency,
         limit_per_thread,
+        retry_count,
+        verify_hash,
         cancel,
     )
     .await

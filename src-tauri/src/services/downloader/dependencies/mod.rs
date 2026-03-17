@@ -1,11 +1,13 @@
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::time::Duration;
 
 use reqwest::Client;
 use tauri::{AppHandle, Runtime};
 
 use crate::error::{AppError, AppResult};
+use crate::services::config_service::ConfigService;
 use crate::services::deployment_cancel::is_cancelled;
 
 mod game_core;
@@ -27,8 +29,10 @@ pub async fn download_dependencies<R: Runtime>(
     global_mc_root: &Path,
     cancel: &Arc<AtomicBool>,
 ) -> AppResult<()> {
+    let dl_settings = ConfigService::get_download_settings(app);
     let client = Client::builder()
         .user_agent("PiLauncher/1.0 (Minecraft Launcher)")
+        .timeout(Duration::from_secs(dl_settings.timeout.max(1)))
         .build()?;
 
     // 游戏核心：加载版本清单
