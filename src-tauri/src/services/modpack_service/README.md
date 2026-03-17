@@ -13,7 +13,7 @@ This module is split into three layers to keep responsibilities clear.
 ## Public API
 Re-exported in `mod.rs`:
 - `parse_modpack(path: &str) -> Result<ModpackMetadata, String>`
-- `execute_import(app, zip_path, instance_name) -> Result<(), String>`
+- `execute_import(app, zip_path, instance_name, cancel) -> Result<(), String>`
 
 ## Source detection rule
 If `modrinth.index.json` exists in the archive, it is treated as a Modrinth pack.

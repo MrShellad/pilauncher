@@ -22,7 +22,7 @@ impl McMetadataService {
         }
 
         let client = reqwest::Client::builder()
-            .user_agent("OreLauncher/1.0")
+            .user_agent("PiLauncher/1.0")
             .build()?;
         let response = client
             .get(MANIFEST_URL)

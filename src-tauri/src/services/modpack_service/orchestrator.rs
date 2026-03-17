@@ -3,6 +3,7 @@ use crate::services::config_service::ConfigService;
 use crate::services::downloader::dependencies::{
     run_downloads, sha1_file, DownloadStage, DownloadTask,
 };
+use crate::services::deployment_cancel::is_cancelled;
 use futures::stream::{iter, StreamExt};
 use reqwest::Client;
 use serde::Deserialize;
@@ -153,7 +154,7 @@ fn curseforge_edge_url(file_id: u64, file_name: &str) -> String {
     let suffix = file_id % 1000;
     let encoded = percent_encode(file_name);
     format!(
-        "https://edge.forgecdn.net/files/{}/{}/{}",
+        "https://edge.forgecdn.net/files/{}/{:03}/{}", // 修复：使用 {:03} 强制补齐 3 位
         prefix, suffix, encoded
     )
 }
@@ -195,21 +196,50 @@ pub async fn execute_import<R: Runtime>(
     app: &AppHandle<R>,
     zip_path: &str,
     instance_name: &str,
+    cancel: &Arc<AtomicBool>,
 ) -> Result<(), String> {
     let base_dir = resolve_base_dir(app)?;
-    let metadata = parse_modpack(zip_path)?;
-
     let instance_id = sanitize_instance_id(instance_name);
-    let instance_root = base_dir.join("instances").join(&instance_id);
+    let result = execute_import_inner(
+        app,
+        zip_path,
+        &instance_id,
+        instance_name,
+        &base_dir,
+        cancel,
+    )
+    .await;
+
+    if result.is_err() || is_cancelled(cancel) {
+        cleanup_modpack_artifacts(&base_dir, &instance_id);
+    }
+
+    result
+}
+
+async fn execute_import_inner<R: Runtime>(
+    app: &AppHandle<R>,
+    zip_path: &str,
+    instance_id: &str,
+    instance_name: &str,
+    base_dir: &Path,
+    cancel: &Arc<AtomicBool>,
+) -> Result<(), String> {
+    if is_cancelled(cancel) {
+        return Err("Cancelled".to_string());
+    }
+
+    let metadata = parse_modpack(zip_path)?;
+    let instance_root = base_dir.join("instances").join(instance_id);
 
     create_instance_layout(&instance_root)?;
-    let config = build_instance_config(&instance_id, instance_name, &metadata);
+    let config = build_instance_config(instance_id, instance_name, &metadata);
     super::ops::write_instance_config(&instance_root, &config)?;
 
     let _ = app.emit(
         "instance-deployment-progress",
         DownloadProgressEvent {
-            instance_id: instance_id.clone(),
+            instance_id: instance_id.to_string(),
             stage: "EXTRACTING".to_string(),
             file_name: "overrides".to_string(),
             current: 50,
@@ -220,11 +250,15 @@ pub async fn execute_import<R: Runtime>(
 
     extract_overrides(zip_path, &instance_root)?;
 
+    if is_cancelled(cancel) {
+        return Err("Cancelled".to_string());
+    }
+
     let global_mc_root = base_dir.join("runtime");
     let _ = app.emit(
         "instance-deployment-progress",
         DownloadProgressEvent {
-            instance_id: instance_id.clone(),
+            instance_id: instance_id.to_string(),
             stage: "VANILLA_CORE".to_string(),
             file_name: "".to_string(),
             current: 0,
@@ -233,24 +267,22 @@ pub async fn execute_import<R: Runtime>(
         },
     );
 
-    let no_cancel = Arc::new(AtomicBool::new(false));
-
     crate::services::downloader::core_installer::install_vanilla_core(
         app,
-        &instance_id,
+        instance_id,
         &metadata.version,
         &global_mc_root,
-        &no_cancel,
+        cancel,
     )
     .await
     .map_err(|e| e.to_string())?;
 
     crate::services::downloader::dependencies::download_dependencies(
         app,
-        &instance_id,
+        instance_id,
         &metadata.version,
         &global_mc_root,
-        &no_cancel,
+        cancel,
     )
     .await
     .map_err(|e| e.to_string())?;
@@ -258,7 +290,7 @@ pub async fn execute_import<R: Runtime>(
     let _ = app.emit(
         "instance-deployment-progress",
         DownloadProgressEvent {
-            instance_id: instance_id.clone(),
+            instance_id: instance_id.to_string(),
             stage: "VANILLA_CORE".to_string(),
             file_name: "".to_string(),
             current: 90,
@@ -272,20 +304,24 @@ pub async fn execute_import<R: Runtime>(
 
     crate::services::downloader::loader_installer::install_loader(
         app,
-        &instance_id,
+        instance_id,
         &metadata.version,
         &metadata.loader,
         &metadata.loader_version,
         &global_mc_root,
-        &no_cancel,
+        cancel,
     )
     .await
     .map_err(|e| e.to_string())?;
 
+    if is_cancelled(cancel) {
+        return Err("Cancelled".to_string());
+    }
+
     let _ = app.emit(
         "instance-deployment-progress",
         DownloadProgressEvent {
-            instance_id: instance_id.clone(),
+            instance_id: instance_id.to_string(),
             stage: "DOWNLOADING_MOD".to_string(),
             file_name: "".to_string(),
             current: 0,
@@ -298,16 +334,20 @@ pub async fn execute_import<R: Runtime>(
         app,
         zip_path,
         &instance_root,
-        &instance_id,
-        &base_dir,
-        &no_cancel,
+        instance_id,
+        base_dir,
+        cancel,
     )
     .await?;
+
+    if is_cancelled(cancel) {
+        return Err("Cancelled".to_string());
+    }
 
     let _ = app.emit(
         "instance-deployment-progress",
         DownloadProgressEvent {
-            instance_id: instance_id.clone(),
+            instance_id: instance_id.to_string(),
             stage: "DONE".to_string(),
             file_name: "".to_string(),
             current: 100,
@@ -317,6 +357,16 @@ pub async fn execute_import<R: Runtime>(
     );
 
     Ok(())
+}
+
+fn cleanup_modpack_artifacts(base_dir: &Path, instance_id: &str) {
+    let instance_root = base_dir.join("instances").join(instance_id);
+    let temp_root = base_dir.join("temp").join("modpack");
+
+    let _ = fs::remove_dir_all(&instance_root);
+    let _ = fs::remove_dir_all(temp_root.join(instance_id));
+    let _ = fs::remove_dir_all(temp_root.join("curseforge").join(instance_id));
+    let _ = fs::remove_dir_all(temp_root.join("modrinth").join(instance_id));
 }
 
 async fn fetch_modpack_mods<R: Runtime>(
@@ -374,10 +424,11 @@ async fn download_modrinth_mods<R: Runtime>(
     };
 
     let client = Client::builder()
-        .user_agent("PiLauncher/1.0 (Modpack)")
-        .timeout(Duration::from_secs(dl_settings.timeout.max(1)))
-        .build()
-        .map_err(|e| e.to_string())?;
+    .user_agent("PiLauncher/1.0 (Modpack)")
+    // 修复：改为 connect_timeout，不限制下载总耗时
+    .connect_timeout(Duration::from_secs(dl_settings.timeout.max(1))) 
+    .build()
+    .map_err(|e| e.to_string())?;
 
     let temp_root = base_dir.join("temp").join("modpack").join(instance_id);
     tokio::fs::create_dir_all(&temp_root)
@@ -520,10 +571,12 @@ async fn download_curseforge_mods<R: Runtime>(
     };
 
     let client = Client::builder()
-        .user_agent("PiLauncher/1.0 (CurseForge)")
-        .timeout(Duration::from_secs(dl_settings.timeout.max(1)))
-        .build()
-        .map_err(|e| e.to_string())?;
+    .user_agent("PiLauncher/1.0 (CurseForge)")
+    // 删除这行： .timeout(Duration::from_secs(dl_settings.timeout.max(1)))
+    // 改为这行： 仅限制建立连接的超时时间，不限制下载文件主体耗时
+    .connect_timeout(Duration::from_secs(dl_settings.timeout.max(1)))
+    .build()
+    .map_err(|e| e.to_string())?;
 
     let temp_root = base_dir
         .join("temp")
@@ -566,9 +619,10 @@ async fn download_curseforge_mods<R: Runtime>(
             .unwrap_or_else(|| "mod.jar".to_string());
 
         let url = match info.download_url {
-            Some(url) if !url.trim().is_empty() => url,
-            _ => curseforge_edge_url(info.id, &file_name),
-        };
+    // 修复：简单替换空格为 %20，防止 reqwest 报错
+    Some(url) if !url.trim().is_empty() => url.replace(" ", "%20"),
+    _ => curseforge_edge_url(info.id, &file_name),
+};
 
         let expected_sha1 = info
             .hashes
