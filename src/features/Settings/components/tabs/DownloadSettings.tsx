@@ -1,7 +1,9 @@
 // src/features/Settings/components/tabs/DownloadSettings.tsx
 import React, { useCallback, useMemo } from 'react';
-import { Globe, Zap, ShieldCheck, Network, AlertTriangle } from 'lucide-react';
+import { Globe, Zap, ShieldCheck, Network, AlertTriangle, Activity, RefreshCw, CheckCircle2, XCircle, Info, Cpu, Monitor, Wifi } from 'lucide-react';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { invoke } from '@tauri-apps/api/core';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { SettingsSection } from '../../../../ui/layout/SettingsSection';
@@ -11,6 +13,8 @@ import { OreSlider } from '../../../../ui/primitives/OreSlider';
 import { OreInput } from '../../../../ui/primitives/OreInput';
 import { OreToggleButton } from '../../../../ui/primitives/OreToggleButton';
 import { OreDropdown } from '../../../../ui/primitives/OreDropdown';
+import { OreButton } from '../../../../ui/primitives/OreButton';
+import { FocusItem } from '../../../../ui/focus/FocusItem';
 
 import { useSettingsStore } from '../../../../store/useSettingsStore';
 import { DEFAULT_SETTINGS } from '../../../../types/settings';
@@ -18,8 +22,40 @@ import downloadConfig from '../../../../assets/config/downloadsource.json';
 
 type SourceCategoryKey = 'vanilla' | 'forge' | 'fabric' | 'neoforge';
 
+interface DomainTestResult {
+  domain: string;
+  dns: boolean;
+  dns_info: string;
+  tcp: boolean;
+  tls: boolean;
+  http: boolean;
+  latency: number;
+}
+
+interface SystemInfo {
+  os: string;
+  arch: string;
+  cpu: string;
+  memory: string;
+}
+
+interface NetworkInfo {
+  local_ip: string;
+  dns_servers: string[];
+}
+
+interface NetworkTestReport {
+  domains: DomainTestResult[];
+  system: SystemInfo;
+  network: NetworkInfo;
+  timestamp: string;
+  qrcode_uri?: string;
+}
+
 export const DownloadSettings: React.FC = () => {
   const { settings, updateDownloadSetting } = useSettingsStore();
+  const [report, setReport] = React.useState<NetworkTestReport | null>(null);
+  const [testing, setTesting] = React.useState(false);
   const download = settings.download || DEFAULT_SETTINGS.download;
 
   const sourceCategories = useMemo(() => [
@@ -64,8 +100,19 @@ export const DownloadSettings: React.FC = () => {
       keys.push('settings-download-proxy-host', 'settings-download-proxy-port');
     }
 
+    keys.push('settings-download-run-diagnostics');
+
+    if (report) {
+      report.domains.forEach((d) => {
+        keys.push(`settings-download-diagnostic-result-${d.domain}`);
+      });
+      if (report.qrcode_uri) {
+        keys.push('settings-download-diagnostic-qr');
+      }
+    }
+
     return keys;
-  }, [sourceCategories, download]);
+  }, [sourceCategories, download, report]);
 
   const handleLinearArrow = useCallback((direction: string) => {
     if (direction !== 'up' && direction !== 'down') return true;
@@ -91,6 +138,20 @@ export const DownloadSettings: React.FC = () => {
 
     return false;
   }, [focusOrder]);
+
+  const runNetworkTest = async () => {
+    setTesting(true);
+    setReport(null);
+    try {
+      const res = await invoke<NetworkTestReport>('run_network_test');
+      setReport(res);
+    } catch (err) {
+      console.error('Network test failed:', err);
+      alert('网络测试失败，请检查网络连接后重试。');
+    } finally {
+      setTesting(false);
+    }
+  };
 
   return (
     <SettingsPageLayout title="下载与网络" subtitle="Download & Network Configurations">
@@ -351,6 +412,183 @@ export const DownloadSettings: React.FC = () => {
           </div>
         )}
       </SettingsSection>
+
+      <SettingsSection title="网络诊断与测试" icon={<Activity size={18} />}>
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h4 className="text-white font-minecraft text-base mb-1">网络可用性检测</h4>
+              <p className="text-ore-text-muted text-xs">
+                测试启动器所需核心域名的连接质量，包括 DNS、TCP、TLS 与 HTTP 层级。
+              </p>
+            </div>
+            <OreButton
+              focusKey="settings-download-run-diagnostics"
+              onArrowPress={handleLinearArrow}
+              onClick={runNetworkTest}
+              disabled={testing}
+              variant="primary"
+              className="px-6"
+            >
+              {testing ? (
+                <div className="flex items-center">
+                  <RefreshCw size={14} className="mr-2 animate-spin" />
+                  正在测试...
+                </div>
+              ) : '开始全面诊断'}
+            </OreButton>
+          </div>
+
+          <AnimatePresence mode="wait">
+            {report ? (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-6"
+              >
+                {/* 域名测试结果列表 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {report.domains.map((d) => (
+                    <FocusItem
+                      key={d.domain}
+                      focusKey={`settings-download-diagnostic-result-${d.domain}`}
+                      onArrowPress={handleLinearArrow}
+                    >
+                      {({ ref, focused }) => (
+                        <div 
+                          ref={ref}
+                          className={`bg-black/20 border rounded-lg p-4 flex flex-col justify-between hover:bg-black/30 transition-colors ${
+                            focused ? 'border-ore-green shadow-[0_0_10px_rgba(56,133,39,0.3)]' : 'border-white/5'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex flex-col">
+                              <span className="text-white font-mono text-sm truncate max-w-[200px]" title={d.domain}>
+                                {d.domain}
+                              </span>
+                              <span className="text-[10px] text-ore-text-muted mt-0.5">{d.dns_info}</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                d.latency < 100 ? 'bg-green-500/20 text-green-400' : 
+                                d.latency < 300 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'
+                              }`}>
+                                {d.latency}ms
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between mt-auto">
+                            <div className="flex space-x-3">
+                              <StatusBadge label="DNS" success={d.dns} />
+                              <StatusBadge label="TCP" success={d.tcp} />
+                              <StatusBadge label="TLS" success={d.tls} />
+                              <StatusBadge label="HTTP" success={d.http} />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </FocusItem>
+                  ))}
+                </div>
+
+                {/* 系统信息与二维码 */}
+                <div className="flex flex-col lg:flex-row gap-6 border-t border-white/5 pt-6">
+                  <div className="flex-1 space-y-4">
+                    <h5 className="text-white font-minecraft text-sm flex items-center">
+                      <Info size={14} className="mr-2 text-ore-green" /> 系统与网络状态
+                    </h5>
+                    <div className="grid grid-cols-2 gap-4">
+                      <InfoItem icon={<Monitor size={14} />} label="操作系统" value={report.system.os} />
+                      <InfoItem icon={<Cpu size={14} />} label="处理器架构" value={report.system.arch} />
+                      <InfoItem icon={<Wifi size={14} />} label="本地 IP" value={report.network.local_ip} />
+                      <InfoItem icon={<Activity size={14} />} label="测试时间" value={new Date(report.timestamp).toLocaleString()} />
+                    </div>
+                    <div className="bg-white/5 rounded p-3">
+                      <span className="text-[10px] text-ore-text-muted block mb-1 uppercase tracking-wider">CPU 型号</span>
+                      <span className="text-xs text-white/80 font-mono truncate block">{report.system.cpu}</span>
+                    </div>
+                  </div>
+
+                  {report.qrcode_uri && (
+                    <FocusItem
+                      focusKey="settings-download-diagnostic-qr"
+                      onArrowPress={handleLinearArrow}
+                    >
+                      {({ ref, focused }) => (
+                        <div 
+                          ref={ref}
+                          className={`flex flex-col items-center justify-center bg-white/5 p-4 rounded-lg border transition-all w-full lg:w-48 shrink-0 ${
+                            focused ? 'border-ore-green bg-white/10' : 'border-white/10'
+                          }`}
+                        >
+                          <div className="bg-white p-2 rounded relative overflow-hidden">
+                            <img src={report.qrcode_uri} alt="Diagnostic QR" className="w-32 h-32" />
+                          </div>
+                          <p className="text-[10px] text-ore-text-muted mt-3 text-center leading-relaxed">
+                            扫描上方二维码<br />获取 Base64 诊断报告数据
+                          </p>
+                        </div>
+                      )}
+                    </FocusItem>
+                  )}
+                </div>
+              </motion.div>
+            ) : testing ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="py-20 flex flex-col items-center justify-center space-y-4"
+              >
+                <RefreshCw size={32} className="text-ore-green animate-spin" />
+                <p className="text-sm text-ore-text-muted font-minecraft">正在深入抓取网络包并分析连通性...</p>
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="py-12 border-2 border-dashed border-white/5 rounded-lg flex flex-col items-center justify-center bg-black/10"
+              >
+                <Activity size={40} className="text-white/10 mb-4" />
+                <p className="text-sm text-ore-text-muted">点击上方按钮开始测试网络连接状况</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </SettingsSection>
     </SettingsPageLayout>
   );
 };
+
+interface StatusBadgeProps {
+  label: string;
+  success: boolean;
+}
+
+const StatusBadge: React.FC<StatusBadgeProps> = ({ label, success }) => (
+  <div className="flex flex-col items-center">
+    <span className="text-[9px] text-ore-text-muted mb-1 uppercase font-bold">{label}</span>
+    {success ? (
+      <CheckCircle2 size={12} className="text-green-500" />
+    ) : (
+      <XCircle size={12} className="text-red-500" />
+    )}
+  </div>
+);
+
+interface InfoItemProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}
+
+const InfoItem: React.FC<InfoItemProps> = ({ icon, label, value }) => (
+  <div className="flex flex-col">
+    <div className="flex items-center text-[10px] text-ore-text-muted mb-1">
+      {icon}
+      <span className="ml-1.5 uppercase tracking-wider">{label}</span>
+    </div>
+    <span className="text-xs text-white/80 font-medium truncate" title={value}>{value}</span>
+  </div>
+);

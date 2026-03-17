@@ -12,6 +12,7 @@ pub mod launcher_cmd;
 pub mod loader_cmd;
 pub mod minecraft_cmd;
 pub mod modpack_cmd; // 新增 modpack_cmd 模块
+pub mod network_cmd;
 pub mod qrcode_cmd;
 pub mod resource_cmd;
 pub mod runtime_cmd;
@@ -112,6 +113,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         lan_cmd::apply_received_transfer,
         lan_cmd::remove_trusted_device,
         lan_cmd::verify_trusted_devices,
+        network_cmd::run_network_test,
         qrcode_cmd::generate_device_auth_qr,
     ])
 }
