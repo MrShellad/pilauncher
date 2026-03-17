@@ -59,9 +59,12 @@ struct CurseForgeHash {
 fn resolve_curseforge_api_key() -> Option<String> {
     let from_vite = env::var("VITE_CURSEFORGE_API_KEY").ok();
     let from_plain = env::var("CURSEFORGE_API_KEY").ok();
+    let from_baked = option_env!("CURSEFORGE_API_KEY")
+        .map(|v| v.to_string())
+        .or_else(|| option_env!("VITE_CURSEFORGE_API_KEY").map(|v| v.to_string()));
     let from_env_file = read_dotenv_key("VITE_CURSEFORGE_API_KEY")
         .or_else(|| read_dotenv_key("CURSEFORGE_API_KEY"));
-    let key = from_vite.or(from_plain).or(from_env_file)?;
+    let key = from_vite.or(from_plain).or(from_baked).or(from_env_file)?;
     let trimmed = key.trim().to_string();
     if trimmed.is_empty() {
         None
