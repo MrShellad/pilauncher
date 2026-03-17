@@ -22,8 +22,8 @@ interface TrustedDevice {
 interface UserProfileCardProps {
   name: string;
   isPremium: boolean;
-  hasPremiumAnywhere: boolean; 
-  accountsCount: number;       
+  hasPremiumAnywhere: boolean;
+  accountsCount: number;
   avatarSrc: string | null;
   trusted: TrustedDevice[];
   discovered: DiscoveredDevice[];
@@ -34,20 +34,20 @@ interface UserProfileCardProps {
   onSelectTrustedDevice: (device: DiscoveredDevice | null) => void;
 }
 
-export const UserProfileCard: React.FC<UserProfileCardProps> = ({ 
-  name, isPremium, hasPremiumAnywhere, accountsCount, avatarSrc, trusted, discovered, onScan, isScanning, onCycleAccount, onRemoveTrust, onSelectTrustedDevice
+export const UserProfileCard: React.FC<UserProfileCardProps> = ({
+  name, isPremium, hasPremiumAnywhere, accountsCount, avatarSrc, trusted, discovered, onCycleAccount, onRemoveTrust, onSelectTrustedDevice
 }) => {
   // 接收弹窗状态
   const [incomingData, setIncomingData] = useState<any>(null);
   const [receiveTargetInstance, setReceiveTargetInstance] = useState<string>('');
   const [isApplying, setIsApplying] = useState(false);
-  const [instances, setInstances] = useState<{id: string, name: string}[]>([]);
+  const [instances, setInstances] = useState<{ id: string, name: string }[]>([]);
 
   // 监听底层发来的文件接收事件
   useEffect(() => {
     const unlisten = listen('transfer_received', (event) => {
       setIncomingData(event.payload);
-      invoke<any[]>('get_local_instances').then(setInstances).catch(() => {});
+      invoke<any[]>('get_local_instances').then(setInstances).catch(() => { });
     });
     return () => { unlisten.then(f => f()); }
   }, []);
@@ -61,13 +61,13 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
         transferType: incomingData.type,
         targetInstanceId: incomingData.type === 'save' ? receiveTargetInstance : null
       });
-      
+
       if (result !== incomingData.name) {
         alert(`导入完成！检测到同名项目，已自动添加时间戳重命名为: ${result}`);
       } else {
         alert("导入完成！已解压并部署到对应目录。");
       }
-      
+
       setIncomingData(null);
     } catch (e) {
       alert(`部署失败: ${e}`);
@@ -90,14 +90,14 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
         {/* 头像与名片区 */}
         <div className="relative h-28 w-full bg-[#111112] overflow-hidden">
           {avatarSrc ? (
-             <img src={avatarSrc} className="w-full h-full object-cover opacity-60 mix-blend-screen blur-sm" />
+            <img src={avatarSrc} className="w-full h-full object-cover opacity-60 mix-blend-screen blur-sm" />
           ) : (
             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent" />
           )}
           <div className="absolute inset-0 flex items-end p-4 bg-gradient-to-t from-[#1E1E1F] to-transparent">
             <div className="flex items-center gap-3">
               <div className={`w-14 h-14 bg-black/80 border-[2px] rounded-sm shadow-lg overflow-hidden flex-shrink-0 ${isPremium ? 'border-[#EAB308]' : 'border-[#313233]'}`}>
-                <img src={avatarSrc || `https://cravatar.cn/avatars/8667ba71b85a4004af54457a9734eed7?size=64&overlay=true`} className="w-full h-full rendering-pixelated object-cover" alt="Avatar"/>
+                <img src={avatarSrc || `https://cravatar.cn/avatars/8667ba71b85a4004af54457a9734eed7?size=64&overlay=true`} className="w-full h-full rendering-pixelated object-cover" alt="Avatar" />
               </div>
               <div className="flex flex-col drop-shadow-md">
                 <span className={`text-lg font-minecraft font-bold ${isPremium ? 'text-[#FBBF24]' : 'text-white'}`}>{name}</span>
@@ -123,10 +123,10 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
           <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center justify-between">
             <span>授信的设备 ({trusted.length})</span>
           </div>
-          
+
           <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
             {trusted.length === 0 && <div className="text-xs text-gray-500 text-center py-2">暂无信任的其他设备</div>}
-            
+
             {trusted.map(device => {
               const onlineInfo = discovered.find(d => d.device_id === device.device_id);
               const isOnline = !!onlineInfo;
@@ -134,10 +134,9 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
               return (
                 <FocusItem key={device.device_id} focusKey={`trusted-${device.device_id}`} onEnter={() => isOnline && onSelectTrustedDevice(onlineInfo)}>
                   {({ ref, focused }) => (
-                    <div 
-                      className={`flex items-center justify-between bg-white/5 border p-2 rounded-sm transition-all text-left ${
-                        isOnline ? 'border-white/10' : 'border-transparent opacity-50'
-                      } ${focused && isOnline ? 'ring-2 ring-white bg-white/10' : ''}`}
+                    <div
+                      className={`flex items-center justify-between bg-white/5 border p-2 rounded-sm transition-all text-left ${isOnline ? 'border-white/10' : 'border-transparent opacity-50'
+                        } ${focused && isOnline ? 'ring-2 ring-white bg-white/10' : ''}`}
                     >
                       <button
                         ref={ref as any}
@@ -204,7 +203,7 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
             <div className="flex gap-4 w-full mt-4">
               <OreButton className="flex-1" variant="secondary" onClick={() => setIncomingData(null)}>拒绝并丢弃</OreButton>
               <OreButton className="flex-1 flex justify-center" variant="primary" onClick={executeApply} disabled={isApplying || (incomingData.type === 'save' && !receiveTargetInstance)}>
-                {isApplying ? <Loader2 size={16} className="animate-spin mr-2"/> : null}
+                {isApplying ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
                 {isApplying ? '正在解压部署...' : '接收并解压'}
               </OreButton>
             </div>
