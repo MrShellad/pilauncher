@@ -6,7 +6,7 @@ use std::path::Path;
 use std::fs;
 use tauri::command;
 use tauri::{AppHandle, Runtime};
-
+use tauri::Manager;
 #[command]
 pub async fn get_system_fonts() -> Result<Vec<String>, String> {
     // 由于读取字体可能较慢，建议放在异步线程中执行
@@ -66,7 +66,7 @@ pub fn get_primary_monitor_resolution<R: Runtime>(app: AppHandle<R>) -> Result<(
     }
 }
 
-use tauri::Manager;
+
 
 #[tauri::command]
 pub async fn check_steam_status() -> Result<bool, String> {

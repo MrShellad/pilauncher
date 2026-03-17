@@ -45,7 +45,7 @@ export const TaskPanel = ({ isOpen, onClose, taskList, setActiveTab, removeTask 
 
             <motion.div className="max-h-[75vh] overflow-y-auto overflow-x-hidden custom-scrollbar p-4 space-y-4">
               {taskList.map((task: DownloadTask) => (
-                <motion.div key={task.id} variants={OreMotionTokens.downloadPanelItem}>
+                <motion.div key={task.id} variants={OreMotionTokens.downloadPanelItem} initial="hidden" animate="visible">
                   <TaskItem task={task} setActiveTab={setActiveTab} removeTask={removeTask} />
                 </motion.div>
               ))}
