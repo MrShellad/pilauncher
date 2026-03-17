@@ -20,6 +20,8 @@ mod progress;
 pub use game_core::load_version_manifest;
 pub use libraries::download_libraries;
 pub use assets::download_assets;
+pub use progress::DownloadStage;
+pub use scheduler::{run_downloads, sha1_file, DownloadTask};
 
 /// 对外暴露的统一入口：负责流程编排
 pub async fn download_dependencies<R: Runtime>(

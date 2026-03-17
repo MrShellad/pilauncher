@@ -1,12 +1,12 @@
-use tauri::{AppHandle, Emitter, Runtime};
+﻿use tauri::{AppHandle, Emitter, Runtime};
 
 use crate::domain::event::DownloadProgressEvent;
 
-/// 进度上报阶段类型
 #[derive(Clone, Copy)]
 pub enum DownloadStage {
     Libraries,
     Assets,
+    Mods,
 }
 
 impl DownloadStage {
@@ -14,26 +14,27 @@ impl DownloadStage {
         match self {
             DownloadStage::Libraries => "LIBRARIES",
             DownloadStage::Assets => "ASSETS",
+            DownloadStage::Mods => "DOWNLOADING_MOD",
         }
     }
 
     fn message_prefix(self) -> &'static str {
         match self {
-            DownloadStage::Libraries => "正在下载依赖库",
-            DownloadStage::Assets => "正在下载游戏资源",
+            DownloadStage::Libraries => "Downloading libraries",
+            DownloadStage::Assets => "Downloading assets",
+            DownloadStage::Mods => "Downloading mods",
         }
     }
 
-    /// 不同阶段使用不同的上报步长
     pub fn step(self) -> u64 {
         match self {
             DownloadStage::Libraries => 10,
             DownloadStage::Assets => 50,
+            DownloadStage::Mods => 1,
         }
     }
 }
 
-/// 统一的下载进度上报
 pub fn emit_download_progress<R: Runtime>(
     app: &AppHandle<R>,
     instance_id: &str,
@@ -50,13 +51,7 @@ pub fn emit_download_progress<R: Runtime>(
             file_name,
             current,
             total,
-            message: format!(
-                "{} ({}/{})",
-                stage.message_prefix(),
-                current,
-                total
-            ),
+            message: format!("{} ({}/{})", stage.message_prefix(), current, total),
         },
     );
 }
-

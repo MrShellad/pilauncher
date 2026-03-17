@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+﻿use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -21,8 +21,9 @@ const HASH_READ_BUFFER_SIZE: usize = 64 * 1024;
 
 fn stage_label(stage: DownloadStage) -> &'static str {
     match stage {
-        DownloadStage::Libraries => "依赖库",
-        DownloadStage::Assets => "资源文件",
+        DownloadStage::Libraries => "Libraries",
+        DownloadStage::Assets => "Assets",
+        DownloadStage::Mods => "Mods",
     }
 }
 
@@ -79,7 +80,7 @@ pub async fn run_downloads<R: Runtime>(
         instance_id,
         stage_name,
         DownloadLogLevel::Info,
-        &format!("开始下载{}（共 {} 个文件）", stage_label, total),
+        &format!("Starting download of {} ({} files)", stage_label, total),
         None,
         true,
     )
@@ -131,7 +132,7 @@ pub async fn run_downloads<R: Runtime>(
                             last_error = Some(format!("connect failed: {}", e));
                             if attempt < max_attempts {
                                 let ui_msg = format!(
-                                    "下载失败，准备重试 ({}/{})：{}",
+                                "Download failed, retrying ({}/{}) for {}",
                                     attempt, max_attempts, task.name
                                 );
                                 let raw_msg = format!(
@@ -159,7 +160,7 @@ pub async fn run_downloads<R: Runtime>(
                         last_error = Some(format!("status {}", response.status()));
                         if attempt < max_attempts {
                             let ui_msg = format!(
-                                "服务器返回错误，准备重试 ({}/{})：{}",
+                                "Server error, retrying ({}/{}) for {}",
                                 attempt, max_attempts, task.name
                             );
                             let raw_msg = format!(
@@ -257,7 +258,7 @@ pub async fn run_downloads<R: Runtime>(
                                 .clone()
                                 .unwrap_or_else(|| "stream failed".to_string());
                             let ui_msg = format!(
-                                "下载中断，准备重试 ({}/{})：{}",
+                                "Download interrupted, retrying ({}/{}) for {}",
                                 attempt, max_attempts, task.name
                             );
                             let raw_msg = format!(
@@ -289,7 +290,7 @@ pub async fn run_downloads<R: Runtime>(
                             let _ = tokio::fs::remove_file(&tmp_path).await;
                             if attempt < max_attempts {
                                 let ui_msg = format!(
-                                    "文件大小校验失败，准备重试 ({}/{})：{}",
+                                    "Size check failed, retrying ({}/{}) for {}",
                                     attempt, max_attempts, task.name
                                 );
                                 let raw_msg = format!(
@@ -331,7 +332,7 @@ pub async fn run_downloads<R: Runtime>(
                                 let _ = tokio::fs::remove_file(&tmp_path).await;
                                 if attempt < max_attempts {
                                     let ui_msg = format!(
-                                        "SHA-1 校验失败，准备重试 ({}/{})：{}",
+                                        "SHA-1 check failed, retrying ({}/{}) for {}",
                                         attempt, max_attempts, task.name
                                     );
                                     let raw_msg = format!(
@@ -365,7 +366,7 @@ pub async fn run_downloads<R: Runtime>(
                         let _ = tokio::fs::remove_file(&tmp_path).await;
                         if attempt < max_attempts {
                             let ui_msg = format!(
-                                "文件写入失败，准备重试 ({}/{})：{}",
+                                "Write failed, retrying ({}/{}) for {}",
                                 attempt, max_attempts, task.name
                             );
                             let raw_msg = format!(
@@ -399,7 +400,7 @@ pub async fn run_downloads<R: Runtime>(
                 if !success {
                     if let Some(err) = last_error {
                         let ui_msg = format!(
-                            "下载失败（已重试 {} 次）：{}",
+                            "Download failed after {} attempts for {}",
                             max_attempts, task.name
                         );
                         let raw_msg = format!(
@@ -418,7 +419,7 @@ pub async fn run_downloads<R: Runtime>(
                         .await;
                     } else {
                         let ui_msg = format!(
-                            "下载失败（已重试 {} 次）：{}",
+                            "Download failed after {} attempts for {}",
                             max_attempts, task.name
                         );
                         let raw_msg = format!(
@@ -461,7 +462,7 @@ pub async fn run_downloads<R: Runtime>(
         instance_id,
         stage_name,
         DownloadLogLevel::Info,
-        &format!("{}下载完成", stage_label),
+        &format!("Completed {} downloads", stage_label),
         None,
         true,
     )
@@ -469,3 +470,6 @@ pub async fn run_downloads<R: Runtime>(
 
     Ok(())
 }
+
+
+
