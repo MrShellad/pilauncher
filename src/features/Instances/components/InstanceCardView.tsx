@@ -8,6 +8,7 @@ import { useGameLaunch } from '../../../hooks/useGameLaunch';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { OreMotionTokens } from '../../../style/tokens/motion';
+import { ControlHint } from '../../../ui/components/ControlHint';
 
 // ✅ 1. 引入你的超级输入驱动
 import { useInputAction } from '../../../ui/focus/InputDriver';
@@ -103,14 +104,20 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                 <OreButton
                   variant="primary"
                   size="full"
-                  className={`!h-[44px] shadow-inner transition-all duration-300 ${focused ? 'brightness-110' : ''}`}
+                  className={`!h-[44px] shadow-inner transition-all duration-300`}
                   onClick={(e) => {
                     e.stopPropagation();
                     launchGame(instance.id);
                   }}
                   tabIndex={-1}
                 >
-                  {isLaunching ? <Loader2 size={18} className="animate-spin mr-2" /> : <Play size={18} fill="currentColor" className="mr-2" />}
+                  {isLaunching ? (
+                    <Loader2 size={18} className="animate-spin mr-2" />
+                  ) : focused ? (
+                    <ControlHint label="A" variant="face" tone="green" className="mr-2 -ml-1 scale-90" />
+                  ) : (
+                    <Play size={18} fill="currentColor" className="mr-2" />
+                  )}
                   {isLaunching ? '启动中...' : '开始游戏'}
                 </OreButton>
               </div>
@@ -126,7 +133,13 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                   </span>
 
                   {instance.loader && instance.loader !== 'Vanilla' && (
-                    <span className="bg-black/50 px-1.5 py-0.5 rounded-sm text-gray-300 border border-white/5 shadow-inner">
+                    <span className="flex items-center gap-1 bg-black/50 px-1.5 py-0.5 rounded-sm text-gray-300 border border-white/5 shadow-inner">
+                      <img 
+                        src={`/src/assets/icons/tags/loaders/${instance.loader.toLowerCase()}.svg`}
+                        alt={instance.loader}
+                        className="w-3 h-3 opacity-80 invert brightness-0"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
                       {instance.loader}
                     </span>
                   )}

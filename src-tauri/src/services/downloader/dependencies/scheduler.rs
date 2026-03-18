@@ -1,4 +1,4 @@
-﻿use std::path::{Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -9,9 +9,9 @@ use sha1::{Digest, Sha1};
 use tauri::{AppHandle, Runtime};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use crate::error::AppResult;
-use crate::services::downloader::logging::{log_download_event, DownloadLogLevel};
+use crate::error::{AppError, AppResult};
 use crate::services::deployment_cancel::is_cancelled;
+use crate::services::downloader::logging::{log_download_event, DownloadLogLevel};
 
 use super::progress::{emit_download_progress, DownloadStage};
 
@@ -66,6 +66,7 @@ pub async fn run_downloads<R: Runtime>(
     limit_per_thread: u64,
     retry_count: u32,
     verify_hash: bool,
+    stall_timeout: Duration,
     cancel: &Arc<AtomicBool>,
 ) -> AppResult<()> {
     let total = tasks.len() as u64;
@@ -90,12 +91,14 @@ pub async fn run_downloads<R: Runtime>(
     let last_emit = Arc::new(tokio::sync::Mutex::new(
         Instant::now() - Duration::from_millis(PROGRESS_EMIT_INTERVAL_MS),
     ));
+    let failure_reason = Arc::new(tokio::sync::Mutex::new(None::<String>));
 
     let fetches = iter(tasks)
         .map(|task: DownloadTask| {
             let client = client.clone();
             let completed = Arc::clone(&completed);
             let last_emit = Arc::clone(&last_emit);
+            let failure_reason = Arc::clone(&failure_reason);
             let app = app.clone();
             let instance_id = instance_id.to_string();
             let cancel = Arc::clone(cancel);
@@ -132,7 +135,7 @@ pub async fn run_downloads<R: Runtime>(
                             last_error = Some(format!("connect failed: {}", e));
                             if attempt < max_attempts {
                                 let ui_msg = format!(
-                                "Download failed, retrying ({}/{}) for {}",
+                                    "Download failed, retrying ({}/{}) for {}",
                                     attempt, max_attempts, task.name
                                 );
                                 let raw_msg = format!(
@@ -208,8 +211,9 @@ pub async fn run_downloads<R: Runtime>(
 
                     let mut res = response;
                     loop {
-                        match res.chunk().await {
-                            Ok(Some(chunk)) => {
+                        let next_chunk = tokio::time::timeout(stall_timeout, res.chunk()).await;
+                        match next_chunk {
+                            Ok(Ok(Some(chunk))) => {
                                 if is_cancelled(&cancel) {
                                     let _ = tokio::fs::remove_file(&tmp_path).await;
                                     return;
@@ -234,11 +238,17 @@ pub async fn run_downloads<R: Runtime>(
                                     .await;
                                 }
                             }
-                            Ok(None) => {
+                            Ok(Ok(None)) => break,
+                            Ok(Err(e)) => {
+                                last_error = Some(format!("stream failed: {}", e));
+                                stream_ok = false;
                                 break;
                             }
-                            Err(e) => {
-                                last_error = Some(format!("stream failed: {}", e));
+                            Err(_) => {
+                                last_error = Some(format!(
+                                    "stream stalled for {}s",
+                                    stall_timeout.as_secs()
+                                ));
                                 stream_ok = false;
                                 break;
                             }
@@ -398,44 +408,32 @@ pub async fn run_downloads<R: Runtime>(
                 }
 
                 if !success {
-                    if let Some(err) = last_error {
-                        let ui_msg = format!(
-                            "Download failed after {} attempts for {}",
-                            max_attempts, task.name
-                        );
-                        let raw_msg = format!(
-                            "download failed after {} attempts: url={} err={}",
-                            max_attempts, task.url, err
-                        );
-                        log_download_event(
-                            &app,
-                            &instance_id,
-                            stage_name,
-                            DownloadLogLevel::Error,
-                            &ui_msg,
-                            Some(&raw_msg),
-                            true,
-                        )
-                        .await;
-                    } else {
-                        let ui_msg = format!(
-                            "Download failed after {} attempts for {}",
-                            max_attempts, task.name
-                        );
-                        let raw_msg = format!(
-                            "download failed after {} attempts: url={}",
-                            max_attempts, task.url
-                        );
-                        log_download_event(
-                            &app,
-                            &instance_id,
-                            stage_name,
-                            DownloadLogLevel::Error,
-                            &ui_msg,
-                            Some(&raw_msg),
-                            true,
-                        )
-                        .await;
+                    let reason = last_error
+                        .clone()
+                        .unwrap_or_else(|| "unknown error".to_string());
+
+                    let ui_msg = format!(
+                        "Download failed after {} attempts for {}",
+                        max_attempts, task.name
+                    );
+                    let raw_msg = format!(
+                        "download failed after {} attempts: url={} err={}",
+                        max_attempts, task.url, reason
+                    );
+                    log_download_event(
+                        &app,
+                        &instance_id,
+                        stage_name,
+                        DownloadLogLevel::Error,
+                        &ui_msg,
+                        Some(&raw_msg),
+                        true,
+                    )
+                    .await;
+
+                    let mut failed = failure_reason.lock().await;
+                    if failed.is_none() {
+                        *failed = Some(format!("{} ({})", task.name, reason));
                     }
                 }
 
@@ -457,6 +455,30 @@ pub async fn run_downloads<R: Runtime>(
 
     fetches.collect::<Vec<()>>().await;
 
+    if is_cancelled(cancel) {
+        return Err(AppError::Cancelled);
+    }
+
+    if let Some(reason) = failure_reason.lock().await.clone() {
+        let summary = format!("{} downloads finished with errors", stage_label);
+        log_download_event(
+            app,
+            instance_id,
+            stage_name,
+            DownloadLogLevel::Error,
+            &summary,
+            Some(&reason),
+            true,
+        )
+        .await;
+
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("{} download failed: {}", stage_label, reason),
+        )
+        .into());
+    }
+
     log_download_event(
         app,
         instance_id,
@@ -470,6 +492,3 @@ pub async fn run_downloads<R: Runtime>(
 
     Ok(())
 }
-
-
-

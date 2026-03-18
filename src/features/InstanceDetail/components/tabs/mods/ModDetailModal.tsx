@@ -38,7 +38,11 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({ mod, instanceCon
       if (currentFocus && currentFocus !== 'SN:ROOT') {
         lastFocusBeforeModalRef.current = currentFocus;
       }
-      setTimeout(() => setFocus('btn-mod-toggle'), 100);
+      setTimeout(() => {
+        if (doesFocusableExist('btn-mod-toggle')) {
+          setFocus('btn-mod-toggle');
+        }
+      }, 150);
     } else {
       setShowDeleteConfirm(false);
     }

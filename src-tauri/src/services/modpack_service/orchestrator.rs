@@ -153,10 +153,7 @@ fn curseforge_edge_url(file_id: u64, file_name: &str) -> String {
     let prefix = file_id / 1000;
     let suffix = file_id % 1000;
     let encoded = percent_encode(file_name);
-    format!(
-        "https://edge.forgecdn.net/files/{}/{:03}/{}", // 修复：使用 {:03} 强制补齐 3 位
-        prefix, suffix, encoded
-    )
+    format!("https://edge.forgecdn.net/files/{}/{:03}/{}", prefix, suffix, encoded)
 }
 
 async fn fetch_curseforge_file_info(
@@ -424,11 +421,11 @@ async fn download_modrinth_mods<R: Runtime>(
     };
 
     let client = Client::builder()
-    .user_agent("PiLauncher/1.0 (Modpack)")
-    // 修复：改为 connect_timeout，不限制下载总耗时
-    .connect_timeout(Duration::from_secs(dl_settings.timeout.max(1))) 
-    .build()
-    .map_err(|e| e.to_string())?;
+        .user_agent("PiLauncher/1.0 (Modpack)")
+        // Only limit connection establishment time; do not cap full download time.
+        .connect_timeout(Duration::from_secs(dl_settings.timeout.max(1)))
+        .build()
+        .map_err(|e| e.to_string())?;
 
     let temp_root = base_dir.join("temp").join("modpack").join(instance_id);
     tokio::fs::create_dir_all(&temp_root)
@@ -530,6 +527,7 @@ async fn download_modrinth_mods<R: Runtime>(
         limit_per_thread,
         retry_count,
         verify_hash,
+        Duration::from_secs(dl_settings.timeout.max(1)),
         cancel,
     )
     .await
@@ -571,12 +569,11 @@ async fn download_curseforge_mods<R: Runtime>(
     };
 
     let client = Client::builder()
-    .user_agent("PiLauncher/1.0 (CurseForge)")
-    // 删除这行： .timeout(Duration::from_secs(dl_settings.timeout.max(1)))
-    // 改为这行： 仅限制建立连接的超时时间，不限制下载文件主体耗时
-    .connect_timeout(Duration::from_secs(dl_settings.timeout.max(1)))
-    .build()
-    .map_err(|e| e.to_string())?;
+        .user_agent("PiLauncher/1.0 (CurseForge)")
+        // Only limit connection establishment time; do not cap full download time.
+        .connect_timeout(Duration::from_secs(dl_settings.timeout.max(1)))
+        .build()
+        .map_err(|e| e.to_string())?;
 
     let temp_root = base_dir
         .join("temp")
@@ -619,10 +616,10 @@ async fn download_curseforge_mods<R: Runtime>(
             .unwrap_or_else(|| "mod.jar".to_string());
 
         let url = match info.download_url {
-    // 修复：简单替换空格为 %20，防止 reqwest 报错
-    Some(url) if !url.trim().is_empty() => url.replace(" ", "%20"),
-    _ => curseforge_edge_url(info.id, &file_name),
-};
+            // Replace spaces with %20 to avoid reqwest URL parse failures.
+            Some(url) if !url.trim().is_empty() => url.replace(" ", "%20"),
+            _ => curseforge_edge_url(info.id, &file_name),
+        };
 
         let expected_sha1 = info
             .hashes
@@ -681,6 +678,7 @@ async fn download_curseforge_mods<R: Runtime>(
         limit_per_thread,
         retry_count,
         verify_hash,
+        Duration::from_secs(dl_settings.timeout.max(1)),
         cancel,
     )
     .await

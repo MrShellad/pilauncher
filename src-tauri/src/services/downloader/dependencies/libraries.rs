@@ -2,6 +2,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::time::Duration;
 
 use reqwest::Client;
 use serde_json::Value;
@@ -271,6 +272,7 @@ pub async fn download_libraries<R: Runtime>(
         limit_per_thread,
         retry_count,
         verify_hash,
+        Duration::from_secs(dl_settings.timeout.max(1)),
         cancel,
     )
     .await

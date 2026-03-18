@@ -8,10 +8,9 @@
     padding-bottom: 4px; /* 为底部的 4px 3D阴影预留视觉补偿中心 */
   }
 
-  /* 物理下压引擎：底框位置绝对固定，只压缩按钮顶部 */
+  /* 物理下压引擎：使用 transform 代替 margin/height 变化，防止布局塌陷 */
   .ore-btn:active:not(:disabled) {
-    margin-top: 4px;
-    height: calc(100% - 4px);
+    transform: translateY(4px);
     padding-bottom: 0px; 
   }
 

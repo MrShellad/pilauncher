@@ -299,9 +299,9 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
 
   const canLoadMore = useCallback(() => {
     const latest = latestRef.current;
-    if (!latest.hasMore) return false;
-    if (latest.isLoading || latest.isLoadingMore) return false;
-    if (loadMoreLockRef.current) return false;
+    if (!latest.hasMore || latest.isLoading || latest.isLoadingMore || loadMoreLockRef.current) {
+      return false;
+    }
     return true;
   }, []);
 
@@ -316,16 +316,22 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
     const target = observerTarget.current;
     if (!scrollHost || !target) return;
 
+    if (isLoading || isLoadingMore) {
+      return;
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting) triggerLoadMore();
+        if (entries[0]?.isIntersecting) {
+          triggerLoadMore();
+        }
       },
-      { root: scrollHost, threshold: 0.1 }
+      { root: scrollHost, rootMargin: '100px', threshold: 0.1 }
     );
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [triggerLoadMore, results.length, hasMore]);
+  }, [triggerLoadMore, results.length, isLoading, isLoadingMore]);
 
   const checkIsInstalled = (project: ModrinthProject) => (
     installedMods.some((mod) =>
@@ -337,7 +343,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
     <div
       id={scrollContainerId}
       ref={scrollContainerRef}
-      className="min-h-0 flex-1 overflow-y-auto custom-scrollbar"
+      className="h-full min-h-0 flex-1 overflow-y-auto custom-scrollbar"
       onScroll={(e) => {
         if (!onScrollTopChange) return;
         const el = e.currentTarget;

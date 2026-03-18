@@ -1,23 +1,43 @@
 // src-tauri/src/services/minecraft_service.rs
 use crate::domain::minecraft::{McVersion, RemoteVersionManifest, VersionGroup};
 use crate::error::AppResult;
+use crate::services::config_service::ConfigService;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::BTreeMap;
+use tauri::{AppHandle, Runtime};
 use tokio::sync::RwLock;
 
-static VERSION_CACHE: Lazy<RwLock<Option<Vec<VersionGroup>>>> = Lazy::new(|| RwLock::new(None));
+static VERSION_CACHE: Lazy<RwLock<Option<(String, Vec<VersionGroup>)>>> =
+    Lazy::new(|| RwLock::new(None));
 
 pub struct McMetadataService;
 
-const MANIFEST_URL: &str = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json";
+const OFFICIAL_MANIFEST_URL: &str = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json";
+const BANGBANG93_MANIFEST_URL: &str = "https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json";
 
 impl McMetadataService {
-    pub async fn fetch_remote_versions(force_refresh: bool) -> AppResult<Vec<VersionGroup>> {
+    fn resolve_manifest_url<R: Runtime>(app: &AppHandle<R>) -> String {
+        let dl_settings = ConfigService::get_download_settings(app);
+        match dl_settings.minecraft_meta_source.as_str() {
+            "official" => OFFICIAL_MANIFEST_URL.to_string(),
+            "bangbang93" => BANGBANG93_MANIFEST_URL.to_string(),
+            _ => BANGBANG93_MANIFEST_URL.to_string(),
+        }
+    }
+
+    pub async fn fetch_remote_versions<R: Runtime>(
+        app: &AppHandle<R>,
+        force_refresh: bool,
+    ) -> AppResult<Vec<VersionGroup>> {
+        let manifest_url = Self::resolve_manifest_url(app);
+
         if !force_refresh {
             let cache = VERSION_CACHE.read().await;
-            if let Some(ref data) = *cache {
-                return Ok(data.clone());
+            if let Some((cached_manifest_url, data)) = cache.as_ref() {
+                if cached_manifest_url == &manifest_url {
+                    return Ok(data.clone());
+                }
             }
         }
 
@@ -25,7 +45,7 @@ impl McMetadataService {
             .user_agent("PiLauncher/1.0")
             .build()?;
         let response = client
-            .get(MANIFEST_URL)
+            .get(&manifest_url)
             .send()
             .await?
             .json::<RemoteVersionManifest>()
@@ -97,7 +117,7 @@ impl McMetadataService {
         });
 
         let mut cache = VERSION_CACHE.write().await;
-        *cache = Some(result.clone());
+        *cache = Some((manifest_url, result.clone()));
         Ok(result)
     }
 }

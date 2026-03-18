@@ -1,5 +1,6 @@
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::time::Duration;
 
 use reqwest::Client;
 use serde_json::Value;
@@ -13,7 +14,6 @@ use super::mirror::{route_asset_object_url, route_assets_index_url};
 use super::progress::DownloadStage;
 use super::scheduler::{run_downloads, sha1_file, DownloadTask};
 
-/// 资源部分：负责下载资源索引以及 assets 对象
 pub async fn download_assets<R: Runtime>(
     app: &AppHandle<R>,
     instance_id: &str,
@@ -70,20 +70,28 @@ pub async fn download_assets<R: Runtime>(
         }
 
         let mirror_url = route_assets_index_url(index_url, &dl_settings);
+        let res = client.get(&mirror_url).send().await.map_err(|e| {
+            std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to download assets index: {}", e),
+            )
+        })?;
 
-        if let Ok(res) = client.get(&mirror_url).send().await {
-            if res.status().is_success() {
-                if let Ok(text) = res.text().await {
-                    let _ = tokio::fs::write(&index_path, text).await;
-                }
-            } else {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("下载资源索引失败: {}", res.status()),
-                )
-                .into());
-            }
+        if !res.status().is_success() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to download assets index: {}", res.status()),
+            )
+            .into());
         }
+
+        let text = res.text().await.map_err(|e| {
+            std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to read assets index response: {}", e),
+            )
+        })?;
+        tokio::fs::write(&index_path, text).await?;
     }
 
     if !index_path.exists() {
@@ -94,7 +102,7 @@ pub async fn download_assets<R: Runtime>(
     let index_json: Value = serde_json::from_str(&index_content).map_err(|e| {
         std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            format!("解析资源索引 JSON 失败: {}", e),
+            format!("Failed to parse assets index JSON: {}", e),
         )
     })?;
 
@@ -117,11 +125,7 @@ pub async fn download_assets<R: Runtime>(
                 .join(prefix)
                 .join(hash);
             if target_path.exists() {
-                let size_matches = target_path
-                    .metadata()
-                    .map(|m| m.len())
-                    .unwrap_or(0)
-                    == size;
+                let size_matches = target_path.metadata().map(|m| m.len()).unwrap_or(0) == size;
                 if size_matches {
                     if verify_hash {
                         if let Ok(actual) = sha1_file(&target_path).await {
@@ -168,8 +172,8 @@ pub async fn download_assets<R: Runtime>(
         limit_per_thread,
         retry_count,
         verify_hash,
+        Duration::from_secs(dl_settings.timeout.max(1)),
         cancel,
     )
     .await
 }
-

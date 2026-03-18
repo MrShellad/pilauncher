@@ -184,8 +184,12 @@ export const useResourceDownload = (instanceId?: string | null) => {
   const executeSearch = useCallback(async (currentOffset: number, isLoadMore = false) => {
     if (!isEnvLoaded) return;
 
-    if (isLoadMore) setIsLoadingMore(true);
-    else setIsLoading(true);
+    if (isLoadMore) {
+      setIsLoadingMore(true);
+    } else {
+      setIsLoading(true);
+      setResults([]);
+    }
 
     try {
       const data = source === 'curseforge'
@@ -205,7 +209,7 @@ export const useResourceDownload = (instanceId?: string | null) => {
             sort: sort as 'relevance' | 'downloads' | 'updated' | 'newest',
             projectType: activeTab,
             version: mcVersion || undefined,
-            loader: loaderType || undefined,
+            loader: activeTab === 'mod' ? loaderType || undefined : undefined,
             offset: currentOffset,
             limit: 20
           });

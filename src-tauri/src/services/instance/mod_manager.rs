@@ -1,4 +1,4 @@
-// src-tauri/src/services/instance/mod_manager.rs
+﻿// src-tauri/src/services/instance/mod_manager.rs
 use crate::services::config_service::ConfigService;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -393,7 +393,25 @@ impl ModManagerService {
             let path_lock = crate::services::file_write_lock::lock_for_path(&path_key);
             let _write_guard = path_lock.lock().await;
 
-            let client = reqwest::Client::new();
+            let dl_settings = ConfigService::get_download_settings(app);
+            let mut builder = reqwest::Client::builder()
+                .connect_timeout(std::time::Duration::from_secs(dl_settings.timeout.max(1)));
+            if dl_settings.proxy_type != "none" {
+                let host = dl_settings.proxy_host.trim();
+                let port = dl_settings.proxy_port.trim();
+                if !host.is_empty() && !port.is_empty() {
+                    let scheme = match dl_settings.proxy_type.as_str() {
+                        "http" => "http",
+                        "https" => "https",
+                        "socks5" => "socks5h",
+                        _ => "http",
+                    };
+                    let proxy_url = format!("{}://{}:{}", scheme, host, port);
+                    builder =
+                        builder.proxy(reqwest::Proxy::all(&proxy_url).map_err(|e| e.to_string())?);
+                }
+            }
+            let client = builder.build().map_err(|e| e.to_string())?;
             let mut response = client
                 .get(download_url)
                 .send()
@@ -416,7 +434,14 @@ impl ModManagerService {
                 .await
                 .map_err(|e| format!("无法创建缓存文件: {}", e))?;
 
-            while let Some(chunk) = response.chunk().await.map_err(|e| e.to_string())? {
+            let stall_timeout = std::time::Duration::from_secs(dl_settings.timeout.max(1));
+            loop {
+                let next_chunk = tokio::time::timeout(stall_timeout, response.chunk())
+                    .await
+                    .map_err(|_| format!("download stalled for {}s", stall_timeout.as_secs()))?;
+                let Some(chunk) = next_chunk.map_err(|e| e.to_string())? else {
+                    break;
+                };
                 dest.write_all(&chunk)
                     .await
                     .map_err(|e| format!("写入磁盘失败: {}", e))?;

@@ -17,6 +17,7 @@ import { useLauncherStore } from '../../../store/useLauncherStore';
 import { useGamepadModStore } from '../../../store/useGamepadModStore';
 import { renderHighlightedLog, defaultHighlightRules } from '../logic/LogHighlighter';
 import { OreButton } from '../../../ui/primitives/OreButton';
+import { INITIAL_DOWNLOAD_FOCUS_KEY } from '../../Settings/components/tabs/download/downloadSettings.constants';
 
 export const GameLogSidebar: React.FC = () => {
   const { isOpen, setOpen, currentInstanceId, logs, gameState, crashReason, telemetry } = useGameLogStore();
@@ -39,7 +40,7 @@ export const GameLogSidebar: React.FC = () => {
     settings: [
       'settings-device-name',
       'settings-java-autodetect',
-      'settings-download-source-vanilla',
+      INITIAL_DOWNLOAD_FOCUS_KEY,
       'btn-add-ms',
       'color-preset-0',
     ],
@@ -52,6 +53,11 @@ export const GameLogSidebar: React.FC = () => {
       'mod-btn-history',
       'btn-open-resourcepack-folder',
       'btn-open-shader-folder',
+    ],
+    'instance-mod-download': [
+      'instance-mod-page-back',
+      'inst-filter-search',
+      'download-grid-item-0',
     ],
   }), []);
 

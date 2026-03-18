@@ -114,17 +114,23 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
   useEffect(() => {
     if (!project || didAutoFocusModalRef.current) return;
 
-    const candidates = [
-      'download-modal-version-action-0',
-      !directInstallInstanceId ? 'download-modal-mc-dropdown-0' : undefined
-    ].filter(Boolean) as string[];
-
-    const target = candidates.find((key) => doesFocusableExist(key));
-    if (!target) return;
-
-    didAutoFocusModalRef.current = true;
-    const timer = setTimeout(() => setFocus(target), 50);
-    return () => clearTimeout(timer);
+    // Retry focusing the first download button if it hasn't rendered yet
+    let retries = 0;
+    const tryFocus = () => {
+      if (doesFocusableExist('download-modal-version-action-0')) {
+        didAutoFocusModalRef.current = true;
+        setFocus('download-modal-version-action-0');
+      } else if (!directInstallInstanceId && doesFocusableExist('download-modal-mc-dropdown-0')) {
+        didAutoFocusModalRef.current = true;
+        setFocus('download-modal-mc-dropdown-0');
+      } else if (retries < 5) {
+        retries++;
+        setTimeout(tryFocus, 100);
+      }
+    };
+    
+    // Slight initial delay to allow Modal animations
+    setTimeout(tryFocus, 150);
   }, [directInstallInstanceId, displayVersions.length, isLoadingVersions, project]);
 
   if (!project) return null;

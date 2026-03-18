@@ -6,6 +6,7 @@ import { useLauncherStore } from '../../../../store/useLauncherStore';
 import { useInputAction } from '../../../../ui/focus/InputDriver'; 
 import { useSettingsStore } from '../../../../store/useSettingsStore';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { INITIAL_DOWNLOAD_FOCUS_KEY } from '../../../Settings/components/tabs/download/downloadSettings.constants';
 
 import { TaskPanel } from './TaskPanel';
 import { FloatingButton } from './FloatingButton';
@@ -18,7 +19,7 @@ const fallbackFocusKeysByTab: Record<string, string[]> = {
   settings: [
     'settings-device-name',
     'settings-java-autodetect',
-    'settings-download-source-vanilla',
+    INITIAL_DOWNLOAD_FOCUS_KEY,
     'btn-add-ms',
     'color-preset-0',
   ],
@@ -29,6 +30,11 @@ const fallbackFocusKeysByTab: Record<string, string[]> = {
     'java-entry-point',
     'save-btn-history',
     'mod-btn-history',
+  ],
+  'instance-mod-download': [
+    'instance-mod-page-back',
+    'inst-filter-search',
+    'download-grid-item-0',
   ],
 };
 

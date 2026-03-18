@@ -8,6 +8,8 @@ use tauri::{AppHandle, Manager, Runtime};
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadSettings {
+    #[serde(default = "default_minecraft_meta_source")]
+    pub minecraft_meta_source: String,
     pub concurrency: usize,
     pub speed_limit: u64,
     pub speed_unit: String,
@@ -28,9 +30,14 @@ pub struct DownloadSettings {
     pub neoforge_source_url: String,
 }
 
+fn default_minecraft_meta_source() -> String {
+    "bangbang93".to_string()
+}
+
 impl Default for DownloadSettings {
     fn default() -> Self {
         Self {
+            minecraft_meta_source: "bangbang93".to_string(),
             concurrency: 16, speed_limit: 0, speed_unit: "MB/s".to_string(),
             proxy_type: "none".to_string(), proxy_host: "127.0.0.1".to_string(),
             proxy_port: "7890".to_string(), retry_count: 3, timeout: 15, verify_after_download: true,

@@ -25,6 +25,7 @@ const NewInstance = lazy(() => import('./pages/NewInstance'));
 const Settings = lazy(() => import('./pages/Settings'));
 const InstanceDetail = lazy(() => import('./pages/InstanceDetail'));
 const ResourceDownloadPage = lazy(() => import('./pages/ResourceDownloadPage'));
+const InstanceModDownloadPage = lazy(() => import('./pages/InstanceModDownloadPage'));
 
 const App: React.FC = () => {
   const activeTab = useLauncherStore((state) => state.activeTab);
@@ -87,6 +88,7 @@ const App: React.FC = () => {
                 {activeTab === 'multiplayer' && <Multiplayer />}
                 {activeTab === 'new-instance' && <NewInstance />}
                 {activeTab === 'instance-detail' && <InstanceDetail />}
+                {activeTab === 'instance-mod-download' && <InstanceModDownloadPage />}
                 {activeTab === 'downloads' && <ResourceDownloadPage />}
                 {activeTab === 'settings' && <Settings />}
               </Suspense>

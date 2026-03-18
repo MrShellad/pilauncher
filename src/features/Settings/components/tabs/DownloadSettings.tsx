@@ -1,8 +1,19 @@
 // src/features/Settings/components/tabs/DownloadSettings.tsx
-import React, { useCallback, useMemo } from 'react';
-import { Globe, Zap, ShieldCheck, Network, AlertTriangle, Activity, RefreshCw, CheckCircle2, XCircle, Info, Cpu, Monitor, Wifi } from 'lucide-react';
-import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
-import { invoke } from '@tauri-apps/api/core';
+import React from 'react';
+import {
+  Globe,
+  Zap,
+  ShieldCheck,
+  Network,
+  Activity,
+  RefreshCw,
+  CheckCircle2,
+  XCircle,
+  Info,
+  Cpu,
+  Monitor,
+  Wifi
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
@@ -12,218 +23,83 @@ import { OreSwitch } from '../../../../ui/primitives/OreSwitch';
 import { OreSlider } from '../../../../ui/primitives/OreSlider';
 import { OreInput } from '../../../../ui/primitives/OreInput';
 import { OreToggleButton } from '../../../../ui/primitives/OreToggleButton';
-import { OreDropdown } from '../../../../ui/primitives/OreDropdown';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 
-import { useSettingsStore } from '../../../../store/useSettingsStore';
-import { DEFAULT_SETTINGS } from '../../../../types/settings';
-import downloadConfig from '../../../../assets/config/downloadsource.json';
-
-type SourceCategoryKey = 'vanilla' | 'forge' | 'fabric' | 'neoforge';
-
-interface DomainTestResult {
-  domain: string;
-  dns: boolean;
-  dns_info: string;
-  tcp: boolean;
-  tls: boolean;
-  http: boolean;
-  latency: number;
-}
-
-interface SystemInfo {
-  os: string;
-  arch: string;
-  cpu: string;
-  memory: string;
-}
-
-interface NetworkInfo {
-  local_ip: string;
-  dns_servers: string[];
-}
-
-interface NetworkTestReport {
-  domains: DomainTestResult[];
-  system: SystemInfo;
-  network: NetworkInfo;
-  timestamp: string;
-  qrcode_uri?: string;
-}
+import { useDownloadSettingsController } from './download/useDownloadSettingsController';
 
 export const DownloadSettings: React.FC = () => {
-  const { settings, updateDownloadSetting } = useSettingsStore();
-  const [report, setReport] = React.useState<NetworkTestReport | null>(null);
-  const [testing, setTesting] = React.useState(false);
-  const download = settings.download || DEFAULT_SETTINGS.download;
-
-  const sourceCategories = useMemo(() => [
-    { key: 'vanilla' as SourceCategoryKey, label: '原版核心下载源', data: downloadConfig.sources.vanilla },
-    { key: 'forge' as SourceCategoryKey, label: 'Forge 下载源', data: downloadConfig.sources.forge },
-    { key: 'fabric' as SourceCategoryKey, label: 'Fabric 下载源', data: downloadConfig.sources.fabric },
-    { key: 'neoforge' as SourceCategoryKey, label: 'NeoForge 下载源', data: downloadConfig.sources.neoforge }
-  ], []);
-
-  const proxyOptions = useMemo(() => [
-    { label: '直连 (不使用代理)', value: 'none' },
-    { label: 'HTTP 代理', value: 'http' },
-    { label: 'HTTPS 代理', value: 'https' },
-    { label: 'SOCKS5 代理', value: 'socks5' }
-  ], []);
-
-  // 严格线性焦点序：只包含“当前可见”控件，避免跳入隐藏控件黑洞
-  const focusOrder = useMemo(() => {
-    const keys: string[] = [];
-
-    sourceCategories.forEach(({ key }) => {
-      const sourceValue = (download as any)[`${key}Source`] || 'official';
-      keys.push(`settings-download-source-${key}`);
-      if (sourceValue === 'custom') {
-        keys.push(`settings-download-url-${key}`);
-      }
-    });
-
-    keys.push(
-      'settings-download-auto-latency',
-      'settings-download-speed-unit-0',
-      'settings-download-speed-unit-1',
-      'settings-download-speed-limit',
-      'settings-download-concurrency',
-      'settings-download-timeout',
-      'settings-download-retry',
-      'settings-download-verify-hash',
-      'settings-download-proxy-type'
-    );
-
-    if (download.proxyType !== 'none') {
-      keys.push('settings-download-proxy-host', 'settings-download-proxy-port');
-    }
-
-    keys.push('settings-download-run-diagnostics');
-
-    if (report) {
-      report.domains.forEach((d) => {
-        keys.push(`settings-download-diagnostic-result-${d.domain}`);
-      });
-      if (report.qrcode_uri) {
-        keys.push('settings-download-diagnostic-qr');
-      }
-    }
-
-    return keys;
-  }, [sourceCategories, download, report]);
-
-  const handleLinearArrow = useCallback((direction: string) => {
-    if (direction !== 'up' && direction !== 'down') return true;
-
-    const availableKeys = focusOrder.filter((k) => doesFocusableExist(k));
-    if (availableKeys.length === 0) return true;
-
-    const currentKey = getCurrentFocusKey();
-    const index = availableKeys.indexOf(currentKey);
-
-    if (index < 0) {
-      setFocus(availableKeys[0]);
-      return false;
-    }
-
-    const nextIndex = direction === 'down'
-      ? Math.min(availableKeys.length - 1, index + 1)
-      : Math.max(0, index - 1);
-
-    if (nextIndex !== index) {
-      setFocus(availableKeys[nextIndex]);
-    }
-
-    return false;
-  }, [focusOrder]);
-
-  const runNetworkTest = async () => {
-    setTesting(true);
-    setReport(null);
-    try {
-      const res = await invoke<NetworkTestReport>('run_network_test');
-      setReport(res);
-    } catch (err) {
-      console.error('Network test failed:', err);
-      alert('网络测试失败，请检查网络连接后重试。');
-    } finally {
-      setTesting(false);
-    }
-  };
+  const {
+    download,
+    minecraftMetaSource,
+    sourceCategories,
+    proxyOptions,
+    report,
+    testing,
+    updateDownloadSetting,
+    handleLinearArrow,
+    runNetworkTest
+  } = useDownloadSettingsController();
 
   return (
     <SettingsPageLayout title="下载与网络" subtitle="Download & Network Configurations">
       <SettingsSection title="组件下载源" icon={<Globe size={18} />}>
+        <FormRow
+          label="Minecraft 版本元数据源"
+          description="用于获取 version_manifest_v2 版本列表。"
+          className="!lg:items-center"
+          control={
+            <div className="w-[320px]">
+              <OreToggleButton
+                focusKeyPrefix="settings-download-minecraft-meta-source"
+                onArrowPress={handleLinearArrow}
+                options={[
+                  { label: <span className="font-minecraft tracking-wider">BMCLAPI</span>, value: 'bangbang93' },
+                  { label: <span className="font-minecraft tracking-wider">Official</span>, value: 'official' }
+                ]}
+                value={minecraftMetaSource}
+                onChange={(v) => updateDownloadSetting('minecraftMetaSource', v as any)}
+                size="sm"
+              />
+            </div>
+          }
+        />
+
         {sourceCategories.map((category) => {
           const sourceKey = `${category.key}Source` as keyof typeof download;
           const urlKey = `${category.key}SourceUrl` as keyof typeof download;
 
-          const options = category.data.map((s) => ({ label: s.name, value: s.id }));
-          options.push({ label: '自定义源 (Custom)', value: 'custom' });
-
-          const currentSourceValue = (download as any)[sourceKey] || 'official';
-          const currentUrlValue = (download as any)[urlKey] || '';
+          const options = category.data.map((s) => ({
+            label: <span className="font-minecraft tracking-wider">{s.name}</span>,
+            value: s.id
+          }));
+          const sourceIds = category.data.map((s) => s.id);
+          const rawSourceValue = (download as any)[sourceKey] as string;
+          const currentSourceValue = sourceIds.includes(rawSourceValue) ? rawSourceValue : (sourceIds[0] || '');
 
           return (
-            <React.Fragment key={category.key}>
-              <FormRow
-                label={category.label}
-                control={
-                  <OreDropdown
+            <FormRow
+              key={category.key}
+              label={category.label}
+              className="!lg:items-center"
+              control={
+                <div className="w-[320px]">
+                  <OreToggleButton
                     options={options}
                     value={currentSourceValue}
-                    focusKey={`settings-download-source-${category.key}`}
+                    focusKeyPrefix={`settings-download-source-${category.key}`}
                     onArrowPress={handleLinearArrow}
                     onChange={(val) => {
-                      if (val === 'custom') {
-                        const ok = window.confirm(
-                          `⚠️ 警告：\n\n您正在修改 [${category.label}]。\n使用未知的自定义源可能导致下载到被篡改的文件。\n\n请确认您了解风险。`
-                        );
-                        if (!ok) return;
-                        updateDownloadSetting(sourceKey, val as any);
-                        updateDownloadSetting(urlKey, '' as any);
-                        return;
-                      }
-
                       const target = category.data.find((s) => s.id === val);
-                      if (target) updateDownloadSetting(urlKey, target.url as any);
+                      if (!target) return;
                       updateDownloadSetting(sourceKey, val as any);
+                      updateDownloadSetting(urlKey, target.url as any);
                     }}
-                    className="w-56"
-                  />
-                }
-              />
-
-              {currentSourceValue === 'custom' && (
-                <div className="mb-2">
-                  <div className="bg-red-500/10 border-l-4 border-red-500 p-3 mb-2 rounded-r-sm flex items-start">
-                    <AlertTriangle size={16} className="text-red-500 mt-0.5 mr-2 flex-shrink-0" />
-                    <div className="flex-1">
-                      <h4 className="text-red-400 font-minecraft text-sm font-bold mb-1">危险操作提示</h4>
-                      <p className="text-red-400/80 text-xs">
-                        您正在使用不受支持的自定义 API，请确保地址可信且使用 HTTPS。
-                      </p>
-                    </div>
-                  </div>
-
-                  <FormRow
-                    label={`${category.key.toUpperCase()} API 地址`}
-                    control={
-                      <OreInput
-                        focusKey={`settings-download-url-${category.key}`}
-                        onArrowPress={handleLinearArrow}
-                        value={currentUrlValue}
-                        onChange={(e) => updateDownloadSetting(urlKey, e.target.value as any)}
-                        placeholder={`https://your-${category.key}-mirror.com`}
-                        className="w-64 font-mono text-xs"
-                      />
-                    }
+                    size="sm"
                   />
                 </div>
-              )}
-            </React.Fragment>
+              }
+            />
           );
         })}
 
@@ -247,9 +123,9 @@ export const DownloadSettings: React.FC = () => {
         <FormRow
           label="速度显示单位"
           description="MB/s 与 Mbps 两种展示模式。"
-          vertical={true}
+          className="!lg:items-center"
           control={
-            <div className="w-full max-w-sm mt-2">
+            <div className="w-[320px]">
               <OreToggleButton
                 focusKeyPrefix="settings-download-speed-unit"
                 onArrowPress={handleLinearArrow}
@@ -287,13 +163,11 @@ export const DownloadSettings: React.FC = () => {
         <FormRow
           label="最大并发任务数"
           description="并发越高速度可能越快，但也会增加网络和系统压力。"
-          vertical={true}
+          className="!lg:items-center"
           control={
-            <div className="w-full flex flex-col">
-              <div className="flex justify-end font-minecraft text-sm mb-2">
-                <span className="text-ore-green font-bold">{download.concurrency} 线程</span>
-              </div>
+            <div className="w-[320px] flex items-center gap-3">
               <OreSlider
+                className="flex-1"
                 focusKey="settings-download-concurrency"
                 onArrowPress={handleLinearArrow}
                 value={download.concurrency}
@@ -302,6 +176,9 @@ export const DownloadSettings: React.FC = () => {
                 step={1}
                 onChange={(v) => updateDownloadSetting('concurrency', v)}
               />
+              <span className="text-ore-green font-minecraft text-sm font-bold min-w-[68px] text-right">
+                {download.concurrency}
+              </span>
             </div>
           }
         />
@@ -331,13 +208,11 @@ export const DownloadSettings: React.FC = () => {
         <FormRow
           label="失败重试次数"
           description="单文件下载失败后的自动重试次数。"
-          vertical={true}
+          className="!lg:items-center"
           control={
-            <div className="w-full max-w-sm flex flex-col">
-              <div className="flex justify-end font-minecraft text-sm mb-2">
-                <span className="text-ore-green font-bold">{download.retryCount} 次</span>
-              </div>
+            <div className="w-[320px] flex items-center gap-3">
               <OreSlider
+                className="flex-1"
                 focusKey="settings-download-retry"
                 onArrowPress={handleLinearArrow}
                 value={download.retryCount}
@@ -346,6 +221,9 @@ export const DownloadSettings: React.FC = () => {
                 step={1}
                 onChange={(v) => updateDownloadSetting('retryCount', v)}
               />
+              <span className="text-ore-green font-minecraft text-sm font-bold min-w-[68px] text-right">
+                {download.retryCount}
+              </span>
             </div>
           }
         />
@@ -368,15 +246,23 @@ export const DownloadSettings: React.FC = () => {
         <FormRow
           label="代理模式"
           description="仅影响下载与 API 请求，不影响游戏联机。"
+          className="!lg:items-center"
           control={
-            <OreDropdown
-              focusKey="settings-download-proxy-type"
-              onArrowPress={handleLinearArrow}
-              options={proxyOptions}
-              value={download.proxyType}
-              onChange={(val) => updateDownloadSetting('proxyType', val as any)}
-              className="w-48"
-            />
+            <div className="w-[420px]">
+              <OreToggleButton
+                focusKeyPrefix="settings-download-proxy-type"
+                onArrowPress={handleLinearArrow}
+                options={proxyOptions.map((opt) => ({
+                  label: <span className="font-minecraft tracking-wider whitespace-normal text-center leading-tight">{opt.label}</span>,
+                  value: opt.value
+                }))}
+                value={download.proxyType}
+                onChange={(val) => updateDownloadSetting('proxyType', val as any)}
+                size="sm"
+                className="[&>.ore-toggle-btn-item]:!h-[40px]"
+                buttonClassName="!whitespace-normal !leading-tight"
+              />
+            </div>
           }
         />
 
@@ -447,7 +333,6 @@ export const DownloadSettings: React.FC = () => {
                 exit={{ opacity: 0, y: -10 }}
                 className="space-y-6"
               >
-                {/* 域名测试结果列表 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {report.domains.map((d) => (
                     <FocusItem
@@ -456,7 +341,7 @@ export const DownloadSettings: React.FC = () => {
                       onArrowPress={handleLinearArrow}
                     >
                       {({ ref, focused }) => (
-                        <div 
+                        <div
                           ref={ref}
                           className={`bg-black/20 border rounded-lg p-4 flex flex-col justify-between hover:bg-black/30 transition-colors ${
                             focused ? 'border-ore-green shadow-[0_0_10px_rgba(56,133,39,0.3)]' : 'border-white/5'
@@ -470,15 +355,20 @@ export const DownloadSettings: React.FC = () => {
                               <span className="text-[10px] text-ore-text-muted mt-0.5">{d.dns_info}</span>
                             </div>
                             <div className="flex items-center space-x-1">
-                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                                d.latency < 100 ? 'bg-green-500/20 text-green-400' : 
-                                d.latency < 300 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'
-                              }`}>
+                              <span
+                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                  d.latency < 100
+                                    ? 'bg-green-500/20 text-green-400'
+                                    : d.latency < 300
+                                    ? 'bg-yellow-500/20 text-yellow-400'
+                                    : 'bg-red-500/20 text-red-400'
+                                }`}
+                              >
                                 {d.latency}ms
                               </span>
                             </div>
                           </div>
-                          
+
                           <div className="flex items-center justify-between mt-auto">
                             <div className="flex space-x-3">
                               <StatusBadge label="DNS" success={d.dns} />
@@ -493,7 +383,6 @@ export const DownloadSettings: React.FC = () => {
                   ))}
                 </div>
 
-                {/* 系统信息与二维码 */}
                 <div className="flex flex-col lg:flex-row gap-6 border-t border-white/5 pt-6">
                   <div className="flex-1 space-y-4">
                     <h5 className="text-white font-minecraft text-sm flex items-center">
@@ -512,12 +401,9 @@ export const DownloadSettings: React.FC = () => {
                   </div>
 
                   {report.qrcode_uri && (
-                    <FocusItem
-                      focusKey="settings-download-diagnostic-qr"
-                      onArrowPress={handleLinearArrow}
-                    >
+                    <FocusItem focusKey="settings-download-diagnostic-qr" onArrowPress={handleLinearArrow}>
                       {({ ref, focused }) => (
-                        <div 
+                        <div
                           ref={ref}
                           className={`flex flex-col items-center justify-center bg-white/5 p-4 rounded-lg border transition-all w-full lg:w-48 shrink-0 ${
                             focused ? 'border-ore-green bg-white/10' : 'border-white/10'
@@ -527,7 +413,9 @@ export const DownloadSettings: React.FC = () => {
                             <img src={report.qrcode_uri} alt="Diagnostic QR" className="w-32 h-32" />
                           </div>
                           <p className="text-[10px] text-ore-text-muted mt-3 text-center leading-relaxed">
-                            扫描上方二维码<br />获取 Base64 诊断报告数据
+                            扫描上方二维码
+                            <br />
+                            获取 Base64 诊断报告数据
                           </p>
                         </div>
                       )}
@@ -569,11 +457,7 @@ interface StatusBadgeProps {
 const StatusBadge: React.FC<StatusBadgeProps> = ({ label, success }) => (
   <div className="flex flex-col items-center">
     <span className="text-[9px] text-ore-text-muted mb-1 uppercase font-bold">{label}</span>
-    {success ? (
-      <CheckCircle2 size={12} className="text-green-500" />
-    ) : (
-      <XCircle size={12} className="text-red-500" />
-    )}
+    {success ? <CheckCircle2 size={12} className="text-green-500" /> : <XCircle size={12} className="text-red-500" />}
   </div>
 );
 
@@ -589,6 +473,8 @@ const InfoItem: React.FC<InfoItemProps> = ({ icon, label, value }) => (
       {icon}
       <span className="ml-1.5 uppercase tracking-wider">{label}</span>
     </div>
-    <span className="text-xs text-white/80 font-medium truncate" title={value}>{value}</span>
+    <span className="text-xs text-white/80 font-medium truncate" title={value}>
+      {value}
+    </span>
   </div>
 );

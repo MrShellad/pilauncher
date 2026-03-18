@@ -10,6 +10,7 @@ import { AppearanceSettings } from '../features/Settings/components/tabs/Appeara
 import { GameSettings } from '../features/Settings/components/tabs/GameSettings';
 import { DownloadSettings } from '../features/Settings/components/tabs/DownloadSettings';
 import { AccountSettings } from '../features/Settings/components/tabs/AccountSettings';
+import { INITIAL_DOWNLOAD_FOCUS_KEY } from '../features/Settings/components/tabs/download/downloadSettings.constants';
 import { OreToggleButton, type ToggleOption } from '../ui/primitives/OreToggleButton';
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { focusManager } from '../ui/focus/FocusManager';
@@ -34,7 +35,7 @@ export const Settings: React.FC = () => {
     appearance: 'color-preset-0',
     game: 'settings-game-window-title',
     java: 'settings-java-autodetect',
-    download: 'settings-download-source-vanilla',
+    download: INITIAL_DOWNLOAD_FOCUS_KEY,
     account: 'btn-add-ms',
     data: undefined
   }), []);

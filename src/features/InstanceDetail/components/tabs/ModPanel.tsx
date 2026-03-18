@@ -1,37 +1,55 @@
-// /src/features/InstanceDetail/components/tabs/ModPanel.tsx
-import React, { useState, useEffect } from 'react';
+﻿// /src/features/InstanceDetail/components/tabs/ModPanel.tsx
+import React, { useEffect, useState } from 'react';
 import { listen, type Event } from '@tauri-apps/api/event';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { History, Loader2, RefreshCw, HardDriveDownload, FolderOpen, DownloadCloud, Clock, Type } from 'lucide-react';
 
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { OreButton } from '../../../../ui/primitives/OreButton';
-import { FocusItem } from '../../../../ui/focus/FocusItem'; // ✅ 引入组件补全焦点树
+import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { focusManager } from '../../../../ui/focus/FocusManager';
+import { useLauncherStore } from '../../../../store/useLauncherStore';
 
 import { useModManager } from '../../hooks/useModManager';
 import { ModList } from './mods/ModList';
 import { ModDetailModal } from './mods/ModDetailModal';
-import { InstanceModDownloadView } from './mods/InstanceModDownloadView';
 import type { ModMeta } from '../../logic/modService';
 
 export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   const {
-    mods, isLoading, instanceConfig, isCreatingSnapshot, sortType, setSortType,
-    toggleMod, deleteMod, createSnapshot, openModFolder, loadMods,
+    mods,
+    isLoading,
+    instanceConfig,
+    isCreatingSnapshot,
+    sortType,
+    setSortType,
+    toggleMod,
+    deleteMod,
+    createSnapshot,
+    openModFolder,
+    loadMods
   } = useModManager(instanceId);
 
+  const setActiveTab = useLauncherStore((state) => state.setActiveTab);
+  const setInstanceDownloadTarget = useLauncherStore((state) => state.setInstanceDownloadTarget);
   const [selectedMod, setSelectedMod] = useState<ModMeta | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'download'>('list');
 
   useEffect(() => {
-    const unlistenPromise = listen<{ current: number; total: number }>('resource-download-progress', (event: Event<{ current: number; total: number }>) => {
-      const payload = event.payload;
-      if (payload && payload.current >= payload.total && payload.total > 0) {
-        setTimeout(() => { if (loadMods) loadMods(); }, 500);
+    const unlistenPromise = listen<{ current: number; total: number }>(
+      'resource-download-progress',
+      (event: Event<{ current: number; total: number }>) => {
+        const payload = event.payload;
+        if (payload && payload.current >= payload.total && payload.total > 0) {
+          setTimeout(() => {
+            if (loadMods) loadMods();
+          }, 500);
+        }
       }
-    });
-    return () => { unlistenPromise.then(f => f()); };
+    );
+
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
   }, [loadMods]);
 
   const handleCloseModal = () => {
@@ -40,7 +58,15 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   };
 
   const handleToggle = (fileName: string, currentEnabled: boolean) => {
-    setSelectedMod(prev => prev ? { ...prev, isEnabled: !currentEnabled, fileName: currentEnabled ? `${fileName}.disabled` : fileName.replace('.disabled', '') } : null);
+    setSelectedMod((prev) => (
+      prev
+        ? {
+            ...prev,
+            isEnabled: !currentEnabled,
+            fileName: currentEnabled ? `${fileName}.disabled` : fileName.replace('.disabled', '')
+          }
+        : null
+    ));
     toggleMod(fileName, currentEnabled);
   };
 
@@ -105,118 +131,115 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   };
 
   return (
-    <SettingsPageLayout
-      title={viewMode === 'download' ? "下载 MOD" : "MOD 管理"}
-      subtitle={viewMode === 'download' ? "Download & Auto Install" : "Modifications & Snapshot"}
-    >
-      {viewMode === 'list' ? (
-        <>
-          <div className="flex justify-between items-center mb-4 bg-[#18181B] p-4 border-2 border-[#2A2A2C]">
-            <div>
-              <h3 className="text-white font-minecraft flex items-center"><History size={18} className="mr-2 text-ore-green" /> 模组时光机 (Snapshot)</h3>
-              <p className="text-sm text-ore-text-muted mt-1">更新模组前，建议创建快照。崩溃时可在“历史快照”一键回滚整个目录。</p>
-            </div>
-            <div className="flex space-x-3">
-              <OreButton
-                focusKey="mod-btn-history"
-                onArrowPress={handleTopRowArrow('mod-btn-history')}
-                variant="secondary"
-              >
-                <RefreshCw size={16} className="mr-2" /> 历史快照
-              </OreButton>
-              <OreButton
-                focusKey="mod-btn-snapshot"
-                onArrowPress={handleTopRowArrow('mod-btn-snapshot')}
-                variant="primary"
-                onClick={createSnapshot}
-                disabled={isLoading || isCreatingSnapshot}
-              >
-                {isCreatingSnapshot ? <Loader2 size={16} className="animate-spin mr-2" /> : <HardDriveDownload size={16} className="mr-2" />}
-                创建当前快照
-              </OreButton>
-            </div>
-          </div>
+    <SettingsPageLayout title="MOD 管理" subtitle="模组与快照">
+      <div className="mb-4 flex items-center justify-between border-2 border-[#2A2A2C] bg-[#18181B] p-4">
+        <div>
+          <h3 className="flex items-center font-minecraft text-white">
+            <History size={18} className="mr-2 text-ore-green" />
+            模组快照
+          </h3>
+          <p className="mt-1 text-sm text-ore-text-muted">更新模组前建议先创建快照，方便快速回滚。</p>
+        </div>
 
-          <div className="flex justify-between items-center mb-4 px-2">
-            <div className="flex bg-[#141415] border-2 border-[#1E1E1F] p-0.5 relative z-10 shadow-inner">
-              <FocusItem
-                focusKey="mod-btn-sort-time"
-                onArrowPress={handleActionRowArrow('mod-btn-sort-time')}
-                onEnter={() => setSortType('time')}
-              >
-                {({ ref, focused }) => (
-                  <button
-                    ref={ref as React.RefObject<HTMLButtonElement>}
-                    onClick={() => setSortType('time')}
-                    className={`flex items-center px-3 py-1.5 font-minecraft text-sm transition-all outline-none ${sortType === 'time' ? 'bg-[#2A2A2C] text-white shadow-md' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'} ${focused ? 'ring-2 ring-white scale-105 z-20 shadow-lg' : ''}`}
-                  >
-                    <Clock size={14} className="mr-1.5" /> 按时间
-                  </button>
-                )}
-              </FocusItem>
+        <div className="flex space-x-3">
+          <OreButton
+            focusKey="mod-btn-history"
+            onArrowPress={handleTopRowArrow('mod-btn-history')}
+            variant="secondary"
+          >
+            <RefreshCw size={16} className="mr-2" />
+            历史快照
+          </OreButton>
 
-              <FocusItem
-                focusKey="mod-btn-sort-name"
-                onArrowPress={handleActionRowArrow('mod-btn-sort-name')}
-                onEnter={() => setSortType('name')}
-              >
-                {({ ref, focused }) => (
-                  <button
-                    ref={ref as React.RefObject<HTMLButtonElement>}
-                    onClick={() => setSortType('name')}
-                    className={`flex items-center px-3 py-1.5 font-minecraft text-sm transition-all outline-none ${sortType === 'name' ? 'bg-[#2A2A2C] text-white shadow-md' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'} ${focused ? 'ring-2 ring-white scale-105 z-20 shadow-lg' : ''}`}
-                  >
-                    <Type size={14} className="mr-1.5" /> 按名称
-                  </button>
-                )}
-              </FocusItem>
-            </div>
+          <OreButton
+            focusKey="mod-btn-snapshot"
+            onArrowPress={handleTopRowArrow('mod-btn-snapshot')}
+            variant="primary"
+            onClick={createSnapshot}
+            disabled={isLoading || isCreatingSnapshot}
+          >
+            {isCreatingSnapshot
+              ? <Loader2 size={16} className="mr-2 animate-spin" />
+              : <HardDriveDownload size={16} className="mr-2" />}
+            创建快照
+          </OreButton>
+        </div>
+      </div>
 
-            <div className="flex space-x-3">
-              <OreButton
-                focusKey="mod-btn-folder"
-                onArrowPress={handleActionRowArrow('mod-btn-folder')}
-                variant="secondary"
-                size="sm"
-                onClick={openModFolder}
+      <div className="mb-4 flex items-center justify-between px-2">
+        <div className="relative z-10 flex border-2 border-[#1E1E1F] bg-[#141415] p-0.5 shadow-inner">
+          <FocusItem
+            focusKey="mod-btn-sort-time"
+            onArrowPress={handleActionRowArrow('mod-btn-sort-time')}
+            onEnter={() => setSortType('time')}
+          >
+            {({ ref, focused }) => (
+              <button
+                ref={ref as React.RefObject<HTMLButtonElement>}
+                onClick={() => setSortType('time')}
+                className={`flex items-center px-3 py-1.5 font-minecraft text-sm outline-none transition-all ${sortType === 'time' ? 'bg-[#2A2A2C] text-white shadow-md' : 'text-gray-500 hover:bg-white/5 hover:text-gray-300'} ${focused ? 'z-20 scale-105 shadow-lg ring-2 ring-white' : ''}`}
               >
-                <FolderOpen size={16} className="mr-2" /> 打开目录
-              </OreButton>
-              <OreButton
-                focusKey="mod-btn-download"
-                onArrowPress={handleActionRowArrow('mod-btn-download')}
-                variant="primary"
-                size="sm"
-                onClick={() => setViewMode('download')}
+                <Clock size={14} className="mr-1.5" />
+                按时间
+              </button>
+            )}
+          </FocusItem>
+
+          <FocusItem
+            focusKey="mod-btn-sort-name"
+            onArrowPress={handleActionRowArrow('mod-btn-sort-name')}
+            onEnter={() => setSortType('name')}
+          >
+            {({ ref, focused }) => (
+              <button
+                ref={ref as React.RefObject<HTMLButtonElement>}
+                onClick={() => setSortType('name')}
+                className={`flex items-center px-3 py-1.5 font-minecraft text-sm outline-none transition-all ${sortType === 'name' ? 'bg-[#2A2A2C] text-white shadow-md' : 'text-gray-500 hover:bg-white/5 hover:text-gray-300'} ${focused ? 'z-20 scale-105 shadow-lg ring-2 ring-white' : ''}`}
               >
-                <DownloadCloud size={16} className="mr-2" /> 下载 MOD
-              </OreButton>
-            </div>
-          </div>
+                <Type size={14} className="mr-1.5" />
+                按名称
+              </button>
+            )}
+          </FocusItem>
+        </div>
 
-          <ModList mods={mods} isLoading={isLoading} onSelectMod={setSelectedMod} />
+        <div className="flex space-x-3">
+          <OreButton
+            focusKey="mod-btn-folder"
+            onArrowPress={handleActionRowArrow('mod-btn-folder')}
+            variant="secondary"
+            size="sm"
+            onClick={openModFolder}
+          >
+            <FolderOpen size={16} className="mr-2" />
+            打开文件夹
+          </OreButton>
 
-          <ModDetailModal
-            mod={selectedMod}
-            instanceConfig={instanceConfig}
-            onClose={handleCloseModal}
-            onToggle={handleToggle}
-            onDelete={deleteMod}
-          />
-        </>
-      ) : (
-        <InstanceModDownloadView
-          instanceId={instanceId}
-          onBack={() => {
-            setViewMode('list');
-            if (loadMods) {
-              loadMods();
-              setTimeout(loadMods, 1000);
-            }
-            setTimeout(() => focusManager.restoreFocus('tab-boundary-mods'), 100);
-          }}
-        />
-      )}
+          <OreButton
+            focusKey="mod-btn-download"
+            onArrowPress={handleActionRowArrow('mod-btn-download')}
+            variant="primary"
+            size="sm"
+            onClick={() => {
+              setInstanceDownloadTarget('mod');
+              setActiveTab('instance-mod-download');
+            }}
+          >
+            <DownloadCloud size={16} className="mr-2" />
+            下载 MOD
+          </OreButton>
+        </div>
+      </div>
+
+      <ModList mods={mods} isLoading={isLoading} onSelectMod={setSelectedMod} />
+
+      <ModDetailModal
+        mod={selectedMod}
+        instanceConfig={instanceConfig}
+        onClose={handleCloseModal}
+        onToggle={handleToggle}
+        onDelete={deleteMod}
+      />
     </SettingsPageLayout>
   );
 };

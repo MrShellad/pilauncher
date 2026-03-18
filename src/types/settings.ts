@@ -42,6 +42,7 @@ export interface GameSettings {
 }
 
 export interface DownloadSettings {
+  minecraftMetaSource: 'bangbang93' | 'official';
   // ✅ 核心修改：将原本单一的 source 拆分为四个独立通道
   vanillaSource: string;
   vanillaSourceUrl: string;
@@ -114,6 +115,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     gamepadModCheck: true,
   },
   download: {
+    minecraftMetaSource: 'bangbang93',
     // ✅ 赋予四个通道初始的默认源 (匹配你的 JSON 数据)
     vanillaSource: 'bmclapi',
     vanillaSourceUrl: 'https://bmclapi2.bangbang93.com',

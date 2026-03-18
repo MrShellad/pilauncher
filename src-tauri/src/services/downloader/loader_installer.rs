@@ -1,16 +1,40 @@
 // src-tauri/src/services/downloader/loader_installer.rs
 use crate::domain::event::DownloadProgressEvent;
 use crate::error::{AppError, AppResult};
-use crate::services::config_service::ConfigService;
+use crate::services::config_service::{ConfigService, DownloadSettings};
 use crate::services::deployment_cancel::is_cancelled;
 use std::path::Path;
 use std::process::Stdio;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::time::Duration;
 use std::time::Instant;
 use tauri::{AppHandle, Emitter, Runtime};
 use tokio::io::AsyncBufReadExt;
 use tokio::process::Command;
+
+fn build_download_client(dl_settings: &DownloadSettings) -> AppResult<reqwest::Client> {
+    let mut builder = reqwest::Client::builder()
+        .user_agent("PiLauncher/1.0 (Loader Installer)")
+        .connect_timeout(Duration::from_secs(dl_settings.timeout.max(1)));
+
+    if dl_settings.proxy_type != "none" {
+        let host = dl_settings.proxy_host.trim();
+        let port = dl_settings.proxy_port.trim();
+        if !host.is_empty() && !port.is_empty() {
+            let scheme = match dl_settings.proxy_type.as_str() {
+                "http" => "http",
+                "https" => "https",
+                "socks5" => "socks5h",
+                _ => "http",
+            };
+            let proxy_url = format!("{}://{}:{}", scheme, host, port);
+            builder = builder.proxy(reqwest::Proxy::all(&proxy_url)?);
+        }
+    }
+
+    Ok(builder.build()?)
+}
 
 pub async fn install_loader<R: Runtime>(
     app: &AppHandle<R>,
@@ -65,7 +89,7 @@ async fn install_fabric<R: Runtime>(
     cancel: &Arc<AtomicBool>,
 ) -> AppResult<()> {
     let dl_settings = ConfigService::get_download_settings(app);
-    let client = reqwest::Client::new();
+    let client = build_download_client(&dl_settings)?;
 
     let version_id = format!("fabric-loader-{}-{}", loader_version, mc_version);
     let version_dir = global_mc_root.join("versions").join(&version_id);
@@ -155,7 +179,7 @@ async fn install_forge<R: Runtime>(
 ) -> AppResult<()> {
     let dl_settings = ConfigService::get_download_settings(app);
     let java_settings = ConfigService::get_java_settings(app);
-    let client = reqwest::Client::new();
+    let client = build_download_client(&dl_settings)?;
 
     if is_cancelled(cancel) {
         return Err(AppError::Cancelled);
@@ -381,7 +405,7 @@ async fn install_neoforge<R: Runtime>(
 ) -> AppResult<()> {
     let dl_settings = ConfigService::get_download_settings(app);
     let java_settings = ConfigService::get_java_settings(app);
-    let client = reqwest::Client::new();
+    let client = build_download_client(&dl_settings)?;
 
     if is_cancelled(cancel) {
         return Err(AppError::Cancelled);

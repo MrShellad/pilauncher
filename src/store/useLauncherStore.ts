@@ -9,7 +9,10 @@ export type TabType =
   | 'downloads'
   | 'settings'
   | 'new-instance'
-  | 'instance-detail';
+  | 'instance-detail'
+  | 'instance-mod-download';
+
+export type InstanceDownloadTarget = 'mod' | 'resourcepack' | 'shader';
 
 export interface InstanceData {
   id: string;
@@ -41,6 +44,9 @@ interface LauncherState {
   selectedInstanceId: string | null;
   setSelectedInstanceId: (id: string | null) => void;
 
+  instanceDownloadTarget: InstanceDownloadTarget;
+  setInstanceDownloadTarget: (target: InstanceDownloadTarget) => void;
+
   // 背景表现状态
   background: BackgroundData;
   setBackground: (bgUpdate: Partial<BackgroundData>) => void; 
@@ -67,6 +73,9 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
   // ✅ 新增：初始化选中实例 ID 状态及修改方法
   selectedInstanceId: null,
   setSelectedInstanceId: (id) => set({ selectedInstanceId: id }),
+
+  instanceDownloadTarget: 'mod',
+  setInstanceDownloadTarget: (target) => set({ instanceDownloadTarget: target }),
 
   // --- 背景状态 ---
   background: {

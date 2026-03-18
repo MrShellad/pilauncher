@@ -4,13 +4,13 @@ import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Loader2 } from 'lucide-react';
 
 import { DownloadDetailModal } from '../../../../Download/components/DownloadDetailModal';
-import { ResourceGrid } from '../../../../Download/components/ResourceGrid';
 import { useResourceDownload } from '../../../../Download/hooks/useResourceDownload';
 import type { ModrinthProject, OreProjectVersion } from '../../../logic/modrinthApi';
 import { useDownloadStore } from '../../../../../store/useDownloadStore';
 import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary';
 import { useInputAction } from '../../../../../ui/focus/InputDriver';
 import { InstanceFilterBar } from './InstanceFilterBar';
+import { ResourceGrid } from './ResourceGrid';
 
 const GamepadBtn = ({ text, color }: { text: string; color: string }) => (
   <svg
@@ -37,7 +37,17 @@ const GamepadBtn = ({ text, color }: { text: string; color: string }) => (
   </svg>
 );
 
-export const InstanceModDownloadView: React.FC<{ instanceId: string; onBack: () => void }> = ({ instanceId, onBack }) => {
+export const InstanceModDownloadView: React.FC<{
+  instanceId: string;
+  onBack: () => void;
+  showFilterBackButton?: boolean;
+  resourceTab?: 'mod' | 'resourcepack' | 'shader';
+}> = ({
+  instanceId,
+  onBack,
+  showFilterBackButton = true,
+  resourceTab = 'mod'
+}) => {
   const {
     activeTab,
     setActiveTab,
@@ -82,14 +92,15 @@ export const InstanceModDownloadView: React.FC<{ instanceId: string; onBack: () 
 
     if (syncStep === 0) {
       if (mcVersion !== targetMc) setMcVersion(targetMc);
-      if (loaderType !== targetLoader) setLoaderType(targetLoader);
-      if (activeTab !== 'mod') setActiveTab('mod');
+      if (resourceTab === 'mod' && loaderType !== targetLoader) setLoaderType(targetLoader);
+      if (activeTab !== resourceTab) setActiveTab(resourceTab);
       setSyncStep(1);
       return;
     }
 
     if (syncStep === 1) {
-      if (mcVersion === targetMc && loaderType === targetLoader && activeTab === 'mod') {
+      const loaderReady = resourceTab === 'mod' ? loaderType === targetLoader : true;
+      if (mcVersion === targetMc && loaderReady && activeTab === resourceTab) {
         handleSearchClick();
         setSyncStep(2);
       }
@@ -112,7 +123,8 @@ export const InstanceModDownloadView: React.FC<{ instanceId: string; onBack: () 
     setMcVersion,
     syncStep,
     targetLoader,
-    targetMc
+    targetMc,
+    resourceTab
   ]);
 
   useEffect(() => {
@@ -130,6 +142,12 @@ export const InstanceModDownloadView: React.FC<{ instanceId: string; onBack: () 
   });
 
   const handleStartDownload = async (version: OreProjectVersion, targetInstanceId: string) => {
+    const subFolder = resourceTab === 'shader'
+      ? 'shaderpacks'
+      : resourceTab === 'resourcepack'
+        ? 'resourcepacks'
+        : 'mods';
+
     useDownloadStore.getState().addOrUpdateTask({
       id: version.file_name,
       taskType: 'resource',
@@ -145,7 +163,7 @@ export const InstanceModDownloadView: React.FC<{ instanceId: string; onBack: () 
         url: version.download_url,
         fileName: version.file_name,
         instanceId: targetInstanceId,
-        subFolder: 'mods'
+        subFolder
       });
     } catch (error) {
       console.error('下载异常:', error);
@@ -173,6 +191,8 @@ export const InstanceModDownloadView: React.FC<{ instanceId: string; onBack: () 
       <div ref={filterBarRef}>
         <InstanceFilterBar
           onBack={onBack}
+          showBackButton={showFilterBackButton}
+          resourceTab={resourceTab}
           query={query}
           setQuery={setQuery}
           source={source}
@@ -186,7 +206,7 @@ export const InstanceModDownloadView: React.FC<{ instanceId: string; onBack: () 
         />
       </div>
 
-      <div className="relative flex-1 overflow-hidden rounded-sm border-2 border-[#1E1E1F] bg-black/20 shadow-inner">
+      <div className="relative flex-1 flex flex-col min-h-0 overflow-hidden rounded-sm border-2 border-[#1E1E1F] bg-black/20 shadow-inner">
         {isHintVisible && (
           <div className="pointer-events-none absolute right-4 top-4 z-50 flex items-center gap-2 rounded-sm border border-white/10 bg-black/60 px-3 py-2 text-xs font-minecraft tracking-wider text-gray-200 shadow-lg backdrop-blur">
             <GamepadBtn text="Y" color="#FACC15" />
@@ -216,8 +236,8 @@ export const InstanceModDownloadView: React.FC<{ instanceId: string; onBack: () 
         onDownload={handleStartDownload}
         installedVersionIds={installedMods.map((item) => item.modId || '').filter(Boolean)}
         searchMcVersion={targetMc}
-        searchLoader={targetLoader}
-        activeTab="mod"
+        searchLoader={resourceTab === 'mod' ? targetLoader : ''}
+        activeTab={resourceTab}
         source={source}
         directInstallInstanceId={instanceId}
       />
