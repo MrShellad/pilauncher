@@ -54,12 +54,12 @@ pub struct GamepadModMeta {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GamepadModStatus {
-    pub installed: bool,           // 实例 mods/ 中是否已存在手柄 mod
-    pub needs_install: bool,       // 完全没有，需要安装
-    pub needs_update: bool,        // 有但版本旧，可以更新（由前端 API 比对）
+    pub installed: bool,                  // 实例 mods/ 中是否已存在手柄 mod
+    pub needs_install: bool,              // 完全没有，需要安装
+    pub needs_update: bool,               // 有但版本旧，可以更新（由前端 API 比对）
     pub local_file_name: Option<String>,  // 本地已安装/缓存的文件名
     pub remote_file_name: Option<String>, // 远端最新文件名（由前端填充）
-    pub has_cache: bool,           // shared_mods 中是否有缓存
+    pub has_cache: bool,                  // shared_mods 中是否有缓存
 }
 
 pub struct ModManagerService;
@@ -263,10 +263,17 @@ impl ModManagerService {
             for entry in entries.filter_map(|e| e.ok()) {
                 let path = entry.path();
                 if path.is_file() {
-                    let file_name = path.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
+                    let file_name = path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_lowercase();
                     // 仅判断启用的 mod (.jar)
                     if file_name.ends_with(".jar") && !file_name.ends_with(".disabled") {
-                        if file_name.contains("controllable") || file_name.contains("midnightcontrols") || file_name.contains("controlify") {
+                        if file_name.contains("controllable")
+                            || file_name.contains("midnightcontrols")
+                            || file_name.contains("controlify")
+                        {
                             has_gamepad = true;
                             break;
                         }
@@ -297,7 +304,9 @@ impl ModManagerService {
     }
 
     // ✅ 读取 gamepad_meta.json 缓存
-    fn read_gamepad_meta<R: Runtime>(app: &AppHandle<R>) -> Result<HashMap<String, GamepadModMeta>, String> {
+    fn read_gamepad_meta<R: Runtime>(
+        app: &AppHandle<R>,
+    ) -> Result<HashMap<String, GamepadModMeta>, String> {
         let shared_dir = Self::get_shared_mods_dir(app)?;
         let meta_path = shared_dir.join("gamepad_meta.json");
         if meta_path.exists() {
@@ -309,7 +318,10 @@ impl ModManagerService {
     }
 
     // ✅ 写入 gamepad_meta.json 缓存
-    fn write_gamepad_meta<R: Runtime>(app: &AppHandle<R>, meta: &HashMap<String, GamepadModMeta>) -> Result<(), String> {
+    fn write_gamepad_meta<R: Runtime>(
+        app: &AppHandle<R>,
+        meta: &HashMap<String, GamepadModMeta>,
+    ) -> Result<(), String> {
         let shared_dir = Self::get_shared_mods_dir(app)?;
         let meta_path = shared_dir.join("gamepad_meta.json");
         let content = serde_json::to_string_pretty(meta).map_err(|e| e.to_string())?;
@@ -484,14 +496,17 @@ impl ModManagerService {
         // ✅ 更新 gamepad_meta.json 缓存记录
         let cache_key = format!("{}_{}", mc_version, loader_type.to_lowercase());
         let mut meta = Self::read_gamepad_meta(app)?;
-        meta.insert(cache_key, GamepadModMeta {
-            file_name: file_name.to_string(),
-            download_url: download_url.to_string(),
-            cached_at: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
-        });
+        meta.insert(
+            cache_key,
+            GamepadModMeta {
+                file_name: file_name.to_string(),
+                download_url: download_url.to_string(),
+                cached_at: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs(),
+            },
+        );
         Self::write_gamepad_meta(app, &meta)?;
 
         Ok(())
@@ -499,9 +514,9 @@ impl ModManagerService {
 
     // 保持你原有的快照功能不变...
     pub fn create_snapshot<R: Runtime>(
-        app: &AppHandle<R>,
-        instance_id: &str,
-        desc: &str,
+        _app: &AppHandle<R>,
+        _instance_id: &str,
+        _desc: &str,
     ) -> Result<ModSnapshot, String> {
         /* ... */
         Ok(ModSnapshot {
@@ -512,9 +527,9 @@ impl ModManagerService {
         })
     }
     pub fn rollback_snapshot<R: Runtime>(
-        app: &AppHandle<R>,
-        instance_id: &str,
-        snapshot_id: &str,
+        _app: &AppHandle<R>,
+        _instance_id: &str,
+        _snapshot_id: &str,
     ) -> Result<(), String> {
         /* ... */
         Ok(())
