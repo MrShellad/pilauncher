@@ -10,6 +10,7 @@ Cargo.lock
 /gen/
 /dist/
 
+
 # macOS
 .DS_Store
 
@@ -25,7 +26,8 @@ Thumbs.db
 # Environment variables
 .env
 .env.local
-
+*.key
+*.key.pub
 # Logs
 *.log
 

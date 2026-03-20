@@ -12,7 +12,7 @@ import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/
 
 import { DirectoryBrowserModal } from '../../../ui/components/DirectoryBrowserModal';
 
-export const JavaSelector: React.FC<{ value: string; onChange: (path: string) => void; disabled?: boolean }> = ({ value, onChange, disabled }) => {
+export const JavaSelector: React.FC<{ value: string; onChange: (path: string) => void; disabled?: boolean; onArrowPress?: (direction: string) => boolean }> = ({ value, onChange, disabled, onArrowPress }) => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [javaList, setJavaList] = useState<JavaInstall[]>([]);
   const [isScanning, setIsScanning] = useState(false);
@@ -120,6 +120,7 @@ export const JavaSelector: React.FC<{ value: string; onChange: (path: string) =>
         <div className="flex-1 cursor-pointer" onClick={() => openSelectorModal('java-input-path')}>
           <OreInput 
             focusKey="java-input-path" // ✅ 补充焦点ID
+            onArrowPress={onArrowPress}
             value={value} 
             readOnly 
             placeholder="点击选择 Java 路径..." 
@@ -130,6 +131,7 @@ export const JavaSelector: React.FC<{ value: string; onChange: (path: string) =>
         </div>
         <OreButton 
           focusKey="java-btn-browse" // ✅ 补充焦点ID
+          onArrowPress={onArrowPress}
           variant="secondary" 
           onClick={() => openSelectorModal('java-btn-browse')} 
           disabled={disabled} 

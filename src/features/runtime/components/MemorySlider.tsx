@@ -7,7 +7,7 @@ import { OreSlider } from '../../../ui/primitives/OreSlider';
 import { Zap, Loader2 } from 'lucide-react';
 import { OreMotionTokens } from '../../../style/tokens/motion';
 
-export const MemorySlider: React.FC<{ maxMemory: number; onChange: (maxMem: number) => void; disabled?: boolean }> = ({ maxMemory, onChange, disabled }) => {
+export const MemorySlider: React.FC<{ maxMemory: number; onChange: (maxMem: number) => void; disabled?: boolean; onArrowPress?: (direction: string) => boolean }> = ({ maxMemory, onChange, disabled, onArrowPress }) => {
   const [stats, setStats] = useState({ total: 0, available: 0, recommended: 0 });
   const [loading, setLoading] = useState(true);
 
@@ -63,6 +63,7 @@ export const MemorySlider: React.FC<{ maxMemory: number; onChange: (maxMem: numb
         <div className="flex-1 mt-1">
           <OreSlider 
             focusKey="java-slider-memory" // ✅ 补充焦点ID
+            onArrowPress={onArrowPress}
             value={maxMemory} 
             min={1024} 
             max={total} 
@@ -75,6 +76,7 @@ export const MemorySlider: React.FC<{ maxMemory: number; onChange: (maxMem: numb
         </div>
         <OreButton 
           focusKey="java-btn-recommend" // ✅ 补充焦点ID
+          onArrowPress={onArrowPress}
           size="sm" 
           variant="secondary" 
           onClick={() => onChange(recommended)} 

@@ -22,6 +22,15 @@ pub async fn change_instance_cover<R: Runtime>(
 }
 
 #[tauri::command]
+pub async fn change_instance_herologo<R: Runtime>(
+    app: AppHandle<R>,
+    id: String,
+    image_path: String,
+) -> Result<String, String> {
+    InstanceActionService::change_herologo(&app, &id, &image_path)
+}
+
+#[tauri::command]
 pub async fn delete_instance<R: Runtime>(app: AppHandle<R>, id: String) -> Result<(), String> {
     InstanceActionService::delete(&app, &id)
 }

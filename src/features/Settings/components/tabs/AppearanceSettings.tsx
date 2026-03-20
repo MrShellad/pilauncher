@@ -12,6 +12,7 @@ import { useSettingsStore } from '../../../../store/useSettingsStore';
 
 // ✅ 引入焦点组件
 import { FocusItem } from '../../../../ui/focus/FocusItem';
+import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
 
 import { Image as ImageIcon, Type, Sparkles } from 'lucide-react';
 
@@ -87,6 +88,24 @@ export const AppearanceSettings: React.FC = () => {
     return [...base, ...sysOpts];
   }, [systemFonts]);
 
+  const focusOrder = useMemo(() => {
+    const keys = [];
+    if (appearance.backgroundImage) {
+      keys.push('btn-bg-change', 'btn-bg-remove');
+    } else {
+      keys.push('btn-bg-add');
+    }
+    keys.push('settings-appearance-blur');
+    PREDEFINED_COLORS.forEach((_, idx) => keys.push(`color-preset-${idx}`));
+    keys.push('color-custom');
+    keys.push('settings-appearance-opacity');
+    keys.push('settings-appearance-font');
+    keys.push('settings-appearance-gradient');
+    return keys;
+  }, [appearance.backgroundImage]);
+
+  const { handleLinearArrow } = useLinearNavigation(focusOrder);
+
   return (
     <SettingsPageLayout title="界面与外观" subtitle="Appearance & Styling">
       
@@ -111,6 +130,7 @@ export const AppearanceSettings: React.FC = () => {
                     size="sm" 
                     onClick={handleSelectImage}
                     focusKey="btn-bg-change"
+                    onArrowPress={handleLinearArrow}
                   >
                     更换图片
                   </OreButton>
@@ -119,6 +139,7 @@ export const AppearanceSettings: React.FC = () => {
                     size="sm" 
                     onClick={handleRemoveImage}
                     focusKey="btn-bg-remove"
+                    onArrowPress={handleLinearArrow}
                   >
                     移除背景
                   </OreButton>
@@ -126,7 +147,7 @@ export const AppearanceSettings: React.FC = () => {
               </>
             ) : (
               /* ✅ 无图片时：将原本的 div 整个包裹进 FocusItem 中，使其可被手柄选中 */
-              <FocusItem focusKey="btn-bg-add" onEnter={handleSelectImage}>
+              <FocusItem focusKey="btn-bg-add" onEnter={handleSelectImage} onArrowPress={handleLinearArrow}>
                 {({ ref, focused }) => (
                   <div
                     ref={ref as any}
@@ -155,6 +176,8 @@ export const AppearanceSettings: React.FC = () => {
           control={
             <div className="w-full">
               <OreSlider 
+                focusKey="settings-appearance-blur"
+                onArrowPress={handleLinearArrow}
                 value={appearance.backgroundBlur} 
                 min={0} max={30} step={1} 
                 valueFormatter={(v) => `${v}px`}
@@ -172,7 +195,7 @@ export const AppearanceSettings: React.FC = () => {
             <div className="flex items-center space-x-3">
               {PREDEFINED_COLORS.map((color, idx) => (
                 /* ✅ 焦点修复：色块适配 FocusItem */
-                <FocusItem key={color} focusKey={`color-preset-${idx}`} onEnter={() => updateAppearanceSetting('maskColor', color)}>
+                <FocusItem key={color} focusKey={`color-preset-${idx}`} onEnter={() => updateAppearanceSetting('maskColor', color)} onArrowPress={handleLinearArrow}>
                   {({ ref, focused }) => (
                     <button
                       ref={ref as any}
@@ -191,7 +214,7 @@ export const AppearanceSettings: React.FC = () => {
               ))}
               
               {/* ✅ 焦点修复：拾色器适配 FocusItem */}
-              <FocusItem focusKey="color-custom" onEnter={() => document.getElementById('custom-color-input')?.click()}>
+              <FocusItem focusKey="color-custom" onEnter={() => document.getElementById('custom-color-input')?.click()} onArrowPress={handleLinearArrow}>
                 {({ ref, focused }) => (
                   <label 
                     ref={ref as any}
@@ -223,6 +246,8 @@ export const AppearanceSettings: React.FC = () => {
           control={
             <div className="w-full">
               <OreSlider 
+                focusKey="settings-appearance-opacity"
+                onArrowPress={handleLinearArrow}
                 value={appearance.maskOpacity} 
                 min={0} max={100} step={5} 
                 valueFormatter={(v) => (v / 100).toFixed(2)}
@@ -243,6 +268,8 @@ export const AppearanceSettings: React.FC = () => {
             <div className="flex items-center space-x-2">
               {isLoadingFonts && <Type size={14} className="animate-pulse text-ore-text-muted" />}
               <OreDropdown 
+                focusKey="settings-appearance-font"
+                onArrowPress={handleLinearArrow}
                 options={fontOptions}
                 value={appearance.fontFamily}
                 onChange={(val) => updateAppearanceSetting('fontFamily', val)}
@@ -258,6 +285,8 @@ export const AppearanceSettings: React.FC = () => {
           description="在启动器底部增加一层黑色渐变投影，使文字和导航更加清晰。"
           control={
             <OreSwitch 
+              focusKey="settings-appearance-gradient"
+              onArrowPress={handleLinearArrow}
               checked={appearance.maskGradient} 
               onChange={(v) => updateAppearanceSetting('maskGradient', v)} 
             />

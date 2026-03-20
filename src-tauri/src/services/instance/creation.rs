@@ -79,6 +79,7 @@ impl InstanceCreationService {
             last_played: "Never played".to_string(),
             created_at: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
             cover_image: saved_cover_path,
+            hero_logo: None,
             gamepad: None,
         };
         fs::write(

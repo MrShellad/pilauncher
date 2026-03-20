@@ -51,7 +51,7 @@ const Home: React.FC = () => {
       <SkinViewerPlaceholder />
 
       <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
-        <HeroLogo />
+        <HeroLogo instanceId={currentId || null} />
       </div>
 
       <div className="absolute bottom-[13vh] left-1/2 -translate-x-1/2 w-full flex justify-center z-20">

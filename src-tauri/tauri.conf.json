@@ -21,7 +21,7 @@
         "fullscreen": false,
         "decorations": false,
         "transparent": true,
-        "devtools": false
+        "devtools": true
       }
     ],
     "security": {
@@ -54,5 +54,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDBDRkI2MURDMTI4QjQxRjYKUldUMlFZc1MzR0g3REp1QzhJTEJrMFl6Z0p1ZzU0MlhVcGZ5d0JiQ09CdGZpcVMybTlzMEZYTk8K",
+      "endpoints": [
+        "https://pil.nav4ai.net/updater/{{target}}/{{current_version}}"
+      ]
+    }
   }
 }

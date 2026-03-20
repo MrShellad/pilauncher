@@ -15,6 +15,7 @@ pub fn run() {
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
+
         .manage(lan_state.clone()); 
 
     builder = commands::register(builder);

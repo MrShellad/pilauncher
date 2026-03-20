@@ -70,3 +70,39 @@ pub fn open_instance_folder<R: tauri::Runtime>(app: tauri::AppHandle<R>, id: Str
 
     Ok(())
 }
+
+/// 获取指定实例的自定义 HeroLogo 绝对路径
+/// 读取 {instance_dir}/instance.json 中的 hero_logo 字段（相对路径），
+/// 解析为绝对路径返回给前端使用 convertFileSrc 展示。
+#[tauri::command]
+pub fn get_instance_herologo<R: tauri::Runtime>(app: tauri::AppHandle<R>, id: String) -> Result<Option<String>, String> {
+    let base_path = crate::services::config_service::ConfigService::get_base_path(&app)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "未配置数据目录".to_string())?;
+
+    let instance_dir = PathBuf::from(base_path).join("instances").join(&id);
+    let manifest_path = instance_dir.join("instance.json");
+
+    let content = match std::fs::read_to_string(&manifest_path) {
+        Ok(c) => c,
+        Err(_) => return Ok(None),
+    };
+
+    let config: crate::domain::instance::InstanceConfig = match serde_json::from_str(&content) {
+        Ok(c) => c,
+        Err(_) => return Ok(None),
+    };
+
+    if let Some(relative_path) = config.hero_logo {
+        if relative_path.is_empty() {
+            return Ok(None);
+        }
+        // 相对路径：相对于实例目录进行解析
+        let abs_path = instance_dir.join(&relative_path);
+        if abs_path.exists() {
+            return Ok(Some(abs_path.to_string_lossy().to_string()));
+        }
+    }
+
+    Ok(None)
+}

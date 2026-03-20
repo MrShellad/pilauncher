@@ -94,4 +94,41 @@ impl InstanceActionService {
         }
         Ok(())
     }
+
+    /// 修改实例 HeroLogo：将图片复制到 piconfig/herologo.{ext}，并将相对路径写入 instance.json
+    pub fn change_herologo<R: Runtime>(
+        app: &AppHandle<R>,
+        id: &str,
+        image_path: &str,
+    ) -> Result<String, String> {
+        let instance_dir = Self::get_instance_dir(app, id)?;
+
+        let piconfig_dir = instance_dir.join("piconfig");
+        if !piconfig_dir.exists() {
+            fs::create_dir_all(&piconfig_dir).map_err(|e| e.to_string())?;
+        }
+
+        let source = std::path::Path::new(image_path);
+        if !source.exists() {
+            return Err("选中的图片不存在".to_string());
+        }
+
+        let ext = source.extension().and_then(|e| e.to_str()).unwrap_or("png");
+        let target_name = format!("herologo.{}", ext);
+        let target_path = piconfig_dir.join(&target_name);
+
+        fs::copy(source, &target_path).map_err(|e| e.to_string())?;
+
+        let json_path = instance_dir.join("instance.json");
+        if json_path.exists() {
+            let data = fs::read_to_string(&json_path).map_err(|e| e.to_string())?;
+            let mut json: Value = serde_json::from_str(&data).unwrap_or(serde_json::json!({}));
+            // 写入相对路径 piconfig/herologo.{ext}
+            json["hero_logo"] = Value::String(format!("piconfig/{}", target_name));
+            fs::write(&json_path, serde_json::to_string_pretty(&json).unwrap())
+                .map_err(|e| e.to_string())?;
+        }
+
+        Ok(target_path.to_string_lossy().to_string())
+    }
 }

@@ -37,6 +37,8 @@ export const useInstanceDetail = (instanceId: string) => {
   const [data, setData] = useState<InstanceDetailData | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isInitializing, setIsInitializing] = useState(true);
+  // heroLogoUrl: null = 无自定义 logo，string = asset:// URL
+  const [heroLogoUrl, setHeroLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -75,6 +77,11 @@ export const useInstanceDetail = (instanceId: string) => {
           playTime,
           lastPlayed: realData.lastPlayed || realData.last_played || ''
         });
+
+        // 读取自定义 HeroLogo
+        const heroAbs = await invoke<string | null>('get_instance_herologo', { id: instanceId }).catch(() => null);
+        setHeroLogoUrl(heroAbs ? `${convertFileSrc(heroAbs)}?t=${Date.now()}` : null);
+
       } catch (error) {
         console.error('获取实例详情失败:', error);
       } finally {
@@ -127,6 +134,22 @@ export const useInstanceDetail = (instanceId: string) => {
     throw new Error('USER_CANCELED');
   };
 
+  const handleUpdateHeroLogo = async () => {
+    const selected = await open({
+      multiple: false,
+      filters: [{ name: 'Image', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'] }],
+      title: '选择自定义 Hero Logo'
+    });
+
+    if (selected && typeof selected === 'string') {
+      const newAbsPath = await invoke<string>('change_instance_herologo', { id: instanceId, imagePath: selected });
+      setHeroLogoUrl(`${convertFileSrc(newAbsPath)}?t=${Date.now()}`);
+      return;
+    }
+
+    throw new Error('USER_CANCELED');
+  };
+
   const handleVerifyFiles = async () => {
     console.log(`调用 Rust 校验并补全实例 ${instanceId} 的文件`);
   };
@@ -154,10 +177,12 @@ export const useInstanceDetail = (instanceId: string) => {
     data,
     isInitializing,
     currentImageIndex,
+    heroLogoUrl,
     handlePlay,
     handleOpenFolder,
     handleUpdateName,
     handleUpdateCover,
+    handleUpdateHeroLogo,
     handleVerifyFiles,
     handleDeleteInstance
   };

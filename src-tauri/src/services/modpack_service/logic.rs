@@ -1,4 +1,4 @@
-﻿use crate::domain::instance::{
+use crate::domain::instance::{
     InstanceConfig, JavaConfig, LoaderConfig, MemoryConfig, ResolutionConfig,
 };
 use crate::domain::modpack::ModpackMetadata;
@@ -47,6 +47,7 @@ pub fn build_instance_config(
         last_played: "never".to_string(),
         created_at: Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
         cover_image: None,
+        hero_logo: None,
         gamepad: None,
     }
 }

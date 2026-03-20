@@ -32,6 +32,7 @@ pub struct InstanceConfig {
     #[serde(rename = "createdAt")]
     pub created_at: String,
     pub cover_image: Option<String>,
+    pub hero_logo: Option<String>,
     pub gamepad: Option<bool>,
 }
 

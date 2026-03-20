@@ -49,10 +49,12 @@ const InstanceDetail: React.FC = () => {
     data,
     isInitializing,
     currentImageIndex,
+    heroLogoUrl,
     handlePlay,
     handleOpenFolder,
     handleUpdateName,
     handleUpdateCover,
+    handleUpdateHeroLogo,
     handleVerifyFiles,
     handleDeleteInstance,
   } = useInstanceDetail(instanceId);
@@ -204,8 +206,10 @@ const InstanceDetail: React.FC = () => {
               <OverviewPanel
                 data={data}
                 currentImageIndex={currentImageIndex}
+                heroLogoUrl={heroLogoUrl}
                 onPlay={handlePlay}
                 onOpenFolder={handleOpenFolder}
+                onUpdateHeroLogo={handleUpdateHeroLogo}
               />
             </FocusBoundary>
           </div>

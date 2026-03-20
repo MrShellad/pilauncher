@@ -1,7 +1,7 @@
 // src/features/Settings/components/tabs/JavaSettings.tsx
 import React, { useState } from 'react';
 import { Coffee, Cpu, Loader2, Download } from 'lucide-react';
-import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+
 import { invoke } from '@tauri-apps/api/core';
 
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
@@ -19,6 +19,7 @@ import downloadSource from '../../../../assets/config/downloadsource.json';
 import { useSettingsStore } from '../../../../store/useSettingsStore';
 // ✅ 引入 Java 检测引擎
 import { validateCachedJava, scanJava } from '../../../runtime/logic/javaDetector';
+import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
 
 export const JavaSettings: React.FC = () => {
   const { settings, updateJavaSetting } = useSettingsStore();
@@ -45,6 +46,22 @@ export const JavaSettings: React.FC = () => {
     label: source.name,
     value: source.id
   }));
+
+  const focusOrder = React.useMemo(() => {
+    const keys = [
+      'settings-java-download-version',
+      'settings-java-download-provider',
+      'settings-java-btn-download',
+      'settings-java-autodetect'
+    ];
+    if (!java.autoDetect && !isDetecting) {
+      keys.push('java-input-path', 'java-btn-browse');
+    }
+    keys.push('java-slider-memory', 'java-btn-recommend', 'java-input-jvm');
+    return keys;
+  }, [java.autoDetect, isDetecting]);
+
+  const { handleLinearArrow } = useLinearNavigation(focusOrder);
 
   // ✅ 核心修复：重写 Switch 的 onChange 逻辑
   const handleAutoDetectToggle = async (v: boolean | React.ChangeEvent<HTMLInputElement>) => {
@@ -117,6 +134,7 @@ export const JavaSettings: React.FC = () => {
               <div className="w-full [&>button]:w-full [&>div]:w-full">
                 <OreDropdown
                   focusKey="settings-java-download-version"
+                  onArrowPress={handleLinearArrow}
                   options={JAVA_OPTIONS}
                   value={javaVersion}
                   onChange={setJavaVersion}
@@ -130,6 +148,7 @@ export const JavaSettings: React.FC = () => {
               <div className="w-full [&>button]:w-full [&>div]:w-full">
                 <OreDropdown
                   focusKey="settings-java-download-provider"
+                  onArrowPress={handleLinearArrow}
                   options={PROVIDER_OPTIONS}
                   value={javaProvider}
                   onChange={setJavaProvider}
@@ -140,6 +159,7 @@ export const JavaSettings: React.FC = () => {
             <div className="col-span-12 sm:col-span-3">
               <OreButton
                 focusKey="settings-java-btn-download"
+                onArrowPress={handleLinearArrow}
                 onClick={handleDownloadJava}
                 disabled={isDownloading}
                 variant="primary"
@@ -168,14 +188,10 @@ export const JavaSettings: React.FC = () => {
           control={
             <OreSwitch
               focusKey="settings-java-autodetect"
+              onArrowPress={handleLinearArrow}
               checked={java.autoDetect}
               onChange={handleAutoDetectToggle}
               disabled={isDetecting}
-              onArrowPress={(direction) => {
-                if (direction !== 'down') return true;
-                setFocus(java.autoDetect ? 'java-slider-memory' : 'java-input-path');
-                return false;
-              }}
             />
           }
         />
@@ -187,6 +203,7 @@ export const JavaSettings: React.FC = () => {
           control={
             <div className="w-full relative">
               <JavaSelector
+                onArrowPress={handleLinearArrow}
                 value={java.javaPath}
                 onChange={(v) => {
                   updateJavaSetting('javaPath', v);
@@ -218,6 +235,7 @@ export const JavaSettings: React.FC = () => {
           control={
             <div className="w-full">
               <MemorySlider
+                onArrowPress={handleLinearArrow}
                 maxMemory={java.maxMemory}
                 onChange={(v) => updateJavaSetting('maxMemory', v)}
                 disabled={false}
@@ -233,6 +251,7 @@ export const JavaSettings: React.FC = () => {
           control={
             <div className="w-full">
               <JVMParamsEditor
+                onArrowPress={handleLinearArrow}
                 value={java.jvmArgs}
                 onChange={(v) => updateJavaSetting('jvmArgs', v)}
                 disabled={false}

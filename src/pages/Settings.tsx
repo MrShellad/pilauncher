@@ -1,7 +1,7 @@
 // /src/pages/Settings.tsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings as SettingsIcon, Monitor, Gamepad2, Coffee, Download, Users, Archive, Wrench } from 'lucide-react';
+import { Settings as SettingsIcon, Monitor, Gamepad2, Coffee, Download, Users, Archive, Wrench, Info } from 'lucide-react';
 import { doesFocusableExist } from '@noriginmedia/norigin-spatial-navigation';
 
 import { GeneralSettings } from '../features/Settings/components/tabs/GeneralSettings';
@@ -10,6 +10,7 @@ import { AppearanceSettings } from '../features/Settings/components/tabs/Appeara
 import { GameSettings } from '../features/Settings/components/tabs/GameSettings';
 import { DownloadSettings } from '../features/Settings/components/tabs/DownloadSettings';
 import { AccountSettings } from '../features/Settings/components/tabs/AccountSettings';
+import { AboutSettings } from '../features/Settings/components/tabs/AboutSettings';
 import { INITIAL_DOWNLOAD_FOCUS_KEY } from '../features/Settings/components/tabs/download/downloadSettings.constants';
 import { OreToggleButton, type ToggleOption } from '../ui/primitives/OreToggleButton';
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
@@ -24,6 +25,7 @@ const SETTINGS_TABS: ToggleOption[] = [
   { value: 'download', label: (<div className="flex items-center justify-center space-x-2"><Download size={16} /><span className="font-minecraft tracking-wider">下载</span></div>) },
   { value: 'account', label: (<div className="flex items-center justify-center space-x-2"><Users size={16} /><span className="font-minecraft tracking-wider">账户</span></div>) },
   { value: 'data', label: (<div className="flex items-center justify-center space-x-2"><Archive size={16} /><span className="font-minecraft tracking-wider">数据</span></div>) },
+  { value: 'about', label: (<div className="flex items-center justify-center space-x-2"><Info size={16} /><span className="font-minecraft tracking-wider">关于</span></div>) },
 ];
 
 export const Settings: React.FC = () => {
@@ -37,7 +39,8 @@ export const Settings: React.FC = () => {
     java: 'settings-java-autodetect',
     download: INITIAL_DOWNLOAD_FOCUS_KEY,
     account: 'btn-add-ms',
-    data: undefined
+    data: undefined,
+    about: 'settings-about-github'
   }), []);
 
   useEffect(() => {
@@ -83,6 +86,7 @@ export const Settings: React.FC = () => {
       case 'game': return <GameSettings />;
       case 'download': return <DownloadSettings />;
       case 'account': return <AccountSettings />;
+      case 'about': return <AboutSettings />;
       default: return (
         <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-ore-text-muted font-minecraft border-2 border-dashed border-ore-gray-border mx-8 mt-8">
           <Wrench size={48} className="mb-4 opacity-50" />

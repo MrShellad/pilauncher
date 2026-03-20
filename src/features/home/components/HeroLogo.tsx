@@ -1,34 +1,76 @@
 // /src/features/home/components/HeroLogo.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { OreMotionTokens } from '../../../style/tokens/motion';
 
-const logoFiles = import.meta.glob('../../../assets/home/herologo/*.{png,jpg,jpeg,webp,svg,gif}', { 
-  eager: true, 
-  import: 'default' 
+// 启动器默认 logo（静态资源，构建时打包进 bundle）
+const logoFiles = import.meta.glob('../../../assets/home/herologo/*.{png,jpg,jpeg,webp,svg,gif}', {
+  eager: true,
+  import: 'default'
 });
 
-export const HeroLogo: React.FC = () => {
-  const logoPaths = Object.values(logoFiles) as string[];
-  const defaultLogo = logoPaths.length > 0 ? logoPaths[0] : null;
+const defaultLogoPaths = Object.values(logoFiles) as string[];
+const defaultLogo = defaultLogoPaths.length > 0 ? defaultLogoPaths[0] : null;
+
+interface HeroLogoProps {
+  /** 当前选中实例的 ID，有效时会尝试读取实例内的自定义 hero_logo */
+  instanceId?: string | null;
+}
+
+export const HeroLogo: React.FC<HeroLogoProps> = ({ instanceId }) => {
+  // customLogoSrc: 来自实例 instance.json 的自定义 logo 绝对路径（经过 convertFileSrc 处理）
+  // undefined = 尚未加载完毕，null = 确认无自定义 logo，string = 已解析的 src
+  const [customLogoSrc, setCustomLogoSrc] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!instanceId) {
+      // 没有选中实例时，直接清空自定义 logo，回落到默认
+      setCustomLogoSrc(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    invoke<string | null>('get_instance_herologo', { id: instanceId })
+      .then((absPath) => {
+        if (cancelled) return;
+        if (absPath) {
+          // 将本地绝对路径转换为 asset:// 协议供 <img> 使用
+          setCustomLogoSrc(convertFileSrc(absPath));
+        } else {
+          setCustomLogoSrc(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCustomLogoSrc(null);
+      });
+
+    return () => { cancelled = true; };
+  }, [instanceId]);
+
+  // 最终展示的图片：优先使用实例自定义 logo，其次使用内置默认 logo
+  const displaySrc = customLogoSrc ?? defaultLogo;
+
+  // 当 instanceId 存在但尚未加载完毕时，渲染一个占位空元素避免闪烁
+  const isLoading = instanceId && customLogoSrc === undefined;
 
   return (
-    <motion.div 
-      // 【关键改动】：响应式容器尺寸
-      // 宽度：小窗占60vw -> 中窗占45vw -> 大窗/最大化占35vw。最小不低于250px，最大不超过600px
+    <motion.div
+      // 宽度：小窗占60vw -> 中窗占45vw -> 大窗/最大化占35vw。最小不低于600px，最大不超过1080px
       // 高度：阶梯式增长，配合 img 的 object-contain 让图片完美等比放大
       className="flex items-center justify-center select-none cursor-pointer w-[60vw] md:w-[45vw] lg:w-[35vw] min-w-[600px] max-w-[1080px] h-20 md:h-28 lg:h-40 xl:h-48"
       whileHover={OreMotionTokens.subtleHover}
     >
-      {defaultLogo ? (
-        <img 
-          src={defaultLogo} 
-          alt="PiLauncher Logo" 
-          // object-contain 是神来之笔：无论外层高宽比怎么变，图片都会保持原比例缩放并居中
-          className="w-full h-full object-contain drop-shadow-2xl" 
+      {isLoading ? null : displaySrc ? (
+        <img
+          src={displaySrc}
+          alt="PiLauncher Logo"
+          // object-contain 保持图片原比例缩放并居中
+          className="w-full h-full object-contain drop-shadow-2xl"
         />
       ) : (
-        // 【关键改动】：文本字号也要响应式 (text-4xl -> 6xl -> 7xl -> 8xl)
+        // 没有任何图片资源时显示文字 Logo
         <h1 className="font-bold tracking-tighter text-white drop-shadow-xl ore-text-shadow text-4xl md:text-6xl lg:text-7xl xl:text-8xl">
           PiLauncher
         </h1>
