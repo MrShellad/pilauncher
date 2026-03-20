@@ -97,6 +97,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         modpack_cmd::download_and_import_modpack,
         modpack_cmd::import_local_instances_folders,
         modpack_cmd::download_missing_runtimes,
+        modpack_cmd::export_modpack,
         java_cmd::download_java_env,
         fs_cmd::get_drives,
         fs_cmd::list_valid_dirs,

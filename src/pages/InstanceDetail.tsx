@@ -27,6 +27,7 @@ import { ModPanel } from '../features/InstanceDetail/components/tabs/ModPanel';
 import { SavePanel } from '../features/InstanceDetail/components/tabs/SavePanel';
 import { ResourcePackPanel } from '../features/InstanceDetail/components/tabs/ResourcePackPanel';
 import { ShaderPanel } from '../features/InstanceDetail/components/tabs/ShaderPanel';
+import { ExportPanel } from '../features/InstanceDetail/components/tabs/export';
 
 const TABS: { id: DetailTab; label: string; icon: React.FC<any> }[] = [
   { id: 'overview', label: '概览', icon: LayoutTemplate },
@@ -261,14 +262,16 @@ const InstanceDetail: React.FC = () => {
           </div>
 
           {activeTab === 'export' && (
-            <FocusBoundary
-              id="tab-boundary-export"
-              isActive
-              trapFocus
-              className="w-full h-full flex items-center justify-center text-ore-text-muted font-minecraft text-xl"
-            >
-              导出页面开发中...
-            </FocusBoundary>
+            <div className="w-full h-full flex flex-col min-h-0">
+              <FocusBoundary id="tab-boundary-export" isActive={activeTab === 'export'} trapFocus className="w-full h-full">
+                <ExportPanel 
+                  instanceId={instanceId} 
+                  defaultName={data.name} 
+                  defaultHeroLogo={heroLogoUrl || undefined} 
+                  defaultVersion={data.description?.match(/1\.\d+\.\d+/)?.[0] || '1.0.0'} 
+                />
+              </FocusBoundary>
+            </div>
           )}
         </div>
       </div>

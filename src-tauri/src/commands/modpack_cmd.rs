@@ -1,4 +1,4 @@
-﻿// src-tauri/src/commands/modpack_cmd.rs
+// src-tauri/src/commands/modpack_cmd.rs
 use crate::services::modpack_service;
 use crate::domain::modpack::ModpackMetadata;
 use crate::domain::event::DownloadProgressEvent;
@@ -371,4 +371,14 @@ pub async fn download_and_import_modpack<R: Runtime>(
     });
 
     Ok(())
+}
+
+use crate::services::modpack_service::export::ExportConfig;
+
+#[tauri::command]
+pub async fn export_modpack<R: Runtime>(
+    app: AppHandle<R>,
+    config: ExportConfig,
+) -> Result<(), String> {
+    modpack_service::export::execute_export(&app, config).await
 }
