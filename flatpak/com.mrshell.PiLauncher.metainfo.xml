@@ -34,10 +34,10 @@
   </categories>
 
   <releases>
-    <release version="0.1.5" date="2026-03-19">
+    <release version="0.1.6" date="2026-03-21">
       <description>
-        <p xml:lang="zh_CN">测试版更新</p>
-        <p>Initial alpha release.</p>
+        <p xml:lang="zh_CN">第六次测试版更新</p>
+        <p>Sixth test version update.</p>
       </description>
     </release>
   </releases>
