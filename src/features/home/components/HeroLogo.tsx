@@ -59,7 +59,7 @@ export const HeroLogo: React.FC<HeroLogoProps> = ({ instanceId }) => {
     <motion.div
       // 宽度：小窗占60vw -> 中窗占45vw -> 大窗/最大化占35vw。最小不低于600px，最大不超过1080px
       // 高度：阶梯式增长，配合 img 的 object-contain 让图片完美等比放大
-      className="flex items-center justify-center select-none cursor-pointer w-[60vw] md:w-[45vw] lg:w-[35vw] min-w-[600px] max-w-[1080px] h-20 md:h-28 lg:h-40 xl:h-48"
+      className="flex items-center justify-center select-none cursor-pointer w-[60vw] md:w-[45vw] lg:w-[35vw] min-w-[50rem] max-w-[100rem] h-20 md:h-28 lg:h-40 xl:h-48"
       whileHover={OreMotionTokens.subtleHover}
     >
       {isLoading ? null : displaySrc ? (

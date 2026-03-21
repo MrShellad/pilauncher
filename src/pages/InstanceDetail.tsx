@@ -262,11 +262,11 @@ const InstanceDetail: React.FC = () => {
           {activeTab === 'export' && (
             <div className="w-full h-full flex flex-col min-h-0">
               <FocusBoundary id="tab-boundary-export" isActive={activeTab === 'export'} trapFocus className="w-full h-full">
-                <ExportPanel 
-                  instanceId={instanceId} 
-                  defaultName={data.name} 
-                  defaultHeroLogo={heroLogoUrl || undefined} 
-                  defaultVersion={data.description?.match(/1\.\d+\.\d+/)?.[0] || '1.0.0'} 
+                <ExportPanel
+                  instanceId={instanceId}
+                  defaultName={data.name}
+                  defaultHeroLogo={heroLogoUrl || undefined}
+                  defaultVersion={data.description?.match(/1\.\d+\.\d+/)?.[0] || '1.0.0'}
                 />
               </FocusBoundary>
             </div>

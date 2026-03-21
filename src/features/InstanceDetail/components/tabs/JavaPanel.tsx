@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Loader2, CheckCircle2 } from 'lucide-react';
-import { setFocus } from '@noriginmedia/norigin-spatial-navigation'; 
+import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
@@ -64,9 +64,8 @@ export const JavaPanel: React.FC<{ instanceId: string; isActive?: boolean }> = (
         {({ ref, focused }) => (
           <div
             ref={ref as any}
-            className={`w-full h-full flex items-center justify-center text-ore-green font-minecraft outline-none ${
-              focused ? 'ring-2 ring-white/50 rounded-lg scale-105 transition-all' : ''
-            }`}
+            className={`w-full h-full flex items-center justify-center text-ore-green font-minecraft outline-none ${focused ? 'ring-2 ring-white/50 rounded-lg scale-105 transition-all' : ''
+              }`}
           >
             <Loader2 size={32} className="animate-spin" />
           </div>
@@ -76,7 +75,7 @@ export const JavaPanel: React.FC<{ instanceId: string; isActive?: boolean }> = (
   }
 
   return (
-    <SettingsPageLayout title="Java 与内存" subtitle="Java & Memory">
+    <SettingsPageLayout>
       <div className="relative flex flex-col w-full h-full overflow-x-hidden">
 
         {/* ✅ 保险杠统一弹回 java-entry-point */}
@@ -107,7 +106,7 @@ export const JavaPanel: React.FC<{ instanceId: string; isActive?: boolean }> = (
         </div>
 
         <RuntimeSettingsForm mode="instance" config={config} onChange={handleConfigChange} />
-        
+
       </div>
     </SettingsPageLayout>
   );

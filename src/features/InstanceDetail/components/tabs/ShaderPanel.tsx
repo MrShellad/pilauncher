@@ -16,7 +16,7 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
   const setInstanceDownloadTarget = useLauncherStore((state) => state.setInstanceDownloadTarget);
 
   return (
-    <SettingsPageLayout title="光影管理" subtitle="Shader Packs">
+    <SettingsPageLayout>
       <div className="relative flex h-full w-full flex-col">
         <FocusItem focusKey="shader-guard-top" onFocus={() => setFocus('btn-open-shader-folder')}>
           {({ ref }) => <div ref={ref as any} className="pointer-events-none absolute left-0 top-0 h-[1px] w-full opacity-0" tabIndex={-1} />}

@@ -10,7 +10,7 @@ import { FocusItem } from '../../../../ui/focus/FocusItem'; // ✅ 引入 FocusI
 import { Globe, FolderOpen, Archive, Trash2, Loader2, HardDrive, History } from 'lucide-react';
 
 import { useSaveManager } from '../../hooks/useSaveManager';
-import { saveService } from '../../logic/saveService'; 
+import { saveService } from '../../logic/saveService';
 import { OreModal } from '../../../../ui/primitives/OreModal'; // ✅ 引入 OreModal
 import { SaveRestoreModal } from './saves/SaveRestoreModal';
 import { BackupListModal } from './saves/BackupListModal';
@@ -18,14 +18,14 @@ import type { SaveBackupMetadata } from '../../logic/saveService';
 
 export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   const { saves, backups, isLoading, isBackingUp, backupSave, deleteSave, formatSize, formatDate } = useSaveManager(instanceId);
-  
+
   const [isBackupListOpen, setIsBackupListOpen] = useState(false);
   const [verifyingBackup, setVerifyingBackup] = useState<SaveBackupMetadata | null>(null);
   const [saveToDelete, setSaveToDelete] = useState<string | null>(null);
 
   const handleSelectBackup = (backup: SaveBackupMetadata) => {
     setIsBackupListOpen(false);
-    setVerifyingBackup(backup); 
+    setVerifyingBackup(backup);
   };
 
   const handleOpenFolder = async () => {
@@ -37,7 +37,7 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   };
 
   return (
-    <SettingsPageLayout title="存档管理" subtitle="Worlds & Backups">
+    <SettingsPageLayout>
       <div className="relative flex flex-col w-full h-full">
 
         {/* ======================================================== */}
@@ -80,16 +80,16 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
             {saves.map((save, i) => (
               <OreList
                 key={i}
-                focusable={false} 
+                focusable={false}
                 title={save.worldName}
                 subtitle={`文件夹: ${save.folderName} | 大小: ${formatSize(save.sizeBytes)}`}
                 content={`最后游玩: ${formatDate(save.lastPlayedTime)}`}
                 leading={
                   save.iconPath ? (
-                    <img 
-                      src={`${convertFileSrc(save.iconPath)}?t=${save.lastPlayedTime}`} 
-                      alt="Save Icon" 
-                      className="w-12 h-12 object-cover rounded-sm border-[2px] border-[#18181B] shadow-md" 
+                    <img
+                      src={`${convertFileSrc(save.iconPath)}?t=${save.lastPlayedTime}`}
+                      alt="Save Icon"
+                      className="w-12 h-12 object-cover rounded-sm border-[2px] border-[#18181B] shadow-md"
                     />
                   ) : (
                     <Globe size={32} className="text-ore-text-muted/50 drop-shadow-md" />
@@ -97,9 +97,9 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
                 }
                 trailing={
                   <div className="flex items-center space-x-3">
-                    <OreButton 
+                    <OreButton
                       focusKey={`save-btn-backup-${i}`}
-                      variant="secondary" 
+                      variant="secondary"
                       size="sm"
                       onClick={() => backupSave(save.folderName)}
                       disabled={isBackingUp}
@@ -107,10 +107,10 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
                       {isBackingUp ? <Loader2 size={16} className="animate-spin mr-2" /> : <Archive size={16} className="mr-2" />}
                       备份
                     </OreButton>
-                    
-                    <OreButton 
+
+                    <OreButton
                       focusKey={`save-btn-delete-${i}`}
-                      variant="danger" 
+                      variant="danger"
                       size="sm"
                       onClick={() => setSaveToDelete(save.folderName)}
                     >
@@ -125,18 +125,18 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         )}
 
         {/* 弹窗部分 */}
-        <BackupListModal 
-          isOpen={isBackupListOpen} 
-          onClose={() => setIsBackupListOpen(false)} 
+        <BackupListModal
+          isOpen={isBackupListOpen}
+          onClose={() => setIsBackupListOpen(false)}
           backups={backups}
           formatSize={formatSize}
           formatDate={formatDate}
           onSelectBackup={handleSelectBackup}
         />
 
-        <SaveRestoreModal 
+        <SaveRestoreModal
           instanceId={instanceId}
-          backupMeta={verifyingBackup} 
+          backupMeta={verifyingBackup}
           onClose={() => setVerifyingBackup(null)}
           onConfirmRestore={(uuid) => {
             alert(`正在恢复快照：${uuid}\n(底层覆盖逻辑开发中...)`);
@@ -177,7 +177,7 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         >
           <div className="flex flex-col items-center justify-center p-6 text-center space-y-4">
             <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 mb-2 border-2 border-red-500/20 shadow-[inset_0_0_15px_rgba(239,68,68,0.2)]">
-               <Trash2 size={32} />
+              <Trash2 size={32} />
             </div>
             <h3 className="text-xl font-bold text-white font-minecraft">确认删除此存档？</h3>
             <p className="text-ore-text-muted font-minecraft px-4">
@@ -186,7 +186,7 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
             </p>
           </div>
         </OreModal>
-        
+
       </div>
     </SettingsPageLayout>
   );

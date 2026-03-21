@@ -74,7 +74,7 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
   const isNameChanged = editName !== data.name && editName.trim() !== '';
 
   return (
-    <SettingsPageLayout title="基础设置" subtitle="Basic Settings">
+    <SettingsPageLayout>
       {/* 移除了导致双重滚动条的 overflow-x-hidden */}
       <div className="relative flex flex-col w-full h-full">
 
@@ -103,7 +103,7 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
         </div>
 
         <SettingsSection title="基本信息">
-          
+
           {/* ✅ 恢复 FormRow 布局，输入框和按钮紧密同行排布，不破坏页面整体样式 */}
           <FormRow
             label="实例名称"

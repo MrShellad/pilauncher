@@ -16,7 +16,7 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
   const setInstanceDownloadTarget = useLauncherStore((state) => state.setInstanceDownloadTarget);
 
   return (
-    <SettingsPageLayout title="资源包管理" subtitle="Resource Packs">
+    <SettingsPageLayout>
       <div className="relative flex h-full w-full flex-col">
         <FocusItem focusKey="rp-guard-top" onFocus={() => setFocus('btn-open-resourcepack-folder')}>
           {({ ref }) => <div ref={ref as any} className="pointer-events-none absolute left-0 top-0 h-[1px] w-full opacity-0" tabIndex={-1} />}

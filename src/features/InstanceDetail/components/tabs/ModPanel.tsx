@@ -61,10 +61,10 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
     setSelectedMod((prev) => (
       prev
         ? {
-            ...prev,
-            isEnabled: !currentEnabled,
-            fileName: currentEnabled ? `${fileName}.disabled` : fileName.replace('.disabled', '')
-          }
+          ...prev,
+          isEnabled: !currentEnabled,
+          fileName: currentEnabled ? `${fileName}.disabled` : fileName.replace('.disabled', '')
+        }
         : null
     ));
     toggleMod(fileName, currentEnabled);
@@ -131,7 +131,7 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   };
 
   return (
-    <SettingsPageLayout title="MOD 管理" subtitle="模组与快照">
+    <SettingsPageLayout>
       <div className="mb-4 flex items-center justify-between border-2 border-[#2A2A2C] bg-[#18181B] p-4">
         <div>
           <h3 className="flex items-center font-minecraft text-white">
