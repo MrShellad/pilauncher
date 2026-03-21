@@ -51,7 +51,6 @@ const InstanceDetail: React.FC = () => {
     isInitializing,
     currentImageIndex,
     heroLogoUrl,
-    handlePlay,
     handleOpenFolder,
     handleUpdateName,
     handleUpdateCover,
@@ -208,7 +207,6 @@ const InstanceDetail: React.FC = () => {
                 data={data}
                 currentImageIndex={currentImageIndex}
                 heroLogoUrl={heroLogoUrl}
-                onPlay={handlePlay}
                 onOpenFolder={handleOpenFolder}
                 onUpdateHeroLogo={handleUpdateHeroLogo}
               />

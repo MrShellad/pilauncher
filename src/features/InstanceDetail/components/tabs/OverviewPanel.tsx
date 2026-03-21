@@ -8,13 +8,17 @@ import { OreButton } from '../../../../ui/primitives/OreButton';
 import { SettingsSection } from '../../../../ui/layout/SettingsSection';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import type { InstanceDetailData } from '../../../../hooks/pages/InstanceDetail/useInstanceDetail';
+import { useGameLaunch } from '../../../../hooks/useGameLaunch';
+import { useAccountStore } from '../../../../store/useAccountStore';
+import { useInputMode } from '../../../../ui/focus/FocusProvider';
+import { NoAccountModal } from '../../../../ui/components/NoAccountModal';
+import defaultCoverUrl from '../../../../assets/instances/default-3.png';
 
 interface OverviewPanelProps {
   data: InstanceDetailData;
   currentImageIndex: number;
   /** 当前实例自定义 HeroLogo 的 asset:// URL，null 表示无 */
   heroLogoUrl?: string | null;
-  onPlay: () => void;
   onOpenFolder?: () => void;
   /** 触发选图 -> 更新 herologo */
   onUpdateHeroLogo?: () => Promise<void>;
@@ -24,16 +28,32 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
   data,
   currentImageIndex,
   heroLogoUrl,
-  onPlay,
   onOpenFolder,
   onUpdateHeroLogo,
 }) => {
   const [logoHovered, setLogoHovered] = useState(false);
   const [logoLoading, setLogoLoading] = useState(false);
+  const [showNoAccountModal, setShowNoAccountModal] = useState(false);
 
-  const fallbackImages = ['/src/assets/instances/default-3.png'];
+  const { isLaunching, launchGame } = useGameLaunch();
+  const inputMode = useInputMode();
+
+  const fallbackImages = [defaultCoverUrl];
   const imagesToShow = data.screenshots && data.screenshots.length > 0 ? data.screenshots : fallbackImages;
   const currentImage = imagesToShow[currentImageIndex % imagesToShow.length] || data.coverUrl;
+
+  const handlePlayClick = (e?: React.MouseEvent | React.KeyboardEvent) => {
+    if (e) e.stopPropagation();
+    const { accounts, activeAccountId } = useAccountStore.getState();
+    const currentAccount = accounts.find(a => a.uuid === activeAccountId);
+
+    if (!currentAccount) {
+      setShowNoAccountModal(true);
+      return;
+    }
+
+    launchGame(data.id, inputMode === 'controller', e);
+  };
 
   const handleLogoClick = async () => {
     if (!onUpdateHeroLogo || logoLoading) return;
@@ -162,11 +182,11 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
             focusKey="overview-btn-play"
             variant="primary"
             size="lg"
-            onClick={onPlay}
+            onClick={handlePlayClick}
             className="min-w-[140px] flex items-center gap-2"
           >
             <Play size={16} fill="currentColor" />
-            开始游戏
+            {isLaunching ? '启动中...' : '开始游戏'}
           </OreButton>
 
           <OreButton
@@ -231,6 +251,11 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
           </SettingsSection>
         </div>
       </div>
+
+      <NoAccountModal
+        isOpen={showNoAccountModal}
+        onClose={() => setShowNoAccountModal(false)}
+      />
     </div>
   );
 };

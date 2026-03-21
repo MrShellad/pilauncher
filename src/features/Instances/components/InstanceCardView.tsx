@@ -9,6 +9,9 @@ import { OreButton } from '../../../ui/primitives/OreButton';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { OreMotionTokens } from '../../../style/tokens/motion';
 import { ControlHint } from '../../../ui/components/ControlHint';
+import { useAccountStore } from '../../../store/useAccountStore';
+import { useInputMode } from '../../../ui/focus/FocusProvider';
+import { NoAccountModal } from '../../../ui/components/NoAccountModal';
 
 // ✅ 1. 引入你的超级输入驱动
 import { useInputAction } from '../../../ui/focus/InputDriver';
@@ -37,9 +40,25 @@ const CardFocusHandler: React.FC<{ focused: boolean; onAction: () => void }> = (
 
 export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, onClick, onEdit }) => {
   const { isLaunching, launchGame } = useGameLaunch();
+  const [showNoAccountModal, setShowNoAccountModal] = React.useState(false);
+  const inputMode = useInputMode();
+
+  const handlePlayClick = (e?: React.MouseEvent | React.KeyboardEvent) => {
+    if (e) e.stopPropagation();
+    const { accounts, activeAccountId } = useAccountStore.getState();
+    const currentAccount = accounts.find(a => a.uuid === activeAccountId);
+
+    if (!currentAccount) {
+      setShowNoAccountModal(true);
+      return;
+    }
+
+    launchGame(instance.id, inputMode === 'controller', e);
+  };
 
   return (
-    <FocusItem focusKey={`card-play-${instance.id}`} onEnter={() => launchGame(instance.id)}>
+    <>
+    <FocusItem focusKey={`card-play-${instance.id}`} onEnter={() => handlePlayClick()}>
       {({ ref, focused }) => (
         <>
           {/* ✅ 3. 将窃听器挂载到这里，接收 focused 状态 */}
@@ -48,7 +67,7 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
           <motion.div
             ref={ref}
             tabIndex={-1}
-            onClick={() => launchGame(instance.id)}
+            onClick={handlePlayClick}
             // 保留原生键盘支持，作为鼠标/纯键盘模式下的兜底
             onKeyDown={(e) => {
               if (e.key.toLowerCase() === 'y') {
@@ -105,10 +124,7 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                   variant="primary"
                   size="full"
                   className={`!h-[44px] shadow-inner transition-all duration-300`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    launchGame(instance.id);
-                  }}
+                  onClick={handlePlayClick}
                   tabIndex={-1}
                 >
                   {isLaunching ? (
@@ -135,7 +151,7 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                   {instance.loader && instance.loader !== 'Vanilla' && (
                     <span className="flex items-center gap-1 bg-black/50 px-1.5 py-0.5 rounded-sm text-gray-300 border border-white/5 shadow-inner">
                       <img 
-                        src={`/src/assets/icons/tags/loaders/${instance.loader.toLowerCase()}.svg`}
+                        src={new URL(`../../../assets/icons/tags/loaders/${instance.loader.toLowerCase()}.svg`, import.meta.url).href}
                         alt={instance.loader}
                         className="w-3 h-3 opacity-80 invert brightness-0"
                         onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -158,5 +174,10 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
         </>
       )}
     </FocusItem>
+    <NoAccountModal
+      isOpen={showNoAccountModal}
+      onClose={() => setShowNoAccountModal(false)}
+    />
+    </>
   );
 };
