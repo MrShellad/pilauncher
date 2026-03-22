@@ -1,4 +1,4 @@
-name: Build Tauri App (macOS ARM)
+name: Build Tauri App (macOS)
 
 on:
   push:
@@ -9,7 +9,7 @@ jobs:
   build-macos:
     runs-on: macos-latest
 
-    # ⚠️ 必须：你用了 Environment secrets
+    # ⚠️ 你用了 Environment secrets 必须加这个
     environment: VITE_CURSEFORGE_API_KEY
 
     steps:
@@ -22,11 +22,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
+          cache: 'pnpm'
 
-      # 📦 pnpm
-      - name: Install pnpm
-        run: npm install -g pnpm
+      # ✅ 正确安装 pnpm（修复你刚才的报错）
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       # 🦀 Rust
       - name: Install Rust
@@ -42,9 +44,9 @@ jobs:
           brew update
           brew install create-dmg
 
-      # 📦 安装前端依赖
+      # 📦 安装依赖
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       # 🏗️ 构建前端（注入 VITE 环境变量）
       - name: Build frontend
@@ -53,20 +55,20 @@ jobs:
           VITE_CURSEFORGE_API_KEY: ${{ secrets.VITE_CURSEFORGE_API_KEY }}
           VITE_MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
 
-      # 🚀 构建 Tauri（注入 Rust 环境变量）
+      # 🚀 构建 Tauri
       - name: Build Tauri App (macOS ARM)
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-          # 👉 给 Rust 用（更安全）
+          # 👉 Rust 使用（更安全）
           CURSEFORGE_API_KEY: ${{ secrets.VITE_CURSEFORGE_API_KEY }}
           MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
 
         with:
           args: --target aarch64-apple-darwin
 
-      # 📦 上传构建产物
+      # 📦 上传产物
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
