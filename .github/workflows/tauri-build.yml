@@ -1,93 +1,74 @@
-name: Build Tauri bundles
+name: Build Tauri App (macOS ARM)
 
 on:
-  workflow_dispatch:
   push:
-    tags:
-      - "v*"
-
-permissions:
-  contents: write
-
-concurrency:
-  group: tauri-build-${{ github.ref }}
-  cancel-in-progress: false
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: windows-latest
-            target: x86_64-pc-windows-msvc
-          - platform: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-          - platform: macos-14
-            target: aarch64-apple-darwin
+  build-macos:
+    runs-on: macos-latest
 
-    runs-on: ${{ matrix.platform }}
-
-    env:
-      # Build-time injected secrets (see src-tauri/build.rs)
-      MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
-      CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
-
-      # Optional: if you sign macOS apps, add these secrets and uncomment the lines below.
-      # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-      # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-      # APPLE_ID: ${{ secrets.APPLE_ID }}
-      # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-      # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    # ⚠️ 必须：你用了 Environment secrets
+    environment: VITE_CURSEFORGE_API_KEY
 
     steps:
-      - name: Checkout
+      # 📦 拉代码
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      # 🟢 Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "pnpm"
+          cache: pnpm
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
+      # 📦 pnpm
+      - name: Install pnpm
+        run: npm install -g pnpm
 
-      - name: Install Linux system dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libgtk-3-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            patchelf
-
-      - name: Setup Rust
+      # 🦀 Rust
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
 
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            src-tauri -> target
+      # 🎯 macOS ARM target
+      - name: Add macOS ARM target
+        run: rustup target add aarch64-apple-darwin
 
+      # 🍺 Tauri 依赖
+      - name: Install macOS dependencies
+        run: |
+          brew update
+          brew install create-dmg
+
+      # 📦 安装前端依赖
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
-      - name: Build bundles (pnpm tauri build)
+      # 🏗️ 构建前端（注入 VITE 环境变量）
+      - name: Build frontend
+        run: pnpm build
+        env:
+          VITE_CURSEFORGE_API_KEY: ${{ secrets.VITE_CURSEFORGE_API_KEY }}
+          VITE_MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
+
+      # 🚀 构建 Tauri（注入 Rust 环境变量）
+      - name: Build Tauri App (macOS ARM)
         uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+          # 👉 给 Rust 用（更安全）
+          CURSEFORGE_API_KEY: ${{ secrets.VITE_CURSEFORGE_API_KEY }}
+          MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
+
         with:
-          tauriScript: pnpm tauri
-          args: build
-          tagName: ${{ github.ref_name }}
-          releaseName: ${{ github.ref_name }}
-          releaseBody: "Automated build for ${{ github.ref_name }}"
-          releaseDraft: false
-          prerelease: false
+          args: --target aarch64-apple-darwin
+
+      # 📦 上传构建产物
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm-build
+          path: src-tauri/target/aarch64-apple-darwin/release/bundle
