@@ -49,6 +49,7 @@ pub fn build_instance_config(
         cover_image: None,
         hero_logo: None,
         gamepad: None,
+        custom_buttons: None,
     }
 }
 

@@ -1,6 +1,7 @@
 // /src/features/InstanceDetail/components/tabs/BasicPanel.tsx
 import React, { useState, useEffect } from 'react';
-import { Image as ImageIcon, Trash2, ShieldCheck, Save, Loader2, CheckCircle2 } from 'lucide-react';
+import { Image as ImageIcon, Trash2, ShieldCheck, Save, Loader2, CheckCircle2, Plus, X } from 'lucide-react';
+import { BUTTON_TYPES, getButtonIcon } from '../../../../ui/icons/SocialIcons';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
 import { OreInput } from '../../../../ui/primitives/OreInput';
@@ -11,13 +12,14 @@ import { FormRow } from '../../../../ui/layout/FormRow';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { OreModal } from '../../../../ui/primitives/OreModal';
 
-import type { InstanceDetailData } from '../../../../hooks/pages/InstanceDetail/useInstanceDetail';
+import type { InstanceDetailData, CustomButton } from '../../../../hooks/pages/InstanceDetail/useInstanceDetail';
 
 interface BasicPanelProps {
   data: InstanceDetailData;
   isInitializing: boolean;
   onUpdateName: (newName: string) => Promise<void>;
   onUpdateCover: () => Promise<void>;
+  onUpdateCustomButtons: (buttons: CustomButton[]) => Promise<void>;
   onVerifyFiles: () => Promise<void>;
   onDelete: (skipConfirm?: boolean) => Promise<void>;
 }
@@ -27,6 +29,7 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
   isInitializing,
   onUpdateName,
   onUpdateCover,
+  onUpdateCustomButtons,
   onVerifyFiles,
   onDelete,
 }) => {
@@ -34,10 +37,12 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [customButtons, setCustomButtons] = useState<CustomButton[]>(data.customButtons || []);
 
   useEffect(() => {
     setEditName(data.name);
-  }, [data.name]);
+    setCustomButtons(data.customButtons || []);
+  }, [data.name, data.customButtons]);
 
   const triggerSuccess = (msg: string) => {
     setSuccessMsg(msg);
@@ -59,6 +64,27 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
     setIsSaving(true);
     await onUpdateCover();
     setIsSaving(false);
+  };
+
+  const handleSaveCustomButtons = async () => {
+    setIsSaving(true);
+    await onUpdateCustomButtons(customButtons);
+    setIsSaving(false);
+    triggerSuccess('自定义链接已保存');
+  };
+
+  const handleAddButton = () => {
+    setCustomButtons([...customButtons, { type: 'wiki', url: '', label: '' }]);
+  };
+
+  const handleRemoveButton = (index: number) => {
+    setCustomButtons(customButtons.filter((_, i) => i !== index));
+  };
+
+  const handleChangeButton = (index: number, field: keyof CustomButton, value: string) => {
+    const newBtns = [...customButtons];
+    newBtns[index] = { ...newBtns[index], [field]: value };
+    setCustomButtons(newBtns);
   };
 
   const handleDelete = () => {
@@ -167,6 +193,110 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
               </div>
             }
           />
+        </SettingsSection>
+
+        <SettingsSection title="自定义链接管理">
+          <p className="text-ore-text-muted text-xs mb-6 leading-relaxed opacity-80">
+            为整合包添加快速链接按钮（Wiki、社区、官网等），将展示在主页和概览页。留空标题时将使用平台名称。
+          </p>
+
+          {/* 链接卡片列表 — 每条一张独立卡片，垂直排布 */}
+          <div className="flex flex-col gap-3 mb-2">
+            {customButtons.map((btn, idx) => {
+              const IconComp = getButtonIcon(btn.type);
+              return (
+                <div
+                  key={idx}
+                  className="bg-[#18181B] border border-[#2A2A2C] rounded-sm p-4 space-y-3 hover:border-[#3A3A3C] transition-colors"
+                >
+                  {/* 卡片顶部：类型选择 + 删除按钮 */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/60">
+                        <IconComp size={18} />
+                      </span>
+                      <select
+                        value={btn.type}
+                        onChange={(e) => handleChangeButton(idx, 'type', e.target.value)}
+                        disabled={isSaving || isInitializing}
+                        className="bg-[#1E1E1F] border border-[#2A2A2C] text-white text-sm px-2 py-1 rounded-sm focus:outline-none focus:border-white/40 cursor-pointer transition-colors"
+                      >
+                        {BUTTON_TYPES.map(t => (
+                          <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveButton(idx)}
+                      disabled={isSaving || isInitializing}
+                      title="删除此链接"
+                      className="w-7 h-7 flex items-center justify-center text-ore-text-muted hover:text-red-400 hover:bg-red-500/10 rounded-sm transition-colors disabled:opacity-40"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+
+                  {/* 卡片下部：标题 + URL 两个输入框 */}
+                  <div className="flex gap-3">
+                    <div className="w-40 flex-shrink-0">
+                      <OreInput
+                        focusKey={`btn-label-${idx}`}
+                        value={btn.label || ''}
+                        onChange={(e) => handleChangeButton(idx, 'label', e.target.value)}
+                        disabled={isSaving || isInitializing}
+                        placeholder="自定义标题"
+                        className="bg-[#1E1E1F] border-[#2A2A2C]"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <OreInput
+                        focusKey={`btn-url-${idx}`}
+                        value={btn.url}
+                        onChange={(e) => handleChangeButton(idx, 'url', e.target.value)}
+                        disabled={isSaving || isInitializing}
+                        placeholder="https://..."
+                        className="bg-[#1E1E1F] border-[#2A2A2C]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 空状态提示 */}
+          {customButtons.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-8 text-ore-text-muted border border-dashed border-[#2A2A2C] rounded-sm mb-4">
+              <span className="text-sm font-minecraft">暂无自定义链接</span>
+              <span className="text-xs mt-1 opacity-60">点击「添加链接」按钮开始配置</span>
+            </div>
+          )}
+
+          {/* 操作栏 */}
+          <div className="flex items-center gap-3 px-0 py-4 border-t border-[#2A2A2C] mt-1">
+            <OreButton
+              focusKey="btn-add-link"
+              variant="secondary"
+              onClick={handleAddButton}
+              disabled={isSaving || isInitializing}
+            >
+              <Plus size={15} className="mr-1.5" /> 添加链接
+            </OreButton>
+
+            <div className="flex-1" />
+
+            <OreButton
+              focusKey="btn-save-links"
+              variant="primary"
+              onClick={handleSaveCustomButtons}
+              disabled={isSaving || isInitializing}
+            >
+              {isSaving
+                ? <Loader2 size={15} className="animate-spin mr-1.5" />
+                : <Save size={15} className="mr-1.5" />}
+              保存链接
+            </OreButton>
+          </div>
         </SettingsSection>
 
         <SettingsSection title="实例维护">

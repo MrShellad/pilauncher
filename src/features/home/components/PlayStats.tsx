@@ -1,7 +1,8 @@
 // src/features/home/components/PlayStats.tsx
 import React, { useState, useEffect } from 'react';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
-import { Bell, Book, MessageCircle, Twitter, Youtube, Github, Globe } from 'lucide-react';
+import { Bell } from 'lucide-react';
+import { getButtonIcon } from '../../../ui/icons/SocialIcons';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import { useLauncherStore } from '../../../store/useLauncherStore';
 
@@ -22,7 +23,7 @@ interface PlayStatsProps {
 interface PiStyleConfig {
   buttonStyle?: React.CSSProperties; 
   wiki?: { url: string; label?: string };
-  socials?: Array<{ type: 'discord' | 'twitter' | 'youtube' | 'github' | 'website'; url: string }>;
+  socials?: Array<{ type: string; url: string; label?: string }>;
 }
 
 export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) => {
@@ -72,19 +73,26 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
     }
   }, [currentAccount]);
 
-  // ... (PiConfig 相关的 useEffect 保持不变)
+  // ... (PiConfig 相关的 useEffect 更新为动态获取)
   useEffect(() => {
     const fetchPiConfig = async () => {
       if (!selectedInstanceId) return;
       try {
-        if (selectedInstanceId === '1') { 
-          setPiConfig({
-            wiki: { url: 'https://example.com/wiki', label: 'Wiki' },
-            socials: [{ type: 'discord', url: 'https://discord.gg/...' }, { type: 'github', url: 'https://github.com/...' }]
-          });
-        } else {
-          setPiConfig(null); 
+        const detail = await invoke<any>('get_instance_detail', { id: selectedInstanceId });
+        const customBtns = detail.custom_buttons || [];
+        
+        if (customBtns.length === 0) {
+           setPiConfig(null);
+           return;
         }
+
+        const wikiBtn = customBtns.find((b: any) => b.type === 'wiki');
+        const socialBtns = customBtns.filter((b: any) => b.type !== 'wiki');
+
+        setPiConfig({
+          wiki: wikiBtn ? { url: wikiBtn.url, label: wikiBtn.label } : undefined,
+          socials: socialBtns.length > 0 ? socialBtns : undefined
+        });
       } catch (error) {
         setPiConfig(null);
       }
@@ -93,13 +101,8 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
   }, [selectedInstanceId]);
 
   const renderSocialIcon = (type: string) => {
-    switch (type) {
-      case 'discord': return <MessageCircle size={20} />;
-      case 'twitter': return <Twitter size={20} />;
-      case 'youtube': return <Youtube size={20} />;
-      case 'github': return <Github size={20} />;
-      default: return <Globe size={20} />;
-    }
+    const IconComp = getButtonIcon(type);
+    return <IconComp size={20} />;
   };
 
   const squareBtnClass = "!min-w-0 !w-11 !h-11 [&>button]:!px-0";
@@ -110,11 +113,14 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
       <div className="absolute left-8 bottom-12 flex flex-col space-y-6 z-30">
         
         <div className="flex flex-col space-y-3 mb-2">
-          {piConfig?.wiki && (
-            <OreButton focusKey="btn-wiki" variant="secondary" size="auto" className={squareBtnClass} style={piConfig.buttonStyle} onClick={() => window.open(piConfig.wiki!.url)} title={piConfig.wiki!.label || 'Wiki'} autoScroll={false}>
-              <Book size={20} />
-            </OreButton>
-          )}
+          {piConfig?.wiki && (() => {
+            const WikiIcon = getButtonIcon('wiki');
+            return (
+              <OreButton focusKey="btn-wiki" variant="secondary" size="auto" className={squareBtnClass} style={piConfig.buttonStyle} onClick={() => window.open(piConfig.wiki!.url)} title={piConfig.wiki!.label || 'Wiki'} autoScroll={false}>
+                <WikiIcon size={20} />
+              </OreButton>
+            );
+          })()}
 
           {piConfig?.socials && piConfig.socials.length > 0 && (
             <div className="flex space-x-3">

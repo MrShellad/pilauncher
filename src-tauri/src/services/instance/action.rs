@@ -4,6 +4,7 @@ use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Runtime};
+use crate::domain::instance::CustomButtonConfig;
 
 pub struct InstanceActionService;
 
@@ -130,5 +131,26 @@ impl InstanceActionService {
         }
 
         Ok(target_path.to_string_lossy().to_string())
+    }
+
+    pub fn update_custom_buttons<R: Runtime>(
+        app: &AppHandle<R>,
+        id: &str,
+        custom_buttons: Vec<CustomButtonConfig>,
+    ) -> Result<(), String> {
+        let instance_dir = Self::get_instance_dir(app, id)?;
+        let json_path = instance_dir.join("instance.json");
+        
+        if json_path.exists() {
+            let data = fs::read_to_string(&json_path).map_err(|e| e.to_string())?;
+            let mut json: Value = serde_json::from_str(&data).unwrap_or(serde_json::json!({}));
+            
+            // Serialize the array and assign it to the field
+            json["custom_buttons"] = serde_json::to_value(custom_buttons).map_err(|e| e.to_string())?;
+            
+            fs::write(&json_path, serde_json::to_string_pretty(&json).unwrap())
+                .map_err(|e| e.to_string())?;
+        }
+        Ok(())
     }
 }

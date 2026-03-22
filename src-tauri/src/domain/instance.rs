@@ -1,6 +1,14 @@
 // src-tauri/src/domain/instance.rs
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct CustomButtonConfig {
+    pub url: String,
+    pub label: Option<String>,
+    #[serde(rename = "type")]
+    pub btn_type: String, // 'wiki', 'discord', 'twitter', 'youtube', 'github', 'website', 'other'
+}
+
 // --- 前端请求模型 ---
 #[derive(Debug, Deserialize)]
 pub struct CreateInstancePayload {
@@ -34,6 +42,7 @@ pub struct InstanceConfig {
     pub cover_image: Option<String>,
     pub hero_logo: Option<String>,
     pub gamepad: Option<bool>,
+    pub custom_buttons: Option<Vec<CustomButtonConfig>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

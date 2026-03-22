@@ -1,5 +1,6 @@
 // src-tauri/src/commands/instance/action_cmd.rs
 use crate::services::instance::action::InstanceActionService;
+use crate::domain::instance::CustomButtonConfig;
 use tauri::{AppHandle, Runtime};
 
 #[tauri::command]
@@ -41,6 +42,15 @@ pub async fn get_instance_detail<R: Runtime>(
     id: String,
 ) -> Result<serde_json::Value, String> {
     InstanceActionService::get_detail(&app, &id)
+}
+
+#[tauri::command]
+pub async fn update_instance_custom_buttons<R: Runtime>(
+    app: AppHandle<R>,
+    id: String,
+    custom_buttons: Vec<CustomButtonConfig>,
+) -> Result<(), String> {
+    InstanceActionService::update_custom_buttons(&app, &id, custom_buttons)
 }
 
 #[tauri::command]

@@ -4,6 +4,12 @@ import { ask, open } from '@tauri-apps/plugin-dialog';
 
 export type DetailTab = 'overview' | 'basic' | 'java' | 'saves' | 'mods' | 'resourcepacks' | 'shaders' | 'export';
 
+export interface CustomButton {
+  url: string;
+  label?: string;
+  type: string;
+}
+
 export interface InstanceDetailData {
   id: string;
   name: string;
@@ -14,6 +20,7 @@ export interface InstanceDetailData {
   loader?: string;
   playTime?: string;
   lastPlayed?: string;
+  customButtons?: CustomButton[];
 }
 
 interface RawInstanceDetail {
@@ -30,6 +37,7 @@ interface RawInstanceDetail {
   play_time?: string | number;
   lastPlayed?: string;
   last_played?: string;
+  custom_buttons?: CustomButton[];
 }
 
 export const useInstanceDetail = (instanceId: string) => {
@@ -75,7 +83,8 @@ export const useInstanceDetail = (instanceId: string) => {
           version: realData.game_version || realData.gameVersion || realData.mcVersion || '',
           loader: realData.loader?.type || realData.loader_type || realData.loaderType || 'Vanilla',
           playTime,
-          lastPlayed: realData.lastPlayed || realData.last_played || ''
+          lastPlayed: realData.lastPlayed || realData.last_played || '',
+          customButtons: realData.custom_buttons || [],
         });
 
         // 读取自定义 HeroLogo
@@ -150,6 +159,11 @@ export const useInstanceDetail = (instanceId: string) => {
     throw new Error('USER_CANCELED');
   };
 
+  const handleUpdateCustomButtons = async (customButtons: CustomButton[]) => {
+    await invoke('update_instance_custom_buttons', { id: instanceId, customButtons });
+    setData((prev) => (prev ? { ...prev, customButtons } : null));
+  };
+
   const handleVerifyFiles = async () => {
     console.log(`调用 Rust 校验并补全实例 ${instanceId} 的文件`);
   };
@@ -183,6 +197,7 @@ export const useInstanceDetail = (instanceId: string) => {
     handleUpdateName,
     handleUpdateCover,
     handleUpdateHeroLogo,
+    handleUpdateCustomButtons,
     handleVerifyFiles,
     handleDeleteInstance
   };

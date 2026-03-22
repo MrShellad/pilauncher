@@ -81,6 +81,7 @@ impl InstanceCreationService {
             cover_image: saved_cover_path,
             hero_logo: None,
             gamepad: None,
+            custom_buttons: None,
         };
         fs::write(
             instance_root.join("instance.json"),

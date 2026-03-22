@@ -55,6 +55,7 @@ const InstanceDetail: React.FC = () => {
     handleUpdateName,
     handleUpdateCover,
     handleUpdateHeroLogo,
+    handleUpdateCustomButtons,
     handleVerifyFiles,
     handleDeleteInstance,
   } = useInstanceDetail(instanceId);
@@ -220,6 +221,7 @@ const InstanceDetail: React.FC = () => {
                 isInitializing={isInitializing}
                 onUpdateName={handleUpdateName}
                 onUpdateCover={handleUpdateCover}
+                onUpdateCustomButtons={handleUpdateCustomButtons}
                 onVerifyFiles={handleVerifyFiles}
                 onDelete={async (skipConfirm?: boolean) => {
                   const success = await handleDeleteInstance(skipConfirm);
