@@ -1,0 +1,75 @@
+name: Build Tauri App (macOS)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  # ✅ 直接切 Node 24，避免未来炸
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    environment: VITE_CURSEFORGE_API_KEY
+
+    steps:
+      # 📦 拉代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 🟢 Node（不再用 pnpm cache）
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # ✅ 用 corepack 安装 pnpm（关键修复）
+      - name: Enable corepack
+        run: |
+          corepack enable
+          corepack prepare pnpm@9 --activate
+          pnpm -v
+
+      # 🦀 Rust
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # 🎯 macOS ARM
+      - name: Add macOS ARM target
+        run: rustup target add aarch64-apple-darwin
+
+      # 🍺 依赖
+      - name: Install macOS dependencies
+        run: |
+          brew update
+          brew install create-dmg
+
+      # 📦 安装依赖
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 🏗️ 前端
+      - name: Build frontend
+        run: pnpm build
+        env:
+          VITE_CURSEFORGE_API_KEY: ${{ secrets.VITE_CURSEFORGE_API_KEY }}
+          VITE_MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
+
+      # 🚀 Tauri
+      - name: Build Tauri App
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CURSEFORGE_API_KEY: ${{ secrets.VITE_CURSEFORGE_API_KEY }}
+          MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
+        with:
+          args: --target universal-apple-darwin
+
+      # 📦 上传
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: src-tauri/target/universal-apple-darwin/release/bundle
