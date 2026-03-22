@@ -42,7 +42,7 @@ export const DownloadSettings: React.FC = () => {
   } = useDownloadSettingsController();
 
   return (
-    <SettingsPageLayout title="下载与网络" subtitle="Download & Network Configurations">
+    <SettingsPageLayout>
       <SettingsSection title="组件下载源" icon={<Globe size={18} />}>
         <FormRow
           label="Minecraft 版本元数据源"
@@ -343,26 +343,24 @@ export const DownloadSettings: React.FC = () => {
                       {({ ref, focused }) => (
                         <div
                           ref={ref}
-                          className={`bg-black/20 border rounded-lg p-4 flex flex-col justify-between hover:bg-black/30 transition-colors ${
-                            focused ? 'border-ore-green shadow-[0_0_10px_rgba(56,133,39,0.3)]' : 'border-white/5'
-                          }`}
+                          className={`bg-black/20 border rounded-lg p-4 flex flex-col justify-between hover:bg-black/30 transition-colors ${focused ? 'border-ore-green shadow-[0_0_10px_rgba(56,133,39,0.3)]' : 'border-white/5'
+                            }`}
                         >
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex flex-col">
-                              <span className="text-white font-mono text-sm truncate max-w-[200px]" title={d.domain}>
+                              <span className="text-white font-mono text-sm break-all pr-2" title={d.domain}>
                                 {d.domain}
                               </span>
-                              <span className="text-[10px] text-ore-text-muted mt-0.5">{d.dns_info}</span>
+                              <span className="text-[12px] text-ore-text-muted mt-0.5">{d.dns_info}</span>
                             </div>
                             <div className="flex items-center space-x-1">
                               <span
-                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                                  d.latency < 100
-                                    ? 'bg-green-500/20 text-green-400'
-                                    : d.latency < 300
+                                className={`text-[12px] font-medium px-1.5 py-0.5 rounded ${d.latency < 100
+                                  ? 'bg-green-500/20 text-green-400'
+                                  : d.latency < 300
                                     ? 'bg-yellow-500/20 text-yellow-400'
                                     : 'bg-red-500/20 text-red-400'
-                                }`}
+                                  }`}
                               >
                                 {d.latency}ms
                               </span>
@@ -405,9 +403,8 @@ export const DownloadSettings: React.FC = () => {
                       {({ ref, focused }) => (
                         <div
                           ref={ref}
-                          className={`flex flex-col items-center justify-center bg-white/5 p-4 rounded-lg border transition-all w-full lg:w-48 shrink-0 ${
-                            focused ? 'border-ore-green bg-white/10' : 'border-white/10'
-                          }`}
+                          className={`flex flex-col items-center justify-center bg-white/5 p-4 rounded-lg border transition-all w-full lg:w-48 shrink-0 ${focused ? 'border-ore-green bg-white/10' : 'border-white/10'
+                            }`}
                         >
                           <div className="bg-white p-2 rounded relative overflow-hidden">
                             <img src={report.qrcode_uri} alt="Diagnostic QR" className="w-32 h-32" />

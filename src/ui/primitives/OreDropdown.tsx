@@ -14,24 +14,25 @@ interface OreDropdownProps {
   onChange: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
-  className?: string; 
+  className?: string;
   focusKey?: string;
   onArrowPress?: (direction: string) => boolean | void;
-  searchable?: boolean; 
+  searchable?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
+  prefixNode?: React.ReactNode; // ✅ 新增：支持前缀图标
 }
 
 export const OreDropdown: React.FC<OreDropdownProps> = ({
-  options, value, onChange, placeholder = 'Select...', disabled = false, className = '', focusKey, onArrowPress, searchable = false, onOpenChange
+  options, value, onChange, placeholder = 'Select...', disabled = false, className = '', focusKey, onArrowPress, searchable = false, onOpenChange, prefixNode
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [placement, setPlacement] = useState<'bottom' | 'top'>('bottom');
-  const [alignRight, setAlignRight] = useState(false); 
-  const [highlightedIndex, setHighlightedIndex] = useState(-1); 
-  const [searchTerm, setSearchTerm] = useState(''); 
-  
+  const [alignRight, setAlignRight] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [searchTerm, setSearchTerm] = useState('');
+
   const dropdownId = useMemo(() => Math.random().toString(36).substring(2, 9), []);
-  
+
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -64,8 +65,8 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
 
   const filteredOptions = useMemo(() => {
     if (!searchable || !searchTerm) return options;
-    return options.filter(opt => 
-      opt.label.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    return options.filter(opt =>
+      opt.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
       opt.value.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [options, searchable, searchTerm]);
@@ -92,7 +93,7 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
         const targetBottom = targetTop + target.offsetHeight;
 
         if (targetTop < containerTop + searchBoxHeight) {
-          panelRef.current.scrollTop = targetTop - searchBoxHeight - 8; 
+          panelRef.current.scrollTop = targetTop - searchBoxHeight - 8;
         } else if (targetBottom > containerBottom) {
           panelRef.current.scrollTop = targetBottom - panelRef.current.clientHeight + 8;
         }
@@ -105,10 +106,10 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.key)) {
         e.preventDefault();
-        e.stopPropagation(); 
-        e.stopImmediatePropagation(); 
+        e.stopPropagation();
+        e.stopImmediatePropagation();
       } else {
-        return; 
+        return;
       }
 
       if (e.key === 'ArrowDown') setHighlightedIndex(prev => Math.min(filteredOptions.length - 1, prev + 1));
@@ -145,7 +146,7 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
       const spaceBelow = window.innerHeight - triggerRect.bottom;
       const spaceAbove = triggerRect.top;
       setPlacement(spaceBelow < panelRef.current.offsetHeight && spaceAbove > spaceBelow ? 'top' : 'bottom');
-      
+
       if (window.innerWidth - triggerRect.right < 260) {
         setAlignRight(true);
       } else {
@@ -157,9 +158,10 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
   return (
     <FocusItem focusKey={focusKey} disabled={disabled} onArrowPress={onArrowPress} onEnter={toggleDropdown}>
       {({ ref: focusRef, focused }) => (
-        <div 
-          ref={focusRef as any} 
-          className={`relative inline-block ${className} rounded-sm h-[36px] ${isOpen ? 'z-[100]' : (focused ? 'ring-2 ring-white scale-[1.02] z-40 shadow-lg brightness-110' : 'z-20')}`}
+        <div
+          ref={focusRef as any}
+          /* ✅ 提升默认高度至 40px，适配 TV 端阅读体验 */
+          className={`relative inline-block ${className} rounded-sm h-[40px] ${isOpen ? 'z-[100]' : (focused ? 'ring-2 ring-white scale-[1.02] z-40 shadow-lg brightness-110' : 'z-20')}`}
         >
           <div ref={containerRef} className="h-full flex flex-col">
             <button
@@ -167,15 +169,21 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
               type="button"
               disabled={disabled}
               onClick={toggleDropdown}
-              tabIndex={-1} 
-              className={`ore-dropdown-trigger ${isOpen ? 'is-open' : ''} ${focused && !isOpen ? 'border-transparent' : ''}`}
+              tabIndex={-1}
+              className={`ore-dropdown-trigger flex items-center justify-between px-3 ${isOpen ? 'is-open' : ''} ${focused && !isOpen ? 'border-transparent' : ''}`}
             >
-              {/* ✅ 核心修复：未选中时采用 #48494A (深灰)，选中时采用 text-black (纯黑)。彻底抛弃白色文字和脏乱的黑阴影 */}
-              <span className={`truncate font-minecraft font-bold ${!selectedOption ? 'text-[#48494A]' : 'text-black'}`}>
-                {selectedOption ? selectedOption.label : placeholder}
-              </span>
+              {/* ✅ 支持内嵌前缀图标 */}
+              <div className="flex items-center overflow-hidden">
+                {prefixNode && (
+                  <div className={`mr-2 flex-shrink-0 transition-colors ${!selectedOption ? 'text-[#48494A]' : 'text-black'}`}>
+                    {prefixNode}
+                  </div>
+                )}
+                <span className={`truncate font-minecraft font-bold ${!selectedOption ? 'text-[#48494A]' : 'text-black'}`}>
+                  {selectedOption ? selectedOption.label : placeholder}
+                </span>
+              </div>
               <motion.div animate={{ rotate: isOpen ? (placement === 'bottom' ? 180 : -180) : 0 }} transition={{ duration: 0.2 }} className="ml-2 flex-shrink-0">
-                {/* ✅ 核心修复：箭头颜色与文字颜色保持同步 */}
                 <ChevronDown size={18} className={!selectedOption ? 'text-[#48494A]' : 'text-black'} />
               </motion.div>
             </button>
@@ -189,9 +197,9 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
                   exit={{ opacity: 0, scaleY: 0.95, transition: { duration: 0.1 } }}
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   className="ore-dropdown-panel custom-scrollbar max-w-[280px]"
-                  style={{ 
+                  style={{
                     ...(placement === 'bottom' ? { top: '100%', marginTop: '2px' } : { bottom: '100%', marginBottom: '2px' }),
-                    ...(alignRight ? { right: 0, left: 'auto' } : { left: 0, right: 'auto' }) 
+                    ...(alignRight ? { right: 0, left: 'auto' } : { left: 0, right: 'auto' })
                   }}
                 >
                   {searchable && (
@@ -204,7 +212,7 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
                           placeholder="搜索..."
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
-                          onClick={(e) => e.stopPropagation()} 
+                          onClick={(e) => e.stopPropagation()}
                           className="ore-dropdown-search-input"
                         />
                       </div>
@@ -217,16 +225,15 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
                     ) : (
                       filteredOptions.map((opt, idx) => {
                         const isSelected = opt.value === value;
-                        const isHighlighted = highlightedIndex === idx; 
+                        const isHighlighted = highlightedIndex === idx;
                         return (
                           <div
                             key={opt.value}
-                            onMouseEnter={() => setHighlightedIndex(idx)} 
+                            onMouseEnter={() => setHighlightedIndex(idx)}
                             onClick={() => { onChange(opt.value); setIsOpen(false); onOpenChange?.(false); }}
                             className={`ore-dropdown-item ${isSelected ? 'is-selected' : ''} ${isHighlighted ? 'is-highlighted' : ''}`}
                           >
                             <span className="font-minecraft whitespace-normal break-words pr-2">{opt.label}</span>
-                            {/* ✅ 核心修复：打勾图标替换为白色，与基岩版的 check_white.png 对应 */}
                             {isSelected && <Check size={18} className="text-white ml-3 flex-shrink-0" />}
                           </div>
                         );

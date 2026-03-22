@@ -22,8 +22,8 @@ import { FocusItem } from '../../../../ui/focus/FocusItem';
 const FocusableSwitch = ({ checked, onChange }: { checked: boolean, onChange: (v: boolean) => void }) => (
   <FocusItem onEnter={() => onChange(!checked)}>
     {({ ref, focused }) => (
-      <div 
-        ref={ref as any} 
+      <div
+        ref={ref as any}
         className={`
           rounded-full transition-all duration-200 flex items-center justify-center
           ${focused ? 'ring-2 ring-white ring-offset-2 ring-offset-[#18181B] scale-[1.1] shadow-lg brightness-125 z-10' : ''}
@@ -65,25 +65,22 @@ export const GeneralSettings: React.FC = () => {
   return (
     // 整个标签页包裹在 FocusBoundary 中，便于引擎管理层级
     <FocusBoundary id="settings-general-boundary" className="w-full h-full outline-none">
-      <SettingsPageLayout 
-        title="常规设置" 
-        subtitle="General Preferences"
-      >
+      <SettingsPageLayout>
         {/* ==================== 1. 基础模块 ==================== */}
         <SettingsSection title="基础" icon={<Monitor size={18} />}>
-          
+
           {/* ✅ 新增：设备名称配置 */}
-          <FormRow 
-            label="设备名称" 
+          <FormRow
+            label="设备名称"
             description="用于局域网发现与互联传输时的身份展示标识。"
             control={
               <div className="relative focus-within:z-50">
-                <OreInput 
+                <OreInput
                   focusKey="settings-device-name"
                   width="180px"
                   height="36px"
-                  value={general.deviceName} 
-                  onChange={(e) => updateGeneralSetting('deviceName', e.target.value)} 
+                  value={general.deviceName}
+                  onChange={(e) => updateGeneralSetting('deviceName', e.target.value)}
                   placeholder="输入设备名称"
                   containerClassName="!space-y-0"
                 />
@@ -91,12 +88,12 @@ export const GeneralSettings: React.FC = () => {
             }
           />
 
-          <FormRow 
-            label="启动器语言" 
+          <FormRow
+            label="启动器语言"
             description="更改启动器的显示语言。重启后完全生效。"
             control={
               <div className="relative focus-within:z-50">
-                <OreDropdown 
+                <OreDropdown
                   options={languageOptions}
                   value={general.language}
                   onChange={(val) => updateGeneralSetting('language', val)}
@@ -106,27 +103,27 @@ export const GeneralSettings: React.FC = () => {
               </div>
             }
           />
-          <FormRow 
-            label="自动更新启动器" 
+          <FormRow
+            label="自动更新启动器"
             description="在后台静默下载并安装 PiLauncher 的最新版本。"
             control={<FocusableSwitch checked={general.autoUpdate} onChange={(v) => updateGeneralSetting('autoUpdate', v)} />}
           />
-          <FormRow 
-            label="启动时检查更新" 
+          <FormRow
+            label="启动时检查更新"
             description="每次打开启动器时，主动向服务器核实是否有新版本。"
             control={<FocusableSwitch checked={general.checkUpdateOnStart} onChange={(v) => updateGeneralSetting('checkUpdateOnStart', v)} />}
           />
-          <FormRow 
-            label="启动后最小化" 
+          <FormRow
+            label="启动后最小化"
             description="开启启动器后自动将其最小化到系统托盘或任务栏。"
             control={<FocusableSwitch checked={general.minimizeAfterStart} onChange={(v) => updateGeneralSetting('minimizeAfterStart', v)} />}
           />
-          <FormRow 
-            label="关闭按钮行为" 
+          <FormRow
+            label="关闭按钮行为"
             description="点击右上角 'X' 时执行的操作。"
             control={
               <div className="relative focus-within:z-50">
-                <OreDropdown 
+                <OreDropdown
                   options={closeBehaviorOptions}
                   value={general.closeBehavior}
                   onChange={(val) => updateGeneralSetting('closeBehavior', val as 'tray' | 'exit')}
@@ -136,8 +133,8 @@ export const GeneralSettings: React.FC = () => {
               </div>
             }
           />
-          <FormRow 
-            label="开机自启动" 
+          <FormRow
+            label="开机自启动"
             description="在操作系统登录后自动运行 PiLauncher。"
             control={<FocusableSwitch checked={general.runOnStartup} onChange={(v) => updateGeneralSetting('runOnStartup', v)} />}
           />
@@ -145,8 +142,8 @@ export const GeneralSettings: React.FC = () => {
 
         {/* ==================== 2. 窗口与应用 ==================== */}
         <SettingsSection title="窗口与应用" icon={<PowerOff size={18} />}>
-          <FormRow 
-            label="切换全屏/手柄模式" 
+          <FormRow
+            label="切换全屏/手柄模式"
             description="您可以手动开启或关闭全屏模式（Gamepad 专属体验）。"
             control={
               <OreButton focusKey="settings-btn-exit-fullscreen" size="sm" className="flex items-center" onClick={toggleFullscreen}>
@@ -154,8 +151,8 @@ export const GeneralSettings: React.FC = () => {
               </OreButton>
             }
           />
-          <FormRow 
-            label="完全退出启动器" 
+          <FormRow
+            label="完全退出启动器"
             description="直接关闭 PiLauncher 应用程序的所有进程。"
             control={
               <OreButton focusKey="settings-btn-exit-app" variant="danger" size="sm" className="flex items-center" onClick={() => invoke('plugin:process|exit', { code: 0 })}>
@@ -167,8 +164,8 @@ export const GeneralSettings: React.FC = () => {
 
         {/* ==================== 2. 危险操作模块 ==================== */}
         <SettingsSection title="危险操作" icon={<AlertTriangle size={18} />} danger={true}>
-          <FormRow 
-            label="恢复默认设置" 
+          <FormRow
+            label="恢复默认设置"
             description="将启动器的所有设置项重置为初始状态 (不会删除实例)。"
             control={
               <OreButton variant="danger" size="sm" className="flex items-center" onClick={resetSettings}>
