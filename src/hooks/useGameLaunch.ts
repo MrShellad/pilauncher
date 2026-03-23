@@ -50,7 +50,7 @@ export const useGameLaunch = () => {
 
       if (isGamepad && gamepadModCheckEnabled) {
         try {
-          logStore.addLog("[INFO] 手柄模式启动，正在检测手柄 Mod...");
+          logStore.addLogs(["[INFO] 手柄模式启动，正在检测手柄 Mod..."]);
           
           // 1. 获取实例详细配置
           const instanceDetail: any = await invoke('get_instance_detail', { id: instanceId });
@@ -59,7 +59,7 @@ export const useGameLaunch = () => {
 
           if (mcVersion && loaderType) {
             // 2. 调用后端检测本地安装 + 缓存状态
-            logStore.addLog("[INFO] 执行手柄 Mod 状态检测...");
+            logStore.addLogs(["[INFO] 执行手柄 Mod 状态检测..."]);
             const status: any = await invoke('check_gamepad_mod_status', {
               instanceId,
               mcVersion,
@@ -67,15 +67,15 @@ export const useGameLaunch = () => {
             });
 
             if (status.installed) {
-              logStore.addLog("[INFO] 手柄模块就绪。");
+              logStore.addLogs(["[INFO] 手柄模块就绪。"]);
             }
             else if (status.needsInstall || !status.hasCache) {
-              logStore.addLog("[WARN] 未检测到手柄支持模块！");
+              logStore.addLogs(["[WARN] 未检测到手柄支持模块！"]);
 
               // 3. 从前端服务动态解析下载链接（先查缓存，缓存未命中则实时查 API）
               let resolved = resolveGamepadMod(mcVersion, loaderType);
               if (!resolved) {
-                logStore.addLog("[INFO] 缓存未命中，正在从 API 实时查询...");
+                logStore.addLogs(["[INFO] 缓存未命中，正在从 API 实时查询..."]);
                 resolved = await resolveGamepadModOnDemand(mcVersion, loaderType);
               }
 
@@ -88,23 +88,23 @@ export const useGameLaunch = () => {
                   downloadUrl: resolved.downloadUrl,
                 };
 
-                logStore.addLog(`[INFO] 发现适配此实例 (${mcVersion} ${loaderType}) 的手柄支持模块: ${resolved.name} [${resolved.source}]`);
-                logStore.addLog("[INFO] 正在挂起启动进程，等待玩家确认安装...");
+                logStore.addLogs([`[INFO] 发现适配此实例 (${mcVersion} ${loaderType}) 的手柄支持模块: ${resolved.name} [${resolved.source}]`]);
+                logStore.addLogs(["[INFO] 正在挂起启动进程，等待玩家确认安装..."]);
 
                 const selectedMod = await useGamepadModStore.getState().promptDownload(
                   instanceId, [modInfo], 'install'
                 );
 
                 if (selectedMod) {
-                  logStore.addLog(`[INFO] 玩家同意安装，下发下载任务: ${selectedMod.fileName}`);
+                  logStore.addLogs([`[INFO] 玩家同意安装，下发下载任务: ${selectedMod.fileName}`]);
                   
                   // 解析并获取前置依赖
                   let depsToInstall: any[] = [];
                   if (resolved.dependencies && resolved.dependencies.length > 0) {
-                     logStore.addLog(`[INFO] 正在解析手柄模块前置依赖...`);
+                     logStore.addLogs([`[INFO] 正在解析手柄模块前置依赖...`]);
                      const deps = await resolveRequiredDependencies(resolved.dependencies, mcVersion, loaderType);
                      if (deps.length > 0) {
-                        logStore.addLog(`[INFO] 找到 ${deps.length} 个必须的前置依赖。`);
+                        logStore.addLogs([`[INFO] 找到 ${deps.length} 个必须的前置依赖。`]);
                         depsToInstall = deps;
                      }
                   }
@@ -113,7 +113,7 @@ export const useGameLaunch = () => {
 
                   try {
                     for (const m of allModsToInstall) {
-                      logStore.addLog(`[INFO] 正在安装: ${m.fileName}`);
+                      logStore.addLogs([`[INFO] 正在安装: ${m.fileName}`]);
                       await invoke('install_remote_mod', {
                         instanceId,
                         downloadUrl: m.downloadUrl,
@@ -123,22 +123,22 @@ export const useGameLaunch = () => {
                       });
                     }
                     
-                    logStore.addLog("[INFO] 手柄支持模块及依赖安装成功！");
+                    logStore.addLogs(["[INFO] 手柄支持模块及依赖安装成功！"]);
                     await invoke('check_instance_gamepad', { id: instanceId });
                   } catch (installErr) {
-                    logStore.addLog(`[ERROR] 手柄支持模块安装失败: ${installErr}`);
+                    logStore.addLogs([`[ERROR] 手柄支持模块安装失败: ${installErr}`]);
                     logStore.setGameState('crashed');
                     setIsLaunching(false);
                     return;
                   }
                 } else {
-                  logStore.addLog("[INFO] 玩家取消了安装，启动中止。");
+                  logStore.addLogs(["[INFO] 玩家取消了安装，启动中止。"]);
                   logStore.setGameState('crashed');
                   setIsLaunching(false);
                   return;
                 }
               } else {
-                logStore.addLog("[WARN] 未找到适配当前版本的手柄模块配置，跳过检测。");
+                logStore.addLogs(["[WARN] 未找到适配当前版本的手柄模块配置，跳过检测。"]);
               }
             }
             else if (status.hasCache) {
@@ -151,7 +151,7 @@ export const useGameLaunch = () => {
               const needsUpdate = resolved && status.localFileName && resolved.fileName !== status.localFileName;
 
               if (needsUpdate && resolved) {
-                logStore.addLog("[INFO] 检测到手柄模块有新版本可用。");
+                logStore.addLogs(["[INFO] 检测到手柄模块有新版本可用。"]);
 
                 const modInfo = {
                   id: 'gamepad-mod-update',
@@ -167,14 +167,14 @@ export const useGameLaunch = () => {
                 );
 
                 if (selectedMod) {
-                  logStore.addLog(`[INFO] 玩家同意更新，下发下载任务: ${selectedMod.fileName}`);
+                  logStore.addLogs([`[INFO] 玩家同意更新，下发下载任务: ${selectedMod.fileName}`]);
                   
                   let depsToInstall: any[] = [];
                   if (resolved.dependencies && resolved.dependencies.length > 0) {
-                     logStore.addLog(`[INFO] 正在解析手柄模块前置依赖...`);
+                     logStore.addLogs([`[INFO] 正在解析手柄模块前置依赖...`]);
                      const deps = await resolveRequiredDependencies(resolved.dependencies, mcVersion, loaderType);
                      if (deps.length > 0) {
-                        logStore.addLog(`[INFO] 找到 ${deps.length} 个必须的前置依赖。`);
+                        logStore.addLogs([`[INFO] 找到 ${deps.length} 个必须的前置依赖。`]);
                         depsToInstall = deps;
                      }
                   }
@@ -183,7 +183,7 @@ export const useGameLaunch = () => {
 
                   try {
                     for (const m of allModsToInstall) {
-                      logStore.addLog(`[INFO] 正在更新: ${m.fileName}`);
+                      logStore.addLogs([`[INFO] 正在更新: ${m.fileName}`]);
                       await invoke('install_remote_mod', {
                         instanceId,
                         downloadUrl: m.downloadUrl,
@@ -192,10 +192,10 @@ export const useGameLaunch = () => {
                         loaderType,
                       });
                     }
-                    logStore.addLog("[INFO] 手柄支持模块更新成功！");
+                    logStore.addLogs(["[INFO] 手柄支持模块更新成功！"]);
                     await invoke('check_instance_gamepad', { id: instanceId });
                   } catch (updateErr) {
-                    logStore.addLog(`[WARN] 更新失败，将使用缓存版本继续: ${updateErr}`);
+                    logStore.addLogs([`[WARN] 更新失败，将使用缓存版本继续: ${updateErr}`]);
                     try {
                       await invoke('install_remote_mod', {
                         instanceId,
@@ -205,11 +205,11 @@ export const useGameLaunch = () => {
                         loaderType,
                       });
                     } catch (_) {
-                      logStore.addLog("[WARN] 缓存恢复也失败了，继续启动。");
+                      logStore.addLogs(["[WARN] 缓存恢复也失败了，继续启动。"]);
                     }
                   }
                 } else {
-                  logStore.addLog("[INFO] 玩家跳过更新，使用已有缓存版本。");
+                  logStore.addLogs(["[INFO] 玩家跳过更新，使用已有缓存版本。"]);
                   try {
                     await invoke('install_remote_mod', {
                       instanceId,
@@ -218,15 +218,15 @@ export const useGameLaunch = () => {
                       mcVersion,
                       loaderType,
                     });
-                    logStore.addLog("[INFO] 已从缓存安装手柄模块。");
+                    logStore.addLogs(["[INFO] 已从缓存安装手柄模块。"]);
                     await invoke('check_instance_gamepad', { id: instanceId });
                   } catch (cacheErr) {
-                    logStore.addLog(`[WARN] 缓存安装失败: ${cacheErr}`);
+                    logStore.addLogs([`[WARN] 缓存安装失败: ${cacheErr}`]);
                   }
                 }
               } else {
                 // 无更新，直接从缓存安装
-                logStore.addLog("[INFO] 从公共缓存安装手柄模块...");
+                logStore.addLogs(["[INFO] 从公共缓存安装手柄模块..."]);
                 try {
                   await invoke('install_remote_mod', {
                     instanceId,
@@ -235,22 +235,22 @@ export const useGameLaunch = () => {
                     mcVersion,
                     loaderType,
                   });
-                  logStore.addLog("[INFO] 手柄模块已从缓存安装。");
+                  logStore.addLogs(["[INFO] 手柄模块已从缓存安装。"]);
                   await invoke('check_instance_gamepad', { id: instanceId });
                 } catch (cacheErr) {
-                  logStore.addLog(`[WARN] 缓存安装失败: ${cacheErr}`);
+                  logStore.addLogs([`[WARN] 缓存安装失败: ${cacheErr}`]);
                 }
               }
             }
           } else {
-            logStore.addLog("[INFO] 无法获取实例版本信息，跳过手柄检测。");
+            logStore.addLogs(["[INFO] 无法获取实例版本信息，跳过手柄检测。"]);
           }
         } catch (checkErr) {
           console.error("手柄检测流程异常", checkErr);
-          logStore.addLog(`[WARN] 检测手柄状态时遇到小问题，跳过。`);
+          logStore.addLogs([`[WARN] 检测手柄状态时遇到小问题，跳过。`]);
         }
       } else if (isGamepad && !gamepadModCheckEnabled) {
-        logStore.addLog("[INFO] 手柄 Mod 检测已在设置中关闭，跳过。");
+        logStore.addLogs(["[INFO] 手柄 Mod 检测已在设置中关闭，跳过。"]);
       }
 
       let mappedAccountType = 'offline';
@@ -268,7 +268,7 @@ export const useGameLaunch = () => {
         // 如果没有过期时间，或者距离过期不足 1 小时 (3600秒)
         if (!currentAccount.expiresAt || currentAccount.expiresAt < nowInSeconds + 3600) {
           console.log("[Launch] 微软 Token 即将过期或已过期，正在后台执行静默刷新...");
-          logStore.addLog("[INFO] 正在与微软验证服务器通信，静默续期登录状态..."); // 可以在加载时给玩家一点反馈
+          logStore.addLogs(["[INFO] 正在与微软验证服务器通信，静默续期登录状态..."]); // 可以在加载时给玩家一点反馈
           
           try {
             const refreshedAccount = await invoke<any>('refresh_microsoft_token', { 
@@ -287,13 +287,13 @@ export const useGameLaunch = () => {
 
             activeAccessToken = newAccessToken;
             console.log("[Launch] 微软 Token 静默续期成功！");
-            logStore.addLog("[INFO] 微软登录状态续期成功，准备构建游戏参数...");
+            logStore.addLogs(["[INFO] 微软登录状态续期成功，准备构建游戏参数..."]);
             
           } catch (refreshErr) {
             console.error('Token 刷新失败:', refreshErr);
             // ✅ 如果续期失败，直接把报错打入日志控制台，并判定为崩溃
-            logStore.addLog(`[ERROR] 微软账号授权已完全失效且无法自动续期。`);
-            logStore.addLog(`[ERROR] 请前往【设置】删除该账号并重新扫码登录！详细错误: ${refreshErr}`);
+            logStore.addLogs([`[ERROR] 微软账号授权已完全失效且无法自动续期。`]);
+            logStore.addLogs([`[ERROR] 请前往【设置】删除该账号并重新扫码登录！详细错误: ${refreshErr}`]);
             logStore.setGameState('crashed');
             setIsLaunching(false);
             return;
@@ -320,8 +320,8 @@ export const useGameLaunch = () => {
       console.error('游戏启动失败:', error);
       // ✅ 拦截底层直接抛出的致命错误（比如找不到 Java、内存分配错误等），取代丑陋的 alert
       const logStore = useGameLogStore.getState();
-      logStore.addLog(`[FATAL] 游戏启动前置校验发生致命错误！`);
-      logStore.addLog(`[FATAL] ${error}`);
+      logStore.addLogs([`[FATAL] 游戏启动前置校验发生致命错误！`]);
+      logStore.addLogs([`[FATAL] ${error}`]);
       logStore.setGameState('crashed');
       logStore.analyzeCrash(); // 触发自动诊断
     } finally {
