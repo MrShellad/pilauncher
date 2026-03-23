@@ -1,7 +1,8 @@
 // src/features/GameLog/components/GameLogSidebar.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, Loader2, AlertTriangle, Bug, Activity, Copy, Check, FileText, Share2, ChevronRight } from 'lucide-react';
+import { Terminal, Loader2, AlertTriangle, Bug, Activity, Copy, Check, FileText, Share2, ChevronRight, Power } from 'lucide-react';
+import { Virtuoso } from 'react-virtuoso';
 import { listen } from '@tauri-apps/api/event'; 
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow, UserAttentionType } from '@tauri-apps/api/window';
@@ -22,7 +23,8 @@ import { INITIAL_DOWNLOAD_FOCUS_KEY } from '../../Settings/components/tabs/downl
 export const GameLogSidebar: React.FC = () => {
   const { isOpen, setOpen, currentInstanceId, logs, gameState, crashReason, telemetry } = useGameLogStore();
   const activeTab = useLauncherStore((state) => state.activeTab);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLElement | Window | null>(null);
+  const logBufferRef = useRef<string[]>([]);
   const appWindowRef = useRef(getCurrentWindow());
   const lastFocusBeforeOpenRef = useRef<string | null>(null);
   const foregroundLockRef = useRef(false);
@@ -106,10 +108,7 @@ export const GameLogSidebar: React.FC = () => {
     return line.includes('[minecraft/Minecraft]: Stopping!');
   }, []);
 
-  // 1. 日志刷新时的自动滚底
-  useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [logs, gameState]);
+  // 1. 日志刷新时的自动滚底 (Virtuoso 的 followOutput 已经处理了自动滚动，这部分逻辑可以静默)
 
   // ✅ 2. 焦点锁定：当侧边栏打开时，强制将空间焦点拉入日志区域
   useEffect(() => {
@@ -146,7 +145,7 @@ export const GameLogSidebar: React.FC = () => {
         // axes[3] 是标准 Xbox/SteamDeck 手柄的右摇杆 Y 轴
         const rightStickY = gp.axes[3]; 
         // 0.1 死区防漂移
-        if (Math.abs(rightStickY) > 0.1) {
+        if (Math.abs(rightStickY) > 0.1 && scrollRef.current instanceof HTMLElement) {
           scrollRef.current.scrollTop += rightStickY * 15; 
         }
       }
@@ -158,18 +157,29 @@ export const GameLogSidebar: React.FC = () => {
 
   useEffect(() => {
     const unlistenLog = listen<string>('game-log', (event) => {
-      const store = useGameLogStore.getState();
       const line = event.payload;
-
-      store.addLog(line);
+      logBufferRef.current.push(line);
 
       if (isMinecraftStoppingLog(line)) {
+        const store = useGameLogStore.getState();
         store.setGameState('idle');
         closeSidebarAndRestoreFocus();
         void forceLauncherToFront();
       }
     });
+
+    const flushTimer = setInterval(() => {
+      if (logBufferRef.current.length > 0) {
+        useGameLogStore.getState().addLogs(logBufferRef.current);
+        logBufferRef.current = [];
+      }
+    }, 50); // 20 FPS Flush
+
     const unlistenExit = listen<{code: number}>('game-exit', (event) => {
+      if (logBufferRef.current.length > 0) {
+        useGameLogStore.getState().addLogs(logBufferRef.current);
+        logBufferRef.current = [];
+      }
       const store = useGameLogStore.getState();
       if (event.payload.code !== 0) {
         store.analyzeCrash();
@@ -179,7 +189,11 @@ export const GameLogSidebar: React.FC = () => {
         store.setGameState('idle');
       }
     });
-    return () => { unlistenLog.then(f => f()); unlistenExit.then(f => f()); };
+    return () => { 
+      clearInterval(flushTimer);
+      unlistenLog.then(f => f()); 
+      unlistenExit.then(f => f()); 
+    };
   }, [closeSidebarAndRestoreFocus, forceLauncherToFront, isMinecraftStoppingLog]); 
 
   const handleCopyLine = (line: string, idx: number) => {
@@ -248,6 +262,16 @@ export const GameLogSidebar: React.FC = () => {
                   {gameState === 'launching' && <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-sm flex items-center"><Loader2 size={12} className="mr-1 animate-spin"/> 初始化中</span>}
                   {gameState === 'running' && <span className="text-xs bg-ore-green/20 text-ore-green px-2 py-0.5 rounded-sm flex items-center"><span className="w-1.5 h-1.5 bg-ore-green rounded-full mr-1.5 animate-pulse"/> 运行中</span>}
                   {gameState === 'crashed' && <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-sm flex items-center"><Bug size={12} className="mr-1"/> 已崩溃</span>}
+                  
+                  {(gameState === 'launching' || gameState === 'running') && (
+                    <button
+                      onClick={() => invoke('kill_current_game').catch(console.error)}
+                      className="ml-3 flex items-center bg-red-500/10 hover:bg-red-500/20 text-red-400 px-2 py-[3px] rounded-sm text-[11px] font-bold transition-colors border border-red-500/20"
+                      title="强制结束游戏进程"
+                    >
+                      <Power size={12} className="mr-1.5" /> 结束进程
+                    </button>
+                  )}
                 </div>
               </div>
               
@@ -319,28 +343,35 @@ export const GameLogSidebar: React.FC = () => {
                 {({ ref: focusRef, focused }) => (
                   <div className="flex-1 overflow-hidden relative flex flex-col">
                     <div 
-                      ref={(node) => {
-                        (focusRef as any).current = node;
-                        (scrollRef as any).current = node; // 合并两个 Ref
-                      }} 
-                      className={`flex-1 overflow-y-auto custom-scrollbar p-3 text-[13px] leading-relaxed break-all select-text transition-all duration-200 ${focused ? 'ring-2 ring-inset ring-ore-green/60 bg-white/[0.01]' : ''}`}
+                      className={`flex-1 flex flex-col p-3 transition-all duration-200 ${focused ? 'ring-2 ring-inset ring-ore-green/60 bg-white/[0.01]' : ''}`}
                     >
                       {logs.length === 0 ? (
                          <div className="text-ore-text-muted/50 text-center mt-20 text-sm">Waiting for standard output...</div>
                       ) : (
-                        logs.map((line, idx) => (
-                          <div key={idx} className="group relative font-mono hover:bg-[#1E1E1F] px-2 py-1.5 border-b border-white/[0.03] transition-colors pr-10">
-                            {renderHighlightedLog(line, defaultHighlightRules)}
-                            
-                            <button 
-                              onClick={() => handleCopyLine(line, idx)}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-sm transition-all"
-                              title={copiedLine === idx ? "已复制！" : "复制此行"}
-                            >
-                              {copiedLine === idx ? <Check size={14} className="text-ore-green" /> : <Copy size={14} />}
-                            </button>
-                          </div>
-                        ))
+                        <Virtuoso
+                          style={{ flex: 1 }}
+                          data={logs}
+                          followOutput="auto"
+                          scrollerRef={(node) => {
+                            if (node && node instanceof HTMLElement) {
+                              (scrollRef as any).current = node;
+                              (focusRef as any).current = node; // 把焦点和滚动引用全打在虚拟列表的滚动容器上
+                            }
+                          }}
+                          itemContent={(idx, line) => (
+                            <div className="group relative font-mono hover:bg-[#1E1E1F] px-2 py-1.5 border-b border-white/[0.03] transition-colors pr-10 text-[13px] leading-relaxed break-all select-text">
+                              {renderHighlightedLog(line, defaultHighlightRules)}
+                              
+                              <button 
+                                onClick={() => handleCopyLine(line, idx)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-sm transition-all"
+                                title={copiedLine === idx ? "已复制！" : "复制此行"}
+                              >
+                                {copiedLine === idx ? <Check size={14} className="text-ore-green" /> : <Copy size={14} />}
+                              </button>
+                            </div>
+                          )}
+                        />
                       )}
                     </div>
                     

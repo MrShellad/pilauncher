@@ -147,6 +147,135 @@ pub async fn import_local_instances_folders<R: Runtime>(
 }
 
 #[tauri::command]
+pub async fn import_third_party_instance<R: Runtime>(
+    app: AppHandle<R>,
+    path: String,
+) -> Result<Option<MissingRuntime>, String> {
+    let dir_path = PathBuf::from(&path);
+    if !dir_path.exists() || !dir_path.is_dir() {
+        return Err("所选路径不是一个有效的文件夹。".to_string());
+    }
+
+    let id = dir_path.file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| "非法的文件夹名称。".to_string())?;
+
+    let json_path = dir_path.join(format!("{}.json", id));
+    if !json_path.exists() {
+        return Err(format!("找不到 {}.json。请选择第三方启动器内的 versions/{{版本名}} 目录！", id));
+    }
+
+    let content = fs::read_to_string(&json_path).map_err(|e| e.to_string())?;
+    let json: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
+    let mut mc_version = id.to_string();
+    let mut loader_type = "vanilla".to_string();
+    let mut loader_version = "".to_string();
+
+    if let Some(inherits) = json.get("inheritsFrom").and_then(|v| v.as_str()) {
+        mc_version = inherits.to_string();
+        let id_lower = id.to_lowercase();
+        if id_lower.contains("forge") && !id_lower.contains("neo") {
+            loader_type = "forge".to_string();
+            // 尝试提取 Forge 版本, 例如 1.19.2-forge-43.2.0 -> 43.2.0
+            let parts: Vec<&str> = id.split("-forge-").collect();
+            if parts.len() == 2 {
+                loader_version = parts[1].to_string();
+            }
+        } else if id_lower.contains("neoforge") {
+            loader_type = "neoforge".to_string();
+            let parts: Vec<&str> = id.split("neoforge-").collect();
+            if parts.len() >= 2 {
+                loader_version = parts[1].to_string();
+            }
+        } else if id_lower.contains("fabric") {
+            loader_type = "fabric".to_string();
+            // fabric-loader-0.14.21-1.19.2 -> 0.14.21
+            let parts: Vec<&str> = id.split("-").collect();
+            if parts.len() >= 3 && parts[0] == "fabric" && parts[1] == "loader" {
+                loader_version = parts[2].to_string();
+            }
+        }
+    }
+
+    let base_path_str = ConfigService::get_base_path(&app)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Base path is not configured".to_string())?;
+    let runtime_dir = PathBuf::from(&base_path_str).join("runtime");
+    let instances_dir = PathBuf::from(&base_path_str).join("instances");
+
+    let dest_dir = instances_dir.join(id);
+    if !dest_dir.exists() {
+        fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
+    }
+
+    let config = crate::domain::instance::InstanceConfig {
+        id: id.to_string(),
+        name: id.to_string(),
+        mc_version: mc_version.clone(),
+        loader: crate::domain::instance::LoaderConfig {
+            r#type: loader_type.clone(),
+            version: loader_version.clone(),
+        },
+        java: crate::domain::instance::JavaConfig {
+            path: "auto".to_string(),
+            version: "8".to_string(), // 自动选择
+        },
+        memory: crate::domain::instance::MemoryConfig {
+            min: 1024,
+            max: 4096,
+        },
+        resolution: crate::domain::instance::ResolutionConfig {
+            width: 854,
+            height: 480,
+        },
+        play_time: 0.0,
+        last_played: "".to_string(),
+        created_at: chrono::Local::now().to_rfc3339(),
+        cover_image: None,
+        hero_logo: None,
+        gamepad: None,
+        custom_buttons: None,
+        third_party_path: Some(path.clone()),
+    };
+
+    let config_content = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+    fs::write(dest_dir.join("instance.json"), config_content).map_err(|e| e.to_string())?;
+
+    let mut is_missing = false;
+    let core_json = runtime_dir.join("versions").join(&mc_version).join(format!("{}.json", mc_version));
+    if !core_json.exists() {
+        is_missing = true;
+    }
+
+    if loader_type != "vanilla" && !loader_version.is_empty() {
+        let loader_folder = match loader_type.as_str() {
+            "fabric" => format!("fabric-loader-{}-{}", loader_version, mc_version),
+            "forge" => format!("{}-forge-{}", mc_version, loader_version),
+            "neoforge" => format!("neoforge-{}", loader_version),
+            _ => "".to_string(),
+        };
+        if !loader_folder.is_empty() {
+            let loader_json = runtime_dir.join("versions").join(&loader_folder).join(format!("{}.json", loader_folder));
+            if !loader_json.exists() {
+                is_missing = true;
+            }
+        }
+    }
+
+    if is_missing {
+        Ok(Some(MissingRuntime {
+            instance_id: id.to_string(),
+            mc_version,
+            loader_type,
+            loader_version,
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
+#[tauri::command]
 pub async fn download_missing_runtimes<R: Runtime>(
     app: AppHandle<R>,
     missing_list: Vec<MissingRuntime>,

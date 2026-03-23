@@ -41,6 +41,12 @@ impl LauncherService {
         let content = std::fs::read_to_string(&config_path)?;
         let instance_cfg: InstanceConfig = serde_json::from_str(&content)?;
 
+        // ✅ 拦截第三方实例外接路径，注入游戏运行池
+        let mut game_dir = instance_dir.clone();
+        if let Some(third_party) = &instance_cfg.third_party_path {
+            game_dir = PathBuf::from(third_party);
+        }
+
         let resolved_config = ConfigResolver::resolve(app, &instance_cfg);
 
         let auth_session = AuthService::build_session(account, &runtime_dir);
@@ -71,7 +77,7 @@ impl LauncherService {
             auth_session,
             &instance_cfg.mc_version,
             &target_version_id,
-            instance_dir.clone(),
+            game_dir.clone(),
             runtime_dir.clone(),
         );
 
@@ -111,7 +117,7 @@ impl LauncherService {
         // ✅ 核心修复 3：跨平台安全的命令构建方式
         let mut cmd = Command::new(&actual_java_path);
         cmd.args(args)
-            .current_dir(&instance_dir)
+            .current_dir(&game_dir)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
@@ -125,6 +131,10 @@ impl LauncherService {
                 format!("无法启动 Java 进程，请检查环境变量: {}", e),
             )
         })?;
+
+        if let Some(pid) = child.id() {
+            crate::commands::launcher_cmd::CURRENT_GAME_PID.store(pid, std::sync::atomic::Ordering::SeqCst);
+        }
 
         println!("✅ Java 进程已成功启动，PID: {:?}", child.id());
         println!("💻 完整启动命令已隐藏（防止 Token 泄露）");

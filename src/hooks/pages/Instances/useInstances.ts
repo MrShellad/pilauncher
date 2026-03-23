@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { useLauncherStore } from '../../../store/useLauncherStore';
 import { useDownloadStore } from '../../../store/useDownloadStore';
-import { open } from '@tauri-apps/plugin-dialog';
+import { useSettingsStore } from '../../../store/useSettingsStore';
 export interface InstanceItem {
   id: string;
   name: string;
@@ -69,38 +69,34 @@ export const useInstances = () => {
     setActiveTab('new-instance');
   };
   const handleImport = () => console.log('触发: 导入实例');
-  const handleAddFolder = async () => {
+  // 处理第三方实例导入
+  const handleAddThirdPartyFolder = async (path: string) => {
     try {
-      const selected = await open({
-        directory: true,
-        multiple: true,
-      });
-      if (!selected) return;
-      const paths = Array.isArray(selected) ? selected : [selected];
+      // 1. 调用后端解析并注册
+      const missingOpt: any = await invoke('import_third_party_instance', { path });
 
-      const result: any = await invoke('import_local_instances_folders', { paths });
-
-      if (result.added === 0) {
-        alert('未在选择的文件夹中找到有效的实例配置 (instance.json)。');
-        return;
+      // 2. 将此路径加入 settings.json 以供前端后续管理
+      const { settings, updateGeneralSetting } = useSettingsStore.getState();
+      const currentDirs = settings.general.thirdPartyDirs || [];
+      if (!currentDirs.includes(path)) {
+        updateGeneralSetting('thirdPartyDirs', [...currentDirs, path]);
       }
 
-      const missing = result.missing || [];
-      if (missing.length > 0) {
-        // Collect missing text
-        const text = missing.map((m: any) => `Minecraft ${m.mc_version} (${m.loader_type} ${m.loader_version})`).join('\n');
-        const doDownload = window.confirm(`成功添加 ${result.added} 个实例。\n\n但发现以下实例缺少本地运行环境：\n${text}\n\n是否立即调用下载管理开始补全缺失的运行环境？`);
-        
+      // 3. 处理缺失的运行环境补充
+      if (missingOpt) {
+        const doDownload = window.confirm(
+          `成功添加第三方实例！\n\n但发现缺少本地运行环境：\nMinecraft ${missingOpt.mc_version} (${missingOpt.loader_type} ${missingOpt.loader_version})\n\n是否立即调用下载管理开始补全缺失的运行环境？`
+        );
         if (doDownload) {
           setActiveTab('home');
           useDownloadStore.getState().setPopupOpen(true);
-          await invoke('download_missing_runtimes', { missingList: missing });
+          await invoke('download_missing_runtimes', { missingList: [missingOpt] });
         }
       } else {
-        alert(`成功添加了 ${result.added} 个实例，且本地环境均满足！`);
+        alert('成功导入实例！本地环境皆已满足。');
       }
 
-      // 重新拉取列表
+      // 4. 重新拉取列表
       const fetchInstances: () => Promise<void> = async () => {
         try {
           const data: any[] = await invoke('get_all_instances');
@@ -131,10 +127,11 @@ export const useInstances = () => {
       await fetchInstances();
       
     } catch (err) {
-      console.error("添加文件夹失败:", err);
-      alert(`添加实例文件夹失败: ${err}`);
+      console.error("导入第三方实例失败:", err);
+      alert(`导入第三方实例失败: \n${err}`);
     }
   };
+
   const handleEdit = (id: string) => {
     // 存入当前点击的 ID
     setSelectedInstanceId(id);
@@ -151,7 +148,7 @@ export const useInstances = () => {
     instances,
     handleCreate,
     handleImport,
-    handleAddFolder,
+    handleAddThirdPartyFolder,
     handleEdit,
     handleCardClick
   };

@@ -78,6 +78,7 @@ pub async fn execute_export<R: Runtime>(
         hero_logo: None,
         gamepad: None,
         custom_buttons: None,
+        third_party_path: None,
     });
 
     let _ = app.emit("export-progress", ExportProgress {

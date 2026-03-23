@@ -50,6 +50,7 @@ pub fn build_instance_config(
         hero_logo: None,
         gamepad: None,
         custom_buttons: None,
+        third_party_path: None,
     }
 }
 

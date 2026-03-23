@@ -12,14 +12,18 @@ import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { FocusItem } from '../ui/focus/FocusItem';
 import { focusManager } from '../ui/focus/FocusManager';
 
+import { DirectoryBrowserModal } from '../ui/components/DirectoryBrowserModal';
+
 const Instances: React.FC = () => {
   const {
     instances,
     handleCreate,
-    handleAddFolder,
+    handleAddThirdPartyFolder,
     handleEdit,
     handleCardClick
   } = useInstances();
+
+  const [isDirModalOpen, setIsDirModalOpen] = useState(false);
 
   const [viewMode, setViewMode] = useState<'list' | 'grid'>(() => {
     return (localStorage.getItem('ore-instance-view-mode') as 'list' | 'grid') || 'grid';
@@ -97,10 +101,10 @@ const Instances: React.FC = () => {
             )}
           </FocusItem>
 
-          <FocusItem focusKey="action-folder" onEnter={handleAddFolder}>
+          <FocusItem focusKey="action-folder" onEnter={() => setIsDirModalOpen(true)}>
             {({ ref, focused }) => (
               <div ref={ref} className={`rounded-sm transition-shadow duration-150 flex-shrink-0 ${focused ? 'outline outline-2 outline-offset-[4px] outline-white' : 'outline outline-2 outline-offset-[4px] outline-transparent'}`}>
-                <OreButton variant="secondary" size="auto" onClick={handleAddFolder} tabIndex={-1}>
+                <OreButton variant="secondary" size="auto" onClick={() => setIsDirModalOpen(true)} tabIndex={-1}>
                   <span className="flex items-center justify-center whitespace-nowrap">
                     <FolderPlus size={18} className="mr-2 flex-shrink-0" />
                     <span className="font-minecraft tracking-wider">添加文件夹</span>
@@ -130,6 +134,17 @@ const Instances: React.FC = () => {
           )
         ))}
       </div>
+
+      {isDirModalOpen && (
+        <DirectoryBrowserModal
+          isOpen={isDirModalOpen}
+          onClose={() => setIsDirModalOpen(false)}
+          onSelect={(path) => {
+            setIsDirModalOpen(false);
+            handleAddThirdPartyFolder(path);
+          }}
+        />
+      )}
 
     </FocusBoundary>
   );

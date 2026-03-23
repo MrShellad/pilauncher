@@ -11,3 +11,4 @@ pub mod minecraft_json;
 pub mod modpack;
 pub mod resource;
 pub mod runtime;
+pub mod manifest;

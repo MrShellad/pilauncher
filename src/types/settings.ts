@@ -14,6 +14,7 @@ export interface GeneralSettings {
   basePath: string;
   deviceName: string;
   deviceId: string;
+  thirdPartyDirs?: string[];
 }
 
 export interface AppearanceSettings {
@@ -91,6 +92,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     basePath: '',
     deviceName: '',
     deviceId: '',   
+    thirdPartyDirs: [],
   } as any,
   appearance: {
     backgroundImage: null,

@@ -37,6 +37,8 @@ pub async fn download_java_env<R: Runtime>(
     let ext = if os == "windows" { "zip" } else { "tar.gz" };
 
     tauri::async_runtime::spawn(async move {
+        let cancel_token = crate::services::deployment_cancel::register("java_download");
+        
         // ✅ 修复 1：合理设置超时策略
         // connect_timeout 保证 15 秒连不上就报错；timeout 给大文件充足的下载时间（1小时）
         let client = reqwest::Client::builder()
@@ -132,6 +134,10 @@ pub async fn download_java_env<R: Runtime>(
                         
                         // ✅ 修复 3：严格拦截网络异常，避免残缺文件进入解压环节
                         loop {
+                            if crate::services::deployment_cancel::is_cancelled(&cancel_token) {
+                                emit_err("下载已取消");
+                                break;
+                            }
                             match res.chunk().await {
                                 Ok(Some(chunk)) => {
                                     if file.write_all(&chunk).await.is_err() { 
@@ -206,6 +212,8 @@ pub async fn download_java_env<R: Runtime>(
             },
             _ => emit_err("下载服务器拒绝连接或超时"),
         }
+
+        crate::services::deployment_cancel::unregister("java_download");
     });
 
     Ok(())

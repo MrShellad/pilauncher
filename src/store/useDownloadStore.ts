@@ -22,6 +22,7 @@ interface DownloadStore {
   tasks: Record<string, DownloadTask>;
   isPopupOpen: boolean;
   setPopupOpen: (isOpen: boolean) => void;
+  ignoredTasks: Set<string>;
   addOrUpdateTask: (taskUpdate: Partial<DownloadTask> & { id: string, message: string }) => void;
   pauseTask: (id: string) => void;
   cancelTask: (id: string) => void;
@@ -30,10 +31,13 @@ interface DownloadStore {
 
 export const useDownloadStore = create<DownloadStore>((set, _get) => ({
   tasks: {},
+  ignoredTasks: new Set(),
   isPopupOpen: false,
   setPopupOpen: (isOpen) => set({ isPopupOpen: isOpen }),
   
   addOrUpdateTask: (update) => set((state) => {
+    if (state.ignoredTasks.has(update.id)) return state;
+
     const existingTask = state.tasks[update.id];
     const now = Date.now();
     let speedStr = existingTask?.speed || '计算中...';
@@ -125,7 +129,9 @@ export const useDownloadStore = create<DownloadStore>((set, _get) => ({
   cancelTask: (id) => set(state => {
     const newTasks = { ...state.tasks };
     delete newTasks[id];
-    return { tasks: newTasks };
+    const newIgnored = new Set(state.ignoredTasks);
+    newIgnored.add(id);
+    return { tasks: newTasks, ignoredTasks: newIgnored };
   }),
   removeTask: (id) => set(state => {
     const newTasks = { ...state.tasks };

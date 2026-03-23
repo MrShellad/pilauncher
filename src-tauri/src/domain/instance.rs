@@ -43,6 +43,7 @@ pub struct InstanceConfig {
     pub hero_logo: Option<String>,
     pub gamepad: Option<bool>,
     pub custom_buttons: Option<Vec<CustomButtonConfig>>,
+    pub third_party_path: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

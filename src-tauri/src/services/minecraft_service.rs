@@ -32,24 +32,53 @@ impl McMetadataService {
     ) -> AppResult<Vec<VersionGroup>> {
         let manifest_url = Self::resolve_manifest_url(app);
 
+        // Fetch logic
+        let mut manifest_content = String::new();
+        let mut should_fetch = true;
+        let base_path_str = ConfigService::get_base_path(app)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?
+            .unwrap_or_else(|| ".".to_string());
+        
+        let runtime_dir = std::path::PathBuf::from(base_path_str).join("runtime");
+        let manifest_path = runtime_dir.join("version_manifest_v2.json");
+
         if !force_refresh {
             let cache = VERSION_CACHE.read().await;
             if let Some((cached_manifest_url, data)) = cache.as_ref() {
                 if cached_manifest_url == &manifest_url {
-                    return Ok(data.clone());
+                    // Cache hit but we should verify the file exists on disk, or just return data.
+                    // The user said: "If cache hits, we should also read from the official manifest file [meaning the local disk file] and write it, for later verification."
+                    if manifest_path.exists() {
+                        return Ok(data.clone());
+                    }
+                }
+            }
+            if manifest_path.exists() {
+                manifest_content = tokio::fs::read_to_string(&manifest_path).await.unwrap_or_default();
+                if !manifest_content.is_empty() {
+                    should_fetch = false;
                 }
             }
         }
 
-        let client = reqwest::Client::builder()
-            .user_agent("PiLauncher/1.0")
-            .build()?;
-        let response = client
-            .get(&manifest_url)
-            .send()
-            .await?
-            .json::<RemoteVersionManifest>()
-            .await?;
+        if should_fetch || manifest_content.is_empty() {
+            let client = reqwest::Client::builder()
+                .user_agent("PiLauncher/1.0")
+                .build()?;
+            manifest_content = client
+                .get(&manifest_url)
+                .send()
+                .await?
+                .text()
+                .await?;
+            
+            let _ = tokio::fs::create_dir_all(&runtime_dir).await;
+            let _ = tokio::fs::write(&manifest_path, &manifest_content).await;
+        }
+
+        let response: RemoteVersionManifest = serde_json::from_str(&manifest_content).map_err(|e| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())
+        })?;
 
         // 1. 准备更精细的正则表达式
         let re_rc = Regex::new(r"^([\d\.]+)-rc\d+$").unwrap(); // 匹配 1.21.2-rc1

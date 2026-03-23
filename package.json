@@ -25,6 +25,7 @@
     "react-dom": "^19.2.0",
     "react-i18next": "^16.5.4",
     "react-router-dom": "^7.13.1",
+    "react-virtuoso": "^4.18.3",
     "skinview3d": "^3.4.1",
     "skinview3d-blockbench": "^1.0.19",
     "zustand": "^5.0.11"

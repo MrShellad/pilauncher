@@ -82,6 +82,7 @@ impl InstanceCreationService {
             hero_logo: None,
             gamepad: None,
             custom_buttons: None,
+            third_party_path: None,
         };
         fs::write(
             instance_root.join("instance.json"),
@@ -252,6 +253,11 @@ impl InstanceCreationService {
                 cancel,
             )
             .await?;
+        }
+
+        let instance_root = global_mc_root.parent().unwrap().join("instances").join(instance_id);
+        if let Err(e) = crate::services::instance::manifest_builder::build_and_save_manifest(payload, global_mc_root, &instance_root) {
+            eprintln!("[Deployment] Failed to generate instance manifest: {}", e);
         }
 
         let _ = app.emit(

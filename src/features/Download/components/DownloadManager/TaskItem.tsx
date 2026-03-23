@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronUp, ChevronDown, CheckCircle, Box, Trash2, List, Terminal, FileDown, AlertTriangle } from 'lucide-react';
-import type { DownloadTask } from '../../../../store/useDownloadStore';
+import { useDownloadStore, type DownloadTask } from '../../../../store/useDownloadStore';
 import { OreButton } from '../../../../ui/primitives/OreButton'; // ✅ 引入 OreUI 标准按钮
 
 export const TaskItem = ({ task, setActiveTab, removeTask }: { task: DownloadTask, setActiveTab: any, removeTask: any }) => {
@@ -108,10 +108,8 @@ export const TaskItem = ({ task, setActiveTab, removeTask }: { task: DownloadTas
               size="auto"
               autoScroll={false}
               onClick={() => {
-                if (task.taskType === 'instance') {
-                  invoke('cancel_instance_deployment', { instanceId: task.id }).catch(console.error);
-                }
-                removeTask(task.id);
+                invoke('cancel_instance_deployment', { instanceId: task.id }).catch(console.error);
+                useDownloadStore.getState().cancelTask(task.id);
               }}
               className="!h-10 !px-4 !min-w-0 text-white"
             >
