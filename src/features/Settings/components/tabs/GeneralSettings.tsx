@@ -3,11 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { OreSwitch } from '../../../../ui/primitives/OreSwitch';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreDropdown } from '../../../../ui/primitives/OreDropdown';
-import { OreInput } from '../../../../ui/primitives/OreInput'; // ✅ 引入输入框组件
-import { RotateCcw, Monitor, AlertTriangle, PowerOff, Maximize } from 'lucide-react';
+import { OreInput } from '../../../../ui/primitives/OreInput';
+import { RotateCcw, Monitor, AlertTriangle, PowerOff, Maximize, RefreshCw, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useSettingsStore } from '../../../../store/useSettingsStore';
+import { useAccountStore } from '../../../../store/useAccountStore';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
+import { relaunch } from '@tauri-apps/plugin-process';
 
 // 引入布局组件
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
@@ -17,6 +19,9 @@ import { FormRow } from '../../../../ui/layout/FormRow';
 // 引入焦点导航核心组件
 import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
+
+// 引入更新弹窗
+import { UpdateDialog, type UpdateInfo } from '../modals/UpdateDialog';
 
 // 封装一个支持空间导航的 Switch 组件
 const FocusableSwitch = ({ checked, onChange }: { checked: boolean, onChange: (v: boolean) => void }) => (
@@ -35,10 +40,29 @@ const FocusableSwitch = ({ checked, onChange }: { checked: boolean, onChange: (v
   </FocusItem>
 );
 
+/** 将无分隔符的 UUID 格式化为带连字符的标准格式 */
+function normalizeUuid(raw: string): string {
+  const hex = raw.replace(/-/g, '');
+  if (hex.length !== 32) return raw; // 非标准长度，原样返回
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+type CheckStatus = 'idle' | 'checking' | 'up-to-date' | 'error';
+
 export const GeneralSettings: React.FC = () => {
   const { settings, updateGeneralSetting, resetSettings } = useSettingsStore();
   const { general } = settings;
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // ==================== 更新状态 ====================
+  const [checkStatus, setCheckStatus] = useState<CheckStatus>('idle');
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+  const [isInstalling, setIsInstalling] = useState(false);
+
+  // 获取活跃账号（用于注入 UUID 到灰度更新接口）
+  const { accounts, activeAccountId } = useAccountStore();
+  const activeAccount = accounts.find(a => a.uuid === activeAccountId) ?? null;
 
   useEffect(() => {
     getCurrentWindow().isFullscreen().then(setIsFullscreen);
@@ -49,6 +73,67 @@ export const GeneralSettings: React.FC = () => {
     const current = await win.isFullscreen();
     await win.setFullscreen(!current);
     setIsFullscreen(!current);
+  };
+
+  // ==================== 检查更新 ====================
+  const handleCheckUpdate = async () => {
+    if (checkStatus === 'checking') return;
+
+    setCheckStatus('checking');
+    setUpdateInfo(null);
+
+    // 构造 UUID：优先使用正版 Microsoft 账号的 UUID（带分隔符）
+    const rawUuid = activeAccount?.uuid ?? '';
+    const uuid = rawUuid ? normalizeUuid(rawUuid) : 'anonymous';
+
+    try {
+      const info = await invoke<UpdateInfo>('check_update', {
+        uuid,
+        region: 'CN',
+      });
+
+      setUpdateInfo(info);
+
+      if (info.available) {
+        setIsUpdateDialogOpen(true);
+        setCheckStatus('idle');
+      } else {
+        setCheckStatus('up-to-date');
+        // 3 秒后恢复 idle 状态
+        setTimeout(() => setCheckStatus('idle'), 3000);
+      }
+    } catch (err) {
+      console.error('[Updater] 检查更新失败:', err);
+      setCheckStatus('error');
+      setTimeout(() => setCheckStatus('idle'), 4000);
+    }
+  };
+
+  // ==================== 安装更新 ====================
+  const handleInstallUpdate = async () => {
+    if (!updateInfo?.url) {
+      // 没有直接下载链接，尝试调用 Tauri 内置 updater
+      try {
+        setIsInstalling(true);
+        await invoke('plugin:updater|check');
+        await relaunch();
+      } catch (e) {
+        console.error('[Updater] 安装失败:', e);
+        setIsInstalling(false);
+      }
+      return;
+    }
+
+    // 有下载链接时，使用 shell 打开浏览器下载
+    try {
+      setIsInstalling(true);
+      await invoke('plugin:shell|open', { path: updateInfo.url });
+      setIsInstalling(false);
+      setIsUpdateDialogOpen(false);
+    } catch (e) {
+      console.error('[Updater] 打开下载链接失败:', e);
+      setIsInstalling(false);
+    }
   };
 
   // 下拉菜单选项定义
@@ -62,14 +147,47 @@ export const GeneralSettings: React.FC = () => {
     { label: '直接退出程序', value: 'exit' },
   ];
 
+  // 检查更新按钮内容
+  const renderCheckUpdateButton = () => {
+    switch (checkStatus) {
+      case 'checking':
+        return (
+          <OreButton focusKey="settings-btn-check-update" size="sm" className="flex items-center gap-1.5" disabled>
+            <Loader2 size={14} className="animate-spin" />
+            检查中...
+          </OreButton>
+        );
+      case 'up-to-date':
+        return (
+          <OreButton focusKey="settings-btn-check-update" size="sm" className="flex items-center gap-1.5" variant="secondary" disabled>
+            <CheckCircle2 size={14} className="text-ore-green" />
+            已是最新版本
+          </OreButton>
+        );
+      case 'error':
+        return (
+          <OreButton focusKey="settings-btn-check-update" size="sm" className="flex items-center gap-1.5" variant="danger" disabled>
+            <XCircle size={14} />
+            检查失败
+          </OreButton>
+        );
+      default:
+        return (
+          <OreButton focusKey="settings-btn-check-update" size="sm" className="flex items-center gap-1.5" onClick={handleCheckUpdate}>
+            <RefreshCw size={14} />
+            检查更新
+          </OreButton>
+        );
+    }
+  };
+
   return (
-    // 整个标签页包裹在 FocusBoundary 中，便于引擎管理层级
     <FocusBoundary id="settings-general-boundary" className="w-full h-full outline-none">
       <SettingsPageLayout>
         {/* ==================== 1. 基础模块 ==================== */}
         <SettingsSection title="基础" icon={<Monitor size={18} />}>
 
-          {/* ✅ 新增：设备名称配置 */}
+          {/* 设备名称配置 */}
           <FormRow
             label="设备名称"
             description="用于局域网发现与互联传输时的身份展示标识。"
@@ -103,11 +221,14 @@ export const GeneralSettings: React.FC = () => {
               </div>
             }
           />
+
+          {/* 检查更新（替换原来的自动更新开关） */}
           <FormRow
-            label="自动更新启动器"
-            description="在后台静默下载并安装 PiLauncher 的最新版本。"
-            control={<FocusableSwitch checked={general.autoUpdate} onChange={(v) => updateGeneralSetting('autoUpdate', v)} />}
+            label="检查更新"
+            description="手动向服务器核实是否有新版本，灰度更新已根据账号自动配置。"
+            control={renderCheckUpdateButton()}
           />
+
           <FormRow
             label="启动时检查更新"
             description="每次打开启动器时，主动向服务器核实是否有新版本。"
@@ -162,7 +283,7 @@ export const GeneralSettings: React.FC = () => {
           />
         </SettingsSection>
 
-        {/* ==================== 2. 危险操作模块 ==================== */}
+        {/* ==================== 3. 危险操作模块 ==================== */}
         <SettingsSection title="危险操作" icon={<AlertTriangle size={18} />} danger={true}>
           <FormRow
             label="恢复默认设置"
@@ -175,6 +296,15 @@ export const GeneralSettings: React.FC = () => {
           />
         </SettingsSection>
       </SettingsPageLayout>
+
+      {/* 更新弹窗 */}
+      <UpdateDialog
+        isOpen={isUpdateDialogOpen}
+        onClose={() => setIsUpdateDialogOpen(false)}
+        updateInfo={updateInfo}
+        isInstalling={isInstalling}
+        onConfirm={handleInstallUpdate}
+      />
     </FocusBoundary>
   );
 };

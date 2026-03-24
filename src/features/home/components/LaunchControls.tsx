@@ -8,8 +8,10 @@ import { focusManager } from '../../../ui/focus/FocusManager';
 import { useInputMode } from '../../../ui/focus/FocusProvider';
 
 import { useLauncherStore } from '../../../store/useLauncherStore';
-import { useAccountStore } from '../../../store/useAccountStore'; // ✅ 引入账号 Store 进行前置校验
+import { useAccountStore } from '../../../store/useAccountStore';
+import { useInstances } from '../../../hooks/pages/Instances/useInstances';
 import { NoAccountModal } from '../../../ui/components/NoAccountModal';
+import { NoInstanceModal } from '../../../ui/components/NoInstanceModal';
 
 interface LaunchControlsProps {
   instanceId?: string;
@@ -30,9 +32,11 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
   const setActiveTab = useLauncherStore(state => state.setActiveTab);
   const setSelectedInstanceId = useLauncherStore(state => state.setSelectedInstanceId);
 
-  // ✅ 控制缺失账号弹窗的显示状态
   const [showNoAccountModal, setShowNoAccountModal] = useState(false);
-  const inputMode = useInputMode(); // 获取当前的输入模型
+  const [showNoInstanceModal, setShowNoInstanceModal] = useState(false);
+
+  const inputMode = useInputMode();
+  const { instances } = useInstances();
 
   const innerButtonClass = "h-[clamp(48px,6vh,64px)] text-[clamp(16px,1.8vh,20px)] flex items-center justify-center gap-3 w-full transition-colors duration-200";
   const iconClass = "flex-shrink-0 w-[clamp(20px,2.5vh,28px)] h-[clamp(20px,2.5vh,28px)]";
@@ -46,7 +50,28 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
     return () => clearTimeout(timer);
   }, []);
 
+  /**
+   * 前置状态检查：
+   * 1. 实例列表为空 → 弹出 NoInstanceModal
+   * 2. 有实例但当前未选中 → 唤起实例选择弹窗
+   * 3. 通过 → 执行回调
+   * @returns true 表示前置检查通过，false 表示已被拦截
+   */
+  const checkInstanceState = (): boolean => {
+    if (instances.length === 0) {
+      setShowNoInstanceModal(true);
+      return false;
+    }
+    if (!instanceId) {
+      onSelectInstance();
+      return false;
+    }
+    return true;
+  };
+
   const handleSettingsClick = () => {
+    if (!checkInstanceState()) return;
+
     if (instanceId) {
       setSelectedInstanceId(instanceId);
       setActiveTab('instances');
@@ -54,18 +79,17 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
     if (onSettings) onSettings();
   };
 
-  // ✅ 核心逻辑：拦截启动事件，进行账号前置校验
   const handlePlayClick = () => {
+    if (!checkInstanceState()) return;
+
     const { accounts, activeAccountId } = useAccountStore.getState();
     const currentAccount = accounts.find(a => a.uuid === activeAccountId);
 
-    // 如果找不到账号，拦截执行并唤出 UI 弹窗
     if (!currentAccount) {
       setShowNoAccountModal(true);
       return;
     }
 
-    // 校验通过，放行调用原本的启动逻辑，根据当前输入模式判断是否是手柄启动
     onLaunch(inputMode === 'controller');
   };
 
@@ -74,7 +98,7 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
     <>
       <div className="flex flex-col items-center justify-center space-y-[clamp(20px,3vh,32px)] w-[clamp(280px,25vw,420px)]">
 
-        {/* 1. Play 主按钮 (✅ 绑定为新的拦截方法 handlePlayClick) */}
+        {/* 1. Play 主按钮 */}
         <FocusItem focusKey="play-button" onEnter={handlePlayClick} autoScroll={false}>
           {({ ref, focused }) => (
             <div className="relative w-full group">
@@ -171,10 +195,15 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
 
       </div>
 
-      <NoAccountModal 
-        isOpen={showNoAccountModal} 
-        onClose={() => setShowNoAccountModal(false)} 
+      <NoAccountModal
+        isOpen={showNoAccountModal}
+        onClose={() => setShowNoAccountModal(false)}
+      />
+
+      <NoInstanceModal
+        isOpen={showNoInstanceModal}
+        onClose={() => setShowNoInstanceModal(false)}
       />
     </>
   );
-};
+};

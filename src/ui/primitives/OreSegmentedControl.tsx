@@ -21,7 +21,7 @@ export const OreSegmentedControl: React.FC<OreSegmentedControlProps> = ({
   className = ''
 }) => {
   return (
-    <div className={`flex items-start h-[40px] ${className}`}>
+    <div className={`flex items-start ore-segmented-wrapper ${className}`}>
       <div className="ore-segmented-track">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -29,9 +29,9 @@ export const OreSegmentedControl: React.FC<OreSegmentedControlProps> = ({
             <button
               key={tab.id}
               onClick={() => onChange(tab.id)}
-              tabIndex={-1} 
+              tabIndex={-1}
               className={`
-                ore-segmented-tab px-6 min-w-[120px]
+                ore-segmented-tab
                 ${isActive ? 'active' : ''}
               `}
             >
@@ -40,7 +40,7 @@ export const OreSegmentedControl: React.FC<OreSegmentedControlProps> = ({
                   {tab.icon}
                 </span>
               )}
-              <span className="ore-text-shadow tracking-wide drop-shadow-md text-[15px]">{tab.label}</span>
+              <span className="ore-text-shadow tracking-wide drop-shadow-md ore-segmented-label font-minecraft">{tab.label}</span>
             </button>
           );
         })}

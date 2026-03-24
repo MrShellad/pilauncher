@@ -69,8 +69,8 @@ export const AboutSettings: React.FC = () => {
                 <span className="text-ore-green font-mono text-sm bg-ore-green/10 px-3 py-1 rounded-full border border-ore-green/20 mb-4">
                   v{version}
                 </span>
-                <p className="text-ore-text-muted text-sm max-w-md text-center">
-                  专为掌机与手柄优化的跨平台 Minecraft 启动器，让你的方块之旅更加流畅自然。
+                <p className="text-ore-text-muted text-sm max-w-md text-center font-minecraft">
+                  专为掌机与手柄优化的跨平台 Minecraft 启动器。
                 </p>
               </div>
             )}

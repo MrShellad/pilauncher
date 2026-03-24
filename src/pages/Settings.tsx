@@ -4,14 +4,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Settings as SettingsIcon, Monitor, Gamepad2, Coffee, Download, Users, Archive, Wrench, Info } from 'lucide-react';
 import { doesFocusableExist } from '@noriginmedia/norigin-spatial-navigation';
 
-import { GeneralSettings } from '../features/Settings/components/tabs/GeneralSettings';
-import { JavaSettings } from '../features/Settings/components/tabs/JavaSettings';
-import { AppearanceSettings } from '../features/Settings/components/tabs/AppearanceSettings';
-import { GameSettings } from '../features/Settings/components/tabs/GameSettings';
-import { DownloadSettings } from '../features/Settings/components/tabs/DownloadSettings';
-import { AccountSettings } from '../features/Settings/components/tabs/AccountSettings';
-import { AboutSettings } from '../features/Settings/components/tabs/AboutSettings';
+import { lazy, Suspense } from 'react';
 import { INITIAL_DOWNLOAD_FOCUS_KEY } from '../features/Settings/components/tabs/download/downloadSettings.constants';
+
+const GeneralSettings    = lazy(() => import('../features/Settings/components/tabs/GeneralSettings').then(m => ({ default: m.GeneralSettings })));
+const JavaSettings       = lazy(() => import('../features/Settings/components/tabs/JavaSettings').then(m => ({ default: m.JavaSettings })));
+const AppearanceSettings = lazy(() => import('../features/Settings/components/tabs/AppearanceSettings').then(m => ({ default: m.AppearanceSettings })));
+const GameSettings       = lazy(() => import('../features/Settings/components/tabs/GameSettings').then(m => ({ default: m.GameSettings })));
+const DownloadSettings   = lazy(() => import('../features/Settings/components/tabs/DownloadSettings').then(m => ({ default: m.DownloadSettings })));
+const AccountSettings    = lazy(() => import('../features/Settings/components/tabs/AccountSettings').then(m => ({ default: m.AccountSettings })));
+const AboutSettings      = lazy(() => import('../features/Settings/components/tabs/AboutSettings').then(m => ({ default: m.AboutSettings })));
+
 import { OreToggleButton, type ToggleOption } from '../ui/primitives/OreToggleButton';
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { focusManager } from '../ui/focus/FocusManager';
@@ -127,7 +130,9 @@ export const Settings: React.FC = () => {
             transition={{ duration: 0.25, ease: 'easeInOut' }}
             className="absolute inset-0"
           >
-            {renderContent()}
+            <Suspense fallback={<div className="absolute inset-0" />}>
+              {renderContent()}
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </div>

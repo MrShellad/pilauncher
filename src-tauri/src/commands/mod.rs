@@ -18,6 +18,7 @@ pub mod resource_cmd;
 pub mod runtime_cmd;
 pub mod settings_cmd;
 pub mod system_cmd;
+pub mod update_cmd;
 
 use tauri::{Builder, Runtime};
 
@@ -121,5 +122,6 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         lan_cmd::verify_trusted_devices,
         network_cmd::run_network_test,
         qrcode_cmd::generate_device_auth_qr,
+        update_cmd::check_update,
     ])
 }

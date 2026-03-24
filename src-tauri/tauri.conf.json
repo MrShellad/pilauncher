@@ -59,7 +59,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDBDRkI2MURDMTI4QjQxRjYKUldUMlFZc1MzR0g3REp1QzhJTEJrMFl6Z0p1ZzU0MlhVcGZ5d0JiQ09CdGZpcVMybTlzMEZYTk8K",
       "endpoints": [
-        "https://pil.nav4ai.net/updater/{{target}}/{{current_version}}"
+        "https://pil.nav4ai.net/api/updater?version={{current_version}}&target={{target}}&arch={{arch}}"
       ]
     }
   }

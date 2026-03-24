@@ -1,65 +1,208 @@
 /* /src/style/ui/primitives/OreSegmentedControl.css */
+
+/* ============================================================
+   响应式尺寸变量
+   SteamDeck : 1280×800   → 基准 16px → 用稍小一点的尺寸
+   PC        : ~1920px    → 基准 16px → 标准尺寸
+   TV        : ≥2560px    → 基准 16px → 更大尺寸, 确保沙发距离可读
+   ============================================================ */
+:root {
+  /* SteamDeck 默认值 */
+  --seg-height: 2.25rem;
+  /* 36px */
+  --seg-min-width: 6.25rem;
+  /* 100px */
+  --seg-px: 1.125rem;
+  /* 18px 水平内边距 */
+  --seg-font-size: 0.8125rem;
+  /* 13px */
+  --seg-border: 0.125rem;
+  /* 2px */
+  --seg-shadow-depth: 0.25rem;
+  /* 4px */
+  --seg-icon-mr: 0.375rem;
+  /* 6px */
+
+  /* ore-shortcut-btn */
+  --shortcut-size: 2.25rem;
+  /* 36px */
+  --shortcut-pb: 0.25rem;
+  /* 4px */
+  --shortcut-border: 0.125rem;
+  /* 2px */
+}
+
+/* PC: 1440px 起 */
+@media (min-width: 90rem) {
+  :root {
+    --seg-height: 2.5rem;
+    /* 40px */
+    --seg-min-width: 7.5rem;
+    /* 120px */
+    --seg-px: 1.5rem;
+    /* 24px */
+    --seg-font-size: 0.9375rem;
+    /* 15px */
+    --seg-icon-mr: 0.5rem;
+    /* 8px */
+
+    --shortcut-size: 2.5rem;
+    /* 40px */
+    --shortcut-pb: 0.25rem;
+  }
+}
+
+/* 2K / 2K+125%缩放: ≥1920 CSS px (= 2560px 物理×125%) */
+@media (min-width: 120rem) {
+  :root {
+    --seg-height: 3rem;
+    /* 48px */
+    --seg-min-width: 9rem;
+    /* 144px */
+    --seg-px: 1.75rem;
+    /* 28px */
+    --seg-font-size: 1.0625rem;
+    /* 17px */
+    --seg-icon-mr: 0.5625rem;
+    /* 9px */
+
+    --shortcut-size: 3rem;
+    /* 48px */
+    --shortcut-pb: 0.3125rem;
+  }
+}
+
+/* TV / 大屏: 2560px 起 */
+@media (min-width: 160rem) {
+  :root {
+    --seg-height: 3.5rem;
+    /* 56px */
+    --seg-min-width: 10rem;
+    /* 160px */
+    --seg-px: 2rem;
+    /* 32px */
+    --seg-font-size: 1.25rem;
+    /* 20px */
+    --seg-border: 0.1875rem;
+    /* 3px */
+    --seg-shadow-depth: 0.375rem;
+    /* 6px */
+    --seg-icon-mr: 0.625rem;
+    /* 10px */
+
+    --shortcut-size: 3.5rem;
+    /* 56px */
+    --shortcut-pb: 0.375rem;
+    --shortcut-border: 0.1875rem;
+  }
+}
+
 @layer components {
+
+  /* 外层高度容器 */
+  .ore-segmented-wrapper {
+    height: var(--seg-height);
+  }
+
   /* 导航容器 */
   .ore-segmented-track {
-    /* 使用类似文本框底座的深色凹陷样式，符合OreUI整体风格 */
-    @apply flex bg-[#313233] border-[2px] h-[40px] box-border p-0 m-0;
-    border-color: #1E1E1F;
-    box-shadow: inset 0 4px #242425;
+    display: flex;
+    background-color: #313233;
+    border: var(--seg-border) solid #1E1E1F;
+    height: var(--seg-height);
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+    box-shadow: inset 0 var(--seg-shadow-depth) #242425;
   }
 
   /* 单个选项卡 */
   .ore-segmented-tab {
-    @apply flex items-center justify-center relative border-r-[2px] cursor-pointer font-minecraft h-full box-border outline-none transition-colors;
-    border-color: #1E1E1F;
-    color: #8C8D90;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border-right: var(--seg-border) solid #1E1E1F;
+    cursor: pointer;
+    font-family: var(--font-minecraft, inherit);
+    height: 100%;
+    box-sizing: border-box;
+    outline: none;
+    transition: colors 0.15s;
     background-color: transparent;
+    color: #8C8D90;
+    padding-left: var(--seg-px);
+    padding-right: var(--seg-px);
+    min-width: var(--seg-min-width);
   }
-  
+
   .ore-segmented-tab:last-child {
-    @apply border-r-0;
+    border-right: none;
   }
-  
+
   .ore-segmented-tab:hover:not(.active) {
-    @apply bg-[#3A3B3C] text-white;
+    background-color: #3A3B3C;
+    color: #fff;
   }
-  
-  /* 选中状态类似弹出底座的 Green Button，形成视觉焦点 */
+
+  /* 选中状态 */
   .ore-segmented-tab.active {
-    @apply text-white cursor-default;
+    color: #fff;
+    cursor: default;
     background-color: #3C8527;
-    box-shadow: inset 0 -4px #1D4D13, inset 3px 3px rgba(255, 255, 255, 0.2), inset -3px -7px rgba(255, 255, 255, 0.1);
+    box-shadow:
+      inset 0 calc(-1 * var(--seg-shadow-depth)) #1D4D13,
+      inset 3px 3px rgba(255, 255, 255, 0.2),
+      inset -3px -7px rgba(255, 255, 255, 0.1);
   }
 
   .ore-segmented-tab.active:hover {
     background-color: #2A641C;
-    box-shadow: inset 0 -4px #1D4D13, inset 3px 3px rgba(255, 255, 255, 0.4), inset -3px -7px rgba(255, 255, 255, 0.3);
+    box-shadow:
+      inset 0 calc(-1 * var(--seg-shadow-depth)) #1D4D13,
+      inset 3px 3px rgba(255, 255, 255, 0.4),
+      inset -3px -7px rgba(255, 255, 255, 0.3);
+  }
+
+  /* 标签文字 */
+  .ore-segmented-label {
+    font-size: var(--seg-font-size);
   }
 
   /* ==================================================== */
   /* ✅ 快捷键提示按钮：安全且完美的物理下压反馈           */
   /* ==================================================== */
   .ore-shortcut-btn {
-    /* ✅ 修复核心：移除危险的绝对定位，直接锁定自身宽 36px，高 40px */
-    @apply flex items-center justify-center w-[36px] h-[40px] border-[2px] font-minecraft font-bold cursor-pointer pb-[4px] outline-none transition-none flex-shrink-0 box-border;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--shortcut-size);
+    height: var(--shortcut-size);
+    border: var(--shortcut-border, var(--seg-border)) solid var(--ore-border-color);
+    font-family: var(--font-minecraft, inherit);
+    font-weight: bold;
+    cursor: pointer;
+    padding-bottom: var(--shortcut-pb);
+    outline: none;
+    flex-shrink: 0;
+    box-sizing: border-box;
     background-color: var(--ore-btn-secondary-bg);
-    border-color: var(--ore-border-color);
     color: var(--ore-btn-secondary-text);
-    box-shadow: 
-      inset 0 -4px var(--ore-btn-secondary-shadow), 
-      inset 2px 2px var(--ore-btn-secondary-highlight), 
-      inset -2px -6px rgba(255, 255, 255, 0.4);
+    box-shadow:
+      inset 0 calc(-1 * var(--seg-shadow-depth)) var(--ore-btn-secondary-shadow),
+      inset 0.125rem 0.125rem var(--ore-btn-secondary-highlight),
+      inset -0.125rem -0.375rem rgba(255, 255, 255, 0.4);
   }
-  
-  /* 按下时的真实下沉：向下偏移 4px，同时自身高度减 4px */
-  .ore-shortcut-btn:active, 
+
+  /* 按下时的真实下沉 */
+  .ore-shortcut-btn:active,
   .ore-shortcut-btn.is-pressed {
-    @apply pb-0;
-    margin-top: 4px;
-    height: 36px;
+    padding-bottom: 0;
+    margin-top: 0.25rem;
+    height: calc(var(--shortcut-size) - 0.25rem);
     background-color: var(--ore-btn-secondary-hover);
-    box-shadow: 
-      inset 2px 2px var(--ore-btn-secondary-highlight), 
-      inset -2px -2px var(--ore-btn-secondary-press);
+    box-shadow:
+      inset 0.125rem 0.125rem var(--ore-btn-secondary-highlight),
+      inset -0.125rem -0.125rem var(--ore-btn-secondary-press);
   }
 }
