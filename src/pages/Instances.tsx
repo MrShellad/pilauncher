@@ -107,7 +107,7 @@ const Instances: React.FC = () => {
                 <OreButton variant="secondary" size="auto" onClick={() => setIsDirModalOpen(true)} tabIndex={-1}>
                   <span className="flex items-center justify-center whitespace-nowrap">
                     <FolderPlus size={18} className="mr-2 flex-shrink-0" />
-                    <span className="font-minecraft tracking-wider">添加文件夹</span>
+                    <span className="font-minecraft tracking-wider">扫描实例目录</span>
                   </span>
                 </OreButton>
               </div>

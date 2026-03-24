@@ -133,7 +133,8 @@ impl LauncherService {
         })?;
 
         if let Some(pid) = child.id() {
-            crate::commands::launcher_cmd::CURRENT_GAME_PID.store(pid, std::sync::atomic::Ordering::SeqCst);
+            crate::commands::launcher_cmd::CURRENT_GAME_PID
+                .store(pid, std::sync::atomic::Ordering::SeqCst);
         }
 
         println!("✅ Java 进程已成功启动，PID: {:?}", child.id());

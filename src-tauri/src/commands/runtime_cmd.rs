@@ -15,7 +15,7 @@ fn get_cache_file<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> PathBuf {
         fs::create_dir_all(&dir).ok();
         return dir.join("java_cache.json");
     }
-    
+
     // 如果尚未完成向导配置，兜底存放在系统目录
     let dir = app
         .path()

@@ -1,4 +1,4 @@
-﻿use crate::domain::instance::InstanceConfig;
+use crate::domain::instance::InstanceConfig;
 use crate::domain::modpack::ModpackMetadata;
 use crate::services::config_service::ConfigService;
 use std::fs::{self, File};
@@ -7,9 +7,7 @@ use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Runtime};
 use zip::ZipArchive;
 
-use super::logic::{
-    parse_curseforge_metadata, parse_modrinth_metadata, ModpackSourceHint,
-};
+use super::logic::{parse_curseforge_metadata, parse_modrinth_metadata, ModpackSourceHint};
 
 pub fn resolve_base_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     let base_path_str = ConfigService::get_base_path(app)

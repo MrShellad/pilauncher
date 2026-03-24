@@ -2,11 +2,11 @@
 use font_kit::source::SystemSource;
 use std::collections::HashSet;
 // ✅ 核心修复：导入缺失的路径和文件操作模块
-use std::path::Path;
 use std::fs;
+use std::path::Path;
 use tauri::command;
-use tauri::{AppHandle, Runtime};
 use tauri::Manager;
+use tauri::{AppHandle, Runtime};
 #[command]
 pub async fn get_system_fonts() -> Result<Vec<String>, String> {
     // 由于读取字体可能较慢，建议放在异步线程中执行
@@ -66,11 +66,10 @@ pub fn get_primary_monitor_resolution<R: Runtime>(app: AppHandle<R>) -> Result<(
     }
 }
 
-
-
 #[tauri::command]
 pub async fn check_steam_status() -> Result<bool, String> {
-    Ok(steamlocate::SteamDir::locate().is_ok() || steamlocate::SteamDir::locate().is_err()) // fallback for finding steam dir if it errors out
+    Ok(steamlocate::SteamDir::locate().is_ok() || steamlocate::SteamDir::locate().is_err())
+    // fallback for finding steam dir if it errors out
 }
 
 #[tauri::command]
@@ -83,7 +82,7 @@ pub async fn check_steamos_gamepad_mode() -> Result<bool, String> {
     let is_custom_apu = cpuinfo.contains("AMD Custom APU");
 
     // 3. check gamescope
-    let is_gamescope = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default() == "gamescope" 
+    let is_gamescope = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default() == "gamescope"
         || std::env::var("WAYLAND_DISPLAY").unwrap_or_default() == "gamescope";
 
     // 4. check SteamDeck env
@@ -93,7 +92,9 @@ pub async fn check_steamos_gamepad_mode() -> Result<bool, String> {
 }
 
 #[tauri::command]
-pub async fn register_steam_shortcut<R: Runtime>(_app_handle: tauri::AppHandle<R>) -> Result<bool, String> {
+pub async fn register_steam_shortcut<R: Runtime>(
+    _app_handle: tauri::AppHandle<R>,
+) -> Result<bool, String> {
     let steamdir = match steamlocate::SteamDir::locate() {
         Ok(dir) => dir,
         Err(_) => return Err("Steam not found".to_string()),
@@ -117,7 +118,7 @@ pub async fn register_steam_shortcut<R: Runtime>(_app_handle: tauri::AppHandle<R
                 let config_dir = user_dir.join("config");
                 if config_dir.exists() {
                     let shortcuts_path = config_dir.join("shortcuts.vdf");
-                    
+
                     let mut shortcuts = vec![];
                     if shortcuts_path.exists() {
                         if let Ok(content) = fs::read(&shortcuts_path) {
@@ -136,32 +137,50 @@ pub async fn register_steam_shortcut<R: Runtime>(_app_handle: tauri::AppHandle<R
                         &start_dir_str,
                         "",
                         "",
-                        ""
+                        "",
                     );
-                    
+
                     let appid = new_shortcut.app_id;
 
                     shortcuts.push(new_shortcut.to_owned());
-                    
-                    let borrowed_shortcuts: Vec<steam_shortcuts_util::shortcut::Shortcut> = shortcuts.iter().map(|s| s.borrow()).collect();
+
+                    let borrowed_shortcuts: Vec<steam_shortcuts_util::shortcut::Shortcut> =
+                        shortcuts.iter().map(|s| s.borrow()).collect();
                     let bytes = steam_shortcuts_util::shortcuts_to_bytes(&borrowed_shortcuts);
                     if fs::write(&shortcuts_path, bytes).is_ok() {
                         let grid_dir = config_dir.join("grid");
                         let _ = fs::create_dir_all(&grid_dir);
-                        
+
                         let cwd = std::env::current_dir().unwrap_or_default();
                         let mut dev_grid = cwd.join("src").join("assets").join("steamgrid");
                         if !dev_grid.exists() {
-                            dev_grid = cwd.parent().unwrap_or(Path::new("")).join("src").join("assets").join("steamgrid");
+                            dev_grid = cwd
+                                .parent()
+                                .unwrap_or(Path::new(""))
+                                .join("src")
+                                .join("assets")
+                                .join("steamgrid");
                         }
-                        
+
                         if dev_grid.exists() {
-                            let _ = fs::copy(dev_grid.join("library_600x900.png"), grid_dir.join(format!("{}p.png", appid)));
-                            let _ = fs::copy(dev_grid.join("header.png"), grid_dir.join(format!("{}.png", appid)));
-                            let _ = fs::copy(dev_grid.join("library_hero.png"), grid_dir.join(format!("{}_hero.png", appid)));
-                            let _ = fs::copy(dev_grid.join("logo.png"), grid_dir.join(format!("{}_logo.png", appid)));
+                            let _ = fs::copy(
+                                dev_grid.join("library_600x900.png"),
+                                grid_dir.join(format!("{}p.png", appid)),
+                            );
+                            let _ = fs::copy(
+                                dev_grid.join("header.png"),
+                                grid_dir.join(format!("{}.png", appid)),
+                            );
+                            let _ = fs::copy(
+                                dev_grid.join("library_hero.png"),
+                                grid_dir.join(format!("{}_hero.png", appid)),
+                            );
+                            let _ = fs::copy(
+                                dev_grid.join("logo.png"),
+                                grid_dir.join(format!("{}_logo.png", appid)),
+                            );
                         }
-                        
+
                         success = true;
                     }
                 }

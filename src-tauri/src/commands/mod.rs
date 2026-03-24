@@ -99,6 +99,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         modpack_cmd::import_modpack,
         modpack_cmd::download_and_import_modpack,
         modpack_cmd::import_local_instances_folders,
+        modpack_cmd::scan_instances_in_dir,
         modpack_cmd::import_third_party_instance,
         modpack_cmd::download_missing_runtimes,
         modpack_cmd::export_modpack,

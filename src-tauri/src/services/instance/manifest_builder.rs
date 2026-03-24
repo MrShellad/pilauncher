@@ -15,16 +15,20 @@ pub fn build_and_save_manifest(
         .join("versions")
         .join(&payload.game_version)
         .join(format!("{}.json", payload.game_version));
-        
+
     let vanilla_content = fs::read_to_string(&vanilla_path).unwrap_or_else(|_| "{}".to_string());
-    let vanilla_json: Value = serde_json::from_str(&vanilla_content).unwrap_or(serde_json::json!({}));
+    let vanilla_json: Value =
+        serde_json::from_str(&vanilla_content).unwrap_or(serde_json::json!({}));
 
     let mut loader_json: Option<Value> = None;
     let loader_type = payload.loader_type.to_lowercase();
     if loader_type != "vanilla" && !loader_type.is_empty() {
         let loader_version = payload.loader_version.clone().unwrap_or_default();
         let loader_version_dir_name = match loader_type.as_str() {
-            "fabric" => Some(format!("fabric-loader-{}-{}", loader_version, payload.game_version)),
+            "fabric" => Some(format!(
+                "fabric-loader-{}-{}",
+                loader_version, payload.game_version
+            )),
             "forge" => Some(format!("{}-forge-{}", payload.game_version, loader_version)),
             "neoforge" => Some(format!("neoforge-{}", loader_version)),
             _ => None,
@@ -48,25 +52,39 @@ pub fn build_and_save_manifest(
         .unwrap_or("net.minecraft.client.main.Main")
         .to_string();
 
-    let asset_index = vanilla_json.get("assetIndex").cloned().unwrap_or(serde_json::json!({}));
-    
-    let java_major = vanilla_json.get("javaVersion")
+    let asset_index = vanilla_json
+        .get("assetIndex")
+        .cloned()
+        .unwrap_or(serde_json::json!({}));
+
+    let java_major = vanilla_json
+        .get("javaVersion")
         .and_then(|j| j.get("majorVersion"))
         .and_then(|v| v.as_u64())
         .map(|v| v.to_string())
         .unwrap_or_else(|| "8".to_string());
-        
-    let java_component = vanilla_json.get("javaVersion")
+
+    let java_component = vanilla_json
+        .get("javaVersion")
         .and_then(|j| j.get("component"))
         .and_then(|v| v.as_str())
         .unwrap_or("jre-legacy")
         .to_string();
 
-    let client_dl = vanilla_json.get("downloads")
+    let client_dl = vanilla_json
+        .get("downloads")
         .and_then(|d| d.get("client"))
         .map(|obj| DownloadFile {
-            url: obj.get("url").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            sha1: obj.get("sha1").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            url: obj
+                .get("url")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            sha1: obj
+                .get("sha1")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
             size: obj.get("size").and_then(|v| v.as_u64()).unwrap_or(0),
         });
 
@@ -111,11 +129,20 @@ pub fn build_and_save_manifest(
     };
 
     let manifest_path = instance_root.join("instance_manifest.json");
-    if let Err(e) = fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap()) {
-        eprintln!("[Manifest Builder] CRITICAL ERROR writing manifest to {:?}: {}", manifest_path, e);
+    if let Err(e) = fs::write(
+        &manifest_path,
+        serde_json::to_string_pretty(&manifest).unwrap(),
+    ) {
+        eprintln!(
+            "[Manifest Builder] CRITICAL ERROR writing manifest to {:?}: {}",
+            manifest_path, e
+        );
         return Err(e.into());
     } else {
-        println!("[Manifest Builder] Successfully wrote manifest to {:?}", manifest_path);
+        println!(
+            "[Manifest Builder] Successfully wrote manifest to {:?}",
+            manifest_path
+        );
     }
 
     Ok(())

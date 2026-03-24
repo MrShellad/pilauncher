@@ -69,9 +69,9 @@ pub struct Rule {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct OsRule {
-    pub name: Option<String>, // "windows", "osx", "linux"
+    pub name: Option<String>,    // "windows", "osx", "linux"
     pub version: Option<String>, // regex
-    pub arch: Option<String>, // "x86", "arm"
+    pub arch: Option<String>,    // "x86", "arm"
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -99,8 +99,8 @@ pub struct ResourceIndexRef {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JavaEnvironment {
-    pub path: String, // "auto" or absolute path
-    pub version: String, // game java version string e.g. "17"
+    pub path: String,              // "auto" or absolute path
+    pub version: String,           // game java version string e.g. "17"
     pub component: Option<String>, // mojang component name "jre-legacy"
 }
 

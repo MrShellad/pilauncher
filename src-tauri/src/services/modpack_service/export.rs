@@ -1,13 +1,13 @@
+use crate::domain::instance::InstanceConfig;
+use crate::services::config_service::ConfigService;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter, Runtime};
+use walkdir::WalkDir;
 use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
-use walkdir::WalkDir;
-use crate::services::config_service::ConfigService;
-use crate::domain::instance::InstanceConfig;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ExportProgress {
@@ -43,50 +43,56 @@ pub async fn execute_export<R: Runtime>(
     let base_path_str = ConfigService::get_base_path(app)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Base path is not configured".to_string())?;
-    
-    let instance_dir = PathBuf::from(&base_path_str).join("instances").join(&config.instance_id);
+
+    let instance_dir = PathBuf::from(&base_path_str)
+        .join("instances")
+        .join(&config.instance_id);
     if !instance_dir.exists() {
         return Err("Instance directory not found".to_string());
     }
 
     let instance_json_path = instance_dir.join("instance.json");
     let content = fs::read_to_string(&instance_json_path).unwrap_or_default();
-    let instance_meta: InstanceConfig = serde_json::from_str(&content).unwrap_or_else(|_| InstanceConfig {
-        id: config.instance_id.clone(),
-        name: config.name.clone(),
-        mc_version: "1.20.1".to_string(),
-        loader: crate::domain::instance::LoaderConfig {
-            r#type: "vanilla".to_string(),
-            version: "".to_string(),
-        },
-        java: crate::domain::instance::JavaConfig {
-            path: "".to_string(),
-            version: "".to_string(),
-        },
-        memory: crate::domain::instance::MemoryConfig {
-            min: 1024,
-            max: 4096,
-        },
-        resolution: crate::domain::instance::ResolutionConfig {
-            width: 854,
-            height: 480,
-        },
-        play_time: 0.0,
-        last_played: "".to_string(),
-        created_at: "".to_string(),
-        cover_image: None,
-        hero_logo: None,
-        gamepad: None,
-        custom_buttons: None,
-        third_party_path: None,
-    });
+    let instance_meta: InstanceConfig =
+        serde_json::from_str(&content).unwrap_or_else(|_| InstanceConfig {
+            id: config.instance_id.clone(),
+            name: config.name.clone(),
+            mc_version: "1.20.1".to_string(),
+            loader: crate::domain::instance::LoaderConfig {
+                r#type: "vanilla".to_string(),
+                version: "".to_string(),
+            },
+            java: crate::domain::instance::JavaConfig {
+                path: "".to_string(),
+                version: "".to_string(),
+            },
+            memory: crate::domain::instance::MemoryConfig {
+                min: 1024,
+                max: 4096,
+            },
+            resolution: crate::domain::instance::ResolutionConfig {
+                width: 854,
+                height: 480,
+            },
+            play_time: 0.0,
+            last_played: "".to_string(),
+            created_at: "".to_string(),
+            cover_image: None,
+            hero_logo: None,
+            gamepad: None,
+            custom_buttons: None,
+            third_party_path: None,
+        });
 
-    let _ = app.emit("export-progress", ExportProgress {
-        current: 0,
-        total: 100,
-        message: "Initializing export...".to_string(),
-        stage: "INIT".to_string(),
-    });
+    let _ = app.emit(
+        "export-progress",
+        ExportProgress {
+            current: 0,
+            total: 100,
+            message: "Initializing export...".to_string(),
+            stage: "INIT".to_string(),
+        },
+    );
 
     let output_file = File::create(&config.output_path).map_err(|e| e.to_string())?;
     let mut zip = ZipWriter::new(output_file);
@@ -95,12 +101,22 @@ pub async fn execute_export<R: Runtime>(
         .unix_permissions(0o755);
 
     let mut folders_to_include = Vec::new();
-    if config.include_mods { folders_to_include.push("mods"); }
-    if config.include_configs { folders_to_include.push("config"); }
-    if config.include_resource_packs { folders_to_include.push("resourcepacks"); }
-    if config.include_shader_packs { folders_to_include.push("shaderpacks"); }
-    if config.include_saves { folders_to_include.push("saves"); }
-    
+    if config.include_mods {
+        folders_to_include.push("mods");
+    }
+    if config.include_configs {
+        folders_to_include.push("config");
+    }
+    if config.include_resource_packs {
+        folders_to_include.push("resourcepacks");
+    }
+    if config.include_shader_packs {
+        folders_to_include.push("shaderpacks");
+    }
+    if config.include_saves {
+        folders_to_include.push("saves");
+    }
+
     for path in &config.additional_paths {
         folders_to_include.push(path.as_str());
     }
@@ -130,41 +146,53 @@ pub async fn execute_export<R: Runtime>(
 
     for folder in &folders_to_include {
         let folder_path = instance_dir.join(folder);
-        if !folder_path.exists() { continue; }
+        if !folder_path.exists() {
+            continue;
+        }
 
         for entry in WalkDir::new(&folder_path) {
             let entry = entry.map_err(|e| e.to_string())?;
             let path = entry.path();
-            
+
             if path.is_file() {
                 // If it's the mods folder, and manifest mode is on, we skip standard inclusion and build manifest?
                 // Actually, if manifest_mode is true, standard implementation attempts to build a manifest for mods.
-                // For simplicity here, we'll just include the mod files if they end in .jar or .disabled, 
+                // For simplicity here, we'll just include the mod files if they end in .jar or .disabled,
                 // and if manifest_mode is on, we'll still just include the files but warn in UI that manifest mode is experimental.
                 // Full manifest mode generation requires hashing each mod against CurseForge/Modrinth API, which takes time.
                 // We'll stub manifest generation if requested, but still package files.
 
-                let rel_path = path.strip_prefix(&instance_dir).map_err(|e| e.to_string())?;
-                let mut zip_path = format!("{}{}", overrides_prefix, rel_path.to_string_lossy().replace('\\', "/"));
-                
+                let rel_path = path
+                    .strip_prefix(&instance_dir)
+                    .map_err(|e| e.to_string())?;
+                let mut zip_path = format!(
+                    "{}{}",
+                    overrides_prefix,
+                    rel_path.to_string_lossy().replace('\\', "/")
+                );
+
                 // For standard zip, we might just put everything inside a folder named after the instance
                 if config.format == "zip" {
                     zip_path = format!("{}/{}", config.name, zip_path);
                 }
 
-                zip.start_file(zip_path, options).map_err(|e| e.to_string())?;
+                zip.start_file(zip_path, options)
+                    .map_err(|e| e.to_string())?;
                 let mut f = File::open(path).map_err(|e| e.to_string())?;
                 let mut buffer = Vec::new();
                 f.read_to_end(&mut buffer).map_err(|e| e.to_string())?;
                 zip.write_all(&buffer).map_err(|e| e.to_string())?;
 
                 processed_files += 1;
-                let _ = app.emit("export-progress", ExportProgress {
-                    current: processed_files,
-                    total: std::cmp::max(total_files, 1),
-                    message: format!("Packing {:?}", rel_path),
-                    stage: "PACKING".to_string(),
-                });
+                let _ = app.emit(
+                    "export-progress",
+                    ExportProgress {
+                        current: processed_files,
+                        total: std::cmp::max(total_files, 1),
+                        message: format!("Packing {:?}", rel_path),
+                        stage: "PACKING".to_string(),
+                    },
+                );
             }
         }
     }
@@ -189,10 +217,12 @@ pub async fn execute_export<R: Runtime>(
             "files": [],
             "overrides": "overrides"
         });
-        
+
         let manifest_str = serde_json::to_string_pretty(&manifest).unwrap();
-        zip.start_file("manifest.json", options).map_err(|e| e.to_string())?;
-        zip.write_all(manifest_str.as_bytes()).map_err(|e| e.to_string())?;
+        zip.start_file("manifest.json", options)
+            .map_err(|e| e.to_string())?;
+        zip.write_all(manifest_str.as_bytes())
+            .map_err(|e| e.to_string())?;
     } else if config.format == "mrpack" {
         let modrinth_index = serde_json::json!({
             "formatVersion": 1,
@@ -206,20 +236,25 @@ pub async fn execute_export<R: Runtime>(
             },
             "files": []
         });
-        
+
         let index_str = serde_json::to_string_pretty(&modrinth_index).unwrap();
-        zip.start_file("modrinth.index.json", options).map_err(|e| e.to_string())?;
-        zip.write_all(index_str.as_bytes()).map_err(|e| e.to_string())?;
+        zip.start_file("modrinth.index.json", options)
+            .map_err(|e| e.to_string())?;
+        zip.write_all(index_str.as_bytes())
+            .map_err(|e| e.to_string())?;
     }
 
     zip.finish().map_err(|e| e.to_string())?;
 
-    let _ = app.emit("export-progress", ExportProgress {
-        current: 100,
-        total: 100,
-        message: "Export completed successfully.".to_string(),
-        stage: "DONE".to_string(),
-    });
+    let _ = app.emit(
+        "export-progress",
+        ExportProgress {
+            current: 100,
+            total: 100,
+            message: "Export completed successfully.".to_string(),
+            stage: "DONE".to_string(),
+        },
+    );
 
     Ok(())
 }

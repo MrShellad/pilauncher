@@ -81,7 +81,7 @@ impl InstanceListingService {
     /// 解析实例封面图路径
     fn resolve_cover(root: &Path) -> Option<String> {
         let extensions = ["png", "jpg", "jpeg", "webp"];
-        
+
         // 1. 尝试读取本启动器专属的 piconfig/cover.*
         let piconfig = root.join("piconfig");
         for ext in extensions {
@@ -106,7 +106,7 @@ impl InstanceListingService {
                 return Some(e.path().to_string_lossy().to_string());
             }
         }
-        
+
         None
     }
 }

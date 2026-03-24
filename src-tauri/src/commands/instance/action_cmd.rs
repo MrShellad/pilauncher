@@ -1,6 +1,6 @@
 // src-tauri/src/commands/instance/action_cmd.rs
-use crate::services::instance::action::InstanceActionService;
 use crate::domain::instance::CustomButtonConfig;
+use crate::services::instance::action::InstanceActionService;
 use tauri::{AppHandle, Runtime};
 
 #[tauri::command]

@@ -72,11 +72,7 @@ fn resolve_log_path<R: Runtime>(app: &AppHandle<R>, instance_id: &str) -> Option
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-    let file_name = format!(
-        "download-{}-{}.log",
-        sanitize_filename(instance_id),
-        ts
-    );
+    let file_name = format!("download-{}-{}.log", sanitize_filename(instance_id), ts);
     let path = logs_dir.join(file_name);
     cache.insert(instance_id.to_string(), path.clone());
     Some(path)

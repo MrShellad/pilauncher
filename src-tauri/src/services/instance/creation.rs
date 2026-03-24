@@ -20,7 +20,10 @@ impl InstanceCreationService {
     ) -> AppResult<()> {
         let base_path_str = crate::services::config_service::ConfigService::get_base_path(app)?
             .ok_or_else(|| {
-                std::io::Error::new(std::io::ErrorKind::NotFound, "Base data directory is not configured")
+                std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "Base data directory is not configured",
+                )
             })?;
         let base_dir = PathBuf::from(base_path_str);
 
@@ -102,7 +105,10 @@ impl InstanceCreationService {
         let loader_type = payload.loader_type.to_lowercase();
         let loader_version = payload.loader_version.clone().unwrap_or_default();
         let loader_version_dir_name = match loader_type.as_str() {
-            "fabric" => Some(format!("fabric-loader-{}-{}", loader_version, payload.game_version)),
+            "fabric" => Some(format!(
+                "fabric-loader-{}-{}",
+                loader_version, payload.game_version
+            )),
             "forge" => Some(format!("{}-forge-{}", payload.game_version, loader_version)),
             "neoforge" => Some(format!("neoforge-{}", loader_version)),
             _ => None,
@@ -129,7 +135,10 @@ impl InstanceCreationService {
 
                 if instance_root.exists() {
                     let _ = fs::remove_dir_all(&instance_root);
-                    eprintln!("[Deployment] Removed instance directory: {:?}", instance_root);
+                    eprintln!(
+                        "[Deployment] Removed instance directory: {:?}",
+                        instance_root
+                    );
                 }
 
                 if !vanilla_version_existed && vanilla_version_dir.exists() {
@@ -239,7 +248,10 @@ impl InstanceCreationService {
                     file_name: "".to_string(),
                     current: 0,
                     total: 100,
-                    message: format!("Installing {} {} environment...", display_loader, loader_version),
+                    message: format!(
+                        "Installing {} {} environment...",
+                        display_loader, loader_version
+                    ),
                 },
             );
 
@@ -255,8 +267,16 @@ impl InstanceCreationService {
             .await?;
         }
 
-        let instance_root = global_mc_root.parent().unwrap().join("instances").join(instance_id);
-        if let Err(e) = crate::services::instance::manifest_builder::build_and_save_manifest(payload, global_mc_root, &instance_root) {
+        let instance_root = global_mc_root
+            .parent()
+            .unwrap()
+            .join("instances")
+            .join(instance_id);
+        if let Err(e) = crate::services::instance::manifest_builder::build_and_save_manifest(
+            payload,
+            global_mc_root,
+            &instance_root,
+        ) {
             eprintln!("[Deployment] Failed to generate instance manifest: {}", e);
         }
 

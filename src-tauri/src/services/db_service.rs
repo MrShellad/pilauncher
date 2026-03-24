@@ -1,7 +1,10 @@
 // src-tauri/src/services/db_service.rs
-use sqlx::{sqlite::{SqliteConnectOptions, SqlitePoolOptions}, SqlitePool, Row};
-use std::path::Path;
+use sqlx::{
+    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
+    Row, SqlitePool,
+};
 use std::fs;
+use std::path::Path;
 
 // ✅ 全局数据库状态包装器，由于 SqlitePool 内部自带并发控制，不再需要 Mutex！
 pub struct AppDatabase {
@@ -30,10 +33,14 @@ impl DbService {
             .map_err(|e| e.to_string())?;
 
         // 执行异步建表
-        Self::create_tables(&pool).await.map_err(|e| e.to_string())?;
+        Self::create_tables(&pool)
+            .await
+            .map_err(|e| e.to_string())?;
 
         // 迁移：为旧数据库补充 user_uuid 列
-        Self::run_migrations(&pool).await.map_err(|e| e.to_string())?;
+        Self::run_migrations(&pool)
+            .await
+            .map_err(|e| e.to_string())?;
 
         Ok(pool)
     }
@@ -96,8 +103,10 @@ impl DbService {
                 FOREIGN KEY (sender_user_id) REFERENCES users(id),
                 FOREIGN KEY (receiver_user_id) REFERENCES users(id)
             );
-            "
-        ).execute(pool).await?;
+            ",
+        )
+        .execute(pool)
+        .await?;
 
         Ok(())
     }

@@ -5,10 +5,7 @@ use serde_json::Value;
 use crate::error::AppResult;
 
 /// 游戏核心部分：负责加载并解析版本清单 JSON
-pub async fn load_version_manifest(
-    global_mc_root: &Path,
-    version_id: &str,
-) -> AppResult<Value> {
+pub async fn load_version_manifest(global_mc_root: &Path, version_id: &str) -> AppResult<Value> {
     let json_path = global_mc_root
         .join("versions")
         .join(version_id)
@@ -24,4 +21,3 @@ pub async fn load_version_manifest(
 
     Ok(manifest)
 }
-

@@ -33,7 +33,7 @@ struct ApiUpdateResponse {
 }
 
 /// 检查灰度更新
-/// 
+///
 /// # 参数
 /// - `app`       Tauri AppHandle，用于读取当前版本信息
 /// - `uuid`      用户正版 MC 账号 UUID（含分隔符，如 `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`）

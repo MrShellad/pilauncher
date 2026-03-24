@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "PiLauncher",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "identifier": "com.mrshell.PiLauncher",
   "build": {
     "frontendDist": "../build",
@@ -57,7 +57,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDBDRkI2MURDMTI4QjQxRjYKUldUMlFZc1MzR0g3REp1QzhJTEJrMFl6Z0p1ZzU0MlhVcGZ5d0JiQ09CdGZpcVMybTlzMEZYTk8K",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENFQjgwODhDQkYwMTFFRTUKUldUbEhnRy9qQWk0empCNG1yamx6R1BhZmxzMnZjREQ4UTJuNDkyT3loNnptKyt4WWptTDNLK00K",
       "endpoints": [
         "https://pil.nav4ai.net/api/updater?version={{current_version}}&target={{target}}&arch={{arch}}"
       ]

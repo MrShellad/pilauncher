@@ -16,7 +16,10 @@ const RETRY_DELAY_MS: u64 = 1200;
 
 fn sha1_hex(bytes: &[u8]) -> String {
     let digest = Sha1::digest(bytes);
-    digest.iter().map(|b| format!("{:02x}", b)).collect::<String>()
+    digest
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<String>()
 }
 
 fn build_download_client(dl_settings: &DownloadSettings) -> AppResult<reqwest::Client> {
@@ -97,14 +100,20 @@ pub async fn install_vanilla_core<R: Runtime>(
         if !manifest_res_raw.status().is_success() {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                format!("Failed to fetch version list: {}", manifest_res_raw.status()),
+                format!(
+                    "Failed to fetch version list: {}",
+                    manifest_res_raw.status()
+                ),
             )
             .into());
         }
         let manifest_res: serde_json::Value = manifest_res_raw.json().await?;
 
         let versions = manifest_res["versions"].as_array().ok_or_else(|| {
-            std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid version list format")
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Invalid version list format",
+            )
         })?;
 
         let version_url = versions
@@ -118,7 +127,10 @@ pub async fn install_vanilla_core<R: Runtime>(
         let mirror_url = if dl_settings.vanilla_source == "official" {
             version_url.to_string()
         } else {
-            version_url.replace("https://piston-meta.mojang.com", &dl_settings.vanilla_source_url)
+            version_url.replace(
+                "https://piston-meta.mojang.com",
+                &dl_settings.vanilla_source_url,
+            )
         };
 
         if is_cancelled(cancel) {
@@ -129,7 +141,11 @@ pub async fn install_vanilla_core<R: Runtime>(
         if !res.status().is_success() {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                format!("Failed to download version manifest {}: {}", version_id, res.status()),
+                format!(
+                    "Failed to download version manifest {}: {}",
+                    version_id,
+                    res.status()
+                ),
             )
             .into());
         }
@@ -161,14 +177,22 @@ pub async fn install_vanilla_core<R: Runtime>(
         }
     }
 
-    let jar_url = parsed_json["downloads"]["client"]["url"].as_str().ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::NotFound, "Missing client URL in version JSON")
-    })?;
+    let jar_url = parsed_json["downloads"]["client"]["url"]
+        .as_str()
+        .ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Missing client URL in version JSON",
+            )
+        })?;
 
     let mirror_jar_url = if dl_settings.vanilla_source == "official" {
         jar_url.to_string()
     } else {
-        jar_url.replace("https://piston-data.mojang.com", &dl_settings.vanilla_source_url)
+        jar_url.replace(
+            "https://piston-data.mojang.com",
+            &dl_settings.vanilla_source_url,
+        )
     };
 
     let mut success = false;
@@ -259,7 +283,8 @@ pub async fn install_vanilla_core<R: Runtime>(
                     break;
                 }
                 Err(_) => {
-                    stream_error = Some(format!("download stalled for {}s", stall_timeout.as_secs()));
+                    stream_error =
+                        Some(format!("download stalled for {}s", stall_timeout.as_secs()));
                     break;
                 }
             }
@@ -317,9 +342,7 @@ pub async fn install_vanilla_core<R: Runtime>(
             format!(
                 "Failed to download game core after {} attempts{}",
                 max_attempts,
-                last_error
-                    .map(|e| format!(": {}", e))
-                    .unwrap_or_default()
+                last_error.map(|e| format!(": {}", e)).unwrap_or_default()
             ),
         )
         .into());

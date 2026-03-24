@@ -1,9 +1,9 @@
 use crate::domain::event::DownloadProgressEvent;
 use crate::services::config_service::ConfigService;
+use crate::services::deployment_cancel::is_cancelled;
 use crate::services::downloader::dependencies::{
     run_downloads, sha1_file, DownloadStage, DownloadTask,
 };
-use crate::services::deployment_cancel::is_cancelled;
 use futures::stream::{iter, StreamExt};
 use reqwest::Client;
 use serde::Deserialize;
@@ -15,12 +15,12 @@ use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Runtime};
 
+use super::logic::ModpackSourceHint;
 use super::logic::{build_instance_config, safe_relative_path, sanitize_instance_id};
 use super::ops::{
     create_instance_layout, detect_modpack_source, extract_overrides, open_modpack_archive,
     parse_modpack, read_zip_entry_to_string, resolve_base_dir,
 };
-use super::logic::ModpackSourceHint;
 
 #[derive(Deserialize)]
 struct CurseForgeEnvelope<T> {
@@ -153,7 +153,10 @@ fn curseforge_edge_url(file_id: u64, file_name: &str) -> String {
     let prefix = file_id / 1000;
     let suffix = file_id % 1000;
     let encoded = percent_encode(file_name);
-    format!("https://edge.forgecdn.net/files/{}/{:03}/{}", prefix, suffix, encoded)
+    format!(
+        "https://edge.forgecdn.net/files/{}/{:03}/{}",
+        prefix, suffix, encoded
+    )
 }
 
 async fn fetch_curseforge_file_info(
@@ -327,15 +330,7 @@ async fn execute_import_inner<R: Runtime>(
         },
     );
 
-    fetch_modpack_mods(
-        app,
-        zip_path,
-        &instance_root,
-        instance_id,
-        base_dir,
-        cancel,
-    )
-    .await?;
+    fetch_modpack_mods(app, zip_path, &instance_root, instance_id, base_dir, cancel).await?;
 
     if is_cancelled(cancel) {
         return Err("Cancelled".to_string());
@@ -478,7 +473,12 @@ async fn download_modrinth_mods<R: Runtime>(
 
         if target_path.exists() {
             let size_matches = expected_size
-                .map(|size| target_path.metadata().map(|m| m.len() == size).unwrap_or(false))
+                .map(|size| {
+                    target_path
+                        .metadata()
+                        .map(|m| m.len() == size)
+                        .unwrap_or(false)
+                })
                 .unwrap_or(false);
 
             if size_matches {
@@ -499,9 +499,7 @@ async fn download_modrinth_mods<R: Runtime>(
         }
 
         let tmp_file_name = format!("{}.tmp", file_name);
-        let temp_path = temp_root
-            .join(&relative_path)
-            .with_file_name(tmp_file_name);
+        let temp_path = temp_root.join(&relative_path).with_file_name(tmp_file_name);
 
         tasks.push(DownloadTask {
             url: url.to_string(),
@@ -631,7 +629,12 @@ async fn download_curseforge_mods<R: Runtime>(
         let target_path = instance_root.join("mods").join(&file_name);
         if target_path.exists() {
             let size_matches = expected_size
-                .map(|size| target_path.metadata().map(|m| m.len() == size).unwrap_or(false))
+                .map(|size| {
+                    target_path
+                        .metadata()
+                        .map(|m| m.len() == size)
+                        .unwrap_or(false)
+                })
                 .unwrap_or(false);
 
             if size_matches {

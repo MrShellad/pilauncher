@@ -51,4 +51,3 @@ pub fn route_asset_object_url(prefix: &str, hash: &str, dl_settings: &DownloadSe
         )
     }
 }
-

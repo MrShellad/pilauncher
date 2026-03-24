@@ -2,8 +2,8 @@
 use crate::domain::lan::DiscoveredDevice;
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
 use std::collections::HashMap;
-use std::time::Duration;
 use std::sync::OnceLock;
+use std::time::Duration;
 // ✅ 引入获取真实 IP 的库
 use local_ip_address::local_ip;
 
@@ -11,9 +11,9 @@ pub struct MdnsScanner;
 
 fn get_mdns_daemon() -> ServiceDaemon {
     static DAEMON: OnceLock<ServiceDaemon> = OnceLock::new();
-    DAEMON.get_or_init(|| {
-        ServiceDaemon::new().expect("Failed to create mDNS daemon")
-    }).clone()
+    DAEMON
+        .get_or_init(|| ServiceDaemon::new().expect("Failed to create mDNS daemon"))
+        .clone()
 }
 
 impl MdnsScanner {
@@ -24,11 +24,11 @@ impl MdnsScanner {
         let service_type = "_pilauncher._tcp.local.";
         // instance_name 可以包含下划线，这是给人看的 (服务名)
         let instance_name = format!("{}_{}", device_name, device_id);
-        
+
         // ✅ 核心修复 1：Hostname 绝对不能包含下划线！我们把 UUID 的破折号也去掉，只留纯字母数字
         let clean_hostname = device_id.replace("-", "").to_lowercase();
         let host_name = format!("{}.local.", clean_hostname);
-        
+
         // ✅ 核心修复 2：动态获取真实的局域网 IPv4 地址。决不能用 0.0.0.0！
         let ip = match local_ip() {
             Ok(addr) => addr.to_string(),
@@ -53,7 +53,10 @@ impl MdnsScanner {
         )
         .unwrap();
 
-        println!("[mDNS 广播] 开始向局域网宣告自己 -> IP: {}, Host: {}", ip, host_name);
+        println!(
+            "[mDNS 广播] 开始向局域网宣告自己 -> IP: {}, Host: {}",
+            ip, host_name
+        );
 
         mdns.register(service_info)
             .expect("Failed to register mDNS service");
@@ -61,7 +64,7 @@ impl MdnsScanner {
 
     /// 阻塞式扫描
     pub async fn scan_for_seconds(seconds: u64) -> Result<Vec<DiscoveredDevice>, String> {
-        let mdns = get_mdns_daemon(); 
+        let mdns = get_mdns_daemon();
         let service_type = "_pilauncher._tcp.local.";
         let receiver = mdns.browse(service_type).map_err(|e| e.to_string())?;
 

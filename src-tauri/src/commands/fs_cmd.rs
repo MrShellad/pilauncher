@@ -58,7 +58,7 @@ pub async fn list_valid_dirs(path: String) -> Result<Vec<DirNode>, String> {
             if let Ok(file_type) = entry.file_type() {
                 if file_type.is_dir() {
                     let name = entry.file_name().to_string_lossy().to_string();
-                    if !name.starts_with('.') && name.is_ascii() {
+                    if name.is_ascii() {
                         dirs.push(DirNode {
                             name,
                             path: entry.path().to_string_lossy().to_string(),

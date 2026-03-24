@@ -2,7 +2,7 @@
 use crate::error::AppResult;
 use crate::services::launcher::LauncherService;
 // ✅ 核心修改 1：引入新的统一账号模型
-use crate::domain::launcher::Account; 
+use crate::domain::launcher::Account;
 use tauri::{AppHandle, Runtime};
 
 #[tauri::command]
@@ -58,13 +58,17 @@ pub async fn export_diagnostics<R: Runtime>(
     let instance_dir = base_dir.join("instances").join(&instance_id);
 
     // 以 Unix 时间戳命名，保存在根目录
-    let unix_time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+    let unix_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
     let zip_filename = format!("PiLog-{}.zip", unix_time);
     let zip_path = base_dir.join(&zip_filename);
 
     let file = std::fs::File::create(&zip_path).map_err(|e| e.to_string())?;
     let mut zip = zip::ZipWriter::new(file);
-    let options = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
 
     // 1. 写入启动器实时捕获的控制台日志
     let _ = zip.start_file("launcher_log.txt", options);
@@ -138,7 +142,11 @@ pub async fn export_diagnostics<R: Runtime>(
     }
 
     // 6. 附加系统软硬件信息
-    let sys_info = format!("OS: {}\nARCH: {}\n", std::env::consts::OS, std::env::consts::ARCH);
+    let sys_info = format!(
+        "OS: {}\nARCH: {}\n",
+        std::env::consts::OS,
+        std::env::consts::ARCH
+    );
     let _ = zip.start_file("system_info.txt", options);
     let _ = zip.write_all(sys_info.as_bytes());
 

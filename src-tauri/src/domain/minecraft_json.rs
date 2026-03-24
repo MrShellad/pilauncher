@@ -6,8 +6,8 @@ use std::collections::HashMap;
 pub struct VersionManifestJson {
     // ✅ 修复核心：必须用 Option 包裹！因为 Fabric/Forge 的 JSON 根本没有这个字段
     #[serde(rename = "assetIndex")]
-    pub asset_index: Option<AssetIndexMeta>, 
-    
+    pub asset_index: Option<AssetIndexMeta>,
+
     pub libraries: Vec<LibraryEntry>,
 }
 

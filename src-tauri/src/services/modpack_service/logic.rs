@@ -59,7 +59,10 @@ pub fn parse_curseforge_metadata(contents: &str) -> Result<ModpackMetadata, Stri
         serde_json::from_str(contents).map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
     let name = json["name"].as_str().unwrap_or("Unnamed Pack").to_string();
-    let author = json["author"].as_str().unwrap_or("Unknown Author").to_string();
+    let author = json["author"]
+        .as_str()
+        .unwrap_or("Unknown Author")
+        .to_string();
     let version = json["minecraft"]["version"]
         .as_str()
         .unwrap_or("Unknown")

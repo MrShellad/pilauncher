@@ -1,15 +1,15 @@
 // src-tauri/src/commands/modpack_cmd.rs
-use crate::services::modpack_service;
-use crate::domain::modpack::ModpackMetadata;
 use crate::domain::event::DownloadProgressEvent;
-use tauri::{AppHandle, Runtime, Emitter};
+use crate::domain::modpack::ModpackMetadata;
+use crate::services::config_service::ConfigService;
+use crate::services::deployment_cancel;
+use crate::services::modpack_service;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
-use crate::services::config_service::ConfigService;
-use crate::services::deployment_cancel;
-use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
+use tauri::{AppHandle, Emitter, Runtime};
 
 #[derive(Serialize, Deserialize)]
 pub struct MissingRuntime {
@@ -23,6 +23,131 @@ pub struct MissingRuntime {
 pub struct ImportResult {
     pub added: usize,
     pub missing: Vec<MissingRuntime>,
+}
+
+/// 辅助函数：深度解析第三方 JSON 内容以获取准确的版本与 Loader
+/// 返回: (mc_version, loader_type, loader_version)
+fn parse_third_party_json(dir_name: &str, json: &serde_json::Value) -> (String, String, String) {
+    let mut mc_version = dir_name.to_string();
+    let mut loader_type = "vanilla".to_string();
+    let mut loader_version = "".to_string();
+
+    // 1. 如果存在 inheritsFrom（常规的剥离式 JSON），这是最直接的 mc_version 来源。
+    if let Some(inherits) = json.get("inheritsFrom").and_then(|v| v.as_str()) {
+        mc_version = inherits.to_string();
+    }
+
+    // 2. 尝试从 arguments.game 中提取准确的版本信息（Forge/NeoForge 适用）
+    if let Some(args) = json
+        .get("arguments")
+        .and_then(|a| a.get("game"))
+        .and_then(|g| g.as_array())
+    {
+        let mut iter = args.iter();
+        while let Some(arg) = iter.next() {
+            if let Some(arg_str) = arg.as_str() {
+                if arg_str == "--fml.mcVersion" {
+                    if let Some(val) = iter.next().and_then(|v| v.as_str()) {
+                        mc_version = val.to_string();
+                    }
+                } else if arg_str == "--fml.forgeVersion" {
+                    if let Some(val) = iter.next().and_then(|v| v.as_str()) {
+                        loader_type = "forge".to_string();
+                        loader_version = val.to_string();
+                    }
+                } else if arg_str == "--fml.neoForgeVersion" {
+                    if let Some(val) = iter.next().and_then(|v| v.as_str()) {
+                        loader_type = "neoforge".to_string();
+                        loader_version = val.to_string();
+                    }
+                }
+            }
+        }
+    }
+
+    // 3. 尝试从 libraries 数组中提取（Fabric/Quilt 适用，也兜底其他情况）
+    if loader_type == "vanilla" || loader_version.is_empty() || mc_version == dir_name {
+        if let Some(libs) = json.get("libraries").and_then(|l| l.as_array()) {
+            for lib in libs {
+                if let Some(name) = lib.get("name").and_then(|n| n.as_str()) {
+                    // net.fabricmc:fabric-loader:0.18.4
+                    if name.starts_with("net.fabricmc:fabric-loader:") {
+                        loader_type = "fabric".to_string();
+                        if let Some(ver) = name.split(':').nth(2) {
+                            loader_version = ver.to_string();
+                        }
+                    } else if name.starts_with("org.quiltmc:quilt-loader:") {
+                        loader_type = "quilt".to_string();
+                        if let Some(ver) = name.split(':').nth(2) {
+                            loader_version = ver.to_string();
+                        }
+                    } else if name.starts_with("net.neoforged:neoforge:") {
+                        loader_type = "neoforge".to_string();
+                        if let Some(ver) = name.split(':').nth(2) {
+                            loader_version = ver.to_string();
+                        }
+                    } else if name.starts_with("net.minecraftforge:forge:") {
+                        loader_type = "forge".to_string();
+                        if let Some(ver) = name.split(':').nth(2) {
+                            // forge 包格式一般是: {mc_version}-{forge_version}
+                            let v_str = ver.to_string();
+                            if v_str.contains('-') {
+                                loader_version =
+                                    v_str.split('-').nth(1).unwrap_or(&v_str).to_string();
+                            } else {
+                                loader_version = v_str;
+                            }
+                        }
+                    }
+
+                    // 获取 Fabric/Quilt 的 mc_version（通过 intermediary 或 hashed）
+                    if mc_version == dir_name || mc_version.is_empty() {
+                        if name.starts_with("net.fabricmc:intermediary:")
+                            || name.starts_with("org.quiltmc:hashed:")
+                        {
+                            if let Some(ver) = name.split(':').nth(2) {
+                                mc_version = ver.to_string();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 4. 兜底方案：从文件夹名称启发式推断（如果依然没有任何特征）
+    if loader_type == "vanilla" && loader_version.is_empty() {
+        let id_lower = dir_name.to_lowercase();
+        if id_lower.contains("neoforge") {
+            loader_type = "neoforge".to_string();
+            let parts: Vec<&str> = dir_name.split("neoforge-").collect();
+            if parts.len() >= 2 {
+                loader_version = parts[1].to_string();
+            }
+        } else if id_lower.contains("forge") {
+            loader_type = "forge".to_string();
+            let parts: Vec<&str> = dir_name.split("-forge-").collect();
+            if parts.len() == 2 {
+                loader_version = parts[1].to_string();
+            }
+        } else if id_lower.contains("fabric") {
+            loader_type = "fabric".to_string();
+            let parts: Vec<&str> = dir_name.split('-').collect();
+            if parts.len() >= 3 && parts[0] == "fabric" && parts[1] == "loader" {
+                loader_version = parts[2].to_string();
+            } else if parts.len() >= 2 && parts[1].contains("Fabric ") {
+                loader_version = parts[1].replace("Fabric ", "");
+            }
+        } else if id_lower.contains("quilt") {
+            loader_type = "quilt".to_string();
+            let parts: Vec<&str> = dir_name.split('-').collect();
+            if parts.len() >= 3 {
+                loader_version = parts[2].to_string();
+            }
+        }
+    }
+
+    (mc_version, loader_type, loader_version)
 }
 
 fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result<()> {
@@ -67,7 +192,10 @@ fn copy_and_check_instance(
 
     if !config.loader.r#type.eq_ignore_ascii_case("vanilla") && !config.loader.version.is_empty() {
         let loader_folder = match config.loader.r#type.to_lowercase().as_str() {
-            "fabric" => format!("fabric-loader-{}-{}", config.loader.version, config.mc_version),
+            "fabric" => format!(
+                "fabric-loader-{}-{}",
+                config.loader.version, config.mc_version
+            ),
             "forge" => format!("{}-forge-{}", config.mc_version, config.loader.version),
             "neoforge" => format!("neoforge-{}", config.loader.version),
             _ => "".to_string(),
@@ -129,7 +257,9 @@ pub async fn import_local_instances_folders<R: Runtime>(
             for entry in entries.flatten() {
                 let child = entry.path();
                 if child.is_dir() && child.join("instance.json").exists() {
-                    if let Ok(missing) = copy_and_check_instance(&child, &instances_dir, &runtime_dir) {
+                    if let Ok(missing) =
+                        copy_and_check_instance(&child, &instances_dir, &runtime_dir)
+                    {
                         added_count += 1;
                         if let Some(m) = missing {
                             missing_list.push(m);
@@ -156,47 +286,23 @@ pub async fn import_third_party_instance<R: Runtime>(
         return Err("所选路径不是一个有效的文件夹。".to_string());
     }
 
-    let id = dir_path.file_name()
+    let id = dir_path
+        .file_name()
         .and_then(|n| n.to_str())
         .ok_or_else(|| "非法的文件夹名称。".to_string())?;
 
     let json_path = dir_path.join(format!("{}.json", id));
     if !json_path.exists() {
-        return Err(format!("找不到 {}.json。请选择第三方启动器内的 versions/{{版本名}} 目录！", id));
+        return Err(format!(
+            "找不到 {}.json。请选择第三方启动器内的 versions/{{版本名}} 目录！",
+            id
+        ));
     }
 
     let content = fs::read_to_string(&json_path).map_err(|e| e.to_string())?;
     let json: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
 
-    let mut mc_version = id.to_string();
-    let mut loader_type = "vanilla".to_string();
-    let mut loader_version = "".to_string();
-
-    if let Some(inherits) = json.get("inheritsFrom").and_then(|v| v.as_str()) {
-        mc_version = inherits.to_string();
-        let id_lower = id.to_lowercase();
-        if id_lower.contains("forge") && !id_lower.contains("neo") {
-            loader_type = "forge".to_string();
-            // 尝试提取 Forge 版本, 例如 1.19.2-forge-43.2.0 -> 43.2.0
-            let parts: Vec<&str> = id.split("-forge-").collect();
-            if parts.len() == 2 {
-                loader_version = parts[1].to_string();
-            }
-        } else if id_lower.contains("neoforge") {
-            loader_type = "neoforge".to_string();
-            let parts: Vec<&str> = id.split("neoforge-").collect();
-            if parts.len() >= 2 {
-                loader_version = parts[1].to_string();
-            }
-        } else if id_lower.contains("fabric") {
-            loader_type = "fabric".to_string();
-            // fabric-loader-0.14.21-1.19.2 -> 0.14.21
-            let parts: Vec<&str> = id.split("-").collect();
-            if parts.len() >= 3 && parts[0] == "fabric" && parts[1] == "loader" {
-                loader_version = parts[2].to_string();
-            }
-        }
-    }
+    let (mc_version, loader_type, loader_version) = parse_third_party_json(&id, &json);
 
     let base_path_str = ConfigService::get_base_path(&app)
         .map_err(|e| e.to_string())?
@@ -240,11 +346,20 @@ pub async fn import_third_party_instance<R: Runtime>(
     };
 
     let config_content = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
-    fs::write(dest_dir.join("instance.json"), config_content).map_err(|e| e.to_string())?;
+    fs::write(dest_dir.join("instance.json"), &config_content).map_err(|e| e.to_string())?;
+    // Add instance.json to the original directory as well so the launcher core finds it
+    let _ = fs::write(dir_path.join("instance.json"), &config_content);
 
     let mut is_missing = false;
-    let core_json = runtime_dir.join("versions").join(&mc_version).join(format!("{}.json", mc_version));
-    if !core_json.exists() {
+    let core_json = runtime_dir
+        .join("versions")
+        .join(&mc_version)
+        .join(format!("{}.json", mc_version));
+    let core_jar = runtime_dir
+        .join("versions")
+        .join(&mc_version)
+        .join(format!("{}.jar", mc_version));
+    if !core_json.exists() || !core_jar.exists() {
         is_missing = true;
     }
 
@@ -256,7 +371,10 @@ pub async fn import_third_party_instance<R: Runtime>(
             _ => "".to_string(),
         };
         if !loader_folder.is_empty() {
-            let loader_json = runtime_dir.join("versions").join(&loader_folder).join(format!("{}.json", loader_folder));
+            let loader_json = runtime_dir
+                .join("versions")
+                .join(&loader_folder)
+                .join(format!("{}.json", loader_folder));
             if !loader_json.exists() {
                 is_missing = true;
             }
@@ -356,10 +474,14 @@ pub async fn import_modpack<R: Runtime>(
     instance_name: String,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn(async move {
-        let i_id = instance_name.replace(' ', "_").replace('/', "").replace('\\', "");
+        let i_id = instance_name
+            .replace(' ', "_")
+            .replace('/', "")
+            .replace('\\', "");
 
         let cancel = deployment_cancel::register(&i_id);
-        let result = modpack_service::execute_import(&app, &zip_path, &instance_name, &cancel).await;
+        let result =
+            modpack_service::execute_import(&app, &zip_path, &instance_name, &cancel).await;
         deployment_cancel::unregister(&i_id);
 
         if let Err(e) = result {
@@ -388,7 +510,10 @@ pub async fn download_and_import_modpack<R: Runtime>(
     instance_name: String,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn(async move {
-        let i_id = instance_name.replace(' ', "_").replace('/', "").replace('\\', "");
+        let i_id = instance_name
+            .replace(' ', "_")
+            .replace('/', "")
+            .replace('\\', "");
 
         let _ = app.emit(
             "instance-deployment-progress",
@@ -448,10 +573,7 @@ pub async fn download_and_import_modpack<R: Runtime>(
                         file_name: "".to_string(),
                         current: 0,
                         total: 100,
-                        message: format!(
-                            "Modpack download failed (HTTP {})",
-                            res.status()
-                        ),
+                        message: format!("Modpack download failed (HTTP {})", res.status()),
                     },
                 );
                 return;
@@ -502,6 +624,186 @@ pub async fn download_and_import_modpack<R: Runtime>(
     Ok(())
 }
 
+/// 扫描一个上级目录，自动识别并批量导入 Minecraft 实例。
+/// 支持三种模式：
+///   A. 目录本身含 instance.json（PiLauncher 实例）→ 直接导入
+///   B. 子目录含 instance.json（PiLauncher 批量实例）→ 批量导入
+///   C. 子目录含 {name}.json（第三方启动器 versions 格式）→ 批量第三方导入
+#[tauri::command]
+pub async fn scan_instances_in_dir<R: Runtime>(
+    app: AppHandle<R>,
+    path: String,
+) -> Result<ImportResult, String> {
+    let root = PathBuf::from(&path);
+    if !root.exists() || !root.is_dir() {
+        return Err("所选路径不是一个有效的文件夹。".to_string());
+    }
+
+    let base_path_str = ConfigService::get_base_path(&app)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Base path is not configured".to_string())?;
+    let instances_dir = PathBuf::from(&base_path_str).join("instances");
+    let runtime_dir = PathBuf::from(&base_path_str).join("runtime");
+    fs::create_dir_all(&instances_dir).map_err(|e| e.to_string())?;
+
+    let mut added_count = 0;
+    let mut missing_list = Vec::new();
+
+    // Case A: 目录本身是 PiLauncher 实例
+    if root.join("instance.json").exists() {
+        if let Ok(missing) = copy_and_check_instance(&root, &instances_dir, &runtime_dir) {
+            added_count += 1;
+            if let Some(m) = missing {
+                missing_list.push(m);
+            }
+        }
+        return Ok(ImportResult {
+            added: added_count,
+            missing: missing_list,
+        });
+    }
+
+    // Case B & C: 扫描子目录
+    let entries = fs::read_dir(&root).map_err(|e| e.to_string())?;
+    for entry in entries.flatten() {
+        let child = entry.path();
+        if !child.is_dir() {
+            continue;
+        }
+
+        // Case B: 子目录含 instance.json（PiLauncher 实例）
+        if child.join("instance.json").exists() {
+            if let Ok(missing) = copy_and_check_instance(&child, &instances_dir, &runtime_dir) {
+                added_count += 1;
+                if let Some(m) = missing {
+                    missing_list.push(m);
+                }
+            }
+            continue;
+        }
+
+        // Case C: 子目录含 {name}.json（第三方启动器 versions 格式）
+        let dir_name = child
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_string();
+        if dir_name.is_empty() {
+            continue;
+        }
+        let version_json = child.join(format!("{}.json", dir_name));
+        if !version_json.exists() {
+            continue;
+        }
+
+        // 已经存在则跳过（避免重复）
+        let dest_dir = instances_dir.join(&dir_name);
+        if dest_dir.exists() {
+            continue;
+        }
+
+        // 解析第三方版本信息
+        let content = match fs::read_to_string(&version_json) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        let json: serde_json::Value = match serde_json::from_str(&content) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+
+        let (mc_version, loader_type, loader_version) = parse_third_party_json(&dir_name, &json);
+
+        fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
+
+        let config = crate::domain::instance::InstanceConfig {
+            id: dir_name.clone(),
+            name: dir_name.clone(),
+            mc_version: mc_version.clone(),
+            loader: crate::domain::instance::LoaderConfig {
+                r#type: loader_type.clone(),
+                version: loader_version.clone(),
+            },
+            java: crate::domain::instance::JavaConfig {
+                path: "auto".to_string(),
+                version: "auto".to_string(),
+            },
+            memory: crate::domain::instance::MemoryConfig {
+                min: 1024,
+                max: 4096,
+            },
+            resolution: crate::domain::instance::ResolutionConfig {
+                width: 854,
+                height: 480,
+            },
+            play_time: 0.0,
+            last_played: "".to_string(),
+            created_at: chrono::Local::now().to_rfc3339(),
+            cover_image: None,
+            hero_logo: None,
+            gamepad: None,
+            custom_buttons: None,
+            third_party_path: Some(child.to_string_lossy().to_string()),
+        };
+
+        let config_content = match serde_json::to_string_pretty(&config) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        if fs::write(dest_dir.join("instance.json"), &config_content).is_err() {
+            continue;
+        }
+        // Add instance.json to the original directory as well so the launcher core finds it
+        let _ = fs::write(child.join("instance.json"), &config_content);
+
+        // 检查运行环境
+        let mut is_missing = false;
+        let core_json = runtime_dir
+            .join("versions")
+            .join(&mc_version)
+            .join(format!("{}.json", mc_version));
+        let core_jar = runtime_dir
+            .join("versions")
+            .join(&mc_version)
+            .join(format!("{}.jar", mc_version));
+        if !core_json.exists() || !core_jar.exists() {
+            is_missing = true;
+        }
+        if loader_type != "vanilla" && !loader_version.is_empty() {
+            let loader_folder = match loader_type.as_str() {
+                "fabric" => format!("fabric-loader-{}-{}", loader_version, mc_version),
+                "forge" => format!("{}-forge-{}", mc_version, loader_version),
+                "neoforge" => format!("neoforge-{}", loader_version),
+                _ => "".to_string(),
+            };
+            if !loader_folder.is_empty() {
+                let loader_json = runtime_dir
+                    .join("versions")
+                    .join(&loader_folder)
+                    .join(format!("{}.json", loader_folder));
+                if !loader_json.exists() {
+                    is_missing = true;
+                }
+            }
+        }
+
+        added_count += 1;
+        if is_missing {
+            missing_list.push(MissingRuntime {
+                instance_id: dir_name.clone(),
+                mc_version,
+                loader_type,
+                loader_version,
+            });
+        }
+    }
+
+    Ok(ImportResult {
+        added: added_count,
+        missing: missing_list,
+    })
+}
+
 use crate::services::modpack_service::export::ExportConfig;
 
 #[tauri::command]
@@ -510,4 +812,65 @@ pub async fn export_modpack<R: Runtime>(
     config: ExportConfig,
 ) -> Result<(), String> {
     modpack_service::export::execute_export(&app, config).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_parse_third_party_json_forge() {
+        let json_data = json!({
+            "arguments": {
+                "game": [
+                    "--fml.mcVersion", "1.20.1",
+                    "--fml.forgeVersion", "47.4.18"
+                ]
+            }
+        });
+        let (mc, loader, version) = parse_third_party_json("1.20.1-Forge_47.4.18", &json_data);
+        assert_eq!(mc, "1.20.1");
+        assert_eq!(loader, "forge");
+        assert_eq!(version, "47.4.18");
+    }
+
+    #[test]
+    fn test_parse_third_party_json_neoforge() {
+        let json_data = json!({
+            "arguments": {
+                "game": [
+                    "--fml.mcVersion", "1.21.1",
+                    "--fml.neoForgeVersion", "21.1.113"
+                ]
+            }
+        });
+        let (mc, loader, version) = parse_third_party_json("Cobblemon Modpack [NeoForge]", &json_data);
+        assert_eq!(mc, "1.21.1");
+        assert_eq!(loader, "neoforge");
+        assert_eq!(version, "21.1.113");
+    }
+
+    #[test]
+    fn test_parse_third_party_json_fabric() {
+        let json_data = json!({
+            "libraries": [
+                { "name": "net.fabricmc:fabric-loader:0.18.4" },
+                { "name": "net.fabricmc:intermediary:1.20.1" }
+            ]
+        });
+        let (mc, loader, version) = parse_third_party_json("1.20.1-Fabric 0.18.4", &json_data);
+        assert_eq!(mc, "1.20.1");
+        assert_eq!(loader, "fabric");
+        assert_eq!(version, "0.18.4");
+    }
+
+    #[test]
+    fn test_parse_third_party_json_fallback() {
+        let json_data = json!({});
+        let (mc, loader, version) = parse_third_party_json("1.19.2-forge-43.2.0", &json_data);
+        assert_eq!(mc, "1.19.2-forge-43.2.0");
+        assert_eq!(loader, "forge");
+        assert_eq!(version, "43.2.0");
+    }
 }

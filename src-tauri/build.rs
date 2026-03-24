@@ -8,7 +8,8 @@ const CURSEFORGE_KEY: &str = "CURSEFORGE_API_KEY";
 const VITE_CURSEFORGE_KEY: &str = "VITE_CURSEFORGE_API_KEY";
 
 fn main() {
-    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("missing CARGO_MANIFEST_DIR"));
+    let manifest_dir =
+        PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("missing CARGO_MANIFEST_DIR"));
     let root_env_path = manifest_dir
         .parent()
         .expect("src-tauri should have a project root parent")

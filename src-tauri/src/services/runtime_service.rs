@@ -65,7 +65,10 @@ pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, Str
     ];
 
     #[cfg(target_os = "macos")]
-    let base_dirs = vec!["/Library/Java/JavaVirtualMachines", "/System/Library/Java/JavaVirtualMachines"];
+    let base_dirs = vec![
+        "/Library/Java/JavaVirtualMachines",
+        "/System/Library/Java/JavaVirtualMachines",
+    ];
 
     #[cfg(target_os = "linux")]
     let base_dirs = vec!["/usr/lib/jvm", "/usr/java", "/opt/jdk"];
@@ -74,14 +77,16 @@ pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, Str
         if Path::new(dir).exists() {
             // ✅ macOS/Linux 下由于 JDK 目录经常包含替身/软链接，必须启用 follow_links
             for entry in WalkDir::new(dir)
-                .follow_links(true) 
+                .follow_links(true)
                 .max_depth(6) // ✅ 扩大层级以穿透 macOS (jdk/Contents/Home/bin/java 刚好 5 级)
                 .into_iter()
                 .filter_map(|e| e.ok())
             {
                 let p = entry.path();
                 #[cfg(target_os = "windows")]
-                let is_java = p.is_file() && (p.file_name().unwrap_or_default() == "java.exe" || p.file_name().unwrap_or_default() == "javaw.exe");
+                let is_java = p.is_file()
+                    && (p.file_name().unwrap_or_default() == "java.exe"
+                        || p.file_name().unwrap_or_default() == "javaw.exe");
                 #[cfg(not(target_os = "windows"))]
                 let is_java = p.is_file() && p.file_name().unwrap_or_default() == "java";
 
@@ -108,13 +113,15 @@ pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, Str
         if runtime_java_dir.exists() {
             for entry in walkdir::WalkDir::new(runtime_java_dir)
                 .follow_links(true) // ✅ 跨越软连
-                .max_depth(8)       // ✅ 放宽层级，避免解压嵌套过深导致漏扫
+                .max_depth(8) // ✅ 放宽层级，避免解压嵌套过深导致漏扫
                 .into_iter()
                 .filter_map(|e| e.ok())
             {
                 let p = entry.path();
                 #[cfg(target_os = "windows")]
-                let is_java = p.is_file() && (p.file_name().unwrap_or_default() == "java.exe" || p.file_name().unwrap_or_default() == "javaw.exe");
+                let is_java = p.is_file()
+                    && (p.file_name().unwrap_or_default() == "java.exe"
+                        || p.file_name().unwrap_or_default() == "javaw.exe");
                 #[cfg(not(target_os = "windows"))]
                 let is_java = p.is_file() && p.file_name().unwrap_or_default() == "java";
 

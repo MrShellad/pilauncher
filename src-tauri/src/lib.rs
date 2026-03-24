@@ -13,10 +13,10 @@ pub fn run() {
     let lan_state = Arc::new(services::lan::http_api::SharedLanState::new());
 
     let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
-
-        .manage(lan_state.clone()); 
+        .manage(lan_state.clone());
 
     builder = commands::register(builder);
 
@@ -36,7 +36,7 @@ pub fn run() {
             // ==========================================
             let app_dir = app.path().app_data_dir().expect("无法获取系统应用数据目录");
             let db_config_dir = app_dir.join("config");
-            
+
             let pool = tauri::async_runtime::block_on(async {
                 services::db_service::DbService::init_db(&db_config_dir).await
             }).expect("数据库初始化崩溃！请检查文件读写权限！");
@@ -58,7 +58,7 @@ pub fn run() {
                     Ok(Some(base_path_str)) => {
                         let config_dir = std::path::PathBuf::from(base_path_str).join("config");
                         let identity = services::lan::trust_store::TrustStore::get_or_create_identity(&config_dir);
-                        
+
                         println!("[PiLauncher] 🏷️ 加载本机身份成功 -> ID: {}, Name: {}", identity.device_id, identity.device_name);
 
                         services::lan::mdns_service::MdnsScanner::start_broadcast(
@@ -75,7 +75,7 @@ pub fn run() {
 
                 println!("[PiLauncher] 🌐 正在启动内部 HTTP RPC 服务器 (端口 9999)...");
                 println!("[PiLauncher] ========================================\n");
-                
+
                 services::lan::http_api::start_http_server(handle_for_lan, state_clone, 9999).await;
             });
 

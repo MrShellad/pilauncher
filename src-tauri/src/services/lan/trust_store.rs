@@ -30,9 +30,12 @@ impl TrustStore {
                         device_name = name.to_string();
                     }
                 }
-                
+
                 // 尝试读取当前激活的账户 UUID
-                if let Some(active_account) = json.pointer("/state/settings/activeAccountId").and_then(|v| v.as_str()) {
+                if let Some(active_account) = json
+                    .pointer("/state/settings/activeAccountId")
+                    .and_then(|v| v.as_str())
+                {
                     user_uuid = active_account.to_string();
                 }
             }
@@ -42,7 +45,7 @@ impl TrustStore {
             device_id,
             device_name,
             user_uuid,
-            private_key_b64: String::new(), 
+            private_key_b64: String::new(),
             public_key_b64: String::new(),
         }
     }
@@ -74,7 +77,7 @@ impl TrustStore {
         .execute(pool)
         .await
         .map_err(|e| format!("写入数据库失败: {}", e))?;
-        
+
         Ok(())
     }
 }

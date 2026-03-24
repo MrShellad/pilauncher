@@ -1,8 +1,8 @@
 // src-tauri/src/services/deployment_cancel.rs
+use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use once_cell::sync::Lazy;
 
 /// 全局取消令牌注册表：每个正在部署的 instance_id 对应一个 AtomicBool 标志
 static CANCEL_REGISTRY: Lazy<Mutex<HashMap<String, Arc<AtomicBool>>>> =

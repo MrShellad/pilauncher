@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
+use tauri::Manager;
 use tauri::{command, AppHandle, Runtime};
 use uuid::Uuid;
-use tauri::Manager;
 static SESSION_CACHE_TOKEN: Lazy<String> = Lazy::new(|| Uuid::new_v4().to_string());
 
 #[derive(Serialize, Deserialize)]
@@ -35,7 +35,10 @@ fn get_cache_file_path<R: Runtime>(
         })
         .collect::<String>();
 
-    Ok(app_data_dir.join("cache").join(folder).join(format!("{}.json", safe_name)))
+    Ok(app_data_dir
+        .join("cache")
+        .join(folder)
+        .join(format!("{}.json", safe_name)))
 }
 
 #[command]

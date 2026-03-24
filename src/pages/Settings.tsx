@@ -14,6 +14,7 @@ const GameSettings       = lazy(() => import('../features/Settings/components/ta
 const DownloadSettings   = lazy(() => import('../features/Settings/components/tabs/DownloadSettings').then(m => ({ default: m.DownloadSettings })));
 const AccountSettings    = lazy(() => import('../features/Settings/components/tabs/AccountSettings').then(m => ({ default: m.AccountSettings })));
 const AboutSettings      = lazy(() => import('../features/Settings/components/tabs/AboutSettings').then(m => ({ default: m.AboutSettings })));
+const DataSettings       = lazy(() => import('../features/Settings/components/tabs/DataSettings').then(m => ({ default: m.DataSettings })));
 
 import { OreToggleButton, type ToggleOption } from '../ui/primitives/OreToggleButton';
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
@@ -42,7 +43,7 @@ export const Settings: React.FC = () => {
     java: 'settings-java-autodetect',
     download: INITIAL_DOWNLOAD_FOCUS_KEY,
     account: 'btn-add-ms',
-    data: undefined,
+    data: 'settings-data-remove-dir-0',
     about: 'settings-about-github'
   }), []);
 
@@ -89,6 +90,7 @@ export const Settings: React.FC = () => {
       case 'game': return <GameSettings />;
       case 'download': return <DownloadSettings />;
       case 'account': return <AccountSettings />;
+      case 'data': return <DataSettings />;
       case 'about': return <AboutSettings />;
       default: return (
         <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-ore-text-muted font-minecraft border-2 border-dashed border-ore-gray-border mx-8 mt-8">

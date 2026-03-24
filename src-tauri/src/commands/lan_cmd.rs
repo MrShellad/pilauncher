@@ -1,25 +1,24 @@
 // src-tauri/src/commands/lan_cmd.rs
-use tauri::{AppHandle, State, Runtime, Manager};
-use sqlx::Row; // 用于获取结果集的列
+use sqlx::Row;
+use tauri::{AppHandle, Manager, Runtime, State}; // 用于获取结果集的列
 
-use crate::domain::lan::{DiscoveredDevice, DeviceInitInfo, TrustedDevice, TrustRequest, OnlineDeviceCheck};
+use crate::domain::lan::{
+    DeviceInitInfo, DiscoveredDevice, OnlineDeviceCheck, TrustRequest, TrustedDevice,
+};
 use crate::services::config_service::ConfigService;
-use crate::services::lan::trust_store::TrustStore;
-use crate::services::lan::mdns_service::MdnsScanner;
+use crate::services::db_service::AppDatabase;
 use crate::services::lan::http_api::SharedLanState;
+use crate::services::lan::mdns_service::MdnsScanner;
 use crate::services::lan::transfer_service;
-use crate::services::db_service::AppDatabase; 
-use std::sync::Arc;
+use crate::services::lan::trust_store::TrustStore;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 const PNG_SIGNATURE: [u8; 8] = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
 fn is_safe_user_uuid(user_uuid: &str) -> bool {
-    !user_uuid.is_empty()
-        && user_uuid
-            .chars()
-            .all(|c| c.is_ascii_hexdigit() || c == '-')
+    !user_uuid.is_empty() && user_uuid.chars().all(|c| c.is_ascii_hexdigit() || c == '-')
 }
 
 fn is_valid_png(bytes: &[u8]) -> bool {
@@ -38,7 +37,9 @@ pub async fn send_trust_request<R: Runtime>(
     target_ip: String,
     target_port: u16,
 ) -> Result<(), String> {
-    let base_path = ConfigService::get_base_path(&app).map_err(|e| e.to_string())?.unwrap();
+    let base_path = ConfigService::get_base_path(&app)
+        .map_err(|e| e.to_string())?
+        .unwrap();
     let config_dir = std::path::PathBuf::from(&base_path).join("config");
     let my_identity = TrustStore::get_or_create_identity(&config_dir);
 
@@ -46,12 +47,20 @@ pub async fn send_trust_request<R: Runtime>(
         device_id: my_identity.device_id,
         device_name: my_identity.device_name,
         user_uuid: my_identity.user_uuid,
-        public_key: my_identity.public_key_b64, 
+        public_key: my_identity.public_key_b64,
     };
 
-    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(30)).build().unwrap();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .unwrap();
     let url = format!("http://{}:{}/trust/request", target_ip, target_port);
-    let res = client.post(&url).json(&req_payload).send().await.map_err(|_| "网络连接失败".to_string())?;
+    let res = client
+        .post(&url)
+        .json(&req_payload)
+        .send()
+        .await
+        .map_err(|_| "网络连接失败".to_string())?;
 
     if res.status().is_success() {
         if let Ok(target_identity) = res.json::<TrustRequest>().await {
@@ -59,13 +68,14 @@ pub async fn send_trust_request<R: Runtime>(
             // 从对方的 /device/init 获取 username（此时 TrustRequest 没有 username，暂用空）
             let target_username = String::new(); // 将在前端通过 richInfo 补充
             TrustStore::add_trusted_device(
-                &db.pool, 
-                target_identity.device_id, 
-                target_identity.device_name, 
+                &db.pool,
+                target_identity.device_id,
+                target_identity.device_name,
                 target_identity.user_uuid,
                 target_username,
-                target_identity.public_key 
-            ).await?;
+                target_identity.public_key,
+            )
+            .await?;
             Ok(())
         } else {
             Err("对方数据格式异常".to_string())
@@ -78,7 +88,7 @@ pub async fn send_trust_request<R: Runtime>(
 #[tauri::command]
 pub async fn resolve_trust_request<R: Runtime>(
     app: AppHandle<R>,
-    state: State<'_, Arc<SharedLanState>>, 
+    state: State<'_, Arc<SharedLanState>>,
     db: State<'_, AppDatabase>,
     device_id: String,
     accept: bool,
@@ -88,12 +98,22 @@ pub async fn resolve_trust_request<R: Runtime>(
     public_key: String,
 ) -> Result<(), String> {
     let response_payload = if accept {
-        let base_path = ConfigService::get_base_path(&app).map_err(|e| e.to_string())?.unwrap();
+        let base_path = ConfigService::get_base_path(&app)
+            .map_err(|e| e.to_string())?
+            .unwrap();
         let config_dir = std::path::PathBuf::from(base_path).join("config");
-        
+
         // ✅ 异步等待插入（包含 username）
-        TrustStore::add_trusted_device(&db.pool, device_id.clone(), device_name, user_uuid, username, public_key).await?;
-        
+        TrustStore::add_trusted_device(
+            &db.pool,
+            device_id.clone(),
+            device_name,
+            user_uuid,
+            username,
+            public_key,
+        )
+        .await?;
+
         let my_identity = TrustStore::get_or_create_identity(&config_dir);
         Some(TrustRequest {
             device_id: my_identity.device_id,
@@ -102,17 +122,21 @@ pub async fn resolve_trust_request<R: Runtime>(
             public_key: my_identity.public_key_b64,
         })
     } else {
-        None 
+        None
     };
 
     if let Some(tx) = state.pending_trusts.lock().unwrap().remove(&device_id) {
-        let _ = tx.send(response_payload); 
+        let _ = tx.send(response_payload);
     }
     Ok(())
 }
 
 #[tauri::command]
-pub async fn update_lan_device_info(state: State<'_, Arc<SharedLanState>>, info: DeviceInitInfo, local_bg_path: String) -> Result<(), String> {
+pub async fn update_lan_device_info(
+    state: State<'_, Arc<SharedLanState>>,
+    info: DeviceInitInfo,
+    local_bg_path: String,
+) -> Result<(), String> {
     let mut current_info = state.current_device_info.lock().unwrap();
     *current_info = info;
     let mut bg_path = state.local_bg_path.lock().unwrap();
@@ -209,12 +233,15 @@ pub async fn get_trusted_devices(db: State<'_, AppDatabase>) -> Result<Vec<Trust
             trusted_at,
         });
     }
-    
+
     Ok(list)
 }
 
 #[tauri::command]
-pub async fn remove_trusted_device(db: State<'_, AppDatabase>, device_id: String) -> Result<(), String> {
+pub async fn remove_trusted_device(
+    db: State<'_, AppDatabase>,
+    device_id: String,
+) -> Result<(), String> {
     sqlx::query("DELETE FROM trusted_devices WHERE device_uuid = $1")
         .bind(&device_id)
         .execute(&db.pool)
@@ -258,8 +285,12 @@ pub async fn verify_trusted_devices(
 }
 
 #[tauri::command]
-pub async fn get_local_instances<R: Runtime>(app: AppHandle<R>) -> Result<Vec<serde_json::Value>, String> {
-    let base_path = ConfigService::get_base_path(&app).map_err(|e| e.to_string())?.unwrap_or_default();
+pub async fn get_local_instances<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let base_path = ConfigService::get_base_path(&app)
+        .map_err(|e| e.to_string())?
+        .unwrap_or_default();
     let inst_dir = std::path::PathBuf::from(base_path).join("instances");
     let mut list = Vec::new();
     if let Ok(entries) = fs::read_dir(inst_dir) {
@@ -274,9 +305,17 @@ pub async fn get_local_instances<R: Runtime>(app: AppHandle<R>) -> Result<Vec<se
 }
 
 #[tauri::command]
-pub async fn get_instance_saves<R: Runtime>(app: AppHandle<R>, instance_id: String) -> Result<Vec<String>, String> {
-    let base_path = ConfigService::get_base_path(&app).map_err(|e| e.to_string())?.unwrap_or_default();
-    let saves_dir = std::path::PathBuf::from(base_path).join("instances").join(instance_id).join("saves");
+pub async fn get_instance_saves<R: Runtime>(
+    app: AppHandle<R>,
+    instance_id: String,
+) -> Result<Vec<String>, String> {
+    let base_path = ConfigService::get_base_path(&app)
+        .map_err(|e| e.to_string())?
+        .unwrap_or_default();
+    let saves_dir = std::path::PathBuf::from(base_path)
+        .join("instances")
+        .join(instance_id)
+        .join("saves");
     let mut list = Vec::new();
     if let Ok(entries) = fs::read_dir(saves_dir) {
         for entry in entries.filter_map(|e| e.ok()) {
@@ -290,39 +329,72 @@ pub async fn get_instance_saves<R: Runtime>(app: AppHandle<R>, instance_id: Stri
 
 #[tauri::command]
 pub async fn push_to_device<R: Runtime>(
-    app: AppHandle<R>, target_ip: String, target_port: u16, transfer_type: String, target_id: String, save_name: Option<String>
+    app: AppHandle<R>,
+    target_ip: String,
+    target_port: u16,
+    transfer_type: String,
+    target_id: String,
+    save_name: Option<String>,
 ) -> Result<(), String> {
-    let base_path = ConfigService::get_base_path(&app).map_err(|e| e.to_string())?.unwrap_or_default();
+    let base_path = ConfigService::get_base_path(&app)
+        .map_err(|e| e.to_string())?
+        .unwrap_or_default();
     let instances_dir = std::path::PathBuf::from(&base_path).join("instances");
     let (src_dir, item_name) = if transfer_type == "instance" {
         (instances_dir.join(&target_id), target_id.clone())
     } else {
         let s_name = save_name.unwrap_or_default();
-        (instances_dir.join(&target_id).join("saves").join(&s_name), s_name)
+        (
+            instances_dir.join(&target_id).join("saves").join(&s_name),
+            s_name,
+        )
     };
-    if !src_dir.exists() { return Err("目标文件不存在".to_string()); }
-    let temp_zip = app.path().app_data_dir().unwrap().join(format!("{}.zip", uuid::Uuid::new_v4()));
+    if !src_dir.exists() {
+        return Err("目标文件不存在".to_string());
+    }
+    let temp_zip = app
+        .path()
+        .app_data_dir()
+        .unwrap()
+        .join(format!("{}.zip", uuid::Uuid::new_v4()));
     transfer_service::zip_dir(&src_dir, &temp_zip)?;
     let config_dir = std::path::PathBuf::from(base_path).join("config");
     let identity = TrustStore::get_or_create_identity(&config_dir);
-    let res = transfer_service::send_zip_to_device(&target_ip, target_port, &temp_zip, &transfer_type, &item_name, &identity.device_name).await;
-    let _ = fs::remove_file(temp_zip); 
+    let res = transfer_service::send_zip_to_device(
+        &target_ip,
+        target_port,
+        &temp_zip,
+        &transfer_type,
+        &item_name,
+        &identity.device_name,
+    )
+    .await;
+    let _ = fs::remove_file(temp_zip);
     res
 }
 
 #[tauri::command]
 pub async fn apply_received_transfer<R: Runtime>(
-    app: AppHandle<R>, temp_path: String, transfer_type: String, target_instance_id: Option<String>
+    app: AppHandle<R>,
+    temp_path: String,
+    transfer_type: String,
+    target_instance_id: Option<String>,
 ) -> Result<String, String> {
-    let base_path = ConfigService::get_base_path(&app).map_err(|e| e.to_string())?.unwrap_or_default();
+    let base_path = ConfigService::get_base_path(&app)
+        .map_err(|e| e.to_string())?
+        .unwrap_or_default();
     let zip_file = std::path::PathBuf::from(&temp_path);
-    
+
     // 1. 先解压到一个临时目录，以确定里面的文件夹名称
-    let temp_extract_dir = app.path().app_data_dir().unwrap().join(format!("ext_{}", uuid::Uuid::new_v4()));
+    let temp_extract_dir = app
+        .path()
+        .app_data_dir()
+        .unwrap()
+        .join(format!("ext_{}", uuid::Uuid::new_v4()));
     fs::create_dir_all(&temp_extract_dir).map_err(|e| e.to_string())?;
-    
+
     transfer_service::unzip_file(&zip_file, &temp_extract_dir)?;
-    
+
     // 2. 找到解压出来的顶级文件夹
     let entries = fs::read_dir(&temp_extract_dir).map_err(|e| e.to_string())?;
     let mut root_entry = None;
@@ -332,35 +404,38 @@ pub async fn apply_received_transfer<R: Runtime>(
             break;
         }
     }
-    
+
     let root_entry = root_entry.ok_or("ZIP 内未找到有效文件夹")?;
     let original_name = root_entry.file_name().to_string_lossy().to_string();
     let mut final_name = original_name.clone();
-    
+
     // 3. 确定最终目的地
     let dest_base = if transfer_type == "save" {
         let inst_id = target_instance_id.ok_or("必须指定目标实例")?;
-        std::path::PathBuf::from(&base_path).join("instances").join(inst_id).join("saves")
+        std::path::PathBuf::from(&base_path)
+            .join("instances")
+            .join(inst_id)
+            .join("saves")
     } else {
         std::path::PathBuf::from(&base_path).join("instances")
     };
-    
+
     fs::create_dir_all(&dest_base).ok();
-    
+
     // 4. 冲突检查与重命名
     let target_path = dest_base.join(&final_name);
     if target_path.exists() {
         let now = chrono::Local::now();
         final_name = format!("{}_{}", original_name, now.format("%Y%m%d_%H%M%S"));
     }
-    
+
     // 5. 移动到最终目的地
     let final_path = dest_base.join(&final_name);
     fs::rename(root_entry.path(), &final_path).map_err(|e| format!("移动文件失败: {}", e))?;
-    
+
     // 6. 清理
     let _ = fs::remove_dir_all(temp_extract_dir);
-    let _ = fs::remove_file(zip_file); 
-    
+    let _ = fs::remove_file(zip_file);
+
     Ok(final_name)
 }

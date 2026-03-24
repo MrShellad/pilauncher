@@ -8,7 +8,7 @@ pub struct DeviceCodeResponse {
     pub verification_uri: String,
     pub expires_in: u64,
     pub interval: u64,
-    pub message: Option<String>, 
+    pub message: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -16,7 +16,7 @@ pub struct MicrosoftTokenResponse {
     pub access_token: Option<String>,
     pub refresh_token: Option<String>,
     pub error: Option<String>,
-    pub error_description: Option<String>, 
+    pub error_description: Option<String>,
 }
 
 // ✅ 引入全新的强类型账号类型枚举

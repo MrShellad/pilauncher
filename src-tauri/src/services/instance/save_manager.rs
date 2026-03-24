@@ -36,7 +36,7 @@ pub struct SaveBackupMetadata {
 #[serde(rename_all = "camelCase")]
 pub struct SaveItem {
     pub folder_name: String,
-    pub world_name: String, 
+    pub world_name: String,
     pub size_bytes: u64,
     pub last_played_time: i64,
     pub created_time: i64,
@@ -170,51 +170,65 @@ impl SaveManagerService {
 
                     // ✅ 2. 核心智能缓存：比对 level.dat 与 缓存文件的修改时间
                     if meta_file.exists() {
-                        let level_mod = level_dat.metadata()
+                        let level_mod = level_dat
+                            .metadata()
                             .and_then(|m| m.modified())
                             .unwrap_or(std::time::UNIX_EPOCH);
-                        
-                        let meta_mod = meta_file.metadata()
+
+                        let meta_mod = meta_file
+                            .metadata()
                             .and_then(|m| m.modified())
                             .unwrap_or(std::time::UNIX_EPOCH);
-                        
+
                         // 如果缓存比 level.dat 更新，说明存档没被玩过，直接命中缓存！
                         if meta_mod >= level_mod {
                             if let Ok(content) = fs::read_to_string(&meta_file) {
-                                if let Ok(parsed) = serde_json::from_str::<SaveMetadataCache>(&content) {
+                                if let Ok(parsed) =
+                                    serde_json::from_str::<SaveMetadataCache>(&content)
+                                {
                                     cache_data = Some(parsed);
-                                    needs_update = false; 
+                                    needs_update = false;
                                 }
                             }
                         }
                     }
 
                     // ✅ 3. 读取缓存，或者重新计算数据
-                    let (world_name, size_bytes, last_played_time, created_time) = if let Some(c) = cache_data {
-                        (c.world_name, c.size_bytes, c.last_played_time, c.created_time)
-                    } else {
-                        // 缓存失效：执行耗时的体积计算
-                        let w_name = folder_name.clone(); // 预留给 NBT 解析使用
-                        let s_bytes = Self::get_dir_size(&path); 
-                        
-                        let meta_for_time = level_dat.metadata().unwrap_or_else(|_| entry.metadata().unwrap());
-                        let l_time = meta_for_time
-                            .modified()
-                            .unwrap_or(std::time::UNIX_EPOCH)
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap()
-                            .as_secs() as i64;
-                            
-                        let meta_for_create = entry.metadata().unwrap();
-                        let c_time = meta_for_create
-                            .created()
-                            .unwrap_or_else(|_| meta_for_create.modified().unwrap_or(std::time::UNIX_EPOCH))
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap()
-                            .as_secs() as i64;
-                            
-                        (w_name, s_bytes, l_time, c_time)
-                    };
+                    let (world_name, size_bytes, last_played_time, created_time) =
+                        if let Some(c) = cache_data {
+                            (
+                                c.world_name,
+                                c.size_bytes,
+                                c.last_played_time,
+                                c.created_time,
+                            )
+                        } else {
+                            // 缓存失效：执行耗时的体积计算
+                            let w_name = folder_name.clone(); // 预留给 NBT 解析使用
+                            let s_bytes = Self::get_dir_size(&path);
+
+                            let meta_for_time = level_dat
+                                .metadata()
+                                .unwrap_or_else(|_| entry.metadata().unwrap());
+                            let l_time = meta_for_time
+                                .modified()
+                                .unwrap_or(std::time::UNIX_EPOCH)
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_secs() as i64;
+
+                            let meta_for_create = entry.metadata().unwrap();
+                            let c_time = meta_for_create
+                                .created()
+                                .unwrap_or_else(|_| {
+                                    meta_for_create.modified().unwrap_or(std::time::UNIX_EPOCH)
+                                })
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_secs() as i64;
+
+                            (w_name, s_bytes, l_time, c_time)
+                        };
 
                     // ✅ 4. 写入缓存文件
                     if needs_update {
@@ -240,7 +254,7 @@ impl SaveManagerService {
                 }
             }
         }
-        
+
         saves.sort_by(|a, b| b.last_played_time.cmp(&a.last_played_time));
         Ok(saves)
     }
@@ -405,20 +419,31 @@ impl SaveManagerService {
         Ok(backups)
     }
 
-    pub fn open_saves_folder<R: Runtime>(app: &AppHandle<R>, instance_id: &str) -> Result<(), String> {
+    pub fn open_saves_folder<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+    ) -> Result<(), String> {
         let saves_dir = Self::get_instance_dir(app, instance_id)?.join("saves");
         fs::create_dir_all(&saves_dir).ok();
 
         #[cfg(target_os = "windows")]
-        std::process::Command::new("explorer").arg(&saves_dir).spawn().map_err(|e| e.to_string())?;
+        std::process::Command::new("explorer")
+            .arg(&saves_dir)
+            .spawn()
+            .map_err(|e| e.to_string())?;
 
         #[cfg(target_os = "macos")]
-        std::process::Command::new("open").arg(&saves_dir).spawn().map_err(|e| e.to_string())?;
+        std::process::Command::new("open")
+            .arg(&saves_dir)
+            .spawn()
+            .map_err(|e| e.to_string())?;
 
         #[cfg(target_os = "linux")]
-        std::process::Command::new("xdg-open").arg(&saves_dir).spawn().map_err(|e| e.to_string())?;
+        std::process::Command::new("xdg-open")
+            .arg(&saves_dir)
+            .spawn()
+            .map_err(|e| e.to_string())?;
 
         Ok(())
     }
 }
-

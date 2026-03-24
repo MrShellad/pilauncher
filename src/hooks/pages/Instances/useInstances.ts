@@ -69,11 +69,16 @@ export const useInstances = () => {
     setActiveTab('new-instance');
   };
   const handleImport = () => console.log('触发: 导入实例');
-  // 处理第三方实例导入
+  // 处理第三方/批量实例导入
   const handleAddThirdPartyFolder = async (path: string) => {
     try {
-      // 1. 调用后端解析并注册
-      const missingOpt: any = await invoke('import_third_party_instance', { path });
+      // 1. 调用后端批量扫描并注册
+      const result: { added: number, missing: any[] } = await invoke('scan_instances_in_dir', { path });
+
+      if (result.added === 0) {
+        alert('该目录下未扫描到任何实例。请选择包含 instance.json 或 {版本名}.json 的上级目录。');
+        return;
+      }
 
       // 2. 将此路径加入 settings.json 以供前端后续管理
       const { settings, updateGeneralSetting } = useSettingsStore.getState();
@@ -83,17 +88,18 @@ export const useInstances = () => {
       }
 
       // 3. 处理缺失的运行环境补充
-      if (missingOpt) {
+      if (result.missing && result.missing.length > 0) {
+        const missingCount = result.missing.length;
         const doDownload = window.confirm(
-          `成功添加第三方实例！\n\n但发现缺少本地运行环境：\nMinecraft ${missingOpt.mc_version} (${missingOpt.loader_type} ${missingOpt.loader_version})\n\n是否立即调用下载管理开始补全缺失的运行环境？`
+          `成功导入 ${result.added} 个实例！\n\n但发现有 ${missingCount} 个实例缺少本地运行环境。\n是否立即调用下载管理开始补全缺失的运行环境？`
         );
         if (doDownload) {
           setActiveTab('home');
           useDownloadStore.getState().setPopupOpen(true);
-          await invoke('download_missing_runtimes', { missingList: [missingOpt] });
+          await invoke('download_missing_runtimes', { missingList: result.missing });
         }
       } else {
-        alert('成功导入实例！本地环境皆已满足。');
+        alert(`成功导入 ${result.added} 个实例！本地环境皆已满足。`);
       }
 
       // 4. 重新拉取列表
@@ -127,8 +133,8 @@ export const useInstances = () => {
       await fetchInstances();
       
     } catch (err) {
-      console.error("导入第三方实例失败:", err);
-      alert(`导入第三方实例失败: \n${err}`);
+      console.error("批量扫描/导入实例失败:", err);
+      alert(`导入失败: \n${err}`);
     }
   };
 

@@ -1,5 +1,5 @@
 // src-tauri/src/commands/auth_cmd.rs
-use crate::domain::auth::{DeviceCodeResponse, Account};
+use crate::domain::auth::{Account, DeviceCodeResponse};
 use crate::services::auth_service;
 
 // 核心修复 1：引入 tauri 的 AppHandle 和 Runtime
@@ -13,9 +13,9 @@ pub async fn request_microsoft_device_code() -> Result<DeviceCodeResponse, Strin
 // 核心修复 2：统一使用 <R: Runtime> 泛型，并接收 app: AppHandle<R>
 #[tauri::command]
 pub async fn poll_and_exchange_microsoft_token<R: Runtime>(
-    app: AppHandle<R>, 
-    device_code: String, 
-    interval: u64
+    app: AppHandle<R>,
+    device_code: String,
+    interval: u64,
 ) -> Result<Account, String> {
     auth_service::poll_and_exchange_token(&app, &device_code, interval).await
 }
@@ -27,9 +27,9 @@ pub fn generate_offline_uuid(name: String) -> Result<String, String> {
 
 #[tauri::command]
 pub async fn upload_offline_skin<R: Runtime>(
-    app: AppHandle<R>, 
-    uuid: String, 
-    source_path: String
+    app: AppHandle<R>,
+    uuid: String,
+    source_path: String,
 ) -> Result<String, String> {
     auth_service::upload_offline_skin(&app, &uuid, &source_path)
 }
@@ -38,7 +38,7 @@ pub async fn upload_offline_skin<R: Runtime>(
 pub async fn fetch_offline_skin_from_mojang<R: Runtime>(
     app: AppHandle<R>,
     username: String,
-    offline_uuid: String
+    offline_uuid: String,
 ) -> Result<String, String> {
     auth_service::fetch_and_save_mojang_skin(&app, &username, &offline_uuid).await
 }
@@ -46,7 +46,7 @@ pub async fn fetch_offline_skin_from_mojang<R: Runtime>(
 #[tauri::command]
 pub async fn delete_offline_account_dir<R: Runtime>(
     app: AppHandle<R>,
-    uuid: String
+    uuid: String,
 ) -> Result<(), String> {
     auth_service::delete_offline_account_dir(&app, &uuid)
 }
@@ -54,8 +54,8 @@ pub async fn delete_offline_account_dir<R: Runtime>(
 // 新增：为前端提供刷新 Token 的命令
 #[tauri::command]
 pub async fn refresh_microsoft_token<R: Runtime>(
-    app: AppHandle<R>, 
-    refresh_token: String
+    app: AppHandle<R>,
+    refresh_token: String,
 ) -> Result<Account, String> {
     auth_service::refresh_microsoft_token(&app, &refresh_token).await
 }
@@ -65,10 +65,11 @@ pub async fn refresh_microsoft_token<R: Runtime>(
 // =======================================================
 #[tauri::command]
 pub async fn get_or_fetch_account_avatar<R: tauri::Runtime>(
-    app: tauri::AppHandle<R>, 
+    app: tauri::AppHandle<R>,
     uuid: String,
-    username: String 
+    username: String,
 ) -> Result<String, String> {
-    crate::services::auth_service::get_or_fetch_account_avatar(&app, &uuid, &username).await
+    crate::services::auth_service::get_or_fetch_account_avatar(&app, &uuid, &username)
+        .await
         .map(|p| p.to_string_lossy().to_string())
 }

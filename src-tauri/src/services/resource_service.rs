@@ -6,7 +6,7 @@ use tauri::{AppHandle, Emitter, Runtime};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 // 引入跨层的 DTO
-use crate::domain::resource::{OreProjectDetail, OreProjectVersion, OreProjectDependency};
+use crate::domain::resource::{OreProjectDependency, OreProjectDetail, OreProjectVersion};
 use crate::services::file_write_lock;
 
 // ==========================================
@@ -156,12 +156,15 @@ impl ResourceService {
             if let Some(file) = primary_file {
                 // ✅ 映射依赖关系
                 let deps = v.dependencies.map(|d_list| {
-                    d_list.into_iter().map(|d| OreProjectDependency {
-                        version_id: d.version_id,
-                        project_id: d.project_id,
-                        file_name: d.file_name,
-                        dependency_type: d.dependency_type,
-                    }).collect()
+                    d_list
+                        .into_iter()
+                        .map(|d| OreProjectDependency {
+                            version_id: d.version_id,
+                            project_id: d.project_id,
+                            file_name: d.file_name,
+                            dependency_type: d.dependency_type,
+                        })
+                        .collect()
                 });
 
                 clean_versions.push(OreProjectVersion {

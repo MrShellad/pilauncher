@@ -13,8 +13,10 @@ static VERSION_CACHE: Lazy<RwLock<Option<(String, Vec<VersionGroup>)>>> =
 
 pub struct McMetadataService;
 
-const OFFICIAL_MANIFEST_URL: &str = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json";
-const BANGBANG93_MANIFEST_URL: &str = "https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json";
+const OFFICIAL_MANIFEST_URL: &str =
+    "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json";
+const BANGBANG93_MANIFEST_URL: &str =
+    "https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json";
 
 impl McMetadataService {
     fn resolve_manifest_url<R: Runtime>(app: &AppHandle<R>) -> String {
@@ -38,7 +40,7 @@ impl McMetadataService {
         let base_path_str = ConfigService::get_base_path(app)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?
             .unwrap_or_else(|| ".".to_string());
-        
+
         let runtime_dir = std::path::PathBuf::from(base_path_str).join("runtime");
         let manifest_path = runtime_dir.join("version_manifest_v2.json");
 
@@ -54,7 +56,9 @@ impl McMetadataService {
                 }
             }
             if manifest_path.exists() {
-                manifest_content = tokio::fs::read_to_string(&manifest_path).await.unwrap_or_default();
+                manifest_content = tokio::fs::read_to_string(&manifest_path)
+                    .await
+                    .unwrap_or_default();
                 if !manifest_content.is_empty() {
                     should_fetch = false;
                 }
@@ -65,20 +69,14 @@ impl McMetadataService {
             let client = reqwest::Client::builder()
                 .user_agent("PiLauncher/1.0")
                 .build()?;
-            manifest_content = client
-                .get(&manifest_url)
-                .send()
-                .await?
-                .text()
-                .await?;
-            
+            manifest_content = client.get(&manifest_url).send().await?.text().await?;
+
             let _ = tokio::fs::create_dir_all(&runtime_dir).await;
             let _ = tokio::fs::write(&manifest_path, &manifest_content).await;
         }
 
-        let response: RemoteVersionManifest = serde_json::from_str(&manifest_content).map_err(|e| {
-            std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())
-        })?;
+        let response: RemoteVersionManifest = serde_json::from_str(&manifest_content)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
 
         // 1. 准备更精细的正则表达式
         let re_rc = Regex::new(r"^([\d\.]+)-rc\d+$").unwrap(); // 匹配 1.21.2-rc1

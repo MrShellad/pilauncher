@@ -58,9 +58,9 @@ pub struct DeviceInitInfo {
     pub username: String,
     pub user_uuid: String,
     pub is_premium: bool,
-    pub is_donor: bool,               // 捐赠者 (展示特殊徽章)
-    pub launcher_version: String,     // 启动器版本号
-    pub instance_name: Option<String>,// 当前正在玩的整合包名字
-    pub instance_id: Option<String>,  // 整合包ID
-    pub bg_url: String,               // 个人中心背景图的拉取接口 (例如 "/device/bg")
+    pub is_donor: bool,                // 捐赠者 (展示特殊徽章)
+    pub launcher_version: String,      // 启动器版本号
+    pub instance_name: Option<String>, // 当前正在玩的整合包名字
+    pub instance_id: Option<String>,   // 整合包ID
+    pub bg_url: String,                // 个人中心背景图的拉取接口 (例如 "/device/bg")
 }

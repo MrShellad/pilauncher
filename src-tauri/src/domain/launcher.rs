@@ -17,7 +17,7 @@ pub struct AuthSession {
     pub player_name: String,
     pub uuid: String,
     pub access_token: String,
-    pub user_type: String, 
+    pub user_type: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,4 +1,4 @@
-﻿// src/ui/components/DirectoryBrowserModal.tsx
+// src/ui/components/DirectoryBrowserModal.tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -217,7 +217,7 @@ export const DirectoryBrowserModal: React.FC<DirectoryBrowserModalProps> = ({ is
                 <CornerLeftUp size={18} />
               </OreButton>
               <div className="flex-1 bg-[#141415] border border-[#2A2A2C] text-ore-text-muted px-3 h-10 flex items-center text-sm truncate">
-                {currentPath || '此电脑 / 根节点 (已屏蔽非纯英文目录)'}
+                {currentPath || '此电脑 / 根节点'}
               </div>
               {currentPath && (
                 <OreButton
@@ -330,7 +330,7 @@ export const DirectoryBrowserModal: React.FC<DirectoryBrowserModalProps> = ({ is
             {!loading && nodes.length === 0 && !isCreating && !error && (
               <div className="text-center text-ore-text-muted mt-16 text-base flex flex-col items-center gap-3 opacity-60">
                 <Folder size={40} className="opacity-40" />
-                暂无合法的纯英文目录
+                暂无子目录
               </div>
             )}
           </div>
