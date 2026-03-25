@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useInstances } from '../hooks/pages/Instances/useInstances';
 import { OreButton } from '../ui/primitives/OreButton';
-import { Plus, FolderPlus, List, LayoutGrid } from 'lucide-react';
+import { Plus, FolderPlus, List, LayoutGrid, Loader2, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
+import { OreModal } from '../ui/primitives/OreModal';
 
 import { InstanceListView } from '../features/Instances/components/InstanceListView';
 import { InstanceCardView } from '../features/Instances/components/InstanceCardView';
@@ -17,6 +18,9 @@ import { DirectoryBrowserModal } from '../ui/components/DirectoryBrowserModal';
 const Instances: React.FC = () => {
   const {
     instances,
+    importState,
+    closeImportModal,
+    confirmDownloadMissing,
     handleCreate,
     handleAddThirdPartyFolder,
     handleEdit,
@@ -41,7 +45,7 @@ const Instances: React.FC = () => {
   }, []);
 
   return (
-    <FocusBoundary id="instances-page" className="flex flex-col w-full h-full p-6 sm:p-8 overflow-hidden bg-black/40">
+    <FocusBoundary id="instances-page" isActive={!isDirModalOpen} className="flex flex-col w-full h-full p-6 sm:p-8 overflow-hidden bg-black/40">
 
       {/* 1. 顶部操作区 */}
       {/* ✅ 修复点 1：强制 flex-row 不换行，items-center 保证左右两组按钮绝对水平垂直居中对齐 */}
@@ -144,6 +148,75 @@ const Instances: React.FC = () => {
             handleAddThirdPartyFolder(path);
           }}
         />
+      )}
+
+      {/* Import Status Modal */}
+      {importState.isOpen && (
+        <OreModal
+          isOpen={importState.isOpen}
+          onClose={importState.status === 'scanning' ? () => {} : closeImportModal}
+          title={
+            importState.status === 'scanning' ? '正在处理...' :
+            importState.status === 'success' ? '导入成功' :
+            importState.status === 'partial_missing' ? '导入完成（需补全）' :
+            importState.status === 'empty' ? '未找到实例' : '导入失败'
+          }
+          className="!w-[500px]"
+          actions={
+            <div className="flex justify-end gap-3 w-full">
+              {importState.status !== 'scanning' && (
+                <OreButton variant="ghost" size="sm" onClick={closeImportModal} focusKey="import-close">
+                  关闭
+                </OreButton>
+              )}
+              {importState.status === 'partial_missing' && (
+                <OreButton variant="primary" size="sm" onClick={confirmDownloadMissing} focusKey="import-download">
+                  前往下载管理补全
+                </OreButton>
+              )}
+            </div>
+          }
+        >
+          <div className="flex flex-col items-center justify-center p-6 text-center space-y-4">
+            {importState.status === 'scanning' && (
+              <>
+                <Loader2 size={48} className="animate-spin text-ore-green" />
+                <p className="text-white font-minecraft tracking-wider">正在扫描并注册实例，请稍候...</p>
+              </>
+            )}
+            {importState.status === 'success' && (
+              <>
+                <CheckCircle2 size={48} className="text-ore-green" />
+                <p className="text-white font-minecraft tracking-wider">成功导入 {importState.added} 个实例，本地运行环境完整！</p>
+              </>
+            )}
+            {importState.status === 'partial_missing' && (
+              <>
+                <AlertTriangle size={48} className="text-[#FFE866]" />
+                <p className="text-white font-minecraft text-lg tracking-wider">
+                  成功导入 {importState.added} 个实例。
+                </p>
+                <div className="bg-[#141415] border border-[#2A2A2C] p-4 text-left w-full mt-2">
+                  <span className="text-ore-text-muted text-sm font-minecraft leading-relaxed">发现有 <strong className="text-white">{importState.missing.length}</strong> 个实例缺少部分本地运行环境（如指定的 MC 版本、Loader 或特定的 JVM）。<br/><br/>为了正常启动这些实例，建议立即前往下载管理补全缺失依赖。</span>
+                </div>
+              </>
+            )}
+            {importState.status === 'empty' && (
+              <>
+                <FolderPlus size={48} className="text-ore-text-muted opacity-50" />
+                <p className="text-white font-minecraft tracking-wider">该目录下未扫描到任何兼容的实例格式。</p>
+                <p className="text-sm text-ore-text-muted pt-2 border-t border-[#2A2A2C] w-full">请直接选择那些包含 <code>instance.json</code> 或 <code>{`{版本名}.json`}</code>（如 HMCL/PCL 结构）的实例根目录，或者它们的上级目录。</p>
+              </>
+            )}
+            {importState.status === 'error' && (
+              <>
+                <AlertCircle size={48} className="text-red-500" />
+                <p className="text-red-400 font-minecraft tracking-wider">扫描出错：</p>
+                <code className="text-xs bg-[#141415] p-2 text-red-300 w-full text-left overflow-hidden text-ellipsis whitespace-nowrap">{importState.errorMsg}</code>
+              </>
+            )}
+          </div>
+        </OreModal>
       )}
 
     </FocusBoundary>

@@ -37,6 +37,8 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         loader_cmd::get_loader_versions,
         config_cmd::get_base_directory,
         config_cmd::set_base_directory,
+        config_cmd::rename_base_directory,
+        config_cmd::migrate_base_directory,
         settings_cmd::get_settings,
         settings_cmd::save_settings,
         system_cmd::get_system_fonts,

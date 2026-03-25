@@ -69,14 +69,33 @@ export const useInstances = () => {
     setActiveTab('new-instance');
   };
   const handleImport = () => console.log('触发: 导入实例');
+  
+  const [importState, setImportState] = useState<{
+    isOpen: boolean;
+    status: 'scanning' | 'success' | 'partial_missing' | 'error' | 'empty';
+    added: number;
+    missing: any[];
+    errorMsg: string;
+  }>({ isOpen: false, status: 'scanning', added: 0, missing: [], errorMsg: '' });
+
+  const closeImportModal = () => setImportState(s => ({ ...s, isOpen: false }));
+
+  const confirmDownloadMissing = async () => {
+    closeImportModal();
+    setActiveTab('home');
+    useDownloadStore.getState().setPopupOpen(true);
+    await invoke('download_missing_runtimes', { missingList: importState.missing });
+  };
+
   // 处理第三方/批量实例导入
   const handleAddThirdPartyFolder = async (path: string) => {
+    setImportState({ isOpen: true, status: 'scanning', added: 0, missing: [], errorMsg: '' });
     try {
       // 1. 调用后端批量扫描并注册
       const result: { added: number, missing: any[] } = await invoke('scan_instances_in_dir', { path });
 
       if (result.added === 0) {
-        alert('该目录下未扫描到任何实例。请选择包含 instance.json 或 {版本名}.json 的上级目录。');
+        setImportState(s => ({ ...s, status: 'empty' }));
         return;
       }
 
@@ -87,23 +106,8 @@ export const useInstances = () => {
         updateGeneralSetting('thirdPartyDirs', [...currentDirs, path]);
       }
 
-      // 3. 处理缺失的运行环境补充
-      if (result.missing && result.missing.length > 0) {
-        const missingCount = result.missing.length;
-        const doDownload = window.confirm(
-          `成功导入 ${result.added} 个实例！\n\n但发现有 ${missingCount} 个实例缺少本地运行环境。\n是否立即调用下载管理开始补全缺失的运行环境？`
-        );
-        if (doDownload) {
-          setActiveTab('home');
-          useDownloadStore.getState().setPopupOpen(true);
-          await invoke('download_missing_runtimes', { missingList: result.missing });
-        }
-      } else {
-        alert(`成功导入 ${result.added} 个实例！本地环境皆已满足。`);
-      }
-
-      // 4. 重新拉取列表
-      const fetchInstances: () => Promise<void> = async () => {
+      // 3. 重新拉取列表以让主页面保持最新
+      const fetchNewInstances = async () => {
         try {
           const data: any[] = await invoke('get_all_instances');
           const formattedInstances = data.map(item => {
@@ -129,12 +133,18 @@ export const useInstances = () => {
           console.error("刷新实例列表失败:", error);
         }
       };
-      
-      await fetchInstances();
-      
+      await fetchNewInstances();
+
+      // 4. 更新模态框状态，展示扫码结果
+      if (result.missing && result.missing.length > 0) {
+        setImportState(s => ({ ...s, status: 'partial_missing', added: result.added, missing: result.missing }));
+      } else {
+        setImportState(s => ({ ...s, status: 'success', added: result.added }));
+      }
+
     } catch (err) {
       console.error("批量扫描/导入实例失败:", err);
-      alert(`导入失败: \n${err}`);
+      setImportState({ isOpen: true, status: 'error', added: 0, missing: [], errorMsg: String(err) });
     }
   };
 
@@ -152,6 +162,9 @@ export const useInstances = () => {
 
   return {
     instances,
+    importState,
+    closeImportModal,
+    confirmDownloadMissing,
     handleCreate,
     handleImport,
     handleAddThirdPartyFolder,
