@@ -17,14 +17,14 @@ export type InstanceDownloadTarget = 'mod' | 'resourcepack' | 'shader';
 export interface InstanceData {
   id: string;
   name: string;
-  playTime: number; 
-  lastPlayed: string; 
+  playTime: number;
+  lastPlayed: string;
   logoUrl?: string;
 }
 
 export interface BackgroundData {
   type: 'solid' | 'image' | 'video';
-  source: string; 
+  source: string;
   overlayColor: string;
   overlayOpacity: number;
   overlayBlur: number;
@@ -49,7 +49,7 @@ interface LauncherState {
 
   // 背景表现状态
   background: BackgroundData;
-  setBackground: (bgUpdate: Partial<BackgroundData>) => void; 
+  setBackground: (bgUpdate: Partial<BackgroundData>) => void;
 
   // 系统底层交互动作
   launchGame: () => Promise<void>;
@@ -58,7 +58,7 @@ interface LauncherState {
 // 3. 创建并导出 Zustand Store
 export const useLauncherStore = create<LauncherState>((set, get) => ({
   // --- 导航状态 ---
-  activeTab: 'home', 
+  activeTab: 'home',
   setActiveTab: (tab) => set({ activeTab: tab }),
 
   // --- 实例状态 ---
@@ -80,23 +80,23 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
   // --- 背景状态 ---
   background: {
     type: 'image',
-    source: '/assets/home/wallpaer/1.png', 
+    source: '/assets/home/wallpaer/1.webp',
     overlayColor: '#000000',
     overlayOpacity: 0.5,
     overlayBlur: 4,
   },
-  setBackground: (bgUpdate) => 
+  setBackground: (bgUpdate) =>
     set((state) => ({ background: { ...state.background, ...bgUpdate } })),
 
   // --- 系统交互动作 ---
   launchGame: async () => {
     const { currentInstance } = get();
-    
+
     if (!currentInstance) {
       console.warn("无法启动：未选择任何实例！");
       return;
     }
-    
+
     console.log(`[Tauri IPC Mock] 正在通过 Rust 层启动游戏: ${currentInstance.name} (ID: ${currentInstance.id})...`);
   }
 }));

@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { convertFileSrc } from '@tauri-apps/api/core';
-import defaultBackground from '../../assets/home/wallpaper/1.png';
+import defaultBackground from '../../assets/home/wallpaper/1.webp';
 
 export const OreBackground: React.FC = () => {
   const { appearance } = useSettingsStore(state => state.settings);
@@ -22,7 +22,7 @@ export const OreBackground: React.FC = () => {
   return (
     // ✅ 修复 1：将 -z-10 改为 z-0，防止它沉入 body 底部被浏览器的底色盖住
     <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-      
+
       {/* Layer 1: 最底层纯色底 */}
       <div className="absolute inset-0 bg-[#18181B]" />
 
@@ -35,11 +35,11 @@ export const OreBackground: React.FC = () => {
       />
 
       {/* Layer 3: 遮罩 (动态颜色与透明度) */}
-      <div 
+      <div
         className="absolute inset-0 transition-colors duration-500"
         style={{
           backgroundColor: appearance.maskColor,
-          opacity: appearance.maskOpacity / 100, 
+          opacity: appearance.maskOpacity / 100,
         }}
       />
 
@@ -47,7 +47,7 @@ export const OreBackground: React.FC = () => {
       {appearance.maskGradient && (
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80" />
       )}
-      
+
     </div>
   );
 };

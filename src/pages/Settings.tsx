@@ -20,6 +20,7 @@ import { OreToggleButton, type ToggleOption } from '../ui/primitives/OreToggleBu
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { focusManager } from '../ui/focus/FocusManager';
 import { useInputAction } from '../ui/focus/InputDriver';
+import { ControlHint } from '../ui/components/ControlHint';
 
 const SETTINGS_TABS: ToggleOption[] = [
   { value: 'general', label: (<div className="flex items-center justify-center space-x-2"><SettingsIcon size={16} /><span className="font-minecraft tracking-wider">常规</span></div>) },
@@ -34,6 +35,8 @@ const SETTINGS_TABS: ToggleOption[] = [
 
 export const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('general');
+  const [pressingLT, setPressingLT] = useState(false);
+  const [pressingRT, setPressingRT] = useState(false);
   const activeBoundaryId = useMemo(() => `settings-page-boundary:${activeTab}`, [activeTab]);
 
   const tabFallbackFocusKeys = useMemo<Record<string, string | undefined>>(() => ({
@@ -68,19 +71,24 @@ export const Settings: React.FC = () => {
     return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable;
   }, []);
 
-  useInputAction('PAGE_LEFT', () => {
+  const handleSwitchTab = useCallback((direction: -1 | 1) => {
     if (isTextEntryActive()) return;
-    const currentIndex = SETTINGS_TABS.findIndex(t => t.value === activeTab);
-    const prevIndex = (currentIndex - 1 + SETTINGS_TABS.length) % SETTINGS_TABS.length;
-    setActiveTab(SETTINGS_TABS[prevIndex].value);
-  });
+    
+    if (direction === -1) {
+      setPressingLT(true);
+      setTimeout(() => setPressingLT(false), 150);
+    } else {
+      setPressingRT(true);
+      setTimeout(() => setPressingRT(false), 150);
+    }
 
-  useInputAction('PAGE_RIGHT', () => {
-    if (isTextEntryActive()) return;
     const currentIndex = SETTINGS_TABS.findIndex(t => t.value === activeTab);
-    const nextIndex = (currentIndex + 1) % SETTINGS_TABS.length;
+    const nextIndex = (currentIndex + direction + SETTINGS_TABS.length) % SETTINGS_TABS.length;
     setActiveTab(SETTINGS_TABS[nextIndex].value);
-  });
+  }, [activeTab, isTextEntryActive]);
+
+  useInputAction('PAGE_LEFT', () => handleSwitchTab(-1));
+  useInputAction('PAGE_RIGHT', () => handleSwitchTab(1));
 
   const renderContent = () => {
     switch (activeTab) {
@@ -109,8 +117,17 @@ export const Settings: React.FC = () => {
       className="flex flex-col w-full h-full overflow-hidden"
     >
       <div className="flex-shrink-0 pt-6 px-6 md:px-8 z-10">
-        <div className="max-w-5xl mx-auto w-full">
-          <div className="w-full overflow-x-auto custom-scrollbar pb-2">
+        <div className="max-w-5xl mx-auto w-full flex items-center justify-center gap-4">
+          <div
+            className={`flex cursor-pointer items-center justify-center transition-transform duration-150 ${
+              pressingLT ? 'scale-75' : 'scale-90 hover:scale-100 active:scale-75'
+            }`}
+            onClick={() => handleSwitchTab(-1)}
+          >
+            <ControlHint label="LT" variant="trigger" tone={pressingLT ? 'green' : 'neutral'} />
+          </div>
+
+          <div className="flex-1 overflow-x-auto no-scrollbar pb-2">
             <OreToggleButton
               options={SETTINGS_TABS}
               value={activeTab}
@@ -118,6 +135,15 @@ export const Settings: React.FC = () => {
               size="lg"
               focusable={false}
             />
+          </div>
+
+          <div
+            className={`flex cursor-pointer items-center justify-center transition-transform duration-150 ${
+              pressingRT ? 'scale-75' : 'scale-90 hover:scale-100 active:scale-75'
+            }`}
+            onClick={() => handleSwitchTab(1)}
+          >
+            <ControlHint label="RT" variant="trigger" tone={pressingRT ? 'green' : 'neutral'} />
           </div>
         </div>
       </div>
