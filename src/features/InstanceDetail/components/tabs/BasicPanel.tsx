@@ -24,7 +24,7 @@ import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { SettingsSection } from '../../../../ui/layout/SettingsSection';
 import { FormRow } from '../../../../ui/layout/FormRow';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
-import { OreModal } from '../../../../ui/primitives/OreModal';
+import { OreConfirmDialog } from '../../../../ui/primitives/OreConfirmDialog';
 
 import type { InstanceDetailData, CustomButton } from '../../../../hooks/pages/InstanceDetail/useInstanceDetail';
 
@@ -344,46 +344,26 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
         </SettingsSection>
 
         {/* 彻底删除弹窗 */}
-        <OreModal
+                <OreConfirmDialog
           isOpen={isDeleteModalOpen}
           onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={confirmDelete}
           title="警告：彻底删除实例"
-          className="w-[450px]"
-          actions={
+          headline={
             <>
-              <OreButton
-                focusKey="basic-modal-btn-cancel"
-                variant="secondary"
-                onClick={() => setIsDeleteModalOpen(false)}
-                className="flex-1"
-              >
-                取消
-              </OreButton>
-              <OreButton
-                focusKey="basic-modal-btn-confirm"
-                variant="danger"
-                onClick={confirmDelete}
-                className="flex-1"
-                disabled={isSaving}
-              >
-                {isSaving ? <Loader2 size={16} className="animate-spin mr-2" /> : <Trash2 size={16} className="mr-2" />}
-                强制删除
-              </OreButton>
+              您确定要彻底删除实例 <span className="font-bold text-red-400">"{data.name}"</span> 吗？
             </>
           }
-        >
-          <div className="flex flex-col items-center justify-center py-4 text-center">
-            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4 border-2 border-red-500/20 shadow-[inset_0_0_15px_rgba(239,68,68,0.2)]">
-              <Trash2 size={32} className="text-red-500" />
-            </div>
-            <p className="text-white text-lg mb-2 font-minecraft">
-              您确定要彻底删除实例 <span className="font-bold text-red-400">"{data.name}"</span> 吗？
-            </p>
-            <p className="text-ore-text-muted text-sm px-4">
-              此操作无法撤销，与其相关的所有配置、模组以及游戏存档都将被永久清除！
-            </p>
-          </div>
-        </OreModal>
+          description="此操作无法撤销，与该实例相关的所有配置、模组以及游戏存档都会被永久清除。"
+          confirmLabel="强制删除"
+          cancelLabel="取消"
+          confirmVariant="danger"
+          confirmFocusKey="basic-modal-btn-confirm"
+          cancelFocusKey="basic-modal-btn-cancel"
+          confirmIcon={<Trash2 size={16} className="mr-2" />}
+          dialogIcon={<Trash2 size={32} className="text-red-500" />}
+          isConfirming={isSaving}
+        />
 
       </div>
     </SettingsPageLayout>

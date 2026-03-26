@@ -2,6 +2,12 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { ModrinthProject } from './modrinthApi';
 
+export interface ModManifestEntry {
+  platform: string;
+  projectId: string; // Will come from Rust as project_id
+  fileId: string;    // Will come from Rust as file_id
+}
+
 export interface ModMeta {
   fileName: string;
   modId?: string;
@@ -15,6 +21,14 @@ export interface ModMeta {
   modifiedAt: number;
   networkInfo?: ModrinthProject | null;
   isFetchingNetwork?: boolean;
+  manifestEntry?: ModManifestEntry;
+  // Update fields
+  hasUpdate?: boolean;
+  updateVersionName?: string;
+  updateFileId?: string;
+  updateDownloadUrl?: string;
+  isCheckingUpdate?: boolean;
+  cacheKey?: string;
 }
 
 export const modService = {
@@ -33,9 +47,9 @@ export const modService = {
   createSnapshot: (id: string, desc: string) => 
     invoke('create_resource_snapshot', { id, resType: 'mod', desc }),
     
-  updateModCache: (id: string, fileName: string, name: string, desc: string, iconUrl: string) => 
-    invoke('update_mod_cache', { id, fileName, name, desc, iconUrl }),
+  updateModCache: (cacheKey: string, name: string, desc: string, iconUrl: string) => 
+    invoke('update_mod_cache', { cacheKey, name, desc, iconUrl }),
 
-  openModFolder: (id: string) => 
+  openModFolder: (id: string) =>  
     invoke('open_mod_folder', { id })
 };

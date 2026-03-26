@@ -1,41 +1,42 @@
+@tailwind components;
 /* /src/style/ui/primitives/OreInput.css */
 @layer components {
   .ore-input-wrapper {
     @apply flex flex-col space-y-1;
   }
 
-  /* 基础输入框样式 (Normal 状态 - 极暗灰背景 + 深色边框) */
+  /* 鍩虹杈撳叆妗嗘牱寮?(Normal 鐘舵€?- 鏋佹殫鐏拌儗鏅?+ 娣辫壊杈规) */
   .ore-input {
-    /* ✅ 关键修改：h-10 改为 h-full，完全由外部控制高度 */
+    /* 鉁?鍏抽敭淇敼锛歨-10 鏀逛负 h-full锛屽畬鍏ㄧ敱澶栭儴鎺у埗楂樺害 */
     @apply w-full h-full px-3 bg-[#1E1E1F] border-2 border-[#111111] text-white font-minecraft outline-none transition-none;
-    /* 微弱内阴影体现凹陷感 */
+    /* 寰急鍐呴槾褰变綋鐜板嚬闄锋劅 */
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
-    caret-color: #6CC349; /* 基岩绿光标 */
+    caret-color: #6CC349; /* 鍩哄博缁垮厜鏍?*/
   }
 
-  /* Hovered 状态：稍微提亮背景 */
+  /* Hovered 鐘舵€侊細绋嶅井鎻愪寒鑳屾櫙 */
   .ore-input:hover:not(:disabled) {
     @apply bg-[#2A2B2C];
   }
 
-  /* Focused 状态：纯白外描边 (严格还原草图的白色高亮) */
+  /* Focused 鐘舵€侊細绾櫧澶栨弿杈?(涓ユ牸杩樺師鑽夊浘鐨勭櫧鑹查珮浜? */
   .ore-input:focus:not(:disabled) {
     @apply border-white;
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4); 
   }
 
-  /* Pressed 状态：按下的瞬间背景变纯黑 */
+  /* Pressed 鐘舵€侊細鎸変笅鐨勭灛闂磋儗鏅彉绾粦 */
   .ore-input:active:not(:disabled) {
     @apply bg-[#0A0A0A];
   }
 
-  /* Disabled 状态：经典的浅灰色实心方块 (无阴影) */
+  /* Disabled 鐘舵€侊細缁忓吀鐨勬祬鐏拌壊瀹炲績鏂瑰潡 (鏃犻槾褰? */
   .ore-input:disabled {
     @apply bg-[#C6C6C6] border-[#C6C6C6] text-[#5A5A5A] cursor-not-allowed;
     box-shadow: none;
   }
 
-  /* 占位符颜色 */
+  /* 鍗犱綅绗﹂鑹?*/
   .ore-input::placeholder {
     @apply text-gray-500 opacity-80;
   }

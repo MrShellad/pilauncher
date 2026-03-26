@@ -30,14 +30,13 @@ pub async fn rollback_mod_snapshot<R: Runtime>(
 #[tauri::command]
 pub async fn update_mod_cache<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
-    id: String,
-    file_name: String,
+    cache_key: String,
     name: String,
     desc: String,
     icon_url: String,
 ) -> Result<(), String> {
     crate::services::instance::mod_manager::ModManagerService::update_mod_cache(
-        &app, &id, &file_name, &name, &desc, &icon_url,
+        &app, &cache_key, &name, &desc, &icon_url,
     )
 }
 

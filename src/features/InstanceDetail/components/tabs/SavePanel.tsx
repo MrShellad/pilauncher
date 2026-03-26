@@ -1,20 +1,23 @@
 // /src/features/InstanceDetail/components/tabs/SavePanel.tsx
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { setFocus } from '@noriginmedia/norigin-spatial-navigation'; // ✅ 引入 setFocus
+import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
-import { OreList } from '../../../../ui/primitives/OreList';
+import { OreAssetRow } from '../../../../ui/primitives/OreAssetRow';
 import { OreButton } from '../../../../ui/primitives/OreButton';
-import { FocusItem } from '../../../../ui/focus/FocusItem'; // ✅ 引入 FocusItem 保险杠
+import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
+import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
 import { Globe, FolderOpen, Archive, Trash2, Loader2, HardDrive, History } from 'lucide-react';
 
 import { useSaveManager } from '../../hooks/useSaveManager';
 import { saveService } from '../../logic/saveService';
-import { OreModal } from '../../../../ui/primitives/OreModal'; // ✅ 引入 OreModal
+import { OreModal } from '../../../../ui/primitives/OreModal';
 import { SaveRestoreModal } from './saves/SaveRestoreModal';
 import { BackupListModal } from './saves/BackupListModal';
 import type { SaveBackupMetadata } from '../../logic/saveService';
+
+const TOP_FOCUS_ORDER = ['save-btn-history', 'save-btn-folder'];
 
 export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   const { saves, backups, isLoading, isBackingUp, backupSave, deleteSave, formatSize, formatDate } = useSaveManager(instanceId);
@@ -36,26 +39,47 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
     }
   };
 
+  // 全部焦点：顶部 2 个按钮 + 每行 2 个操作按钮
+  const fullFocusOrder = useMemo(() => [
+    ...TOP_FOCUS_ORDER,
+    ...saves.flatMap((_, i) => [`save-btn-backup-${i}`, `save-btn-delete-${i}`])
+  ], [saves]);
+
+  const { handleLinearArrow } = useLinearNavigation(fullFocusOrder, fullFocusOrder[0], false);
+
+  // 顶部按钮：末尾向下跳入列表
+  const handleTopArrow = useCallback((direction: string) => {
+    if (direction === 'down') {
+      const available = fullFocusOrder.filter((k) => doesFocusableExist(k));
+      const current = getCurrentFocusKey();
+      const topAvailable = TOP_FOCUS_ORDER.filter((k) => doesFocusableExist(k));
+      if (topAvailable.length > 0 && current === topAvailable[topAvailable.length - 1]) {
+        const firstRow = available.find((k) => !TOP_FOCUS_ORDER.includes(k));
+        if (firstRow) { setFocus(firstRow); return false; }
+      }
+    }
+    return handleLinearArrow(direction);
+  }, [fullFocusOrder, handleLinearArrow]);
+
+  // 列表按钮：第一个向上跳回顶部
+  const handleRowArrow = useCallback((direction: string) => {
+    if (direction === 'up') {
+      const available = fullFocusOrder.filter((k) => doesFocusableExist(k));
+      const current = getCurrentFocusKey();
+      const firstRow = available.find((k) => !TOP_FOCUS_ORDER.includes(k));
+      if (current && firstRow && current === firstRow) {
+        const topAvailable = TOP_FOCUS_ORDER.filter((k) => doesFocusableExist(k));
+        const target = topAvailable[topAvailable.length - 1];
+        if (target) { setFocus(target); return false; }
+      }
+    }
+    return handleLinearArrow(direction);
+  }, [fullFocusOrder, handleLinearArrow]);
+
   return (
     <SettingsPageLayout>
       <div className="relative flex flex-col w-full h-full">
-
-        {/* ======================================================== */}
-        {/* ✅ 焦点保险杠 (Focus Bumpers)：物理封锁，弹回恢复中心按钮！*/}
-        {/* ======================================================== */}
-        <FocusItem focusKey="save-guard-top" onFocus={() => setFocus('save-btn-history')}>
-          {({ ref }) => <div ref={ref as any} className="absolute top-0 left-0 w-full h-[1px] opacity-0 pointer-events-none" tabIndex={-1} />}
-        </FocusItem>
-        <FocusItem focusKey="save-guard-left" onFocus={() => setFocus('save-btn-history')}>
-          {({ ref }) => <div ref={ref as any} className="absolute top-0 left-0 w-[1px] h-full opacity-0 pointer-events-none" tabIndex={-1} />}
-        </FocusItem>
-        <FocusItem focusKey="save-guard-right" onFocus={() => setFocus('save-btn-history')}>
-          {({ ref }) => <div ref={ref as any} className="absolute top-0 right-0 w-[1px] h-full opacity-0 pointer-events-none" tabIndex={-1} />}
-        </FocusItem>
-        <FocusItem focusKey="save-guard-bottom" onFocus={() => setFocus('save-btn-history')}>
-          {({ ref }) => <div ref={ref as any} className="absolute bottom-0 left-0 w-full h-[1px] opacity-0 pointer-events-none" tabIndex={-1} />}
-        </FocusItem>
-
+        {/* 顶部控件 */}
         <div className="flex justify-between items-center mb-6 bg-[#18181B] p-4 border-2 border-[#2A2A2C]">
           <div>
             <h3 className="text-white font-minecraft flex items-center">
@@ -64,10 +88,22 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
             <p className="text-sm text-ore-text-muted mt-1">共发现 {saves.length} 个存档，{backups.length} 个历史备份。</p>
           </div>
           <div className="flex space-x-3">
-            <OreButton focusKey="save-btn-history" variant="secondary" size="sm" onClick={() => setIsBackupListOpen(true)}>
+            <OreButton
+              focusKey="save-btn-history"
+              variant="secondary"
+              size="sm"
+              onArrowPress={handleTopArrow}
+              onClick={() => setIsBackupListOpen(true)}
+            >
               <History size={16} className="mr-2" /> 恢复中心
             </OreButton>
-            <OreButton focusKey="save-btn-folder" variant="secondary" size="sm" onClick={handleOpenFolder}>
+            <OreButton
+              focusKey="save-btn-folder"
+              variant="secondary"
+              size="sm"
+              onArrowPress={handleTopArrow}
+              onClick={handleOpenFolder}
+            >
               <FolderOpen size={16} className="mr-2" /> 打开目录
             </OreButton>
           </div>
@@ -76,31 +112,38 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         {isLoading ? (
           <div className="flex justify-center py-12 text-ore-green"><Loader2 size={32} className="animate-spin" /></div>
         ) : (
-          <div className="flex flex-col space-y-2 overflow-y-auto custom-scrollbar px-2 pb-4">
+          <FocusBoundary
+            id="save-list"
+            trapFocus={false}
+            className="flex flex-col space-y-2 overflow-y-auto custom-scrollbar px-2 pb-4"
+          >
             {saves.map((save, i) => (
-              <OreList
+              <OreAssetRow
                 key={i}
                 focusable={false}
                 title={save.worldName}
-                subtitle={`文件夹: ${save.folderName} | 大小: ${formatSize(save.sizeBytes)}`}
-                content={`最后游玩: ${formatDate(save.lastPlayedTime)}`}
+                description={`最后游玩：${formatDate(save.lastPlayedTime)}`}
+                metaItems={[save.folderName, formatSize(save.sizeBytes)]}
                 leading={
                   save.iconPath ? (
                     <img
                       src={`${convertFileSrc(save.iconPath)}?t=${save.lastPlayedTime}`}
                       alt="Save Icon"
-                      className="w-12 h-12 object-cover rounded-sm border-[2px] border-[#18181B] shadow-md"
+                      className="h-full w-full object-cover"
                     />
                   ) : (
-                    <Globe size={32} className="text-ore-text-muted/50 drop-shadow-md" />
+                    <Globe size={26} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />
                   )
                 }
+                trailingClassName="flex items-center space-x-3"
                 trailing={
-                  <div className="flex items-center space-x-3">
+                  <>
                     <OreButton
                       focusKey={`save-btn-backup-${i}`}
                       variant="secondary"
-                      size="sm"
+                      size="auto"
+                      className="!h-10 !min-h-10"
+                      onArrowPress={handleRowArrow}
                       onClick={() => backupSave(save.folderName)}
                       disabled={isBackingUp}
                     >
@@ -111,20 +154,22 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
                     <OreButton
                       focusKey={`save-btn-delete-${i}`}
                       variant="danger"
-                      size="sm"
+                      size="auto"
+                      className="!h-10 !min-h-10"
+                      onArrowPress={handleRowArrow}
                       onClick={() => setSaveToDelete(save.folderName)}
                     >
                       <Trash2 size={16} className="mr-2" />
                       删除
                     </OreButton>
-                  </div>
+                  </>
                 }
               />
             ))}
-          </div>
+          </FocusBoundary>
         )}
 
-        {/* 弹窗部分 */}
+        {/* 弹窗 */}
         <BackupListModal
           isOpen={isBackupListOpen}
           onClose={() => setIsBackupListOpen(false)}
@@ -144,7 +189,6 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
           }}
         />
 
-        {/* 删除存档确认弹窗 */}
         <OreModal
           isOpen={saveToDelete !== null}
           onClose={() => setSaveToDelete(null)}
@@ -186,7 +230,6 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
             </p>
           </div>
         </OreModal>
-
       </div>
     </SettingsPageLayout>
   );

@@ -6,7 +6,17 @@ use crate::services::downloader::dependencies::{
 };
 use futures::stream::{iter, StreamExt};
 use reqwest::Client;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+#[derive(Serialize, Deserialize)]
+pub struct ModManifestEntry {
+    pub platform: String,
+    pub project_id: String,
+    pub file_id: String,
+}
+
+pub type ModManifest = HashMap<String, ModManifestEntry>;
 use std::env;
 use std::fs;
 use std::path::Path;
@@ -428,6 +438,7 @@ async fn download_modrinth_mods<R: Runtime>(
         .map_err(|e| e.to_string())?;
 
     let mut tasks: Vec<DownloadTask> = Vec::new();
+    let mut manifest_data = ModManifest::new();
 
     for file in files {
         if let Some(env) = file.get("env") {
@@ -462,6 +473,20 @@ async fn download_modrinth_mods<R: Runtime>(
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| "download.bin".to_string());
+
+        let parts: Vec<&str> = url.split('/').collect();
+        if let Some(pos) = parts.iter().position(|&x| x == "data") {
+            if parts.len() > pos + 3 && parts[pos + 2] == "versions" {
+                manifest_data.insert(
+                    file_name.clone(),
+                    ModManifestEntry {
+                        platform: "modrinth".to_string(),
+                        project_id: parts[pos + 1].to_string(),
+                        file_id: parts[pos + 3].to_string(),
+                    },
+                );
+            }
+        }
 
         let target_path = instance_root.join(&relative_path);
         let expected_sha1 = file
@@ -530,6 +555,14 @@ async fn download_modrinth_mods<R: Runtime>(
     )
     .await
     .map_err(|e| e.to_string())?;
+
+    if !manifest_data.is_empty() {
+        let manifest_path = instance_root.join("mod_manifest.json");
+        let _ = std::fs::create_dir_all(instance_root.join("mods"));
+        if let Ok(json) = serde_json::to_string_pretty(&manifest_data) {
+            let _ = fs::write(manifest_path, json);
+        }
+    }
 
     Ok(())
 }
@@ -604,14 +637,24 @@ async fn download_curseforge_mods<R: Runtime>(
     });
 
     let mut tasks: Vec<DownloadTask> = Vec::new();
+    let mut manifest_data = ModManifest::new();
     let mut info_results = info_stream.buffer_unordered(info_concurrency);
     while let Some(result) = info_results.next().await {
-        let (_entry, info) = result?;
+        let (entry, info) = result?;
         let raw_name = info.file_name;
         let file_name = Path::new(&raw_name)
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| "mod.jar".to_string());
+
+        manifest_data.insert(
+            file_name.clone(),
+            ModManifestEntry {
+                platform: "curseforge".to_string(),
+                project_id: entry.project_id.to_string(),
+                file_id: entry.file_id.to_string(),
+            },
+        );
 
         let url = match info.download_url {
             // Replace spaces with %20 to avoid reqwest URL parse failures.
@@ -686,6 +729,14 @@ async fn download_curseforge_mods<R: Runtime>(
     )
     .await
     .map_err(|e| e.to_string())?;
+
+    if !manifest_data.is_empty() {
+        let manifest_path = instance_root.join("mod_manifest.json");
+        let _ = std::fs::create_dir_all(instance_root.join("mods"));
+        if let Ok(json) = serde_json::to_string_pretty(&manifest_data) {
+            let _ = fs::write(manifest_path, json);
+        }
+    }
 
     Ok(())
 }

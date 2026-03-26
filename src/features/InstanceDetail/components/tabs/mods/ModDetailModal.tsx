@@ -7,8 +7,8 @@ import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../../ui/focus/FocusItem';
 import { setFocus, getCurrentFocusKey, doesFocusableExist } from '@noriginmedia/norigin-spatial-navigation';
 import { Blocks, Loader2, Trash2, Power, ChevronRight, AlertTriangle } from 'lucide-react';
-import { fetchModrinthVersions } from '../../../logic/modrinthApi';
-import type { ModMeta } from '../../../logic/modService';
+import { fetchModrinthVersions, fetchModrinthInfo } from '../../../logic/modrinthApi';
+import { modService, type ModMeta } from '../../../logic/modService';
 
 interface ModDetailModalProps {
   mod: ModMeta | null;
@@ -29,7 +29,22 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({ mod, instanceCon
   const lastFocusBeforeDeleteRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (mod) setDisplayMod(mod);
+    if (mod) {
+      setDisplayMod(mod);
+      // ✅ 强制联网更新一次 mod 信息
+      const query = mod.manifestEntry?.projectId || mod.modId || mod.fileName.replace('.jar', '').replace('.disabled', '').replace(/[-_v0-9\.]+$/, '');
+      fetchModrinthInfo(query).then(netInfo => {
+        if (netInfo) {
+          setDisplayMod(prev => prev ? { ...prev, networkInfo: netInfo } : null);
+          if (mod.cacheKey) {
+            modService.updateModCache(
+              mod.cacheKey, 
+              netInfo.title, netInfo.description, netInfo.icon_url
+            ).catch(console.error);
+          }
+        }
+      });
+    }
   }, [mod]);
 
   useEffect(() => {
@@ -59,17 +74,17 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({ mod, instanceCon
   }, [showDeleteConfirm]);
 
   useEffect(() => {
-    if (mod?.networkInfo && instanceConfig) {
+    if (displayMod?.networkInfo && instanceConfig) {
       setIsLoadingVersions(true);
       const targetLoader = instanceConfig.loader?.type?.toLowerCase() === 'vanilla' ? '' : instanceConfig.loader?.type?.toLowerCase();
-      fetchModrinthVersions(mod.networkInfo.id, instanceConfig.mcVersion, targetLoader)
+      fetchModrinthVersions(displayMod.networkInfo.id, instanceConfig.mcVersion, targetLoader)
         .then(res => setModVersions(res.slice(0, 5))) 
         .catch(err => console.error("获取版本失败:", err))
         .finally(() => setIsLoadingVersions(false));
     } else {
       setModVersions([]);
     }
-  }, [mod, instanceConfig]);
+  }, [displayMod?.networkInfo, instanceConfig]);
 
   const handleClose = () => {
     onClose();

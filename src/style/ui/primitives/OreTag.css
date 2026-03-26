@@ -1,11 +1,12 @@
+@tailwind components;
 /* /src/style/ui/primitives/OreTag.css */
 @layer components {
-  /* 基础样式 */
+  /* 鍩虹鏍峰紡 */
   .ore-tag {
     @apply inline-flex items-center justify-center font-minecraft tracking-wide whitespace-nowrap leading-none;
   }
 
-  /* ================= 色彩变体 ================= */
+  /* ================= 鑹插僵鍙樹綋 ================= */
   .ore-tag-neutral {
     @apply bg-[#202020] text-white;
   }
@@ -25,7 +26,7 @@
     @apply bg-[#B192EA] text-black;
   }
 
-  /* ================= 尺寸控制 ================= */
+  /* ================= 灏哄鎺у埗 ================= */
   .ore-tag-sm {
     @apply px-1.5 py-0.5 text-[10px];
   }
@@ -36,7 +37,7 @@
     @apply px-3 py-1.5 text-sm;
   }
 
-  /* ================= 字重控制 ================= */
+  /* ================= 瀛楅噸鎺у埗 ================= */
   .ore-tag-normal {
     @apply font-normal;
   }

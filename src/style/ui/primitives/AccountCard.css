@@ -1,3 +1,4 @@
+@tailwind components;
 /* src/style/ui/primitives/AccountCard.css */
 @layer components {
   .ore-account-card {

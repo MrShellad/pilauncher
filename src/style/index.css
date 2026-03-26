@@ -1,32 +1,8 @@
-/* /src/style/index.css */
-
-/* 1. 全局基础样式 (字体、网页重置、滚动条等) */
-@import './global.css';
-
-/* 2. Ore UI 核心公共工具类 */
-@import './ui/core.css';
-
-@import './ui/primitives/OreButton.css';
-@import './ui/primitives/OreSegmentedControl.css';
-/* @import './ui/primitives/OreModal.css'; */
-@import './ui/primitives/OreInstanceCard.css';
-@import './ui/primitives/OreCard.css';
-@import './ui/primitives/OreInput.css';
-@import './ui/primitives/OreAccordion.css';
-@import './ui/primitives/OreSwitch.css';
-@import './ui/primitives/OreSlider.css';
-@import './ui/primitives/OreDropdown.css';
-@import './ui/primitives/OreToggleButton.css';
-@import './ui/primitives/AccountCard.css';
-
-@tailwind base;
-@tailwind components;
 @tailwind utilities;
 
 @layer utilities {
-  /* 注册一个自定义类，完美处理 P3 色域的向下兼容 */
   .outline-ore-focus {
-    outline-color: var(--ore-focus-ringFallback); /* 先给普通白 */
-    outline-color: var(--ore-focus-ring);         /* 支持 P3 的设备会覆盖上一行，实现 HDR 高亮 */
+    outline-color: var(--ore-focus-ringFallback);
+    outline-color: var(--ore-focus-ring);
   }
 }

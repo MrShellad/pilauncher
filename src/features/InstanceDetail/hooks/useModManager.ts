@@ -1,9 +1,10 @@
 // /src/features/InstanceDetail/hooks/useModManager.ts
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { modService, type ModMeta } from '../logic/modService';
-import { fetchModrinthInfo } from '../logic/modrinthApi';
+import { fetchModrinthInfo, fetchModrinthVersions } from '../logic/modrinthApi';
 
-export type ModSortType = 'time' | 'name';
+export type ModSortType = 'time' | 'name' | 'fileName';
+export type ModSortOrder = 'asc' | 'desc';
 
 export const useModManager = (instanceId: string) => {
   const [mods, setMods] = useState<ModMeta[]>([]);
@@ -13,6 +14,7 @@ export const useModManager = (instanceId: string) => {
   
   // ✅ 新增：排序状态
   const [sortType, setSortType] = useState<ModSortType>('time');
+  const [sortOrder, setSortOrder] = useState<ModSortOrder>('desc');
 
   const loadMods = useCallback(async () => {
     setIsLoading(true);
@@ -20,21 +22,25 @@ export const useModManager = (instanceId: string) => {
       const config = await modService.getInstanceDetail(instanceId);
       setInstanceConfig(config);
 
+      const targetMc = config?.game_version || config?.gameVersion || config?.mcVersion || '';
+      const targetLoader = config?.loader || '';
+
       const localMods = await modService.getMods(instanceId);
       const enrichedMods = localMods.map(m => ({ 
         ...m, 
-        isFetchingNetwork: !m.name || (!m.iconAbsolutePath && !m.networkIconUrl) 
+        isFetchingNetwork: !m.name || (!m.iconAbsolutePath && !m.networkIconUrl),
+        isCheckingUpdate: !!m.manifestEntry && m.manifestEntry.platform === 'modrinth'
       }));
       setMods(enrichedMods);
 
-      localMods.forEach(async (mod, index) => {
+      enrichedMods.forEach(async (mod, index) => {
         if (!mod.name || (!mod.iconAbsolutePath && !mod.networkIconUrl)) {
           const query = mod.modId || mod.fileName.replace('.jar', '').replace('.disabled', '').replace(/[-_v0-9\.]+$/, '');
           const netInfo = await fetchModrinthInfo(query);
           
-          if (netInfo) {
+          if (netInfo && mod.cacheKey) {
             modService.updateModCache(
-              instanceId, mod.fileName.replace('.disabled', ''), 
+              mod.cacheKey, 
               netInfo.title, netInfo.description, netInfo.icon_url
             ).catch(console.error);
           }
@@ -43,6 +49,33 @@ export const useModManager = (instanceId: string) => {
             const newMods = [...current];
             newMods[index].networkInfo = netInfo;
             newMods[index].isFetchingNetwork = false;
+            return newMods;
+          });
+        }
+
+        // Check for updates
+        if (mod.manifestEntry && mod.manifestEntry.platform === 'modrinth') {
+          try {
+            const versions = await fetchModrinthVersions(mod.manifestEntry.projectId, targetMc, targetLoader);
+            if (versions && versions.length > 0) {
+              const latest = versions[0];
+              if (latest.id !== mod.manifestEntry.fileId) {
+                setMods(current => {
+                  const newMods = [...current];
+                  newMods[index].hasUpdate = true;
+                  newMods[index].updateVersionName = latest.name || latest.version_number;
+                  newMods[index].updateDownloadUrl = latest.download_url;
+                  newMods[index].updateFileId = latest.id;
+                  newMods[index].isCheckingUpdate = false;
+                  return newMods;
+                });
+                return;
+              }
+            }
+          } catch (e) { console.error("Update check failed", e); }
+          setMods(current => {
+            const newMods = [...current];
+            newMods[index].isCheckingUpdate = false;
             return newMods;
           });
         }
@@ -58,15 +91,20 @@ export const useModManager = (instanceId: string) => {
       // 禁用的模组永远沉底
       if (a.isEnabled !== b.isEnabled) return a.isEnabled ? -1 : 1;
       
+      let comparison = 0;
       if (sortType === 'time') {
-        return b.modifiedAt - a.modifiedAt; // 时间降序（最新下载的在最上面）
+        comparison = a.modifiedAt - b.modifiedAt;
+      } else if (sortType === 'fileName') {
+        comparison = a.fileName.toLowerCase().localeCompare(b.fileName.toLowerCase());
       } else {
         const nameA = (a.name || a.fileName).toLowerCase();
         const nameB = (b.name || b.fileName).toLowerCase();
-        return nameA.localeCompare(nameB); // 名称字母顺序
+        comparison = nameA.localeCompare(nameB);
       }
+      
+      return sortOrder === 'asc' ? comparison : -comparison;
     });
-  }, [mods, sortType]);
+  }, [mods, sortType, sortOrder]);
 
   const toggleMod = async (fileName: string, currentEnabled: boolean) => {
     try {
@@ -75,10 +113,29 @@ export const useModManager = (instanceId: string) => {
     } catch (e) { console.error(e); loadMods(); }
   };
 
+  const toggleMods = async (fileNames: string[], enable: boolean) => {
+    try {
+      setMods(prev => prev.map(m => {
+        if (fileNames.includes(m.fileName) && m.isEnabled !== enable) {
+          return { ...m, isEnabled: enable, fileName: enable ? m.fileName.replace('.disabled', '') : `${m.fileName}.disabled` };
+        }
+        return m;
+      }));
+      await Promise.all(fileNames.map(fileName => modService.toggleMod(instanceId, fileName, enable)));
+    } catch (e) { console.error(e); loadMods(); }
+  };
+
   const deleteMod = async (fileName: string) => {
     try {
       setMods(prev => prev.filter(m => m.fileName !== fileName));
       await modService.deleteMod(instanceId, fileName);
+    } catch (e) { console.error(e); loadMods(); }
+  };
+
+  const deleteMods = async (fileNames: string[]) => {
+    try {
+      setMods(prev => prev.filter(m => !fileNames.includes(m.fileName)));
+      await Promise.all(fileNames.map(fileName => modService.deleteMod(instanceId, fileName)));
     } catch (e) { console.error(e); loadMods(); }
   };
 
@@ -94,7 +151,7 @@ export const useModManager = (instanceId: string) => {
 
   return { 
     mods: sortedMods, // ✅ 吐出排序后的数据
-    isLoading, instanceConfig, isCreatingSnapshot, sortType, setSortType, 
-    toggleMod, deleteMod, createSnapshot, openModFolder,loadMods
+    isLoading, instanceConfig, isCreatingSnapshot, sortType, setSortType, sortOrder, setSortOrder, 
+    toggleMod, toggleMods, deleteMod, deleteMods, createSnapshot, openModFolder, loadMods
   };
 };

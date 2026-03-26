@@ -1,38 +1,39 @@
+@tailwind components;
 /* /src/style/ui/primitives/OreButton.css */
 @layer components {
-  /* ================= 基础物理框架 ================= */
+  /* ================= 鍩虹鐗╃悊妗嗘灦 ================= */
   .ore-btn {
-    /* 统一 2px 纯黑描边 */
+    /* 缁熶竴 2px 绾粦鎻忚竟 */
     @apply relative inline-flex items-center justify-center box-border font-minecraft uppercase font-bold border-2 transition-none outline-none;
     border-color: var(--ore-border-color);
-    padding-bottom: 4px; /* 为底部的 4px 3D阴影预留视觉补偿中心 */
+    padding-bottom: 4px; /* 涓哄簳閮ㄧ殑 4px 3D闃村奖棰勭暀瑙嗚琛ュ伩涓績 */
   }
 
-  /* 物理下压引擎：使用 transform 代替 margin/height 变化，防止布局塌陷 */
+  /* 鐗╃悊涓嬪帇寮曟搸锛氫娇鐢?transform 浠ｆ浛 margin/height 鍙樺寲锛岄槻姝㈠竷灞€濉岄櫡 */
   .ore-btn:active:not(:disabled) {
     transform: translateY(4px);
     padding-bottom: 0px; 
   }
 
-  /* ================= 高光焦点导航环 (HDR Ready) ================= */
+  /* ================= 楂樺厜鐒︾偣瀵艰埅鐜?(HDR Ready) ================= */
   .ore-btn.is-focused {
-    /* 1px 缝隙 + 2px 亮白环 */
+    /* 1px 缂濋殭 + 2px 浜櫧鐜?*/
     outline: 2px solid var(--ore-focus-ringFallback);
-    outline: 2px solid var(--ore-focus-ring); /* 若浏览器支持P3色域则自动覆盖 */
+    outline: 2px solid var(--ore-focus-ring); /* 鑻ユ祻瑙堝櫒鏀寔P3鑹插煙鍒欒嚜鍔ㄨ鐩?*/
     outline-offset: 1px;
     z-index: 20;
     
-    /* 绝杀：通过 drop-shadow 给 outline 赋予外围光晕，即便在纯白背景下也能清晰辨认 */
+    /* 缁濇潃锛氶€氳繃 drop-shadow 缁?outline 璧嬩簣澶栧洿鍏夋檿锛屽嵆渚垮湪绾櫧鑳屾櫙涓嬩篃鑳芥竻鏅拌鲸璁?*/
     filter: drop-shadow(0 0 6px var(--ore-focus-glow)) brightness(1.1);
   }
 
-  /* 当按钮被按下时，光环需要跟随按钮一起下沉 */
+  /* 褰撴寜閽鎸変笅鏃讹紝鍏夌幆闇€瑕佽窡闅忔寜閽竴璧蜂笅娌?*/
   .ore-btn.is-focused:active:not(:disabled) {
     outline-offset: 0px;
     filter: drop-shadow(0 0 3px var(--ore-focus-glow)) brightness(1.1);
   }
 
-  /* ================= Primary / Hero (绿色动作) ================= */
+  /* ================= Primary / Hero (缁胯壊鍔ㄤ綔) ================= */
   .ore-btn-primary {
     background-color: var(--ore-btn-primary-bg);
     color: var(--ore-btn-primary-text);
@@ -50,13 +51,13 @@
   }
   .ore-btn-primary:active:not(:disabled) {
     background-color: var(--ore-btn-primary-active);
-    /* 按下时：底部黑框消失，转换为顶角凹陷阴影 */
+    /* 鎸変笅鏃讹細搴曢儴榛戞娑堝け锛岃浆鎹负椤惰鍑归櫡闃村奖 */
     box-shadow: 
       inset 3px 3px var(--ore-btn-primary-hoverHl1), 
       inset -3px -3px var(--ore-btn-primary-hoverHl2);
   }
 
-  /* ================= Secondary (灰色次要) ================= */
+  /* ================= Secondary (鐏拌壊娆¤) ================= */
   .ore-btn-secondary {
     background-color: var(--ore-btn-secondary-bg);
     color: var(--ore-btn-secondary-text);
@@ -79,7 +80,7 @@
       inset -3px -3px var(--ore-btn-secondary-hoverHl2);
   }
 
-  /* ================= Danger (红色危险) ================= */
+  /* ================= Danger (绾㈣壊鍗遍櫓) ================= */
   .ore-btn-danger {
     background-color: var(--ore-btn-danger-bg);
     color: var(--ore-btn-danger-text);
@@ -102,7 +103,7 @@
       inset -3px -3px var(--ore-btn-danger-hoverHl2);
   }
 
-  /* ================= Purple (紫色史诗) ================= */
+  /* ================= Purple (绱壊鍙茶瘲) ================= */
   .ore-btn-purple {
     background-color: var(--ore-btn-purple-bg);
     color: var(--ore-btn-purple-text);
@@ -125,7 +126,7 @@
       inset -3px -3px var(--ore-btn-purple-hoverHl2);
   }
 
-  /* ✅ 新增：--- Ghost (幽灵 / 透明按钮) --- */
+  /* 鉁?鏂板锛?-- Ghost (骞界伒 / 閫忔槑鎸夐挳) --- */
   .ore-btn-ghost {
     @apply bg-transparent text-[#A0A2A5] border-transparent;
     box-shadow: none;
@@ -135,17 +136,17 @@
   }
   .ore-btn-ghost:active:not(:disabled) {
     @apply bg-white/20 text-white;
-    /* 幽灵按钮按下时使用内凹阴影模拟下沉 */
+    /* 骞界伒鎸夐挳鎸変笅鏃朵娇鐢ㄥ唴鍑归槾褰辨ā鎷熶笅娌?*/
     box-shadow: inset 0 4px 0 rgba(0, 0, 0, 0.2);
   }
 
-  /* ================= Disabled (禁用还原) ================= */
+  /* ================= Disabled (绂佺敤杩樺師) ================= */
   .ore-btn:disabled {
     background-color: var(--ore-btn-disabled-bg);
     color: var(--ore-btn-disabled-text);
     border-color: var(--ore-btn-disabled-border);
     cursor: not-allowed;
-    /* 禁用状态下只保留极其微弱的 3D 效果底边 */
+    /* 绂佺敤鐘舵€佷笅鍙繚鐣欐瀬鍏跺井寮辩殑 3D 鏁堟灉搴曡竟 */
     box-shadow: inset 0 -4px var(--ore-btn-disabled-shadow);
   }
 }

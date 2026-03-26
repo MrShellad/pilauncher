@@ -1,4 +1,4 @@
-﻿// src-tauri/src/services/instance/mod_manager.rs
+// src-tauri/src/services/instance/mod_manager.rs
 use crate::services::config_service::ConfigService;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -7,6 +7,13 @@ use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter, Runtime};
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ModManifestEntry {
+    pub platform: String,
+    pub project_id: String,
+    pub file_id: String,
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -21,6 +28,8 @@ pub struct ModMetadata {
     pub file_size: u64,
     pub is_enabled: bool, // 修复报错：状态字段
     pub modified_at: u64, // 新增：记录文件修改时间的时间戳
+    pub manifest_entry: Option<ModManifestEntry>,
+    pub cache_key: Option<String>,
 }
 
 // 定义一个用于网络数据缓存的结构体
@@ -79,16 +88,25 @@ impl ModManagerService {
     ) -> Result<Vec<ModMetadata>, String> {
         let instance_dir = Self::get_instance_dir(app, instance_id)?;
         let mods_dir = instance_dir.join("mods");
-        let piconfig_dir = instance_dir.join("piconfig");
-        let icons_dir = piconfig_dir.join("mod_icons");
-        let cache_path = piconfig_dir.join("mod_cache.json"); // 缓存文件位置
+        let shared_mods_dir = Self::get_shared_mods_dir(app)?;
+        let icons_dir = shared_mods_dir.join("icons");
+        let cache_path = shared_mods_dir.join("global_mod_cache.json");
 
         fs::create_dir_all(&mods_dir).ok();
         fs::create_dir_all(&icons_dir).ok();
 
-        // ✅ 读取本地缓存字典
+        // ✅ 读取公共本地缓存字典
         let cache_dict: HashMap<String, ModCacheInfo> = if cache_path.exists() {
             let content = fs::read_to_string(&cache_path).unwrap_or_default();
+            serde_json::from_str(&content).unwrap_or_default()
+        } else {
+            HashMap::new()
+        };
+
+        // ✅ 读取 mod_manifest.json 映射字典（位于实例根目录）
+        let manifest_path = instance_dir.join("mod_manifest.json");
+        let manifest_dict: HashMap<String, ModManifestEntry> = if manifest_path.exists() {
+            let content = fs::read_to_string(&manifest_path).unwrap_or_default();
             serde_json::from_str(&content).unwrap_or_default()
         } else {
             HashMap::new()
@@ -108,20 +126,47 @@ impl ModManagerService {
 
                     if file_name.ends_with(".jar") || file_name.ends_with(".jar.disabled") {
                         let is_enabled = !file_name.ends_with(".disabled");
-                        let base_name = file_name.trim_end_matches(".disabled").to_string(); // 用去掉 disabled 的原名做key
+                        let base_name = file_name.trim_end_matches(".disabled").to_string();
 
-                        let mut meta = Self::parse_single_jar(&path, &icons_dir);
+                        // ✅ 先解析 JAR 基础信息（暂不提取图标）
+                        let mut meta = Self::parse_jar_meta(&path);
                         meta.is_enabled = is_enabled;
 
-                        // ✅ 兜底逻辑：优先使用JAR包内的结果，如果没有，从本地缓存补充网络信息
-                        if let Some(cached) = cache_dict.get(&base_name) {
+                        // ✅ 获取从整合包导入时生成的 manifest mapping
+                        if let Some(manifest) = manifest_dict.get(&base_name) {
+                            meta.manifest_entry = Some(manifest.clone());
+                        }
+
+                        // ✅ 生成唯一的缓存 key
+                        let cache_key = if let Some(m) = &meta.manifest_entry {
+                            format!("{}_{}", m.platform, m.project_id)
+                        } else if let Some(mid) = &meta.mod_id {
+                            format!("local_{}", mid)
+                        } else {
+                            format!("file_{}", base_name.replace(|c: char| !c.is_ascii_alphanumeric(), "_"))
+                        };
+                        meta.cache_key = Some(cache_key.clone());
+
+                        // ✅ 优先读取共享图标目录中缓存的实体图标
+                        let cached_icon = Self::find_cached_icon(&icons_dir, &cache_key);
+                        if cached_icon.is_some() {
+                            meta.icon_absolute_path = cached_icon;
+                        } else {
+                            // 共享目录没有，从 JAR 提取并存入共享目录
+                            meta.icon_absolute_path = Self::extract_icon_to_shared(&path, &icons_dir, &cache_key);
+                        }
+
+                        // ✅ 兜底逻辑：从公共网络缓存补充名称/描述/在线图标
+                        if let Some(cached) = cache_dict.get(&cache_key) {
                             if meta.name.is_none() {
                                 meta.name = cached.name.clone();
                             }
                             if meta.description.is_none() {
                                 meta.description = cached.description.clone();
                             }
-                            meta.network_icon_url = cached.icon_url.clone();
+                            if meta.icon_absolute_path.is_none() {
+                                meta.network_icon_url = cached.icon_url.clone();
+                            }
                         }
 
                         mods.push(meta);
@@ -138,10 +183,10 @@ impl ModManagerService {
         Ok(mods)
     }
 
-    fn parse_single_jar(jar_path: &Path, icons_dir: &Path) -> ModMetadata {
+    /// 只解析 JAR 元信息（名称、版本、描述、mod_id），不提取图标
+    fn parse_jar_meta(jar_path: &Path) -> ModMetadata {
         let file_name = jar_path.file_name().unwrap().to_string_lossy().to_string();
         let file_size = fs::metadata(jar_path).map(|m| m.len()).unwrap_or(0);
-
         let modified_at = fs::metadata(jar_path)
             .and_then(|m| m.modified())
             .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
@@ -151,21 +196,14 @@ impl ModManagerService {
 
         let mut meta = ModMetadata {
             file_name: file_name.clone(),
-            mod_id: None,
-            name: None,
-            version: None,
-            description: None,
-            icon_absolute_path: None,
-            network_icon_url: None,
-            file_size,
-            is_enabled: true,
-            modified_at, // ✅ 赋值给结构体
+            mod_id: None, name: None, version: None, description: None,
+            icon_absolute_path: None, network_icon_url: None,
+            file_size, is_enabled: true, modified_at,
+            manifest_entry: None, cache_key: None,
         };
 
         if let Ok(file) = File::open(jar_path) {
             if let Ok(mut archive) = zip::ZipArchive::new(file) {
-                let mut icon_to_extract = None;
-
                 if let Ok(mut mod_json) = archive.by_name("fabric.mod.json") {
                     let mut contents = String::new();
                     if mod_json.read_to_string(&mut contents).is_ok() {
@@ -174,28 +212,6 @@ impl ModManagerService {
                             meta.name = json["name"].as_str().map(|s| s.to_string());
                             meta.version = json["version"].as_str().map(|s| s.to_string());
                             meta.description = json["description"].as_str().map(|s| s.to_string());
-                            if let Some(icon_path) = json["icon"].as_str() {
-                                icon_to_extract = Some(icon_path.to_string());
-                            }
-                        }
-                    }
-                }
-
-                if let Some(icon_path) = icon_to_extract {
-                    if let Ok(mut icon_file) = archive.by_name(&icon_path) {
-                        let ext = Path::new(&icon_path)
-                            .extension()
-                            .unwrap_or_default()
-                            .to_string_lossy();
-                        let target_icon = icons_dir.join(format!(
-                            "{}.{}",
-                            meta.mod_id.as_ref().unwrap_or(&file_name),
-                            ext
-                        ));
-                        if let Ok(mut out_file) = File::create(&target_icon) {
-                            std::io::copy(&mut icon_file, &mut out_file).ok();
-                            meta.icon_absolute_path =
-                                Some(target_icon.to_string_lossy().to_string());
                         }
                     }
                 }
@@ -204,20 +220,69 @@ impl ModManagerService {
         meta
     }
 
-    // ✅ 新增：将前端获取到的网络数据持久化写入 mod_cache.json
+    /// 在 shared_mods/icons 目录中查找匹配 cache_key 的实体图标
+    fn find_cached_icon(icons_dir: &Path, cache_key: &str) -> Option<String> {
+        for ext in &["png", "jpg", "jpeg", "gif", "webp"] {
+            let candidate = icons_dir.join(format!("{}.{}", cache_key, ext));
+            if candidate.exists() {
+                return Some(candidate.to_string_lossy().to_string());
+            }
+        }
+        None
+    }
+
+    /// 从 JAR 内提取图标并存到 shared_mods/icons/<cache_key>.<ext>
+    fn extract_icon_to_shared(jar_path: &Path, icons_dir: &Path, cache_key: &str) -> Option<String> {
+        let file_name = jar_path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        if let Ok(file) = File::open(jar_path) {
+            if let Ok(mut archive) = zip::ZipArchive::new(file) {
+                let icon_path_in_jar: Option<String> = {
+                    let mut result = None;
+                    if let Ok(mut mod_json) = archive.by_name("fabric.mod.json") {
+                        let mut contents = String::new();
+                        if mod_json.read_to_string(&mut contents).is_ok() {
+                            if let Ok(json) = serde_json::from_str::<Value>(&contents) {
+                                result = json["icon"].as_str().map(|s| s.to_string());
+                            }
+                        }
+                    }
+                    result
+                };
+
+                if let Some(icon_path) = icon_path_in_jar {
+                    if let Ok(mut icon_file) = archive.by_name(&icon_path) {
+                        let ext = Path::new(&icon_path)
+                            .extension()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .to_string();
+                        let ext = if ext.is_empty() { "png".to_string() } else { ext };
+                        let target = icons_dir.join(format!("{}.{}", cache_key, ext));
+                        if let Ok(mut out_file) = File::create(&target) {
+                            if std::io::copy(&mut icon_file, &mut out_file).is_ok() {
+                                return Some(target.to_string_lossy().to_string());
+                            }
+                        }
+                    }
+                }
+                // Fallback: try icons/<mod_id>.png embedded in archive root
+                let _ = file_name;
+            }
+        }
+        None
+    }
+
+    // ✅ 修改：将前端获取到的网络数据持久化写入 global_mod_cache.json
     pub fn update_mod_cache<R: Runtime>(
         app: &AppHandle<R>,
-        instance_id: &str,
-        file_name: &str,
+        cache_key: &str,
         name: &str,
         desc: &str,
         icon_url: &str,
     ) -> Result<(), String> {
-        let instance_dir = Self::get_instance_dir(app, instance_id)?;
-        let piconfig = instance_dir.join("piconfig");
-        fs::create_dir_all(&piconfig).ok();
-
-        let cache_path = piconfig.join("mod_cache.json");
+        let shared_mods_dir = Self::get_shared_mods_dir(app)?;
+        let cache_path = shared_mods_dir.join("global_mod_cache.json");
+        
         let mut cache: HashMap<String, ModCacheInfo> = if cache_path.exists() {
             let content = fs::read_to_string(&cache_path).unwrap_or_default();
             serde_json::from_str(&content).unwrap_or_default()
@@ -225,9 +290,9 @@ impl ModManagerService {
             HashMap::new()
         };
 
-        // 以原文件名 (不带 .disabled) 为 Key 存入
+        // 以全局 cache_key 为 Key 存入
         cache.insert(
-            file_name.to_string(),
+            cache_key.to_string(),
             ModCacheInfo {
                 name: Some(name.to_string()),
                 description: Some(desc.to_string()),

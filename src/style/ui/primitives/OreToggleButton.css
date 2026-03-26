@@ -1,39 +1,40 @@
+@tailwind components;
 /* /src/style/ui/primitives/OreToggleButton.css */
 @layer components {
   /* ============================================== */
-  /* 按钮组外层容器 */
+  /* 鎸夐挳缁勫灞傚鍣?*/
   /* ============================================== */
   .ore-toggle-btn-group {
     @apply flex w-full border-[2px] rounded-sm;
-    /* 容器底色即为按钮间的缝隙颜色 */
+    /* 瀹瑰櫒搴曡壊鍗充负鎸夐挳闂寸殑缂濋殭棰滆壊 */
     background-color: var(--ore-border-color);
     border-color: var(--ore-border-color);
     gap: 2px; 
   }
 
   /* ============================================== */
-  /* 单个 Toggle 按钮基础样式 */
+  /* 鍗曚釜 Toggle 鎸夐挳鍩虹鏍峰紡 */
   /* ============================================== */
   .ore-toggle-btn-item {
     @apply relative flex-1 text-sm font-minecraft font-bold cursor-pointer select-none transition-none focus:outline-none flex items-center justify-center;
   }
 
-  /* --- 未选中状态 (凸起的灰色按钮) --- */
+  /* --- 鏈€変腑鐘舵€?(鍑歌捣鐨勭伆鑹叉寜閽? --- */
   .ore-toggle-btn-item:not(.is-active) {
   background-color: var(--ore-btn-secondary-bg);
   color: var(--ore-btn-secondary-text);
-  /* ✅ 修复 1：完美对接 designToken.ts 的 hl1 和 hl2，并对齐 oreui 的 3px 偏移规范 */
+  /* 鉁?淇 1锛氬畬缇庡鎺?designToken.ts 鐨?hl1 鍜?hl2锛屽苟瀵归綈 oreui 鐨?3px 鍋忕Щ瑙勮寖 */
   box-shadow: 
     inset 0 -4px var(--ore-btn-secondary-shadow), 
     inset 3px 3px var(--ore-btn-secondary-hl1), 
     inset -3px -7px var(--ore-btn-secondary-hl2);
-  /* 视觉补偿：抵消底部 4px 阴影 */
+  /* 瑙嗚琛ュ伩锛氭姷娑堝簳閮?4px 闃村奖 */
   padding-bottom: 4px; 
 }
   
   .ore-toggle-btn-item:not(.is-active):hover {
   background-color: var(--ore-btn-secondary-hover);
-  /* ✅ 修复 2：使用 Token 中的悬停高光变量 hoverHl1 和 hoverHl2 */
+  /* 鉁?淇 2锛氫娇鐢?Token 涓殑鎮仠楂樺厜鍙橀噺 hoverHl1 鍜?hoverHl2 */
   box-shadow: 
     inset 0 -4px var(--ore-btn-secondary-shadow), 
     inset 3px 3px var(--ore-btn-secondary-hoverHl1), 
@@ -42,26 +43,26 @@
   
   .ore-toggle-btn-item:not(.is-active):active {
   background-color: var(--ore-btn-secondary-hover);
-  padding-top: 4px; /* 按下位移 */
+  padding-top: 4px; /* 鎸変笅浣嶇Щ */
   padding-bottom: 0px; 
-  /* ✅ 修复 3：按下时去除底部厚度阴影，模拟物理下陷 */
+  /* 鉁?淇 3锛氭寜涓嬫椂鍘婚櫎搴曢儴鍘氬害闃村奖锛屾ā鎷熺墿鐞嗕笅闄?*/
   box-shadow: 
     inset 3px 3px var(--ore-btn-secondary-hoverHl1), 
     inset -3px -3px var(--ore-btn-secondary-hoverHl2);
 }
 
-  /* --- 选中状态 (按下的绿色主色调) --- */
+  /* --- 閫変腑鐘舵€?(鎸変笅鐨勭豢鑹蹭富鑹茶皟) --- */
   .ore-toggle-btn-item.is-active {
     background-color: var(--ore-btn-primary-bg);
     color: var(--ore-btn-primary-text);
     cursor: default;
-    /* 强烈的下陷阴影 */
+    /* 寮虹儓鐨勪笅闄烽槾褰?*/
     box-shadow: inset 0 3px rgba(0, 0, 0, 0.2), inset 2px 0 rgba(255, 255, 255, 0.1);
-    /* 视觉补偿：抵消顶部阴影产生的位置偏移 */
+    /* 瑙嗚琛ュ伩锛氭姷娑堥《閮ㄩ槾褰变骇鐢熺殑浣嶇疆鍋忕Щ */
     padding-top: 3px;
   }
 
-  /* 底部白色小指示条 */
+  /* 搴曢儴鐧借壊灏忔寚绀烘潯 */
   .ore-toggle-btn-item.is-active::after {
     content: '';
     @apply absolute bottom-0 left-1/2 -translate-x-1/2 h-[3px] w-[35%] bg-white rounded-t-sm;
@@ -69,7 +70,7 @@
   }
 
   /* ============================================== */
-  /* ✅ 高光焦点导航环 (对接 HDR 空间导航) */
+  /* 鉁?楂樺厜鐒︾偣瀵艰埅鐜?(瀵规帴 HDR 绌洪棿瀵艰埅) */
   /* ============================================== */
   .ore-toggle-btn-item.is-focused {
     outline: 2px solid var(--ore-focus-ringFallback);
@@ -79,7 +80,7 @@
     filter: drop-shadow(0 0 6px var(--ore-focus-glow)) brightness(1.1);
   }
 
-  /* 物理按下时的光环下陷反馈 */
+  /* 鐗╃悊鎸変笅鏃剁殑鍏夌幆涓嬮櫡鍙嶉 */
   .ore-toggle-btn-item.is-focused:active {
     outline-offset: 0px;
     filter: drop-shadow(0 0 3px var(--ore-focus-glow)) brightness(1.1);

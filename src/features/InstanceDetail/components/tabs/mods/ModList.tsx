@@ -1,80 +1,584 @@
-// /src/features/InstanceDetail/components/tabs/mods/ModList.tsx
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { OreList } from '../../../../../ui/primitives/OreList';
-import { Blocks, Loader2, RefreshCw } from 'lucide-react';
+import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { Blocks, Loader2, RefreshCw, CheckSquare, Square, Trash2, ArrowUpCircle } from 'lucide-react';
+
 import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary';
+import { FocusItem } from '../../../../../ui/focus/FocusItem';
+import { useInputMode } from '../../../../../ui/focus/FocusProvider';
+import { OreAssetRow } from '../../../../../ui/primitives/OreAssetRow';
+import { OreButton } from '../../../../../ui/primitives/OreButton';
+import { OreSwitch } from '../../../../../ui/primitives/OreSwitch';
+import { useInputAction } from '../../../../../ui/focus/InputDriver';
+import { useLinearNavigation } from '../../../../../ui/focus/useLinearNavigation';
+
 import type { ModMeta } from '../../../logic/modService';
 
 interface ModListProps {
   mods: ModMeta[];
   isLoading: boolean;
+  selectedMods: Set<string>;
+  onToggleSelection: (fileName: string) => void;
+  onToggleMod: (fileName: string, currentEnabled: boolean) => void;
   onSelectMod: (mod: ModMeta) => void;
+  onDeleteMod: (fileName: string) => void;
+  emptyMessage?: string;
+  onNavigateOut?: (direction: 'up' | 'down') => boolean;
 }
 
-export const ModList: React.FC<ModListProps> = ({ mods, isLoading, onSelectMod }) => {
+type RowAction = 'select' | 'toggle' | 'delete';
 
-  // ✅ 修复 1：严格区分【首次加载】与【后台热刷新】
-  // 只有当完全没有数据时，才显示巨大的居中加载条
+const ROW_ACTIONS: RowAction[] = ['toggle', 'select', 'delete'];
+const LIST_ENTRY_FOCUS_KEY = 'mod-list-entry';
+const LIST_GUARD_TOP = 'mod-list-guard-top';
+const LIST_GUARD_BOTTOM = 'mod-list-guard-bottom';
+const LIST_GUARD_LEFT = 'mod-list-guard-left';
+const LIST_GUARD_RIGHT = 'mod-list-guard-right';
+
+const toFocusSlug = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+export const ModList: React.FC<ModListProps> = ({
+  mods,
+  isLoading,
+  selectedMods,
+  onToggleSelection,
+  onToggleMod,
+  onSelectMod,
+  onDeleteMod,
+  emptyMessage = '当前没有可用模组。',
+  onNavigateOut
+}) => {
+  const inputMode = useInputMode();
+  const requiresRowOperation = inputMode !== 'mouse';
+  const [focusedRowFileName, setFocusedRowFileName] = useState<string | null>(mods[0]?.fileName ?? null);
+  const [operationRowFileName, setOperationRowFileName] = useState<string | null>(null);
+
+  const rowFocusKeyByFileName = useMemo(() => {
+    const map = new Map<string, string>();
+    mods.forEach((mod) => {
+      map.set(mod.fileName, `mod-row-${toFocusSlug(mod.fileName)}`);
+    });
+    return map;
+  }, [mods]);
+
+  const rowFocusOrder = useMemo(
+    () => mods.map((mod) => rowFocusKeyByFileName.get(mod.fileName) ?? ''),
+    [mods, rowFocusKeyByFileName]
+  );
+  const availableRowFocusOrder = useMemo(
+    () => rowFocusOrder.filter((key) => key && doesFocusableExist(key)),
+    [rowFocusOrder]
+  );
+
+  const getActionFocusKey = useCallback((fileName: string, action: RowAction) => {
+    return `mod-row-action-${action}-${toFocusSlug(fileName)}`;
+  }, []);
+
+  const focusKeyToFileName = useMemo(() => {
+    const map = new Map<string, string>();
+
+    mods.forEach((mod) => {
+      const rowKey = rowFocusKeyByFileName.get(mod.fileName);
+      if (rowKey) {
+        map.set(rowKey, mod.fileName);
+      }
+
+      ROW_ACTIONS.forEach((action) => {
+        map.set(getActionFocusKey(mod.fileName, action), mod.fileName);
+      });
+    });
+
+    return map;
+  }, [getActionFocusKey, mods, rowFocusKeyByFileName]);
+
+  useEffect(() => {
+    if (mods.length === 0) {
+      setFocusedRowFileName(null);
+      setOperationRowFileName(null);
+      return;
+    }
+
+    if (focusedRowFileName && !mods.some((mod) => mod.fileName === focusedRowFileName)) {
+      setFocusedRowFileName(mods[0].fileName);
+    }
+
+    if (operationRowFileName && !mods.some((mod) => mod.fileName === operationRowFileName)) {
+      setOperationRowFileName(null);
+    }
+  }, [focusedRowFileName, mods, operationRowFileName]);
+
+  const { handleLinearArrow } = useLinearNavigation(
+    rowFocusOrder,
+    rowFocusOrder[0],
+    true,
+    mods.length > 0 && operationRowFileName === null
+  );
+
+  const focusRow = useCallback((fileName: string) => {
+    const rowFocusKey = rowFocusKeyByFileName.get(fileName);
+    if (!rowFocusKey || !doesFocusableExist(rowFocusKey)) return;
+    setFocus(rowFocusKey);
+  }, [rowFocusKeyByFileName]);
+
+  const getSafeFocusKey = useCallback((fallback: 'current' | 'first' | 'last' = 'current') => {
+    const currentFocusKey = getCurrentFocusKey();
+    if (currentFocusKey && focusKeyToFileName.has(currentFocusKey) && doesFocusableExist(currentFocusKey)) {
+      return currentFocusKey;
+    }
+
+    const preferredFileName = operationRowFileName ?? focusedRowFileName;
+    if (preferredFileName) {
+      if (operationRowFileName === preferredFileName) {
+        const toggleFocusKey = getActionFocusKey(preferredFileName, 'toggle');
+        if (doesFocusableExist(toggleFocusKey)) {
+          return toggleFocusKey;
+        }
+      }
+
+      const rowFocusKey = rowFocusKeyByFileName.get(preferredFileName);
+      if (rowFocusKey && doesFocusableExist(rowFocusKey)) {
+        return rowFocusKey;
+      }
+    }
+
+    if (fallback === 'first') {
+      return availableRowFocusOrder[0] ?? null;
+    }
+
+    if (fallback === 'last') {
+      return availableRowFocusOrder[availableRowFocusOrder.length - 1] ?? null;
+    }
+
+    return availableRowFocusOrder[0] ?? null;
+  }, [availableRowFocusOrder, focusKeyToFileName, focusedRowFileName, getActionFocusKey, operationRowFileName, rowFocusKeyByFileName]);
+
+  const restoreSafeFocus = useCallback((fallback: 'current' | 'first' | 'last' = 'current') => {
+    const targetFocusKey = getSafeFocusKey(fallback);
+    if (targetFocusKey && doesFocusableExist(targetFocusKey)) {
+      setFocus(targetFocusKey);
+    }
+  }, [getSafeFocusKey]);
+
+  const enterRowOperation = useCallback((fileName: string) => {
+    setFocusedRowFileName(fileName);
+    setOperationRowFileName(fileName);
+
+    const actionFocusKey = getActionFocusKey(fileName, 'toggle');
+    window.setTimeout(() => {
+      if (doesFocusableExist(actionFocusKey)) {
+        setFocus(actionFocusKey);
+      }
+    }, 20);
+  }, [getActionFocusKey]);
+
+  const exitRowOperation = useCallback(() => {
+    if (!operationRowFileName) return;
+
+    const rowFileName = operationRowFileName;
+    setOperationRowFileName(null);
+    window.setTimeout(() => focusRow(rowFileName), 20);
+  }, [focusRow, operationRowFileName]);
+
+  const getFocusedMod = useCallback(() => {
+    const currentFocusKey = getCurrentFocusKey();
+    if (!currentFocusKey) return null;
+
+    const fileName = focusKeyToFileName.get(currentFocusKey);
+    if (!fileName) return null;
+
+    return mods.find((mod) => mod.fileName === fileName) ?? null;
+  }, [focusKeyToFileName, mods]);
+
+  const handleCancelHierarchy = useCallback(() => {
+    const currentFocusKey = getCurrentFocusKey();
+    if (!currentFocusKey) return false;
+
+    if (currentFocusKey === LIST_ENTRY_FOCUS_KEY) {
+      if (doesFocusableExist('mod-btn-history')) {
+        setFocus('mod-btn-history');
+        return true;
+      }
+      return false;
+    }
+
+    const focusedFileName = focusKeyToFileName.get(currentFocusKey);
+    if (!focusedFileName) return false;
+
+    if (operationRowFileName === focusedFileName) {
+      exitRowOperation();
+      return true;
+    }
+
+    const rowFocusKey = rowFocusKeyByFileName.get(focusedFileName);
+    if (currentFocusKey !== rowFocusKey) {
+      focusRow(focusedFileName);
+      return true;
+    }
+
+    if (doesFocusableExist('mod-btn-history')) {
+      setFocus('mod-btn-history');
+      return true;
+    }
+
+    return true;
+  }, [exitRowOperation, focusKeyToFileName, focusRow, operationRowFileName, rowFocusKeyByFileName]);
+
+  useEffect(() => {
+    const handleEscapeCapture = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (!handleCancelHierarchy()) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    window.addEventListener('keydown', handleEscapeCapture, true);
+    return () => window.removeEventListener('keydown', handleEscapeCapture, true);
+  }, [handleCancelHierarchy]);
+
+  useInputAction('ACTION_X', () => {
+    const focusedMod = getFocusedMod();
+    if (!focusedMod) return;
+    onToggleSelection(focusedMod.fileName);
+  });
+
+  useInputAction('ACTION_Y', () => {
+    const focusedMod = getFocusedMod();
+    if (!focusedMod) return;
+    onSelectMod(focusedMod);
+  });
+
+  const handleRowArrow = useCallback((direction: string) => {
+    if (operationRowFileName) return false;
+    if (direction === 'up' || direction === 'down') {
+      const currentFocusKey = getCurrentFocusKey();
+      const firstRowKey = availableRowFocusOrder[0];
+      const lastRowKey = availableRowFocusOrder[availableRowFocusOrder.length - 1];
+
+      if (direction === 'up' && currentFocusKey && firstRowKey && currentFocusKey === firstRowKey) {
+        return !(onNavigateOut?.('up') ?? false);
+      }
+
+      if (direction === 'down' && currentFocusKey && lastRowKey && currentFocusKey === lastRowKey) {
+        return !(onNavigateOut?.('down') ?? false);
+      }
+
+      return handleLinearArrow(direction);
+    }
+    return false;
+  }, [availableRowFocusOrder, handleLinearArrow, onNavigateOut, operationRowFileName]);
+
+  const handleActionArrow = useCallback((fileName: string, action: RowAction, direction: string) => {
+    if (inputMode === 'mouse') return true;
+    if (operationRowFileName !== fileName) return false;
+
+    if (direction === 'up' || direction === 'down') {
+      const currentRowKey = rowFocusKeyByFileName.get(fileName);
+      if (!currentRowKey) return false;
+
+      const availableRows = availableRowFocusOrder;
+      const currentIndex = availableRows.indexOf(currentRowKey);
+
+      if (direction === 'up' && currentIndex === 0) {
+        setOperationRowFileName(null);
+        window.setTimeout(() => {
+          if (!(onNavigateOut?.('up') ?? false) && doesFocusableExist(currentRowKey)) {
+            setFocus(currentRowKey);
+          }
+        }, 20);
+        return false;
+      }
+
+      const nextIndex = direction === 'down'
+        ? Math.min(availableRows.length - 1, currentIndex + 1)
+        : Math.max(0, currentIndex - 1);
+      const targetRowKey = currentIndex >= 0 ? availableRows[nextIndex] : currentRowKey;
+
+      setOperationRowFileName(null);
+      window.setTimeout(() => {
+        if (targetRowKey && doesFocusableExist(targetRowKey)) {
+          setFocus(targetRowKey);
+        } else if (doesFocusableExist(currentRowKey)) {
+          setFocus(currentRowKey);
+        }
+      }, 20);
+      return false;
+    }
+
+    if (direction === 'left' || direction === 'right') {
+      const index = ROW_ACTIONS.indexOf(action);
+      const nextIndex = direction === 'right'
+        ? Math.min(ROW_ACTIONS.length - 1, index + 1)
+        : Math.max(0, index - 1);
+
+      const nextFocusKey = getActionFocusKey(fileName, ROW_ACTIONS[nextIndex]);
+      if (doesFocusableExist(nextFocusKey)) {
+        setFocus(nextFocusKey);
+      }
+      return false;
+    }
+
+    return false;
+  }, [availableRowFocusOrder, getActionFocusKey, inputMode, onNavigateOut, operationRowFileName, rowFocusKeyByFileName]);
+
+  const preventLockedAction = useCallback((fileName: string, e?: { preventDefault?: () => void; stopPropagation?: () => void }) => {
+    if (!requiresRowOperation || operationRowFileName === fileName) {
+      return false;
+    }
+
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    setFocusedRowFileName(fileName);
+    focusRow(fileName);
+    return true;
+  }, [focusRow, operationRowFileName, requiresRowOperation]);
+
   if (isLoading && mods.length === 0) {
-    return <div className="flex justify-center py-12 text-ore-green"><Loader2 size={32} className="animate-spin" /></div>;
+    return (
+      <div className="flex justify-center px-4 py-12">
+        <div
+          className="flex items-center gap-3 border-[2px] px-4 py-3 font-minecraft text-sm text-[var(--ore-downloadDetail-labelText)]"
+          style={{
+            backgroundColor: 'var(--ore-downloadDetail-surface)',
+            borderColor: 'var(--ore-downloadDetail-divider)',
+            boxShadow: 'var(--ore-downloadDetail-sectionShadow)'
+          }}
+        >
+          <Loader2 size={18} className="animate-spin text-ore-green" />
+          正在加载模组...
+        </div>
+      </div>
+    );
+  }
+
+  if (!isLoading && mods.length === 0) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-6 py-12">
+        <div
+          className="w-full max-w-xl rounded-sm border-[2px] px-6 py-10 text-center"
+          style={{
+            backgroundColor: 'var(--ore-downloadDetail-surface)',
+            borderColor: 'var(--ore-downloadDetail-divider)',
+            boxShadow: 'var(--ore-downloadDetail-sectionShadow)'
+          }}
+        >
+          <div
+            className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-sm border-[2px] text-[var(--ore-downloadDetail-labelText)]"
+            style={{
+              backgroundColor: 'var(--ore-downloadDetail-base)',
+              borderColor: 'var(--ore-downloadDetail-divider)',
+              boxShadow: 'var(--ore-downloadDetail-sectionInset)'
+            }}
+          >
+            <Blocks size={22} />
+          </div>
+          <h3 className="font-minecraft text-base text-white">模组列表为空</h3>
+          <p className="mt-2 text-sm text-[var(--ore-downloadDetail-labelText)]">{emptyMessage}</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="relative flex-1 flex flex-col min-h-0">
-
-      {/* ✅ 优化：如果是后台刷新（且有数据），在右上角给一个小提示，而不销毁列表 */}
       {isLoading && mods.length > 0 && (
-        <div className="absolute top-0 right-6 z-50 flex items-center bg-[#2A2A2C] px-3 py-1.5 rounded-b-md shadow-lg border border-t-0 border-[#313233]">
+        <div
+          className="absolute top-0 right-6 z-50 flex items-center rounded-b-md border-x-[2px] border-b-[2px] px-3 py-1.5 shadow-lg"
+          style={{
+            backgroundColor: 'var(--ore-downloadDetail-surface)',
+            borderColor: 'var(--ore-downloadDetail-divider)',
+            boxShadow: 'var(--ore-downloadDetail-sectionShadow)'
+          }}
+        >
           <RefreshCw size={14} className="animate-spin text-ore-green mr-2" />
-          <span className="text-xs text-gray-300 font-minecraft">正在同步目录...</span>
+          <span className="text-xs font-minecraft text-[var(--ore-downloadDetail-labelText)]">正在同步模组...</span>
         </div>
       )}
 
       <FocusBoundary
         id="mod-list-grid"
-        defaultFocusKey="mod-item-0"
-        className="flex-1 min-h-0 grid content-start grid-cols-1 xl:grid-cols-2 gap-0 overflow-y-auto px-2 pb-4 custom-scrollbar"
+        trapFocus={requiresRowOperation && operationRowFileName !== null}
+        onEscape={handleCancelHierarchy}
+        defaultFocusKey={rowFocusOrder[0] || LIST_ENTRY_FOCUS_KEY}
+        className="flex-1 min-h-0 flex flex-col overflow-y-auto custom-scrollbar px-2 pb-4 space-y-1.5"
       >
-        {mods.map((mod, i) => {
-          const displayName = mod.name || mod.networkInfo?.title || mod.fileName;
-          const displayDesc = mod.description || mod.networkInfo?.description || "没有提供该模组的描述。";
+        <FocusItem focusKey={LIST_GUARD_TOP} onFocus={() => restoreSafeFocus('first')}>
+          {({ ref }) => <div ref={ref as React.RefObject<HTMLDivElement>} className="absolute top-0 left-0 h-px w-full opacity-0 pointer-events-none" tabIndex={-1} />}
+        </FocusItem>
+        <FocusItem focusKey={LIST_GUARD_BOTTOM} onFocus={() => restoreSafeFocus('last')}>
+          {({ ref }) => <div ref={ref as React.RefObject<HTMLDivElement>} className="absolute bottom-0 left-0 h-px w-full opacity-0 pointer-events-none" tabIndex={-1} />}
+        </FocusItem>
+        <FocusItem focusKey={LIST_GUARD_LEFT} onFocus={() => restoreSafeFocus()}>
+          {({ ref }) => <div ref={ref as React.RefObject<HTMLDivElement>} className="absolute top-0 left-0 h-full w-px opacity-0 pointer-events-none" tabIndex={-1} />}
+        </FocusItem>
+        <FocusItem focusKey={LIST_GUARD_RIGHT} onFocus={() => restoreSafeFocus()}>
+          {({ ref }) => <div ref={ref as React.RefObject<HTMLDivElement>} className="absolute top-0 right-0 h-full w-px opacity-0 pointer-events-none" tabIndex={-1} />}
+        </FocusItem>
 
-          // ✅ 修复 2：采用绝对稳定的缓存 Key
-          // 优先修改时间 -> 其次文件大小 -> 最后文件名。坚决不用 Date.now()！
+        <FocusItem
+          focusKey={LIST_ENTRY_FOCUS_KEY}
+          onFocus={() => restoreSafeFocus('first')}
+        >
+          {({ ref }) => (
+            <div ref={ref as React.RefObject<HTMLDivElement>} className="h-px w-full opacity-0 pointer-events-none" />
+          )}
+        </FocusItem>
+
+        {mods.map((mod) => {
+          const displayName = mod.name || mod.networkInfo?.title || mod.fileName;
+          const displayDesc = mod.description || mod.networkInfo?.description || '暂无描述';
+
           const cacheKey = mod.modifiedAt || mod.fileSize || mod.fileName;
           const iconUrl = mod.iconAbsolutePath
             ? `${convertFileSrc(mod.iconAbsolutePath)}?t=${cacheKey}`
             : (mod.networkIconUrl || mod.networkInfo?.icon_url);
 
+          const rowFocusKey = rowFocusKeyByFileName.get(mod.fileName) ?? `mod-row-${toFocusSlug(mod.fileName)}`;
+          const isRowInOperationMode = operationRowFileName === mod.fileName;
+          const isActionLocked = requiresRowOperation && !isRowInOperationMode;
+          const isSelected = selectedMods.has(mod.fileName);
+          const isEnabled = !!mod.isEnabled;
+
+          const formattedSize = mod.fileSize ? `${(mod.fileSize / 1024 / 1024).toFixed(1)} MB` : '未知大小';
+          const modifiedDate = mod.modifiedAt ? new Date(mod.modifiedAt).toLocaleDateString() : '未知日期';
+
           return (
-            <OreList
-              key={mod.fileName} // ✅ React 渲染树复用：使用文件名做 key，不要用索引 i，防止顺序变动导致 DOM 错乱
-              focusKey={`mod-item-${i}`}
-              isInactive={!mod.isEnabled}
-              onClick={() => onSelectMod(mod)}
-              title={
-                <div className="flex items-center">
-                  <span className="truncate">{displayName}</span>
-                  {mod.version && (
-                    <span className="text-xs font-normal bg-[#2A2A2C] text-ore-green px-1.5 py-0.5 rounded ml-2 shadow-inner flex-shrink-0 border border-[#1E1E1F]">
-                      v{mod.version}
-                    </span>
-                  )}
-                </div>
-              }
-              subtitle={mod.fileName}
-              content={<div className="truncate">{displayDesc}</div>}
-              leading={
-                mod.isFetchingNetwork ? (
-                  <Loader2 size={24} className="animate-spin text-ore-text-muted" />
-                ) : iconUrl ? (
-                  <img src={iconUrl} alt="icon" className="w-full h-full object-cover rounded-sm border-[2px] border-[#18181B] shadow-md" />
-                ) : (
-                  <Blocks size={32} className="text-ore-text-muted/50 drop-shadow-md" />
-                )
-              }
-            />
+            <FocusItem
+              key={mod.fileName}
+              focusKey={rowFocusKey}
+              onFocus={() => setFocusedRowFileName(mod.fileName)}
+              onEnter={() => enterRowOperation(mod.fileName)}
+              onArrowPress={handleRowArrow}
+            >
+              {({ ref, focused, hasFocusedChild }) => {
+                const isPrimaryRow = focusedRowFileName === mod.fileName;
+
+                return (
+                  <div ref={ref as React.RefObject<HTMLDivElement>}>
+                    <OreAssetRow
+                      focusable={false}
+                      focused={focused}
+                      hasFocusedChild={hasFocusedChild}
+                      inactive={!isEnabled}
+                      selected={isSelected}
+                      operationActive={isRowInOperationMode}
+                      onClick={() => {
+                        setFocusedRowFileName(mod.fileName);
+                        if (inputMode !== 'mouse') {
+                          focusRow(mod.fileName);
+                          return;
+                        }
+                        setOperationRowFileName(null);
+                        onSelectMod(mod);
+                      }}
+                      leading={(
+                        <>
+                          {mod.isFetchingNetwork && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                              <Loader2 size={14} className="animate-spin text-ore-green" />
+                            </div>
+                          )}
+                          {iconUrl ? (
+                            <img src={iconUrl} alt="icon" className="h-full w-full object-cover" />
+                          ) : (
+                            <Blocks size={20} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />
+                          )}
+                        </>
+                      )}
+                      title={displayName}
+                      titleClassName={isPrimaryRow ? 'brightness-100' : ''}
+                      badges={(
+                        <>
+                          {mod.version && (
+                            <span
+                              className="flex-shrink-0 border-[2px] px-2 py-0.5 font-mono text-[10px] text-white"
+                              style={{
+                                backgroundColor: 'var(--ore-downloadDetail-base)',
+                                borderColor: 'var(--ore-downloadDetail-divider)'
+                              }}
+                            >
+                              v{mod.version}
+                            </span>
+                          )}
+                          <span
+                            className={`flex-shrink-0 border-[2px] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] ${
+                              isEnabled
+                                ? 'bg-[#24563C] text-white'
+                                : 'bg-[#313233] text-[#D0D1D4]'
+                            }`}
+                            style={{ borderColor: 'var(--ore-downloadDetail-divider)' }}
+                          >
+                            {isEnabled ? '已启用' : '已禁用'}
+                          </span>
+                          {mod.isCheckingUpdate && (
+                            <span className="ml-2 flex items-center text-[10px] text-[#6B4F00]">
+                              <Loader2 size={12} className="mr-1 animate-spin" />
+                              检查更新中...
+                            </span>
+                          )}
+                          {mod.hasUpdate && (
+                            <span
+                              title={`Available update: ${mod.updateVersionName}`}
+                              className="ml-2 flex items-center border-[2px] bg-[#24563C] px-2 py-0.5 text-[10px] text-white"
+                              style={{ borderColor: 'var(--ore-downloadDetail-divider)' }}
+                            >
+                              <ArrowUpCircle size={12} className="mr-1" />
+                              可更新
+                            </span>
+                          )}
+                        </>
+                      )}
+                      description={displayDesc}
+                      metaItems={[mod.fileName, formattedSize, modifiedDate]}
+                      trailingClassName={`grid grid-cols-[58px_40px_40px] items-center gap-2 ${isActionLocked ? 'opacity-90' : 'opacity-100'}`}
+                      trailing={(
+                        <>
+                          <div className="flex h-10 w-[58px] items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                            <OreSwitch
+                              focusKey={getActionFocusKey(mod.fileName, 'toggle')}
+                              checked={isEnabled}
+                              onArrowPress={(direction) => handleActionArrow(mod.fileName, 'toggle', direction)}
+                              onChange={() => {
+                                if (preventLockedAction(mod.fileName)) return;
+                                onToggleMod(mod.fileName, isEnabled);
+                              }}
+                            />
+                          </div>
+                          <OreButton
+                            focusKey={getActionFocusKey(mod.fileName, 'select')}
+                            variant={isSelected ? 'primary' : 'secondary'}
+                            size="auto"
+                            onArrowPress={(direction) => handleActionArrow(mod.fileName, 'select', direction)}
+                            onClick={(e) => {
+                              if (preventLockedAction(mod.fileName, e)) return;
+                              e.stopPropagation();
+                              onToggleSelection(mod.fileName);
+                            }}
+                            className={`!h-10 !min-h-10 !min-w-10 !w-10 !px-0 ${isSelected ? 'text-white' : ''}`}
+                          >
+                            {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+                          </OreButton>
+                          <OreButton
+                            focusKey={getActionFocusKey(mod.fileName, 'delete')}
+                            variant="danger"
+                            size="auto"
+                            onArrowPress={(direction) => handleActionArrow(mod.fileName, 'delete', direction)}
+                            onClick={(e) => {
+                              if (preventLockedAction(mod.fileName, e)) return;
+                              e.stopPropagation();
+                              onDeleteMod(mod.fileName);
+                            }}
+                            className="!h-10 !min-h-10 !min-w-10 !w-10 !px-0"
+                          >
+                            <Trash2 size={16} />
+                          </OreButton>
+                        </>
+                      )}
+                    />
+                  </div>
+                );
+              }}
+            </FocusItem>
           );
         })}
       </FocusBoundary>

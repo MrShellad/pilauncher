@@ -1,7 +1,8 @@
+@tailwind components;
 /* /src/style/ui/primitives/OreSlider.css */
 @layer components {
   /* ============================================== */
-  /* 滑动条外层交互容器 */
+  /* 婊戝姩鏉″灞備氦浜掑鍣?*/
   /* ============================================== */
   .ore-slider-wrapper {
     @apply relative flex items-center w-full h-[30px] cursor-pointer select-none touch-none my-[6px] outline-none;
@@ -11,7 +12,7 @@
   }
 
   /* ============================================== */
-  /* ✅ 高光焦点导航环 (对接 HDR 空间导航) */
+  /* 鉁?楂樺厜鐒︾偣瀵艰埅鐜?(瀵规帴 HDR 绌洪棿瀵艰埅) */
   /* ============================================== */
   .ore-slider-wrapper.is-focused .ore-slider-track {
     outline: 2px solid var(--ore-focus-ringFallback);
@@ -21,17 +22,17 @@
   }
 
   /* ============================================== */
-  /* 凹陷的底层轨道 (Track) */
+  /* 鍑归櫡鐨勫簳灞傝建閬?(Track) */
   /* ============================================== */
   .ore-slider-track {
     @apply relative w-full h-[8px] border-[2px] transition-none;
     border-color: var(--ore-border-color);
-    background-color: #8C8D90; /* 基岩版经典滑轨底灰 */
+    background-color: #8C8D90; /* 鍩哄博鐗堢粡鍏告粦杞ㄥ簳鐏?*/
     box-shadow: inset 2px 2px rgba(255, 255, 255, 0.4), inset -2px -2px rgba(255, 255, 255, 0.2);
   }
 
   /* ============================================== */
-  /* 绿色的进度填充槽 (Process) */
+  /* 缁胯壊鐨勮繘搴﹀～鍏呮Ы (Process) */
   /* ============================================== */
   .ore-slider-fill {
     @apply absolute top-0 left-0 h-full;
@@ -40,22 +41,22 @@
   }
 
   /* ============================================== */
-  /* 物理正方形推钮 (Thumb) */
+  /* 鐗╃悊姝ｆ柟褰㈡帹閽?(Thumb) */
   /* ============================================== */
   .ore-slider-thumb {
     @apply absolute w-[28px] h-[28px] border-[2px] z-10;
     top: 50%;
-    transform: translate(-50%, -50%); /* 确保推钮中心点永远对齐轨道进度 */
+    transform: translate(-50%, -50%); /* 纭繚鎺ㄩ挳涓績鐐规案杩滃榻愯建閬撹繘搴?*/
     border-color: var(--ore-border-color);
     background-color: var(--ore-btn-secondary-bg);
-    /* 严格还原 oreui 的按钮级别立体光影 */
+    /* 涓ユ牸杩樺師 oreui 鐨勬寜閽骇鍒珛浣撳厜褰?*/
     box-shadow: 
       inset 0 -4px var(--ore-btn-secondary-shadow), 
       inset 2px 2px var(--ore-btn-secondary-highlight), 
       inset -2px -6px rgba(255, 255, 255, 0.4);
   }
 
-  /* 悬停、聚焦与拖拽时的提亮效果 (没有物理按压塌陷，纯提亮) */
+  /* 鎮仠銆佽仛鐒︿笌鎷栨嫿鏃剁殑鎻愪寒鏁堟灉 (娌℃湁鐗╃悊鎸夊帇濉岄櫡锛岀函鎻愪寒) */
   .ore-slider-wrapper:hover:not(.disabled) .ore-slider-thumb,
   .ore-slider-wrapper.is-focused:not(.disabled) .ore-slider-thumb,
   .ore-slider-thumb.active {
@@ -67,7 +68,7 @@
   }
 
   /* ============================================== */
-  /* 禁用态 (Disabled) */
+  /* 绂佺敤鎬?(Disabled) */
   /* ============================================== */
   .ore-slider-wrapper.disabled .ore-slider-track {
     background-color: #CFD0D4;

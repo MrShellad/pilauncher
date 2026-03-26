@@ -1,3 +1,4 @@
+@tailwind components;
 /* /src/style/ui/primitives/OreCard.css */
 @layer components {
   .ore-card-item {

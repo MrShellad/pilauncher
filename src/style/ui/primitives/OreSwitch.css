@@ -1,6 +1,7 @@
+@tailwind components;
 /* /src/style/ui/primitives/OreSwitch.css */
 @layer components {
-  /* 开关最外层容器，统一管理点击和禁用状态 */
+  /* 寮€鍏虫渶澶栧眰瀹瑰櫒锛岀粺涓€绠＄悊鐐瑰嚮鍜岀鐢ㄧ姸鎬?*/
   .ore-switch-wrapper {
     @apply inline-flex items-center cursor-pointer select-none outline-none transition-none;
   }
@@ -9,7 +10,7 @@
   }
 
   /* ============================================== */
-  /* ✅ 高光焦点导航环 (完美对接 HDR 空间导航) */
+  /* 鉁?楂樺厜鐒︾偣瀵艰埅鐜?(瀹岀編瀵规帴 HDR 绌洪棿瀵艰埅) */
   /* ============================================== */
   .ore-switch-wrapper.is-focused .ore-switch-track {
     outline: 2px solid var(--ore-focus-ringFallback);
@@ -19,46 +20,46 @@
   }
 
   /* ============================================== */
-  /* ✅ 轨道背景 (Track) */
+  /* 鉁?杞ㄩ亾鑳屾櫙 (Track) */
   /* ============================================== */
   .ore-switch-track {
     @apply relative block w-[58px] h-[24px] border-[2px] transition-none overflow-visible;
     border-color: var(--ore-border-color);
-    /* 经典基岩版视效：左半绿，右半灰。滑块遮住一半露出另一半 */
+    /* 缁忓吀鍩哄博鐗堣鏁堬細宸﹀崐缁匡紝鍙冲崐鐏般€傛粦鍧楅伄浣忎竴鍗婇湶鍑哄彟涓€鍗?*/
     background: linear-gradient(to right, var(--ore-btn-primary-bg) 50%, #8C8D90 50%);
     box-shadow: inset 2px 2px rgba(255, 255, 255, 0.2), inset -2px -2px rgba(255, 255, 255, 0.1);
   }
 
-  /* 禁用时的底轨背景 */
+  /* 绂佺敤鏃剁殑搴曡建鑳屾櫙 */
   .ore-switch-wrapper.disabled .ore-switch-track {
     background: var(--ore-btn-secondary-bg); 
   }
 
   /* ============================================== */
-  /* ✅ 滑块 (Thumb) */
+  /* 鉁?婊戝潡 (Thumb) */
   /* ============================================== */
   .ore-switch-thumb {
     @apply absolute w-[28px] h-[28px] border-[2px] z-10;
     top: -4px;
     left: -2px;
-    /* 保留原汁原味的丝滑回弹曲线 */
+    /* 淇濈暀鍘熸眮鍘熷懗鐨勪笣婊戝洖寮规洸绾?*/
     transition: left 125ms cubic-bezier(0.34, 1.56, 0.64, 1);
     border-color: var(--ore-border-color);
     background-color: var(--ore-btn-secondary-bg);
-    /* 全面使用 CSS Token 替代 theme() */
+    /* 鍏ㄩ潰浣跨敤 CSS Token 鏇夸唬 theme() */
     box-shadow: 
       inset 0 -4px var(--ore-btn-secondary-shadow), 
       inset 2px 2px var(--ore-btn-secondary-highlight), 
       inset -2px -6px rgba(255, 255, 255, 0.4);
   }
 
-  /* 开启状态下滑块位移 */
+  /* 寮€鍚姸鎬佷笅婊戝潡浣嶇Щ */
   .ore-switch-wrapper.is-on .ore-switch-thumb {
     left: 28px;
   }
 
   /* ============================================== */
-  /* ✅ 悬停与聚焦态 */
+  /* 鉁?鎮仠涓庤仛鐒︽€?*/
   /* ============================================== */
   .ore-switch-wrapper:hover:not(.disabled) .ore-switch-thumb,
   .ore-switch-wrapper.is-focused:not(.disabled) .ore-switch-thumb {
@@ -69,7 +70,7 @@
       inset -2px -6px rgba(255, 255, 255, 0.6);
   }
 
-  /* 鼠标按压时的真实物理下沉效果 */
+  /* 榧犳爣鎸夊帇鏃剁殑鐪熷疄鐗╃悊涓嬫矇鏁堟灉 */
   .ore-switch-wrapper:active:not(.disabled) .ore-switch-thumb {
     background-color: var(--ore-btn-secondary-hover);
     top: -2px;
@@ -80,7 +81,7 @@
   }
 
   /* ============================================== */
-  /* ✅ 禁用态滑块 */
+  /* 鉁?绂佺敤鎬佹粦鍧?*/
   /* ============================================== */
   .ore-switch-wrapper.disabled .ore-switch-thumb {
     background-color: var(--ore-btn-disabled-bg);

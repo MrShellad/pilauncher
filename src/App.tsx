@@ -15,6 +15,20 @@ import { FocusProvider } from './ui/focus/FocusProvider';
 import i18n from './ui/i18';
 import { OreBackground } from './ui/layout/OreBackground';
 import { TitleBar } from './ui/layout/TitleBar';
+
+import './style/global.css';
+import './style/ui/core.css';
+import './style/ui/primitives/OreButton.css';
+import './style/ui/primitives/OreSegmentedControl.css';
+import './style/ui/primitives/OreInstanceCard.css';
+import './style/ui/primitives/OreCard.css';
+import './style/ui/primitives/OreInput.css';
+import './style/ui/primitives/OreAccordion.css';
+import './style/ui/primitives/OreSwitch.css';
+import './style/ui/primitives/OreSlider.css';
+import './style/ui/primitives/OreDropdown.css';
+import './style/ui/primitives/OreToggleButton.css';
+import './style/ui/primitives/AccountCard.css';
 import './style/index.css';
 import './ui/i18';
 

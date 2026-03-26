@@ -15,6 +15,7 @@ interface OreModalProps {
   onClose: () => void;
   title?: string;
   hideTitleBar?: boolean;
+  hideCloseButton?: boolean;
   defaultFocusKey?: string;
   className?: string;
   contentClassName?: string;
@@ -29,6 +30,7 @@ export const OreModal: React.FC<OreModalProps> = ({
   onClose,
   title,
   hideTitleBar = false,
+  hideCloseButton = false,
   defaultFocusKey,
   className = 'w-[480px]',
   contentClassName,
@@ -153,30 +155,32 @@ export const OreModal: React.FC<OreModalProps> = ({
                     {title}
                   </h2>
 
-                  <div className="absolute right-0 top-0 bottom-0 flex items-center justify-center p-1.5 z-50">
-                    <FocusItem focusKey={closeFocusKey} onEnter={onClose}>
-                      {({ ref, focused }) => (
-                        <button
-                          type="button"
-                          ref={ref as any}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onClose();
-                          }}
-                          tabIndex={-1}
-                          className={`
-                            relative flex items-center justify-center p-1.5 rounded-sm transition-none outline-none cursor-pointer
-                            ${focused
-                              ? 'bg-[var(--ore-btn-secondary-hover)] outline outline-[2px] outline-[var(--ore-focus-ringFallback)] outline-[var(--ore-focus-ring)] outline-offset-1 z-10 drop-shadow-[0_0_6px_var(--ore-focus-glow)] brightness-110'
-                              : 'text-gray-300 hover:text-white hover:bg-white/10'
-                            }
-                          `}
-                        >
-                          <X size={22} strokeWidth={2} className="pointer-events-none" />
-                        </button>
-                      )}
-                    </FocusItem>
-                  </div>
+                  {!hideCloseButton && (
+                    <div className="absolute right-0 top-0 bottom-0 flex items-center justify-center p-1.5 z-50">
+                      <FocusItem focusKey={closeFocusKey} onEnter={onClose}>
+                        {({ ref, focused }) => (
+                          <button
+                            type="button"
+                            ref={ref as any}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onClose();
+                            }}
+                            tabIndex={-1}
+                            className={`
+                              relative flex items-center justify-center p-1.5 rounded-sm transition-none outline-none cursor-pointer
+                              ${focused
+                                ? 'bg-[var(--ore-btn-secondary-hover)] outline outline-[2px] outline-[var(--ore-focus-ringFallback)] outline-[var(--ore-focus-ring)] outline-offset-1 z-10 drop-shadow-[0_0_6px_var(--ore-focus-glow)] brightness-110'
+                                : 'text-gray-300 hover:text-white hover:bg-white/10'
+                              }
+                            `}
+                          >
+                            <X size={22} strokeWidth={2} className="pointer-events-none" />
+                          </button>
+                        )}
+                      </FocusItem>
+                    </div>
+                  )}
                 </div>
               )}
 
