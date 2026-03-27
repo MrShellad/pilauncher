@@ -1,5 +1,5 @@
 // /src/features/InstanceDetail/components/tabs/SavePanel.tsx
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
@@ -7,6 +7,8 @@ import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { OreAssetRow } from '../../../../ui/primitives/OreAssetRow';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
+import { FocusItem } from '../../../../ui/focus/FocusItem';
+import { useInputMode } from '../../../../ui/focus/FocusProvider';
 import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
 import { Globe, FolderOpen, Archive, Trash2, Loader2, HardDrive, History } from 'lucide-react';
 
@@ -18,6 +20,8 @@ import { BackupListModal } from './saves/BackupListModal';
 import type { SaveBackupMetadata } from '../../logic/saveService';
 
 const TOP_FOCUS_ORDER = ['save-btn-history', 'save-btn-folder'];
+const ROW_ACTIONS = ['backup', 'delete'] as const;
+type RowAction = (typeof ROW_ACTIONS)[number];
 
 export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   const { saves, backups, isLoading, isBackingUp, backupSave, deleteSave, formatSize, formatDate } = useSaveManager(instanceId);
@@ -25,6 +29,9 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   const [isBackupListOpen, setIsBackupListOpen] = useState(false);
   const [verifyingBackup, setVerifyingBackup] = useState<SaveBackupMetadata | null>(null);
   const [saveToDelete, setSaveToDelete] = useState<string | null>(null);
+  const inputMode = useInputMode();
+
+  const [operationRowIndex, setOperationRowIndex] = useState<number | null>(null);
 
   const handleSelectBackup = (backup: SaveBackupMetadata) => {
     setIsBackupListOpen(false);
@@ -39,42 +46,109 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
     }
   };
 
-  // 全部焦点：顶部 2 个按钮 + 每行 2 个操作按钮
-  const fullFocusOrder = useMemo(() => [
+  // 焦点键生成器
+  const getRowFocusKey = (index: number) => `save-row-${index}`;
+  const getActionFocusKey = (index: number, action: RowAction) => `save-action-${action}-${index}`;
+
+  // 1. 顶层/行级 焦点序列
+  const rowLevelOrder = useMemo(() => [
     ...TOP_FOCUS_ORDER,
-    ...saves.flatMap((_, i) => [`save-btn-backup-${i}`, `save-btn-delete-${i}`])
+    ...saves.map((_, i) => getRowFocusKey(i))
   ], [saves]);
 
-  const { handleLinearArrow } = useLinearNavigation(fullFocusOrder, fullFocusOrder[0], false);
+  const { handleLinearArrow: handleRowNavigation } = useLinearNavigation(rowLevelOrder, rowLevelOrder[0], false);
 
-  // 顶部按钮：末尾向下跳入列表
+  // 2. 进入行内操作模式
+  const enterRowOperation = useCallback((index: number) => {
+    setOperationRowIndex(index);
+    const firstAction = getActionFocusKey(index, 'backup');
+    window.setTimeout(() => {
+      if (doesFocusableExist(firstAction)) {
+        setFocus(firstAction);
+      }
+    }, 20);
+  }, []);
+
+  // 3. 退出行内操作模式
+  const exitRowOperation = useCallback((index: number) => {
+    setOperationRowIndex(null);
+    const rowKey = getRowFocusKey(index);
+    window.setTimeout(() => {
+      if (doesFocusableExist(rowKey)) {
+        setFocus(rowKey);
+      }
+    }, 20);
+  }, []);
+
+  // 处理 Escape 退出操作模式
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && operationRowIndex !== null) {
+        exitRowOperation(operationRowIndex);
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    window.addEventListener('keydown', handleEsc, true);
+    return () => window.removeEventListener('keydown', handleEsc, true);
+  }, [operationRowIndex, exitRowOperation]);
+
+  // 4. 重载顶部按钮导航
   const handleTopArrow = useCallback((direction: string) => {
     if (direction === 'down') {
-      const available = fullFocusOrder.filter((k) => doesFocusableExist(k));
       const current = getCurrentFocusKey();
-      const topAvailable = TOP_FOCUS_ORDER.filter((k) => doesFocusableExist(k));
+      const topAvailable = TOP_FOCUS_ORDER.filter(doesFocusableExist);
       if (topAvailable.length > 0 && current === topAvailable[topAvailable.length - 1]) {
-        const firstRow = available.find((k) => !TOP_FOCUS_ORDER.includes(k));
-        if (firstRow) { setFocus(firstRow); return false; }
+        const firstRow = getRowFocusKey(0);
+        if (doesFocusableExist(firstRow)) {
+          setFocus(firstRow);
+          return false;
+        }
       }
     }
-    return handleLinearArrow(direction);
-  }, [fullFocusOrder, handleLinearArrow]);
+    return handleRowNavigation(direction);
+  }, [handleRowNavigation]);
 
-  // 列表按钮：第一个向上跳回顶部
-  const handleRowArrow = useCallback((direction: string) => {
-    if (direction === 'up') {
-      const available = fullFocusOrder.filter((k) => doesFocusableExist(k));
-      const current = getCurrentFocusKey();
-      const firstRow = available.find((k) => !TOP_FOCUS_ORDER.includes(k));
-      if (current && firstRow && current === firstRow) {
-        const topAvailable = TOP_FOCUS_ORDER.filter((k) => doesFocusableExist(k));
-        const target = topAvailable[topAvailable.length - 1];
-        if (target) { setFocus(target); return false; }
-      }
+  // 5. 行内按钮导航
+  const handleActionArrow = useCallback((index: number, action: RowAction, direction: string) => {
+    if (inputMode === 'mouse') return true;
+
+    if (direction === 'left' || direction === 'right') {
+      const idx = ROW_ACTIONS.indexOf(action);
+      const nextIdx = direction === 'right'
+        ? Math.min(ROW_ACTIONS.length - 1, idx + 1)
+        : Math.max(0, idx - 1);
+      const target = getActionFocusKey(index, ROW_ACTIONS[nextIdx]);
+      if (doesFocusableExist(target)) setFocus(target);
+      return false;
     }
-    return handleLinearArrow(direction);
-  }, [fullFocusOrder, handleLinearArrow]);
+
+    if (direction === 'up' || direction === 'down') {
+      if (direction === 'up' && index === 0) {
+        setOperationRowIndex(null);
+        const lastTop = TOP_FOCUS_ORDER[TOP_FOCUS_ORDER.length - 1];
+        window.setTimeout(() => {
+          if (doesFocusableExist(lastTop)) setFocus(lastTop);
+        }, 20);
+        return false;
+      }
+
+      const nextIndex = direction === 'down'
+        ? Math.min(saves.length - 1, index + 1)
+        : Math.max(0, index - 1);
+
+      if (nextIndex !== index) {
+        setOperationRowIndex(nextIndex);
+        const target = getActionFocusKey(nextIndex, action);
+        window.setTimeout(() => {
+          if (doesFocusableExist(target)) setFocus(target);
+        }, 20);
+      }
+      return false;
+    }
+
+    return false;
+  }, [saves.length, inputMode]);
 
   return (
     <SettingsPageLayout>
@@ -114,57 +188,72 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         ) : (
           <FocusBoundary
             id="save-list"
-            trapFocus={false}
+            trapFocus={operationRowIndex !== null}
             className="flex flex-col space-y-2 overflow-y-auto custom-scrollbar px-2 pb-4"
           >
             {saves.map((save, i) => (
-              <OreAssetRow
+              <FocusItem
                 key={i}
-                focusable={false}
-                title={save.worldName}
-                description={`最后游玩：${formatDate(save.lastPlayedTime)}`}
-                metaItems={[save.folderName, formatSize(save.sizeBytes)]}
-                leading={
-                  save.iconPath ? (
-                    <img
-                      src={`${convertFileSrc(save.iconPath)}?t=${save.lastPlayedTime}`}
-                      alt="Save Icon"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <Globe size={26} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />
-                  )
-                }
-                trailingClassName="flex items-center space-x-3"
-                trailing={
-                  <>
-                    <OreButton
-                      focusKey={`save-btn-backup-${i}`}
-                      variant="secondary"
-                      size="auto"
-                      className="!h-10 !min-h-10"
-                      onArrowPress={handleRowArrow}
-                      onClick={() => backupSave(save.folderName)}
-                      disabled={isBackingUp}
-                    >
-                      {isBackingUp ? <Loader2 size={16} className="animate-spin mr-2" /> : <Archive size={16} className="mr-2" />}
-                      备份
-                    </OreButton>
+                focusKey={getRowFocusKey(i)}
+                onEnter={() => enterRowOperation(i)}
+                onArrowPress={handleRowNavigation}
+              >
+                {({ ref, focused }) => (
+                  <div ref={ref as any}>
+                    <OreAssetRow
+                      focusable={false}
+                      focused={focused}
+                      operationActive={operationRowIndex === i}
+                      title={save.worldName}
+                      description={`最后游玩：${formatDate(save.lastPlayedTime)}`}
+                      metaItems={[save.folderName, formatSize(save.sizeBytes)]}
+                      leading={
+                        save.iconPath ? (
+                          <img
+                            src={`${convertFileSrc(save.iconPath)}?t=${save.lastPlayedTime}`}
+                            alt="Save Icon"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <Globe size={26} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />
+                        )
+                      }
+                      trailingClassName="flex items-center space-x-3"
+                      trailing={
+                        <>
+                          <OreButton
+                            focusKey={getActionFocusKey(i, 'backup')}
+                            variant="secondary"
+                            size="auto"
+                            className="!h-10 !min-h-10"
+                            onArrowPress={(dir) => handleActionArrow(i, 'backup', dir)}
+                            onClick={() => backupSave(save.folderName)}
+                            disabled={isBackingUp}
+                          >
+                            {isBackingUp ? <Loader2 size={16} className="animate-spin mr-2" /> : <Archive size={16} className="mr-2" />}
+                            备份
+                          </OreButton>
 
-                    <OreButton
-                      focusKey={`save-btn-delete-${i}`}
-                      variant="danger"
-                      size="auto"
-                      className="!h-10 !min-h-10"
-                      onArrowPress={handleRowArrow}
-                      onClick={() => setSaveToDelete(save.folderName)}
-                    >
-                      <Trash2 size={16} className="mr-2" />
-                      删除
-                    </OreButton>
-                  </>
-                }
-              />
+                          <OreButton
+                            focusKey={getActionFocusKey(i, 'delete')}
+                            variant="danger"
+                            size="auto"
+                            className="!h-10 !min-h-10"
+                            onArrowPress={(dir) => handleActionArrow(i, 'delete', dir)}
+                            onClick={(e) => {
+                              console.log('Delete button clicked for:', save.folderName);
+                              setSaveToDelete(save.folderName);
+                            }}
+                          >
+                            <Trash2 size={16} className="mr-2" />
+                            删除
+                          </OreButton>
+                        </>
+                      }
+                    />
+                  </div>
+                )}
+              </FocusItem>
             ))}
           </FocusBoundary>
         )}

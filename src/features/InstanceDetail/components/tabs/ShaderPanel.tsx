@@ -1,61 +1,135 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
-import { DownloadCloud, FolderOpen, Image as ImageIcon, Loader2, Power, Trash2 } from 'lucide-react';
+import { DownloadCloud, FolderOpen, Image as ImageIcon, Loader2, Trash2 } from 'lucide-react';
 
 import { useLauncherStore } from '../../../../store/useLauncherStore';
 import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
+import { FocusItem } from '../../../../ui/focus/FocusItem';
+import { useInputMode } from '../../../../ui/focus/FocusProvider';
 import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { OreAssetRow } from '../../../../ui/primitives/OreAssetRow';
 import { OreButton } from '../../../../ui/primitives/OreButton';
+import { OreSwitch } from '../../../../ui/primitives/OreSwitch';
 import { useResourceManager } from '../../hooks/useResourceManager';
 
 const TOP_FOCUS_ORDER = ['btn-download-shader', 'btn-open-shader-folder'];
+const ROW_ACTIONS = ['toggle', 'delete'] as const;
+type RowAction = (typeof ROW_ACTIONS)[number];
 
 export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   const { items, isLoading, toggleItem, deleteItem, openFolder, formatSize } = useResourceManager(instanceId, 'shader');
   const setActiveTab = useLauncherStore((state) => state.setActiveTab);
   const setInstanceDownloadTarget = useLauncherStore((state) => state.setInstanceDownloadTarget);
+  const inputMode = useInputMode();
 
-  // 全部焦点：顶部 2 个按钮 + 每行 2 个操作按钮
-  const fullFocusOrder = useMemo(() => [
+  const [operationRowIndex, setOperationRowIndex] = useState<number | null>(null);
+
+  // 焦点键生成器
+  const getRowFocusKey = (index: number) => `shader-row-${index}`;
+  const getActionFocusKey = (index: number, action: RowAction) => `shader-action-${action}-${index}`;
+
+  // 1. 顶层/行级 焦点序列
+  const rowLevelOrder = useMemo(() => [
     ...TOP_FOCUS_ORDER,
-    ...items.flatMap((_, i) => [`shader-btn-toggle-${i}`, `shader-btn-delete-${i}`])
+    ...items.map((_, i) => getRowFocusKey(i))
   ], [items]);
 
-  const { handleLinearArrow } = useLinearNavigation(fullFocusOrder, fullFocusOrder[0], false);
+  const { handleLinearArrow: handleRowNavigation } = useLinearNavigation(rowLevelOrder, rowLevelOrder[0], false);
 
-  // 包装：到达顶部 2 个按钮末尾向下时直接跳入列表第一个按钮
-  // 这里直接用统一线性序列即可，useLinearNavigation 会自动在 TOP → ROW 之间穿越
-  // 但为确保 TOP 末尾 → 下方列表能跳，在 TOP 按钮上使用包装版本
+  // 2. 进入行内操作模式
+  const enterRowOperation = useCallback((index: number) => {
+    setOperationRowIndex(index);
+    const firstAction = getActionFocusKey(index, 'toggle');
+    window.setTimeout(() => {
+      if (doesFocusableExist(firstAction)) {
+        setFocus(firstAction);
+      }
+    }, 20);
+  }, []);
+
+  // 3. 退出行内操作模式
+  const exitRowOperation = useCallback((index: number) => {
+    setOperationRowIndex(null);
+    const rowKey = getRowFocusKey(index);
+    window.setTimeout(() => {
+      if (doesFocusableExist(rowKey)) {
+        setFocus(rowKey);
+      }
+    }, 20);
+  }, []);
+
+  // 处理 Escape 退出操作模式
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && operationRowIndex !== null) {
+        exitRowOperation(operationRowIndex);
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    window.addEventListener('keydown', handleEsc, true);
+    return () => window.removeEventListener('keydown', handleEsc, true);
+  }, [operationRowIndex, exitRowOperation]);
+
+  // 4. 重载顶部按钮导航（末尾向下跳入首行）
   const handleTopArrow = useCallback((direction: string) => {
     if (direction === 'down') {
-      const available = fullFocusOrder.filter((k) => doesFocusableExist(k));
       const current = getCurrentFocusKey();
-      const topAvailable = TOP_FOCUS_ORDER.filter((k) => doesFocusableExist(k));
-      // 如果当前在顶部最后一个，跳到列表第一个
+      const topAvailable = TOP_FOCUS_ORDER.filter(doesFocusableExist);
       if (topAvailable.length > 0 && current === topAvailable[topAvailable.length - 1]) {
-        const firstRow = available.find((k) => !TOP_FOCUS_ORDER.includes(k));
-        if (firstRow) { setFocus(firstRow); return false; }
+        const firstRow = getRowFocusKey(0);
+        if (doesFocusableExist(firstRow)) {
+          setFocus(firstRow);
+          return false;
+        }
       }
     }
-    return handleLinearArrow(direction);
-  }, [fullFocusOrder, handleLinearArrow]);
+    return handleRowNavigation(direction);
+  }, [handleRowNavigation]);
 
-  // 列表按钮：第一行第一个按钮向上时跳回顶部最后一个按钮
-  const handleRowArrow = useCallback((direction: string) => {
-    if (direction === 'up') {
-      const available = fullFocusOrder.filter((k) => doesFocusableExist(k));
-      const current = getCurrentFocusKey();
-      const firstRow = available.find((k) => !TOP_FOCUS_ORDER.includes(k));
-      if (current && firstRow && current === firstRow) {
-        const topAvailable = TOP_FOCUS_ORDER.filter((k) => doesFocusableExist(k));
-        const target = topAvailable[topAvailable.length - 1];
-        if (target) { setFocus(target); return false; }
-      }
+  // 5. 行内按钮导航：水平移动 + 垂直切换行
+  const handleActionArrow = useCallback((index: number, action: RowAction, direction: string) => {
+    if (inputMode === 'mouse') return true;
+
+    // 水平移动：切换 Switch <-> Delete
+    if (direction === 'left' || direction === 'right') {
+      const idx = ROW_ACTIONS.indexOf(action);
+      const nextIdx = direction === 'right'
+        ? Math.min(ROW_ACTIONS.length - 1, idx + 1)
+        : Math.max(0, idx - 1);
+      const target = getActionFocusKey(index, ROW_ACTIONS[nextIdx]);
+      if (doesFocusableExist(target)) setFocus(target);
+      return false;
     }
-    return handleLinearArrow(direction);
-  }, [fullFocusOrder, handleLinearArrow]);
+
+    // 垂直移动：切换到相邻行的同一操作，或退出到顶部
+    if (direction === 'up' || direction === 'down') {
+      if (direction === 'up' && index === 0) {
+        setOperationRowIndex(null);
+        const lastTop = TOP_FOCUS_ORDER[TOP_FOCUS_ORDER.length - 1];
+        window.setTimeout(() => {
+          if (doesFocusableExist(lastTop)) setFocus(lastTop);
+        }, 20);
+        return false;
+      }
+
+      const nextIndex = direction === 'down'
+        ? Math.min(items.length - 1, index + 1)
+        : Math.max(0, index - 1);
+
+      if (nextIndex !== index) {
+        setOperationRowIndex(nextIndex);
+        const target = getActionFocusKey(nextIndex, action);
+        window.setTimeout(() => {
+          if (doesFocusableExist(target)) setFocus(target);
+        }, 20);
+      }
+      return false;
+    }
+
+    return false;
+  }, [items.length, inputMode]);
 
   return (
     <SettingsPageLayout>
@@ -105,62 +179,72 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
         ) : (
           <FocusBoundary
             id="shader-list"
-            trapFocus={false}
-            className="grid grid-cols-1 gap-2 overflow-y-auto px-2 pb-4 xl:grid-cols-2 custom-scrollbar"
+            trapFocus={operationRowIndex !== null}
+            className="grid grid-cols-1 gap-2 overflow-y-auto px-2 pb-4 custom-scrollbar"
           >
             {items.map((item, i) => (
-              <OreAssetRow
+              <FocusItem
                 key={i}
-                focusable={false}
-                inactive={!item.isEnabled}
-                selected={item.isEnabled}
-                title={item.fileName.replace('.zip', '').replace('.disabled', '')}
-                badges={(
-                  <span
-                    className={`flex-shrink-0 border-[2px] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] ${
-                      item.isEnabled ? 'bg-[#24563C] text-white' : 'bg-[#313233] text-[#D0D1D4]'
-                    }`}
-                    style={{ borderColor: 'var(--ore-downloadDetail-divider)' }}
-                  >
-                    {item.isEnabled ? '已启用' : '已禁用'}
-                  </span>
-                )}
-                description="本地光影包"
-                metaItems={[
-                  item.fileName,
-                  formatSize(item.fileSize),
-                  new Date(item.modifiedAt).toLocaleDateString()
-                ]}
-                leading={<ImageIcon size={26} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />}
-                trailingClassName="flex items-center space-x-2"
-                trailing={(
-                  <>
-                    <OreButton
-                      focusKey={`shader-btn-toggle-${i}`}
-                      variant={item.isEnabled ? 'secondary' : 'ghost'}
-                      size="auto"
-                      className="!h-10 !min-h-10 !min-w-10 !w-10 !px-0"
-                      onArrowPress={handleRowArrow}
-                      onClick={() => toggleItem(item.fileName, item.isEnabled)}
-                      title={item.isEnabled ? '点击禁用' : '点击启用'}
-                    >
-                      <Power size={16} className={item.isEnabled ? 'text-ore-green' : 'text-gray-400'} />
-                    </OreButton>
+                focusKey={getRowFocusKey(i)}
+                onEnter={() => enterRowOperation(i)}
+                onArrowPress={handleRowNavigation}
+              >
+                {({ ref, focused }) => (
+                  <div ref={ref as any}>
+                    <OreAssetRow
+                      focusable={false}
+                      focused={focused}
+                      operationActive={operationRowIndex === i}
+                      inactive={!item.isEnabled}
+                      selected={item.isEnabled}
+                      title={item.fileName.replace('.zip', '').replace('.disabled', '')}
+                      badges={(
+                        <span
+                          className={`flex-shrink-0 border-[2px] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] ${
+                            item.isEnabled ? 'bg-[#24563C] text-white' : 'bg-[#313233] text-[#D0D1D4]'
+                          }`}
+                          style={{ borderColor: 'var(--ore-downloadDetail-divider)' }}
+                        >
+                          {item.isEnabled ? '已启用' : '已禁用'}
+                        </span>
+                      )}
+                      description="本地光影包"
+                      metaItems={[
+                        item.fileName,
+                        formatSize(item.fileSize),
+                        new Date(item.modifiedAt).toLocaleDateString()
+                      ]}
+                      leading={<ImageIcon size={26} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />}
+                      trailingClassName="flex items-center space-x-2"
+                      trailing={(
+                        <>
+                          <OreSwitch
+                            focusKey={getActionFocusKey(i, 'toggle')}
+                            checked={item.isEnabled}
+                            onArrowPress={(dir) => handleActionArrow(i, 'toggle', dir)}
+                            onChange={() => toggleItem(item.fileName, item.isEnabled)}
+                          />
 
-                    <OreButton
-                      focusKey={`shader-btn-delete-${i}`}
-                      variant="danger"
-                      size="auto"
-                      className="!h-10 !min-h-10 !min-w-10 !w-10 !px-0"
-                      onArrowPress={handleRowArrow}
-                      onClick={() => deleteItem(item.fileName)}
-                      title="删除光影包"
-                    >
-                      <Trash2 size={16} />
-                    </OreButton>
-                  </>
+                          <OreButton
+                            focusKey={getActionFocusKey(i, 'delete')}
+                            variant="danger"
+                            size="auto"
+                            className="!h-10 !min-h-10 !min-w-10 !w-10 !px-0"
+                            onArrowPress={(dir) => handleActionArrow(i, 'delete', dir)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteItem(item.fileName);
+                            }}
+                            title="删除光影包"
+                          >
+                            <Trash2 size={16} />
+                          </OreButton>
+                        </>
+                      )}
+                    />
+                  </div>
                 )}
-              />
+              </FocusItem>
             ))}
           </FocusBoundary>
         )}
