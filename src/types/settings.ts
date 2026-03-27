@@ -14,6 +14,7 @@ export interface GeneralSettings {
   basePath: string;
   deviceName: string;
   deviceId: string;
+  preventTouchAction: boolean;
   thirdPartyDirs?: string[];
 }
 
@@ -93,6 +94,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     basePath: '',
     deviceName: '',
     deviceId: '',   
+    preventTouchAction: true,
     thirdPartyDirs: [],
   } as any,
   appearance: {

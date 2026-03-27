@@ -240,6 +240,11 @@ export const GeneralSettings: React.FC = () => {
             control={<FocusableSwitch checked={general.minimizeAfterStart} onChange={(v) => updateGeneralSetting('minimizeAfterStart', v)} />}
           />
           <FormRow
+            label="阻止触控操作 (触屏优化)"
+            description="全局禁用网页默认触控行为（如双指缩放、下拉等），可能会使部分原生滚动失效。"
+            control={<FocusableSwitch checked={general.preventTouchAction} onChange={(v) => updateGeneralSetting('preventTouchAction', v)} />}
+          />
+          <FormRow
             label="关闭按钮行为"
             description="点击右上角 'X' 时执行的操作。"
             control={

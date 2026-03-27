@@ -75,6 +75,26 @@ const App: React.FC = () => {
     return () => document.removeEventListener('contextmenu', handleContextMenu);
   }, []);
 
+  // 禁用全局触控动作（如双指缩放、下拉刷新、全屏滚动等）
+  useEffect(() => {
+    const preventTouch = general?.preventTouchAction ?? true;
+    if (preventTouch) {
+      document.documentElement.style.touchAction = 'none';
+      const handleTouchMove = (e: TouchEvent) => {
+        e.preventDefault();
+      };
+      // passive 必须为 false 才能起作用
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      return () => {
+        document.documentElement.style.touchAction = '';
+        document.removeEventListener('touchmove', handleTouchMove);
+      };
+    } else {
+      document.documentElement.style.touchAction = '';
+      return () => {};
+    }
+  }, [general?.preventTouchAction]);
+
   const PageLoader = () => (
     <div className="absolute inset-0 flex items-center justify-center">
       <span className="animate-pulse font-minecraft text-ore-text-muted">Loading...</span>
