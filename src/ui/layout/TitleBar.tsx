@@ -31,11 +31,11 @@ export const TitleBar: React.FC = () => {
   const handleClose = () => appWindow.close();
 
   const navTabs: TabItem[] = [
-    { id: 'home', label: '首页', icon: <HomeIcon size={16} /> },
-    { id: 'instances', label: '实例', icon: <Server size={16} /> },
-    // { id: 'multiplayer', label: '联机', icon: <Users size={16} /> }, // 暂时隐藏
-    { id: 'downloads', label: '下载', icon: <Download size={16} /> },
-    { id: 'settings', label: '设置', icon: <Settings size={16} /> },
+    { id: 'home', label: '首页', icon: <HomeIcon size={18} /> },
+    { id: 'instances', label: '实例', icon: <Server size={18} /> },
+    // { id: 'multiplayer', label: '联机', icon: <Users size={18} /> }, // 暂时隐藏
+    { id: 'downloads', label: '下载', icon: <Download size={18} /> },
+    { id: 'settings', label: '设置', icon: <Settings size={18} /> },
   ];
 
   const currentIndex = navTabs.findIndex((tab) => tab.id === activeTab);

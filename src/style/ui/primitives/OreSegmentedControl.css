@@ -9,13 +9,13 @@
    ============================================================ */
 :root {
   /* SteamDeck 榛樿鍊?*/
-  --seg-height: 2.25rem;
+  --seg-height: 2.75rem;
   /* 36px */
-  --seg-min-width: 6.25rem;
+  --seg-min-width: 7.5rem;
   /* 100px */
-  --seg-px: 1.125rem;
+  --seg-px: 1.25rem;
   /* 18px 姘村钩鍐呰竟璺?*/
-  --seg-font-size: 0.8125rem;
+  --seg-font-size: 0.9375rem;
   /* 13px */
   --seg-border: 0.125rem;
   /* 2px */
@@ -36,18 +36,18 @@
 /* PC: 1440px 璧?*/
 @media (min-width: 90rem) {
   :root {
-    --seg-height: 2.5rem;
+    --seg-height: 3rem;
     /* 40px */
     --seg-min-width: 7.5rem;
     /* 120px */
     --seg-px: 1.5rem;
     /* 24px */
-    --seg-font-size: 0.9375rem;
+    --seg-font-size: 1.0625rem;
     /* 15px */
     --seg-icon-mr: 0.5rem;
     /* 8px */
 
-    --shortcut-size: 2.5rem;
+    --shortcut-size: 3rem;
     /* 40px */
     --shortcut-pb: 0.25rem;
   }
@@ -56,18 +56,18 @@
 /* 2K / 2K+125%缂╂斁: 鈮?920 CSS px (= 2560px 鐗╃悊脳125%) */
 @media (min-width: 120rem) {
   :root {
-    --seg-height: 3rem;
+    --seg-height: 3.5rem;
     /* 48px */
-    --seg-min-width: 9rem;
+    --seg-min-width: 10rem;
     /* 144px */
     --seg-px: 1.75rem;
     /* 28px */
-    --seg-font-size: 1.0625rem;
+    --seg-font-size: 1.1875rem;
     /* 17px */
     --seg-icon-mr: 0.5625rem;
     /* 9px */
 
-    --shortcut-size: 3rem;
+    --shortcut-size: 3.5rem;
     /* 48px */
     --shortcut-pb: 0.3125rem;
   }
@@ -76,13 +76,13 @@
 /* TV / 澶у睆: 2560px 璧?*/
 @media (min-width: 160rem) {
   :root {
-    --seg-height: 3.5rem;
+    --seg-height: 4.25rem;
     /* 56px */
-    --seg-min-width: 10rem;
+    --seg-min-width: 12rem;
     /* 160px */
-    --seg-px: 2rem;
+    --seg-px: 2.5rem;
     /* 32px */
-    --seg-font-size: 1.25rem;
+    --seg-font-size: 1.375rem;
     /* 20px */
     --seg-border: 0.1875rem;
     /* 3px */
@@ -91,7 +91,7 @@
     --seg-icon-mr: 0.625rem;
     /* 10px */
 
-    --shortcut-size: 3.5rem;
+    --shortcut-size: 4.25rem;
     /* 56px */
     --shortcut-pb: 0.375rem;
     --shortcut-border: 0.1875rem;

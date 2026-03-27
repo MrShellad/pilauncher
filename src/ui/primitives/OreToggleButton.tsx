@@ -40,10 +40,10 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
   const activeOption = options.find((opt) => opt.value === value);
 
   const sizeClasses = {
-    sm: 'h-[40px] text-xs',
-    md: 'h-[44px] text-sm',
-    lg: 'h-[48px] text-base',
-    full: 'h-full min-h-[44px]',
+    sm: 'h-10 text-xs',
+    md: 'h-11 text-sm',
+    lg: 'h-12 text-base',
+    full: 'h-full min-h-11',
   };
 
   return (
