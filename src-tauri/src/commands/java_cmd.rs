@@ -280,18 +280,20 @@ pub async fn download_java_env<R: Runtime>(
                                 );
 
                                 let mut new_java_path = String::new();
+                                // ✅ Windows 优先匹配 javaw.exe，避免回填后出现黑色控制台窗口
+                                let target_exe = if env::consts::OS == "windows" {
+                                    "javaw.exe"
+                                } else {
+                                    "java"
+                                };
                                 for entry in walkdir::WalkDir::new(&extract_target)
                                     .into_iter()
                                     .filter_map(|e| e.ok())
                                 {
                                     let p = entry.path();
-                                    let is_java = if env::consts::OS == "windows" {
-                                        p.is_file()
-                                            && p.file_name().unwrap_or_default() == "java.exe"
-                                    } else {
-                                        p.is_file() && p.file_name().unwrap_or_default() == "java"
-                                    };
-                                    if is_java {
+                                    if p.is_file()
+                                        && p.file_name().unwrap_or_default() == target_exe
+                                    {
                                         new_java_path = p.to_string_lossy().to_string();
                                         break;
                                     }

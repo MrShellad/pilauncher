@@ -15,7 +15,7 @@ mod game_core;
 mod libraries;
 mod mirror;
 mod progress;
-mod scheduler;
+pub mod scheduler;
 
 pub use assets::download_assets;
 pub use game_core::load_version_manifest;

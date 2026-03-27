@@ -437,17 +437,24 @@ pub async fn run_downloads<R: Runtime>(
                     }
                 }
 
-                let mut c = completed.lock().await;
-                *c += 1;
+                let mut time_ok = false;
+                let c_val: u64;
+                {
+                    let mut c = completed.lock().await;
+                    *c += 1;
+                    c_val = *c;
+                    
+                    let now = Instant::now();
+                    let mut last = last_emit.lock().await;
+                    time_ok = now.duration_since(*last).as_millis() >= PROGRESS_EMIT_INTERVAL_MS as u128;
+                    
+                    if c_val == total || time_ok {
+                        *last = now;
+                    }
+                } // 锁在这里释放
 
-                let now = Instant::now();
-                let mut last = last_emit.lock().await;
-                let reached_step = *c % stage.step() == 0 || *c == total;
-                let time_ok =
-                    now.duration_since(*last).as_millis() >= PROGRESS_EMIT_INTERVAL_MS as u128;
-                if *c == total || (reached_step && time_ok) {
-                    emit_download_progress(&app, &instance_id, stage, task.name, *c, total);
-                    *last = now;
+                if c_val == total || time_ok {
+                    emit_download_progress(&app, &instance_id, stage, task.name, c_val, total);
                 }
             }
         })

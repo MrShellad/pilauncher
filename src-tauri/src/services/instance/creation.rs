@@ -10,6 +10,7 @@ use crate::domain::instance::{
 };
 use crate::error::{AppError, AppResult};
 use crate::services::deployment_cancel;
+use crate::services::downloader::logging::sanitize_filename;
 
 pub struct InstanceCreationService;
 
@@ -27,7 +28,7 @@ impl InstanceCreationService {
             })?;
         let base_dir = PathBuf::from(base_path_str);
 
-        let instance_id = payload.folder_name.clone();
+        let instance_id = sanitize_filename(&payload.folder_name);
         let instance_root = base_dir.join("instances").join(&instance_id);
 
         let sub_dirs = [
@@ -57,7 +58,7 @@ impl InstanceCreationService {
         let config = InstanceConfig {
             id: instance_id.clone(),
             name: if payload.name.is_empty() {
-                payload.folder_name.clone()
+                instance_id.clone()
             } else {
                 payload.name.clone()
             },

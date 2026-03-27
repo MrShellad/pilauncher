@@ -3,6 +3,7 @@ use crate::domain::event::DownloadProgressEvent;
 use crate::error::{AppError, AppResult};
 use crate::services::config_service::{ConfigService, DownloadSettings};
 use crate::services::deployment_cancel::is_cancelled;
+use crate::services::downloader::logging::resolve_logs_dir;
 use std::path::Path;
 use std::process::Stdio;
 use std::sync::atomic::AtomicBool;
@@ -12,6 +13,9 @@ use std::time::Instant;
 use tauri::{AppHandle, Emitter, Runtime};
 use tokio::io::AsyncBufReadExt;
 use tokio::process::Command;
+
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 
 fn build_download_client(dl_settings: &DownloadSettings) -> AppResult<reqwest::Client> {
     let mut builder = reqwest::Client::builder()
@@ -256,14 +260,23 @@ async fn install_forge<R: Runtime>(
         java_settings.java_path.clone()
     };
 
-    let mut child = Command::new(&java_path)
-        .arg("-jar")
+    let mut cmd = Command::new(&java_path);
+    cmd.arg("-jar")
         .arg(&installer_path)
         .arg("--installClient")
         .arg(global_mc_root)
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
+        .stderr(Stdio::piped());
+
+    if let Some(logs_dir) = resolve_logs_dir(app) {
+        let _ = tokio::fs::create_dir_all(&logs_dir).await;
+        cmd.current_dir(logs_dir);
+    }
+
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(0x08000000);
+
+    let mut child = cmd.spawn()
         .map_err(|e| {
             std::io::Error::new(
                 std::io::ErrorKind::Other,
@@ -481,14 +494,23 @@ async fn install_neoforge<R: Runtime>(
         java_settings.java_path.clone()
     };
 
-    let mut child = Command::new(&java_path)
-        .arg("-jar")
+    let mut cmd = Command::new(&java_path);
+    cmd.arg("-jar")
         .arg(&installer_path)
         .arg("--installClient")
         .arg(global_mc_root)
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
+        .stderr(Stdio::piped());
+
+    if let Some(logs_dir) = resolve_logs_dir(app) {
+        let _ = tokio::fs::create_dir_all(&logs_dir).await;
+        cmd.current_dir(logs_dir);
+    }
+
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(0x08000000);
+
+    let mut child = cmd.spawn()
         .map_err(|e| {
             std::io::Error::new(
                 std::io::ErrorKind::Other,

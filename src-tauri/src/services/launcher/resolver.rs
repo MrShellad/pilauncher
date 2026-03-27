@@ -48,7 +48,12 @@ impl ConfigResolver {
         };
 
         if java_path == "auto" || java_path.is_empty() {
-            java_path = "java".to_string();
+            // ✅ Windows 优先使用 javaw，避免出现黑色控制台窗口
+            java_path = if cfg!(target_os = "windows") {
+                "javaw".to_string()
+            } else {
+                "java".to_string()
+            };
         }
 
         let min_memory = if instance_runtime.use_global_memory || instance_runtime.min_memory == 0 {

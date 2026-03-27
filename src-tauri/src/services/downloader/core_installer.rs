@@ -2,6 +2,7 @@ use crate::domain::event::DownloadProgressEvent;
 use crate::error::{AppError, AppResult};
 use crate::services::config_service::{ConfigService, DownloadSettings};
 use crate::services::deployment_cancel::is_cancelled;
+use crate::services::downloader::dependencies::scheduler::sha1_file;
 use sha1::{Digest, Sha1};
 use std::fs;
 use std::path::Path;
@@ -167,9 +168,10 @@ pub async fn install_vanilla_core<R: Runtime>(
 
     if jar_path.exists() {
         if let Some(ref exp) = expected_sha1 {
-            let content = fs::read(&jar_path)?;
-            if sha1_hex(&content) == *exp {
-                return Ok(());
+            if let Ok(actual) = sha1_file(&jar_path).await {
+                if actual == *exp {
+                    return Ok(());
+                }
             }
             let _ = fs::remove_file(&jar_path);
         } else {
@@ -303,8 +305,7 @@ pub async fn install_vanilla_core<R: Runtime>(
         }
 
         if let Some(ref exp) = expected_sha1 {
-            let content = fs::read(&jar_path)?;
-            let actual = sha1_hex(&content);
+            let actual = sha1_file(&jar_path).await.unwrap_or_default();
             if actual != *exp {
                 last_error = Some(format!("sha1 mismatch (expected {}, got {})", exp, actual));
                 let _ = fs::remove_file(&jar_path);

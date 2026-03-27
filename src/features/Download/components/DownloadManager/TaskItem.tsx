@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronUp, ChevronDown, CheckCircle, Box, Trash2, List, Terminal, FileDown, AlertTriangle } from 'lucide-react';
+import { ChevronUp, ChevronDown, CheckCircle, Box, Trash2, List, Terminal, FileDown, AlertTriangle, RotateCcw } from 'lucide-react';
 import { useDownloadStore, type DownloadTask } from '../../../../store/useDownloadStore';
 import { OreButton } from '../../../../ui/primitives/OreButton'; // ✅ 引入 OreUI 标准按钮
 
@@ -116,23 +116,55 @@ export const TaskItem = ({ task, setActiveTab, removeTask }: { task: DownloadTas
               <Trash2 size={16} />
             </OreButton>
           ) : (
-            <OreButton 
-              focusKey={`btn-complete-${task.id}`} 
-              variant={isError ? "danger" : "primary"}
-              size="auto"
-              autoScroll={false}
-              onClick={() => { 
-                removeTask(task.id); 
-                if (!isResource && isDone) setActiveTab('instances'); 
-              }}
-              className="!h-10 !px-4 !min-w-0 text-sm"
-              style={isResource ? { backgroundColor: '#3b82f6', borderColor: '#2563eb' } : {}} // 资源下载显示蓝色完成
-            >
-              <div className="flex items-center">
-                {isError ? <Trash2 size={16} className="mr-1" /> : <CheckCircle size={16} className="mr-1" />} 
-                {isError ? '清除异常任务' : (isResource ? '关闭' : '前往配置')}
-              </div>
-            </OreButton>
+            <>
+              {isError && task.retryAction && (
+                <OreButton
+                  focusKey={`btn-retry-${task.id}`}
+                  variant="primary"
+                  size="auto"
+                  autoScroll={false}
+                  onClick={() => {
+                    useDownloadStore.getState().addOrUpdateTask({
+                      id: task.id,
+                      status: 'downloading',
+                      stage: task.stage,
+                      message: '正在准备重试...',
+                    });
+                    invoke(task.retryAction!, { ...task.retryPayload }).catch((err) => {
+                      console.error("重试失败:", err);
+                      useDownloadStore.getState().addOrUpdateTask({
+                        id: task.id,
+                        status: 'error',
+                        stage: 'ERROR',
+                        message: `重试指令发送失败: ${err}`,
+                      });
+                    });
+                  }}
+                  className="!h-10 !px-4 !min-w-0 text-sm bg-ore-green hover:bg-ore-green-hover text-black border-[#4CAF50]"
+                >
+                  <div className="flex items-center font-bold">
+                    <RotateCcw size={16} className="mr-1.5" /> 重试
+                  </div>
+                </OreButton>
+              )}
+              <OreButton 
+                focusKey={`btn-complete-${task.id}`} 
+                variant={isError ? "danger" : "primary"}
+                size="auto"
+                autoScroll={false}
+                onClick={() => { 
+                  removeTask(task.id); 
+                  if (!isResource && isDone) setActiveTab('instances'); 
+                }}
+                className="!h-10 !px-4 !min-w-0 text-sm"
+                style={isResource ? { backgroundColor: '#3b82f6', borderColor: '#2563eb' } : {}} // 资源下载显示蓝色完成
+              >
+                <div className="flex items-center">
+                  {isError ? <Trash2 size={16} className="mr-1" /> : <CheckCircle size={16} className="mr-1" />} 
+                  {isError ? '清除记录' : (isResource ? '关闭' : '前往配置')}
+                </div>
+              </OreButton>
+            </>
           )}
         </div>
       </div>

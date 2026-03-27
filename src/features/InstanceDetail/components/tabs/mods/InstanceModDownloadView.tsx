@@ -155,7 +155,14 @@ export const InstanceModDownloadView: React.FC<{
       stage: 'DOWNLOADING_MOD',
       current: 0,
       total: 100,
-      message: '正在建立连接...'
+      message: '正在建立连接...',
+      retryAction: 'download_resource',
+      retryPayload: {
+        url: version.download_url,
+        fileName: version.file_name,
+        instanceId: targetInstanceId,
+        subFolder
+      }
     });
 
     try {

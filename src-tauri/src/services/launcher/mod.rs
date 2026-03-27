@@ -93,7 +93,12 @@ impl LauncherService {
 
         let actual_java_path =
             if resolved_config.java_path == "auto" || resolved_config.java_path.is_empty() {
-                "java".to_string()
+                // ✅ Windows 优先使用 javaw，避免出现黑色控制台窗口
+                if cfg!(target_os = "windows") {
+                    "javaw".to_string()
+                } else {
+                    "java".to_string()
+                }
             } else {
                 resolved_config.java_path.clone()
             };

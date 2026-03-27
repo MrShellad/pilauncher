@@ -37,7 +37,7 @@ pub struct DownloadLogEvent {
 
 static LOG_PATHS: OnceLock<Mutex<HashMap<String, PathBuf>>> = OnceLock::new();
 
-fn sanitize_filename(input: &str) -> String {
+pub fn sanitize_filename(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
     for ch in input.chars() {
         if matches!(ch, '\\' | '/' | ':' | '*' | '?' | '"' | '<' | '>' | '|') {
@@ -53,7 +53,7 @@ fn sanitize_filename(input: &str) -> String {
     }
 }
 
-fn resolve_logs_dir<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
+pub fn resolve_logs_dir<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
     if let Ok(Some(base)) = ConfigService::get_base_path(app) {
         return Some(PathBuf::from(base).join("logs"));
     }

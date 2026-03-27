@@ -151,6 +151,18 @@ export const useCustomInstance = () => {
       cover_image: coverImage, 
     };
     try {
+      useDownloadStore.getState().addOrUpdateTask({
+        id: folderName,
+        taskType: 'instance',
+        title: instanceName || folderName,
+        stage: 'PREPARING',
+        current: 0,
+        total: 100,
+        message: '准备创建实例...',
+        retryAction: 'create_instance',
+        retryPayload: { payload }
+      });
+
       await invoke('create_instance', { payload });
       // ✅ 触发全局下载任务面板展开
       useDownloadStore.getState().setPopupOpen(true);

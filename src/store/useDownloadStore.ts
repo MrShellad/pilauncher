@@ -16,6 +16,8 @@ export interface DownloadTask {
   logs: string[];
   lastUpdate: number;
   lastCurrent: number;
+  retryAction?: string;
+  retryPayload?: any;
 }
 
 interface DownloadStore {
@@ -115,6 +117,8 @@ export const useDownloadStore = create<DownloadStore>((set, _get) => ({
       logs: newLogs.slice(-50), 
       lastUpdate: existingTask && speedStr === existingTask.speed ? existingTask.lastUpdate : now,
       lastCurrent: update.current ?? existingTask?.lastCurrent ?? 0,
+      retryAction: update.retryAction || existingTask?.retryAction,
+      retryPayload: update.retryPayload || existingTask?.retryPayload,
     };
 
     const isPopupOpen = !existingTask ? true : state.isPopupOpen;
