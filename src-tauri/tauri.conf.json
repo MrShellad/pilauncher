@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "PiLauncher",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "identifier": "com.mrshell.PiLauncher",
   "build": {
     "frontendDist": "../build",
@@ -36,6 +36,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": [
       "nsis"
     ],
@@ -57,7 +58,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENFQjgwODhDQkYwMTFFRTUKUldUbEhnRy9qQWk0empCNG1yamx6R1BhZmxzMnZjREQ4UTJuNDkyT3loNnptKyt4WWptTDNLK00K",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNBRERDMERCRERCNEJGQzkKUldUSnY3VGQyOERkT3NtVHlWRXdFbVlZUGdIMG1XVk1OUS83Q0FUaWRVT0QxSnBPSVR1NG14Z0cK",
       "endpoints": [
         "https://pil.nav4ai.net/api/updater?version={{current_version}}&target={{target}}&arch={{arch}}"
       ]

@@ -37,3 +37,45 @@ export const getJavaRecommendation = (versionStr: string): string => {
   if (versionStr.includes('1.8.') || versionStr.includes('8.')) return '推荐 1.16.5 及以下';
   return '';
 };
+
+/**
+ * 自动扫描并生成版本化路径配置
+ */
+export async function autoScanAndFillJava(currentMajorPaths: Record<string, string>) {
+  let { valid } = await validateCachedJava();
+  if (valid.length === 0) valid = await scanJava();
+
+  if (valid.length === 0) return null;
+
+  const newMajorPaths = { ...currentMajorPaths };
+  const findBestMatch = (major: string) => {
+    const matches = valid.filter((j) => {
+      const v = j.version;
+      if (major === '8') return v.startsWith('1.8.') || v.startsWith('8.');
+      return v.startsWith(major + '.');
+    });
+    if (matches.length > 0) {
+      return matches.sort((a, b) => b.version.localeCompare(a.version))[0].path;
+    }
+    return null;
+  };
+
+  const versions = ['8', '11', '16', '17', '21'];
+  let hasAnyMatch = false;
+  versions.forEach((v) => {
+    const match = findBestMatch(v);
+    if (match) {
+      newMajorPaths[v] = match;
+      hasAnyMatch = true;
+    }
+  });
+
+  const sortedValid = valid.sort((a, b) => b.version.localeCompare(a.version));
+  const bestOverallPath = sortedValid[0].path;
+
+  return {
+    majorJavaPaths: newMajorPaths,
+    javaPath: bestOverallPath,
+    hasAnyMatch,
+  };
+}

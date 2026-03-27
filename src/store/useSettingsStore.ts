@@ -6,6 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 
 import type { AppSettings } from '../types/settings';
 import { DEFAULT_SETTINGS } from '../types/settings';
+import { autoScanAndFillJava } from '../features/runtime/logic/javaDetector';
 
 const tauriStorage: StateStorage = {
   getItem: async (_name: string): Promise<string | null> => {
@@ -35,6 +36,7 @@ interface SettingsStore {
   updateGameSetting: <K extends keyof AppSettings['game']>(key: K, value: AppSettings['game'][K]) => void;
   updateJavaSetting: <K extends keyof AppSettings['java']>(key: K, value: AppSettings['java'][K]) => void;
   updateDownloadSetting: <K extends keyof AppSettings['download']>(key: K, value: AppSettings['download'][K]) => void;
+  triggerJavaAutoDetect: () => Promise<void>;
   resetSettings: () => void;
   _hasHydrated: boolean; 
   setHasHydrated: (state: boolean) => void;
@@ -62,6 +64,23 @@ export const useSettingsStore = create<SettingsStore>()(
       updateDownloadSetting: (key, value) => 
         set((state) => ({ settings: { ...state.settings, download: { ...state.settings.download, [key]: value } } })),
         
+      triggerJavaAutoDetect: async () => {
+        const { settings, updateJavaSetting } = (useSettingsStore as any).getState();
+        if (!settings.java.autoDetect) return;
+        
+        try {
+          const result = await autoScanAndFillJava(settings.java.majorJavaPaths);
+          if (result) {
+            if (result.hasAnyMatch) {
+              updateJavaSetting('majorJavaPaths', result.majorJavaPaths);
+            }
+            updateJavaSetting('javaPath', result.javaPath);
+          }
+        } catch (e) {
+          console.error("静默 Java 自动检测失败:", e);
+        }
+      },
+
       resetSettings: () => set({ settings: DEFAULT_SETTINGS }),
     }),
     {
@@ -119,6 +138,11 @@ export const useSettingsStore = create<SettingsStore>()(
               // 3. 回写到配置中保存
               state.updateGeneralSetting('deviceId', deviceId);
               state.updateGeneralSetting('deviceName', deviceName);
+
+              // 4. 如果开启了 Java 自动检测，在配置唤醒时顺便跑一次（静默回填）
+              if (state.settings.java.autoDetect) {
+                state.triggerJavaAutoDetect();
+              }
             } catch (e) {
               console.error("生成设备标识信息失败:", e);
             }

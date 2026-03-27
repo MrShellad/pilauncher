@@ -17,12 +17,11 @@ import { OreDropdown } from '../../../../ui/primitives/OreDropdown';
 import downloadSource from '../../../../assets/config/downloadsource.json';
 
 import { useSettingsStore } from '../../../../store/useSettingsStore';
-// ✅ 引入 Java 检测引擎
-import { validateCachedJava, scanJava } from '../../../runtime/logic/javaDetector';
+// ✅ 引入 Java 检测引擎 (仅保留类型或不必要的引用已移除)
 import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
 
 export const JavaSettings: React.FC = () => {
-  const { settings, updateJavaSetting } = useSettingsStore();
+  const { settings, updateJavaSetting, triggerJavaAutoDetect } = useSettingsStore();
   // ✅ 新增状态：用于在自动检测时展示 Loading 动画防抖
   const [isDetecting, setIsDetecting] = useState(false);
 
@@ -63,59 +62,22 @@ export const JavaSettings: React.FC = () => {
 
   const { handleLinearArrow } = useLinearNavigation(focusOrder);
 
-  // ✅ 核心修复：重写 Switch 的 onChange 逻辑
+  // ✅ 自动触发逻辑：页面打开时，如果开启了自动检测，则跑一次扫描
+  React.useEffect(() => {
+    if (settings.java.autoDetect) {
+      setIsDetecting(true);
+      triggerJavaAutoDetect().finally(() => setIsDetecting(false));
+    }
+  }, []);
+
+  // ✅ 核心修复：重写 Switch 的 onChange 逻辑，委托给 store Action
   const handleAutoDetectToggle = async (v: boolean | React.ChangeEvent<HTMLInputElement>) => {
     const isChecked = typeof v === 'boolean' ? v : (v as any).target?.checked;
     updateJavaSetting('autoDetect', isChecked);
 
-    // 如果开启了自动检测，去抓取最新的 Java 填入输入框
     if (isChecked) {
       setIsDetecting(true);
-      try {
-        // 1. 获取所有有效的 Java
-        let { valid } = await validateCachedJava();
-        if (valid.length === 0) valid = await scanJava();
-
-        if (valid.length > 0) {
-          // 2. 智能填充各分类
-          const newMajorPaths = { ...java.majorJavaPaths };
-          
-          const findBestMatch = (major: string) => {
-             // 优先找主版本一致的最高版本
-             const matches = valid.filter(j => {
-                const v = j.version;
-                if (major === '8') return v.startsWith('1.8.') || v.startsWith('8.');
-                return v.startsWith(major + '.');
-             });
-             if (matches.length > 0) {
-                return matches.sort((a, b) => b.version.localeCompare(a.version))[0].path;
-             }
-             return null;
-          };
-
-          const versions = ['8', '11', '16', '17', '21'];
-          let hasAnyMatch = false;
-          versions.forEach(v => {
-             const match = findBestMatch(v);
-             if (match) {
-                newMajorPaths[v] = match;
-                hasAnyMatch = true;
-             }
-          });
-
-          if (hasAnyMatch) {
-             updateJavaSetting('majorJavaPaths', newMajorPaths);
-          }
-
-          // 3. 同时更新默认兜底路径（取最高版本）
-          const sorted = valid.sort((a, b) => b.version.localeCompare(a.version));
-          updateJavaSetting('javaPath', sorted[0].path);
-        }
-      } catch (e) {
-        console.error("自动回填 Java 路径失败:", e);
-      } finally {
-        setIsDetecting(false);
-      }
+      triggerJavaAutoDetect().finally(() => setIsDetecting(false));
     }
   };
 
@@ -127,13 +89,9 @@ export const JavaSettings: React.FC = () => {
         version: parseInt(javaVersion),
         provider: javaProvider
       });
-      // 触发一次检测更新
+      // 触发一次检测更新 (静默回填各分类)
       setTimeout(async () => {
-        const valid = await scanJava();
-        if (valid.length > 0 && java.autoDetect) {
-          const sorted = valid.sort((a, b) => b.version.localeCompare(a.version));
-          updateJavaSetting('javaPath', sorted[0].path);
-        }
+         await triggerJavaAutoDetect();
       }, 3000);
     } catch (err: any) {
       setDownloadError(String(err));

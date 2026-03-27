@@ -27,3 +27,4 @@ dist-ssr
 Microsoft.Application.md*
 build
 ore-ui.css
+build_tauri.bat
