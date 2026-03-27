@@ -12,7 +12,7 @@ import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/
 
 import { DirectoryBrowserModal } from '../../../ui/components/DirectoryBrowserModal';
 
-export const JavaSelector: React.FC<{ value: string; onChange: (path: string) => void; disabled?: boolean; onArrowPress?: (direction: string) => boolean }> = ({ value, onChange, disabled, onArrowPress }) => {
+export const JavaSelector: React.FC<{ value: string; onChange: (path: string) => void; disabled?: boolean; isError?: boolean; onArrowPress?: (direction: string) => boolean }> = ({ value, onChange, disabled, isError, onArrowPress }) => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [javaList, setJavaList] = useState<JavaInstall[]>([]);
   const [isScanning, setIsScanning] = useState(false);
@@ -125,7 +125,7 @@ export const JavaSelector: React.FC<{ value: string; onChange: (path: string) =>
             readOnly 
             placeholder="点击选择 Java 路径..." 
             disabled={disabled}
-            className="cursor-pointer"
+            className={`cursor-pointer ${isError ? '!text-red-400 font-bold' : ''}`}
             containerClassName="!space-y-0"
           />
         </div>

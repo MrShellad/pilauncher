@@ -1,6 +1,7 @@
 // src-tauri/src/services/config_service.rs
 use crate::error::AppResult;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, Runtime};
@@ -64,6 +65,7 @@ impl Default for DownloadSettings {
 pub struct JavaSettings {
     pub auto_detect: bool,
     pub java_path: String,
+    pub major_java_paths: HashMap<String, String>,
     pub jvm_args: String,
     pub max_memory: u32,
     pub min_memory: u32,
@@ -73,6 +75,7 @@ impl Default for JavaSettings {
         Self {
             auto_detect: true,
             java_path: "java".to_string(),
+            major_java_paths: HashMap::new(),
             jvm_args: "-XX:+UseG1GC -XX:+UnlockExperimentalVMOptions".to_string(),
             max_memory: 4096,
             min_memory: 1024,

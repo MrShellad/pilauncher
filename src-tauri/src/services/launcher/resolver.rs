@@ -36,12 +36,17 @@ impl ConfigResolver {
                 }
             });
 
-        let mut java_path =
-            if instance_runtime.use_global_java || instance_runtime.java_path.is_empty() {
-                global_java.java_path.clone()
-            } else {
-                instance_runtime.java_path.clone()
-            };
+        // ✅ 核心逻辑：根据 MC 版本自动选择最优全局 Java 路径
+        let mut java_path = if instance_runtime.use_global_java || instance_runtime.java_path.is_empty() {
+            let req_ver = Self::get_required_java_version(&instance_cfg.mc_version);
+            global_java.major_java_paths.get(&req_ver)
+                .filter(|p| !p.is_empty())
+                .cloned()
+                .unwrap_or_else(|| global_java.java_path.clone())
+        } else {
+            instance_runtime.java_path.clone()
+        };
+
         if java_path == "auto" || java_path.is_empty() {
             java_path = "java".to_string();
         }
@@ -100,5 +105,40 @@ impl ConfigResolver {
             fullscreen: global_game.fullscreen,
             custom_jvm_args,
         }
+    }
+
+    /// 智能判断 MC 版本对应的最优 Java 主版本号
+    fn get_required_java_version(mc_version: &str) -> String {
+        let parts: Vec<&str> = mc_version.split('.').collect();
+        if parts.len() < 2 {
+            return "8".to_string();
+        }
+
+        if let Ok(minor) = parts[1].parse::<u32>() {
+            if minor >= 21 {
+                // 1.20.5 之后开始强制 Java 21
+                if minor == 21 && parts.len() >= 3 {
+                   if let Ok(patch) = parts[2].parse::<u32>() {
+                       if patch >= 0 { // 实际上 1.20.5 就开始了，这里的 parts[1] 是 20，我们需要处理 1.20.5
+                       }
+                   }
+                }
+            }
+            
+            // 重新处理逻辑
+            if minor >= 21 { return "21".to_string(); } // 1.21+
+            if minor == 20 {
+                if parts.len() >= 3 {
+                    if let Ok(patch) = parts[2].parse::<u32>() {
+                        if patch >= 5 { return "21".to_string(); }
+                    }
+                }
+                return "17".to_string();
+            }
+            if minor >= 18 { return "17".to_string(); } // 1.18 - 1.20.4
+            if minor == 17 { return "16".to_string(); } // 1.17
+            return "8".to_string(); // <= 1.16.5
+        }
+        "8".to_string()
     }
 }

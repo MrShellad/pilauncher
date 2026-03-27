@@ -72,16 +72,42 @@ export const JavaSettings: React.FC = () => {
     if (isChecked) {
       setIsDetecting(true);
       try {
-        // 先尝试从缓存中快速读取有效列表
+        // 1. 获取所有有效的 Java
         let { valid } = await validateCachedJava();
-
-        // 如果缓存彻底空了，自动触发一次深扫
-        if (valid.length === 0) {
-          valid = await scanJava();
-        }
+        if (valid.length === 0) valid = await scanJava();
 
         if (valid.length > 0) {
-          // 按照版本号降序排列，拿到最新的 JDK
+          // 2. 智能填充各分类
+          const newMajorPaths = { ...java.majorJavaPaths };
+          
+          const findBestMatch = (major: string) => {
+             // 优先找主版本一致的最高版本
+             const matches = valid.filter(j => {
+                const v = j.version;
+                if (major === '8') return v.startsWith('1.8.') || v.startsWith('8.');
+                return v.startsWith(major + '.');
+             });
+             if (matches.length > 0) {
+                return matches.sort((a, b) => b.version.localeCompare(a.version))[0].path;
+             }
+             return null;
+          };
+
+          const versions = ['8', '11', '16', '17', '21'];
+          let hasAnyMatch = false;
+          versions.forEach(v => {
+             const match = findBestMatch(v);
+             if (match) {
+                newMajorPaths[v] = match;
+                hasAnyMatch = true;
+             }
+          });
+
+          if (hasAnyMatch) {
+             updateJavaSetting('majorJavaPaths', newMajorPaths);
+          }
+
+          // 3. 同时更新默认兜底路径（取最高版本）
           const sorted = valid.sort((a, b) => b.version.localeCompare(a.version));
           updateJavaSetting('javaPath', sorted[0].path);
         }
@@ -197,28 +223,59 @@ export const JavaSettings: React.FC = () => {
         />
 
         <FormRow
-          label="全局 Java 运行时路径"
-          description="为所有未开启独立 Java 设置的实例提供默认的运行环境。点击选择可扫描或手动浏览本机目录。"
+          label="全局 Java 运行时路径 (兜底方案)"
+          description="若下方具体版本的路径为空，将使用此路径作为默认运行环境。"
           vertical={true}
           control={
             <div className="w-full relative">
               <JavaSelector
                 onArrowPress={handleLinearArrow}
-                value={java.javaPath}
+                value={(java.autoDetect && !java.javaPath) ? '缺少Java环境' : (java.javaPath || '')}
                 onChange={(v) => {
                   updateJavaSetting('javaPath', v);
-                  // 手动修改路径后，自动关闭“自动检测”开关
                   if (v) updateJavaSetting('autoDetect', false);
                 }}
-                // 检测期间也临时禁用，防止冲突
                 disabled={java.autoDetect || isDetecting}
+                isError={java.autoDetect && !java.javaPath}
               />
               {java.autoDetect && (
-                <div className="absolute inset-0 z-10 cursor-not-allowed" title="自动检测已开启，已锁定最佳路径" />
+                <div className="absolute inset-0 z-10 cursor-not-allowed" />
               )}
             </div>
           }
         />
+
+        <div className="px-6 py-2">
+           <div className="h-[1px] bg-white/5 w-full my-2" />
+           <p className="text-xs text-ore-text-muted mb-4 uppercase tracking-wider font-bold">版本化全局配置 (推荐)</p>
+           
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+              {[
+                { id: '8', label: 'Java 8', desc: '适用于 1.16.5 及更早版本' },
+                { id: '16', label: 'Java 16', desc: '专门用于 1.17 / 1.17.1' },
+                { id: '17', label: 'Java 17', desc: '适用于 1.18 - 1.20.4' },
+                { id: '21', label: 'Java 21', desc: '适用于 1.20.5 及更新版本' },
+              ].map((item) => (
+                <div key={item.id} className="flex flex-col gap-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-minecraft">{item.label}</span>
+                    <span className="text-[10px] text-ore-text-muted">{item.desc}</span>
+                  </div>
+                  <JavaSelector
+                    onArrowPress={handleLinearArrow}
+                    value={(java.autoDetect && !java.majorJavaPaths[item.id]) ? '缺少Java环境' : (java.majorJavaPaths[item.id] || '')}
+                    onChange={(v) => {
+                      const newPaths = { ...java.majorJavaPaths, [item.id]: v };
+                      updateJavaSetting('majorJavaPaths', newPaths);
+                      if (v) updateJavaSetting('autoDetect', false);
+                    }}
+                    disabled={java.autoDetect || isDetecting}
+                    isError={java.autoDetect && !java.majorJavaPaths[item.id]}
+                  />
+                </div>
+              ))}
+           </div>
+        </div>
       </SettingsSection>
 
       <SettingsSection title="全局内存与参数" icon={<Cpu size={18} />}>
@@ -231,16 +288,13 @@ export const JavaSettings: React.FC = () => {
         <FormRow
           label="全局最大内存分配"
           description="动态调整游戏可用的最大 RAM，系统会根据当前空闲内存给出智能推荐。"
-          vertical={true}
           control={
-            <div className="w-full">
-              <MemorySlider
-                onArrowPress={handleLinearArrow}
-                maxMemory={java.maxMemory}
-                onChange={(v) => updateJavaSetting('maxMemory', v)}
-                disabled={false}
-              />
-            </div>
+            <MemorySlider
+              onArrowPress={handleLinearArrow}
+              maxMemory={java.maxMemory}
+              onChange={(v) => updateJavaSetting('maxMemory', v)}
+              disabled={false}
+            />
           }
         />
 

@@ -29,6 +29,7 @@ export interface AppearanceSettings {
 export interface JavaSettings {
   autoDetect: boolean;
   javaPath: string;
+  majorJavaPaths: Record<string, string>; // e.g. { "8": "...", "17": "..." }
   maxMemory: number;
   minMemory: number;
   jvmArgs: string;
@@ -105,6 +106,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
   java: {
     autoDetect: true,
     javaPath: '',
+    majorJavaPaths: {
+      '8': '',
+      '11': '',
+      '16': '',
+      '17': '',
+      '21': ''
+    },
     maxMemory: 4096,
     minMemory: 1024,
     jvmArgs: '-XX:+UseG1GC -XX:+UnlockExperimentalVMOptions'
