@@ -30,13 +30,13 @@ The interface design has been recreated from scratch and does not use any offici
 
 ## Screenshots
 
-![screenshots1](docs/screenshots/CUT_2026-03-06_04-00-29.png)
+![screenshots1](docs/screenshots/p1.png)
 
-![screenshots2](docs/screenshots/CUT_2026-03-06_04-04-23.png)
+![screenshots2](docs/screenshots/p2.png)
 
-![screenshots3](docs/screenshots/CUT_2026-03-06_04-04-31.png)
+![screenshots3](docs/screenshots/p3.png)
 
-![screenshots4](docs/screenshots/CUT_2026-03-06_04-05-08.png)
+![screenshots4](docs/screenshots/p4.png)
 
 ---
 ## ✨ Features
@@ -48,18 +48,6 @@ The interface design has been recreated from scratch and does not use any offici
 * 专为小屏设备设计的交互布局
 * 键盘 / 鼠标 / 手柄统一输入模型
 
-### 🌍 Multi-language Support
-
-* 内置多语言支持
-* 可扩展 i18n 架构
-* 支持未来社区翻译
-
-### 💾 WebDAV Cloud Backup
-
-* 支持 WebDAV 数据备份
-* 实例配置云同步
-* 游戏数据安全备份
-* 适用于 NAS / 私有云环境
 
 ### 🧑‍🚀 3D Player Skin Viewer
 
@@ -116,14 +104,6 @@ PiLauncher 专注于：
 * 无需外接键鼠即可完整操作
 
 ---
-
-## 🔐 Data & Sync
-
-* 支持 WebDAV 服务器连接
-* 可对实例数据进行远程备份
-* 适用于自建 NAS / 私有云环境
-* 用户数据不强制依赖第三方云服务
-
 ---
 
 ## 📦 Installation
@@ -141,17 +121,6 @@ pnpm tauri dev
 
 ---
 
-## 🗺 Roadmap
-
-* [ ] Modpack 自动下载支持
-* [ ] 多账号管理优化
-* [ ] 插件系统
-* [ ] 主题系统
-* [ ] 云端实例同步增强
-* [ ] 社区皮肤资源浏览
-
----
-
 ## Project Status
 
 PiLauncher is currently in early development and is maintained by the original author.
@@ -163,3 +132,6 @@ To keep the project stable during this stage:
 * Please avoid creating forks intended for redistribution or derivative launcher projects.
 
 Once the project architecture becomes stable, contribution guidelines may be introduced.
+
+* **严禁售卖：** 禁止以任何形式售卖本软件或其衍生版本。
+* **严禁捆绑：** 禁止将 PiLauncher 与任何收费服务、会员制度或订阅项目进行捆绑。
