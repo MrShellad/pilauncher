@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Blocks, Loader2, RefreshCw, CheckSquare, Square, Trash2, ArrowUpCircle } from 'lucide-react';
@@ -37,6 +37,8 @@ const LIST_GUARD_RIGHT = 'mod-list-guard-right';
 
 const toFocusSlug = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, '_');
 
+const PAGE_SIZE = 20;
+
 export const ModList: React.FC<ModListProps> = ({
   mods,
   isLoading,
@@ -52,6 +54,8 @@ export const ModList: React.FC<ModListProps> = ({
   const requiresRowOperation = inputMode !== 'mouse';
   const [focusedRowFileName, setFocusedRowFileName] = useState<string | null>(mods[0]?.fileName ?? null);
   const [operationRowFileName, setOperationRowFileName] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const rowFocusKeyByFileName = useMemo(() => {
     const map = new Map<string, string>();
@@ -91,6 +95,19 @@ export const ModList: React.FC<ModListProps> = ({
     return map;
   }, [getActionFocusKey, mods, rowFocusKeyByFileName]);
 
+  // 当 mods 列表变化时（搜索/排序）重置懖载数
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [mods]);
+
+  // 手柄导航到尚未渲染的行时，自动扩展可见范围
+  useEffect(() => {
+    if (!focusedRowFileName) return;
+    const idx = mods.findIndex((m) => m.fileName === focusedRowFileName);
+    if (idx >= 0 && idx >= visibleCount) {
+      setVisibleCount(idx + PAGE_SIZE);
+    }
+  }, [focusedRowFileName, mods, visibleCount]);
   useEffect(() => {
     if (mods.length === 0) {
       setFocusedRowFileName(null);
@@ -106,6 +123,24 @@ export const ModList: React.FC<ModListProps> = ({
       setOperationRowFileName(null);
     }
   }, [focusedRowFileName, mods, operationRowFileName]);
+
+  // IntersectionObserver：哨兵进入视口时加载下一页
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, mods.length));
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [mods.length, visibleCount]);
 
   const { handleLinearArrow } = useLinearNavigation(
     rowFocusOrder,
@@ -424,7 +459,8 @@ export const ModList: React.FC<ModListProps> = ({
           )}
         </FocusItem>
 
-        {mods.map((mod) => {
+        {mods.map((mod, modIndex) => {
+          if (modIndex >= visibleCount) return null;
           const displayName = mod.name || mod.networkInfo?.title || mod.fileName;
           const displayDesc = mod.description || mod.networkInfo?.description || '暂无描述';
 
@@ -440,7 +476,6 @@ export const ModList: React.FC<ModListProps> = ({
           const isEnabled = !!mod.isEnabled;
 
           const formattedSize = mod.fileSize ? `${(mod.fileSize / 1024 / 1024).toFixed(1)} MB` : '未知大小';
-          const modifiedDate = mod.modifiedAt ? new Date(mod.modifiedAt).toLocaleDateString() : '未知日期';
 
           return (
             <FocusItem
@@ -481,7 +516,7 @@ export const ModList: React.FC<ModListProps> = ({
                           {iconUrl ? (
                             <img src={iconUrl} alt="icon" className="h-full w-full object-cover" />
                           ) : (
-                            <Blocks size={20} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />
+                            <Blocks size={28} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />
                           )}
                         </>
                       )}
@@ -491,7 +526,7 @@ export const ModList: React.FC<ModListProps> = ({
                         <>
                           {mod.version && (
                             <span
-                              className="flex-shrink-0 border-[2px] px-2 py-0.5 font-mono text-[10px] text-white"
+                              className="flex-shrink-0 border-[2px] px-2 py-0.5 font-mono text-[10px] text-[#D0D1D4]"
                               style={{
                                 backgroundColor: 'var(--ore-downloadDetail-base)',
                                 borderColor: 'var(--ore-downloadDetail-divider)'
@@ -500,16 +535,6 @@ export const ModList: React.FC<ModListProps> = ({
                               v{mod.version}
                             </span>
                           )}
-                          <span
-                            className={`flex-shrink-0 border-[2px] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] ${
-                              isEnabled
-                                ? 'bg-[#24563C] text-white'
-                                : 'bg-[#313233] text-[#D0D1D4]'
-                            }`}
-                            style={{ borderColor: 'var(--ore-downloadDetail-divider)' }}
-                          >
-                            {isEnabled ? '已启用' : '已禁用'}
-                          </span>
                           {mod.isCheckingUpdate && (
                             <span className="ml-2 flex items-center text-[10px] text-[#6B4F00]">
                               <Loader2 size={12} className="mr-1 animate-spin" />
@@ -529,7 +554,7 @@ export const ModList: React.FC<ModListProps> = ({
                         </>
                       )}
                       description={displayDesc}
-                      metaItems={[mod.fileName, formattedSize, modifiedDate]}
+                      metaItems={[`文件名：${mod.fileName}    大小：${formattedSize}`]}
                       trailingClassName={`grid grid-cols-[58px_40px_40px] items-center gap-2 ${isActionLocked ? 'opacity-90' : 'opacity-100'}`}
                       trailing={(
                         <>
@@ -581,6 +606,17 @@ export const ModList: React.FC<ModListProps> = ({
             </FocusItem>
           );
         })}
+
+        {/* 懖载哨兵 — 放在列表末尾 */}
+        {visibleCount < mods.length && (
+          <div
+            ref={sentinelRef}
+            className="flex items-center justify-center gap-2 py-4 text-xs font-minecraft"
+            style={{ color: 'var(--ore-downloadDetail-labelText)' }}
+          >
+            已显示 {Math.min(visibleCount, mods.length)} / {mods.length}，养动加载更多...
+          </div>
+        )}
       </FocusBoundary>
     </div>
   );

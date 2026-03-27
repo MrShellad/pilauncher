@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { DownloadCloud, FolderOpen, Loader2, Package, Trash2 } from 'lucide-react';
 
@@ -189,30 +190,29 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
               >
                 {({ ref, focused }) => (
                   <div ref={ref as any}>
-                    <OreAssetRow
-                      focusable={false}
-                      focused={focused}
-                      operationActive={operationRowIndex === i}
-                      inactive={!item.isEnabled}
-                      selected={item.isEnabled}
-                      title={item.fileName.replace('.zip', '').replace('.disabled', '')}
-                      badges={(
-                        <span
-                          className={`flex-shrink-0 border-[2px] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] ${
-                            item.isEnabled ? 'bg-[#24563C] text-white' : 'bg-[#313233] text-[#D0D1D4]'
-                          }`}
-                          style={{ borderColor: 'var(--ore-downloadDetail-divider)' }}
-                        >
-                          {item.isEnabled ? '已启用' : '已禁用'}
-                        </span>
-                      )}
-                      description={item.isDirectory ? '文件夹资源包' : 'ZIP 资源包'}
-                      metaItems={[
-                        item.fileName,
-                        item.isDirectory ? '文件夹' : formatSize(item.fileSize),
-                        new Date(item.modifiedAt).toLocaleDateString()
-                      ]}
-                      leading={<Package size={26} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />}
+                    {(() => {
+                      const cacheKey = item.modifiedAt || item.fileSize || item.fileName;
+                      const iconUrl = item.iconAbsolutePath
+                        ? `${convertFileSrc(item.iconAbsolutePath)}?t=${cacheKey}`
+                        : undefined;
+
+                      return (
+                        <OreAssetRow
+                          focusable={false}
+                          focused={focused}
+                          operationActive={operationRowIndex === i}
+                          inactive={!item.isEnabled}
+                          selected={item.isEnabled}
+                          title={item.fileName.replace('.zip', '').replace('.disabled', '')}
+                          description={item.isDirectory ? '文件夹资源包' : 'ZIP 资源包'}
+                          metaItems={[`文件名：${item.fileName}    大小：${item.isDirectory ? '文件夹' : formatSize(item.fileSize)}`]}
+                          leading={
+                            iconUrl ? (
+                              <img src={iconUrl} alt="icon" className="h-full w-full object-cover" />
+                            ) : (
+                              <Package size={28} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />
+                            )
+                          }
                       trailingClassName="flex items-center space-x-2"
                       trailing={(
                         <>
@@ -240,7 +240,9 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
                         </>
                       )}
                     />
-                  </div>
+                  );
+                })()}
+              </div>
                 )}
               </FocusItem>
             ))}

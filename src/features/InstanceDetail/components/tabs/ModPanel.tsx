@@ -156,10 +156,10 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
     setSelectedMod((prev) => (
       prev
         ? {
-            ...prev,
-            isEnabled: !currentEnabled,
-            fileName: currentEnabled ? `${fileName}.disabled` : fileName.replace('.disabled', '')
-          }
+          ...prev,
+          isEnabled: !currentEnabled,
+          fileName: currentEnabled ? `${fileName}.disabled` : fileName.replace('.disabled', '')
+        }
         : null
     ));
     toggleMod(fileName, currentEnabled);
@@ -314,55 +314,78 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
       </div>
 
       {/* 控件行 */}
-      <div className="mb-3 flex min-h-10 items-center justify-between gap-3 px-2 transition-all">
+      <div className="mb-3 flex h-[52px] items-center justify-between gap-3 px-2 transition-all">
         {isBatchMode ? (
           /* 批量选择模式 */
-          <div className="flex min-h-10 w-full items-center justify-between rounded border-2 border-ore-green/30 bg-ore-green/10 px-3 py-1.5 animate-in fade-in slide-in-from-top-1">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={handleSelectAll}
-                className="flex h-10 cursor-pointer items-center font-minecraft text-sm text-white hover:text-ore-green hover:underline decoration-ore-green underline-offset-4"
-              >
-                <CheckSquare size={16} className="mr-1.5 text-ore-green" />
-                已选择 {selectedMods.size} 项
-              </button>
+          <div className="flex h-full w-full items-center justify-between rounded border-2 border-ore-green/30 bg-ore-green/10 px-3 animate-in fade-in slide-in-from-top-1">
+          {/* 左：已选数量 + 操作按钮 */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleSelectAll}
+              className="flex h-10 cursor-pointer items-center font-minecraft text-sm text-white hover:text-ore-green hover:underline decoration-ore-green underline-offset-4"
+            >
+              <CheckSquare size={16} className="mr-1.5 text-ore-green" />
+              已选择 {selectedMods.size} 项
+            </button>
 
-              <div className="mx-1 h-4 w-px bg-white/20" />
+            <div className="mx-1 h-4 w-px bg-white/20" />
 
-              <button
-                onClick={handleBatchEnable}
-                className="flex h-10 items-center text-sm font-minecraft text-gray-300 transition-colors hover:text-white"
-              >
-                <Power size={14} className="mr-1.5" />
-                启用
-              </button>
+            <OreButton
+              size="auto"
+              variant="secondary"
+              onClick={handleBatchEnable}
+              className="!h-10 !min-h-10"
+            >
+              <Power size={14} className="mr-1.5" />
+              启用
+            </OreButton>
 
-              <button
-                onClick={handleBatchDisable}
-                className="flex h-10 items-center text-sm font-minecraft text-gray-300 transition-colors hover:text-white"
-              >
-                <Power size={14} className="mr-1.5 text-gray-500" />
-                禁用
-              </button>
+            <OreButton
+              size="auto"
+              variant="secondary"
+              onClick={handleBatchDisable}
+              className="!h-10 !min-h-10"
+            >
+              <Power size={14} className="mr-1.5 opacity-50" />
+              禁用
+            </OreButton>
+
+            <OreButton
+              size="auto"
+              variant="danger"
+              onClick={handleBatchDelete}
+              className="!h-10 !min-h-10"
+            >
+              <Trash2 size={14} className="mr-1.5" />
+              删除
+            </OreButton>
+          </div>
+
+          {/* 右：搜索框 + 退出多选 */}
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
+            <div className="max-w-xs flex-1">
+              <OreInput
+                focusKey="mod-search-input"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onArrowPress={handleLinearArrow}
+                placeholder={searchPlaceholder}
+                containerClassName="w-full"
+                prefixNode={<Search size={16} />}
+              />
             </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleBatchDelete}
-                className="flex h-10 items-center rounded px-2 py-1 text-sm font-minecraft text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
-              >
-                <Trash2 size={14} className="mr-1.5" />
-                删除
-              </button>
+            <OreButton
+              size="auto"
+              variant="secondary"
+              onClick={() => setSelectedMods(new Set())}
+              className="!h-10 !min-h-10 flex-shrink-0"
+            >
+              <X size={16} className="mr-1.5" />
+              退出多选
+            </OreButton>
+          </div>
 
-              <button
-                onClick={() => setSelectedMods(new Set())}
-                className="flex h-10 w-10 items-center justify-center text-gray-400 hover:text-white"
-                title="清空选择"
-              >
-                <X size={16} />
-              </button>
-            </div>
           </div>
         ) : (
           /* 普通模式 */
@@ -447,7 +470,7 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
               {searchQuery && (
                 <OreButton
                   focusKey="mod-search-clear"
-                  variant="ghost"
+                  variant="secondary"
                   size="auto"
                   onClick={() => setSearchQuery('')}
                   onArrowPress={handleLinearArrow}
@@ -491,36 +514,6 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         )}
       </div>
 
-      {/* 批量模式下的搜索行（独立行，避免与上方 focusKey 冲突） */}
-      {isBatchMode && (
-        <div className="mb-4 flex min-h-10 items-center gap-3 px-2">
-          <div className="max-w-xl flex-1">
-            <OreInput
-              focusKey="mod-search-input"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onArrowPress={handleLinearArrow}
-              placeholder={searchPlaceholder}
-              containerClassName="w-full"
-              prefixNode={<Search size={16} />}
-            />
-          </div>
-
-          {searchQuery && (
-            <OreButton
-              focusKey="mod-search-clear"
-              variant="ghost"
-              size="auto"
-              onClick={() => setSearchQuery('')}
-              onArrowPress={handleLinearArrow}
-              className="!h-10 !min-h-10 min-w-[6rem]"
-            >
-              <X size={16} className="mr-2" />
-              清空
-            </OreButton>
-          )}
-        </div>
-      )}
 
       <ModList
         mods={filteredMods}

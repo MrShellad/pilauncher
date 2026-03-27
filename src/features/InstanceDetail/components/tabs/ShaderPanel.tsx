@@ -198,23 +198,9 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
                       inactive={!item.isEnabled}
                       selected={item.isEnabled}
                       title={item.fileName.replace('.zip', '').replace('.disabled', '')}
-                      badges={(
-                        <span
-                          className={`flex-shrink-0 border-[2px] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] ${
-                            item.isEnabled ? 'bg-[#24563C] text-white' : 'bg-[#313233] text-[#D0D1D4]'
-                          }`}
-                          style={{ borderColor: 'var(--ore-downloadDetail-divider)' }}
-                        >
-                          {item.isEnabled ? '已启用' : '已禁用'}
-                        </span>
-                      )}
                       description="本地光影包"
-                      metaItems={[
-                        item.fileName,
-                        formatSize(item.fileSize),
-                        new Date(item.modifiedAt).toLocaleDateString()
-                      ]}
-                      leading={<ImageIcon size={26} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />}
+                      metaItems={[`文件名：${item.fileName}    大小：${formatSize(item.fileSize)}`]}
+                      leading={<ImageIcon size={28} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />}
                       trailingClassName="flex items-center space-x-2"
                       trailing={(
                         <>

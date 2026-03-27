@@ -16,7 +16,7 @@ finish-args:
   - --filesystem=~/.local/share/Steam/userdata
   - --filesystem=xdg-download
   - --filesystem=xdg-documents
-  - --filesystem=xdg-home
+  - --filesystem=home
   - --filesystem=xdg-data/.minecraft
   - --filesystem=xdg-data/PiLauncher:create
   - --filesystem=xdg-data/fonts

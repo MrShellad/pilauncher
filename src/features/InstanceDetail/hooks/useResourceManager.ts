@@ -12,6 +12,22 @@ export const useResourceManager = (instanceId: string, resType: ResourceType) =>
     try {
       const data = await resourceService.list(instanceId, resType);
       setItems(data);
+
+      // 资源包：异步提取图标，逐条更新不阻塞列表渲染
+      if (resType === 'resourcePack') {
+        data.forEach(async (item) => {
+          try {
+            const iconPath = await resourceService.extractResourcepackIcon(instanceId, item.fileName);
+            if (iconPath) {
+              setItems(prev => prev.map(p =>
+                p.fileName === item.fileName ? { ...p, iconAbsolutePath: iconPath } : p
+              ));
+            }
+          } catch {
+            // 提取失败时静默降级
+          }
+        });
+      }
     } catch (e) {
       console.error(`加载 ${resType} 失败:`, e);
     } finally {
@@ -24,9 +40,9 @@ export const useResourceManager = (instanceId: string, resType: ResourceType) =>
   const toggleItem = async (fileName: string, currentEnabled: boolean) => {
     try {
       // 乐观 UI 更新：瞬间变色/变灰，消除延迟感
-      setItems(prev => prev.map(item => 
-        item.fileName === fileName 
-          ? { ...item, isEnabled: !currentEnabled, fileName: currentEnabled ? `${fileName}.disabled` : fileName.replace('.disabled', '') } 
+      setItems(prev => prev.map(item =>
+        item.fileName === fileName
+          ? { ...item, isEnabled: !currentEnabled, fileName: currentEnabled ? `${fileName}.disabled` : fileName.replace('.disabled', '') }
           : item
       ));
       await resourceService.toggle(instanceId, resType, fileName, !currentEnabled);

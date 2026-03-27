@@ -36,6 +36,8 @@ pub struct ResourceItem {
     pub is_directory: bool, // 比如存档就是目录
     pub file_size: u64,
     pub modified_at: i64, // 时间戳
+    // icon 绝对路径（由哨兵提取后填入）
+    pub icon_absolute_path: Option<String>,
     // 这里保留一个扩展字段，留给后续解析 jar 或 level.dat 时塞入专属数据
     pub meta: Option<serde_json::Value>,
 }
@@ -108,6 +110,7 @@ impl ResourceManager {
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap()
                         .as_secs() as i64,
+                    icon_absolute_path: None,
                     meta: None,
                 });
             }

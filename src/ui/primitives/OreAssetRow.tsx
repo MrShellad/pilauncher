@@ -89,9 +89,9 @@ export const OreAssetRow: React.FC<OreAssetRowProps> = ({
         onClick={onClick}
         className={`
           group relative flex items-center gap-3 overflow-hidden rounded-sm border-[2px] px-4 py-2.5
-          cursor-pointer select-none transition-[filter,outline-color,box-shadow] duration-150
+          cursor-pointer select-none transition-[filter,outline-color,box-shadow,opacity] duration-150
           focus-within:z-20 focus-within:outline focus-within:outline-2 focus-within:outline-white focus-within:outline-offset-[3px]
-          ${rowOutlineClass} ${rowToneClass} ${inactive ? 'opacity-90' : ''} ${className}
+          ${rowOutlineClass} ${rowToneClass} ${inactive ? 'opacity-60 grayscale-[0.5]' : ''} ${className}
         `}
         style={{
           backgroundColor: rowBackground,
@@ -100,10 +100,15 @@ export const OreAssetRow: React.FC<OreAssetRowProps> = ({
         }}
       >
         <div className={`absolute inset-y-0 left-0 w-2 ${accentClass}`} />
+        
+        {/* 禁用状态的半透明遮罩 */}
+        {inactive && (
+          <div className="absolute inset-0 pointer-events-none bg-black/10 z-[1]" />
+        )}
 
         {leading && (
           <div
-            className={`relative flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-sm border-[2px] ${
+            className={`relative flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-sm border-[2px] ${
               inactive ? 'grayscale brightness-75' : ''
             }`}
             style={{

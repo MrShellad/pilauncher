@@ -88,9 +88,6 @@ export const useModManager = (instanceId: string) => {
   // ✅ 新增：使用 useMemo 动态计算排序结果
   const sortedMods = useMemo(() => {
     return [...mods].sort((a, b) => {
-      // 禁用的模组永远沉底
-      if (a.isEnabled !== b.isEnabled) return a.isEnabled ? -1 : 1;
-      
       let comparison = 0;
       if (sortType === 'time') {
         comparison = a.modifiedAt - b.modifiedAt;

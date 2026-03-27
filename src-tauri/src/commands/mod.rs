@@ -76,6 +76,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         instance::save_cmd::verify_save_restore,
         instance::save_cmd::get_save_backups,
         instance::resource_cmd::open_resource_folder,
+        instance::resource_cmd::extract_resourcepack_icon,
         instance::listing_cmd::get_compatible_instances,
         instance::listing_cmd::get_instance_screenshots,
         instance::listing_cmd::open_instance_folder,

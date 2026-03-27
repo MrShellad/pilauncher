@@ -206,7 +206,7 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
                       operationActive={operationRowIndex === i}
                       title={save.worldName}
                       description={`最后游玩：${formatDate(save.lastPlayedTime)}`}
-                      metaItems={[save.folderName, formatSize(save.sizeBytes)]}
+                      metaItems={[`文件名：${save.folderName}    大小：${formatSize(save.sizeBytes)}`]}
                       leading={
                         save.iconPath ? (
                           <img
@@ -215,7 +215,7 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
                             className="h-full w-full object-cover"
                           />
                         ) : (
-                          <Globe size={26} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />
+                          <Globe size={28} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />
                         )
                       }
                       trailingClassName="flex items-center space-x-3"
@@ -241,6 +241,7 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
                             className="!h-10 !min-h-10"
                             onArrowPress={(dir) => handleActionArrow(i, 'delete', dir)}
                             onClick={(e) => {
+                              e.stopPropagation();
                               console.log('Delete button clicked for:', save.folderName);
                               setSaveToDelete(save.folderName);
                             }}
