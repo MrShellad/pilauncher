@@ -10,20 +10,23 @@ finish-args:
   - --share=network
   - --share=ipc
   - --socket=wayland
-  - --socket=x11
-  - --device=dri
+  - --socket=fallback-x11
   - --device=all
   - --filesystem=~/.local/share/Steam/userdata
-  - --filesystem=xdg-download
-  - --filesystem=xdg-documents
-  - --filesystem=home
   - --filesystem=xdg-data/.minecraft
   - --filesystem=xdg-data/PiLauncher:create
   - --filesystem=xdg-data/fonts
+  - --filesystem=~/.minecraft:r
+  - --filesystem=xdg-data/PrismLauncher:ro
+  - --filesystem=xdg-data/multimc:ro
+  - --filesystem=xdg-data/ModrinthApp:ro
+  - --filesystem=xdg-data/gdlauncher_next:ro
+  - --filesystem=~/.hmcl:ro
+  - --filesystem=~/.jdks:ro
+  - --filesystem=~/.sdkman/candidates/java:ro
+  - --filesystem=/opt:ro
   - --filesystem=/run/udev:ro
-
   - --talk-name=org.freedesktop.Notifications
-  - --talk-name=org.freedesktop.portal.Desktop
 
 modules:
   - name: PiLauncher
