@@ -3,6 +3,11 @@ import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navi
 import { Blocks, CheckCircle2, Clock3, Download, Heart, Loader2, Monitor, Tags } from 'lucide-react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
+import fabricIcon from '../../../assets/icons/tags/loaders/fabric.svg';
+import forgeIcon from '../../../assets/icons/tags/loaders/forge.svg';
+import neoforgeIcon from '../../../assets/icons/tags/loaders/neoforge.svg';
+import quiltIcon from '../../../assets/icons/tags/loaders/quilt.svg';
+import liteloaderIcon from '../../../assets/icons/tags/loaders/liteloader.svg';
 
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../ui/focus/FocusItem';
@@ -38,6 +43,20 @@ interface ResourceCardProps {
 }
 
 const KNOWN_LOADERS = ['fabric', 'forge', 'neoforge', 'quilt', 'liteloader'];
+const LOADER_PRIORITY: Record<string, number> = {
+  neoforge: 0,
+  fabric: 1,
+  forge: 2,
+  quilt: 3,
+  liteloader: 4
+};
+const LOADER_ICON_MAP: Record<string, string> = {
+  fabric: fabricIcon,
+  forge: forgeIcon,
+  neoforge: neoforgeIcon,
+  quilt: quiltIcon,
+  liteloader: liteloaderIcon
+};
 
 const formatNumber = (value?: number) => {
   if (!value) return '0';
@@ -134,11 +153,23 @@ const ResourceCard = React.memo(({
     display: rawProject.display_categories?.[idx] || raw
   }));
 
-  const loaders = categoryItems.filter((item) => KNOWN_LOADERS.includes(item.raw.toLowerCase())).slice(0, 2);
+  const loaders = categoryItems
+    .filter((item) => KNOWN_LOADERS.includes(item.raw.toLowerCase()))
+    .sort((a, b) => {
+      const aPriority = LOADER_PRIORITY[a.raw.toLowerCase()] ?? Number.MAX_SAFE_INTEGER;
+      const bPriority = LOADER_PRIORITY[b.raw.toLowerCase()] ?? Number.MAX_SAFE_INTEGER;
+      return aPriority - bPriority;
+    })
+    .slice(0, 3);
   const features = categoryItems.filter((item) => !KNOWN_LOADERS.includes(item.raw.toLowerCase())).slice(0, 3);
   const followerCount = rawProject.followers || rawProject.follows || 0;
   const supportsClient = project.client_side !== 'unsupported' && !!project.client_side;
   const focusKey = `download-grid-item-${index}`;
+  const titlePadClass = isInstalled && supportsClient
+    ? 'pr-[10rem]'
+    : isInstalled || supportsClient
+      ? 'pr-[5.75rem]'
+      : '';
 
   const timeAgo = (dateStr?: string) => {
     if (!dateStr) return t('download.time.unknown', { defaultValue: 'Unknown time' });
@@ -197,7 +228,7 @@ const ResourceCard = React.memo(({
               project: project.title
             })}
             className={`
-              group relative flex min-h-[160px] w-full overflow-hidden border-[2px] border-[#1E1E1F] text-left outline-none transition-none
+              group relative flex min-h-[12.5rem] w-full overflow-hidden border-[2px] border-[#1E1E1F] text-left outline-none transition-none
               ${focused
                 ? 'z-20 bg-[#E6E8EB] brightness-[1.02] outline outline-[3px] outline-offset-[1px] outline-white drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]'
                 : 'bg-[#D0D1D4] hover:bg-[#E6E8EB]'}
@@ -212,96 +243,120 @@ const ResourceCard = React.memo(({
             <div className={`absolute inset-y-0 left-0 w-1.5 ${isInstalled ? 'bg-[#6CC349]' : 'bg-[#48494A]'}`} />
             <div className="absolute inset-x-0 top-0 h-[4px] bg-white/25" />
 
-            {isInstalled && (
-              <div className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#6CC349] px-1.5 py-0.5 text-[9px] font-minecraft uppercase tracking-[0.16em] text-black shadow-[inset_0_-2px_0_#3C8527]">
-                <CheckCircle2 size={10} />
-                {t('download.status.installed', { defaultValue: 'Installed' })}
+            {(isInstalled || supportsClient) && (
+              <div className="absolute right-2 top-2 z-10 flex items-center gap-[0.375rem]">
+                {isInstalled && (
+                  <div className="inline-flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#6CC349] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-black shadow-[inset_0_-2px_0_#3C8527] sm:text-[0.625rem]">
+                    <CheckCircle2 className="h-[0.6875rem] w-[0.6875rem]" />
+                    {t('download.status.installed', { defaultValue: 'Installed' })}
+                  </div>
+                )}
+
+                {supportsClient && (
+                  <div className="inline-flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#313233] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.12)] sm:text-[0.625rem]">
+                    <Monitor className="h-[0.6875rem] w-[0.6875rem]" />
+                    {t('download.tags.clientSide', { defaultValue: 'Client-side' })}
+                  </div>
+                )}
               </div>
             )}
 
-            <div className="flex w-full gap-3 p-3 pr-4">
-              <div className="flex w-20 shrink-0 flex-col gap-1.5">
-                <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden border-[2px] border-[#1E1E1F] bg-[#48494A] shadow-[inset_0_-4px_0_#313233,inset_2px_2px_0_rgba(255,255,255,0.15)]">
-                  {project.icon_url ? (
-                    <img src={project.icon_url} alt="" loading="lazy" className="h-full w-full object-cover" />
-                  ) : (
-                    <Blocks className="h-10 w-10 text-white/75" />
-                  )}
+            <div className="flex w-full gap-[0.875rem] p-[0.9375rem] pr-[1rem]">
+              <div className="flex w-[6rem] shrink-0 flex-col gap-[0.625rem]">
+                <div className="flex min-h-[8rem] flex-col justify-between">
+                  <div className="relative flex h-[6rem] w-[6rem] items-center justify-center overflow-hidden border-[2px] border-[#1E1E1F] bg-[#48494A] shadow-[inset_0_-4px_0_#313233,inset_2px_2px_0_rgba(255,255,255,0.15)]">
+                    {project.icon_url ? (
+                      <img src={project.icon_url} alt="" loading="lazy" className="h-full w-full object-cover" />
+                    ) : (
+                      <Blocks className="h-[2.75rem] w-[2.75rem] text-white/75" />
+                    )}
+                  </div>
+
+                  <div className="flex min-h-[2rem] items-center justify-center gap-[0.375rem] overflow-hidden">
+                    {loaders.map((loader) => {
+                      const normalizedLoader = loader.raw.toLowerCase();
+                      const loaderIcon = LOADER_ICON_MAP[normalizedLoader];
+
+                      return (
+                        <div
+                          key={loader.raw}
+                          className="flex h-[1.75rem] w-[1.75rem] shrink-0 items-center justify-center overflow-hidden border-[2px] border-[#262729] bg-[#D7CF9A] shadow-[inset_0_-2px_0_#9F955C]"
+                          title={t(`download.tags.loader.${normalizedLoader}`, {
+                            defaultValue: prettifyDownloadTagLabel(loader.display)
+                          })}
+                        >
+                          {loaderIcon && (
+                            <img
+                              src={loaderIcon}
+                              alt=""
+                              className="h-[0.875rem] w-[0.875rem] shrink-0 object-contain opacity-90"
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                <div className="mt-auto flex h-[38px] flex-col items-center justify-center overflow-hidden border-[2px] border-[#1E1E1F] bg-[#48494A] px-1 shadow-[inset_0_2px_0_rgba(255,255,255,0.08)]">
-                  <div className="font-minecraft text-[9px] uppercase tracking-[0.18em] text-[#B1B2B5] leading-none">
+                <div className="flex min-h-[3.125rem] flex-col items-center justify-center overflow-hidden border-[2px] border-[#34363A] bg-[#8A8D93] px-[0.375rem] py-[0.375rem] shadow-[inset_0_2px_0_rgba(255,255,255,0.16)]">
+                  <div className="font-minecraft text-[0.625rem] uppercase leading-none tracking-[0.18em] text-[#2B2D30]">
                     {t('download.meta.author', { defaultValue: 'Author' })}
                   </div>
-                  <div className="w-full truncate pt-1 text-center text-[11px] font-bold leading-none text-white">
+                  <div className="w-full truncate pt-[0.25rem] text-center text-[0.875rem] font-bold leading-none text-[#161719]">
                     {project.author || t('download.meta.unknownAuthor', { defaultValue: 'Unknown' })}
                   </div>
                 </div>
               </div>
 
-              <div className="flex min-w-0 flex-1 flex-col">
-                <div className="pr-16">
-                  <div className="truncate font-minecraft text-lg font-bold leading-tight text-black">{project.title}</div>
-                  <p className="mt-1.5 line-clamp-1 text-xs leading-[18px] text-[#313233]">
-                    {project.description?.trim() || t('download.empty.noDescription', { defaultValue: 'No description provided yet.' })}
-                  </p>
+              <div className="flex min-w-0 flex-1 flex-col justify-between">
+                <div className="flex min-h-[8rem] flex-col justify-between pr-[4.75rem]">
+                  <div className="min-h-[4.25rem]">
+                    <div className={`truncate font-minecraft text-[1.1875rem] font-bold leading-[1.15] text-black ${titlePadClass}`}>
+                      {project.title}
+                    </div>
+                    <p className={`mt-[0.5rem] min-h-[2.5rem] line-clamp-2 text-[0.9375rem] leading-[1.35] text-[#313233] ${titlePadClass}`}>
+                      {project.description?.trim() || t('download.empty.noDescription', { defaultValue: 'No description provided yet.' })}
+                    </p>
+                  </div>
+
+                  <div className="mt-[0.75rem] flex min-h-[2rem] shrink-0 flex-wrap content-end gap-[0.4375rem] overflow-hidden">
+                    {features.map((feature) => (
+                      <span
+                        key={`${feature.raw}-${feature.display}`}
+                        className="inline-flex items-center gap-[0.3125rem] whitespace-nowrap border-[2px] border-[#262729] bg-[#90A6D6] px-[0.5625rem] py-[0.25rem] text-[0.75rem] font-minecraft uppercase tracking-[0.14em] text-black shadow-[inset_0_-2px_0_#61749C]"
+                      >
+                        <Tags className="h-[0.75rem] w-[0.75rem]" />
+                        {getLocalizedDownloadTagLabel({
+                          t,
+                          language: i18n.language,
+                          source: project.source,
+                          raw: feature.raw,
+                          display: feature.display
+                        })}
+                      </span>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="mt-2 mb-2.5 flex h-[22px] shrink-0 flex-wrap gap-1.5 overflow-hidden">
-                  {supportsClient && (
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap border-[2px] border-[#1E1E1F] bg-[#313233] px-1.5 py-0.5 text-[9px] font-minecraft uppercase tracking-[0.14em] text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.12)]">
-                      <Monitor size={10} />
-                      {t('download.tags.clientSide', { defaultValue: 'Client-side' })}
-                    </span>
-                  )}
-
-                  {loaders.map((loader) => (
-                    <span
-                      key={loader.raw}
-                      className="inline-flex items-center gap-1 whitespace-nowrap border-[2px] border-[#1E1E1F] bg-[#FFE866] px-1.5 py-0.5 text-[9px] font-minecraft uppercase tracking-[0.14em] text-black shadow-[inset_0_-2px_0_#C9B12D]"
-                    >
-                      {t(`download.tags.loader.${loader.raw.toLowerCase()}`, {
-                        defaultValue: prettifyDownloadTagLabel(loader.display)
-                      })}
-                    </span>
-                  ))}
-
-                  {features.map((feature) => (
-                    <span
-                      key={`${feature.raw}-${feature.display}`}
-                      className="inline-flex items-center gap-1 whitespace-nowrap border-[2px] border-[#1E1E1F] bg-[#8CB3FF] px-1.5 py-0.5 text-[9px] font-minecraft uppercase tracking-[0.14em] text-black shadow-[inset_0_-2px_0_#5C82CA]"
-                    >
-                      <Tags size={9} />
-                      {getLocalizedDownloadTagLabel({
-                        t,
-                        language: i18n.language,
-                        source: project.source,
-                        raw: feature.raw,
-                        display: feature.display
-                      })}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="mt-auto flex h-[38px] shrink-0 items-center justify-between gap-2 overflow-hidden border-[2px] border-[#1E1E1F] bg-[#48494A] px-2.5 shadow-[inset_0_2px_0_rgba(255,255,255,0.08)]">
-                  <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-xs font-minecraft uppercase tracking-[0.08em] text-[#E6E8EB]">
-                    <span className="flex items-center gap-1.5">
-                      <Download size={12} />
+                <div className="flex min-h-[3.125rem] shrink-0 items-center justify-between gap-[0.625rem] overflow-hidden border-[2px] border-[#34363A] bg-[#8A8D93] px-[0.75rem] py-[0.5rem] shadow-[inset_0_2px_0_rgba(255,255,255,0.16)]">
+                  <div className="flex flex-wrap items-center gap-x-[0.875rem] gap-y-[0.25rem] text-[0.8125rem] font-minecraft uppercase tracking-[0.08em] text-[#161719]">
+                    <span className="flex items-center gap-[0.375rem]">
+                      <Download className="h-[0.8125rem] w-[0.8125rem]" />
                       {formatNumber(project.downloads)}
                     </span>
-                    <span className="flex items-center gap-1.5">
-                      <Heart size={12} />
+                    <span className="flex items-center gap-[0.375rem]">
+                      <Heart className="h-[0.8125rem] w-[0.8125rem]" />
                       {formatNumber(followerCount)}
                     </span>
-                    <span className="flex items-center gap-1.5 text-[#FFE866]">
-                      <Clock3 size={12} />
-                      <span className="mt-0.5">{timeAgo(project.date_modified)}</span>
+                    <span className="flex items-center gap-[0.375rem] text-[#231A0D]">
+                      <Clock3 className="h-[0.8125rem] w-[0.8125rem]" />
+                      <span className="mt-[0.0625rem] font-bold">{timeAgo(project.date_modified)}</span>
                     </span>
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-1.5">
+                  <div className="flex shrink-0 items-center gap-[0.375rem]">
                     <ControlHint label="A" variant="face" tone="green" />
-                    <span className="font-minecraft text-[10px] uppercase tracking-[0.16em] text-[#E6E8EB]">
+                    <span className="font-minecraft text-[0.75rem] uppercase tracking-[0.16em] text-[#161719]">
                       {t('download.actions.details', { defaultValue: 'Details' })}
                     </span>
                   </div>
@@ -393,7 +448,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
     <div
       id={scrollContainerId}
       ref={scrollContainerRef}
-      className="h-full min-h-0 flex-1 overflow-y-auto custom-scrollbar"
+      className="h-full min-h-0 flex-1 overflow-y-auto scroll-smooth custom-scrollbar"
       onScroll={(e) => {
         if (!onScrollTopChange) return;
         const el = e.currentTarget;
@@ -405,13 +460,13 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
         defaultFocusKey="download-grid-item-0"
         className="min-h-full"
       >
-        <div className="min-h-full px-4 pb-5 pt-4">
+        <div className="min-h-full px-[0.875rem] pb-[1.25rem] pt-[0.875rem] sm:px-[1rem] sm:pb-[1.5rem] sm:pt-[1rem]">
           {isLoading ? (
             <div className="flex h-full min-h-[360px] items-center justify-center">
               <Loader2 size={44} className="animate-spin text-ore-green" />
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-3 pb-6 lg:grid-cols-2 2xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-[0.875rem] pb-[1.5rem] lg:grid-cols-2 2xl:grid-cols-3">
               {results.map((project, index) => (
                 <ResourceCard
                   key={`${project.id}-${index}`}
