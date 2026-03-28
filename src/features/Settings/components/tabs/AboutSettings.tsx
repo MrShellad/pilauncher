@@ -52,7 +52,7 @@ export const AboutSettings: React.FC = () => {
 
   return (
     <FocusBoundary id="settings-about-boundary" className="w-full h-full outline-none">
-      <SettingsPageLayout>
+      <SettingsPageLayout adaptiveScale>
 
         {/* ==================== 产品基础信息 ==================== */}
         <SettingsSection title="产品信息" icon={<Info size={18} />}>

@@ -105,7 +105,7 @@ export const AppearanceSettings: React.FC = () => {
   const { handleLinearArrow } = useLinearNavigation(focusOrder);
 
   return (
-    <SettingsPageLayout>
+    <SettingsPageLayout adaptiveScale>
 
       <SettingsSection title="背景与主题" icon={<ImageIcon size={18} />}>
 

@@ -175,26 +175,28 @@ const InstanceDetail: React.FC = () => {
   return (
     <FocusContext.Provider value={focusKey}>
       <div ref={pageFocusRef} className="w-full h-full flex flex-col overflow-hidden">
-        <div className="flex flex-col flex-shrink-0 z-20 bg-[#1E1E1F] border-b-[3px] border-[#18181B] shadow-md">
-          <div className="w-full pt-4 pb-4 px-4 md:px-8 bg-[#18181B]">
-            <div className="max-w-6xl mx-auto w-full flex items-center">
-              <div className="hidden md:flex flex-shrink-0 text-gray-500 font-minecraft text-xs items-center mr-4 bg-black/30 px-2.5 py-1.5 rounded-sm border-b-2 border-white/5 shadow-inner">
+        <div className="flex flex-col flex-shrink-0 z-20 border-b-[3px] border-[#18181B] bg-[#1E1E1F] shadow-md">
+          <div className="w-full bg-[#18181B] px-[clamp(16px,2vw,32px)] py-[clamp(12px,1.6vh,20px)]">
+            <div className="mx-auto grid w-full max-w-[120rem] grid-cols-[minmax(0,1fr)] items-center gap-[clamp(10px,1.4vw,20px)] md:grid-cols-[clamp(64px,5vw,84px)_minmax(0,1fr)_clamp(64px,5vw,84px)]">
+              <div className="hidden md:flex justify-center text-gray-500 font-minecraft text-xs items-center bg-black/30 px-2.5 py-1.5 rounded-sm border-b-2 border-white/5 shadow-inner">
                 <span className="text-gray-300 font-bold mx-1">LT</span> / <span className="text-gray-300 font-bold mx-1">;</span>
               </div>
 
-              <div className="flex-1 overflow-x-auto custom-scrollbar pb-2">
-                <div className="min-w-max h-[44px]">
+              <div className="min-w-0 overflow-x-auto custom-scrollbar">
+                <div className="flex min-w-full justify-center">
                   <OreToggleButton
                     options={toggleOptions}
                     value={activeTab}
                     onChange={handleTabSelect}
                     size="md"
+                    uiScale="adaptive"
                     focusable={false}
+                    className="w-max"
                   />
                 </div>
               </div>
 
-              <div className="hidden md:flex flex-shrink-0 text-gray-500 font-minecraft text-xs items-center ml-4 bg-black/30 px-2.5 py-1.5 rounded-sm border-b-2 border-white/5 shadow-inner">
+              <div className="hidden md:flex justify-center text-gray-500 font-minecraft text-xs items-center bg-black/30 px-2.5 py-1.5 rounded-sm border-b-2 border-white/5 shadow-inner">
                 <span className="text-gray-300 font-bold mx-1">RT</span> / <span className="text-gray-300 font-bold mx-1">'</span>
               </div>
             </div>

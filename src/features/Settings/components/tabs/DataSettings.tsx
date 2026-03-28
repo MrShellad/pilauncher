@@ -97,7 +97,7 @@ export const DataSettings: React.FC = () => {
   const { handleLinearArrow: handleRenameArrow } = useLinearNavigation(renameFocusOrder, 'settings-rename-input', true, renameOpen);
 
   return (
-    <SettingsPageLayout>
+    <SettingsPageLayout adaptiveScale>
 
       <DirectoryBrowserModal
         isOpen={browserOpen}

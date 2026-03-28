@@ -183,7 +183,7 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
             installedVersionIds={installedVersionIds}
             onDownload={(version) => {
               if (directInstallInstanceId) {
-                onDownload(version, directInstallInstanceId, false);
+                onDownload(version, directInstallInstanceId);
                 onClose();
               } else {
                 setPendingVersion(version);

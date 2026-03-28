@@ -28,3 +28,11 @@ pub struct RuntimeConfig {
     pub min_memory: u64,
     pub jvm_args: String,
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolvedJavaRuntime {
+    pub mc_version: String,
+    pub required_java_major: String,
+    pub java_path: String,
+}

@@ -143,7 +143,10 @@ impl ModManagerService {
                         } else if let Some(mid) = &meta.mod_id {
                             format!("local_{}", mid)
                         } else {
-                            format!("file_{}", base_name.replace(|c: char| !c.is_ascii_alphanumeric(), "_"))
+                            format!(
+                                "file_{}",
+                                base_name.replace(|c: char| !c.is_ascii_alphanumeric(), "_")
+                            )
                         };
                         meta.cache_key = Some(cache_key.clone());
 
@@ -153,7 +156,8 @@ impl ModManagerService {
                             meta.icon_absolute_path = cached_icon;
                         } else {
                             // 共享目录没有，从 JAR 提取并存入共享目录
-                            meta.icon_absolute_path = Self::extract_icon_to_shared(&path, &icons_dir, &cache_key);
+                            meta.icon_absolute_path =
+                                Self::extract_icon_to_shared(&path, &icons_dir, &cache_key);
                         }
 
                         // ✅ 兜底逻辑：从公共网络缓存补充名称/描述/在线图标
@@ -196,10 +200,17 @@ impl ModManagerService {
 
         let mut meta = ModMetadata {
             file_name: file_name.clone(),
-            mod_id: None, name: None, version: None, description: None,
-            icon_absolute_path: None, network_icon_url: None,
-            file_size, is_enabled: true, modified_at,
-            manifest_entry: None, cache_key: None,
+            mod_id: None,
+            name: None,
+            version: None,
+            description: None,
+            icon_absolute_path: None,
+            network_icon_url: None,
+            file_size,
+            is_enabled: true,
+            modified_at,
+            manifest_entry: None,
+            cache_key: None,
         };
 
         if let Ok(file) = File::open(jar_path) {
@@ -232,8 +243,16 @@ impl ModManagerService {
     }
 
     /// 从 JAR 内提取图标并存到 shared_mods/icons/<cache_key>.<ext>
-    fn extract_icon_to_shared(jar_path: &Path, icons_dir: &Path, cache_key: &str) -> Option<String> {
-        let file_name = jar_path.file_name().unwrap_or_default().to_string_lossy().to_string();
+    fn extract_icon_to_shared(
+        jar_path: &Path,
+        icons_dir: &Path,
+        cache_key: &str,
+    ) -> Option<String> {
+        let file_name = jar_path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
         if let Ok(file) = File::open(jar_path) {
             if let Ok(mut archive) = zip::ZipArchive::new(file) {
                 let icon_path_in_jar: Option<String> = {
@@ -256,7 +275,11 @@ impl ModManagerService {
                             .unwrap_or_default()
                             .to_string_lossy()
                             .to_string();
-                        let ext = if ext.is_empty() { "png".to_string() } else { ext };
+                        let ext = if ext.is_empty() {
+                            "png".to_string()
+                        } else {
+                            ext
+                        };
                         let target = icons_dir.join(format!("{}.{}", cache_key, ext));
                         if let Ok(mut out_file) = File::create(&target) {
                             if std::io::copy(&mut icon_file, &mut out_file).is_ok() {
@@ -282,7 +305,7 @@ impl ModManagerService {
     ) -> Result<(), String> {
         let shared_mods_dir = Self::get_shared_mods_dir(app)?;
         let cache_path = shared_mods_dir.join("global_mod_cache.json");
-        
+
         let mut cache: HashMap<String, ModCacheInfo> = if cache_path.exists() {
             let content = fs::read_to_string(&cache_path).unwrap_or_default();
             serde_json::from_str(&content).unwrap_or_default()

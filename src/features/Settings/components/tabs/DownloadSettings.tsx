@@ -42,7 +42,7 @@ export const DownloadSettings: React.FC = () => {
   } = useDownloadSettingsController();
 
   return (
-    <SettingsPageLayout>
+    <SettingsPageLayout adaptiveScale>
       <SettingsSection title="组件下载源" icon={<Globe size={18} />}>
         <FormRow
           label="Minecraft 版本元数据源"

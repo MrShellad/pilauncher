@@ -1,0 +1,60 @@
+{
+  "version": 2,
+  "categories": {
+    "mod": [
+      {
+        "value": "technology",
+        "slug": "technology",
+        "translationKey": "download.categories.technology",
+        "defaultLabel": "Technology",
+        "labels": {
+          "en-US": "Technology",
+          "zh-CN": "科技"
+        }
+      },
+      {
+        "value": "magic",
+        "slug": "magic",
+        "translationKey": "download.categories.magic",
+        "defaultLabel": "Magic",
+        "labels": {
+          "en-US": "Magic",
+          "zh-CN": "魔法"
+        }
+      },
+      {
+        "value": "optimization",
+        "slug": "optimization",
+        "translationKey": "download.categories.optimization",
+        "defaultLabel": "Optimization",
+        "labels": {
+          "en-US": "Optimization",
+          "zh-CN": "性能优化"
+        }
+      },
+      {
+        "value": "utility",
+        "slug": "utility",
+        "translationKey": "download.categories.utility",
+        "defaultLabel": "Utility",
+        "labels": {
+          "en-US": "Utility",
+          "zh-CN": "实用工具"
+        }
+      },
+      {
+        "value": "decoration",
+        "slug": "decoration",
+        "translationKey": "download.categories.decoration",
+        "defaultLabel": "Decoration",
+        "labels": {
+          "en-US": "Decoration",
+          "zh-CN": "装饰"
+        }
+      }
+    ],
+    "resourcepack": [],
+    "shader": [],
+    "modpack": []
+  }
+}

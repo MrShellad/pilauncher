@@ -1,17 +1,17 @@
-use crate::domain::runtime::{JavaInstall, MemoryStats, ValidationResult};
+use crate::domain::runtime::{
+    JavaInstall, MemoryStats, ResolvedJavaRuntime, RuntimeConfig, ValidationResult,
+};
+use crate::services::config_service::JavaSettings;
+use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use sysinfo::System;
 use walkdir::WalkDir;
 
-use crate::domain::runtime::RuntimeConfig;
-use serde_json::Value;
-
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
-// ================= 1. 获取系统真实内存 =================
 pub fn get_system_memory() -> MemoryStats {
     let mut sys = System::new_all();
     sys.refresh_memory();
@@ -21,7 +21,98 @@ pub fn get_system_memory() -> MemoryStats {
     }
 }
 
-// ================= 2. 校验并读取缓存 =================
+pub fn launcher_default_java_command() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "javaw"
+    } else {
+        "java"
+    }
+}
+
+pub fn installer_default_java_command() -> &'static str {
+    "java"
+}
+
+pub fn get_required_java_version(mc_version: &str) -> String {
+    let parts: Vec<&str> = mc_version.split('.').collect();
+    if parts.len() < 2 {
+        return "8".to_string();
+    }
+
+    let Ok(minor) = parts[1].parse::<u32>() else {
+        return "8".to_string();
+    };
+
+    if minor >= 21 {
+        return "21".to_string();
+    }
+
+    if minor == 20 {
+        if let Some(patch) = parts.get(2).and_then(|v| v.parse::<u32>().ok()) {
+            if patch >= 5 {
+                return "21".to_string();
+            }
+        }
+        return "17".to_string();
+    }
+
+    if minor >= 18 {
+        return "17".to_string();
+    }
+
+    if minor == 17 {
+        return "16".to_string();
+    }
+
+    "8".to_string()
+}
+
+pub fn resolve_global_java_runtime(
+    java_settings: &JavaSettings,
+    mc_version: &str,
+    fallback_java_command: &str,
+) -> ResolvedJavaRuntime {
+    let required_java_major = get_required_java_version(mc_version);
+    let java_path = java_settings
+        .major_java_paths
+        .get(&required_java_major)
+        .filter(|path| !path.trim().is_empty())
+        .cloned()
+        .unwrap_or_else(|| java_settings.java_path.clone());
+
+    ResolvedJavaRuntime {
+        mc_version: mc_version.to_string(),
+        required_java_major,
+        java_path: normalize_java_path(java_path, fallback_java_command),
+    }
+}
+
+pub fn resolve_instance_java_runtime(
+    instance_runtime: &RuntimeConfig,
+    java_settings: &JavaSettings,
+    mc_version: &str,
+    fallback_java_command: &str,
+) -> ResolvedJavaRuntime {
+    if instance_runtime.use_global_java || instance_runtime.java_path.trim().is_empty() {
+        return resolve_global_java_runtime(java_settings, mc_version, fallback_java_command);
+    }
+
+    ResolvedJavaRuntime {
+        mc_version: mc_version.to_string(),
+        required_java_major: get_required_java_version(mc_version),
+        java_path: normalize_java_path(instance_runtime.java_path.clone(), fallback_java_command),
+    }
+}
+
+fn normalize_java_path(java_path: String, fallback_java_command: &str) -> String {
+    let trimmed = java_path.trim();
+    if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("auto") {
+        fallback_java_command.to_string()
+    } else {
+        java_path
+    }
+}
+
 pub fn validate_java_cache(cache_file: &Path) -> Result<ValidationResult, String> {
     let mut valid = Vec::new();
     let mut missing = Vec::new();
@@ -49,7 +140,6 @@ pub fn validate_java_cache(cache_file: &Path) -> Result<ValidationResult, String
     Ok(ValidationResult { valid, missing })
 }
 
-// ================= 3. 深度受限的物理扫描 (加强 Linux/Mac 软连与深度兼容) =================
 pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, String> {
     let mut installs = Vec::new();
     let mut paths_to_check = Vec::new();
@@ -75,10 +165,9 @@ pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, Str
 
     for dir in base_dirs {
         if Path::new(dir).exists() {
-            // ✅ macOS/Linux 下由于 JDK 目录经常包含替身/软链接，必须启用 follow_links
             for entry in WalkDir::new(dir)
                 .follow_links(true)
-                .max_depth(6) // ✅ 扩大层级以穿透 macOS (jdk/Contents/Home/bin/java 刚好 5 级)
+                .max_depth(6)
                 .into_iter()
                 .filter_map(|e| e.ok())
             {
@@ -107,13 +196,12 @@ pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, Str
         }
     }
 
-    // ✅ 深度扫描 PiLauncher 自己的 runtime/java 目录
     if let Some(base_path) = cache_file.parent().and_then(|p| p.parent()) {
         let runtime_java_dir = base_path.join("runtime").join("java");
         if runtime_java_dir.exists() {
-            for entry in walkdir::WalkDir::new(runtime_java_dir)
-                .follow_links(true) // ✅ 跨越软连
-                .max_depth(8) // ✅ 放宽层级，避免解压嵌套过深导致漏扫
+            for entry in WalkDir::new(runtime_java_dir)
+                .follow_links(true)
+                .max_depth(8)
                 .into_iter()
                 .filter_map(|e| e.ok())
             {
@@ -151,7 +239,6 @@ pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, Str
     Ok(installs)
 }
 
-// ================= 辅助函数：执行命令提取版本 =================
 fn get_java_version(path: &Path) -> Option<String> {
     let mut cmd = Command::new(path);
     cmd.arg("-version");
@@ -179,7 +266,6 @@ fn get_java_version(path: &Path) -> Option<String> {
     }
 }
 
-// ================= 4. 读取实例的 Runtime 配置 =================
 pub fn get_instance_runtime(instance_dir: &Path) -> Result<RuntimeConfig, String> {
     let file_path = instance_dir.join("instance.json");
 
@@ -208,7 +294,6 @@ pub fn get_instance_runtime(instance_dir: &Path) -> Result<RuntimeConfig, String
     Ok(default_config)
 }
 
-// ================= 5. 保存实例的 Runtime 配置 (无损局部更新) =================
 pub fn save_instance_runtime(instance_dir: &Path, config: RuntimeConfig) -> Result<(), String> {
     let file_path = instance_dir.join("instance.json");
 
@@ -225,4 +310,67 @@ pub fn save_instance_runtime(instance_dir: &Path, config: RuntimeConfig) -> Resu
     fs::write(&file_path, new_data).map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn java_settings() -> JavaSettings {
+        JavaSettings {
+            auto_detect: true,
+            java_path: "global-java".to_string(),
+            major_java_paths: HashMap::from([
+                ("8".to_string(), "java-8".to_string()),
+                ("17".to_string(), "java-17".to_string()),
+                ("21".to_string(), "java-21".to_string()),
+            ]),
+            jvm_args: String::new(),
+            max_memory: 4096,
+            min_memory: 1024,
+        }
+    }
+
+    #[test]
+    fn maps_mc_versions_to_expected_java_major() {
+        assert_eq!(get_required_java_version("1.16.5"), "8");
+        assert_eq!(get_required_java_version("1.17.1"), "16");
+        assert_eq!(get_required_java_version("1.20.4"), "17");
+        assert_eq!(get_required_java_version("1.20.5"), "21");
+        assert_eq!(get_required_java_version("1.21.1"), "21");
+    }
+
+    #[test]
+    fn resolves_global_java_from_major_version_map() {
+        let resolved = resolve_global_java_runtime(&java_settings(), "1.20.1", "java");
+        assert_eq!(resolved.required_java_major, "17");
+        assert_eq!(resolved.java_path, "java-17");
+    }
+
+    #[test]
+    fn falls_back_to_global_java_path_when_major_specific_path_missing() {
+        let mut settings = java_settings();
+        settings.major_java_paths.remove("16");
+
+        let resolved = resolve_global_java_runtime(&settings, "1.17.1", "java");
+        assert_eq!(resolved.required_java_major, "16");
+        assert_eq!(resolved.java_path, "global-java");
+    }
+
+    #[test]
+    fn keeps_instance_java_override_when_not_using_global_java() {
+        let runtime = RuntimeConfig {
+            use_global_java: false,
+            use_global_memory: true,
+            java_path: "instance-java".to_string(),
+            max_memory: 4096,
+            min_memory: 1024,
+            jvm_args: String::new(),
+        };
+
+        let resolved = resolve_instance_java_runtime(&runtime, &java_settings(), "1.21.1", "java");
+        assert_eq!(resolved.required_java_major, "21");
+        assert_eq!(resolved.java_path, "instance-java");
+    }
 }

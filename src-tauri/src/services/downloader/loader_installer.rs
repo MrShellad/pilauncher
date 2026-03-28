@@ -14,9 +14,6 @@ use tauri::{AppHandle, Emitter, Runtime};
 use tokio::io::AsyncBufReadExt;
 use tokio::process::Command;
 
-#[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
-
 fn build_download_client(dl_settings: &DownloadSettings) -> AppResult<reqwest::Client> {
     let mut builder = reqwest::Client::builder()
         .user_agent("PiLauncher/1.0 (Loader Installer)")
@@ -78,7 +75,15 @@ pub async fn install_loader<R: Runtime>(
         )
         .await?;
     } else if loader_type.eq_ignore_ascii_case("NeoForge") {
-        install_neoforge(app, instance_id, loader_version, global_mc_root, cancel).await?;
+        install_neoforge(
+            app,
+            instance_id,
+            mc_version,
+            loader_version,
+            global_mc_root,
+            cancel,
+        )
+        .await?;
     }
 
     Ok(())
@@ -183,6 +188,11 @@ async fn install_forge<R: Runtime>(
 ) -> AppResult<()> {
     let dl_settings = ConfigService::get_download_settings(app);
     let java_settings = ConfigService::get_java_settings(app);
+    let java_runtime = crate::services::runtime_service::resolve_global_java_runtime(
+        &java_settings,
+        mc_version,
+        crate::services::runtime_service::installer_default_java_command(),
+    );
     let client = build_download_client(&dl_settings)?;
 
     if is_cancelled(cancel) {
@@ -254,11 +264,7 @@ async fn install_forge<R: Runtime>(
         },
     );
 
-    let java_path = if java_settings.java_path.is_empty() || java_settings.java_path == "auto" {
-        "java".to_string()
-    } else {
-        java_settings.java_path.clone()
-    };
+    let java_path = java_runtime.java_path.clone();
 
     let mut cmd = Command::new(&java_path);
     cmd.arg("-jar")
@@ -276,13 +282,12 @@ async fn install_forge<R: Runtime>(
     #[cfg(target_os = "windows")]
     cmd.creation_flags(0x08000000);
 
-    let mut child = cmd.spawn()
-        .map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("启动 Java 安装器失败: {}", e),
-            )
-        })?;
+    let mut child = cmd.spawn().map_err(|e| {
+        std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("启动 Java 安装器失败: {}", e),
+        )
+    })?;
 
     let app_emit = app.clone();
     let instance_id_emit = instance_id.to_string();
@@ -412,12 +417,18 @@ async fn install_forge<R: Runtime>(
 async fn install_neoforge<R: Runtime>(
     app: &AppHandle<R>,
     instance_id: &str,
+    mc_version: &str,
     loader_version: &str,
     global_mc_root: &Path,
     cancel: &Arc<AtomicBool>,
 ) -> AppResult<()> {
     let dl_settings = ConfigService::get_download_settings(app);
     let java_settings = ConfigService::get_java_settings(app);
+    let java_runtime = crate::services::runtime_service::resolve_global_java_runtime(
+        &java_settings,
+        mc_version,
+        crate::services::runtime_service::installer_default_java_command(),
+    );
     let client = build_download_client(&dl_settings)?;
 
     if is_cancelled(cancel) {
@@ -488,11 +499,7 @@ async fn install_neoforge<R: Runtime>(
         },
     );
 
-    let java_path = if java_settings.java_path.is_empty() || java_settings.java_path == "auto" {
-        "java".to_string()
-    } else {
-        java_settings.java_path.clone()
-    };
+    let java_path = java_runtime.java_path.clone();
 
     let mut cmd = Command::new(&java_path);
     cmd.arg("-jar")
@@ -510,13 +517,12 @@ async fn install_neoforge<R: Runtime>(
     #[cfg(target_os = "windows")]
     cmd.creation_flags(0x08000000);
 
-    let mut child = cmd.spawn()
-        .map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("启动 Java 安装器失败: {}", e),
-            )
-        })?;
+    let mut child = cmd.spawn().map_err(|e| {
+        std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("启动 Java 安装器失败: {}", e),
+        )
+    })?;
 
     let app_emit = app.clone();
     let instance_id_emit = instance_id.to_string();

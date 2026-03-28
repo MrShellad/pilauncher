@@ -1,6 +1,58 @@
 ﻿@tailwind components;
 
 /* /src/style/ui/primitives/OreToggleButton.css */
+.ore-toggle-btn-scale-adaptive {
+  --ore-toggle-height: 2.75rem;
+  --ore-toggle-min-width: 7rem;
+  --ore-toggle-px: 1rem;
+  --ore-toggle-font-size: 0.875rem;
+  --ore-toggle-border: 0.125rem;
+  --ore-toggle-gap: 0.125rem;
+  --ore-toggle-icon-size: 1rem;
+}
+
+@media (max-width: 48rem) {
+  .ore-toggle-btn-scale-adaptive {
+    --ore-toggle-height: 2.5rem;
+    --ore-toggle-min-width: 5.75rem;
+    --ore-toggle-px: 0.75rem;
+    --ore-toggle-font-size: 0.75rem;
+    --ore-toggle-icon-size: 0.875rem;
+  }
+}
+
+@media (min-width: 90rem) {
+  .ore-toggle-btn-scale-adaptive {
+    --ore-toggle-height: 3rem;
+    --ore-toggle-min-width: 7.75rem;
+    --ore-toggle-px: 1.25rem;
+    --ore-toggle-font-size: 0.9375rem;
+    --ore-toggle-icon-size: 1.125rem;
+  }
+}
+
+@media (min-width: 120rem) {
+  .ore-toggle-btn-scale-adaptive {
+    --ore-toggle-height: 3.5rem;
+    --ore-toggle-min-width: 9.25rem;
+    --ore-toggle-px: 1.5rem;
+    --ore-toggle-font-size: 1.0625rem;
+    --ore-toggle-icon-size: 1.25rem;
+  }
+}
+
+@media (min-width: 160rem) {
+  .ore-toggle-btn-scale-adaptive {
+    --ore-toggle-height: 4.25rem;
+    --ore-toggle-min-width: 11rem;
+    --ore-toggle-px: 1.875rem;
+    --ore-toggle-font-size: 1.25rem;
+    --ore-toggle-border: 0.1875rem;
+    --ore-toggle-gap: 0.1875rem;
+    --ore-toggle-icon-size: 1.5rem;
+  }
+}
+
 @layer components {
 
   /* ============================================== */
@@ -14,11 +66,38 @@
     gap: 0.125rem;
   }
 
+  .ore-toggle-btn-group--adaptive {
+    width: max-content;
+    min-height: var(--ore-toggle-height);
+    border-width: var(--ore-toggle-border);
+    gap: var(--ore-toggle-gap);
+  }
+
   /* ============================================== */
   /* 鍗曚釜 Toggle 鎸夐挳鍩虹鏍峰紡 */
   /* ============================================== */
   .ore-toggle-btn-item {
     @apply relative flex-1 text-sm font-minecraft font-bold cursor-pointer select-none transition-none focus:outline-none flex items-center justify-center;
+  }
+
+  .ore-toggle-btn-scale-adaptive .ore-toggle-btn-item {
+    flex: 0 0 auto;
+    min-width: var(--ore-toggle-min-width);
+    min-height: var(--ore-toggle-height);
+    padding-left: var(--ore-toggle-px);
+    padding-right: var(--ore-toggle-px);
+    font-size: var(--ore-toggle-font-size);
+  }
+
+  .ore-toggle-btn-scale-adaptive .ore-toggle-btn-item svg {
+    width: var(--ore-toggle-icon-size);
+    height: var(--ore-toggle-icon-size);
+    flex-shrink: 0;
+  }
+
+  .ore-toggle-btn-scale-adaptive .ore-toggle-btn-item > div {
+    white-space: nowrap;
+    gap: clamp(0.375rem, 0.5vw, 0.625rem);
   }
 
   /* --- 鏈€変腑鐘舵€?(鍑歌捣鐨勭伆鑹叉寜閽? --- */

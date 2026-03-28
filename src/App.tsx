@@ -28,6 +28,7 @@ import './style/ui/primitives/OreSwitch.css';
 import './style/ui/primitives/OreSlider.css';
 import './style/ui/primitives/OreDropdown.css';
 import './style/ui/primitives/OreToggleButton.css';
+import './style/ui/layout/SettingsPageLayout.css';
 import './style/ui/primitives/AccountCard.css';
 import './style/index.css';
 import './ui/i18';

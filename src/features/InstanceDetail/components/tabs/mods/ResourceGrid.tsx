@@ -13,6 +13,9 @@ interface ResourceGridProps {
   isLoading: boolean;
   isLoadingMore?: boolean;
   hasMore: boolean;
+  resourceTab?: 'mod' | 'resourcepack' | 'shader';
+  lockedMcVersion?: string;
+  lockedLoaderType?: string;
   onLoadMore: () => void;
   onSelectProject: (project: ModrinthProject) => void;
   scrollContainerId?: string;
@@ -33,6 +36,12 @@ const formatNumber = (value?: number) => {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
   return value.toString();
+};
+
+const prettifyLoader = (loader: string) => {
+  if (!loader) return 'Vanilla';
+  if (loader === 'neoforge') return 'NeoForge';
+  return loader.charAt(0).toUpperCase() + loader.slice(1);
 };
 
 const ResourceCard = React.memo(({
@@ -125,6 +134,9 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   isLoading,
   isLoadingMore = false,
   hasMore,
+  resourceTab = 'mod',
+  lockedMcVersion = '',
+  lockedLoaderType = '',
   onLoadMore,
   onSelectProject,
   scrollContainerId,
@@ -216,6 +228,14 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   }, [AUTO_FILL_MAX_PAGES, hasMore, isLoading, isLoadingMore, results.length, tryLoadMore]);
 
   const emptyLoading = isLoading && results.length === 0;
+  const emptyStateText = resourceTab === 'shader'
+    ? '当前没有找到适配这个实例环境的光影。'
+    : resourceTab === 'resourcepack'
+      ? '当前没有找到适配这个实例环境的资源包。'
+      : '当前没有找到适配这个实例环境的模组。';
+  const envText = resourceTab === 'mod' && lockedLoaderType
+    ? `MC ${lockedMcVersion} | ${prettifyLoader(lockedLoaderType)}`
+    : `MC ${lockedMcVersion}`;
 
   return (
     <div
@@ -234,6 +254,14 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
           {emptyLoading ? (
             <div className="flex h-full min-h-[360px] items-center justify-center">
               <Loader2 size={44} className="animate-spin text-ore-green" />
+            </div>
+          ) : results.length === 0 ? (
+            <div className="flex min-h-[360px] flex-col items-center justify-center gap-3 px-6 text-center">
+              <Blocks className="h-10 w-10 text-white/35" />
+              <div className="font-minecraft text-base text-white">{emptyStateText}</div>
+              <div className="text-xs text-gray-400">
+                搜索结果已锁定为 {envText}，不会混入不匹配的结果。
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3 pb-6 lg:grid-cols-2 2xl:grid-cols-3">

@@ -15,6 +15,9 @@ export interface VersionGroup {
   versions: McVersion[];
 }
 
+const sortLoaderVersionsDesc = (versions: string[]) =>
+  [...versions].sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' }));
+
 export const useCustomInstance = () => {
   const [step, setStep] = useState<number>(1);
   const [direction, setDirection] = useState(1);
@@ -107,11 +110,13 @@ export const useCustomInstance = () => {
             loaderType: loaderType, 
             gameVersion: gameVersion 
           });
-          
-          setLoaderVersions(data);
-          
-          if (data.length > 0) {
-            setLoaderVersion(data[0]);
+
+          const sortedVersions = sortLoaderVersionsDesc(data);
+
+          setLoaderVersions(sortedVersions);
+
+          if (sortedVersions.length > 0) {
+            setLoaderVersion(sortedVersions[0]);
           } else {
             setLoaderVersion(null); 
           }

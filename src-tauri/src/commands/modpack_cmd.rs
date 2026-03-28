@@ -845,7 +845,8 @@ mod tests {
                 ]
             }
         });
-        let (mc, loader, version) = parse_third_party_json("Cobblemon Modpack [NeoForge]", &json_data);
+        let (mc, loader, version) =
+            parse_third_party_json("Cobblemon Modpack [NeoForge]", &json_data);
         assert_eq!(mc, "1.21.1");
         assert_eq!(loader, "neoforge");
         assert_eq!(version, "21.1.113");

@@ -183,7 +183,7 @@ export const GeneralSettings: React.FC = () => {
 
   return (
     <FocusBoundary id="settings-general-boundary" className="w-full h-full outline-none">
-      <SettingsPageLayout>
+      <SettingsPageLayout adaptiveScale>
         {/* ==================== 1. 基础模块 ==================== */}
         <SettingsSection title="基础" icon={<Monitor size={18} />}>
 

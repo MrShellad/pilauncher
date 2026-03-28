@@ -6,6 +6,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, Runtime};
 
+const DEFAULT_SHARED_DOWNLOAD_FILTER_CONFIG: &str =
+    include_str!("../../../src/assets/config/download_filter_categories.json");
+
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadSettings {
@@ -122,6 +125,47 @@ impl ConfigService {
         Ok(None)
     }
 
+    pub fn ensure_shared_download_filter_config_in_base_path(
+        base_path: &Path,
+    ) -> Result<PathBuf, String> {
+        let shared_mods_dir = base_path.join("shared_mods");
+        fs::create_dir_all(&shared_mods_dir)
+            .map_err(|e| format!("failed to create shared_mods directory: {}", e))?;
+
+        let file_path = shared_mods_dir.join("download_filter_categories.json");
+        let bundled_value = serde_json::from_str::<serde_json::Value>(
+            DEFAULT_SHARED_DOWNLOAD_FILTER_CONFIG,
+        )
+        .map_err(|e| format!("failed to parse bundled filter config: {}", e))?;
+        let bundled_version = bundled_value["version"].as_u64().unwrap_or(1);
+
+        let should_write_default = match fs::read_to_string(&file_path) {
+            Ok(content) => match serde_json::from_str::<serde_json::Value>(&content) {
+                Ok(existing_value) => existing_value["version"].as_u64().unwrap_or(0) < bundled_version,
+                Err(_) => true,
+            },
+            Err(_) => true,
+        };
+
+        if should_write_default {
+            let content = serde_json::to_string_pretty(&bundled_value)
+                .map_err(|e| format!("failed to serialize filter config: {}", e))?;
+            fs::write(&file_path, content)
+                .map_err(|e| format!("failed to write shared filter config: {}", e))?;
+        }
+
+        Ok(file_path)
+    }
+
+    pub fn ensure_shared_download_filter_config<R: Runtime>(
+        app: &AppHandle<R>,
+    ) -> Result<PathBuf, String> {
+        let base_path_str = Self::get_base_path(app)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "base path is not configured".to_string())?;
+        Self::ensure_shared_download_filter_config_in_base_path(Path::new(&base_path_str))
+    }
+
     fn get_settings_json<R: Runtime>(app: &AppHandle<R>) -> Option<serde_json::Value> {
         if let Ok(Some(base_path_str)) = Self::get_base_path(app) {
             let file_path = PathBuf::from(base_path_str)
@@ -198,6 +242,7 @@ impl ConfigService {
             target.join("runtime").join("versions"),
             target.join("instances"),
             target.join("config"),
+            target.join("shared_mods"),
         ];
 
         // 创建缺失的子层级（如果旧目录缺少某一项，顺手补齐）
@@ -214,6 +259,7 @@ impl ConfigService {
         }
         let data = serde_json::json!({ "base_path": target_path });
         fs::write(meta_path, data.to_string()).map_err(|e| e.to_string())?;
+        Self::ensure_shared_download_filter_config_in_base_path(target)?;
         Ok(())
     }
 }

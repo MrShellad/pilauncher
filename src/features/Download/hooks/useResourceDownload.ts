@@ -5,6 +5,10 @@ import mcvData from '../../../assets/download/mcv.json';
 import { searchModrinth, type ModrinthProject } from '../../InstanceDetail/logic/modrinthApi';
 import { modService, type ModMeta } from '../../InstanceDetail/logic/modService';
 import {
+  getBundledDownloadCategoryOptions,
+  getSharedDownloadCategoryOptions
+} from '../logic/downloadFilterConfig';
+import {
   getCachedCurseForgeCategories,
   getCachedCurseForgeMinecraftVersions,
   hasCurseForgeApiKey,
@@ -19,14 +23,25 @@ export interface FilterOption {
   label: string;
   value: string;
   slug?: string;
+  translationKey?: string;
+  defaultLabel?: string;
+  labels?: Record<string, string>;
 }
 
 export interface DownloadInstanceConfig {
   game_version?: string;
   gameVersion?: string;
+  mcVersion?: string;
   loader_type?: string;
   loaderType?: string;
+  loader?: {
+    type?: string;
+  };
   [key: string]: unknown;
+}
+
+interface UseResourceDownloadOptions {
+  lockInstanceEnvironment?: boolean;
 }
 
 interface DownloadCache {
@@ -50,22 +65,21 @@ const FALLBACK_MC_VERSIONS: string[] = Array.isArray(mcvData)
 
 let globalCache: DownloadCache | null = null;
 
-const MODRINTH_CATEGORY_OPTIONS: Record<TabType, FilterOption[]> = {
-  mod: [
-    { label: 'technology', value: 'technology', slug: 'technology' },
-    { label: 'magic', value: 'magic', slug: 'magic' },
-    { label: 'optimization', value: 'optimization', slug: 'optimization' },
-    { label: 'utility', value: 'utility', slug: 'utility' },
-    { label: 'decoration', value: 'decoration', slug: 'decoration' }
-  ],
-  resourcepack: [],
-  shader: [],
-  modpack: []
-};
-
 const getDefaultVersions = (): FilterOption[] => FALLBACK_MC_VERSIONS.map((version) => ({ label: version, value: version }));
 
-export const useResourceDownload = (instanceId?: string | null) => {
+export const resolveInstanceGameVersion = (config: DownloadInstanceConfig | null | undefined) =>
+  String(config?.game_version || config?.gameVersion || config?.mcVersion || '');
+
+export const resolveInstanceLoaderType = (config: DownloadInstanceConfig | null | undefined) => {
+  const raw = String(config?.loader_type || config?.loaderType || config?.loader?.type || '').toLowerCase();
+  return raw === 'vanilla' ? '' : raw;
+};
+
+export const useResourceDownload = (
+  instanceId?: string | null,
+  options: UseResourceDownloadOptions = {}
+) => {
+  const { lockInstanceEnvironment = false } = options;
   const isCacheValid = Boolean(instanceId && globalCache?.instanceId === instanceId);
 
   const [activeTab, setActiveTab] = useState<TabType>(() => (isCacheValid ? globalCache!.activeTab : 'mod'));
@@ -85,12 +99,20 @@ export const useResourceDownload = (instanceId?: string | null) => {
   const [hasMore, setHasMore] = useState(() => (isCacheValid ? globalCache!.hasMore : true));
 
   const [mcVersionOptions, setMcVersionOptions] = useState<FilterOption[]>(getDefaultVersions);
-  const [categoryOptions, setCategoryOptions] = useState<FilterOption[]>(MODRINTH_CATEGORY_OPTIONS.mod);
+  const [categoryOptions, setCategoryOptions] = useState<FilterOption[]>(() => getBundledDownloadCategoryOptions('mod'));
 
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const isFirstMount = useRef(true);
+  const resolvedInstanceMcVersion = resolveInstanceGameVersion(instanceConfig);
+  const resolvedInstanceLoaderType = resolveInstanceLoaderType(instanceConfig);
+  const effectiveMcVersion = lockInstanceEnvironment && resolvedInstanceMcVersion
+    ? resolvedInstanceMcVersion
+    : mcVersion;
+  const effectiveLoaderType = activeTab === 'mod'
+    ? (lockInstanceEnvironment && resolvedInstanceLoaderType ? resolvedInstanceLoaderType : loaderType)
+    : '';
 
   useEffect(() => {
     const initEnv = async () => {
@@ -113,10 +135,8 @@ export const useResourceDownload = (instanceId?: string | null) => {
         const safeConfig = config || {};
         setInstanceConfig(safeConfig);
 
-        const gameVer = String(safeConfig.game_version || safeConfig.gameVersion || '');
-        const loader = String(safeConfig.loader_type || safeConfig.loaderType || '');
-        setMcVersion(gameVer);
-        setLoaderType(loader.toLowerCase() === 'vanilla' ? '' : loader.toLowerCase());
+        setMcVersion(resolveInstanceGameVersion(safeConfig));
+        setLoaderType(resolveInstanceLoaderType(safeConfig));
       } catch (error) {
         console.error('获取实例环境失败:', error);
       } finally {
@@ -131,7 +151,10 @@ export const useResourceDownload = (instanceId?: string | null) => {
     let cancelled = false;
 
     const loadMetadata = async () => {
-      const modrinthCategories = MODRINTH_CATEGORY_OPTIONS[activeTab] || [];
+      const modrinthCategories = await getSharedDownloadCategoryOptions(activeTab).catch((error) => {
+        console.error('Failed to load Modrinth category config:', error);
+        return getBundledDownloadCategoryOptions(activeTab);
+      });
 
       if (source !== 'curseforge') {
         if (!cancelled) {
@@ -170,16 +193,31 @@ export const useResourceDownload = (instanceId?: string | null) => {
   }, [activeTab, source]);
 
   useEffect(() => {
+    if (!lockInstanceEnvironment || !instanceConfig) return;
+
+    const nextMcVersion = resolveInstanceGameVersion(instanceConfig);
+    const nextLoaderType = resolveInstanceLoaderType(instanceConfig);
+
+    if (nextMcVersion && mcVersion !== nextMcVersion) {
+      setMcVersion(nextMcVersion);
+    }
+
+    if (activeTab === 'mod' && loaderType !== nextLoaderType) {
+      setLoaderType(nextLoaderType);
+    }
+  }, [activeTab, instanceConfig, loaderType, lockInstanceEnvironment, mcVersion]);
+
+  useEffect(() => {
     if (!category) return;
     const validValues = new Set(categoryOptions.map((item) => item.value));
     if (!validValues.has(category)) setCategory('');
   }, [category, categoryOptions]);
 
   useEffect(() => {
-    if (!mcVersion) return;
+    if (!mcVersion || lockInstanceEnvironment) return;
     const validValues = new Set(mcVersionOptions.map((item) => item.value));
     if (!validValues.has(mcVersion) && source === 'curseforge') setMcVersion('');
-  }, [mcVersion, mcVersionOptions, source]);
+  }, [lockInstanceEnvironment, mcVersion, mcVersionOptions, source]);
 
   const executeSearch = useCallback(async (currentOffset: number, isLoadMore = false) => {
     if (!isEnvLoaded) return;
@@ -198,8 +236,8 @@ export const useResourceDownload = (instanceId?: string | null) => {
             category,
             sort: sort as 'relevance' | 'downloads' | 'updated' | 'newest',
             projectType: activeTab,
-            version: mcVersion || undefined,
-            loader: activeTab === 'mod' ? loaderType || undefined : undefined,
+            version: effectiveMcVersion || undefined,
+            loader: activeTab === 'mod' ? effectiveLoaderType || undefined : undefined,
             offset: currentOffset,
             limit: 20
           })
@@ -208,8 +246,8 @@ export const useResourceDownload = (instanceId?: string | null) => {
             category,
             sort: sort as 'relevance' | 'downloads' | 'updated' | 'newest',
             projectType: activeTab,
-            version: mcVersion || undefined,
-            loader: activeTab === 'mod' ? loaderType || undefined : undefined,
+            version: effectiveMcVersion || undefined,
+            loader: activeTab === 'mod' ? effectiveLoaderType || undefined : undefined,
             offset: currentOffset,
             limit: 20
           });
@@ -226,7 +264,7 @@ export const useResourceDownload = (instanceId?: string | null) => {
       setIsLoading(false);
       setIsLoadingMore(false);
     }
-  }, [activeTab, category, isEnvLoaded, loaderType, mcVersion, query, sort, source]);
+  }, [activeTab, category, effectiveLoaderType, effectiveMcVersion, isEnvLoaded, query, sort, source]);
 
   useEffect(() => {
     if (!isEnvLoaded) return;
@@ -270,10 +308,8 @@ export const useResourceDownload = (instanceId?: string | null) => {
     setSort('relevance');
 
     if (instanceConfig) {
-      const gameVer = instanceConfig.game_version || instanceConfig.gameVersion || '';
-      const loader = instanceConfig.loader_type || instanceConfig.loaderType || '';
-      setMcVersion(gameVer);
-      setLoaderType((loader || '').toLowerCase() === 'vanilla' ? '' : (loader || '').toLowerCase());
+      setMcVersion(resolveInstanceGameVersion(instanceConfig));
+      setLoaderType(resolveInstanceLoaderType(instanceConfig));
     } else {
       setMcVersion('');
       setLoaderType('');
@@ -303,6 +339,8 @@ export const useResourceDownload = (instanceId?: string | null) => {
     setMcVersion,
     loaderType,
     setLoaderType,
+    resolvedMcVersion: effectiveMcVersion,
+    resolvedLoaderType: effectiveLoaderType,
     category,
     setCategory,
     sort,

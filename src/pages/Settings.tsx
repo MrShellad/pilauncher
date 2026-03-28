@@ -116,8 +116,8 @@ export const Settings: React.FC = () => {
       defaultFocusKey={tabFallbackFocusKeys[activeTab]}
       className="flex flex-col w-full h-full overflow-hidden"
     >
-      <div className="flex-shrink-0 pt-6 px-6 md:px-8 z-10">
-        <div className="max-w-5xl mx-auto w-full flex items-center justify-center gap-4">
+      <div className="z-10 flex-shrink-0 border-b-[2px] border-[#1E1E1F] bg-[#242425]/92 px-[clamp(16px,2vw,32px)] py-[clamp(12px,1.6vh,20px)] shadow-[inset_0_2px_0_rgba(255,255,255,0.08)]">
+        <div className="mx-auto grid w-full max-w-[120rem] grid-cols-[clamp(42px,4vw,64px)_minmax(0,1fr)_clamp(42px,4vw,64px)] items-center gap-[clamp(10px,1.4vw,20px)]">
           <div
             className={`flex cursor-pointer items-center justify-center transition-transform duration-150 ${
               pressingLT ? 'scale-75' : 'scale-90 hover:scale-100 active:scale-75'
@@ -127,14 +127,20 @@ export const Settings: React.FC = () => {
             <ControlHint label="LT" variant="trigger" tone={pressingLT ? 'green' : 'neutral'} />
           </div>
 
-          <div className="flex-1 overflow-x-auto no-scrollbar pb-2">
-            <OreToggleButton
-              options={SETTINGS_TABS}
-              value={activeTab}
-              onChange={setActiveTab}
-              size="lg"
-              focusable={false}
-            />
+          <div className="min-w-0 overflow-hidden">
+            <div className="overflow-x-auto no-scrollbar">
+              <div className="flex min-w-full justify-center">
+                <OreToggleButton
+                  options={SETTINGS_TABS}
+                  value={activeTab}
+                  onChange={setActiveTab}
+                  size="lg"
+                  uiScale="adaptive"
+                  focusable={false}
+                  className="w-max"
+                />
+              </div>
+            </div>
           </div>
 
           <div

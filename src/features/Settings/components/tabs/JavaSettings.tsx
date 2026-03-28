@@ -101,7 +101,7 @@ export const JavaSettings: React.FC = () => {
   };
 
   return (
-    <SettingsPageLayout>
+    <SettingsPageLayout adaptiveScale>
 
       <SettingsSection title="自动下载获取" icon={<Download size={18} />}>
         <div className="px-6 py-4 bg-[#141415]/50 flex flex-col gap-4">

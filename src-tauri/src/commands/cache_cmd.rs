@@ -1,11 +1,12 @@
+use crate::services::config_service::ConfigService;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
-use std::path::PathBuf;
 use tauri::Manager;
 use tauri::{command, AppHandle, Runtime};
 use uuid::Uuid;
+
 static SESSION_CACHE_TOKEN: Lazy<String> = Lazy::new(|| Uuid::new_v4().to_string());
 
 #[derive(Serialize, Deserialize)]
@@ -18,11 +19,11 @@ fn get_cache_file_path<R: Runtime>(
     app: &AppHandle<R>,
     namespace: &str,
     folder: &str,
-) -> Result<PathBuf, String> {
+) -> Result<std::path::PathBuf, String> {
     let app_data_dir = app
         .path()
         .app_data_dir()
-        .map_err(|e| format!("无法获取缓存目录: {}", e))?;
+        .map_err(|e| format!("failed to get cache directory: {}", e))?;
 
     let safe_name = namespace
         .chars()
@@ -51,9 +52,9 @@ pub async fn read_session_cache<R: Runtime>(
         return Ok(None);
     }
 
-    let content = fs::read_to_string(&path).map_err(|e| format!("读取缓存失败: {}", e))?;
+    let content = fs::read_to_string(&path).map_err(|e| format!("failed to read session cache: {}", e))?;
     let cache: SessionCacheFile =
-        serde_json::from_str(&content).map_err(|e| format!("解析缓存失败: {}", e))?;
+        serde_json::from_str(&content).map_err(|e| format!("failed to parse session cache: {}", e))?;
 
     if cache.session_token != *SESSION_CACHE_TOKEN {
         return Ok(None);
@@ -70,7 +71,7 @@ pub async fn write_session_cache<R: Runtime>(
 ) -> Result<(), String> {
     let path = get_cache_file_path(&app, &namespace, "session")?;
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("创建缓存目录失败: {}", e))?;
+        fs::create_dir_all(parent).map_err(|e| format!("failed to create session cache directory: {}", e))?;
     }
 
     let cache = SessionCacheFile {
@@ -79,8 +80,8 @@ pub async fn write_session_cache<R: Runtime>(
     };
 
     let content =
-        serde_json::to_string_pretty(&cache).map_err(|e| format!("序列化缓存失败: {}", e))?;
-    fs::write(&path, content).map_err(|e| format!("写入缓存失败: {}", e))?;
+        serde_json::to_string_pretty(&cache).map_err(|e| format!("failed to serialize session cache: {}", e))?;
+    fs::write(&path, content).map_err(|e| format!("failed to write session cache: {}", e))?;
     Ok(())
 }
 
@@ -94,8 +95,10 @@ pub async fn read_persistent_cache<R: Runtime>(
         return Ok(None);
     }
 
-    let content = fs::read_to_string(&path).map_err(|e| format!("读取缓存失败: {}", e))?;
-    let data = serde_json::from_str(&content).map_err(|e| format!("解析缓存失败: {}", e))?;
+    let content =
+        fs::read_to_string(&path).map_err(|e| format!("failed to read persistent cache: {}", e))?;
+    let data =
+        serde_json::from_str(&content).map_err(|e| format!("failed to parse persistent cache: {}", e))?;
     Ok(Some(data))
 }
 
@@ -107,11 +110,22 @@ pub async fn write_persistent_cache<R: Runtime>(
 ) -> Result<(), String> {
     let path = get_cache_file_path(&app, &namespace, "persistent")?;
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("创建缓存目录失败: {}", e))?;
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("failed to create persistent cache directory: {}", e))?;
     }
 
     let content =
-        serde_json::to_string_pretty(&data).map_err(|e| format!("序列化缓存失败: {}", e))?;
-    fs::write(&path, content).map_err(|e| format!("写入缓存失败: {}", e))?;
+        serde_json::to_string_pretty(&data).map_err(|e| format!("failed to serialize persistent cache: {}", e))?;
+    fs::write(&path, content).map_err(|e| format!("failed to write persistent cache: {}", e))?;
     Ok(())
+}
+
+#[command]
+pub async fn read_shared_download_filter_config<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<Value, String> {
+    let path = ConfigService::ensure_shared_download_filter_config(&app)?;
+    let content =
+        fs::read_to_string(&path).map_err(|e| format!("failed to read shared filter config: {}", e))?;
+    serde_json::from_str(&content).map_err(|e| format!("failed to parse shared filter config: {}", e))
 }

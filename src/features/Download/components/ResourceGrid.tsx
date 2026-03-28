@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Blocks, CheckCircle2, Clock3, Download, Heart, Loader2, Monitor, Tags } from 'lucide-react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
@@ -45,12 +46,67 @@ const formatNumber = (value?: number) => {
   return value.toString();
 };
 
-const prettifyLabel = (value: string) =>
+export const prettifyDownloadTagLabel = (value: string) =>
   value
     .split(/[-_]/g)
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+
+const normalizeDownloadTagKey = (value: string) =>
+  value.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+
+interface DownloadTagLabelOptions {
+  t: TFunction;
+  language?: string;
+  source?: string;
+  raw: string;
+  display?: string;
+  translationKey?: string;
+  defaultLabel?: string;
+  labels?: Record<string, string>;
+}
+
+const resolveConfiguredLabel = (labels?: Record<string, string>, language?: string) => {
+  if (!labels) return '';
+
+  const exact = language ? labels[language] : '';
+  if (exact) return exact;
+
+  const baseLanguage = language?.split('-')[0];
+  if (baseLanguage) {
+    const matchedEntry = Object.entries(labels).find(([key]) => key.split('-')[0] === baseLanguage);
+    if (matchedEntry?.[1]) return matchedEntry[1];
+  }
+
+  return labels['en-US'] || labels.en || Object.values(labels)[0] || '';
+};
+
+export const getLocalizedDownloadTagLabel = ({
+  t,
+  language,
+  source,
+  raw,
+  display,
+  translationKey,
+  defaultLabel,
+  labels
+}: DownloadTagLabelOptions) => {
+  const configuredLabel = resolveConfiguredLabel(labels, language);
+  if (configuredLabel) {
+    return configuredLabel;
+  }
+
+  if (source === 'curseforge') {
+    return t(getCurseForgeCategoryTranslationKey(raw), {
+      defaultValue: getCurseForgeCategoryFallbackLabel(raw, display || defaultLabel || '')
+    });
+  }
+
+  return t(translationKey || `download.categories.${normalizeDownloadTagKey(raw)}`, {
+    defaultValue: defaultLabel || prettifyDownloadTagLabel(display || raw)
+  });
+};
 
 const filterFallbackTargets = [
   'filter-mc-version',
@@ -69,7 +125,7 @@ const ResourceCard = React.memo(({
   onSelectProject,
   isNearBottom
 }: ResourceCardProps) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const cardRef = useRef<HTMLButtonElement | null>(null);
   const rawProject = project as ModrinthProject & { display_categories?: string[]; followers?: number };
 
@@ -83,18 +139,6 @@ const ResourceCard = React.memo(({
   const followerCount = rawProject.followers || rawProject.follows || 0;
   const supportsClient = project.client_side !== 'unsupported' && !!project.client_side;
   const focusKey = `download-grid-item-${index}`;
-
-  const localizeTag = (raw: string, display: string) => {
-    if (project.source === 'curseforge') {
-      return t(getCurseForgeCategoryTranslationKey(raw), {
-        defaultValue: getCurseForgeCategoryFallbackLabel(raw, display)
-      });
-    }
-
-    return t(`download.categories.${raw.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`, {
-      defaultValue: prettifyLabel(display || raw)
-    });
-  };
 
   const timeAgo = (dateStr?: string) => {
     if (!dateStr) return t('download.time.unknown', { defaultValue: 'Unknown time' });
@@ -217,7 +261,7 @@ const ResourceCard = React.memo(({
                       className="inline-flex items-center gap-1 whitespace-nowrap border-[2px] border-[#1E1E1F] bg-[#FFE866] px-1.5 py-0.5 text-[9px] font-minecraft uppercase tracking-[0.14em] text-black shadow-[inset_0_-2px_0_#C9B12D]"
                     >
                       {t(`download.tags.loader.${loader.raw.toLowerCase()}`, {
-                        defaultValue: prettifyLabel(loader.display)
+                        defaultValue: prettifyDownloadTagLabel(loader.display)
                       })}
                     </span>
                   ))}
@@ -228,7 +272,13 @@ const ResourceCard = React.memo(({
                       className="inline-flex items-center gap-1 whitespace-nowrap border-[2px] border-[#1E1E1F] bg-[#8CB3FF] px-1.5 py-0.5 text-[9px] font-minecraft uppercase tracking-[0.14em] text-black shadow-[inset_0_-2px_0_#5C82CA]"
                     >
                       <Tags size={9} />
-                      {localizeTag(feature.raw, feature.display)}
+                      {getLocalizedDownloadTagLabel({
+                        t,
+                        language: i18n.language,
+                        source: project.source,
+                        raw: feature.raw,
+                        display: feature.display
+                      })}
                     </span>
                   ))}
                 </div>

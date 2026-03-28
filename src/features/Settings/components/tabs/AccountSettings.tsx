@@ -52,7 +52,7 @@ export const AccountSettings: React.FC = () => {
   });
 
   return (
-    <SettingsPageLayout>
+    <SettingsPageLayout adaptiveScale>
       <SettingsSection title="身份库" icon={<Users size={18} />}>
         <div className="p-6 flex flex-col flex-1 min-h-[500px]">
           

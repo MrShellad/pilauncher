@@ -11,11 +11,11 @@ import { OreButton } from '../../../ui/primitives/OreButton';
 import { OreDropdown } from '../../../ui/primitives/OreDropdown';
 import { OreInput } from '../../../ui/primitives/OreInput';
 import { OreToggleButton } from '../../../ui/primitives/OreToggleButton';
-import {
-  getCurseForgeCategoryFallbackLabel,
-  getCurseForgeCategoryTranslationKey
-} from '../logic/curseforgeApi';
 import type { DownloadSource, FilterOption, TabType } from '../hooks/useResourceDownload';
+import {
+  getLocalizedDownloadTagLabel,
+  prettifyDownloadTagLabel
+} from './ResourceGrid';
 
 import {
   blockClassName,
@@ -57,13 +57,6 @@ export interface FilterBarProps {
   onReset: () => void;
 }
 
-const prettifyCategoryLabel = (value: string) =>
-  value
-    .split(/[-_]/g)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-
 export const FilterBar: React.FC<FilterBarProps> = ({
   activeTab,
   tabs,
@@ -86,21 +79,21 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   onSearch,
   onReset
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const localizeCategoryLabel = useCallback((option: FilterOption) => {
     const slug = option.slug || option.label || option.value;
-
-    if (source === 'curseforge') {
-      return t(getCurseForgeCategoryTranslationKey(slug), {
-        defaultValue: getCurseForgeCategoryFallbackLabel(slug, option.label)
-      });
-    }
-
-    return t(`download.categories.${slug.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`, {
-      defaultValue: option.label ? prettifyCategoryLabel(option.label) : prettifyCategoryLabel(slug)
+    return getLocalizedDownloadTagLabel({
+      t,
+      language: i18n.language,
+      source,
+      raw: slug,
+      display: option.label,
+      translationKey: option.translationKey,
+      defaultLabel: option.defaultLabel || (option.label ? prettifyDownloadTagLabel(option.label) : prettifyDownloadTagLabel(slug)),
+      labels: option.labels
     });
-  }, [source, t]);
+  }, [i18n.language, source, t]);
 
   const switchTabBy = useCallback((direction: -1 | 1) => {
     const activeElement = document.activeElement as HTMLElement | null;

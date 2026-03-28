@@ -14,6 +14,8 @@ interface InstanceFilterBarProps {
   onBack: () => void;
   showBackButton?: boolean;
   resourceTab?: 'mod' | 'resourcepack' | 'shader';
+  lockedMcVersion: string;
+  lockedLoaderType: string;
   query: string;
   setQuery: (v: string) => void;
   source: string;
@@ -41,6 +43,8 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
   onBack,
   showBackButton = true,
   resourceTab = 'mod',
+  lockedMcVersion,
+  lockedLoaderType,
   query,
   setQuery,
   source,
@@ -92,6 +96,11 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
     { label: '下载最多', value: 'downloads' },
     { label: '最近更新', value: 'updated' }
   ];
+  const loaderLabel = lockedLoaderType
+    ? lockedLoaderType === 'neoforge'
+      ? 'NeoForge'
+      : lockedLoaderType.charAt(0).toUpperCase() + lockedLoaderType.slice(1)
+    : 'Vanilla';
 
   const moveFocusToResults = () => {
     if (doesFocusableExist('download-grid-item-0')) {
@@ -204,6 +213,18 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
+          <div className="flex min-w-[220px] flex-wrap items-center gap-2 rounded-sm border border-ore-green/30 bg-ore-green/10 px-3 py-2 text-xs font-minecraft tracking-wider text-ore-green">
+            <span className="text-white/70">已锁定环境</span>
+            <span className="rounded-sm border border-white/10 bg-black/30 px-2 py-1 text-white">
+              MC {lockedMcVersion || 'Unknown'}
+            </span>
+            {resourceTab === 'mod' && (
+              <span className="rounded-sm border border-white/10 bg-black/30 px-2 py-1 text-white">
+                {loaderLabel}
+              </span>
+            )}
+          </div>
+
           <div className="relative min-w-[200px] flex-1 focus-within:z-50">
             <OreInput
               focusKey="inst-filter-search"

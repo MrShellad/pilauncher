@@ -1,0 +1,85 @@
+@tailwind components;
+
+/* /src/style/ui/layout/SettingsPageLayout.css */
+.ore-settings-page-layout {
+  --ore-settings-padding-x: clamp(1rem, 2vw, 2rem);
+  --ore-settings-padding-y: clamp(1rem, 2vh, 2rem);
+  --ore-settings-max-width: 64rem;
+  --ore-settings-scale: 1;
+  --ore-settings-header-gap: clamp(1.5rem, 2vw, 2rem);
+  --ore-settings-section-gap: clamp(1.5rem, 2vw, 2rem);
+
+  padding: var(--ore-settings-padding-y) var(--ore-settings-padding-x);
+}
+
+.ore-settings-page-layout__inner {
+  max-width: var(--ore-settings-max-width);
+}
+
+.ore-settings-page-layout__header {
+  margin-bottom: var(--ore-settings-header-gap);
+}
+
+.ore-settings-page-layout__title {
+  margin-bottom: 0.25rem;
+  font-size: clamp(1.5rem, 2.25vw, 2rem);
+  line-height: 1.15;
+}
+
+.ore-settings-page-layout__subtitle {
+  font-size: clamp(0.75rem, 1vw, 0.9rem);
+}
+
+.ore-settings-page-layout__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ore-settings-section-gap);
+  padding-bottom: clamp(2.5rem, 5vh, 4rem);
+}
+
+.ore-settings-scale-adaptive .ore-settings-page-layout__inner {
+  zoom: var(--ore-settings-scale);
+}
+
+@media (max-width: 48rem) {
+  .ore-settings-page-layout {
+    --ore-settings-padding-x: 0.875rem;
+    --ore-settings-padding-y: 0.875rem;
+    --ore-settings-max-width: 100%;
+    --ore-settings-header-gap: 1.25rem;
+    --ore-settings-section-gap: 1.25rem;
+  }
+}
+
+@media (min-width: 90rem) {
+  .ore-settings-scale-adaptive {
+    --ore-settings-padding-x: clamp(1.5rem, 2.2vw, 2.5rem);
+    --ore-settings-padding-y: clamp(1.25rem, 2vh, 2.25rem);
+    --ore-settings-max-width: 72rem;
+    --ore-settings-scale: 1.05;
+    --ore-settings-header-gap: 1.75rem;
+    --ore-settings-section-gap: 1.75rem;
+  }
+}
+
+@media (min-width: 120rem) {
+  .ore-settings-scale-adaptive {
+    --ore-settings-padding-x: clamp(1.75rem, 2.4vw, 2.75rem);
+    --ore-settings-padding-y: clamp(1.5rem, 2.2vh, 2.5rem);
+    --ore-settings-max-width: 76rem;
+    --ore-settings-scale: 1.12;
+    --ore-settings-header-gap: 2rem;
+    --ore-settings-section-gap: 2rem;
+  }
+}
+
+@media (min-width: 160rem) {
+  .ore-settings-scale-adaptive {
+    --ore-settings-padding-x: clamp(2rem, 2.6vw, 3.25rem);
+    --ore-settings-padding-y: clamp(1.75rem, 2.4vh, 2.75rem);
+    --ore-settings-max-width: 82rem;
+    --ore-settings-scale: 1.2;
+    --ore-settings-header-gap: 2.25rem;
+    --ore-settings-section-gap: 2.25rem;
+  }
+}

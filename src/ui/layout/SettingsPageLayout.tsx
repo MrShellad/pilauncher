@@ -6,33 +6,37 @@ interface SettingsPageLayoutProps {
   subtitle?: string;
   children: React.ReactNode;
   className?: string;
+  adaptiveScale?: boolean;
 }
 
-export const SettingsPageLayout: React.FC<SettingsPageLayoutProps> = ({ 
-  title, subtitle, children, className = '' 
+export const SettingsPageLayout: React.FC<SettingsPageLayoutProps> = ({
+  title,
+  subtitle,
+  children,
+  className = '',
+  adaptiveScale = false
 }) => {
   return (
-    <div className={`w-full h-full overflow-y-auto custom-scrollbar p-6 md:p-8 ${className}`}>
-      {/* 最大宽度限制，保证表单在宽屏下的阅读体验 */}
-      <div className="max-w-5xl mx-auto w-full">
-        
-        {/* 页面级大标题（可选） */}
+    <div
+      className={`ore-settings-page-layout w-full h-full overflow-y-auto custom-scrollbar ${
+        adaptiveScale ? 'ore-settings-scale-adaptive' : ''
+      } ${className}`}
+    >
+      <div className="ore-settings-page-layout__inner mx-auto w-full">
         {title && (
-          <div className="mb-8">
-            <h2 className="text-2xl md:text-3xl font-minecraft text-white ore-text-shadow mb-1">{title}</h2>
+          <div className="ore-settings-page-layout__header">
+            <h2 className="ore-settings-page-layout__title font-minecraft text-white ore-text-shadow">{title}</h2>
             {subtitle && (
-              <p className="text-sm font-minecraft text-ore-text-muted tracking-widest uppercase">
+              <p className="ore-settings-page-layout__subtitle font-minecraft text-ore-text-muted tracking-widest uppercase">
                 {subtitle}
               </p>
             )}
           </div>
         )}
 
-        {/* 页面内容区，自动为子 Section 增加垂直间距 */}
-        <div className="space-y-8 pb-12">
+        <div className="ore-settings-page-layout__content">
           {children}
         </div>
-        
       </div>
     </div>
   );

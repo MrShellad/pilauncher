@@ -75,7 +75,7 @@ export const GameSettings: React.FC = () => {
   const { handleLinearArrow } = useLinearNavigation(focusOrder);
 
   return (
-    <SettingsPageLayout>
+    <SettingsPageLayout adaptiveScale>
 
       <SettingsSection title="窗口与渲染" icon={<Monitor size={18} />}>
 

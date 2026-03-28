@@ -21,6 +21,7 @@ interface OreToggleButtonProps {
   focusable?: boolean;
   focusKeyPrefix?: string;
   onArrowPress?: (direction: string) => boolean | void;
+  uiScale?: 'default' | 'adaptive';
 }
 
 export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
@@ -36,8 +37,10 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
   focusable = true,
   focusKeyPrefix,
   onArrowPress,
+  uiScale = 'default',
 }) => {
   const activeOption = options.find((opt) => opt.value === value);
+  const isAdaptiveScale = uiScale === 'adaptive';
 
   const sizeClasses = {
     sm: 'h-10 text-xs',
@@ -47,7 +50,14 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
   };
 
   return (
-    <div className={`flex flex-col w-full ${className} ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
+    <div
+      className={`
+        flex flex-col ${isAdaptiveScale ? 'w-max' : 'w-full'}
+        ${isAdaptiveScale ? 'ore-toggle-btn-scale-adaptive' : ''}
+        ${className}
+        ${disabled ? 'opacity-50 pointer-events-none' : ''}
+      `}
+    >
       {(title || description) && (
         <div className="mb-2 px-1">
           {title && <div className="font-minecraft font-bold text-white ore-text-shadow text-lg">{title}</div>}
@@ -55,7 +65,12 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
         </div>
       )}
 
-      <div className={`ore-toggle-btn-group flex items-stretch w-full ${sizeClasses[size]}`}>
+      <div
+        className={`
+          ore-toggle-btn-group flex items-stretch
+          ${isAdaptiveScale ? 'ore-toggle-btn-group--adaptive' : `w-full ${sizeClasses[size]}`}
+        `}
+      >
         {options.map((option, idx) => {
           const isActive = option.value === value;
           const optionFocusKey = focusKeyPrefix ? `${focusKeyPrefix}-${idx}` : undefined;

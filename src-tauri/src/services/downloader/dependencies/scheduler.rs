@@ -443,11 +443,12 @@ pub async fn run_downloads<R: Runtime>(
                     let mut c = completed.lock().await;
                     *c += 1;
                     c_val = *c;
-                    
+
                     let now = Instant::now();
                     let mut last = last_emit.lock().await;
-                    time_ok = now.duration_since(*last).as_millis() >= PROGRESS_EMIT_INTERVAL_MS as u128;
-                    
+                    time_ok =
+                        now.duration_since(*last).as_millis() >= PROGRESS_EMIT_INTERVAL_MS as u128;
+
                     if c_val == total || time_ok {
                         *last = now;
                     }

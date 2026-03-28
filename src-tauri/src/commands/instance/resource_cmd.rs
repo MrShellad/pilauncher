@@ -97,7 +97,9 @@ pub async fn extract_resourcepack_icon<R: tauri::Runtime>(
         .ok_or_else(|| "尚未配置基础数据目录".to_string())?;
 
     // 图标缓存目录： base_path/shared_mods/icons/
-    let icons_dir = std::path::PathBuf::from(&base_path).join("shared_mods").join("icons");
+    let icons_dir = std::path::PathBuf::from(&base_path)
+        .join("shared_mods")
+        .join("icons");
     std::fs::create_dir_all(&icons_dir).map_err(|e| e.to_string())?;
 
     // 缓存文件：以 file_name (stripped) 为 key
