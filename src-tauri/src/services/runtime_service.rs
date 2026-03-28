@@ -87,6 +87,16 @@ pub fn resolve_global_java_runtime(
     }
 }
 
+pub fn resolve_global_installer_java_runtime(
+    java_settings: &JavaSettings,
+    mc_version: &str,
+    fallback_java_command: &str,
+) -> ResolvedJavaRuntime {
+    let mut runtime = resolve_global_java_runtime(java_settings, mc_version, fallback_java_command);
+    runtime.java_path = normalize_installer_java_path(runtime.java_path, fallback_java_command);
+    runtime
+}
+
 pub fn resolve_instance_java_runtime(
     instance_runtime: &RuntimeConfig,
     java_settings: &JavaSettings,
@@ -109,8 +119,85 @@ fn normalize_java_path(java_path: String, fallback_java_command: &str) -> String
     if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("auto") {
         fallback_java_command.to_string()
     } else {
-        java_path
+        normalize_java_candidate(trimmed, false).unwrap_or_else(|| trimmed.to_string())
     }
+}
+
+fn normalize_installer_java_path(java_path: String, fallback_java_command: &str) -> String {
+    let trimmed = java_path.trim();
+    if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("auto") {
+        fallback_java_command.to_string()
+    } else {
+        normalize_java_candidate(trimmed, true).unwrap_or_else(|| {
+            if cfg!(target_os = "windows") && trimmed.eq_ignore_ascii_case("javaw") {
+                "java".to_string()
+            } else {
+                trimmed.to_string()
+            }
+        })
+    }
+}
+
+fn normalize_java_candidate(java_path: &str, prefer_console_binary: bool) -> Option<String> {
+    let trimmed = java_path.trim().trim_matches('"');
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    if !trimmed.contains(std::path::MAIN_SEPARATOR)
+        && !trimmed.contains('/')
+        && !trimmed.contains('\\')
+    {
+        return Some(normalize_java_command_name(trimmed, prefer_console_binary));
+    }
+
+    let path = Path::new(trimmed);
+
+    if path.is_dir() {
+        return resolve_java_from_home(path, prefer_console_binary)
+            .or_else(|| Some(trimmed.to_string()));
+    }
+
+    if prefer_console_binary {
+        #[cfg(target_os = "windows")]
+        if let Some(file_name) = path.file_name().and_then(|name| name.to_str()) {
+            if file_name.eq_ignore_ascii_case("javaw.exe") {
+                let sibling = path.with_file_name("java.exe");
+                if sibling.exists() {
+                    return Some(sibling.to_string_lossy().to_string());
+                }
+            }
+        }
+    }
+
+    Some(trimmed.to_string())
+}
+
+fn normalize_java_command_name(command: &str, prefer_console_binary: bool) -> String {
+    #[cfg(target_os = "windows")]
+    if prefer_console_binary && command.eq_ignore_ascii_case("javaw") {
+        return "java".to_string();
+    }
+
+    command.to_string()
+}
+
+fn resolve_java_from_home(java_home: &Path, prefer_console_binary: bool) -> Option<String> {
+    #[cfg(target_os = "windows")]
+    let candidates: &[&str] = if prefer_console_binary {
+        &["bin\\java.exe", "java.exe", "bin\\javaw.exe", "javaw.exe"]
+    } else {
+        &["bin\\javaw.exe", "javaw.exe", "bin\\java.exe", "java.exe"]
+    };
+
+    #[cfg(not(target_os = "windows"))]
+    let candidates: &[&str] = &["bin/java", "java"];
+
+    candidates
+        .iter()
+        .map(|candidate| java_home.join(candidate))
+        .find(|candidate| candidate.exists())
+        .map(|candidate| candidate.to_string_lossy().to_string())
 }
 
 pub fn validate_java_cache(cache_file: &Path) -> Result<ValidationResult, String> {
@@ -372,5 +459,66 @@ mod tests {
         let resolved = resolve_instance_java_runtime(&runtime, &java_settings(), "1.21.1", "java");
         assert_eq!(resolved.required_java_major, "21");
         assert_eq!(resolved.java_path, "instance-java");
+    }
+
+    #[test]
+    fn installer_runtime_prefers_console_java_binary_on_windows() {
+        #[cfg(target_os = "windows")]
+        {
+            let unique = format!(
+                "pilauncher-java-test-{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos()
+            );
+            let java_home = std::env::temp_dir().join(unique);
+            let bin_dir = java_home.join("bin");
+            fs::create_dir_all(&bin_dir).unwrap();
+            fs::write(bin_dir.join("java.exe"), b"").unwrap();
+            fs::write(bin_dir.join("javaw.exe"), b"").unwrap();
+
+            let mut settings = java_settings();
+            settings.major_java_paths.insert(
+                "17".to_string(),
+                bin_dir.join("javaw.exe").to_string_lossy().to_string(),
+            );
+
+            let resolved = resolve_global_installer_java_runtime(&settings, "1.20.1", "java");
+            assert!(resolved.java_path.ends_with("java.exe"));
+
+            let _ = fs::remove_dir_all(java_home);
+        }
+    }
+
+    #[test]
+    fn normalizes_java_home_directory_to_binary() {
+        let unique = format!(
+            "pilauncher-java-home-test-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        );
+        let java_home = std::env::temp_dir().join(unique);
+        let bin_dir = java_home.join("bin");
+        fs::create_dir_all(&bin_dir).unwrap();
+
+        #[cfg(target_os = "windows")]
+        let binary_path = bin_dir.join("java.exe");
+        #[cfg(not(target_os = "windows"))]
+        let binary_path = bin_dir.join("java");
+
+        fs::write(&binary_path, b"").unwrap();
+
+        let mut settings = java_settings();
+        settings
+            .major_java_paths
+            .insert("17".to_string(), java_home.to_string_lossy().to_string());
+
+        let resolved = resolve_global_installer_java_runtime(&settings, "1.20.1", "java");
+        assert_eq!(resolved.java_path, binary_path.to_string_lossy().to_string());
+
+        let _ = fs::remove_dir_all(java_home);
     }
 }

@@ -205,7 +205,13 @@ const InstanceDetail: React.FC = () => {
 
         <div className="flex-1 overflow-hidden relative flex flex-col">
           <div className={activeTab === 'overview' ? 'w-full h-full flex flex-col min-h-0' : 'hidden'}>
-            <FocusBoundary id="tab-boundary-overview" isActive={activeTab === 'overview'} trapFocus className="w-full h-full">
+            <FocusBoundary
+              id="tab-boundary-overview"
+              isActive={activeTab === 'overview'}
+              trapFocus
+              defaultFocusKey={tabFallbackFocusKeys.overview}
+              className="w-full h-full"
+            >
               <OverviewPanel
                 data={data}
                 currentImageIndex={currentImageIndex}

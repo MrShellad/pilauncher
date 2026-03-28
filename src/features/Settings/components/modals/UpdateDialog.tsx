@@ -5,11 +5,9 @@ import { OreModal } from '../../../../ui/primitives/OreModal';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 
 export interface UpdateInfo {
-  available: boolean;
   version: string;
-  body: string;
-  url: string;
-  signature: string;
+  body?: string;
+  date?: string;
 }
 
 interface UpdateDialogProps {
@@ -33,7 +31,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
   if (!updateInfo) return null;
 
   // 解析 Markdown-like changelog —— 简单渲染，无需外部依赖
-  const renderChangelog = (body: string) => {
+  const renderChangelog = (body?: string) => {
     if (!body) {
       return (
         <p className="text-ore-text-muted text-sm font-minecraft">

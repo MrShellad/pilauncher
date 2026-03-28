@@ -1,4 +1,3 @@
-// src-tauri/src/services/downloader/loader_installer.rs
 use crate::domain::event::DownloadProgressEvent;
 use crate::error::{AppError, AppResult};
 use crate::services::config_service::{ConfigService, DownloadSettings};
@@ -7,12 +6,13 @@ use crate::services::downloader::logging::resolve_logs_dir;
 use std::path::Path;
 use std::process::Stdio;
 use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
-use std::time::Duration;
-use std::time::Instant;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Runtime};
-use tokio::io::AsyncBufReadExt;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
+
+const INSTALLER_OUTPUT_BUFFER_LIMIT: usize = 20;
 
 fn build_download_client(dl_settings: &DownloadSettings) -> AppResult<reqwest::Client> {
     let mut builder = reqwest::Client::builder()
@@ -35,6 +35,183 @@ fn build_download_client(dl_settings: &DownloadSettings) -> AppResult<reqwest::C
     }
 
     Ok(builder.build()?)
+}
+
+fn remember_installer_output(lines: &Arc<Mutex<Vec<String>>>, line: String) {
+    let mut guard = lines.lock().unwrap();
+    guard.push(line);
+    if guard.len() > INSTALLER_OUTPUT_BUFFER_LIMIT {
+        let overflow = guard.len() - INSTALLER_OUTPUT_BUFFER_LIMIT;
+        guard.drain(0..overflow);
+    }
+}
+
+fn summarize_installer_output(lines: &Arc<Mutex<Vec<String>>>) -> Option<String> {
+    let guard = lines.lock().unwrap();
+    if guard.is_empty() {
+        None
+    } else {
+        Some(guard.join(" | "))
+    }
+}
+
+fn spawn_installer_stream_reader<R, T>(
+    app: AppHandle<R>,
+    instance_id: String,
+    cancel: Arc<AtomicBool>,
+    stream: T,
+    prefix: Option<&'static str>,
+    recent_output: Arc<Mutex<Vec<String>>>,
+) where
+    R: Runtime,
+    T: tokio::io::AsyncRead + Unpin + Send + 'static,
+{
+    tokio::spawn(async move {
+        let mut reader = BufReader::new(stream).lines();
+        while let Ok(Some(line)) = reader.next_line().await {
+            if is_cancelled(&cancel) {
+                break;
+            }
+
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+
+            remember_installer_output(&recent_output, trimmed.to_string());
+
+            let message = match prefix {
+                Some(prefix) => format!("{}{}", prefix, trimmed),
+                None => trimmed.to_string(),
+            };
+
+            let _ = app.emit(
+                "instance-deployment-progress",
+                DownloadProgressEvent {
+                    instance_id: instance_id.clone(),
+                    stage: "LOADER_CORE".to_string(),
+                    file_name: String::new(),
+                    current: 50,
+                    total: 100,
+                    message,
+                },
+            );
+        }
+    });
+}
+
+async fn run_java_installer<R: Runtime>(
+    app: &AppHandle<R>,
+    instance_id: &str,
+    loader_name: &str,
+    java_path: &str,
+    required_java_major: &str,
+    installer_path: &Path,
+    global_mc_root: &Path,
+    cancel: &Arc<AtomicBool>,
+) -> AppResult<()> {
+    let mut cmd = Command::new(java_path);
+    cmd.arg("-jar")
+        .arg(installer_path)
+        .arg("--installClient")
+        .arg(global_mc_root)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    if let Some(logs_dir) = resolve_logs_dir(app) {
+        let _ = tokio::fs::create_dir_all(&logs_dir).await;
+        cmd.current_dir(logs_dir);
+    }
+
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(0x08000000);
+
+    let mut child = cmd.spawn().map_err(|e| {
+        AppError::Generic(format!(
+            "启动 {} Java 安装器失败。当前为 Minecraft 选择的 Java {} 路径是: {}。请检查 Java 配置或该路径是否仍然存在。底层错误: {}",
+            loader_name, required_java_major, java_path, e
+        ))
+    })?;
+
+    let recent_output = Arc::new(Mutex::new(Vec::new()));
+
+    if let Some(stdout) = child.stdout.take() {
+        spawn_installer_stream_reader(
+            app.clone(),
+            instance_id.to_string(),
+            Arc::clone(cancel),
+            stdout,
+            None,
+            Arc::clone(&recent_output),
+        );
+    }
+
+    if let Some(stderr) = child.stderr.take() {
+        spawn_installer_stream_reader(
+            app.clone(),
+            instance_id.to_string(),
+            Arc::clone(cancel),
+            stderr,
+            Some("[stderr] "),
+            Arc::clone(&recent_output),
+        );
+    }
+
+    let wait_start = Instant::now();
+    let mut last_heartbeat = wait_start;
+    loop {
+        if is_cancelled(cancel) {
+            let _ = child.kill().await;
+            return Err(AppError::Cancelled);
+        }
+
+        if last_heartbeat.elapsed().as_secs() >= 10 {
+            last_heartbeat = Instant::now();
+            let elapsed_10s = wait_start.elapsed().as_secs() / 10;
+            let sub = (elapsed_10s as u64).min(40);
+            let _ = app.emit(
+                "instance-deployment-progress",
+                DownloadProgressEvent {
+                    instance_id: instance_id.to_string(),
+                    stage: "LOADER_CORE".to_string(),
+                    file_name: String::new(),
+                    current: 50 + sub,
+                    total: 100,
+                    message: format!("仍在安装 {} 运行环境，请稍候...", loader_name),
+                },
+            );
+        }
+
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                if !status.success() {
+                    let status_text = status
+                        .code()
+                        .map(|code| format!("退出码 {}", code))
+                        .unwrap_or_else(|| "进程被异常终止".to_string());
+                    let detail = summarize_installer_output(&recent_output).unwrap_or_else(|| {
+                        "安装器没有输出更多细节，请检查下载日志。".to_string()
+                    });
+                    return Err(AppError::Generic(format!(
+                        "{} 安装器执行失败（{}）。使用的 Java 路径: {}。最近输出: {}",
+                        loader_name, status_text, java_path, detail
+                    )));
+                }
+                break;
+            }
+            Ok(None) => {
+                tokio::time::sleep(Duration::from_millis(500)).await;
+            }
+            Err(e) => {
+                return Err(AppError::Generic(format!(
+                    "检查 {} 安装器状态失败。使用的 Java 路径: {}。底层错误: {}",
+                    loader_name, java_path, e
+                )));
+            }
+        }
+    }
+
+    Ok(())
 }
 
 pub async fn install_loader<R: Runtime>(
@@ -122,11 +299,10 @@ async fn install_fabric<R: Runtime>(
             },
         );
 
-        // 根据配置选择官方或镜像源
         let base_meta_url = if dl_settings.fabric_source == "official" {
             "https://meta.fabricmc.net".to_string()
         } else {
-            "https://bmclapi2.bangbang93.com/fabric-meta".to_string() // 兼容 BMCLAPI
+            "https://bmclapi2.bangbang93.com/fabric-meta".to_string()
         };
 
         let meta_url = format!(
@@ -153,7 +329,6 @@ async fn install_fabric<R: Runtime>(
         return Err(AppError::Cancelled);
     }
 
-    // 复用依赖下载器拉取 fabric 核心包
     crate::services::downloader::dependencies::download_dependencies(
         app,
         instance_id,
@@ -188,7 +363,7 @@ async fn install_forge<R: Runtime>(
 ) -> AppResult<()> {
     let dl_settings = ConfigService::get_download_settings(app);
     let java_settings = ConfigService::get_java_settings(app);
-    let java_runtime = crate::services::runtime_service::resolve_global_java_runtime(
+    let java_runtime = crate::services::runtime_service::resolve_global_installer_java_runtime(
         &java_settings,
         mc_version,
         crate::services::runtime_service::installer_default_java_command(),
@@ -212,9 +387,15 @@ async fn install_forge<R: Runtime>(
     );
 
     let installer_url = if dl_settings.forge_source == "official" {
-        format!("https://maven.minecraftforge.net/net/minecraftforge/forge/{0}-{1}/forge-{0}-{1}-installer.jar", mc_version, loader_version)
+        format!(
+            "https://maven.minecraftforge.net/net/minecraftforge/forge/{0}-{1}/forge-{0}-{1}-installer.jar",
+            mc_version, loader_version
+        )
     } else {
-        format!("https://bmclapi2.bangbang93.com/maven/net/minecraftforge/forge/{0}-{1}/forge-{0}-{1}-installer.jar", mc_version, loader_version)
+        format!(
+            "https://bmclapi2.bangbang93.com/maven/net/minecraftforge/forge/{0}-{1}/forge-{0}-{1}-installer.jar",
+            mc_version, loader_version
+        )
     };
 
     let temp_dir = global_mc_root.join("temp");
@@ -245,7 +426,6 @@ async fn install_forge<R: Runtime>(
         return Err(AppError::Cancelled);
     }
 
-    // ✅ 核心修复：伪造官方 launcher_profiles.json，骗过 Forge 安装器的校验
     let launcher_profiles = global_mc_root.join("launcher_profiles.json");
     if !launcher_profiles.exists() {
         tokio::fs::write(&launcher_profiles, "{\"profiles\": {}}").await?;
@@ -256,155 +436,34 @@ async fn install_forge<R: Runtime>(
         DownloadProgressEvent {
             instance_id: instance_id.to_string(),
             stage: "LOADER_CORE".to_string(),
-            file_name: "".to_string(),
+            file_name: String::new(),
             current: 50,
             total: 100,
-            message: "正在后台静默编译 Forge 运行环境，此过程可能需要几分钟，请耐心等待..."
+            message: "正在后台静默安装 Forge 运行环境，这个过程可能需要几分钟，请耐心等待..."
                 .to_string(),
         },
     );
 
-    let java_path = java_runtime.java_path.clone();
+    run_java_installer(
+        app,
+        instance_id,
+        "Forge",
+        &java_runtime.java_path,
+        &java_runtime.required_java_major,
+        &installer_path,
+        global_mc_root,
+        cancel,
+    )
+    .await?;
 
-    let mut cmd = Command::new(&java_path);
-    cmd.arg("-jar")
-        .arg(&installer_path)
-        .arg("--installClient")
-        .arg(global_mc_root)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-
-    if let Some(logs_dir) = resolve_logs_dir(app) {
-        let _ = tokio::fs::create_dir_all(&logs_dir).await;
-        cmd.current_dir(logs_dir);
-    }
-
-    #[cfg(target_os = "windows")]
-    cmd.creation_flags(0x08000000);
-
-    let mut child = cmd.spawn().map_err(|e| {
-        std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("启动 Java 安装器失败: {}", e),
-        )
-    })?;
-
-    let app_emit = app.clone();
-    let instance_id_emit = instance_id.to_string();
-
-    if let Some(stdout) = child.stdout.take() {
-        let mut reader = tokio::io::BufReader::new(stdout).lines();
-        let cancel_for_reader = Arc::clone(cancel);
-        let app_stdout = app_emit.clone();
-        let id_stdout = instance_id_emit.clone();
-        tokio::spawn(async move {
-            while let Ok(Some(line)) = reader.next_line().await {
-                if is_cancelled(&cancel_for_reader) {
-                    break;
-                }
-                let msg = line.trim().to_string();
-                if !msg.is_empty() {
-                    let _ = app_stdout.emit(
-                        "instance-deployment-progress",
-                        DownloadProgressEvent {
-                            instance_id: id_stdout.clone(),
-                            stage: "LOADER_CORE".to_string(),
-                            file_name: String::new(),
-                            current: 50,
-                            total: 100,
-                            message: msg,
-                        },
-                    );
-                }
-            }
-        });
-    }
-
-    if let Some(stderr) = child.stderr.take() {
-        let mut reader = tokio::io::BufReader::new(stderr).lines();
-        let cancel_err = Arc::clone(cancel);
-        let app_stderr = app_emit.clone();
-        let id_stderr = instance_id_emit.clone();
-        tokio::spawn(async move {
-            while let Ok(Some(line)) = reader.next_line().await {
-                if is_cancelled(&cancel_err) {
-                    break;
-                }
-                let msg = line.trim().to_string();
-                if !msg.is_empty() {
-                    let _ = app_stderr.emit(
-                        "instance-deployment-progress",
-                        DownloadProgressEvent {
-                            instance_id: id_stderr.clone(),
-                            stage: "LOADER_CORE".to_string(),
-                            file_name: String::new(),
-                            current: 50,
-                            total: 100,
-                            message: format!("[stderr] {}", msg),
-                        },
-                    );
-                }
-            }
-        });
-    }
-
-    // 在等待子进程期间，周期性检查取消标志并发送心跳，避免用户误以为卡死
-    let wait_start = Instant::now();
-    let mut last_heartbeat = wait_start;
-    loop {
-        if is_cancelled(cancel) {
-            let _ = child.kill().await;
-            let _ = tokio::fs::remove_file(&installer_path).await;
-            return Err(AppError::Cancelled);
-        }
-        if last_heartbeat.elapsed().as_secs() >= 10 {
-            last_heartbeat = Instant::now();
-            let elapsed_10s = wait_start.elapsed().as_secs() / 10;
-            let sub = (elapsed_10s as u64).min(40);
-            let _ = app.emit(
-                "instance-deployment-progress",
-                DownloadProgressEvent {
-                    instance_id: instance_id.to_string(),
-                    stage: "LOADER_CORE".to_string(),
-                    file_name: String::new(),
-                    current: 50 + sub,
-                    total: 100,
-                    message: "仍在安装 Forge 运行环境，请稍候…".to_string(),
-                },
-            );
-        }
-        match child.try_wait() {
-            Ok(Some(status)) => {
-                if !status.success() {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "Forge 安装器执行失败，请检查控制台日志",
-                    )
-                    .into());
-                }
-                break;
-            }
-            Ok(None) => {
-                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-            }
-            Err(e) => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("检查 Forge 安装器状态失败: {}", e),
-                )
-                .into());
-            }
-        }
-    }
-
-    let _ = tokio::fs::remove_file(&installer_path).await; // 清理残留
+    let _ = tokio::fs::remove_file(&installer_path).await;
 
     let _ = app.emit(
         "instance-deployment-progress",
         DownloadProgressEvent {
             instance_id: instance_id.to_string(),
             stage: "LOADER_CORE".to_string(),
-            file_name: "".to_string(),
+            file_name: String::new(),
             current: 100,
             total: 100,
             message: "Forge 环境部署完成".to_string(),
@@ -424,7 +483,7 @@ async fn install_neoforge<R: Runtime>(
 ) -> AppResult<()> {
     let dl_settings = ConfigService::get_download_settings(app);
     let java_settings = ConfigService::get_java_settings(app);
-    let java_runtime = crate::services::runtime_service::resolve_global_java_runtime(
+    let java_runtime = crate::services::runtime_service::resolve_global_installer_java_runtime(
         &java_settings,
         mc_version,
         crate::services::runtime_service::installer_default_java_command(),
@@ -448,9 +507,15 @@ async fn install_neoforge<R: Runtime>(
     );
 
     let installer_url = if dl_settings.neoforge_source == "official" {
-        format!("https://maven.neoforged.net/releases/net/neoforged/neoforge/{0}/neoforge-{0}-installer.jar", loader_version)
+        format!(
+            "https://maven.neoforged.net/releases/net/neoforged/neoforge/{0}/neoforge-{0}-installer.jar",
+            loader_version
+        )
     } else {
-        format!("https://bmclapi2.bangbang93.com/maven/net/neoforged/neoforge/{0}/neoforge-{0}-installer.jar", loader_version)
+        format!(
+            "https://bmclapi2.bangbang93.com/maven/net/neoforged/neoforge/{0}/neoforge-{0}-installer.jar",
+            loader_version
+        )
     };
 
     let temp_dir = global_mc_root.join("temp");
@@ -481,7 +546,6 @@ async fn install_neoforge<R: Runtime>(
         return Err(AppError::Cancelled);
     }
 
-    // ✅ 核心修复：伪造官方 launcher_profiles.json，骗过 NeoForge 安装器的校验
     let launcher_profiles = global_mc_root.join("launcher_profiles.json");
     if !launcher_profiles.exists() {
         tokio::fs::write(&launcher_profiles, "{\"profiles\": {}}").await?;
@@ -492,144 +556,24 @@ async fn install_neoforge<R: Runtime>(
         DownloadProgressEvent {
             instance_id: instance_id.to_string(),
             stage: "LOADER_CORE".to_string(),
-            file_name: "".to_string(),
+            file_name: String::new(),
             current: 50,
             total: 100,
-            message: "正在后台静默编译 NeoForge 运行环境...".to_string(),
+            message: "正在后台静默安装 NeoForge 运行环境，请稍候...".to_string(),
         },
     );
 
-    let java_path = java_runtime.java_path.clone();
-
-    let mut cmd = Command::new(&java_path);
-    cmd.arg("-jar")
-        .arg(&installer_path)
-        .arg("--installClient")
-        .arg(global_mc_root)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-
-    if let Some(logs_dir) = resolve_logs_dir(app) {
-        let _ = tokio::fs::create_dir_all(&logs_dir).await;
-        cmd.current_dir(logs_dir);
-    }
-
-    #[cfg(target_os = "windows")]
-    cmd.creation_flags(0x08000000);
-
-    let mut child = cmd.spawn().map_err(|e| {
-        std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("启动 Java 安装器失败: {}", e),
-        )
-    })?;
-
-    let app_emit = app.clone();
-    let instance_id_emit = instance_id.to_string();
-
-    if let Some(stdout) = child.stdout.take() {
-        let mut reader = tokio::io::BufReader::new(stdout).lines();
-        let cancel_for_reader = Arc::clone(cancel);
-        let app_stdout = app_emit.clone();
-        let id_stdout = instance_id_emit.clone();
-        tokio::spawn(async move {
-            while let Ok(Some(line)) = reader.next_line().await {
-                if is_cancelled(&cancel_for_reader) {
-                    break;
-                }
-                let msg = line.trim().to_string();
-                if !msg.is_empty() {
-                    let _ = app_stdout.emit(
-                        "instance-deployment-progress",
-                        DownloadProgressEvent {
-                            instance_id: id_stdout.clone(),
-                            stage: "LOADER_CORE".to_string(),
-                            file_name: String::new(),
-                            current: 50,
-                            total: 100,
-                            message: msg,
-                        },
-                    );
-                }
-            }
-        });
-    }
-
-    if let Some(stderr) = child.stderr.take() {
-        let mut reader = tokio::io::BufReader::new(stderr).lines();
-        let cancel_err = Arc::clone(cancel);
-        let app_stderr = app_emit.clone();
-        let id_stderr = instance_id_emit.clone();
-        tokio::spawn(async move {
-            while let Ok(Some(line)) = reader.next_line().await {
-                if is_cancelled(&cancel_err) {
-                    break;
-                }
-                let msg = line.trim().to_string();
-                if !msg.is_empty() {
-                    let _ = app_stderr.emit(
-                        "instance-deployment-progress",
-                        DownloadProgressEvent {
-                            instance_id: id_stderr.clone(),
-                            stage: "LOADER_CORE".to_string(),
-                            file_name: String::new(),
-                            current: 50,
-                            total: 100,
-                            message: format!("[stderr] {}", msg),
-                        },
-                    );
-                }
-            }
-        });
-    }
-
-    let wait_start = Instant::now();
-    let mut last_heartbeat = wait_start;
-    loop {
-        if is_cancelled(cancel) {
-            let _ = child.kill().await;
-            let _ = tokio::fs::remove_file(&installer_path).await;
-            return Err(AppError::Cancelled);
-        }
-        if last_heartbeat.elapsed().as_secs() >= 10 {
-            last_heartbeat = Instant::now();
-            let elapsed_10s = wait_start.elapsed().as_secs() / 10;
-            let sub = (elapsed_10s as u64).min(40);
-            let _ = app.emit(
-                "instance-deployment-progress",
-                DownloadProgressEvent {
-                    instance_id: instance_id.to_string(),
-                    stage: "LOADER_CORE".to_string(),
-                    file_name: String::new(),
-                    current: 50 + sub,
-                    total: 100,
-                    message: "仍在安装 NeoForge 运行环境，请稍候…".to_string(),
-                },
-            );
-        }
-        match child.try_wait() {
-            Ok(Some(status)) => {
-                if !status.success() {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "NeoForge 安装器执行失败",
-                    )
-                    .into());
-                }
-                break;
-            }
-            Ok(None) => {
-                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-            }
-            Err(e) => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("检查 NeoForge 安装器状态失败: {}", e),
-                )
-                .into());
-            }
-        }
-    }
+    run_java_installer(
+        app,
+        instance_id,
+        "NeoForge",
+        &java_runtime.java_path,
+        &java_runtime.required_java_major,
+        &installer_path,
+        global_mc_root,
+        cancel,
+    )
+    .await?;
 
     let _ = tokio::fs::remove_file(&installer_path).await;
 
@@ -638,7 +582,7 @@ async fn install_neoforge<R: Runtime>(
         DownloadProgressEvent {
             instance_id: instance_id.to_string(),
             stage: "LOADER_CORE".to_string(),
-            file_name: "".to_string(),
+            file_name: String::new(),
             current: 100,
             total: 100,
             message: "NeoForge 环境部署完成".to_string(),

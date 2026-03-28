@@ -1,17 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { Download, Home as HomeIcon, Minus, Server, Settings, Square, X } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { invoke } from '@tauri-apps/api/core';
 import { useLauncherStore } from '../../store/useLauncherStore';
+import { useSettingsStore } from '../../store/useSettingsStore';
 import { OreSegmentedControl, type TabItem } from '../primitives/OreSegmentedControl';
 import { useInputAction } from '../focus/InputDriver';
 import { ControlHint } from '../components/ControlHint';
+import { OreConfirmDialog } from '../primitives/OreConfirmDialog';
 
 export const TitleBar: React.FC = () => {
   const appWindow = getCurrentWindow();
   const { activeTab, setActiveTab } = useLauncherStore();
+  const closeBehavior = useSettingsStore((state) => state.settings.general.closeBehavior);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [pressingLB, setPressingLB] = useState(false);
   const [pressingRB, setPressingRB] = useState(false);
+  const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
 
   useEffect(() => {
     appWindow.isFullscreen().then(setIsFullscreen);
@@ -28,7 +33,19 @@ export const TitleBar: React.FC = () => {
 
   const handleMinimize = () => appWindow.minimize();
   const handleMaximize = () => appWindow.toggleMaximize();
-  const handleClose = () => appWindow.close();
+  const handleClose = async () => {
+    if (closeBehavior === 'tray') {
+      await appWindow.minimize();
+      return;
+    }
+
+    setIsExitConfirmOpen(true);
+  };
+
+  const handleExitConfirm = async () => {
+    setIsExitConfirmOpen(false);
+    await invoke('plugin:process|exit', { code: 0 });
+  };
 
   const navTabs: TabItem[] = [
     { id: 'home', label: '首页', icon: <HomeIcon size={18} /> },
@@ -64,76 +81,92 @@ export const TitleBar: React.FC = () => {
   useInputAction('TAB_RIGHT', () => handleSwitchTab(1));
 
   return (
-    <div className="z-50 flex w-full flex-col">
-      <div
-        data-tauri-drag-region
-        className="flex h-10 w-full select-none items-center justify-between bg-transparent px-4"
-      >
+    <>
+      <div className="z-50 flex w-full flex-col">
         <div
           data-tauri-drag-region
-          className="pointer-events-none font-minecraft text-sm tracking-wider text-white drop-shadow-md"
+          className="flex h-10 w-full select-none items-center justify-between bg-transparent px-4"
         >
-          PiLauncher
-        </div>
-
-        {!isFullscreen && (
-          <div className="flex space-x-2">
-            <button
-              onClick={handleMinimize}
-              tabIndex={-1}
-              className="rounded p-1 text-white transition-colors outline-none hover:bg-white/10 active:bg-white/20"
-            >
-              <Minus size={16} />
-            </button>
-            <button
-              onClick={handleMaximize}
-              tabIndex={-1}
-              className="rounded p-1 text-white transition-colors outline-none hover:bg-white/10 active:bg-white/20"
-            >
-              <Square size={14} />
-            </button>
-            <button
-              onClick={handleClose}
-              tabIndex={-1}
-              className="rounded p-1 text-white transition-colors outline-none hover:bg-red-600 active:bg-red-700"
-            >
-              <X size={16} />
-            </button>
+          <div
+            data-tauri-drag-region
+            className="pointer-events-none font-minecraft text-sm tracking-wider text-white drop-shadow-md"
+          >
+            PiLauncher
           </div>
-        )}
-      </div>
 
-      <div className="flex w-full select-none items-center justify-center gap-4 pb-2 pt-1">
-        <div
-          className={`mb-1 flex cursor-pointer items-center justify-center transition-transform duration-150 ${
-            pressingLB ? 'scale-75' : 'scale-90 hover:scale-95 active:scale-75'
-          }`}
-          onClick={() => handleSwitchTab(-1)}
-          onPointerDown={() => setPressingLB(true)}
-          onPointerUp={() => setPressingLB(false)}
-          onPointerLeave={() => setPressingLB(false)}
-        >
-          <ControlHint label="LB" variant="bumper" tone={pressingLB ? 'green' : 'neutral'} />
+          {!isFullscreen && (
+            <div className="flex space-x-2">
+              <button
+                onClick={handleMinimize}
+                tabIndex={-1}
+                className="rounded p-1 text-white transition-colors outline-none hover:bg-white/10 active:bg-white/20"
+              >
+                <Minus size={16} />
+              </button>
+              <button
+                onClick={handleMaximize}
+                tabIndex={-1}
+                className="rounded p-1 text-white transition-colors outline-none hover:bg-white/10 active:bg-white/20"
+              >
+                <Square size={14} />
+              </button>
+              <button
+                onClick={() => void handleClose()}
+                tabIndex={-1}
+                className="rounded p-1 text-white transition-colors outline-none hover:bg-red-600 active:bg-red-700"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
         </div>
 
-        <OreSegmentedControl
-          tabs={navTabs}
-          activeTab={activeTab}
-          onChange={(id) => setActiveTab(id as any)}
-        />
+        <div className="flex w-full select-none items-center justify-center gap-4 pb-2 pt-1">
+          <div
+            className={`mb-1 flex cursor-pointer items-center justify-center transition-transform duration-150 ${
+              pressingLB ? 'scale-75' : 'scale-90 hover:scale-95 active:scale-75'
+            }`}
+            onClick={() => handleSwitchTab(-1)}
+            onPointerDown={() => setPressingLB(true)}
+            onPointerUp={() => setPressingLB(false)}
+            onPointerLeave={() => setPressingLB(false)}
+          >
+            <ControlHint label="LB" variant="bumper" tone={pressingLB ? 'green' : 'neutral'} />
+          </div>
 
-        <div
-          className={`mb-1 flex cursor-pointer items-center justify-center transition-transform duration-150 ${
-            pressingRB ? 'scale-75' : 'scale-90 hover:scale-95 active:scale-75'
-          }`}
-          onClick={() => handleSwitchTab(1)}
-          onPointerDown={() => setPressingRB(true)}
-          onPointerUp={() => setPressingRB(false)}
-          onPointerLeave={() => setPressingRB(false)}
-        >
-          <ControlHint label="RB" variant="bumper" tone={pressingRB ? 'green' : 'neutral'} />
+          <OreSegmentedControl
+            tabs={navTabs}
+            activeTab={activeTab}
+            onChange={(id) => setActiveTab(id as any)}
+          />
+
+          <div
+            className={`mb-1 flex cursor-pointer items-center justify-center transition-transform duration-150 ${
+              pressingRB ? 'scale-75' : 'scale-90 hover:scale-95 active:scale-75'
+            }`}
+            onClick={() => handleSwitchTab(1)}
+            onPointerDown={() => setPressingRB(true)}
+            onPointerUp={() => setPressingRB(false)}
+            onPointerLeave={() => setPressingRB(false)}
+          >
+            <ControlHint label="RB" variant="bumper" tone={pressingRB ? 'green' : 'neutral'} />
+          </div>
         </div>
       </div>
-    </div>
+      <OreConfirmDialog
+        isOpen={isExitConfirmOpen}
+        onClose={() => setIsExitConfirmOpen(false)}
+        onConfirm={handleExitConfirm}
+        title="确认退出"
+        headline="退出 PiLauncher"
+        description="当前关闭按钮行为设置为“退出应用”。确认后会直接结束当前应用进程。"
+        confirmLabel="确认退出"
+        cancelLabel="取消"
+        confirmVariant="danger"
+        tone="warning"
+        cancelFocusKey="titlebar-exit-cancel"
+        confirmFocusKey="titlebar-exit-confirm"
+      />
+    </>
   );
 };

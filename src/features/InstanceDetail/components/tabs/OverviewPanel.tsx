@@ -74,7 +74,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
       {/* ==========================================
           Banner 区域（截图/封面轮播）
           ========================================== */}
-      <FocusItem focusKey="overview-guard-top" onFocus={() => setFocus('overview-btn-folder')}>
+      <FocusItem focusKey="overview-guard-top" onFocus={() => setFocus('overview-btn-play')}>
         {({ ref }) => (
           <div ref={ref as any} className="relative w-full h-[280px] bg-black overflow-hidden flex-shrink-0 outline-none">
             <AnimatePresence initial={false}>

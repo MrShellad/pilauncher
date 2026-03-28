@@ -1,94 +1,146 @@
 // src/features/runtime/components/JavaSelector.tsx
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { OreInput } from '../../../ui/primitives/OreInput';
-import { OreButton } from '../../../ui/primitives/OreButton';
-import { OreModal } from '../../../ui/primitives/OreModal';
-import { FocusItem } from '../../../ui/focus/FocusItem';
-import { FocusBoundary } from '../../../ui/focus/FocusBoundary'; 
-import { Search, FolderOpen, Loader2, CheckCircle2, RefreshCw } from 'lucide-react';
-import { validateCachedJava, scanJava, getJavaRecommendation, type JavaInstall } from '../logic/javaDetector';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { CheckCircle2, FolderOpen, Loader2, RefreshCw, Search } from 'lucide-react';
 
+import { OreButton } from '../../../ui/primitives/OreButton';
+import { OreInput } from '../../../ui/primitives/OreInput';
+import { OreModal } from '../../../ui/primitives/OreModal';
+import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
+import { FocusItem } from '../../../ui/focus/FocusItem';
 import { DirectoryBrowserModal } from '../../../ui/components/DirectoryBrowserModal';
 
-export const JavaSelector: React.FC<{ value: string; onChange: (path: string) => void; disabled?: boolean; isError?: boolean; onArrowPress?: (direction: string) => boolean }> = ({ value, onChange, disabled, isError, onArrowPress }) => {
+import {
+  getJavaRecommendation,
+  scanJava,
+  type JavaInstall,
+  validateCachedJava,
+} from '../logic/javaDetector';
+
+export const JavaSelector: React.FC<{
+  value: string;
+  onChange: (path: string) => void;
+  disabled?: boolean;
+  isError?: boolean;
+  onArrowPress?: (direction: string) => boolean;
+  focusKeyPrefix?: string;
+}> = ({ value, onChange, disabled, isError, onArrowPress, focusKeyPrefix = 'java' }) => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [javaList, setJavaList] = useState<JavaInstall[]>([]);
   const [isScanning, setIsScanning] = useState(false);
-  
   const [isBrowserOpen, setIsBrowserOpen] = useState(false);
   const [browserStartPath, setBrowserStartPath] = useState('');
 
   const wasModalOpen = useRef(false);
   const wasBrowserOpen = useRef(false);
-  const returnFocusKeyRef = useRef<string>('java-input-path');
+
+  const browseButtonFocusKey = `${focusKeyPrefix}-btn-browse`;
+  const modalScanFocusKey = `${focusKeyPrefix}-modal-btn-scan`;
+  const modalBrowseFocusKey = `${focusKeyPrefix}-modal-btn-browse`;
+  const getModalItemFocusKey = useCallback(
+    (index: number) => `${focusKeyPrefix}-modal-item-${index}`,
+    [focusKeyPrefix]
+  );
+
+  const returnFocusKeyRef = useRef<string>(browseButtonFocusKey);
 
   const restoreFocusAfterClose = useCallback(() => {
-    const candidates = [
-      returnFocusKeyRef.current,
-      'java-input-path',
-      'java-btn-browse'
-    ];
+    const candidates = [returnFocusKeyRef.current, browseButtonFocusKey];
+    let attempts = 0;
+    let timer: number | undefined;
 
-    setTimeout(() => {
-      const next = candidates.find((k) => !!k && doesFocusableExist(k));
-      if (next) setFocus(next);
-    }, 80);
-  }, []);
+    const tryRestore = () => {
+      const next = candidates.find((key) => !!key && doesFocusableExist(key));
+      if (next) {
+        setFocus(next);
+        return;
+      }
 
-  const openSelectorModal = useCallback((fallbackFocusKey: string) => {
+      attempts += 1;
+      if (attempts < 8) {
+        timer = window.setTimeout(tryRestore, 70);
+      }
+    };
+
+    timer = window.setTimeout(tryRestore, 80);
+
+    return () => {
+      if (timer) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [browseButtonFocusKey]);
+
+  const openSelectorModal = useCallback((fallbackFocusKey = browseButtonFocusKey) => {
     if (disabled) return;
 
     const current = getCurrentFocusKey();
-    const isValidCurrent = current && current !== 'SN:ROOT' && current.startsWith('java-');
-    returnFocusKeyRef.current = isValidCurrent ? current : fallbackFocusKey;
+    const isValidCurrent =
+      current &&
+      current !== 'SN:ROOT' &&
+      (current === browseButtonFocusKey || current.startsWith(`${focusKeyPrefix}-modal-`));
 
+    returnFocusKeyRef.current = isValidCurrent ? current : fallbackFocusKey;
     setModalOpen(true);
-  }, [disabled]);
+  }, [browseButtonFocusKey, disabled, focusKeyPrefix]);
 
   const closeSelectorModal = useCallback((nextFocusKey?: string) => {
-    if (nextFocusKey) returnFocusKeyRef.current = nextFocusKey;
+    if (nextFocusKey) {
+      returnFocusKeyRef.current = nextFocusKey;
+    }
     setModalOpen(false);
   }, []);
 
-  const loadFromCache = async () => {
+  const sortJavas = useCallback(
+    (javas: JavaInstall[]) =>
+      [...javas].sort((a, b) => b.version.localeCompare(a.version, undefined, { numeric: true })),
+    []
+  );
+
+  const loadFromCache = useCallback(async () => {
     setIsScanning(true);
     const { valid } = await validateCachedJava();
-    setJavaList(valid.sort((a, b) => b.version.localeCompare(a.version)));
+    setJavaList(sortJavas(valid));
     setIsScanning(false);
-  };
+  }, [sortJavas]);
 
   useEffect(() => {
+    let cleanup: (() => void) | undefined;
+
     if (isModalOpen && !wasModalOpen.current) {
-      loadFromCache();
-      setTimeout(() => setFocus('btn-java-scan'), 100);
+      void loadFromCache();
+      window.setTimeout(() => setFocus(modalScanFocusKey), 100);
     }
+
     if (!isModalOpen && wasModalOpen.current && !isBrowserOpen) {
-      restoreFocusAfterClose();
+      cleanup = restoreFocusAfterClose();
     }
+
     wasModalOpen.current = isModalOpen;
-  }, [isModalOpen, isBrowserOpen, restoreFocusAfterClose]);
+    return cleanup;
+  }, [isBrowserOpen, isModalOpen, loadFromCache, modalScanFocusKey, restoreFocusAfterClose]);
 
   useEffect(() => {
     if (!isBrowserOpen && wasBrowserOpen.current && isModalOpen) {
-      setTimeout(() => {
-        if (doesFocusableExist('btn-java-browse')) {
-          setFocus('btn-java-browse');
+      window.setTimeout(() => {
+        if (doesFocusableExist(modalBrowseFocusKey)) {
+          setFocus(modalBrowseFocusKey);
         }
       }, 80);
     }
-    wasBrowserOpen.current = isBrowserOpen;
-  }, [isBrowserOpen, isModalOpen]);
 
-  const handleScan = async () => {
+    wasBrowserOpen.current = isBrowserOpen;
+  }, [isBrowserOpen, isModalOpen, modalBrowseFocusKey]);
+
+  const handleScan = useCallback(async () => {
     setIsScanning(true);
     const javas = await scanJava();
-    setJavaList(javas);
+    setJavaList(sortJavas(javas));
     setIsScanning(false);
-  };
+  }, [sortJavas]);
 
-  const handleBrowse = async () => {
+  const handleBrowseDirectory = useCallback(async () => {
     try {
       const basePath = await invoke<string | null>('get_base_directory');
       if (basePath) {
@@ -97,124 +149,219 @@ export const JavaSelector: React.FC<{ value: string; onChange: (path: string) =>
       } else {
         setBrowserStartPath('');
       }
-    } catch (e) {
+    } catch {
       setBrowserStartPath('');
     }
-    setIsBrowserOpen(true);
-  };
 
-  const handleDirSelect = (dirPath: string) => {
+    setIsBrowserOpen(true);
+  }, []);
+
+  const handleDirSelect = useCallback((dirPath: string) => {
     const isWin = dirPath.includes('\\');
     const sep = isWin ? '\\' : '/';
-    const exeName = isWin ? 'javaw.exe' : 'java';
-    let executable = dirPath.endsWith('bin') ? `${dirPath}${sep}${exeName}` : `${dirPath}${sep}bin${sep}${exeName}`;
-    
+    const executable = dirPath.endsWith('bin')
+      ? `${dirPath}${sep}${isWin ? 'javaw.exe' : 'java'}`
+      : `${dirPath}${sep}bin${sep}${isWin ? 'javaw.exe' : 'java'}`;
+
     onChange(executable);
     setIsBrowserOpen(false);
-    closeSelectorModal('java-input-path');
-  };
+    closeSelectorModal(browseButtonFocusKey);
+  }, [browseButtonFocusKey, closeSelectorModal, onChange]);
+
+  const modalFocusOrder = useMemo(
+    () => [
+      modalScanFocusKey,
+      modalBrowseFocusKey,
+      ...javaList.map((_, idx) => getModalItemFocusKey(idx)),
+    ],
+    [getModalItemFocusKey, javaList, modalBrowseFocusKey, modalScanFocusKey]
+  );
+
+  const handleModalLinearArrow = useCallback((fallbackKey: string) => (direction: string) => {
+    const step =
+      direction === 'left' || direction === 'up'
+        ? -1
+        : direction === 'right' || direction === 'down'
+          ? 1
+          : 0;
+
+    if (step === 0) return true;
+
+    const currentFocusKey = getCurrentFocusKey();
+    const resolvedKey =
+      currentFocusKey && modalFocusOrder.includes(currentFocusKey)
+        ? currentFocusKey
+        : fallbackKey;
+    const currentIndex = modalFocusOrder.indexOf(resolvedKey);
+
+    if (currentIndex === -1) return true;
+
+    for (
+      let nextIndex = currentIndex + step;
+      nextIndex >= 0 && nextIndex < modalFocusOrder.length;
+      nextIndex += step
+    ) {
+      const nextKey = modalFocusOrder[nextIndex];
+      if (doesFocusableExist(nextKey)) {
+        setFocus(nextKey);
+        return false;
+      }
+    }
+
+    return true;
+  }, [modalFocusOrder]);
 
   return (
     <>
-      <div className="flex gap-2">
-        <div className="flex-1 cursor-pointer" onClick={() => openSelectorModal('java-input-path')}>
-          <OreInput 
-            focusKey="java-input-path" // ✅ 补充焦点ID
-            onArrowPress={onArrowPress}
-            value={value} 
-            readOnly 
-            placeholder="点击选择 Java 路径..." 
+      <div className="flex items-stretch gap-2">
+        <div
+          className="min-w-0 flex-1 cursor-pointer"
+          onClick={() => openSelectorModal(browseButtonFocusKey)}
+          onMouseDown={(event) => event.preventDefault()}
+        >
+          <OreInput
+            value={value}
+            readOnly
+            tabIndex={-1}
+            onFocus={(event) => event.currentTarget.blur()}
+            placeholder="点击选择 Java 路径..."
             disabled={disabled}
-            className={`cursor-pointer ${isError ? '!text-red-400 font-bold' : ''}`}
+            className={`pointer-events-none cursor-pointer ${isError ? '!text-red-400 font-bold' : ''}`}
             containerClassName="!space-y-0"
           />
         </div>
-        <OreButton 
-          focusKey="java-btn-browse" // ✅ 补充焦点ID
+
+        <OreButton
+          focusKey={browseButtonFocusKey}
           onArrowPress={onArrowPress}
-          variant="secondary" 
-          onClick={() => openSelectorModal('java-btn-browse')} 
-          disabled={disabled} 
-          className="!px-4"
+          variant="secondary"
+          onClick={() => openSelectorModal(browseButtonFocusKey)}
+          disabled={disabled}
+          className="shrink-0 !min-w-[7.5rem] !px-4 !justify-center"
         >
           选择...
         </OreButton>
       </div>
 
-      <OreModal 
-        isOpen={isModalOpen} 
-        onClose={() => closeSelectorModal()} 
-        title="选择 Java 运行时" 
+      <OreModal
+        isOpen={isModalOpen}
+        onClose={() => closeSelectorModal()}
+        title="选择 Java 运行时"
         hideTitleBar={true}
-        defaultFocusKey="btn-java-scan"
-        className="w-[600px] h-[500px]"
+        defaultFocusKey={modalScanFocusKey}
+        className="w-[37.5rem] h-[31.25rem]"
+        contentClassName="overflow-hidden p-0"
       >
-        <FocusBoundary id="java-selector-boundary" trapFocus={isModalOpen} onEscape={() => closeSelectorModal()} className="flex flex-col h-full outline-none">
-          <div className="flex gap-3 mb-4 shrink-0">
-            <FocusItem focusKey="btn-java-scan" onEnter={handleScan}>
-              {({ ref, focused }) => (
-                <button ref={ref as any} onClick={handleScan} disabled={isScanning} className={`flex-1 flex items-center justify-center p-2 rounded-sm border transition-all ${focused ? 'bg-white/10 border-white text-white scale-[1.02]' : 'bg-[#141415] border-[#1E1E1F] text-gray-300 hover:bg-white/5'} ${isScanning ? 'opacity-50' : ''}`}>
-                  <RefreshCw size={16} className={`mr-2 ${isScanning ? 'animate-spin' : ''}`} /> {isScanning ? '扫描中...' : '重新扫描本机'}
-                </button>
-              )}
-            </FocusItem>
-            <FocusItem focusKey="btn-java-browse" onEnter={handleBrowse}>
-              {({ ref, focused }) => (
-                <button ref={ref as any} onClick={handleBrowse} className={`flex-1 flex items-center justify-center p-2 rounded-sm border transition-all ${focused ? 'bg-white/10 border-white text-white scale-[1.02]' : 'bg-[#141415] border-[#1E1E1F] text-gray-300 hover:bg-white/5'}`}>
-                  <FolderOpen size={16} className="mr-2" /> 手动浏览目录...
-                </button>
-              )}
-            </FocusItem>
+        <FocusBoundary
+          id={`${focusKeyPrefix}-selector-boundary`}
+          trapFocus={isModalOpen}
+          onEscape={() => closeSelectorModal()}
+          className="flex h-full flex-col px-5 py-5 outline-none"
+        >
+          <div className="mb-4 flex shrink-0 gap-3 [.intent-controller_&]:flex-col">
+            <OreButton
+              focusKey={modalScanFocusKey}
+              onArrowPress={handleModalLinearArrow(modalScanFocusKey)}
+              onClick={handleScan}
+              disabled={isScanning}
+              variant="secondary"
+              size="auto"
+              className="flex-1 !min-w-0 !h-11 !justify-center gap-2"
+            >
+              <RefreshCw size={16} className={isScanning ? 'animate-spin' : ''} />
+              <span>{isScanning ? '扫描中...' : '重新扫描本机'}</span>
+            </OreButton>
+
+            <OreButton
+              focusKey={modalBrowseFocusKey}
+              onArrowPress={handleModalLinearArrow(modalBrowseFocusKey)}
+              onClick={handleBrowseDirectory}
+              variant="secondary"
+              size="auto"
+              className="flex-1 !min-w-0 !h-11 !justify-center gap-2"
+            >
+              <FolderOpen size={16} />
+              <span>手动浏览目录...</span>
+            </OreButton>
           </div>
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
+          <div className="custom-scrollbar -mr-1 flex-1 overflow-y-auto pr-1">
             {isScanning && javaList.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-3">
-                <Loader2 size={32} className="animate-spin opacity-50" />
-                <span>正在深度扫描磁盘...</span>
+              <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[2px] border-2 border-dashed border-[var(--ore-border-color)] bg-[var(--ore-modal-bg)]/55 p-6 text-ore-text-muted">
+                <Loader2 size={32} className="animate-spin opacity-60" />
+                <span className="font-minecraft text-sm tracking-wide">正在深度扫描磁盘...</span>
               </div>
             ) : javaList.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-3">
-                <Search size={32} className="opacity-50" />
-                <span>未扫描到可用的 Java 环境，请手动浏览</span>
+              <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[2px] border-2 border-dashed border-[var(--ore-border-color)] bg-[var(--ore-modal-bg)]/55 p-6 text-ore-text-muted">
+                <Search size={32} className="opacity-60" />
+                <span className="font-minecraft text-sm tracking-wide">未扫描到可用的 Java 环境，请手动浏览</span>
               </div>
             ) : (
-              javaList.map((java, idx) => {
-                const rec = getJavaRecommendation(java.version);
-                return (
-                  <FocusItem key={java.path} focusKey={`java-item-${idx}`} onEnter={() => { onChange(java.path); closeSelectorModal('java-input-path'); }}>
-                    {({ ref, focused }) => (
-                      <div
-                        ref={ref as any} onClick={() => { onChange(java.path); closeSelectorModal('java-input-path'); }}
-                        className={`
-                          flex flex-col p-4 bg-[#141415] border-2 cursor-pointer outline-none transition-all duration-200
-                          ${value === java.path ? 'border-ore-green shadow-[0_0_10px_rgba(56,133,39,0.2)]' : 'border-[#1E1E1F] hover:border-white/30'}
-                          ${focused ? 'ring-2 ring-white border-white scale-[1.01] z-10' : ''}
-                        `}
-                      >
-                        <div className="flex justify-between items-center mb-1">
-                          <div className="flex items-center space-x-3">
-                            <span className="text-white font-minecraft text-lg">Java {java.version}</span>
-                            {rec && <span className="text-[10px] bg-[#3A3B3C] text-ore-green px-2 py-0.5 rounded-sm border border-[#1E1E1F] font-minecraft uppercase tracking-wider">{rec}</span>}
+              <div className="space-y-3 pb-2 pl-1 pt-1">
+                {javaList.map((java, idx) => {
+                  const recommendation = getJavaRecommendation(java.version);
+                  const itemFocusKey = getModalItemFocusKey(idx);
+                  const isSelected = value === java.path;
+
+                  return (
+                    <FocusItem
+                      key={java.path}
+                      focusKey={itemFocusKey}
+                      onEnter={() => {
+                        onChange(java.path);
+                        closeSelectorModal(browseButtonFocusKey);
+                      }}
+                      onArrowPress={handleModalLinearArrow(itemFocusKey)}
+                    >
+                      {({ ref, focused }) => (
+                        <button
+                          type="button"
+                          ref={ref as any}
+                          onClick={() => {
+                            onChange(java.path);
+                            closeSelectorModal(browseButtonFocusKey);
+                          }}
+                          className={`
+                            flex w-full flex-col rounded-[2px] border-2 px-4 py-3 text-left outline-none transition-all duration-150
+                            ${isSelected
+                              ? 'border-ore-green bg-[var(--ore-modal-header-bg)] shadow-[0_0_0_1px_rgba(56,133,39,0.35),0_0_18px_rgba(56,133,39,0.12)]'
+                              : 'border-[var(--ore-border-color)] bg-[var(--ore-modal-bg)] hover:bg-[var(--ore-modal-header-bg)]/88'
+                            }
+                            ${focused
+                              ? 'border-white ring-2 ring-inset ring-[var(--ore-focus-ring)] drop-shadow-[0_0_6px_var(--ore-focus-glow)] brightness-110'
+                              : ''
+                            }
+                          `}
+                        >
+                          <div className="mb-1 flex items-center justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <span className="truncate font-minecraft text-lg text-white">Java {java.version}</span>
+                              {recommendation && (
+                                <span className="rounded-[2px] border border-[var(--ore-border-color)] bg-[var(--ore-btn-secondary-bg)] px-2 py-0.5 font-minecraft text-[0.625rem] uppercase tracking-[0.12em] text-black">
+                                  {recommendation}
+                                </span>
+                              )}
+                            </div>
+                            {isSelected && <CheckCircle2 size={18} className="shrink-0 text-ore-green" />}
                           </div>
-                          {value === java.path && <CheckCircle2 size={18} className="text-ore-green" />}
-                        </div>
-                        <span className="text-ore-text-muted font-minecraft text-sm truncate">{java.path}</span>
-                      </div>
-                    )}
-                  </FocusItem>
-                );
-              })
+
+                          <span className="truncate font-minecraft text-sm text-ore-text-muted">{java.path}</span>
+                        </button>
+                      )}
+                    </FocusItem>
+                  );
+                })}
+              </div>
             )}
           </div>
         </FocusBoundary>
       </OreModal>
 
-      <DirectoryBrowserModal 
-        isOpen={isBrowserOpen} 
-        onClose={() => setIsBrowserOpen(false)} 
-        onSelect={handleDirSelect} 
-        initialPath={browserStartPath} 
+      <DirectoryBrowserModal
+        isOpen={isBrowserOpen}
+        onClose={() => setIsBrowserOpen(false)}
+        onSelect={handleDirSelect}
+        initialPath={browserStartPath}
       />
     </>
   );

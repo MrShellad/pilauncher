@@ -1,25 +1,52 @@
-// /src/features/Download/components/DownloadManager/TaskItem.tsx
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronUp, ChevronDown, CheckCircle, Box, Trash2, List, Terminal, FileDown, AlertTriangle, RotateCcw } from 'lucide-react';
+import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import {
+  AlertTriangle,
+  Box,
+  CheckCircle,
+  ChevronDown,
+  ChevronUp,
+  FileDown,
+  List,
+  RotateCcw,
+  Terminal,
+  Trash2
+} from 'lucide-react';
+
 import { useDownloadStore, type DownloadTask } from '../../../../store/useDownloadStore';
-import { OreButton } from '../../../../ui/primitives/OreButton'; // ✅ 引入 OreUI 标准按钮
+import { OreButton } from '../../../../ui/primitives/OreButton';
 
-export const TaskItem = ({ task, setActiveTab, removeTask }: { task: DownloadTask, setActiveTab: any, removeTask: any }) => {
+export const TaskItem = ({
+  task,
+  taskCount,
+  setActiveTab,
+  removeTask
+}: {
+  task: DownloadTask;
+  taskCount: number;
+  setActiveTab: any;
+  removeTask: any;
+}) => {
   const [showLogs, setShowLogs] = useState(false);
-  
-  const isDone = task.status === 'completed';
-  const isError = task.status === 'error'; 
-  const isResource = task.taskType === 'resource';
 
+  const isDone = task.status === 'completed';
+  const isError = task.status === 'error';
+  const isResource = task.taskType === 'resource';
   const latestLogs = task.logs.slice(-3);
 
-  // ✅ 增强标题响应式长度
   const titleLength = task.title.length;
-  let titleSizeClass = "text-[clamp(12px,1.2vw,16px)]";
-  if (titleLength > 30) titleSizeClass = "text-[clamp(10px,1vw,12px)] leading-tight";
-  else if (titleLength > 20) titleSizeClass = "text-[clamp(11px,1.1vw,14px)]";
+  let titleSizeClass = 'text-[clamp(0.75rem,1.2vw,1rem)]';
+  if (titleLength > 30) titleSizeClass = 'text-[clamp(0.6875rem,1vw,0.8125rem)] leading-tight';
+  else if (titleLength > 20) titleSizeClass = 'text-[clamp(0.75rem,1.1vw,0.875rem)]';
+
+  const handoffFocusInsidePanel = () => {
+    if (taskCount <= 1) return;
+    if (doesFocusableExist('btn-taskpanel-hide')) {
+      setFocus('btn-taskpanel-hide');
+    }
+  };
 
   const renderLogLine = (log: string, index: number) => {
     const timeMatch = log.match(/^(\[.*?\])\s(.*)$/);
@@ -29,14 +56,19 @@ export const TaskItem = ({ task, setActiveTab, removeTask }: { task: DownloadTas
     const msgParts = message.split(highlightRegex);
 
     return (
-      <div key={index} className="truncate flex items-center mb-0.5">
-        {/* ✅ 修复时间戳可读性：使用深色微透背景块包裹时间戳 */}
-        <span className="text-[#A0A0A0] bg-black/40 px-1 rounded-sm mr-2 shrink-0 border border-white/5">{time}</span>
+      <div key={index} className="mb-[0.125rem] flex items-center truncate">
+        <span className="mr-[0.5rem] shrink-0 rounded-[0.1875rem] border border-white/5 bg-black/40 px-[0.25rem] text-[#A0A0A0]">
+          {time}
+        </span>
         <span className="text-gray-300">
           {msgParts.map((part, i) => {
             if (highlightRegex.test(part)) {
               const color = part.includes('失败') || part.includes('异常中断') ? 'text-red-400' : 'text-ore-green';
-              return <span key={i} className={`${color} font-bold`}>{part}</span>;
+              return (
+                <span key={i} className={`${color} font-bold`}>
+                  {part}
+                </span>
+              );
             }
             return <span key={i}>{part}</span>;
           })}
@@ -46,74 +78,91 @@ export const TaskItem = ({ task, setActiveTab, removeTask }: { task: DownloadTas
   };
 
   return (
-    <div className={`bg-[#1E1E1F] border p-3 flex flex-col group relative transition-colors ${isError ? 'border-red-500/50' : 'border-ore-gray-border'}`}>
-      <div className="flex justify-between items-start mb-2">
-        <div className="flex items-center space-x-2 flex-1 min-w-0 pr-4">
+    <div
+      className={`group relative flex flex-col border bg-[#1E1E1F] p-[0.875rem] transition-colors ${
+        isError
+          ? 'border-red-500/50 bg-[var(--ore-downloadDetail-surface)]'
+          : 'border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-surface)]'
+      }`}
+      style={{ boxShadow: 'var(--ore-downloadDetail-sectionShadow)' }}
+    >
+      <div className="mb-[0.625rem] flex items-start justify-between">
+        <div className="flex min-w-0 flex-1 items-center space-x-[0.5rem] pr-[1rem]">
           {isError ? (
-            <AlertTriangle size={16} className="text-red-500 flex-shrink-0" />
+            <AlertTriangle className="h-[1rem] w-[1rem] shrink-0 text-red-500" />
           ) : isResource ? (
-             <FileDown size={16} className={`flex-shrink-0 ${isDone ? 'text-blue-400' : 'text-ore-text-muted'}`} />
+            <FileDown className={`h-[1rem] w-[1rem] shrink-0 ${isDone ? 'text-blue-400' : 'text-ore-text-muted'}`} />
           ) : (
-             <Box size={16} className={`flex-shrink-0 ${isDone ? 'text-ore-green' : 'text-ore-text-muted'}`} />
+            <Box className={`h-[1rem] w-[1rem] shrink-0 ${isDone ? 'text-ore-green' : 'text-ore-text-muted'}`} />
           )}
-          {/* ✅ 应用计算出的动态字体 */}
-          <span className={`font-minecraft truncate ${isError ? 'text-red-400' : 'text-white'} ${titleSizeClass}`}>
+          <span className={`truncate font-minecraft ${isError ? 'text-red-400' : 'text-white'} ${titleSizeClass}`}>
             {task.title}
           </span>
         </div>
-        <div className={`text-xs font-minecraft flex-shrink-0 ${isError ? 'text-red-500' : 'text-ore-text-muted'}`}>
+        <div className={`shrink-0 font-minecraft text-[0.75rem] ${isError ? 'text-red-500' : 'text-[var(--ore-downloadDetail-mutedText)]'}`}>
           {isError ? 'FAILED' : `${task.progress}%`}
         </div>
       </div>
 
-      <div className="text-[10px] text-ore-text-muted mb-2 flex justify-between">
+      <div className="mb-[0.625rem] flex justify-between text-[0.6875rem] text-[var(--ore-downloadDetail-mutedText)]">
         <span className={isError ? 'text-red-400/80' : ''}>{task.stepText}</span>
         <span className="font-mono">{task.speed}</span>
       </div>
 
-      <div className="w-full h-1.5 bg-[#18181B] overflow-hidden mb-3 rounded-sm">
-        <motion.div 
+      <div className="mb-[0.875rem] h-[0.375rem] w-full overflow-hidden rounded-[0.1875rem] bg-[var(--ore-color-background-surface-sunken)]">
+        <motion.div
           className={`h-full ${isError ? 'bg-red-500' : (isDone ? (isResource ? 'bg-blue-400' : 'bg-ore-green') : 'bg-white')}`}
-          initial={{ width: 0 }} animate={{ width: `${task.progress}%` }} transition={{ ease: "linear", duration: 0.5 }}
+          initial={{ width: 0 }}
+          animate={{ width: `${task.progress}%` }}
+          transition={{ ease: 'linear', duration: 0.5 }}
         />
       </div>
 
-      <div className="bg-[#141415] border border-[#2A2A2C] rounded-sm p-1.5 mb-2 h-[60px] overflow-hidden flex flex-col justify-end text-[10px] font-mono leading-relaxed relative">
-        <Terminal size={12} className="absolute top-1.5 right-1.5 text-ore-gray-border/30" />
+      <div
+        className="relative mb-[0.625rem] flex h-[4.25rem] flex-col justify-end overflow-hidden rounded-[0.1875rem] border border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] p-[0.375rem] font-mono text-[0.6875rem] leading-[1.45]"
+        style={{ boxShadow: 'var(--ore-downloadDetail-sectionInset)' }}
+      >
+        <Terminal className="absolute right-[0.375rem] top-[0.375rem] h-[0.75rem] w-[0.75rem] text-[var(--ore-downloadDetail-mutedText)] opacity-40" />
         {latestLogs.map((log, i) => renderLogLine(log, i))}
       </div>
 
-      <div className="flex justify-between items-center mt-2">
-        {/* ✅ 日志展开按钮接入焦点 */}
+      <div className="mt-[0.5rem] flex items-center justify-between">
         <div className="origin-left">
-          <OreButton 
-            focusKey={`btn-log-${task.id}`} 
-            variant="ghost" 
+          <OreButton
+            focusKey={`btn-log-${task.id}`}
+            variant="ghost"
             size="auto"
             autoScroll={false}
-            onClick={() => setShowLogs(!showLogs)} 
-            className="!h-10 !px-3 !min-w-0"
+            onClick={() => setShowLogs(!showLogs)}
+            className="!min-w-0 !h-[clamp(2.375rem,3vw,2.75rem)] !px-[0.75rem]"
           >
-            <div className="flex items-center text-sm text-ore-text-muted hover:text-white transition-colors">
-              <List size={14} className="mr-1" /> 全部日志 {showLogs ? <ChevronUp size={12} className="ml-1" /> : <ChevronDown size={12} className="ml-1" />}
+            <div className="flex items-center text-[0.875rem] text-ore-text-muted transition-colors hover:text-white">
+              <List className="mr-[0.25rem] h-[0.875rem] w-[0.875rem]" />
+              全部日志
+              {showLogs ? (
+                <ChevronUp className="ml-[0.25rem] h-[0.75rem] w-[0.75rem]" />
+              ) : (
+                <ChevronDown className="ml-[0.25rem] h-[0.75rem] w-[0.75rem]" />
+              )}
             </div>
           </OreButton>
         </div>
-        
-        <div className="flex space-x-2 origin-right">
+
+        <div className="origin-right flex space-x-[0.5rem]">
           {!isDone && !isError ? (
-            <OreButton 
-              focusKey={`btn-cancel-${task.id}`} 
-              variant="danger" 
+            <OreButton
+              focusKey={`btn-cancel-${task.id}`}
+              variant="danger"
               size="auto"
               autoScroll={false}
               onClick={() => {
+                handoffFocusInsidePanel();
                 invoke('cancel_instance_deployment', { instanceId: task.id }).catch(console.error);
                 useDownloadStore.getState().cancelTask(task.id);
               }}
-              className="!h-10 !px-4 !min-w-0 text-white"
+              className="!min-w-0 !h-[clamp(2.375rem,3vw,2.75rem)] !px-[1rem] text-white"
             >
-              <Trash2 size={16} />
+              <Trash2 className="h-[1rem] w-[1rem]" />
             </OreButton>
           ) : (
             <>
@@ -128,39 +177,45 @@ export const TaskItem = ({ task, setActiveTab, removeTask }: { task: DownloadTas
                       id: task.id,
                       status: 'downloading',
                       stage: task.stage,
-                      message: '正在准备重试...',
+                      message: '正在准备重试...'
                     });
                     invoke(task.retryAction!, { ...task.retryPayload }).catch((err) => {
-                      console.error("重试失败:", err);
+                      console.error('重试失败:', err);
                       useDownloadStore.getState().addOrUpdateTask({
                         id: task.id,
                         status: 'error',
                         stage: 'ERROR',
-                        message: `重试指令发送失败: ${err}`,
+                        message: `重试指令发送失败: ${err}`
                       });
                     });
                   }}
-                  className="!h-10 !px-4 !min-w-0 text-sm bg-ore-green hover:bg-ore-green-hover text-black border-[#4CAF50]"
+                  className="!min-w-0 !h-[clamp(2.375rem,3vw,2.75rem)] !px-[1rem] border-[#4CAF50] bg-ore-green text-[0.875rem] text-black hover:bg-ore-green-hover"
                 >
                   <div className="flex items-center font-bold">
-                    <RotateCcw size={16} className="mr-1.5" /> 重试
+                    <RotateCcw className="mr-[0.375rem] h-[1rem] w-[1rem]" />
+                    重试
                   </div>
                 </OreButton>
               )}
-              <OreButton 
-                focusKey={`btn-complete-${task.id}`} 
-                variant={isError ? "danger" : "primary"}
+              <OreButton
+                focusKey={`btn-complete-${task.id}`}
+                variant={isError ? 'danger' : 'primary'}
                 size="auto"
                 autoScroll={false}
-                onClick={() => { 
-                  removeTask(task.id); 
-                  if (!isResource && isDone) setActiveTab('instances'); 
+                onClick={() => {
+                  handoffFocusInsidePanel();
+                  removeTask(task.id);
+                  if (!isResource && isDone) setActiveTab('instances');
                 }}
-                className="!h-10 !px-4 !min-w-0 text-sm"
-                style={isResource ? { backgroundColor: '#3b82f6', borderColor: '#2563eb' } : {}} // 资源下载显示蓝色完成
+                className="!min-w-0 !h-[clamp(2.375rem,3vw,2.75rem)] !px-[1rem] text-[0.875rem]"
+                style={isResource ? { backgroundColor: '#3b82f6', borderColor: '#2563eb' } : {}}
               >
                 <div className="flex items-center">
-                  {isError ? <Trash2 size={16} className="mr-1" /> : <CheckCircle size={16} className="mr-1" />} 
+                  {isError ? (
+                    <Trash2 className="mr-[0.25rem] h-[1rem] w-[1rem]" />
+                  ) : (
+                    <CheckCircle className="mr-[0.25rem] h-[1rem] w-[1rem]" />
+                  )}
                   {isError ? '清除记录' : (isResource ? '关闭' : '前往配置')}
                 </div>
               </OreButton>
@@ -171,9 +226,11 @@ export const TaskItem = ({ task, setActiveTab, removeTask }: { task: DownloadTas
 
       <AnimatePresence>
         {showLogs && (
-          <motion.div 
-            initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-            className="mt-3 bg-[#141415] p-2 h-36 overflow-y-auto custom-scrollbar text-[10px] font-mono leading-relaxed border border-[#2A2A2C] rounded-sm"
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="custom-scrollbar mt-[0.75rem] h-[9rem] overflow-y-auto rounded-[0.1875rem] border border-[#2A2A2C] bg-[#141415] p-[0.5rem] font-mono text-[0.6875rem] leading-[1.45]"
           >
             {task.logs.map((log, i) => renderLogLine(log, i))}
           </motion.div>

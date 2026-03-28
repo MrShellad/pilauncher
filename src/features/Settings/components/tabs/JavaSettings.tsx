@@ -54,7 +54,10 @@ export const JavaSettings: React.FC = () => {
       'settings-java-autodetect'
     ];
     if (!java.autoDetect && !isDetecting) {
-      keys.push('java-input-path', 'java-btn-browse');
+      keys.push('settings-java-global-btn-browse');
+      ['8', '16', '17', '21'].forEach((version) => {
+        keys.push(`settings-java-${version}-btn-browse`);
+      });
     }
     keys.push('java-slider-memory', 'java-btn-recommend', 'java-input-jvm');
     return keys;
@@ -187,6 +190,7 @@ export const JavaSettings: React.FC = () => {
           control={
             <div className="w-full relative">
               <JavaSelector
+                focusKeyPrefix="settings-java-global"
                 onArrowPress={handleLinearArrow}
                 value={(java.autoDetect && !java.javaPath) ? '缺少Java环境' : (java.javaPath || '')}
                 onChange={(v) => {
@@ -207,19 +211,20 @@ export const JavaSettings: React.FC = () => {
            <div className="h-[1px] bg-white/5 w-full my-2" />
            <p className="text-xs text-ore-text-muted mb-4 uppercase tracking-wider font-bold">版本化全局配置 (推荐)</p>
            
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+           <div className="flex flex-col gap-4">
               {[
                 { id: '8', label: 'Java 8', desc: '适用于 1.16.5 及更早版本' },
                 { id: '16', label: 'Java 16', desc: '专门用于 1.17 / 1.17.1' },
                 { id: '17', label: 'Java 17', desc: '适用于 1.18 - 1.20.4' },
                 { id: '21', label: 'Java 21', desc: '适用于 1.20.5 及更新版本' },
               ].map((item) => (
-                <div key={item.id} className="flex flex-col gap-1">
+                <div key={item.id} className="flex w-full flex-col gap-2">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-minecraft">{item.label}</span>
                     <span className="text-[10px] text-ore-text-muted">{item.desc}</span>
                   </div>
                   <JavaSelector
+                    focusKeyPrefix={`settings-java-${item.id}`}
                     onArrowPress={handleLinearArrow}
                     value={(java.autoDetect && !java.majorJavaPaths[item.id]) ? '缺少Java环境' : (java.majorJavaPaths[item.id] || '')}
                     onChange={(v) => {
