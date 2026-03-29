@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Blocks, CheckCircle2, Clock3, Download, Heart, Loader2, Monitor, Tags } from 'lucide-react';
-import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import fabricIcon from '../../../assets/icons/tags/loaders/fabric.svg';
 import forgeIcon from '../../../assets/icons/tags/loaders/forge.svg';
@@ -14,10 +13,12 @@ import { FocusItem } from '../../../ui/focus/FocusItem';
 import { ControlHint } from '../../../ui/components/ControlHint';
 import type { ModMeta } from '../../InstanceDetail/logic/modService';
 import type { ModrinthProject } from '../../InstanceDetail/logic/modrinthApi';
+import type { FilterOption } from '../hooks/useResourceDownload';
 import {
-  getCurseForgeCategoryFallbackLabel,
-  getCurseForgeCategoryTranslationKey
-} from '../logic/curseforgeApi';
+  findDownloadTagOption,
+  getLocalizedDownloadTagLabel,
+  prettifyDownloadTagLabel
+} from '../logic/downloadTagLabels';
 
 interface ResourceGridProps {
   results: ModrinthProject[];
@@ -29,6 +30,7 @@ interface ResourceGridProps {
   onSelectProject: (project: ModrinthProject) => void;
   scrollContainerId?: string;
   onScrollTopChange?: (scrollTop: number) => void;
+  categoryOptions?: FilterOption[];
 }
 
 interface ResourceCardProps {
@@ -40,6 +42,7 @@ interface ResourceCardProps {
   onLoadMore: () => void;
   onSelectProject: (project: ModrinthProject) => void;
   isNearBottom: boolean;
+  categoryOptions?: FilterOption[];
 }
 
 const KNOWN_LOADERS = ['fabric', 'forge', 'neoforge', 'quilt', 'liteloader'];
@@ -65,68 +68,6 @@ const formatNumber = (value?: number) => {
   return value.toString();
 };
 
-export const prettifyDownloadTagLabel = (value: string) =>
-  value
-    .split(/[-_]/g)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-
-const normalizeDownloadTagKey = (value: string) =>
-  value.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-
-interface DownloadTagLabelOptions {
-  t: TFunction;
-  language?: string;
-  source?: string;
-  raw: string;
-  display?: string;
-  translationKey?: string;
-  defaultLabel?: string;
-  labels?: Record<string, string>;
-}
-
-const resolveConfiguredLabel = (labels?: Record<string, string>, language?: string) => {
-  if (!labels) return '';
-
-  const exact = language ? labels[language] : '';
-  if (exact) return exact;
-
-  const baseLanguage = language?.split('-')[0];
-  if (baseLanguage) {
-    const matchedEntry = Object.entries(labels).find(([key]) => key.split('-')[0] === baseLanguage);
-    if (matchedEntry?.[1]) return matchedEntry[1];
-  }
-
-  return labels['en-US'] || labels.en || Object.values(labels)[0] || '';
-};
-
-export const getLocalizedDownloadTagLabel = ({
-  t,
-  language,
-  source,
-  raw,
-  display,
-  translationKey,
-  defaultLabel,
-  labels
-}: DownloadTagLabelOptions) => {
-  const configuredLabel = resolveConfiguredLabel(labels, language);
-  if (configuredLabel) {
-    return configuredLabel;
-  }
-
-  if (source === 'curseforge') {
-    return t(getCurseForgeCategoryTranslationKey(raw), {
-      defaultValue: getCurseForgeCategoryFallbackLabel(raw, display || defaultLabel || '')
-    });
-  }
-
-  return t(translationKey || `download.categories.${normalizeDownloadTagKey(raw)}`, {
-    defaultValue: defaultLabel || prettifyDownloadTagLabel(display || raw)
-  });
-};
-
 const filterFallbackTargets = [
   'filter-mc-version',
   'filter-loader',
@@ -142,7 +83,8 @@ const ResourceCard = React.memo(({
   canLoadMore,
   onLoadMore,
   onSelectProject,
-  isNearBottom
+  isNearBottom,
+  categoryOptions
 }: ResourceCardProps) => {
   const { t, i18n } = useTranslation();
   const cardRef = useRef<HTMLButtonElement | null>(null);
@@ -320,21 +262,28 @@ const ResourceCard = React.memo(({
                   </div>
 
                   <div className="mt-[0.75rem] flex min-h-[2rem] shrink-0 flex-wrap content-end gap-[0.4375rem] overflow-hidden">
-                    {features.map((feature) => (
-                      <span
-                        key={`${feature.raw}-${feature.display}`}
-                        className="inline-flex items-center gap-[0.3125rem] whitespace-nowrap border-[2px] border-[#262729] bg-[#90A6D6] px-[0.5625rem] py-[0.25rem] text-[0.75rem] font-minecraft uppercase tracking-[0.14em] text-black shadow-[inset_0_-2px_0_#61749C]"
-                      >
-                        <Tags className="h-[0.75rem] w-[0.75rem]" />
-                        {getLocalizedDownloadTagLabel({
-                          t,
-                          language: i18n.language,
-                          source: project.source,
-                          raw: feature.raw,
-                          display: feature.display
-                        })}
-                      </span>
-                    ))}
+                    {features.map((feature) => {
+                      const configuredFeature = findDownloadTagOption(categoryOptions || [], feature.raw, feature.display);
+
+                      return (
+                        <span
+                          key={`${feature.raw}-${feature.display}`}
+                          className="inline-flex items-center gap-[0.3125rem] whitespace-nowrap border-[2px] border-[#262729] bg-[#90A6D6] px-[0.5625rem] py-[0.25rem] text-[0.75rem] font-minecraft uppercase tracking-[0.14em] text-black shadow-[inset_0_-2px_0_#61749C]"
+                        >
+                          <Tags className="h-[0.75rem] w-[0.75rem]" />
+                          {getLocalizedDownloadTagLabel({
+                            t,
+                            language: i18n.language,
+                            source: project.source,
+                            raw: feature.raw,
+                            display: feature.display,
+                            translationKey: configuredFeature?.translationKey,
+                            defaultLabel: configuredFeature?.defaultLabel,
+                            labels: configuredFeature?.labels
+                          })}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -381,7 +330,8 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   onLoadMore,
   onSelectProject,
   scrollContainerId,
-  onScrollTopChange
+  onScrollTopChange,
+  categoryOptions
 }) => {
   const observerTarget = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -478,6 +428,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
                   onLoadMore={triggerLoadMore}
                   onSelectProject={onSelectProject}
                   isNearBottom={index >= results.length - 6}
+                  categoryOptions={categoryOptions}
                 />
               ))}
 

@@ -1,5 +1,7 @@
 // src-tauri/src/commands/instance/save_cmd.rs
-use crate::services::instance::save_manager::{SaveBackupMetadata, SaveItem, SaveManagerService};
+use crate::services::instance::save_manager::{
+    SaveBackupMetadata, SaveItem, SaveManagerService, SaveRestoreCheckResult, SaveRestoreResult,
+};
 use tauri::{AppHandle, Runtime};
 
 #[tauri::command]
@@ -27,12 +29,38 @@ pub async fn delete_save<R: Runtime>(
 }
 
 #[tauri::command]
+pub async fn delete_save_backup<R: Runtime>(
+    app: AppHandle<R>,
+    id: String,
+    backup_id: String,
+) -> Result<(), String> {
+    SaveManagerService::delete_backup(&app, &id, &backup_id)
+}
+
+#[tauri::command]
 pub async fn verify_save_restore<R: Runtime>(
     app: AppHandle<R>,
     id: String,
-    backup_uuid: String,
-) -> Result<Vec<String>, String> {
-    SaveManagerService::verify_restore(&app, &id, &backup_uuid)
+    backup_id: String,
+) -> Result<SaveRestoreCheckResult, String> {
+    SaveManagerService::verify_restore(&app, &id, &backup_id)
+}
+
+#[tauri::command]
+pub async fn restore_save_backup<R: Runtime>(
+    app: AppHandle<R>,
+    id: String,
+    backup_id: String,
+    restore_configs: bool,
+    auto_backup_current: bool,
+) -> Result<SaveRestoreResult, String> {
+    SaveManagerService::restore_backup(
+        &app,
+        &id,
+        &backup_id,
+        restore_configs,
+        auto_backup_current,
+    )
 }
 
 #[tauri::command]

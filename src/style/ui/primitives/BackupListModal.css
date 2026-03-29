@@ -1,0 +1,263 @@
+@tailwind components;
+
+.ore-backup-list-modal {
+  --ore-backup-list-width: 68rem;
+  --ore-backup-list-height: 48rem;
+  --ore-backup-list-padding: clamp(1rem, 1.8vw, 1.6rem);
+  --ore-backup-list-gap: clamp(0.85rem, 1.2vw, 1.1rem);
+
+  width: min(var(--ore-backup-list-width), 94vw);
+  height: min(var(--ore-backup-list-height), 88vh);
+}
+
+.ore-backup-list-modal__content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 18%),
+    var(--ore-modal-bg);
+}
+
+.ore-backup-list-modal__hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: clamp(0.75rem, 1.2vw, 1rem);
+  align-items: center;
+  padding: clamp(0.8rem, 1.08vw, 1rem) var(--ore-backup-list-padding);
+  border-bottom: 2px solid var(--ore-color-border-primary-default);
+  background:
+    linear-gradient(180deg, rgba(108, 195, 73, 0.22) 0%, rgba(108, 195, 73, 0.06) 100%),
+    #343a32;
+  box-shadow:
+    inset 0 2px rgba(255, 255, 255, 0.1),
+    inset 0 -4px rgba(0, 0, 0, 0.22);
+}
+
+.ore-backup-list-modal__hero-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(2.8rem, 4vw, 3.5rem);
+  height: clamp(2.8rem, 4vw, 3.5rem);
+  border: 2px solid var(--ore-color-border-primary-default);
+  background: rgba(108, 195, 73, 0.16);
+  color: var(--ore-color-text-success-default);
+  box-shadow:
+    inset 0 -4px rgba(0, 0, 0, 0.22),
+    inset 2px 2px rgba(255, 255, 255, 0.1);
+}
+
+.ore-backup-list-modal__hero-title {
+  margin: 0;
+  color: var(--ore-color-text-primary-default);
+  font-size: clamp(1.1rem, 1.42vw, 1.42rem);
+  line-height: 1.1;
+}
+
+.ore-backup-list-modal__hero-text {
+  margin: 0.28rem 0 0;
+  color: var(--ore-color-text-muted-strong);
+  font-size: clamp(0.86rem, 0.96vw, 0.96rem);
+  line-height: 1.5;
+}
+
+.ore-backup-list-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--ore-backup-list-padding);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ore-backup-list-gap);
+  scrollbar-gutter: stable both-edges;
+}
+
+.ore-backup-list-modal__card,
+.ore-backup-list-modal__empty {
+  border: 2px solid var(--ore-color-border-primary-default);
+  box-shadow:
+    inset 0 -4px rgba(0, 0, 0, 0.18),
+    inset 2px 2px rgba(255, 255, 255, 0.08);
+}
+
+.ore-backup-list-modal__card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ore-backup-list-gap);
+  background: var(--ore-color-background-surface-default);
+  padding: clamp(0.95rem, 1.2vw, 1.15rem);
+}
+
+.ore-backup-list-modal__card-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.95rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.ore-backup-list-modal__card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  flex-shrink: 0;
+  border: 2px solid var(--ore-color-border-primary-default);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ore-color-text-success-default);
+}
+
+.ore-backup-list-modal__card-header,
+.ore-backup-list-modal__meta-row,
+.ore-backup-list-modal__pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.ore-backup-list-modal__card-title {
+  color: var(--ore-color-text-primary-default);
+  font-size: clamp(1rem, 1.18vw, 1.18rem);
+  line-height: 1.35;
+}
+
+.ore-backup-list-modal__tag,
+.ore-backup-list-modal__pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32rem;
+  min-height: 1.85rem;
+  padding: 0.22rem 0.68rem;
+  border: 2px solid var(--ore-color-border-primary-default);
+  box-shadow: inset 2px 2px rgba(255, 255, 255, 0.08);
+}
+
+.ore-backup-list-modal__tag {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ore-color-text-muted-strong);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ore-backup-list-modal__tag--accent {
+  background: rgba(255, 232, 102, 0.12);
+  color: #ffe866;
+}
+
+.ore-backup-list-modal__tag--safe {
+  background: rgba(108, 195, 73, 0.16);
+  border-color: rgba(108, 195, 73, 0.48);
+  color: #efffe7;
+}
+
+.ore-backup-list-modal__meta-row {
+  margin-top: 0.7rem;
+  color: var(--ore-color-text-secondary-default);
+  font-size: clamp(0.84rem, 0.96vw, 0.95rem);
+  line-height: 1.5;
+}
+
+.ore-backup-list-modal__time {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  min-width: 15rem;
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.ore-backup-list-modal__pill-row {
+  margin-top: 0.72rem;
+}
+
+.ore-backup-list-modal__pill {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ore-color-text-secondary-default);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.ore-backup-list-modal__card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: min(14rem, 100%);
+  flex: 0 0 14rem;
+}
+
+.ore-backup-list-modal__action-button {
+  min-height: 3rem !important;
+  width: 100%;
+}
+
+.ore-backup-list-modal__empty {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin: var(--ore-backup-list-padding);
+  padding: clamp(1.2rem, 2vw, 1.8rem);
+  background: var(--ore-color-background-surface-default);
+  text-align: center;
+}
+
+.ore-backup-list-modal__empty-icon {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.ore-backup-list-modal__empty-title {
+  margin: 0;
+  color: var(--ore-color-text-primary-default);
+  font-size: clamp(1rem, 1.14vw, 1.14rem);
+}
+
+.ore-backup-list-modal__empty-text {
+  max-width: 30rem;
+  margin: 0;
+  color: var(--ore-color-text-secondary-default);
+  font-size: clamp(0.9rem, 0.98vw, 0.96rem);
+  line-height: 1.6;
+}
+
+.ore-backup-list-modal__empty-button {
+  min-width: 10rem;
+  margin-top: 0.4rem;
+}
+
+@media (max-width: 70rem) {
+  .ore-backup-list-modal {
+    --ore-backup-list-width: 95vw;
+    --ore-backup-list-height: 88vh;
+  }
+
+  .ore-backup-list-modal__card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ore-backup-list-modal__card-actions {
+    width: 100%;
+    flex-basis: auto;
+  }
+}
+
+@media (max-width: 56rem) {
+  .ore-backup-list-modal__hero {
+    grid-template-columns: 1fr;
+  }
+
+  .ore-backup-list-modal__time {
+    min-width: 0;
+    width: 100%;
+  }
+}

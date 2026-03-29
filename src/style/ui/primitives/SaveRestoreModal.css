@@ -1,0 +1,556 @@
+@tailwind components;
+
+.ore-save-restore-modal {
+  --ore-save-restore-width: 60rem;
+  --ore-save-restore-height: 47rem;
+  --ore-save-restore-scale: 1;
+  --ore-save-restore-padding: clamp(1rem, 1.8vw, 1.75rem);
+  --ore-save-restore-gap: clamp(0.875rem, 1.35vw, 1.2rem);
+
+  width: calc(min(var(--ore-save-restore-width), 94vw) / var(--ore-save-restore-scale));
+  height: calc(min(var(--ore-save-restore-height), 88vh) / var(--ore-save-restore-scale));
+  zoom: var(--ore-save-restore-scale);
+}
+
+.ore-save-restore-modal__content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 18%),
+    var(--ore-modal-bg);
+}
+
+.ore-save-restore-modal__hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: clamp(0.75rem, 1.2vw, 1rem);
+  align-items: center;
+  padding: clamp(0.78rem, 1.05vw, 0.98rem) var(--ore-save-restore-padding);
+  border-bottom: 2px solid var(--ore-color-border-primary-default);
+  box-shadow:
+    inset 0 2px rgba(255, 255, 255, 0.1),
+    inset 0 -4px rgba(0, 0, 0, 0.22);
+}
+
+.ore-save-restore-modal__hero--loading {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 100%),
+    #3a3b3d;
+}
+
+.ore-save-restore-modal__hero--safe {
+  background:
+    linear-gradient(180deg, rgba(108, 195, 73, 0.28) 0%, rgba(108, 195, 73, 0.08) 100%),
+    #343a32;
+}
+
+.ore-save-restore-modal__hero--warning {
+  background:
+    linear-gradient(180deg, rgba(195, 54, 54, 0.32) 0%, rgba(195, 54, 54, 0.1) 100%),
+    #3b3232;
+}
+
+.ore-save-restore-modal__hero-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(2.8rem, 4vw, 3.5rem);
+  height: clamp(2.8rem, 4vw, 3.5rem);
+  border: 2px solid var(--ore-color-border-primary-default);
+  box-shadow:
+    inset 0 -4px rgba(0, 0, 0, 0.22),
+    inset 2px 2px rgba(255, 255, 255, 0.1);
+}
+
+.ore-save-restore-modal__hero-icon--loading {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ore-color-text-primary-default);
+}
+
+.ore-save-restore-modal__hero-icon--safe {
+  background: rgba(108, 195, 73, 0.16);
+  color: var(--ore-color-text-success-default);
+}
+
+.ore-save-restore-modal__hero-icon--warning {
+  background: rgba(244, 109, 109, 0.18);
+  color: var(--ore-color-text-danger-default);
+}
+
+.ore-save-restore-modal__hero-title {
+  margin: 0;
+  color: var(--ore-color-text-primary-default);
+  font-size: clamp(1.1rem, 1.42vw, 1.42rem);
+  line-height: 1.1;
+}
+
+.ore-save-restore-modal__hero-text {
+  margin: 0.28rem 0 0;
+  color: var(--ore-color-text-muted-strong);
+  font-size: clamp(0.86rem, 0.96vw, 0.96rem);
+  line-height: 1.5;
+}
+
+.ore-save-restore-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--ore-save-restore-padding);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ore-save-restore-gap);
+  scrollbar-gutter: stable both-edges;
+}
+
+.ore-save-restore-modal__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ore-save-restore-gap);
+  align-items: stretch;
+}
+
+.ore-save-restore-modal__panel,
+.ore-save-restore-modal__option,
+.ore-save-restore-modal__warning,
+.ore-save-restore-modal__error {
+  border: 2px solid var(--ore-color-border-primary-default);
+  box-shadow:
+    inset 0 -4px rgba(0, 0, 0, 0.18),
+    inset 2px 2px rgba(255, 255, 255, 0.08);
+}
+
+.ore-save-restore-modal__panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--ore-color-background-surface-default);
+  padding: clamp(0.88rem, 1.15vw, 1.12rem);
+}
+
+.ore-save-restore-modal__panel--balanced {
+  min-height: clamp(10.25rem, 22vh, 11.6rem);
+}
+
+.ore-save-restore-modal__panel-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.72rem;
+  min-height: 0;
+}
+
+.ore-save-restore-modal__panel-label {
+  margin: 0;
+  color: var(--ore-color-text-muted-strong);
+  font-size: clamp(0.72rem, 0.8vw, 0.82rem);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.ore-save-restore-modal__panel-value {
+  margin: 0.62rem 0 0;
+  color: var(--ore-color-text-primary-default);
+  font-size: clamp(1rem, 1.12vw, 1.14rem);
+  line-height: 1.45;
+  font-weight: 700;
+}
+
+.ore-save-restore-modal__panel-subtext {
+  margin: 0.42rem 0 0;
+  color: var(--ore-color-text-secondary-default);
+  font-size: clamp(0.86rem, 0.98vw, 0.96rem);
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.ore-save-restore-modal__environment-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(15rem, 0.95fr);
+  gap: 0.8rem;
+  margin-top: 0.72rem;
+  align-items: stretch;
+}
+
+.ore-save-restore-modal__environment-block,
+.ore-save-restore-modal__status-panel {
+  min-height: 0;
+  border: 2px solid var(--ore-color-border-primary-default);
+  background: rgba(0, 0, 0, 0.16);
+  box-shadow:
+    inset 0 -4px rgba(0, 0, 0, 0.14),
+    inset 2px 2px rgba(255, 255, 255, 0.06);
+}
+
+.ore-save-restore-modal__environment-block {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0.4rem 0.85rem;
+}
+
+.ore-save-restore-modal__environment-row {
+  display: grid;
+  grid-template-columns: minmax(9.5rem, 11rem) minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: center;
+  min-height: 3.1rem;
+  padding: 0.38rem 0;
+}
+
+.ore-save-restore-modal__environment-row + .ore-save-restore-modal__environment-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ore-save-restore-modal__environment-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.52rem;
+  min-width: 0;
+}
+
+.ore-save-restore-modal__environment-icon {
+  flex-shrink: 0;
+}
+
+.ore-save-restore-modal__environment-icon--core {
+  color: #8cb3ff;
+}
+
+.ore-save-restore-modal__environment-icon--loader {
+  color: #ffe866;
+}
+
+.ore-save-restore-modal__environment-key {
+  color: var(--ore-color-text-muted-strong);
+  font-size: clamp(0.78rem, 0.82vw, 0.84rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ore-save-restore-modal__environment-value {
+  justify-self: end;
+  min-width: 0;
+  text-align: right;
+  color: var(--ore-color-text-primary-default);
+  font-size: clamp(0.88rem, 0.94vw, 0.98rem);
+  font-weight: 700;
+}
+
+.ore-save-restore-modal__environment-value--mono {
+  font-family: Consolas, "SFMono-Regular", Menlo, Monaco, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.ore-save-restore-modal__status-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.72rem 0.82rem;
+}
+
+.ore-save-restore-modal__status-heading {
+  margin: 0;
+  color: var(--ore-color-text-muted-strong);
+  font-size: clamp(0.72rem, 0.8vw, 0.82rem);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.ore-save-restore-modal__status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.48rem;
+  min-height: 0;
+}
+
+.ore-save-restore-modal__metric-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: auto;
+}
+
+.ore-save-restore-modal__pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.9rem;
+  padding: 0.25rem 0.7rem;
+  border: 2px solid var(--ore-color-border-primary-default);
+  font-size: clamp(0.74rem, 0.78vw, 0.82rem);
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  box-shadow: inset 2px 2px rgba(255, 255, 255, 0.08);
+}
+
+.ore-save-restore-modal__pill--metric {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ore-color-text-secondary-default);
+}
+
+.ore-save-restore-modal__status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  min-height: 2.45rem;
+  padding: 0.42rem 0.72rem;
+  border: 2px solid var(--ore-color-border-primary-default);
+  box-shadow:
+    inset 0 -4px rgba(0, 0, 0, 0.16),
+    inset 2px 2px rgba(255, 255, 255, 0.08);
+  font-size: clamp(0.8rem, 0.85vw, 0.88rem);
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.ore-save-restore-modal__status-row--ok {
+  background: rgba(108, 195, 73, 0.26);
+  border-color: rgba(108, 195, 73, 0.58);
+  color: #f3fff0;
+}
+
+.ore-save-restore-modal__status-row--warn {
+  background: rgba(195, 54, 54, 0.3);
+  border-color: rgba(244, 109, 109, 0.56);
+  color: #fff2f2;
+}
+
+.ore-save-restore-modal__status-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  min-width: 0;
+}
+
+.ore-save-restore-modal__status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.ore-save-restore-modal__status-label {
+  min-width: 0;
+}
+
+.ore-save-restore-modal__status-state {
+  flex-shrink: 0;
+  color: currentColor;
+  font-size: clamp(0.72rem, 0.78vw, 0.8rem);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ore-save-restore-modal__option {
+  background: #48494a;
+  padding: 0;
+}
+
+.ore-save-restore-modal__footer {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.35rem, 0.55vw, 0.5rem);
+  width: 100%;
+}
+
+.ore-save-restore-modal__footer-option {
+  width: 100%;
+}
+
+.ore-save-restore-modal__footer-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 1.8rem;
+}
+
+.ore-save-restore-modal__scroll-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0.1rem;
+  color: var(--ore-color-text-muted-strong);
+  font-size: clamp(0.76rem, 0.82vw, 0.84rem);
+  line-height: 1.4;
+}
+
+.ore-save-restore-modal__toggle {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: clamp(0.9rem, 1.4vw, 1.1rem);
+  width: 100%;
+  padding: clamp(0.95rem, 1.2vw, 1.2rem);
+  background: transparent;
+  color: var(--ore-color-text-primary-default);
+  text-align: left;
+  border: 0;
+  outline: none;
+}
+
+.ore-save-restore-modal__toggle.is-focused {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ore-save-restore-modal__checkbox {
+  position: relative;
+  width: clamp(1.4rem, 2vw, 1.6rem);
+  height: clamp(1.4rem, 2vw, 1.6rem);
+  margin-top: 0.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #8c8d90;
+  color: transparent;
+  border: 2px solid var(--ore-color-border-primary-default);
+  box-shadow:
+    inset 2px 2px rgba(255, 255, 255, 0.2),
+    inset -2px -2px rgba(255, 255, 255, 0.08);
+}
+
+.ore-save-restore-modal__checkbox.is-checked {
+  background: var(--ore-color-background-primary-default);
+  color: var(--ore-color-text-primary-default);
+}
+
+.ore-save-restore-modal__option-title {
+  margin: 0;
+  color: var(--ore-color-text-primary-default);
+  font-size: clamp(1rem, 1.12vw, 1.1rem);
+  line-height: 1.4;
+}
+
+.ore-save-restore-modal__option-text {
+  margin: 0.35rem 0 0;
+  color: var(--ore-color-text-secondary-default);
+  font-size: clamp(0.9rem, 1vw, 0.98rem);
+  line-height: 1.6;
+}
+
+.ore-save-restore-modal__warning {
+  background: rgba(195, 54, 54, 0.12);
+  padding: clamp(0.95rem, 1.18vw, 1.15rem);
+}
+
+.ore-save-restore-modal__warning-title {
+  margin: 0 0 0.72rem;
+  color: #ffe7e7;
+  font-size: clamp(0.95rem, 1.02vw, 1.06rem);
+}
+
+.ore-save-restore-modal__warning-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  max-height: min(15rem, 32vh);
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.ore-save-restore-modal__warning-item {
+  padding: 0.7rem 0.8rem;
+  background: rgba(0, 0, 0, 0.18);
+  color: #fff2f2;
+  border: 2px solid rgba(0, 0, 0, 0.18);
+  font-size: clamp(0.88rem, 0.95vw, 0.96rem);
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.ore-save-restore-modal__error {
+  background: rgba(195, 54, 54, 0.18);
+  padding: 0.9rem 1rem;
+  color: #fff3f3;
+  font-size: clamp(0.9rem, 0.98vw, 0.97rem);
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.ore-save-restore-modal__actions {
+  display: flex;
+  width: 100%;
+  gap: clamp(0.55rem, 0.9vw, 0.75rem);
+}
+
+.ore-save-restore-modal__action-button {
+  flex: 1 1 0;
+  min-height: clamp(2.9rem, 5vh, 3.4rem) !important;
+  min-width: 0 !important;
+}
+
+.ore-save-restore-modal__action-button .lucide {
+  width: clamp(1rem, 1.25vw, 1.12rem);
+  height: clamp(1rem, 1.25vw, 1.12rem);
+}
+
+@media (max-width: 56rem) {
+  .ore-save-restore-modal {
+    --ore-save-restore-width: 95vw;
+    --ore-save-restore-height: 88vh;
+  }
+
+  .ore-save-restore-modal__hero {
+    grid-template-columns: 1fr;
+  }
+
+  .ore-save-restore-modal__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ore-save-restore-modal__environment-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .ore-save-restore-modal__status-list {
+    justify-content: flex-start;
+  }
+
+  .ore-save-restore-modal__environment-row {
+    grid-template-columns: 1fr;
+    gap: 0.28rem;
+    align-items: flex-start;
+  }
+
+  .ore-save-restore-modal__environment-value {
+    justify-self: start;
+    text-align: left;
+  }
+
+  .ore-save-restore-modal__footer-meta {
+    justify-content: flex-start;
+  }
+
+  .ore-save-restore-modal__actions {
+    flex-direction: column-reverse;
+  }
+}
+
+@media (min-width: 90rem) {
+  .ore-save-restore-modal {
+    --ore-save-restore-width: 64rem;
+    --ore-save-restore-height: 49rem;
+    --ore-save-restore-scale: 1.04;
+  }
+}
+
+@media (min-width: 120rem) {
+  .ore-save-restore-modal {
+    --ore-save-restore-width: 68rem;
+    --ore-save-restore-height: 52rem;
+    --ore-save-restore-scale: 1.1;
+  }
+}
+
+@media (min-width: 160rem) {
+  .ore-save-restore-modal {
+    --ore-save-restore-width: 72rem;
+    --ore-save-restore-height: 56rem;
+    --ore-save-restore-scale: 1.18;
+  }
+}

@@ -199,6 +199,7 @@ const ResourceDownloadPage: React.FC = () => {
         isLoading={isLoading && results.length === 0}
         isLoadingMore={isLoadingMore}
         hasMore={hasMore}
+        categoryOptions={categoryOptions}
         onLoadMore={loadMore}
         onSelectProject={(project) => {
           const currentFocus = getCurrentFocusKey();

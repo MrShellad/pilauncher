@@ -13,9 +13,8 @@ import { OreInput } from '../../../ui/primitives/OreInput';
 import { OreToggleButton } from '../../../ui/primitives/OreToggleButton';
 import type { DownloadSource, FilterOption, TabType } from '../hooks/useResourceDownload';
 import {
-  getLocalizedDownloadTagLabel,
-  prettifyDownloadTagLabel
-} from './ResourceGrid';
+  getLocalizedDownloadOptionLabel
+} from '../logic/downloadTagLabels';
 
 import {
   blockClassName,
@@ -82,18 +81,12 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   const { t, i18n } = useTranslation();
 
   const localizeCategoryLabel = useCallback((option: FilterOption) => {
-    const slug = option.slug || option.label || option.value;
-    return getLocalizedDownloadTagLabel({
+    return getLocalizedDownloadOptionLabel({
       t,
       language: i18n.language,
-      source,
-      raw: slug,
-      display: option.label,
-      translationKey: option.translationKey,
-      defaultLabel: option.defaultLabel || (option.label ? prettifyDownloadTagLabel(option.label) : prettifyDownloadTagLabel(slug)),
-      labels: option.labels
+      option
     });
-  }, [i18n.language, source, t]);
+  }, [i18n.language, t]);
 
   const switchTabBy = useCallback((direction: -1 | 1) => {
     const activeElement = document.activeElement as HTMLElement | null;

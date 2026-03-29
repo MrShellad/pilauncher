@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
 import type { ModrinthProject, OreProjectVersion } from '../../InstanceDetail/logic/modrinthApi';
 import { useDownloadDetail } from '../hooks/useDownloadDetail';
 import type { DownloadInstanceConfig, DownloadSource } from '../hooks/useResourceDownload';
 import { OreModal } from '../../../ui/primitives/OreModal';
+import '../../../style/ui/primitives/DownloadDetailModal.css';
 
 import { InstanceSelectModal } from './DetailModal/InstanceSelectModal';
 import { ModpackCreateModal } from './DetailModal/ModpackCreateModal';
@@ -17,7 +18,7 @@ interface DownloadDetailModalProps {
   project: ModrinthProject | null;
   instanceConfig: DownloadInstanceConfig | null;
   onClose: () => void;
-  onDownload: (version: OreProjectVersion, targetInstanceIdOrName: string, autoInstallDeps?: boolean) => void;
+  onDownload: (version: OreProjectVersion, targetInstanceIdOrName: string, autoInstallDeps?: boolean) => void | Promise<void>;
   installedVersionIds: string[];
   searchMcVersion?: string;
   searchLoader?: string;
@@ -44,6 +45,7 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
   const [pendingVersion, setPendingVersion] = useState<OreProjectVersion | null>(null);
 
   const observerTarget = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const didAutoFocusModalRef = useRef(false);
 
   const {
@@ -110,16 +112,31 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
   const displayVersions = strictlyFilteredVersions.slice(0, visibleCount);
   const currentDisplayLoader = directInstallInstanceId ? searchLoader : (activeLoader || searchLoader);
   const currentDisplayVersion = directInstallInstanceId ? searchMcVersion : (activeVersion || searchMcVersion);
+  const galleryCount = details?.gallery_urls?.length ?? project?.gallery_urls?.length ?? 0;
+  const controlsEnabled = !pendingVersion;
+
+  const handleToggleGallery = useCallback(() => {
+    if (!galleryCount || !controlsEnabled) return;
+    if (document.querySelector('.ore-dropdown-panel')) return;
+
+    setShowGallery((prev) => {
+      const next = !prev;
+      if (next) {
+        scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      return next;
+    });
+  }, [controlsEnabled, galleryCount]);
 
   useEffect(() => {
     if (!project || didAutoFocusModalRef.current) return;
 
-    // Retry focusing the first download button if it hasn't rendered yet
+    // Retry focusing the first version row if it hasn't rendered yet
     let retries = 0;
     const tryFocus = () => {
-      if (doesFocusableExist('download-modal-version-action-0')) {
+      if (doesFocusableExist('download-modal-version-row-0')) {
         didAutoFocusModalRef.current = true;
-        setFocus('download-modal-version-action-0');
+        setFocus('download-modal-version-row-0');
       } else if (!directInstallInstanceId && doesFocusableExist('download-modal-mc-dropdown-0')) {
         didAutoFocusModalRef.current = true;
         setFocus('download-modal-mc-dropdown-0');
@@ -141,9 +158,9 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
         isOpen={!!project}
         onClose={onClose}
         hideTitleBar
-        defaultFocusKey="download-modal-version-action-0"
-        className="h-[85vh] w-[1080px] max-w-[95vw] border-[3px] border-[#1E1E1F]"
-        contentClassName="flex flex-1 min-h-0 flex-col overflow-hidden bg-[#313233] p-0"
+        defaultFocusKey="download-modal-version-row-0"
+        className="ore-download-detail-modal border-[3px] border-[#1E1E1F]"
+        contentClassName="ore-download-detail-modal__content flex flex-1 min-h-0 flex-col overflow-hidden bg-[#313233] p-0"
       >
         <ProjectHeader project={project} details={details} />
         <ProjectGallery
@@ -151,7 +168,8 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
           details={details}
           isScrolled={isScrolled}
           showGallery={showGallery}
-          setShowGallery={setShowGallery}
+          onToggleGallery={handleToggleGallery}
+          controlsEnabled={controlsEnabled}
         />
 
         {!directInstallInstanceId && (
@@ -163,10 +181,12 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
             availableVersions={availableVersions}
             activeVersion={activeVersion}
             setActiveVersion={setActiveVersion}
+            controlsEnabled={controlsEnabled}
           />
         )}
 
         <div
+          ref={scrollContainerRef}
           className={`
             relative z-10 flex-1 w-full overflow-y-auto custom-scrollbar bg-[#313233]
             shadow-[inset_0_10px_20px_-10px_rgba(0,0,0,0.55)]
@@ -212,8 +232,13 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
           isOpen={!!pendingVersion && !directInstallInstanceId}
           version={pendingVersion}
           onClose={() => setPendingVersion(null)}
-          onConfirm={(instanceId, autoInstallDeps) => {
-            if (pendingVersion) onDownload(pendingVersion, instanceId, autoInstallDeps);
+          onConfirm={(instanceIds, autoInstallDeps) => {
+            const version = pendingVersion;
+            if (version) {
+              void Promise.allSettled(
+                instanceIds.map((instanceId) => Promise.resolve(onDownload(version, instanceId, autoInstallDeps)))
+              );
+            }
             setPendingVersion(null);
             onClose();
           }}

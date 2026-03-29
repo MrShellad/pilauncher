@@ -194,24 +194,63 @@ const prettifyLabel = (value: string) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
-const mapProjectSummary = (mod: CurseForgeMod): OreProjectSummary => ({
-  id: String(mod.id),
-  project_id: String(mod.id),
-  slug: mod.slug,
-  title: mod.name,
-  description: mod.summary || '',
-  icon_url: mod.logo?.thumbnailUrl || mod.logo?.url || '',
-  author: mod.authors?.[0]?.name || 'Unknown',
-  downloads: Math.trunc(mod.downloadCount || 0),
-  date_modified: mod.dateModified || '',
-  client_side: '',
-  server_side: '',
-  follows: mod.thumbsUpCount || 0,
-  categories: (mod.categories || []).map((category) => category.slug || category.name),
-  display_categories: (mod.categories || []).map((category) => category.name),
-  gallery_urls: (mod.screenshots || []).map((item) => item.thumbnailUrl || item.url || '').filter(Boolean),
-  source: 'curseforge'
-});
+export const getCurseForgeCategoryTranslationKey = (slug: string) =>
+  `download.categories.${slug.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+
+export const getCurseForgeCategoryFallbackLabel = (slug: string, name: string) => {
+  if (name) return name;
+  return prettifyLabel(slug);
+};
+
+const hydrateCurseForgeCategoryOption = (
+  category: Partial<CurseForgeCategoryOption> & Pick<DropdownOption, 'label' | 'value'>
+): CurseForgeCategoryOption => {
+  const label = String(category.label || '').trim();
+  const slug = String(category.slug || label).trim();
+
+  return {
+    ...category,
+    label: label || getCurseForgeCategoryFallbackLabel(slug, ''),
+    value: String(category.value || ''),
+    slug,
+    translationKey: category.translationKey || getCurseForgeCategoryTranslationKey(slug || label),
+    defaultLabel: category.defaultLabel || getCurseForgeCategoryFallbackLabel(slug, label)
+  };
+};
+
+const filterProjectCategories = (categories: CurseForgeCategory[] = [], classId?: number) =>
+  categories.filter((category) => {
+    if (typeof classId === 'number') {
+      return shouldIncludeCategory(category, classId);
+    }
+
+    if (category.isClass) return false;
+    const slug = (category.slug || '').toLowerCase();
+    return !KNOWN_LOADERS.includes(slug);
+  });
+
+const mapProjectSummary = (mod: CurseForgeMod): OreProjectSummary => {
+  const visibleCategories = filterProjectCategories(mod.categories || [], mod.classId);
+
+  return {
+    id: String(mod.id),
+    project_id: String(mod.id),
+    slug: mod.slug,
+    title: mod.name,
+    description: mod.summary || '',
+    icon_url: mod.logo?.thumbnailUrl || mod.logo?.url || '',
+    author: mod.authors?.[0]?.name || 'Unknown',
+    downloads: Math.trunc(mod.downloadCount || 0),
+    date_modified: mod.dateModified || '',
+    client_side: '',
+    server_side: '',
+    follows: mod.thumbsUpCount || 0,
+    categories: visibleCategories.map((category) => category.slug || category.name),
+    display_categories: visibleCategories.map((category) => category.name),
+    gallery_urls: (mod.screenshots || []).map((item) => item.thumbnailUrl || item.url || '').filter(Boolean),
+    source: 'curseforge'
+  };
+};
 
 const mapProjectDetail = (mod: CurseForgeMod): OreProjectDetail => {
   const latestIndexes = mod.latestFilesIndexes || [];
@@ -366,6 +405,8 @@ const shouldIncludeCategory = (category: CurseForgeCategory, classId: number) =>
 
 export interface CurseForgeCategoryOption extends DropdownOption {
   slug: string;
+  translationKey?: string;
+  defaultLabel?: string;
 }
 
 export const getCachedCurseForgeCategories = async (
@@ -374,7 +415,7 @@ export const getCachedCurseForgeCategories = async (
   const classId = PROJECT_TYPE_CLASS_ID[projectType];
   const cacheKey = `curseforge_categories_${projectType}`;
   const cached = await readPersistentCache<CurseForgeCategoryOption[]>(cacheKey);
-  if (cached?.length) return cached;
+  if (cached?.length) return cached.map(hydrateCurseForgeCategoryOption);
 
   const data = await curseForgeFetch<CurseForgeCategory[]>('/categories', {
     gameId: MINECRAFT_GAME_ID,
@@ -384,7 +425,7 @@ export const getCachedCurseForgeCategories = async (
   const categories = data
     .filter((category) => shouldIncludeCategory(category, classId))
     .sort((a, b) => a.name.localeCompare(b.name))
-    .map((category) => ({
+    .map((category) => hydrateCurseForgeCategoryOption({
       label: category.name,
       value: String(category.id),
       slug: category.slug || category.name
@@ -392,12 +433,4 @@ export const getCachedCurseForgeCategories = async (
 
   await writePersistentCache(cacheKey, categories);
   return categories;
-};
-
-export const getCurseForgeCategoryTranslationKey = (slug: string) =>
-  `download.categories.${slug.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
-
-export const getCurseForgeCategoryFallbackLabel = (slug: string, name: string) => {
-  if (name) return name;
-  return prettifyLabel(slug);
 };

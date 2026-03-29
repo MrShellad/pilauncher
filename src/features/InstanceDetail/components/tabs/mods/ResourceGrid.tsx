@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Blocks, CheckCircle2, Clock3, Download, Heart, Loader2, Monitor, Tags } from 'lucide-react';
-import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import fabricIcon from '../../../../../assets/icons/tags/loaders/fabric.svg';
 import forgeIcon from '../../../../../assets/icons/tags/loaders/forge.svg';
@@ -15,9 +14,9 @@ import { ControlHint } from '../../../../../ui/components/ControlHint';
 import type { ModMeta } from '../../../logic/modService';
 import type { ModrinthProject } from '../../../logic/modrinthApi';
 import {
-  getCurseForgeCategoryFallbackLabel,
-  getCurseForgeCategoryTranslationKey
-} from '../../../../Download/logic/curseforgeApi';
+  getLocalizedDownloadTagLabel,
+  prettifyDownloadTagLabel
+} from '../../../../Download/logic/downloadTagLabels';
 
 interface ResourceGridProps {
   results: ModrinthProject[];
@@ -78,66 +77,6 @@ const prettifyLoader = (loader: string) => {
   if (!loader) return 'Vanilla';
   if (loader === 'neoforge') return 'NeoForge';
   return loader.charAt(0).toUpperCase() + loader.slice(1);
-};
-
-const prettifyDownloadTagLabel = (value: string) =>
-  value
-    .split(/[-_]/g)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-
-const normalizeDownloadTagKey = (value: string) =>
-  value.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-
-interface DownloadTagLabelOptions {
-  t: TFunction;
-  language?: string;
-  source?: string;
-  raw: string;
-  display?: string;
-  translationKey?: string;
-  defaultLabel?: string;
-  labels?: Record<string, string>;
-}
-
-const resolveConfiguredLabel = (labels?: Record<string, string>, language?: string) => {
-  if (!labels) return '';
-
-  const exact = language ? labels[language] : '';
-  if (exact) return exact;
-
-  const baseLanguage = language?.split('-')[0];
-  if (baseLanguage) {
-    const matchedEntry = Object.entries(labels).find(([key]) => key.split('-')[0] === baseLanguage);
-    if (matchedEntry?.[1]) return matchedEntry[1];
-  }
-
-  return labels['en-US'] || labels.en || Object.values(labels)[0] || '';
-};
-
-const getLocalizedDownloadTagLabel = ({
-  t,
-  language,
-  source,
-  raw,
-  display,
-  translationKey,
-  defaultLabel,
-  labels
-}: DownloadTagLabelOptions) => {
-  const configuredLabel = resolveConfiguredLabel(labels, language);
-  if (configuredLabel) return configuredLabel;
-
-  if (source === 'curseforge') {
-    return t(getCurseForgeCategoryTranslationKey(raw), {
-      defaultValue: getCurseForgeCategoryFallbackLabel(raw, display || defaultLabel || '')
-    });
-  }
-
-  return t(translationKey || `download.categories.${normalizeDownloadTagKey(raw)}`, {
-    defaultValue: defaultLabel || prettifyDownloadTagLabel(display || raw)
-  });
 };
 
 const ResourceCard = React.memo(({

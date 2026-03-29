@@ -4,6 +4,8 @@ import { ChevronDown, Image as ImageIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import type { ModrinthProject, OreProjectDetail } from '../../../InstanceDetail/logic/modrinthApi';
+import { useInputAction } from '../../../../ui/focus/InputDriver';
+import { ControlHint } from '../../../../ui/components/ControlHint';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreMotionTokens } from '../../../../style/tokens/motion';
 
@@ -12,7 +14,8 @@ interface ProjectGalleryProps {
   details: OreProjectDetail | null;
   isScrolled: boolean;
   showGallery: boolean;
-  setShowGallery: (show: boolean) => void;
+  onToggleGallery: () => void;
+  controlsEnabled?: boolean;
 }
 
 export const ProjectGallery: React.FC<ProjectGalleryProps> = ({
@@ -20,13 +23,20 @@ export const ProjectGallery: React.FC<ProjectGalleryProps> = ({
   details,
   isScrolled,
   showGallery,
-  setShowGallery
+  onToggleGallery,
+  controlsEnabled = true
 }) => {
   const { t } = useTranslation();
   const description = details?.description || project.description || t('download.empty.noDescription', {
     defaultValue: 'No description provided yet.'
   });
   const galleryUrls = details?.gallery_urls ?? project.gallery_urls ?? [];
+  const hasGallery = galleryUrls.length > 0;
+
+  useInputAction('ACTION_Y', () => {
+    if (!controlsEnabled || !hasGallery) return;
+    onToggleGallery();
+  });
 
   return (
     <motion.div
@@ -47,36 +57,50 @@ export const ProjectGallery: React.FC<ProjectGalleryProps> = ({
             <p className="line-clamp-2 text-[13px] leading-5 text-white/90">{description}</p>
           </div>
 
-          {galleryUrls.length > 0 && (
+          {hasGallery && (
             <div className="flex shrink-0 items-center justify-end">
-              <OreButton
-                size="sm"
-                variant="secondary"
-                className="!h-8 min-w-[132px] px-3 text-[11px]"
-                onClick={() => setShowGallery(!showGallery)}
-              >
-                <ImageIcon size={14} className="mr-1.5" />
-                {showGallery
-                  ? t('download.actions.hidePreview', { defaultValue: 'Hide Preview' })
-                  : t('download.actions.previewCount', {
-                      defaultValue: 'Preview {{count}}',
-                      count: galleryUrls.length
-                    })}
-                <motion.span
-                  initial={false}
-                  animate={showGallery ? 'open' : 'closed'}
-                  variants={OreMotionTokens.downloadDetailChevron}
-                  className="ml-1.5 inline-flex"
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <div className="hidden items-center gap-2 intent-gamepad:flex">
+                  <ControlHint label="Y" variant="face" tone="yellow" />
+                  <span className="font-minecraft text-[10px] uppercase tracking-[0.14em] text-[var(--ore-downloadDetail-hintText)]">
+                    {t('download.actions.togglePreview', { defaultValue: 'Toggle Preview' })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 intent-gamepad:hidden">
+                  <ControlHint label="Y" variant="keyboard" tone="neutral" />
+                  <span className="font-minecraft text-[10px] uppercase tracking-[0.14em] text-[var(--ore-downloadDetail-hintText)]">
+                    {t('download.actions.togglePreview', { defaultValue: 'Toggle Preview' })}
+                  </span>
+                </div>
+                <OreButton
+                  size="sm"
+                  variant="secondary"
+                  className="!h-8 min-w-[132px] px-3 text-[11px]"
+                  onClick={onToggleGallery}
                 >
-                  <ChevronDown size={14} />
-                </motion.span>
-              </OreButton>
+                  <ImageIcon size={14} className="mr-1.5" />
+                  {showGallery
+                    ? t('download.actions.hidePreview', { defaultValue: 'Hide Preview' })
+                    : t('download.actions.previewCount', {
+                        defaultValue: 'Preview {{count}}',
+                        count: galleryUrls.length
+                      })}
+                  <motion.span
+                    initial={false}
+                    animate={showGallery ? 'open' : 'closed'}
+                    variants={OreMotionTokens.downloadDetailChevron}
+                    className="ml-1.5 inline-flex"
+                  >
+                    <ChevronDown size={14} />
+                  </motion.span>
+                </OreButton>
+              </div>
             </div>
           )}
         </div>
 
         <AnimatePresence initial={false}>
-          {galleryUrls.length > 0 && showGallery && !isScrolled && (
+          {hasGallery && showGallery && !isScrolled && (
             <motion.div
               key="gallery-preview-strip"
               initial="hidden"

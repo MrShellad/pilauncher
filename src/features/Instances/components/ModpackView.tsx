@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Package } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { DownloadDetailModal } from '../../Download/components/DownloadDetailModal';
 import { FilterBar } from '../../Download/components/FilterBar';
@@ -12,6 +13,7 @@ import { useDownloadStore } from '../../../store/useDownloadStore';
 import { useLauncherStore } from '../../../store/useLauncherStore';
 
 export const ModpackView: React.FC = () => {
+  const { t } = useTranslation();
   const downloadState = useResourceDownload('__modpack_market__');
   const setActiveTab = useLauncherStore((state) => state.setActiveTab);
   const setPopupOpen = useDownloadStore((state) => state.setPopupOpen);
@@ -30,7 +32,7 @@ export const ModpackView: React.FC = () => {
 
   const handleDownload = async (version: OreProjectVersion, instanceName: string) => {
     if (!version.download_url) {
-      alert('找不到可用的下载链接，请检查版本数据。');
+      alert('\u627e\u4e0d\u5230\u53ef\u7528\u7684\u4e0b\u8f7d\u94fe\u63a5\uff0c\u8bf7\u68c0\u67e5\u7248\u672c\u6570\u636e\u3002');
       return;
     }
 
@@ -44,8 +46,8 @@ export const ModpackView: React.FC = () => {
       setActiveTab('home');
       setPopupOpen(true);
     } catch (error) {
-      console.error('整合包下载指令发送失败:', error);
-      alert(`指令发送失败: ${error}`);
+      console.error('\u6574\u5408\u5305\u4e0b\u8f7d\u6307\u4ee4\u53d1\u9001\u5931\u8d25:', error);
+      alert(`\u6307\u4ee4\u53d1\u9001\u5931\u8d25: ${error}`);
     }
   };
 
@@ -53,7 +55,7 @@ export const ModpackView: React.FC = () => {
     <div className="relative flex h-full w-full animate-fade-in flex-col bg-[#111112]">
       <FilterBar
         activeTab={downloadState.activeTab}
-        tabs={[{ id: 'modpack', label: '整合包', icon: Package }]}
+        tabs={[{ id: 'modpack', label: t('download.tabs.modpack', { defaultValue: 'Modpacks' }), icon: Package }]}
         onTabChange={downloadState.setActiveTab}
         query={downloadState.query}
         setQuery={downloadState.setQuery}
@@ -80,6 +82,7 @@ export const ModpackView: React.FC = () => {
         isLoading={downloadState.isLoading}
         isLoadingMore={downloadState.isLoadingMore}
         hasMore={downloadState.hasMore}
+        categoryOptions={downloadState.categoryOptions}
         onLoadMore={downloadState.loadMore}
         onSelectProject={setSelectedProject}
       />

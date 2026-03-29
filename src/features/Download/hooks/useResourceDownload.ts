@@ -15,6 +15,7 @@ import {
   searchCurseForge,
   type CurseForgeCategoryOption
 } from '../logic/curseforgeApi';
+import { getCachedModrinthCategories } from '../logic/modrinthTags';
 
 export type TabType = 'mod' | 'resourcepack' | 'shader' | 'modpack';
 export type DownloadSource = 'modrinth' | 'curseforge';
@@ -151,15 +152,20 @@ export const useResourceDownload = (
     let cancelled = false;
 
     const loadMetadata = async () => {
-      const modrinthCategories = await getSharedDownloadCategoryOptions(activeTab).catch((error) => {
+      const configuredModrinthCategories = await getSharedDownloadCategoryOptions(activeTab).catch((error) => {
         console.error('Failed to load Modrinth category config:', error);
         return getBundledDownloadCategoryOptions(activeTab);
       });
 
       if (source !== 'curseforge') {
+        const modrinthCategories = await getCachedModrinthCategories(activeTab, configuredModrinthCategories).catch((error) => {
+          console.error('Failed to load Modrinth categories:', error);
+          return configuredModrinthCategories;
+        });
+
         if (!cancelled) {
           setMcVersionOptions(getDefaultVersions());
-          setCategoryOptions(modrinthCategories);
+          setCategoryOptions(modrinthCategories.length > 0 ? modrinthCategories : configuredModrinthCategories);
         }
         return;
       }

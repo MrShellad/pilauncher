@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { useTranslation } from 'react-i18next';
 
@@ -15,6 +15,7 @@ interface VersionFiltersProps {
   availableVersions: string[];
   activeVersion: string;
   setActiveVersion: (val: string) => void;
+  controlsEnabled?: boolean;
 }
 
 interface DropdownConfig {
@@ -30,10 +31,13 @@ export const VersionFilters: React.FC<VersionFiltersProps> = ({
   setActiveLoader,
   availableVersions,
   activeVersion,
-  setActiveVersion
+  setActiveVersion,
+  controlsEnabled = true
 }) => {
   const { t } = useTranslation();
   const [isAnyDropdownOpen, setIsAnyDropdownOpen] = useState(false);
+  const [pressingLB, setPressingLB] = useState(false);
+  const [pressingRB, setPressingRB] = useState(false);
 
   const { majorGroups, topMajors, moreReleases, snapshots } = useMemo(() => {
     const groups: Record<string, string[]> = {};
@@ -125,15 +129,33 @@ export const VersionFilters: React.FC<VersionFiltersProps> = ({
     return configs;
   }, [majorGroups, moreReleases, snapshots, t, topMajors]);
 
-  const cycleLoader = () => {
-    if (isAnyDropdownOpen || loaderOptions.length === 0) return;
+  useEffect(() => {
+    if (controlsEnabled) return;
+    setPressingLB(false);
+    setPressingRB(false);
+  }, [controlsEnabled]);
+
+  const cycleLoaderBy = (direction: -1 | 1) => {
+    if (!controlsEnabled || isAnyDropdownOpen || loaderOptions.length === 0) return;
+
+    if (direction === -1) {
+      setPressingLB(true);
+      setTimeout(() => setPressingLB(false), 150);
+    } else {
+      setPressingRB(true);
+      setTimeout(() => setPressingRB(false), 150);
+    }
 
     const currentIndex = loaderOptions.findIndex((option) => option.value === activeLoader);
-    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % loaderOptions.length;
+    const nextIndex = currentIndex === -1
+      ? 0
+      : (currentIndex + direction + loaderOptions.length) % loaderOptions.length;
+
     setActiveLoader(loaderOptions[nextIndex].value);
   };
 
-  useInputAction('ACTION_Y', cycleLoader);
+  useInputAction('TAB_LEFT', () => cycleLoaderBy(-1));
+  useInputAction('TAB_RIGHT', () => cycleLoaderBy(1));
 
   const handleDropdownArrow = (idx: number) => (direction: string) => {
     if (direction === 'left' || direction === 'right') {
@@ -148,8 +170,8 @@ export const VersionFilters: React.FC<VersionFiltersProps> = ({
     }
 
     if (direction === 'down') {
-      if (doesFocusableExist('download-modal-version-action-0')) {
-        setFocus('download-modal-version-action-0');
+      if (doesFocusableExist('download-modal-version-row-0')) {
+        setFocus('download-modal-version-row-0');
       }
       return false;
     }
@@ -186,13 +208,23 @@ export const VersionFilters: React.FC<VersionFiltersProps> = ({
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <div className="hidden items-center gap-2 intent-gamepad:flex">
-            <ControlHint label="Y" variant="face" tone="yellow" />
+            <div
+              className={`transition-transform duration-150 ${pressingLB ? 'scale-75' : 'scale-90'}`}
+            >
+              <ControlHint label="LB" variant="bumper" tone={pressingLB ? 'green' : 'neutral'} />
+            </div>
+            <div
+              className={`transition-transform duration-150 ${pressingRB ? 'scale-75' : 'scale-90'}`}
+            >
+              <ControlHint label="RB" variant="bumper" tone={pressingRB ? 'green' : 'neutral'} />
+            </div>
             <span className="font-minecraft text-[10px] uppercase tracking-[0.14em] text-[var(--ore-downloadDetail-hintText)]">
               {t('download.actions.cycleLoader', { defaultValue: 'Cycle Loader' })}
             </span>
           </div>
           <div className="flex items-center gap-2 intent-gamepad:hidden">
-            <ControlHint label="Y" variant="keyboard" tone="neutral" />
+            <ControlHint label="[" variant="keyboard" tone="neutral" />
+            <ControlHint label="]" variant="keyboard" tone="neutral" />
             <span className="font-minecraft text-[10px] uppercase tracking-[0.14em] text-[var(--ore-downloadDetail-hintText)]">
               {t('download.actions.cycleLoader', { defaultValue: 'Cycle Loader' })}
             </span>
