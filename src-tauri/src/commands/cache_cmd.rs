@@ -52,9 +52,10 @@ pub async fn read_session_cache<R: Runtime>(
         return Ok(None);
     }
 
-    let content = fs::read_to_string(&path).map_err(|e| format!("failed to read session cache: {}", e))?;
-    let cache: SessionCacheFile =
-        serde_json::from_str(&content).map_err(|e| format!("failed to parse session cache: {}", e))?;
+    let content =
+        fs::read_to_string(&path).map_err(|e| format!("failed to read session cache: {}", e))?;
+    let cache: SessionCacheFile = serde_json::from_str(&content)
+        .map_err(|e| format!("failed to parse session cache: {}", e))?;
 
     if cache.session_token != *SESSION_CACHE_TOKEN {
         return Ok(None);
@@ -71,7 +72,8 @@ pub async fn write_session_cache<R: Runtime>(
 ) -> Result<(), String> {
     let path = get_cache_file_path(&app, &namespace, "session")?;
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("failed to create session cache directory: {}", e))?;
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("failed to create session cache directory: {}", e))?;
     }
 
     let cache = SessionCacheFile {
@@ -79,8 +81,8 @@ pub async fn write_session_cache<R: Runtime>(
         data,
     };
 
-    let content =
-        serde_json::to_string_pretty(&cache).map_err(|e| format!("failed to serialize session cache: {}", e))?;
+    let content = serde_json::to_string_pretty(&cache)
+        .map_err(|e| format!("failed to serialize session cache: {}", e))?;
     fs::write(&path, content).map_err(|e| format!("failed to write session cache: {}", e))?;
     Ok(())
 }
@@ -97,8 +99,8 @@ pub async fn read_persistent_cache<R: Runtime>(
 
     let content =
         fs::read_to_string(&path).map_err(|e| format!("failed to read persistent cache: {}", e))?;
-    let data =
-        serde_json::from_str(&content).map_err(|e| format!("failed to parse persistent cache: {}", e))?;
+    let data = serde_json::from_str(&content)
+        .map_err(|e| format!("failed to parse persistent cache: {}", e))?;
     Ok(Some(data))
 }
 
@@ -114,8 +116,8 @@ pub async fn write_persistent_cache<R: Runtime>(
             .map_err(|e| format!("failed to create persistent cache directory: {}", e))?;
     }
 
-    let content =
-        serde_json::to_string_pretty(&data).map_err(|e| format!("failed to serialize persistent cache: {}", e))?;
+    let content = serde_json::to_string_pretty(&data)
+        .map_err(|e| format!("failed to serialize persistent cache: {}", e))?;
     fs::write(&path, content).map_err(|e| format!("failed to write persistent cache: {}", e))?;
     Ok(())
 }
@@ -125,7 +127,8 @@ pub async fn read_shared_download_filter_config<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<Value, String> {
     let path = ConfigService::ensure_shared_download_filter_config(&app)?;
-    let content =
-        fs::read_to_string(&path).map_err(|e| format!("failed to read shared filter config: {}", e))?;
-    serde_json::from_str(&content).map_err(|e| format!("failed to parse shared filter config: {}", e))
+    let content = fs::read_to_string(&path)
+        .map_err(|e| format!("failed to read shared filter config: {}", e))?;
+    serde_json::from_str(&content)
+        .map_err(|e| format!("failed to parse shared filter config: {}", e))
 }

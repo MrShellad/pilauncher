@@ -54,13 +54,7 @@ pub async fn restore_save_backup<R: Runtime>(
     restore_configs: bool,
     auto_backup_current: bool,
 ) -> Result<SaveRestoreResult, String> {
-    SaveManagerService::restore_backup(
-        &app,
-        &id,
-        &backup_id,
-        restore_configs,
-        auto_backup_current,
-    )
+    SaveManagerService::restore_backup(&app, &id, &backup_id, restore_configs, auto_backup_current)
 }
 
 #[tauri::command]

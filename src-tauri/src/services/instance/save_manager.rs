@@ -175,7 +175,10 @@ impl SaveManagerService {
         Ok(PathBuf::from(base))
     }
 
-    fn get_instance_dir<R: Runtime>(app: &AppHandle<R>, instance_id: &str) -> Result<PathBuf, String> {
+    fn get_instance_dir<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+    ) -> Result<PathBuf, String> {
         Ok(Self::get_base_dir(app)?.join("instances").join(instance_id))
     }
 
@@ -191,7 +194,8 @@ impl SaveManagerService {
     }
 
     fn get_instance_config(instance_dir: &Path) -> Result<InstanceConfig, String> {
-        let content = fs::read_to_string(instance_dir.join("instance.json")).map_err(|e| e.to_string())?;
+        let content =
+            fs::read_to_string(instance_dir.join("instance.json")).map_err(|e| e.to_string())?;
         serde_json::from_str::<InstanceConfig>(&content).map_err(|e| e.to_string())
     }
 
@@ -288,7 +292,10 @@ impl SaveManagerService {
                 continue;
             }
 
-            for entry in WalkDir::new(root_path).into_iter().filter_map(|entry| entry.ok()) {
+            for entry in WalkDir::new(root_path)
+                .into_iter()
+                .filter_map(|entry| entry.ok())
+            {
                 let path = entry.path();
                 let rel = match path.strip_prefix(root_path) {
                     Ok(rel) => rel,
@@ -513,8 +520,9 @@ impl SaveManagerService {
                 .unwrap_or_default()
         };
         let meta_modified = Self::metadata_time(&meta_path);
-        let needs_refresh =
-            cache.world_uuid.is_empty() || cache.world_name.is_empty() || meta_modified < level_modified;
+        let needs_refresh = cache.world_uuid.is_empty()
+            || cache.world_name.is_empty()
+            || meta_modified < level_modified;
 
         if needs_refresh {
             cache = SaveMetadataCache {
@@ -578,7 +586,10 @@ impl SaveManagerService {
                 continue;
             }
 
-            for entry in WalkDir::new(&root_path).into_iter().filter_map(|entry| entry.ok()) {
+            for entry in WalkDir::new(&root_path)
+                .into_iter()
+                .filter_map(|entry| entry.ok())
+            {
                 if !entry.file_type().is_file() {
                     continue;
                 }
@@ -774,12 +785,14 @@ impl SaveManagerService {
         if meta.world.uuid.is_empty() {
             meta.world.uuid = Self::stable_world_uuid(&meta.instance_id, &meta.world.folder_name);
         }
-        let world_payload = Self::resolve_backup_payload(backup_dir.join(BACKUP_WORLD_ARCHIVE_FILE));
+        let world_payload =
+            Self::resolve_backup_payload(backup_dir.join(BACKUP_WORLD_ARCHIVE_FILE));
         if matches!(world_payload, BackupPayload::Missing) {
             return None;
         }
 
-        let configs_payload = Self::resolve_backup_payload(backup_dir.join(BACKUP_CONFIG_ARCHIVE_FILE));
+        let configs_payload =
+            Self::resolve_backup_payload(backup_dir.join(BACKUP_CONFIG_ARCHIVE_FILE));
         meta.has_configs = meta.has_configs || !matches!(configs_payload, BackupPayload::Missing);
 
         Some(BackupRecord {
@@ -844,11 +857,17 @@ impl SaveManagerService {
             .ok_or_else(|| "backup snapshot not found".to_string())
     }
 
-    fn diff_mods(current_mods: &[SaveBackupModEntry], backup_mods: &[SaveBackupModEntry]) -> Vec<String> {
+    fn diff_mods(
+        current_mods: &[SaveBackupModEntry],
+        backup_mods: &[SaveBackupModEntry],
+    ) -> Vec<String> {
         let mut warnings = Vec::new();
 
         for backup_mod in backup_mods {
-            match current_mods.iter().find(|item| item.file_name == backup_mod.file_name) {
+            match current_mods
+                .iter()
+                .find(|item| item.file_name == backup_mod.file_name)
+            {
                 None => warnings.push(format!("missing mod: {}", backup_mod.file_name)),
                 Some(current_mod) if current_mod.hash != backup_mod.hash => {
                     warnings.push(format!("changed mod: {}", backup_mod.file_name));
@@ -862,7 +881,10 @@ impl SaveManagerService {
         }
 
         for current_mod in current_mods {
-            if backup_mods.iter().all(|item| item.file_name != current_mod.file_name) {
+            if backup_mods
+                .iter()
+                .all(|item| item.file_name != current_mod.file_name)
+            {
                 warnings.push(format!("extra mod: {}", current_mod.file_name));
             }
 
@@ -893,7 +915,10 @@ impl SaveManagerService {
         }
 
         let loader_matches = meta.game.loader.is_empty()
-            || (instance_config.loader.r#type.eq_ignore_ascii_case(&meta.game.loader)
+            || (instance_config
+                .loader
+                .r#type
+                .eq_ignore_ascii_case(&meta.game.loader)
                 && (meta.game.loader_version.is_empty()
                     || instance_config.loader.version.is_empty()
                     || instance_config.loader.version == meta.game.loader_version));
@@ -901,7 +926,10 @@ impl SaveManagerService {
             let current_loader = if instance_config.loader.version.is_empty() {
                 instance_config.loader.r#type.clone()
             } else {
-                format!("{} {}", instance_config.loader.r#type, instance_config.loader.version)
+                format!(
+                    "{} {}",
+                    instance_config.loader.r#type, instance_config.loader.version
+                )
             };
             let backup_loader = if meta.game.loader.is_empty() {
                 meta.game.loader_version.clone()
@@ -923,7 +951,10 @@ impl SaveManagerService {
                 "mod environment differs: current {} mods, backup {} mods",
                 current_environment.mod_count, meta.environment.mod_count
             ));
-            warnings.extend(Self::diff_mods(&current_environment.mods, &meta.environment.mods));
+            warnings.extend(Self::diff_mods(
+                &current_environment.mods,
+                &meta.environment.mods,
+            ));
         }
 
         let configs_match = meta.environment.config_hash.is_empty()
@@ -994,7 +1025,9 @@ impl SaveManagerService {
                     size_bytes: cache.size_bytes,
                     last_played_time: cache.last_played_time,
                     created_time: cache.created_time,
-                    icon_path: icon_path.exists().then(|| icon_path.to_string_lossy().to_string()),
+                    icon_path: icon_path
+                        .exists()
+                        .then(|| icon_path.to_string_lossy().to_string()),
                 });
             }
         }
@@ -1107,7 +1140,8 @@ impl SaveManagerService {
         Self::move_dir_with_fallback(&temp_restore_dir, &target_save_dir)?;
 
         if restore_configs && record.meta.has_configs {
-            let temp_configs_root = instance_dir.join(format!(".restore-configs-{}", Uuid::new_v4()));
+            let temp_configs_root =
+                instance_dir.join(format!(".restore-configs-{}", Uuid::new_v4()));
             Self::remove_dir_if_exists(&temp_configs_root)?;
 
             match &record.configs_payload {
@@ -1119,7 +1153,10 @@ impl SaveManagerService {
                 }
             }
 
-            Self::restore_snapshot_dir(&temp_configs_root.join("config"), &instance_dir.join("config"))?;
+            Self::restore_snapshot_dir(
+                &temp_configs_root.join("config"),
+                &instance_dir.join("config"),
+            )?;
             Self::restore_snapshot_dir(
                 &temp_configs_root.join("defaultconfigs"),
                 &instance_dir.join("defaultconfigs"),

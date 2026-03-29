@@ -37,6 +37,234 @@ fn build_download_client(dl_settings: &DownloadSettings) -> AppResult<reqwest::C
     Ok(builder.build()?)
 }
 
+fn normalize_source_base(url: &str) -> Option<String> {
+    let trimmed = url.trim().trim_end_matches('/');
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+fn push_unique_url(urls: &mut Vec<String>, url: String) {
+    if !urls.iter().any(|existing| existing == &url) {
+        urls.push(url);
+    }
+}
+
+fn replace_trailing_segment(base: &str, from: &str, to: &str) -> Option<String> {
+    let suffix = format!("/{}", from);
+    base.strip_suffix(&suffix)
+        .map(|prefix| format!("{}/{}", prefix, to))
+}
+
+fn source_base_candidates(
+    selected_source: &str,
+    selected_url: &str,
+    official_base: &str,
+    mirror_base: Option<&str>,
+) -> Vec<String> {
+    let mut bases = Vec::new();
+
+    if let Some(base) = normalize_source_base(selected_url) {
+        push_unique_url(&mut bases, base);
+    }
+
+    match selected_source {
+        "official" => {
+            push_unique_url(&mut bases, official_base.to_string());
+            if let Some(mirror_base) = mirror_base {
+                push_unique_url(&mut bases, mirror_base.to_string());
+            }
+        }
+        "bmclapi" => {
+            if let Some(mirror_base) = mirror_base {
+                push_unique_url(&mut bases, mirror_base.to_string());
+            }
+            push_unique_url(&mut bases, official_base.to_string());
+        }
+        _ => {
+            if let Some(mirror_base) = mirror_base {
+                push_unique_url(&mut bases, mirror_base.to_string());
+            }
+            push_unique_url(&mut bases, official_base.to_string());
+        }
+    }
+
+    if bases.is_empty() {
+        push_unique_url(&mut bases, official_base.to_string());
+        if let Some(mirror_base) = mirror_base {
+            push_unique_url(&mut bases, mirror_base.to_string());
+        }
+    }
+
+    bases
+}
+
+fn fabric_profile_urls(
+    dl_settings: &DownloadSettings,
+    mc_version: &str,
+    loader_version: &str,
+) -> Vec<String> {
+    const FABRIC_OFFICIAL_BASE: &str = "https://meta.fabricmc.net";
+    const FABRIC_BMCLAPI_BASE: &str = "https://bmclapi2.bangbang93.com/fabric-meta";
+
+    source_base_candidates(
+        &dl_settings.fabric_source,
+        &dl_settings.fabric_source_url,
+        FABRIC_OFFICIAL_BASE,
+        Some(FABRIC_BMCLAPI_BASE),
+    )
+    .into_iter()
+    .map(|base| {
+        format!(
+            "{}/v2/versions/loader/{}/{}/profile/json",
+            base, mc_version, loader_version
+        )
+    })
+    .collect()
+}
+
+fn append_forge_installer_urls(
+    urls: &mut Vec<String>,
+    base: &str,
+    mc_version: &str,
+    loader_version: &str,
+) {
+    let Some(base) = normalize_source_base(base) else {
+        return;
+    };
+
+    let artifact_path = format!(
+        "net/minecraftforge/forge/{0}-{1}/forge-{0}-{1}-installer.jar",
+        mc_version, loader_version
+    );
+
+    if let Some(maven_base) = replace_trailing_segment(&base, "forge", "maven") {
+        push_unique_url(urls, format!("{}/{}", maven_base, artifact_path));
+    }
+
+    push_unique_url(urls, format!("{}/{}", base, artifact_path));
+}
+
+fn forge_installer_urls(
+    dl_settings: &DownloadSettings,
+    mc_version: &str,
+    loader_version: &str,
+) -> Vec<String> {
+    const FORGE_OFFICIAL_BASE: &str = "https://maven.minecraftforge.net";
+    const FORGE_BMCLAPI_BASE: &str = "https://bmclapi2.bangbang93.com/forge";
+
+    let mut urls = Vec::new();
+    for base in source_base_candidates(
+        &dl_settings.forge_source,
+        &dl_settings.forge_source_url,
+        FORGE_OFFICIAL_BASE,
+        Some(FORGE_BMCLAPI_BASE),
+    ) {
+        append_forge_installer_urls(&mut urls, &base, mc_version, loader_version);
+    }
+    urls
+}
+
+fn append_neoforge_installer_urls(urls: &mut Vec<String>, base: &str, loader_version: &str) {
+    let Some(base) = normalize_source_base(base) else {
+        return;
+    };
+
+    let artifact_path = format!(
+        "net/neoforged/neoforge/{0}/neoforge-{0}-installer.jar",
+        loader_version
+    );
+
+    if let Some(maven_base) = replace_trailing_segment(&base, "neoforge", "maven") {
+        push_unique_url(urls, format!("{}/{}", maven_base, artifact_path));
+    }
+
+    push_unique_url(urls, format!("{}/{}", base, artifact_path));
+}
+
+fn neoforge_installer_urls(dl_settings: &DownloadSettings, loader_version: &str) -> Vec<String> {
+    const NEOFORGE_OFFICIAL_BASE: &str = "https://maven.neoforged.net/releases";
+    const NEOFORGE_BMCLAPI_BASE: &str = "https://bmclapi2.bangbang93.com/neoforge";
+
+    let mut urls = Vec::new();
+    for base in source_base_candidates(
+        &dl_settings.neoforge_source,
+        &dl_settings.neoforge_source_url,
+        NEOFORGE_OFFICIAL_BASE,
+        Some(NEOFORGE_BMCLAPI_BASE),
+    ) {
+        append_neoforge_installer_urls(&mut urls, &base, loader_version);
+    }
+    urls
+}
+
+async fn send_from_candidates(
+    client: &reqwest::Client,
+    urls: &[String],
+    max_attempts: u32,
+    cancel: &Arc<AtomicBool>,
+) -> AppResult<reqwest::Response> {
+    let attempts = max_attempts.max(1);
+    let mut errors = Vec::new();
+
+    for round in 1..=attempts {
+        for url in urls {
+            if is_cancelled(cancel) {
+                return Err(AppError::Cancelled);
+            }
+
+            match client.get(url).send().await {
+                Ok(response) if response.status().is_success() => return Ok(response),
+                Ok(response) => {
+                    errors.push(format!(
+                        "[attempt {}] {} -> {}",
+                        round,
+                        url,
+                        response.status()
+                    ));
+                }
+                Err(err) => {
+                    errors.push(format!("[attempt {}] {} -> {}", round, url, err));
+                }
+            }
+        }
+    }
+
+    let detail = errors.into_iter().take(6).collect::<Vec<_>>().join(" | ");
+    let detail = if detail.is_empty() {
+        "no candidate URL available".to_string()
+    } else {
+        detail
+    };
+
+    Err(AppError::Generic(format!(
+        "Failed to download loader resource from all candidate sources: {}",
+        detail
+    )))
+}
+
+async fn download_text_from_candidates(
+    client: &reqwest::Client,
+    urls: &[String],
+    max_attempts: u32,
+    cancel: &Arc<AtomicBool>,
+) -> AppResult<String> {
+    let response = send_from_candidates(client, urls, max_attempts, cancel).await?;
+    Ok(response.text().await?)
+}
+
+async fn download_bytes_from_candidates(
+    client: &reqwest::Client,
+    urls: &[String],
+    max_attempts: u32,
+    cancel: &Arc<AtomicBool>,
+) -> AppResult<Vec<u8>> {
+    let response = send_from_candidates(client, urls, max_attempts, cancel).await?;
+    Ok(response.bytes().await?.to_vec())
+}
+
 fn remember_installer_output(lines: &Arc<Mutex<Vec<String>>>, line: String) {
     let mut guard = lines.lock().unwrap();
     guard.push(line);
@@ -189,9 +417,8 @@ async fn run_java_installer<R: Runtime>(
                         .code()
                         .map(|code| format!("退出码 {}", code))
                         .unwrap_or_else(|| "进程被异常终止".to_string());
-                    let detail = summarize_installer_output(&recent_output).unwrap_or_else(|| {
-                        "安装器没有输出更多细节，请检查下载日志。".to_string()
-                    });
+                    let detail = summarize_installer_output(&recent_output)
+                        .unwrap_or_else(|| "安装器没有输出更多细节，请检查下载日志。".to_string());
                     return Err(AppError::Generic(format!(
                         "{} 安装器执行失败（{}）。使用的 Java 路径: {}。最近输出: {}",
                         loader_name, status_text, java_path, detail
@@ -276,6 +503,7 @@ async fn install_fabric<R: Runtime>(
 ) -> AppResult<()> {
     let dl_settings = ConfigService::get_download_settings(app);
     let client = build_download_client(&dl_settings)?;
+    let max_attempts = dl_settings.retry_count.max(1);
 
     let version_id = format!("fabric-loader-{}-{}", loader_version, mc_version);
     let version_dir = global_mc_root.join("versions").join(&version_id);
@@ -299,17 +527,9 @@ async fn install_fabric<R: Runtime>(
             },
         );
 
-        let base_meta_url = if dl_settings.fabric_source == "official" {
-            "https://meta.fabricmc.net".to_string()
-        } else {
-            "https://bmclapi2.bangbang93.com/fabric-meta".to_string()
-        };
-
-        let meta_url = format!(
-            "{}/v2/versions/loader/{}/{}/profile/json",
-            base_meta_url, mc_version, loader_version
-        );
-        let profile_json_text = client.get(&meta_url).send().await?.text().await?;
+        let meta_urls = fabric_profile_urls(&dl_settings, mc_version, loader_version);
+        let profile_json_text =
+            download_text_from_candidates(&client, &meta_urls, max_attempts, cancel).await?;
         tokio::fs::write(&json_path, &profile_json_text).await?;
 
         let _ = app.emit(
@@ -369,6 +589,7 @@ async fn install_forge<R: Runtime>(
         crate::services::runtime_service::installer_default_java_command(),
     );
     let client = build_download_client(&dl_settings)?;
+    let max_attempts = dl_settings.retry_count.max(1);
 
     if is_cancelled(cancel) {
         return Err(AppError::Cancelled);
@@ -386,17 +607,7 @@ async fn install_forge<R: Runtime>(
         },
     );
 
-    let installer_url = if dl_settings.forge_source == "official" {
-        format!(
-            "https://maven.minecraftforge.net/net/minecraftforge/forge/{0}-{1}/forge-{0}-{1}-installer.jar",
-            mc_version, loader_version
-        )
-    } else {
-        format!(
-            "https://bmclapi2.bangbang93.com/maven/net/minecraftforge/forge/{0}-{1}/forge-{0}-{1}-installer.jar",
-            mc_version, loader_version
-        )
-    };
+    let installer_urls = forge_installer_urls(&dl_settings, mc_version, loader_version);
 
     let temp_dir = global_mc_root.join("temp");
     tokio::fs::create_dir_all(&temp_dir).await?;
@@ -406,7 +617,8 @@ async fn install_forge<R: Runtime>(
         if is_cancelled(cancel) {
             return Err(AppError::Cancelled);
         }
-        let res = client.get(&installer_url).send().await?.bytes().await?;
+        let res =
+            download_bytes_from_candidates(&client, &installer_urls, max_attempts, cancel).await?;
         tokio::fs::write(&installer_path, res).await?;
     }
 
@@ -489,6 +701,7 @@ async fn install_neoforge<R: Runtime>(
         crate::services::runtime_service::installer_default_java_command(),
     );
     let client = build_download_client(&dl_settings)?;
+    let max_attempts = dl_settings.retry_count.max(1);
 
     if is_cancelled(cancel) {
         return Err(AppError::Cancelled);
@@ -506,17 +719,7 @@ async fn install_neoforge<R: Runtime>(
         },
     );
 
-    let installer_url = if dl_settings.neoforge_source == "official" {
-        format!(
-            "https://maven.neoforged.net/releases/net/neoforged/neoforge/{0}/neoforge-{0}-installer.jar",
-            loader_version
-        )
-    } else {
-        format!(
-            "https://bmclapi2.bangbang93.com/maven/net/neoforged/neoforge/{0}/neoforge-{0}-installer.jar",
-            loader_version
-        )
-    };
+    let installer_urls = neoforge_installer_urls(&dl_settings, loader_version);
 
     let temp_dir = global_mc_root.join("temp");
     tokio::fs::create_dir_all(&temp_dir).await?;
@@ -526,7 +729,8 @@ async fn install_neoforge<R: Runtime>(
         if is_cancelled(cancel) {
             return Err(AppError::Cancelled);
         }
-        let res = client.get(&installer_url).send().await?.bytes().await?;
+        let res =
+            download_bytes_from_candidates(&client, &installer_urls, max_attempts, cancel).await?;
         tokio::fs::write(&installer_path, res).await?;
     }
 
@@ -590,4 +794,80 @@ async fn install_neoforge<R: Runtime>(
     );
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fabric_profile_urls_prioritize_selected_source_then_fallbacks() {
+        let mut settings = DownloadSettings::default();
+        settings.fabric_source = "custom".to_string();
+        settings.fabric_source_url = "https://mirror.example.com/fabric-meta/".to_string();
+
+        let urls = fabric_profile_urls(&settings, "1.20.1", "0.16.10");
+
+        assert_eq!(
+            urls,
+            vec![
+                "https://mirror.example.com/fabric-meta/v2/versions/loader/1.20.1/0.16.10/profile/json"
+                    .to_string(),
+                "https://bmclapi2.bangbang93.com/fabric-meta/v2/versions/loader/1.20.1/0.16.10/profile/json"
+                    .to_string(),
+                "https://meta.fabricmc.net/v2/versions/loader/1.20.1/0.16.10/profile/json"
+                    .to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn forge_installer_urls_use_configured_base_and_maven_fallback_shape() {
+        let mut settings = DownloadSettings::default();
+        settings.forge_source = "custom".to_string();
+        settings.forge_source_url = "https://mirror.example.com/forge".to_string();
+
+        let urls = forge_installer_urls(&settings, "1.20.1", "47.4.18");
+
+        assert_eq!(
+            urls,
+            vec![
+                "https://mirror.example.com/maven/net/minecraftforge/forge/1.20.1-47.4.18/forge-1.20.1-47.4.18-installer.jar"
+                    .to_string(),
+                "https://mirror.example.com/forge/net/minecraftforge/forge/1.20.1-47.4.18/forge-1.20.1-47.4.18-installer.jar"
+                    .to_string(),
+                "https://bmclapi2.bangbang93.com/maven/net/minecraftforge/forge/1.20.1-47.4.18/forge-1.20.1-47.4.18-installer.jar"
+                    .to_string(),
+                "https://bmclapi2.bangbang93.com/forge/net/minecraftforge/forge/1.20.1-47.4.18/forge-1.20.1-47.4.18-installer.jar"
+                    .to_string(),
+                "https://maven.minecraftforge.net/net/minecraftforge/forge/1.20.1-47.4.18/forge-1.20.1-47.4.18-installer.jar"
+                    .to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn neoforge_installer_urls_use_configured_base_and_maven_fallback_shape() {
+        let mut settings = DownloadSettings::default();
+        settings.neoforge_source = "custom".to_string();
+        settings.neoforge_source_url = "https://mirror.example.com/neoforge".to_string();
+
+        let urls = neoforge_installer_urls(&settings, "21.1.133");
+
+        assert_eq!(
+            urls,
+            vec![
+                "https://mirror.example.com/maven/net/neoforged/neoforge/21.1.133/neoforge-21.1.133-installer.jar"
+                    .to_string(),
+                "https://mirror.example.com/neoforge/net/neoforged/neoforge/21.1.133/neoforge-21.1.133-installer.jar"
+                    .to_string(),
+                "https://bmclapi2.bangbang93.com/maven/net/neoforged/neoforge/21.1.133/neoforge-21.1.133-installer.jar"
+                    .to_string(),
+                "https://bmclapi2.bangbang93.com/neoforge/net/neoforged/neoforge/21.1.133/neoforge-21.1.133-installer.jar"
+                    .to_string(),
+                "https://maven.neoforged.net/releases/net/neoforged/neoforge/21.1.133/neoforge-21.1.133-installer.jar"
+                    .to_string(),
+            ]
+        );
+    }
 }

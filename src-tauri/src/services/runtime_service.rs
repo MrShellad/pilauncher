@@ -517,7 +517,10 @@ mod tests {
             .insert("17".to_string(), java_home.to_string_lossy().to_string());
 
         let resolved = resolve_global_installer_java_runtime(&settings, "1.20.1", "java");
-        assert_eq!(resolved.java_path, binary_path.to_string_lossy().to_string());
+        assert_eq!(
+            resolved.java_path,
+            binary_path.to_string_lossy().to_string()
+        );
 
         let _ = fs::remove_dir_all(java_home);
     }

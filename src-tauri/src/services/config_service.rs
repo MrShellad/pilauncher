@@ -133,15 +133,16 @@ impl ConfigService {
             .map_err(|e| format!("failed to create shared_mods directory: {}", e))?;
 
         let file_path = shared_mods_dir.join("download_filter_categories.json");
-        let bundled_value = serde_json::from_str::<serde_json::Value>(
-            DEFAULT_SHARED_DOWNLOAD_FILTER_CONFIG,
-        )
-        .map_err(|e| format!("failed to parse bundled filter config: {}", e))?;
+        let bundled_value =
+            serde_json::from_str::<serde_json::Value>(DEFAULT_SHARED_DOWNLOAD_FILTER_CONFIG)
+                .map_err(|e| format!("failed to parse bundled filter config: {}", e))?;
         let bundled_version = bundled_value["version"].as_u64().unwrap_or(1);
 
         let should_write_default = match fs::read_to_string(&file_path) {
             Ok(content) => match serde_json::from_str::<serde_json::Value>(&content) {
-                Ok(existing_value) => existing_value["version"].as_u64().unwrap_or(0) < bundled_version,
+                Ok(existing_value) => {
+                    existing_value["version"].as_u64().unwrap_or(0) < bundled_version
+                }
                 Err(_) => true,
             },
             Err(_) => true,
