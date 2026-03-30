@@ -29,6 +29,27 @@ import {
   type SaveRestoreCheckResult,
 } from '../../../logic/saveService';
 
+// Loader Icons
+import fabricIcon from '../../../../../assets/icons/tags/loaders/fabric.svg';
+import forgeIcon from '../../../../../assets/icons/tags/loaders/forge.svg';
+import neoforgeIcon from '../../../../../assets/icons/tags/loaders/neoforge.svg';
+import quiltIcon from '../../../../../assets/icons/tags/loaders/quilt.svg';
+import vanillaIcon from '../../../../../assets/icons/tags/loaders/vanilla.svg';
+import liteloaderIcon from '../../../../../assets/icons/tags/loaders/liteloader.svg';
+import legacyFabricIcon from '../../../../../assets/icons/tags/loaders/legacy-fabric.svg';
+
+const LOADER_ICON_MAP: Record<string, string> = {
+  fabric: fabricIcon,
+  forge: forgeIcon,
+  neoforge: neoforgeIcon,
+  quilt: quiltIcon,
+  vanilla: vanillaIcon,
+  minecraft: vanillaIcon,
+  liteloader: liteloaderIcon,
+  'legacy-fabric': legacyFabricIcon,
+  legacyfabric: legacyFabricIcon,
+};
+
 interface SaveRestoreModalProps {
   instanceId: string;
   backupMeta: SaveBackupMetadata | null;
@@ -283,6 +304,8 @@ export const SaveRestoreModal: React.FC<SaveRestoreModalProps> = ({
     [backupMeta.game.loader, backupMeta.game.loaderVersion].filter(Boolean).join(' ').trim() ||
     t('saves.restoreModal.labels.unknownLoader', { defaultValue: 'Unknown Loader' });
 
+  const loaderIconSrc = LOADER_ICON_MAP[backupMeta.game.loader?.toLowerCase()];
+
   const statusMatchText = t('saves.restoreModal.labels.matches', { defaultValue: 'matches' });
   const statusDiffersText = t('saves.restoreModal.labels.differs', { defaultValue: 'differs' });
   const heroTone = isVerifying ? 'loading' : isSafe ? 'safe' : 'warning';
@@ -474,7 +497,7 @@ export const SaveRestoreModal: React.FC<SaveRestoreModalProps> = ({
               </p>
             </section>
 
-            <section className="ore-save-restore-modal__panel ore-save-restore-modal__panel--balanced">
+            <section className="ore-save-restore-modal__panel">
               <p className="ore-save-restore-modal__panel-label">
                 {t('saves.restoreModal.sections.gameEnvironment', {
                   defaultValue: 'Game Environment',
@@ -501,10 +524,18 @@ export const SaveRestoreModal: React.FC<SaveRestoreModalProps> = ({
 
                   <div className="ore-save-restore-modal__environment-row">
                     <span className="ore-save-restore-modal__environment-label">
-                      <Wrench
-                        size={16}
-                        className="ore-save-restore-modal__environment-icon ore-save-restore-modal__environment-icon--loader"
-                      />
+                      {loaderIconSrc ? (
+                        <img
+                          src={loaderIconSrc}
+                          alt=""
+                          className="ore-save-restore-modal__environment-custom-icon"
+                        />
+                      ) : (
+                        <Wrench
+                          size={16}
+                          className="ore-save-restore-modal__environment-icon ore-save-restore-modal__environment-icon--loader"
+                        />
+                      )}
                       <span className="ore-save-restore-modal__environment-key">
                         {t('saves.restoreModal.labels.loaderVersion', {
                           defaultValue: 'Loader Version',
@@ -553,7 +584,7 @@ export const SaveRestoreModal: React.FC<SaveRestoreModalProps> = ({
               </div>
             </section>
 
-            <section className="ore-save-restore-modal__panel ore-save-restore-modal__panel--balanced">
+            <section className="ore-save-restore-modal__panel">
               <p className="ore-save-restore-modal__panel-label">
                 {t('saves.restoreModal.sections.restoreStrategy', {
                   defaultValue: 'Restore Strategy',

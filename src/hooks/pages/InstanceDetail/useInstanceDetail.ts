@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { ask, open } from '@tauri-apps/plugin-dialog';
+import { useLauncherStore } from '../../../store/useLauncherStore';
 
 export type DetailTab = 'overview' | 'basic' | 'java' | 'saves' | 'mods' | 'resourcepacks' | 'shaders' | 'export';
 
@@ -41,7 +42,8 @@ interface RawInstanceDetail {
 }
 
 export const useInstanceDetail = (instanceId: string) => {
-  const [activeTab, setActiveTab] = useState<DetailTab>('overview');
+  const activeTab = useLauncherStore((state) => state.instanceDetailTab) as DetailTab;
+  const setActiveTab = useLauncherStore((state) => state.setInstanceDetailTab);
   const [data, setData] = useState<InstanceDetailData | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isInitializing, setIsInitializing] = useState(true);

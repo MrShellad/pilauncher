@@ -12,6 +12,8 @@ export type TabType =
   | 'instance-detail'
   | 'instance-mod-download';
 
+export type DetailTabType = 'overview' | 'basic' | 'java' | 'saves' | 'mods' | 'resourcepacks' | 'shaders' | 'export';
+
 export type InstanceDownloadTarget = 'mod' | 'resourcepack' | 'shader';
 
 export interface InstanceData {
@@ -44,6 +46,10 @@ interface LauncherState {
   selectedInstanceId: string | null;
   setSelectedInstanceId: (id: string | null) => void;
 
+  // 新增：保存详情页当前的内部 Tab
+  instanceDetailTab: DetailTabType;
+  setInstanceDetailTab: (tab: DetailTabType) => void;
+
   instanceDownloadTarget: InstanceDownloadTarget;
   setInstanceDownloadTarget: (target: InstanceDownloadTarget) => void;
 
@@ -73,6 +79,9 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
   // ✅ 新增：初始化选中实例 ID 状态及修改方法
   selectedInstanceId: null,
   setSelectedInstanceId: (id) => set({ selectedInstanceId: id }),
+
+  instanceDetailTab: 'overview',
+  setInstanceDetailTab: (tab) => set({ instanceDetailTab: tab }),
 
   instanceDownloadTarget: 'mod',
   setInstanceDownloadTarget: (target) => set({ instanceDownloadTarget: target }),
