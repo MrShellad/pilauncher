@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
-import { Blocks, CheckCircle2, Clock3, Download, Heart, Loader2, Monitor, Tags } from 'lucide-react';
+import { Blocks, CheckCircle2, Clock3, Download, Heart, Loader2, Monitor, Server, Tags } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import fabricIcon from '../../../../../assets/icons/tags/loaders/fabric.svg';
 import forgeIcon from '../../../../../assets/icons/tags/loaders/forge.svg';
@@ -98,8 +98,16 @@ const ResourceCard = React.memo(({
     display: rawProject.display_categories?.[idx] || raw
   }));
 
-  const loaders = categoryItems
-    .filter((item) => KNOWN_LOADERS.includes(item.raw.toLowerCase()))
+  const loaderItems = [
+    ...categoryItems.filter((item) => KNOWN_LOADERS.includes(item.raw.toLowerCase())),
+    ...((rawProject.loaders || [])
+      .filter((raw) => KNOWN_LOADERS.includes(raw.toLowerCase()))
+      .map((raw) => ({ raw, display: raw })))
+  ];
+
+  const loaders = Array.from(
+    new Map(loaderItems.map((item) => [item.raw.toLowerCase(), item])).values()
+  )
     .sort((a, b) => {
       const aPriority = LOADER_PRIORITY[a.raw.toLowerCase()] ?? Number.MAX_SAFE_INTEGER;
       const bPriority = LOADER_PRIORITY[b.raw.toLowerCase()] ?? Number.MAX_SAFE_INTEGER;
@@ -109,12 +117,16 @@ const ResourceCard = React.memo(({
   const features = categoryItems.filter((item) => !KNOWN_LOADERS.includes(item.raw.toLowerCase())).slice(0, 3);
   const followerCount = rawProject.followers || rawProject.follows || 0;
   const supportsClient = project.client_side !== 'unsupported' && !!project.client_side;
+  const supportsServer = project.server_side !== 'unsupported' && !!project.server_side;
   const focusKey = `download-grid-item-${index}`;
-  const titlePadClass = isInstalled && supportsClient
-    ? 'pr-[10rem]'
-    : isInstalled || supportsClient
-      ? 'pr-[5.75rem]'
-      : '';
+  const statusBadgeCount = (isInstalled ? 1 : 0) + (supportsClient ? 1 : 0) + (supportsServer ? 1 : 0);
+  const titlePadClass = statusBadgeCount >= 3
+    ? 'pr-[13rem]'
+    : statusBadgeCount === 2
+      ? 'pr-[9rem]'
+      : statusBadgeCount === 1
+        ? 'pr-[5.75rem]'
+        : '';
 
   const timeAgo = (dateStr?: string) => {
     if (!dateStr) return t('download.time.unknown', { defaultValue: 'Unknown time' });
@@ -185,7 +197,7 @@ const ResourceCard = React.memo(({
             <div className={`absolute inset-y-0 left-0 w-1.5 ${isInstalled ? 'bg-[#6CC349]' : 'bg-[#48494A]'}`} />
             <div className="absolute inset-x-0 top-0 h-[4px] bg-white/25" />
 
-            {(isInstalled || supportsClient) && (
+            {(isInstalled || supportsClient || supportsServer) && (
               <div className="absolute right-2 top-2 z-10 flex items-center gap-[0.375rem]">
                 {isInstalled && (
                   <div className="inline-flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#6CC349] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-black shadow-[inset_0_-2px_0_#3C8527] sm:text-[0.625rem]">
@@ -197,7 +209,14 @@ const ResourceCard = React.memo(({
                 {supportsClient && (
                   <div className="inline-flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#313233] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.12)] sm:text-[0.625rem]">
                     <Monitor className="h-[0.6875rem] w-[0.6875rem]" />
-                    {t('download.tags.clientSide', { defaultValue: 'Client-side' })}
+                    {t('download.env.client', { defaultValue: 'Client' })}
+                  </div>
+                )}
+
+                {supportsServer && (
+                  <div className="inline-flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#313233] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.12)] sm:text-[0.625rem]">
+                    <Server className="h-[0.6875rem] w-[0.6875rem]" />
+                    {t('download.env.server', { defaultValue: 'Server' })}
                   </div>
                 )}
               </div>

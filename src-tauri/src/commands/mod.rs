@@ -133,5 +133,6 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         network_cmd::run_network_test,
         qrcode_cmd::generate_device_auth_qr,
         update_cmd::check_update,
+        update_cmd::install_update,
     ])
 }

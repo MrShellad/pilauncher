@@ -5,6 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Runtime};
+use tauri_plugin_updater::UpdaterExt;
 
 /// 前端可读的更新信息结构
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -52,14 +53,7 @@ pub async fn check_update<R: Runtime>(
     let arch = get_arch();
 
     // 3. 构建灰度 API URL
-    let endpoint = format!(
-        "https://pil.nav4ai.net/api/updater?version={}&target={}&arch={}&uuid={}&region={}",
-        urlencoding::encode(&current_version),
-        urlencoding::encode(&target),
-        urlencoding::encode(&arch),
-        urlencoding::encode(&uuid),
-        urlencoding::encode(&region),
-    );
+    let endpoint = build_check_endpoint(&current_version, &target, &arch, &uuid, &region);
 
     println!("[Updater] 🔍 正在检查更新: {}", endpoint);
 
@@ -102,6 +96,9 @@ pub async fn check_update<R: Runtime>(
 
     // 7. 从 platforms 字段中提取当前平台的 url 和 signature（Tauri v2 格式）
     let (dl_url, signature) = extract_platform_assets(&update, &target, &arch);
+    if dl_url.is_empty() || signature.is_empty() {
+        return Err("鏇存柊鍖呯己灏戝綋鍓嶅钩鍙扮殑涓嬭浇鍦板潃鎴栫鍚嶄俊鎭?".to_string());
+    }
 
     println!(
         "[Updater] 🆕 发现新版本 v{} (当前 v{})",
@@ -115,6 +112,49 @@ pub async fn check_update<R: Runtime>(
         url: dl_url,
         signature,
     })
+}
+
+#[tauri::command]
+pub async fn install_update<R: Runtime>(
+    app: AppHandle<R>,
+    uuid: String,
+    region: String,
+    expected_version: Option<String>,
+) -> Result<(), String> {
+    let endpoint = build_install_endpoint(&uuid, &region, expected_version.as_deref());
+    println!("[Updater] 馃搶 姝ｅ湪鍑嗗瀹夎鏇存柊: {}", endpoint);
+
+    let updater = app
+        .updater_builder()
+        .endpoints(vec![
+            endpoint
+                .parse()
+                .map_err(|e| format!("鏋勫缓鏇存柊 endpoint 澶辫触: {}", e))?,
+        ])
+        .map_err(|e| format!("閰嶇疆鏇存柊鍣ㄥけ璐? {}", e))?
+        .build()
+        .map_err(|e| format!("鍒涘缓鏇存柊鍣ㄥけ璐? {}", e))?;
+
+    let update = updater
+        .check()
+        .await
+        .map_err(|e| format!("鍐嶆妫€鏌ユ洿鏂板け璐? {}", e))?
+        .ok_or_else(|| "褰撳墠娌℃湁鍙畨瑁呯殑鏇存柊".to_string())?;
+
+    if let Some(expected_version) = expected_version.as_deref() {
+        if update.version != expected_version {
+            return Err(format!(
+                "鏈瀹夎棰勬湡鐗堟湰涓?{}锛屼絾鏈嶅姟鍣ㄨ繑鍥炰簡 {}",
+                expected_version, update.version
+            ));
+        }
+    }
+
+    println!("[Updater] 馃搱 寮€濮嬩笅杞藉苟瀹夎 v{}", update.version);
+    update
+        .download_and_install(|_, _| {}, || {})
+        .await
+        .map_err(|e| format!("涓嬭浇鎴栧畨瑁呮洿鏂板け璐? {}", e))
 }
 
 /// 提取当前平台对应的下载 URL 和签名
@@ -164,6 +204,38 @@ fn extract_platform_assets(
         update.url.clone().unwrap_or_default(),
         update.signature.clone().unwrap_or_default(),
     )
+}
+
+fn build_check_endpoint(
+    current_version: &str,
+    target: &str,
+    arch: &str,
+    uuid: &str,
+    region: &str,
+) -> String {
+    format!(
+        "https://pil.nav4ai.net/api/updater?version={}&target={}&arch={}&uuid={}&region={}",
+        urlencoding::encode(current_version),
+        urlencoding::encode(target),
+        urlencoding::encode(arch),
+        urlencoding::encode(uuid),
+        urlencoding::encode(region),
+    )
+}
+
+fn build_install_endpoint(uuid: &str, region: &str, expected_version: Option<&str>) -> String {
+    let mut endpoint = format!(
+        "https://pil.nav4ai.net/api/updater?version={{{{current_version}}}}&target={{{{target}}}}&arch={{{{arch}}}}&uuid={}&region={}&format=dynamic",
+        urlencoding::encode(uuid),
+        urlencoding::encode(region),
+    );
+
+    if let Some(expected_version) = expected_version {
+        endpoint.push_str("&expected_version=");
+        endpoint.push_str(&urlencoding::encode(expected_version));
+    }
+
+    endpoint
 }
 
 /// 获取运行时 target 字符串

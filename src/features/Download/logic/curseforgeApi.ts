@@ -140,21 +140,70 @@ const normalizeLoaderNames = (values: string[]) =>
       .filter((value) => KNOWN_LOADERS.includes(value))
   );
 
-const getFileLoaders = (file: CurseForgeFile) => {
-  const combined = [
+const getFileMetadataValues = (file: CurseForgeFile) =>
+  dedupe([
     ...(file.gameVersions || []),
     ...((file.sortableGameVersions || []).map((item) => item.gameVersionName || ''))
-  ];
-  return normalizeLoaderNames(combined);
+  ]);
+
+const getFileLoaders = (file: CurseForgeFile) => {
+  return normalizeLoaderNames(getFileMetadataValues(file));
 };
 
 const getFileGameVersions = (file: CurseForgeFile) => {
-  const combined = [
-    ...(file.gameVersions || []),
-    ...((file.sortableGameVersions || []).map((item) => item.gameVersionName || ''))
-  ];
-  return normalizeGameVersions(combined);
+  return normalizeGameVersions(getFileMetadataValues(file));
 };
+
+const getFileEnvironmentFlags = (file: CurseForgeFile) => {
+  const metadata = getFileMetadataValues(file).map((value) => value.toLowerCase());
+  return {
+    supportsClient: metadata.includes('client'),
+    supportsServer: metadata.includes('server')
+  };
+};
+
+const mapEnvironmentSupport = (files: CurseForgeFile[] = []) => {
+  const supportsClient = files.some((file) => getFileEnvironmentFlags(file).supportsClient);
+  const supportsServer = files.some((file) => getFileEnvironmentFlags(file).supportsServer);
+
+  if (supportsClient && supportsServer) {
+    return {
+      client_side: 'optional',
+      server_side: 'optional'
+    };
+  }
+
+  if (supportsClient) {
+    return {
+      client_side: 'required',
+      server_side: 'unsupported'
+    };
+  }
+
+  if (supportsServer) {
+    return {
+      client_side: 'unsupported',
+      server_side: 'required'
+    };
+  }
+
+  return {
+    client_side: '',
+    server_side: ''
+  };
+};
+
+const getProjectLoaders = (mod: CurseForgeMod) =>
+  normalizeLoaderNames([
+    ...((mod.latestFilesIndexes || []).map((item) => toLoaderName(item.modLoader) || '').filter(Boolean)),
+    ...(mod.latestFiles || []).flatMap((file) => getFileLoaders(file))
+  ]);
+
+const getProjectGameVersions = (mod: CurseForgeMod) =>
+  normalizeGameVersions([
+    ...(mod.latestFilesIndexes || []).map((item) => item.gameVersion),
+    ...(mod.latestFiles || []).flatMap((file) => getFileGameVersions(file))
+  ]);
 
 const mapDependencyType = (relationType?: number): OreProjectDependency['dependency_type'] => {
   switch (relationType) {
@@ -231,6 +280,8 @@ const filterProjectCategories = (categories: CurseForgeCategory[] = [], classId?
 
 const mapProjectSummary = (mod: CurseForgeMod): OreProjectSummary => {
   const visibleCategories = filterProjectCategories(mod.categories || [], mod.classId);
+  const environment = mapEnvironmentSupport(mod.latestFiles || []);
+  const loaders = getProjectLoaders(mod);
 
   return {
     id: String(mod.id),
@@ -242,9 +293,10 @@ const mapProjectSummary = (mod: CurseForgeMod): OreProjectSummary => {
     author: mod.authors?.[0]?.name || 'Unknown',
     downloads: Math.trunc(mod.downloadCount || 0),
     date_modified: mod.dateModified || '',
-    client_side: '',
-    server_side: '',
+    client_side: environment.client_side,
+    server_side: environment.server_side,
     follows: mod.thumbsUpCount || 0,
+    loaders,
     categories: visibleCategories.map((category) => category.slug || category.name),
     display_categories: visibleCategories.map((category) => category.name),
     gallery_urls: (mod.screenshots || []).map((item) => item.thumbnailUrl || item.url || '').filter(Boolean),
@@ -253,13 +305,9 @@ const mapProjectSummary = (mod: CurseForgeMod): OreProjectSummary => {
 };
 
 const mapProjectDetail = (mod: CurseForgeMod): OreProjectDetail => {
-  const latestIndexes = mod.latestFilesIndexes || [];
-  const gameVersions = normalizeGameVersions(latestIndexes.map((item) => item.gameVersion));
-  const loaders = normalizeLoaderNames(
-    latestIndexes
-      .map((item) => toLoaderName(item.modLoader) || '')
-      .filter(Boolean)
-  );
+  const environment = mapEnvironmentSupport(mod.latestFiles || []);
+  const gameVersions = getProjectGameVersions(mod);
+  const loaders = getProjectLoaders(mod);
 
   return {
     id: String(mod.id),
@@ -267,8 +315,8 @@ const mapProjectDetail = (mod: CurseForgeMod): OreProjectDetail => {
     author: mod.authors?.[0]?.name || 'Unknown',
     description: mod.summary || '',
     icon_url: mod.logo?.url || mod.logo?.thumbnailUrl || null,
-    client_side: '',
-    server_side: '',
+    client_side: environment.client_side,
+    server_side: environment.server_side,
     downloads: Math.trunc(mod.downloadCount || 0),
     followers: mod.thumbsUpCount || 0,
     updated_at: mod.dateModified || '',

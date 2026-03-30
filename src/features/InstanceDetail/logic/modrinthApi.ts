@@ -16,6 +16,7 @@ export interface ModrinthProject {
   client_side: string;
   server_side: string;
   follows?: number;
+  loaders?: string[];
   categories?: string[];
   display_categories?: string[];
   source?: 'modrinth' | 'curseforge';

@@ -14,9 +14,8 @@ import {
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { check, type Update } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
 
+import { useAccountStore } from '../../../../store/useAccountStore';
 import { useSettingsStore } from '../../../../store/useSettingsStore';
 import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
@@ -31,8 +30,23 @@ import { UpdateDialog, type UpdateInfo } from '../modals/UpdateDialog';
 
 type CheckStatus = 'idle' | 'checking' | 'up-to-date' | 'error';
 
+interface RustUpdateInfo {
+  available: boolean;
+  version: string;
+  body: string;
+  url: string;
+  signature: string;
+}
+
+interface PendingUpdateContext {
+  version: string;
+  uuid: string;
+  region: string;
+}
+
 export const GeneralSettings: React.FC = () => {
   const { settings, updateGeneralSetting, resetSettings } = useSettingsStore();
+  const { accounts, activeAccountId } = useAccountStore();
   const { general } = settings;
 
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -41,24 +55,29 @@ export const GeneralSettings: React.FC = () => {
 
   const [checkStatus, setCheckStatus] = useState<CheckStatus>('idle');
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
-  const [pendingUpdate, setPendingUpdate] = useState<Update | null>(null);
+  const [pendingUpdate, setPendingUpdate] = useState<PendingUpdateContext | null>(null);
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
 
-  const clearPendingUpdate = useCallback(async () => {
-    if (pendingUpdate) {
-      try {
-        await pendingUpdate.close();
-      } catch (error) {
-        console.warn('[Updater] 释放更新句柄失败:', error);
-      }
-    }
+  const currentAccount = useMemo(
+    () => accounts.find((account) => account.uuid === activeAccountId) ?? null,
+    [accounts, activeAccountId]
+  );
 
+  const updateRequest = useMemo(
+    () => ({
+      uuid: currentAccount?.uuid || general.deviceId || 'anonymous',
+      region: 'CN',
+    }),
+    [currentAccount?.uuid, general.deviceId]
+  );
+
+  const clearPendingUpdate = useCallback(() => {
     setPendingUpdate(null);
     setUpdateInfo(null);
-  }, [pendingUpdate]);
+  }, []);
 
   useEffect(() => {
     const appWindow = getCurrentWindow();
@@ -75,7 +94,7 @@ export const GeneralSettings: React.FC = () => {
         window.clearTimeout(fullscreenCooldownRef.current);
       }
 
-      void clearPendingUpdate();
+      clearPendingUpdate();
       void unlistenResize.then((dispose) => dispose());
     };
   }, [clearPendingUpdate]);
@@ -104,17 +123,24 @@ export const GeneralSettings: React.FC = () => {
     if (checkStatus === 'checking') return;
 
     setCheckStatus('checking');
-    await clearPendingUpdate();
+    clearPendingUpdate();
 
     try {
-      const update = await check();
+      const update = await invoke<RustUpdateInfo>('check_update', updateRequest);
 
-      if (update) {
-        setPendingUpdate(update);
+      if (update.available) {
+        if (!update.url || !update.signature) {
+          throw new Error('Current platform updater manifest is missing url/signature');
+        }
+
+        setPendingUpdate({
+          version: update.version,
+          uuid: updateRequest.uuid,
+          region: updateRequest.region,
+        });
         setUpdateInfo({
           version: update.version,
           body: update.body,
-          date: update.date,
         });
         setIsUpdateDialogOpen(true);
         setCheckStatus('idle');
@@ -137,11 +163,14 @@ export const GeneralSettings: React.FC = () => {
 
     try {
       setIsInstalling(true);
-      await pendingUpdate.downloadAndInstall();
-      await clearPendingUpdate();
+      await invoke('install_update', {
+        uuid: pendingUpdate.uuid,
+        region: pendingUpdate.region,
+        expectedVersion: pendingUpdate.version,
+      });
+      clearPendingUpdate();
       setIsUpdateDialogOpen(false);
       setIsInstalling(false);
-      await relaunch();
     } catch (error) {
       console.error('[Updater] 应用内更新失败:', error);
       setIsInstalling(false);
@@ -150,7 +179,7 @@ export const GeneralSettings: React.FC = () => {
 
   const handleCloseUpdateDialog = () => {
     setIsUpdateDialogOpen(false);
-    void clearPendingUpdate();
+    clearPendingUpdate();
   };
 
   const handleExitApp = async () => {
