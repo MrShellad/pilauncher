@@ -528,6 +528,7 @@ async fn download_modrinth_mods<R: Runtime>(
 
         tasks.push(DownloadTask {
             url: url.to_string(),
+            fallback_urls: Vec::new(),
             path: target_path,
             temp_path,
             name: file_name,
@@ -702,6 +703,7 @@ async fn download_curseforge_mods<R: Runtime>(
 
         tasks.push(DownloadTask {
             url,
+            fallback_urls: Vec::new(),
             path: target_path,
             temp_path,
             name: file_name,

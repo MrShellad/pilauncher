@@ -11,7 +11,7 @@ use tauri::{AppHandle, Runtime};
 use crate::error::AppResult;
 use crate::services::config_service::{ConfigService, DownloadSettings};
 
-use super::mirror::route_library_url;
+use super::mirror::route_library_urls;
 use super::progress::DownloadStage;
 use super::scheduler::{run_downloads, sha1_file, DownloadTask};
 
@@ -95,10 +95,14 @@ async fn add_download_task(
         let _ = tokio::fs::remove_file(&target_path).await;
     }
 
-    let mirror_url = route_library_url(dl_url, dl_settings);
+    let candidate_urls = route_library_urls(dl_url, dl_settings);
+    if candidate_urls.is_empty() {
+        return;
+    }
 
     tasks.push(DownloadTask {
-        url: mirror_url,
+        url: candidate_urls[0].clone(),
+        fallback_urls: candidate_urls.into_iter().skip(1).collect(),
         path: target_path,
         temp_path,
         name: name.to_string(),

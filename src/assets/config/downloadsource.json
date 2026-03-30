@@ -45,6 +45,13 @@
         "url": "https://maven.neoforged.net/releases"
       }
     ],
+    "quilt": [
+      {
+        "id": "official",
+        "name": "Quilt 瀹樻柟",
+        "url": "https://meta.quiltmc.org"
+      }
+    ],
     "java": [
       {
         "id": "adoptium",

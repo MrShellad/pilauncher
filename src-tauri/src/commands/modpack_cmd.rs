@@ -198,6 +198,7 @@ fn copy_and_check_instance(
             ),
             "forge" => format!("{}-forge-{}", config.mc_version, config.loader.version),
             "neoforge" => format!("neoforge-{}", config.loader.version),
+            "quilt" => format!("quilt-loader-{}-{}", config.loader.version, config.mc_version),
             _ => "".to_string(),
         };
 
@@ -368,6 +369,7 @@ pub async fn import_third_party_instance<R: Runtime>(
             "fabric" => format!("fabric-loader-{}-{}", loader_version, mc_version),
             "forge" => format!("{}-forge-{}", mc_version, loader_version),
             "neoforge" => format!("neoforge-{}", loader_version),
+            "quilt" => format!("quilt-loader-{}-{}", loader_version, mc_version),
             _ => "".to_string(),
         };
         if !loader_folder.is_empty() {
@@ -774,6 +776,7 @@ pub async fn scan_instances_in_dir<R: Runtime>(
                 "fabric" => format!("fabric-loader-{}-{}", loader_version, mc_version),
                 "forge" => format!("{}-forge-{}", mc_version, loader_version),
                 "neoforge" => format!("neoforge-{}", loader_version),
+                "quilt" => format!("quilt-loader-{}-{}", loader_version, mc_version),
                 _ => "".to_string(),
             };
             if !loader_folder.is_empty() {

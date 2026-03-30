@@ -26,6 +26,7 @@ pub enum LoaderType {
     Fabric,
     Forge,
     NeoForge,
+    Quilt,
 }
 
 // ✅ 引入全新的强类型账号类型枚举

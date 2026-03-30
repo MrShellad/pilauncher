@@ -13,15 +13,10 @@ finish-args:
   - --socket=fallback-x11
   - --device=all
   - --filesystem=~/.local/share/Steam/userdata
+  - --filesystem=home
   - --filesystem=xdg-data/.minecraft
   - --filesystem=xdg-data/PiLauncher:create
   - --filesystem=xdg-data/fonts
-  - --filesystem=~/.minecraft:r
-  - --filesystem=xdg-data/PrismLauncher:ro
-  - --filesystem=xdg-data/multimc:ro
-  - --filesystem=xdg-data/ModrinthApp:ro
-  - --filesystem=xdg-data/gdlauncher_next:ro
-  - --filesystem=~/.hmcl:ro
   - --filesystem=~/.jdks:ro
   - --filesystem=~/.sdkman/candidates/java:ro
   - --filesystem=/opt:ro

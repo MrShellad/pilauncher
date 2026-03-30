@@ -55,6 +55,7 @@ impl LauncherService {
             "fabric" => LoaderType::Fabric,
             "forge" => LoaderType::Forge,
             "neoforge" => LoaderType::NeoForge,
+            "quilt" => LoaderType::Quilt,
             _ => LoaderType::Vanilla,
         };
 
@@ -70,6 +71,10 @@ impl LauncherService {
                 instance_cfg.mc_version, instance_cfg.loader.version
             ),
             LoaderType::NeoForge => format!("neoforge-{}", instance_cfg.loader.version),
+            LoaderType::Quilt => format!(
+                "quilt-loader-{}-{}",
+                instance_cfg.loader.version, instance_cfg.mc_version
+            ),
         };
 
         let builder = LaunchCommandBuilder::new(

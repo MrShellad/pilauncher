@@ -1,4 +1,4 @@
-export type SourceCategoryKey = 'vanilla' | 'forge' | 'fabric' | 'neoforge';
+export type SourceCategoryKey = 'vanilla' | 'forge' | 'fabric' | 'neoforge' | 'quilt';
 
 export interface DownloadSourceEntry {
   id: string;

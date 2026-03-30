@@ -32,10 +32,22 @@ pub struct DownloadSettings {
     pub forge_source_url: String,
     pub neoforge_source: String,
     pub neoforge_source_url: String,
+    #[serde(default = "default_quilt_source")]
+    pub quilt_source: String,
+    #[serde(default = "default_quilt_source_url")]
+    pub quilt_source_url: String,
 }
 
 fn default_minecraft_meta_source() -> String {
     "bangbang93".to_string()
+}
+
+fn default_quilt_source() -> String {
+    "official".to_string()
+}
+
+fn default_quilt_source_url() -> String {
+    "https://meta.quiltmc.org".to_string()
 }
 
 impl Default for DownloadSettings {
@@ -59,6 +71,8 @@ impl Default for DownloadSettings {
             forge_source_url: "https://bmclapi2.bangbang93.com/forge".to_string(),
             neoforge_source: "bmclapi".to_string(),
             neoforge_source_url: "https://bmclapi2.bangbang93.com/neoforge".to_string(),
+            quilt_source: default_quilt_source(),
+            quilt_source_url: default_quilt_source_url(),
         }
     }
 }

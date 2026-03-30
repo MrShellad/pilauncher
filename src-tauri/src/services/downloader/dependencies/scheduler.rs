@@ -29,6 +29,7 @@ fn stage_label(stage: DownloadStage) -> &'static str {
 
 pub struct DownloadTask {
     pub url: String,
+    pub fallback_urls: Vec<String>,
     pub path: PathBuf,
     pub temp_path: PathBuf,
     pub name: String,
@@ -119,6 +120,13 @@ pub async fn run_downloads<R: Runtime>(
                 let mut last_error: Option<String> = None;
                 let max_attempts = retry_count.max(1);
 
+                let candidate_urls = {
+                    let mut urls = Vec::with_capacity(1 + task.fallback_urls.len());
+                    urls.push(task.url.clone());
+                    urls.extend(task.fallback_urls.clone());
+                    urls
+                };
+
                 while attempt < max_attempts {
                     attempt += 1;
 
@@ -129,49 +137,45 @@ pub async fn run_downloads<R: Runtime>(
 
                     let _ = tokio::fs::remove_file(&tmp_path).await;
 
-                    let response = match client.get(&task.url).send().await {
-                        Ok(res) => res,
-                        Err(e) => {
-                            last_error = Some(format!("connect failed: {}", e));
-                            if attempt < max_attempts {
-                                let ui_msg = format!(
-                                    "Download failed, retrying ({}/{}) for {}",
-                                    attempt, max_attempts, task.name
-                                );
-                                let raw_msg = format!(
-                                    "connect failed (attempt {}/{}): url={} err={}",
-                                    attempt, max_attempts, task.url, e
-                                );
-                                log_download_event(
-                                    &app,
-                                    &instance_id,
-                                    stage_name,
-                                    DownloadLogLevel::Warn,
-                                    &ui_msg,
-                                    Some(&raw_msg),
-                                    true,
-                                )
-                                .await;
-                                tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
-                                continue;
-                            }
-                            break;
-                        }
-                    };
+                    let mut active_url: Option<String> = None;
+                    let mut response: Option<reqwest::Response> = None;
 
-                    if !response.status().is_success() {
-                        last_error = Some(format!("status {}", response.status()));
+                    for candidate_url in &candidate_urls {
+                        match client.get(candidate_url).send().await {
+                            Ok(res) if res.status().is_success() => {
+                                active_url = Some(candidate_url.clone());
+                                response = Some(res);
+                                break;
+                            }
+                            Ok(res) => {
+                                last_error = Some(format!(
+                                    "status {} from {}",
+                                    res.status(),
+                                    candidate_url
+                                ));
+                            }
+                            Err(e) => {
+                                last_error =
+                                    Some(format!("connect failed from {}: {}", candidate_url, e));
+                            }
+                        }
+                    }
+
+                    let Some(response) = response else {
                         if attempt < max_attempts {
                             let ui_msg = format!(
-                                "Server error, retrying ({}/{}) for {}",
+                                "Download failed, retrying ({}/{}) for {}",
                                 attempt, max_attempts, task.name
                             );
                             let raw_msg = format!(
-                                "http status {} (attempt {}/{}): url={}",
-                                response.status(),
+                                "all sources failed (attempt {}/{}): primary={} fallbacks={:?} err={}",
                                 attempt,
                                 max_attempts,
-                                task.url
+                                task.url,
+                                task.fallback_urls,
+                                last_error
+                                    .clone()
+                                    .unwrap_or_else(|| "unknown error".to_string())
                             );
                             log_download_event(
                                 &app,
@@ -187,7 +191,7 @@ pub async fn run_downloads<R: Runtime>(
                             continue;
                         }
                         break;
-                    }
+                    };
 
                     if let Some(parent) = tmp_path.parent() {
                         let _ = tokio::fs::create_dir_all(parent).await;
@@ -209,6 +213,7 @@ pub async fn run_downloads<R: Runtime>(
                     let mut downloaded_size: u64 = 0;
                     let mut stream_ok = true;
 
+                    let active_url = active_url.unwrap_or_else(|| task.url.clone());
                     let mut res = response;
                     loop {
                         let next_chunk = tokio::time::timeout(stall_timeout, res.chunk()).await;
@@ -273,7 +278,7 @@ pub async fn run_downloads<R: Runtime>(
                             );
                             let raw_msg = format!(
                                 "stream failed (attempt {}/{}): url={} err={}",
-                                attempt, max_attempts, task.url, reason
+                                attempt, max_attempts, active_url, reason
                             );
                             log_download_event(
                                 &app,
@@ -305,7 +310,7 @@ pub async fn run_downloads<R: Runtime>(
                                 );
                                 let raw_msg = format!(
                                     "size mismatch (attempt {}/{}): url={} expected={} got={}",
-                                    attempt, max_attempts, task.url, expected, downloaded_size
+                                    attempt, max_attempts, active_url, expected, downloaded_size
                                 );
                                 log_download_event(
                                     &app,
@@ -347,7 +352,7 @@ pub async fn run_downloads<R: Runtime>(
                                     );
                                     let raw_msg = format!(
                                         "sha1 mismatch (attempt {}/{}): url={} expected={} got={}",
-                                        attempt, max_attempts, task.url, expected, actual
+                                        attempt, max_attempts, active_url, expected, actual
                                     );
                                     log_download_event(
                                         &app,
@@ -417,8 +422,8 @@ pub async fn run_downloads<R: Runtime>(
                         max_attempts, task.name
                     );
                     let raw_msg = format!(
-                        "download failed after {} attempts: url={} err={}",
-                        max_attempts, task.url, reason
+                        "download failed after {} attempts: primary={} fallbacks={:?} err={}",
+                        max_attempts, task.url, task.fallback_urls, reason
                     );
                     log_download_event(
                         &app,

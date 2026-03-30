@@ -31,6 +31,10 @@ pub fn build_and_save_manifest(
             )),
             "forge" => Some(format!("{}-forge-{}", payload.game_version, loader_version)),
             "neoforge" => Some(format!("neoforge-{}", loader_version)),
+            "quilt" => Some(format!(
+                "quilt-loader-{}-{}",
+                loader_version, payload.game_version
+            )),
             _ => None,
         };
         if let Some(dir_name) = loader_version_dir_name {

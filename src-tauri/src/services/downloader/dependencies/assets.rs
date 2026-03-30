@@ -10,9 +10,46 @@ use crate::error::{AppError, AppResult};
 use crate::services::config_service::ConfigService;
 use crate::services::deployment_cancel::is_cancelled;
 
-use super::mirror::{route_asset_object_url, route_assets_index_url};
+use super::mirror::{route_asset_object_urls, route_assets_index_urls};
 use super::progress::DownloadStage;
 use super::scheduler::{run_downloads, sha1_file, DownloadTask};
+
+async fn download_text_from_candidates(
+    client: &Client,
+    urls: &[String],
+    retry_count: u32,
+    cancel: &Arc<AtomicBool>,
+) -> AppResult<String> {
+    let max_attempts = retry_count.max(1);
+    let mut last_error = "unknown error".to_string();
+
+    for _ in 0..max_attempts {
+        for url in urls {
+            if is_cancelled(cancel) {
+                return Err(AppError::Cancelled);
+            }
+
+            match client.get(url).send().await {
+                Ok(res) if res.status().is_success() => return Ok(res.text().await?),
+                Ok(res) => {
+                    last_error = format!("{} -> {}", url, res.status());
+                }
+                Err(err) => {
+                    last_error = format!("{} -> {}", url, err);
+                }
+            }
+        }
+    }
+
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Other,
+        format!(
+            "Failed to download assets index from all candidate sources: {}",
+            last_error
+        ),
+    )
+    .into())
+}
 
 pub async fn download_assets<R: Runtime>(
     app: &AppHandle<R>,
@@ -69,28 +106,9 @@ pub async fn download_assets<R: Runtime>(
             return Err(AppError::Cancelled);
         }
 
-        let mirror_url = route_assets_index_url(index_url, &dl_settings);
-        let res = client.get(&mirror_url).send().await.map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to download assets index: {}", e),
-            )
-        })?;
-
-        if !res.status().is_success() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to download assets index: {}", res.status()),
-            )
-            .into());
-        }
-
-        let text = res.text().await.map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to read assets index response: {}", e),
-            )
-        })?;
+        let candidate_urls = route_assets_index_urls(index_url, &dl_settings);
+        let text =
+            download_text_from_candidates(client, &candidate_urls, retry_count, cancel).await?;
         tokio::fs::write(&index_path, text).await?;
     }
 
@@ -140,7 +158,10 @@ pub async fn download_assets<R: Runtime>(
                 let _ = tokio::fs::remove_file(&target_path).await;
             }
 
-            let url = route_asset_object_url(prefix, hash, &dl_settings);
+            let candidate_urls = route_asset_object_urls(prefix, hash, &dl_settings);
+            if candidate_urls.is_empty() {
+                continue;
+            }
             let temp_path = temp_root
                 .join("assets")
                 .join("objects")
@@ -148,7 +169,8 @@ pub async fn download_assets<R: Runtime>(
                 .join(hash);
 
             tasks.push(DownloadTask {
-                url,
+                url: candidate_urls[0].clone(),
+                fallback_urls: candidate_urls.into_iter().skip(1).collect(),
                 path: target_path,
                 temp_path,
                 name: name.clone(),

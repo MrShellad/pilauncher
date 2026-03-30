@@ -112,6 +112,10 @@ impl InstanceCreationService {
             )),
             "forge" => Some(format!("{}-forge-{}", payload.game_version, loader_version)),
             "neoforge" => Some(format!("neoforge-{}", loader_version)),
+            "quilt" => Some(format!(
+                "quilt-loader-{}-{}",
+                loader_version, payload.game_version
+            )),
             _ => None,
         };
         let loader_version_dir = loader_version_dir_name

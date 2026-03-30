@@ -59,6 +59,9 @@ export interface DownloadSettings {
   neoforgeSource: string;
   neoforgeSourceUrl: string;
 
+  quiltSource: string;
+  quiltSourceUrl: string;
+
   autoCheckLatency: boolean;
   concurrency: number;
   speedLimit: number;
@@ -137,6 +140,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     fabricSourceUrl: 'https://meta.fabricmc.net',
     neoforgeSource: 'bmclapi',
     neoforgeSourceUrl: 'https://bmclapi2.bangbang93.com/neoforge',
+    quiltSource: 'official',
+    quiltSourceUrl: 'https://meta.quiltmc.org',
 
     autoCheckLatency: false,     
     concurrency: 12,            
