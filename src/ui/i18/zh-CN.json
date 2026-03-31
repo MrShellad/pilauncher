@@ -1,4 +1,10 @@
 {
+  "multiplayer": {
+    "title": "联机中心",
+    "description": "社区服务器目录和 PiHub 直连入口。",
+    "onlineServers": "社区服务器",
+    "piHub": "PiHub 直连"
+  },
   "download": {
     "tabs": {
       "modpack": "\u6574\u5408\u5305",

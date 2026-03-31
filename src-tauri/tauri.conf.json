@@ -37,6 +37,9 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
+    "externalBin": [
+      "binaries/PiHub"
+    ],
     "targets": [
       "nsis",
       "appimage"

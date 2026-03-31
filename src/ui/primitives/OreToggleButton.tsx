@@ -88,7 +88,7 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
               `}
               tabIndex={-1}
             >
-              <div className={`flex items-center justify-center w-full transition-none ${isActive ? 'ore-text-shadow' : ''}`}>
+              <div className={`flex items-center justify-center whitespace-nowrap w-full transition-none ${isActive ? 'ore-text-shadow' : ''}`}>
                 {option.label}
               </div>
             </button>

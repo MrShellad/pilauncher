@@ -1,4 +1,4 @@
-﻿@tailwind components;
+@tailwind components;
 
 /* /src/style/ui/primitives/OreToggleButton.css */
 .ore-toggle-btn-scale-adaptive {
@@ -56,11 +56,11 @@
 @layer components {
 
   /* ============================================== */
-  /* 鎸夐挳缁勫灞傚鍣?*/
+  /* 按钮组外层容器 */
   /* ============================================== */
   .ore-toggle-btn-group {
     @apply flex w-full border-[0.125rem] rounded-sm;
-    /* 瀹瑰櫒搴曡壊鍗充负鎸夐挳闂寸殑缂濋殭棰滆壊 */
+    /* 容器底色即为按钮间的缝隙颜色 */
     background-color: var(--ore-border-color);
     border-color: var(--ore-border-color);
     gap: 0.125rem;
@@ -74,7 +74,7 @@
   }
 
   /* ============================================== */
-  /* 鍗曚釜 Toggle 鎸夐挳鍩虹鏍峰紡 */
+  /* 单个 Toggle 按钮基础样式 */
   /* ============================================== */
   .ore-toggle-btn-item {
     @apply relative flex-1 text-sm font-minecraft font-bold cursor-pointer select-none transition-none focus:outline-none flex items-center justify-center;
@@ -100,51 +100,38 @@
     gap: clamp(0.375rem, 0.5vw, 0.625rem);
   }
 
-  /* --- 鏈€変腑鐘舵€?(鍑歌捣鐨勭伆鑹叉寜閽? --- */
+  /* --- 未选中状态 (灰色的凸起按钮) --- */
   .ore-toggle-btn-item:not(.is-active) {
-    background-color: var(--ore-btn-secondary-bg);
-    color: var(--ore-btn-secondary-text);
-    /* 鉁?淇 1锛氬畬缇庡鎺?designToken.ts 鐨?hl1 鍜?hl2锛屽苟瀵归綈 oreui 鐨?3px 鍋忕Щ瑙勮寖 */
-    box-shadow:
-      inset 0 -0.25rem var(--ore-btn-secondary-shadow),
-      inset 0.1875rem 0.1875rem var(--ore-btn-secondary-hl1),
-      inset -0.1875rem -0.4375rem var(--ore-btn-secondary-hl2);
-    /* 瑙嗚琛ュ伩锛氭姷娑堝簳閮?4px 闃村奖 */
-    padding-bottom: 0.25rem;
+    background-color: #D0D1D4;
+    color: #000000;
+    box-shadow: inset 0 -4px #58585A, inset 3px 3px rgba(255, 255, 255, 0.6), inset -3px -7px rgba(255, 255, 255, 0.4);
+    padding-bottom: 6px;
+    padding-top: 0;
   }
 
   .ore-toggle-btn-item:not(.is-active):hover {
-    background-color: var(--ore-btn-secondary-hover);
-    /* 鉁?淇 2锛氫娇鐢?Token 涓殑鎮仠楂樺厜鍙橀噺 hoverHl1 鍜?hoverHl2 */
-    box-shadow:
-      inset 0 -0.25rem var(--ore-btn-secondary-shadow),
-      inset 0.1875rem 0.1875rem var(--ore-btn-secondary-hoverHl1),
-      inset -0.1875rem -0.4375rem var(--ore-btn-secondary-hoverHl2);
+    background-color: #B1B2B5;
+    box-shadow: inset 0 -4px #58585A, inset 3px 3px rgba(255, 255, 255, 0.8), inset -3px -7px rgba(255, 255, 255, 0.6);
   }
 
   .ore-toggle-btn-item:not(.is-active):active {
-    background-color: var(--ore-btn-secondary-hover);
-    padding-top: 0.25rem;
-    /* 鎸変笅浣嶇Щ */
-    padding-bottom: 0;
-    /* 鉁?淇 3锛氭寜涓嬫椂鍘婚櫎搴曢儴鍘氬害闃村奖锛屾ā鎷熺墿鐞嗕笅闄?*/
-    box-shadow:
-      inset 0.1875rem 0.1875rem var(--ore-btn-secondary-hoverHl1),
-      inset -0.1875rem -0.1875rem var(--ore-btn-secondary-hoverHl2);
+    background-color: #B1B2B5;
+    box-shadow: inset 3px 3px rgba(255, 255, 255, 0.8), inset -3px -3px rgba(255, 255, 255, 0.6);
+    padding-bottom: 2px;
+    padding-top: 4px;
   }
 
-  /* --- 閫変腑鐘舵€?(鎸変笅鐨勭豢鑹蹭富鑹茶皟) --- */
+  /* --- 选中状态 (绿色的高亮按钮) --- */
   .ore-toggle-btn-item.is-active {
-    background-color: var(--ore-btn-primary-bg);
-    color: var(--ore-btn-primary-text);
+    background-color: #3C8527;
+    color: #FFFFFF;
+    box-shadow: inset 0 -4px #1D4D13, inset 3px 3px rgba(255, 255, 255, 0.2), inset -3px -7px rgba(255, 255, 255, 0.1);
+    padding-bottom: 6px;
+    padding-top: 0;
     cursor: default;
-    /* 寮虹儓鐨勪笅闄烽槾褰?*/
-    box-shadow: inset 0 0.1875rem rgba(0, 0, 0, 0.2), inset 0.125rem 0 rgba(255, 255, 255, 0.1);
-    /* 瑙嗚琛ュ伩锛氭姷娑堥《閮ㄩ槾褰变骇鐢熺殑浣嶇疆鍋忕Щ */
-    padding-top: 0.1875rem;
   }
 
-  /* 搴曢儴鐧借壊灏忔寚绀烘潯 */
+  /* 底部白色小指示条保留，但稍微往下移避免重叠 */
   .ore-toggle-btn-item.is-active::after {
     content: '';
     @apply absolute bottom-0 left-1/2 -translate-x-1/2 h-[0.1875rem] w-[35%] bg-white rounded-t-sm;
@@ -152,7 +139,7 @@
   }
 
   /* ============================================== */
-  /* 鉁?楂樺厜鐒︾偣瀵艰埅鐜?(瀵规帴 HDR 绌洪棿瀵艰埅) */
+  /* 焦点导航环 HDR */
   /* ============================================== */
   .ore-toggle-btn-item.is-focused {
     outline: 0.125rem solid var(--ore-focus-ringFallback);
@@ -162,7 +149,7 @@
     filter: drop-shadow(0 0 0.375rem var(--ore-focus-glow)) brightness(1.1);
   }
 
-  /* 鐗╃悊鎸変笅鏃剁殑鍏夌幆涓嬮櫡鍙嶉 */
+  /* 物理按下时的光环下陷反馈 */
   .ore-toggle-btn-item.is-focused:active {
     outline-offset: 0;
     filter: drop-shadow(0 0 0.1875rem var(--ore-focus-glow)) brightness(1.1);

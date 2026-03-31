@@ -5,10 +5,12 @@ import {
   Megaphone,
   MessageSquareShare,
   Server,
-  Wifi
+  Wifi,
+  RefreshCw
 } from 'lucide-react';
 import type { AdSlot, OnlineServer } from '../types';
 import { formatDate, openLink } from '../utils';
+import { OreButton } from '../../../ui/primitives/OreButton';
 
 interface OnlineServersListProps {
   servers: OnlineServer[];
@@ -17,7 +19,15 @@ interface OnlineServersListProps {
   error: string | null;
   lastUpdated: string | null;
   apiUrl: string;
+  onRefresh: () => void;
 }
+
+const getPingTone = (ping?: number) => {
+  if (ping === undefined) return 'unknown';
+  if (ping <= 80) return 'good';
+  if (ping <= 160) return 'mid';
+  return 'bad';
+};
 
 export const OnlineServersList: React.FC<OnlineServersListProps> = ({
   servers,
@@ -25,176 +35,203 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
   isLoading,
   error,
   lastUpdated,
-  apiUrl
+  apiUrl,
+  onRefresh
 }) => {
-  return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6 p-2">
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-ore-gray-border bg-ore-nav px-5 py-3" style={{ boxShadow: 'inset 2px 2px rgba(255, 255, 255, 0.05), inset -2px -2px rgba(0, 0, 0, 0.1)' }}>
-          <div>
-            <h2 className="text-xl font-minecraft font-bold text-white tracking-widest text-shadow">在线服务器</h2>
-            <p className="text-sm text-ore-text-muted font-minecraft">
-              {lastUpdated ? `上次更新 ${formatDate(lastUpdated)}` : '尚未完成首次拉取'}
-            </p>
-          </div>
+  const hasServers = !isLoading && !error && servers.length > 0;
 
-          <div className="bg-black/20 border border-black/30 px-3 py-1 text-xs text-ore-text-muted font-minecraft shadow-inner">
-            API: {apiUrl || '未配置'}
-          </div>
+  return (
+    <section className="ore-multiplayer-surface">
+      <header className="ore-multiplayer-panel-header">
+        <div className="ore-multiplayer-panel-heading">
+          <h2 className="ore-multiplayer-panel-title">社区服务器目录</h2>
+          <p className="ore-multiplayer-panel-subtitle">
+            {lastUpdated ? `上次同步 ${formatDate(lastUpdated)}` : '尚未完成首次拉取'}
+          </p>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-2">
-          {isLoading && (
-            <div className="w-full bg-ore-nav border-2 border-ore-gray-border p-10 text-center text-ore-button font-minecraft" style={{ boxShadow: 'inset 2px 2px rgba(255, 255, 255, 0.05), inset -2px -2px rgba(0, 0, 0, 0.1)' }}>
-              正在从远端 API 获取服务器 JSON 列表...
-            </div>
-          )}
+        <div className="flex items-center gap-3">
+          <div className="ore-multiplayer-meta" title={apiUrl || '未配置 VITE_ONLINE_SERVERS_API_URL'}>
+            API · {apiUrl || '未配置'}
+          </div>
+          <OreButton
+            type="button"
+            size="auto"
+            variant="secondary"
+            onClick={onRefresh}
+            disabled={isLoading}
+          >
+            <span className="inline-flex items-center gap-2">
+              <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+              刷新
+            </span>
+          </OreButton>
+        </div>
+      </header>
 
-          {!isLoading && error && (
-            <div className="w-full bg-ore-red/20 border-2 border-ore-red p-6 text-ore-text font-minecraft" style={{ boxShadow: 'inset 2px 2px rgba(255, 255, 255, 0.05), inset -2px -2px rgba(0, 0, 0, 0.1)' }}>
-              {error}
-            </div>
-          )}
+      <div className="ore-multiplayer-scroll">
+        {isLoading && (
+          <div className="ore-multiplayer-empty-state">
+            <Server size={28} />
+            <div>正在从远端 API 拉取服务器目录...</div>
+          </div>
+        )}
 
-          {!isLoading && !error && servers.length === 0 && (
-            <div className="w-full bg-ore-nav border-2 border-ore-gray-border p-10 text-center text-ore-text-muted font-minecraft" style={{ boxShadow: 'inset 2px 2px rgba(255, 255, 255, 0.05), inset -2px -2px rgba(0, 0, 0, 0.1)' }}>
-              接口请求成功，但没有返回可渲染的服务器数据。
-            </div>
-          )}
+        {!isLoading && error && (
+          <div className="ore-multiplayer-banner" data-tone="danger">
+            <Server size={18} />
+            <div>{error}</div>
+          </div>
+        )}
 
-          {!isLoading && !error && servers.length > 0 && (
-            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+        {!isLoading && !error && servers.length === 0 && (
+          <div className="ore-multiplayer-empty-state">
+            <Server size={28} />
+            <div>接口请求成功，但没有返回可渲染的服务器数据。</div>
+          </div>
+        )}
+
+        {hasServers && (
+          <div className="ore-multiplayer-stack">
+            <div className="ore-multiplayer-server-grid">
               {servers.map((server) => (
-                <article
-                  key={server.id}
-                  className="group flex flex-col w-full bg-ore-nav border-2 border-ore-gray-border hover:bg-ore-nav-hover active:bg-ore-nav-active transition-none cursor-default overflow-hidden"
-                  style={{
-                    boxShadow: 'inset 2px 2px rgba(255, 255, 255, 0.05), inset -2px -2px rgba(0, 0, 0, 0.1)'
-                  }}
-                >
-                  <div className="w-full h-32 flex-shrink-0 bg-[#1E1E1F] border-b-2 border-ore-gray-border flex items-center justify-center relative overlow-hidden" style={{ boxShadow: 'inset 0 0 10px rgba(0,0,0,0.5)' }}>
+                <article key={server.id} className="ore-multiplayer-server-card">
+                  <div className="ore-multiplayer-server-media">
                     {server.icon ? (
-                      <img
-                        src={server.icon}
-                        alt={server.name}
-                        className="h-full w-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                        loading="lazy"
-                      />
+                      <img src={server.icon} alt={server.name} loading="lazy" />
                     ) : (
-                      <Server size={48} className="text-ore-text-muted opacity-30" />
+                      <Server size={48} className="text-[var(--ore-color-text-muted-default)]" />
                     )}
+
                     {server.isSponsored && (
-                      <div className="absolute top-2 right-2 bg-amber-500/90 border border-black/50 px-2 py-0.5 text-[10px] text-black font-minecraft font-bold shadow-md">
-                        推广
+                      <div className="ore-multiplayer-ribbon">推广</div>
+                    )}
+
+                    <div className="ore-multiplayer-ping">
+                      <span className="ore-multiplayer-ping-dot" data-tone={getPingTone(server.ping)} />
+                      {server.ping !== undefined ? `${server.ping} ms` : '未知延迟'}
+                    </div>
+                  </div>
+
+                  <div className="ore-multiplayer-card-body">
+                    <div className="ore-multiplayer-card-topline">
+                      <div>
+                        <h3 className="ore-multiplayer-card-title-text">{server.name}</h3>
+                        <div className="ore-multiplayer-card-subline">
+                          <strong>{server.serverType}</strong>
+                          <span>
+                            玩家 {server.onlinePlayers}
+                            {server.maxPlayers ? ` / ${server.maxPlayers}` : ''}
+                          </span>
+                        </div>
                       </div>
-                    )}
-                    <div className="absolute bottom-2 right-2 bg-black/60 border border-black px-2 py-0.5 text-[10px] text-white font-minecraft flex items-center gap-1">
-                      <div className={`w-2 h-2 rounded-full ${server.ping && server.ping < 100 ? 'bg-core-green' : server.ping && server.ping < 200 ? 'bg-amber-400' : 'bg-ore-red'}`}></div>
-                      {server.ping !== undefined ? `${server.ping} ms` : '未知'}
                     </div>
-                  </div>
 
-                  <div className="flex-1 flex flex-col p-4">
-                    <h3 className="font-minecraft font-bold text-xl text-white truncate w-full shadow-black drop-shadow-md">{server.name}</h3>
-                    <div className="flex items-center justify-between mt-1">
-                       <p className="text-ore-green text-sm font-minecraft">{server.serverType}</p>
-                       <p className="text-ore-text-muted text-xs font-minecraft">
-                         玩家: <span className="text-white">{server.onlinePlayers}{server.maxPlayers ? `/${server.maxPlayers}` : ''}</span>
-                       </p>
-                    </div>
-                    
                     {server.description && (
-                      <p className="text-ore-text-muted text-xs font-minecraft mt-3 line-clamp-2 leading-relaxed h-8">
-                        {server.description}
-                      </p>
+                      <p className="ore-multiplayer-card-description">{server.description}</p>
                     )}
 
-                    <div className="mt-4 flex flex-wrap gap-1.5 text-[10px] font-minecraft">
-                      <span className="bg-black/30 border border-black/50 px-1.5 py-0.5 text-ore-text-muted">
-                        {server.isModded ? 'Mod 服' : '原版/轻改'}
-                      </span>
-                      <span className="bg-black/30 border border-black/50 px-1.5 py-0.5 text-ore-text-muted">
-                        {server.requiresWhitelist ? '需白名单' : '免白名单'}
-                      </span>
-                      <span className="bg-black/30 border border-black/50 px-1.5 py-0.5 text-ore-text-muted">
-                        {server.hasPaidFeatures ? '含内购' : '无内购'}
-                      </span>
+                    <div className="ore-multiplayer-tags">
+                      <span className="ore-multiplayer-tag">{server.isModded ? 'Mod 服' : '原版 / 轻改'}</span>
+                      <span className="ore-multiplayer-tag">{server.requiresWhitelist ? '需要白名单' : '免白名单'}</span>
+                      <span className="ore-multiplayer-tag">{server.hasPaidFeatures ? '含付费内容' : '无付费门槛'}</span>
+                      {server.hasVoiceChat && <span className="ore-multiplayer-tag">语音协作</span>}
                     </div>
                   </div>
 
-                  <div className="bg-black/20 border-t border-white/5 w-full py-2.5 px-3 flex flex-col gap-2 mt-auto">
-                    <div className="flex items-center gap-2 text-xs font-minecraft text-ore-text-muted">
-                      <Wifi size={14} className="text-ore-green" />
-                      <span className="truncate">{server.address || '未提供地址'}</span>
+                  <footer className="ore-multiplayer-card-footer">
+                    <div className="ore-multiplayer-address">
+                      <Wifi size={14} />
+                      <span>{server.address || '未提供连接地址'}</span>
                     </div>
-                    
-                    <div className="flex gap-2">
-                       {server.homepageUrl && (
-                          <button
-                            type="button"
-                            onClick={() => void openLink(server.homepageUrl)}
-                            className="flex-1 bg-ore-button border-2 border-ore-gray-border text-black text-xs font-minecraft py-1 active:mt-0.5 hover:brightness-110 flex items-center justify-center gap-1"
-                            style={{ boxShadow: 'inset 0 -2px #58585A, inset 2px 2px rgba(255, 255, 255, 0.6)' }}
-                          >
-                            <Globe size={12} />
-                            官网
-                          </button>
-                       )}
-                       {server.socials.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => void openLink(server.socials[0].url)}
-                            className="flex-1 bg-ore-green border-2 border-ore-gray-border text-white text-xs font-minecraft py-1 active:mt-0.5 hover:brightness-110 flex items-center justify-center gap-1"
-                            style={{ boxShadow: 'inset 0 -2px #1D4D13, inset 2px 2px rgba(255, 255, 255, 0.2)' }}
-                          >
-                            <MessageSquareShare size={12} />
-                            {server.socials[0].label}
-                          </button>
-                       )}
+
+                    <div className="ore-multiplayer-link-row">
+                      {server.homepageUrl && (
+                        <button
+                          type="button"
+                          className="ore-multiplayer-link-button"
+                          onClick={() => void openLink(server.homepageUrl)}
+                        >
+                          <Globe size={14} />
+                          官网
+                        </button>
+                      )}
+
+                      {server.socials[0]?.url && (
+                        <button
+                          type="button"
+                          className="ore-multiplayer-link-button ore-multiplayer-link-button--primary"
+                          onClick={() => void openLink(server.socials[0].url)}
+                        >
+                          <MessageSquareShare size={14} />
+                          {server.socials[0].label}
+                        </button>
+                      )}
                     </div>
+                  </footer>
+                </article>
+              ))}
+            </div>
+
+            <div className="ore-multiplayer-stack">
+              <div className="ore-multiplayer-panel-heading">
+                <h3 className="ore-multiplayer-panel-title">推广位</h3>
+                <p className="ore-multiplayer-panel-subtitle">
+                  为活动服、联机季和合作专区预留的内容位置。
+                </p>
+              </div>
+
+              <div className="ore-multiplayer-ad-grid">
+                {adSlots.slice(0, 3).map((ad) => (
+                  <article
+                    key={ad.id}
+                    className="ore-multiplayer-ad-card"
+                    onClick={() => ad.url && void openLink(ad.url)}
+                  >
+                    <div className="ore-multiplayer-ad-card-body">
+                      <Megaphone size={20} className="text-[var(--ore-color-background-warning-default)]" />
+                      <h3 className="ore-multiplayer-ad-title">{ad.title}</h3>
+                      <p className="ore-multiplayer-ad-description">{ad.description}</p>
+                    </div>
+
+                    <div className="ore-multiplayer-ad-footer">
+                      <span>{ad.expiresAt ? `截止 ${formatDate(ad.expiresAt)}` : '等待素材投放'}</span>
+                      <strong>{ad.url ? '查看详情' : '预留中'}</strong>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!hasServers && !error && !isLoading && adSlots.length > 0 && (
+          <div className="ore-multiplayer-stack">
+            <div className="ore-multiplayer-panel-heading">
+              <h3 className="ore-multiplayer-panel-title">预留推广位</h3>
+              <p className="ore-multiplayer-panel-subtitle">
+                当前目录为空时，仍保留推广和活动位，避免页面出现大片留白。
+              </p>
+            </div>
+
+            <div className="ore-multiplayer-ad-grid">
+              {adSlots.slice(0, 3).map((ad) => (
+                <article key={ad.id} className="ore-multiplayer-ad-card">
+                  <div className="ore-multiplayer-ad-card-body">
+                    <BadgeDollarSign size={20} className="text-[var(--ore-color-background-warning-default)]" />
+                    <h3 className="ore-multiplayer-ad-title">{ad.title}</h3>
+                    <p className="ore-multiplayer-ad-description">{ad.description}</p>
+                  </div>
+                  <div className="ore-multiplayer-ad-footer">
+                    <span>{ad.expiresAt ? `截止 ${formatDate(ad.expiresAt)}` : '等待素材投放'}</span>
+                    <strong>{ad.url ? '待跳转' : '预留中'}</strong>
                   </div>
                 </article>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-
-      <div className="pt-2 border-t-2 border-ore-gray-border/50">
-        <div className="mb-3 flex items-center gap-2 text-sm text-ore-text-muted font-minecraft px-2">
-          <Megaphone size={16} className="text-amber-400" />
-          <span>推广位</span>
-        </div>
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
-          {adSlots.slice(0, 3).map((ad) => (
-            <article
-              key={ad.id}
-              className="group flex flex-col w-full bg-ore-nav border-2 border-ore-gray-border hover:bg-ore-nav-hover active:bg-ore-nav-active transition-none cursor-pointer overflow-hidden"
-              style={{
-                boxShadow: 'inset 2px 2px rgba(255, 255, 255, 0.05), inset -2px -2px rgba(0, 0, 0, 0.1)'
-              }}
-              onClick={() => ad.url && void openLink(ad.url)}
-            >
-              <div className="flex-1 flex flex-col p-4 relative">
-                <div className="absolute top-0 right-0 p-3 opacity-10">
-                   <BadgeDollarSign size={48} />
-                </div>
-                <h3 className="font-minecraft font-bold text-lg text-white mb-2 relative z-10 text-shadow">{ad.title}</h3>
-                <p className="text-ore-text-muted text-xs font-minecraft leading-relaxed relative z-10">{ad.description}</p>
-              </div>
-
-              <div className="bg-black/20 border-t border-white/5 w-full py-2 px-4 flex justify-between items-center mt-auto">
-                 <span className="text-[10px] text-ore-text-muted font-minecraft">
-                   {ad.expiresAt ? `截止 ${formatDate(ad.expiresAt)}` : '等待素材投放'}
-                 </span>
-                 <span className="text-[10px] text-amber-400 font-minecraft font-bold">
-                   {ad.url ? '查看详情 >' : '预留中'}
-                 </span>
-              </div>
-            </article>
-          ))}
-        </div>
-      </div>
-    </div>
+    </section>
   );
 };

@@ -20,6 +20,18 @@
     "core:window:allow-request-user-attention",
     "shell:allow-open",
     "shell:default",
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "binaries/PiHub",
+          "sidecar": true,
+          "args": false
+        }
+      ]
+    },
+    "shell:allow-kill",
+    "shell:allow-stdin-write",
     "dialog:default",
     "dialog:allow-open",
     "core:window:allow-set-fullscreen",

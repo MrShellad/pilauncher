@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Download, Home as HomeIcon, Minus, Server, Settings, Square, X } from 'lucide-react';
+import { Download, Home as HomeIcon, Minus, Server, Settings, Square, X, Users } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
 import { useLauncherStore } from '../../store/useLauncherStore';
@@ -50,7 +50,7 @@ export const TitleBar: React.FC = () => {
   const navTabs: TabItem[] = [
     { id: 'home', label: '首页', icon: <HomeIcon size={18} /> },
     { id: 'instances', label: '实例', icon: <Server size={18} /> },
-    // { id: 'multiplayer', label: '联机', icon: <Users size={18} /> }, // 暂时隐藏
+    { id: 'multiplayer', label: '联机', icon: <Users size={18} /> },
     { id: 'downloads', label: '下载', icon: <Download size={18} /> },
     { id: 'settings', label: '设置', icon: <Settings size={18} /> },
   ];
@@ -82,48 +82,25 @@ export const TitleBar: React.FC = () => {
 
   return (
     <>
-      <div className="z-50 flex w-full flex-col">
+      <div
+        data-tauri-drag-region
+        className="z-50 flex min-h-[56px] w-full select-none items-center gap-3 px-4 pb-2 pt-[14px]"
+      >
         <div
           data-tauri-drag-region
-          className="flex h-10 w-full select-none items-center justify-between bg-transparent px-4"
+          className="flex min-w-[112px] flex-1 items-center font-minecraft text-sm tracking-wider text-white drop-shadow-md"
         >
-          <div
-            data-tauri-drag-region
-            className="pointer-events-none font-minecraft text-sm tracking-wider text-white drop-shadow-md"
-          >
+          <div data-tauri-drag-region className="pointer-events-none">
             PiLauncher
           </div>
-
-          {!isFullscreen && (
-            <div className="flex space-x-2">
-              <button
-                onClick={handleMinimize}
-                tabIndex={-1}
-                className="rounded p-1 text-white transition-colors outline-none hover:bg-white/10 active:bg-white/20"
-              >
-                <Minus size={16} />
-              </button>
-              <button
-                onClick={handleMaximize}
-                tabIndex={-1}
-                className="rounded p-1 text-white transition-colors outline-none hover:bg-white/10 active:bg-white/20"
-              >
-                <Square size={14} />
-              </button>
-              <button
-                onClick={() => void handleClose()}
-                tabIndex={-1}
-                className="rounded p-1 text-white transition-colors outline-none hover:bg-red-600 active:bg-red-700"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          )}
         </div>
 
-        <div className="flex w-full select-none items-center justify-center gap-4 pb-2 pt-1">
+        <div
+          data-tauri-drag-region
+          className="flex shrink-0 items-center justify-center gap-3 py-[2px]"
+        >
           <div
-            className={`mb-1 flex cursor-pointer items-center justify-center transition-transform duration-150 ${
+            className={`flex cursor-pointer items-center justify-center transition-transform duration-150 ${
               pressingLB ? 'scale-75' : 'scale-90 hover:scale-95 active:scale-75'
             }`}
             onClick={() => handleSwitchTab(-1)}
@@ -141,7 +118,7 @@ export const TitleBar: React.FC = () => {
           />
 
           <div
-            className={`mb-1 flex cursor-pointer items-center justify-center transition-transform duration-150 ${
+            className={`flex cursor-pointer items-center justify-center transition-transform duration-150 ${
               pressingRB ? 'scale-75' : 'scale-90 hover:scale-95 active:scale-75'
             }`}
             onClick={() => handleSwitchTab(1)}
@@ -151,6 +128,40 @@ export const TitleBar: React.FC = () => {
           >
             <ControlHint label="RB" variant="bumper" tone={pressingRB ? 'green' : 'neutral'} />
           </div>
+        </div>
+
+        <div
+          data-tauri-drag-region
+          className="flex min-w-[112px] flex-1 items-center justify-end"
+        >
+          {!isFullscreen && (
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={handleMinimize}
+                tabIndex={-1}
+                className="rounded p-1 text-white transition-colors outline-none hover:bg-white/10 active:bg-white/20"
+              >
+                <Minus size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={handleMaximize}
+                tabIndex={-1}
+                className="rounded p-1 text-white transition-colors outline-none hover:bg-white/10 active:bg-white/20"
+              >
+                <Square size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleClose()}
+                tabIndex={-1}
+                className="rounded p-1 text-white transition-colors outline-none hover:bg-red-600 active:bg-red-700"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
       <OreConfirmDialog

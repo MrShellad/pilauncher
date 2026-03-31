@@ -1,4 +1,10 @@
 {
+  "multiplayer": {
+    "title": "Multiplayer Hub",
+    "description": "Community Server Directory and PiHub Direct Connect.",
+    "onlineServers": "Community Servers",
+    "piHub": "PiHub Direct Connect"
+  },
   "download": {
     "tabs": {
       "mod": "Mods",

@@ -359,3 +359,67 @@ export const getPingTone = (ping?: number) => {
   if (ping <= 120) return 'text-amber-300';
   return 'text-rose-300';
 };
+
+export const copyText = async (value?: string) => {
+  const text = value?.trim();
+  if (!text) {
+    return false;
+  }
+
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', 'true');
+  textarea.style.position = 'absolute';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  const success = document.execCommand('copy');
+  document.body.removeChild(textarea);
+  return success;
+};
+
+export const measureWebSocketLatency = async (url: string, timeoutMs: number = 3000): Promise<number | undefined> => {
+  return new Promise((resolve) => {
+    const startTime = Date.now();
+    let isDone = false;
+
+    try {
+      const ws = new WebSocket(url);
+
+      const timeout = setTimeout(() => {
+        if (!isDone) {
+          isDone = true;
+          ws.close();
+          resolve(undefined);
+        }
+      }, timeoutMs);
+
+      ws.onopen = () => {
+        if (!isDone) {
+          isDone = true;
+          clearTimeout(timeout);
+          const latency = Date.now() - startTime;
+          ws.close();
+          resolve(latency);
+        }
+      };
+
+      ws.onerror = () => {
+        if (!isDone) {
+          isDone = true;
+          clearTimeout(timeout);
+          ws.close();
+          resolve(undefined);
+        }
+      };
+    } catch {
+      resolve(undefined);
+    }
+  });
+};
