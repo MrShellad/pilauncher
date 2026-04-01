@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import type { KeyboardEvent, ClipboardEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -22,6 +22,37 @@ export const OrePinInput: React.FC<OrePinInputProps> = ({
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
   const [animatedDigits, setAnimatedDigits] = useState<string[]>([]);
   const [lockedIndices, setLockedIndices] = useState<Set<number>>(new Set());
+  const [idleDigits, setIdleDigits] = useState<string[]>(Array(length).fill('-'));
+
+  // Memoize random properties for idle animation to avoid layout thrashing on re-renders
+  const idleProps = useMemo(() => {
+    return Array.from({ length }, () => ({
+      duration: 2.0 + Math.random() * 1.5,
+      delay: Math.random() * 0.5,
+    }));
+  }, [length]);
+
+  // Handle idle animation (low frequency random character changes)
+  useEffect(() => {
+    if (!isAlive || isAnimating || value) return; // Only run when idle, not animating, and no value
+    
+    const interval = setInterval(() => {
+      setIdleDigits(prev => {
+        const next = [...prev];
+        // Change 1-2 random slots
+        const numChanges = Math.floor(Math.random() * 2) + 1;
+        for (let i = 0; i < numChanges; i++) {
+          const idx = Math.floor(Math.random() * length);
+          // Glitch/idle characters to make it feel alive
+          const chars = ['-', '_', '*', '·', '≈', '≡', '>'];
+          next[idx] = chars[Math.floor(Math.random() * chars.length)];
+        }
+        return next;
+      });
+    }, 1200); // Low frequency changes (1.2s)
+    
+    return () => clearInterval(interval);
+  }, [isAlive, isAnimating, value, length]);
 
   // Handle slot machine animation
   useEffect(() => {
@@ -32,14 +63,14 @@ export const OrePinInput: React.FC<OrePinInputProps> = ({
     }
 
     const startTime = Date.now();
-    const durations = Array.from({ length }, (_, i) => 800 + i * 150 + Math.random() * 200);
+    // 0.8s to 1.5s total duration, staggered
+    const durations = Array.from({ length }, (_, i) => 800 + i * (700 / Math.max(1, length - 1)));
     const maxDuration = Math.max(...durations);
 
     const interval = setInterval(() => {
       const elapsed = Date.now() - startTime;
 
       setAnimatedDigits((prevDigits) => {
-        // Essential: start with base digits or random ones if first tick
         const currentArr = prevDigits.length === length ? prevDigits : Array(length).fill('');
         const nextDigits = [...currentArr];
         
@@ -53,8 +84,9 @@ export const OrePinInput: React.FC<OrePinInputProps> = ({
               return next;
             });
           } else {
-            // Rapid cycle digits (0-9)
-            nextDigits[i] = Math.floor(Math.random() * 10).toString();
+            // Rapid cycle digits (0-9, A-Z)
+            const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            nextDigits[i] = chars[Math.floor(Math.random() * chars.length)];
           }
         }
         return nextDigits;
@@ -63,7 +95,7 @@ export const OrePinInput: React.FC<OrePinInputProps> = ({
       if (elapsed >= maxDuration + 100) {
         clearInterval(interval);
       }
-    }, 60);
+    }, 75); // 50-100ms frequency (75ms avg)
 
     return () => clearInterval(interval);
   }, [isAnimating, value, length]);
@@ -116,25 +148,31 @@ export const OrePinInput: React.FC<OrePinInputProps> = ({
   };
 
   const splitValue = Array.from({ length }, (_, i) => value[i] || '');
-  const displayDigits = isAnimating && animatedDigits.length === length ? animatedDigits : splitValue;
+  const displayDigits = isAnimating && animatedDigits.length === length 
+    ? animatedDigits 
+    : splitValue; // Value is shown, if empty then input shows placeholder
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-2 w-full justify-between sm:justify-start">
-        {displayDigits.map((digit, index) => (
+        {displayDigits.map((digit, index) => {
+          const isSlotAnimating = isAnimating && !lockedIndices.has(index);
+          const currentPlaceholder = isAlive && !isAnimating && !value ? idleDigits[index] : '-';
+
+          return (
           <motion.div
             key={index}
-            animate={isAlive && !isAnimating ? {
+            animate={isAlive && !isAnimating && !value ? {
               y: [0, -3, 0],
               opacity: [0.7, 1, 0.7],
               scale: [1, 1.02, 1],
               borderColor: ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']
             } : { y: 0, opacity: 1, scale: 1, borderColor: 'rgba(255,255,255,0.1)' }}
             transition={{
-              duration: 2.0 + Math.random(),
+              duration: idleProps[index].duration,
               repeat: Infinity,
               ease: "easeInOut",
-              delay: index * 0.2
+              delay: idleProps[index].delay
             }}
             className="relative"
           >
@@ -147,23 +185,24 @@ export const OrePinInput: React.FC<OrePinInputProps> = ({
                 autoComplete="one-time-code"
                 maxLength={1}
                 value={digit}
-                placeholder="-"
+                placeholder={currentPlaceholder}
                 disabled={disabled || isAnimating}
                 onChange={(e) => handleChange(index, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(index, e)}
                 onPaste={index === 0 ? handlePaste : undefined}
                 onFocus={(e) => e.target.select()}
-                className={`w-10 h-14 sm:w-12 sm:h-16 text-center text-xl sm:text-2xl font-mono font-bold border-[2px] transition-all focus:outline-none placeholder:text-white/10
+                className={`w-10 h-14 sm:w-12 sm:h-16 text-center text-xl sm:text-2xl font-mono font-bold border-[2px] transition-all focus:outline-none 
+                  ${(isAlive && !isAnimating && !value) ? 'placeholder:text-white/30' : 'placeholder:text-white/10'}
                   ${disabled 
                     ? (isAlive ? 'bg-black/40 border-white/10 text-[#58585A]' : 'bg-[#1E1E1F]/50 border-[#1E1E1F]/50 text-[#58585A]')
-                    : (isAnimating && !lockedIndices.has(index))
+                    : isSlotAnimating
                       ? 'bg-[#1B293A] border-[#78C6FF]/60 text-[#78C6FF] shadow-[0_0_15px_rgba(120,198,255,0.2)]'
                       : 'bg-black/60 border-white/10 text-white hover:border-white/30 focus:border-[#78C6FF] focus:bg-[#1B293A]/80 focus:shadow-[0_0_20px_rgba(120,198,255,0.25)]'
                   }`}
               />
               
               {/* Optional: Char-specific jumping animation if value changes rapidly during animation */}
-              {isAnimating && !lockedIndices.has(index) && (
+              {isSlotAnimating && (
                 <motion.div
                   key={`char-jump-${digit}-${index}`}
                   initial={{ y: 5, opacity: 0 }}
@@ -177,7 +216,7 @@ export const OrePinInput: React.FC<OrePinInputProps> = ({
             
             {/* Rapid switch animation feedback */}
             <AnimatePresence>
-              {isAnimating && !lockedIndices.has(index) && (
+              {isSlotAnimating && (
                 <motion.div
                   key={`glow-${digit}-${index}`}
                   initial={{ opacity: 0.5, scale: 0.8 }}
@@ -189,7 +228,7 @@ export const OrePinInput: React.FC<OrePinInputProps> = ({
               )}
             </AnimatePresence>
           </motion.div>
-        ))}
+        )})}
       </div>
     </div>
   );

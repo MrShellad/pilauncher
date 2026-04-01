@@ -618,6 +618,7 @@
 .ore-multiplayer-card {
   display: flex;
   flex-direction: column;
+  min-height: 0;
   gap: 10px;
   border: 2px solid var(--mp-border);
   background:
