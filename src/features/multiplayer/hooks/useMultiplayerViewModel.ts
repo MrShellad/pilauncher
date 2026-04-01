@@ -10,6 +10,13 @@ const defaultSignalingServer = import.meta.env.VITE_PIHUB_SIGNALING_SERVER?.trim
 const defaultHostPort = String(import.meta.env.VITE_PIHUB_TARGET_MC_PORT?.trim() || '25565');
 const defaultLocalProxyPort = String(import.meta.env.VITE_PIHUB_LOCAL_PROXY_PORT?.trim() || '50001');
 
+export const CUSTOM_SIGNALING_KEY = 'ore:custom_signaling_url';
+export const getCachedCustomSignaling = () => localStorage.getItem(CUSTOM_SIGNALING_KEY) || '';
+export const setCachedCustomSignaling = (url: string) => {
+  if (!url.trim()) localStorage.removeItem(CUSTOM_SIGNALING_KEY);
+  else localStorage.setItem(CUSTOM_SIGNALING_KEY, url);
+};
+
 const toSafePort = (value: string, fallback: number) => {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {

@@ -42,6 +42,37 @@ const InstanceDetail = lazy(() => import('./pages/InstanceDetail'));
 const ResourceDownloadPage = lazy(() => import('./pages/ResourceDownloadPage'));
 const InstanceModDownloadPage = lazy(() => import('./pages/InstanceModDownloadPage'));
 
+import { usePiHubSession } from './features/multiplayer/hooks/usePiHubSession';
+
+const PageLoader = () => (
+  <div className="absolute inset-0 flex items-center justify-center">
+    <span className="animate-pulse font-minecraft text-ore-text-muted">Loading...</span>
+  </div>
+);
+
+const MultiplayerGuard: React.FC<{ activeTab: string }> = ({ activeTab }) => {
+  const session = usePiHubSession();
+  const isStarted = session.lifecycle !== 'idle';
+  const isActive = activeTab === 'multiplayer';
+
+  if (!isStarted && !isActive) return null;
+
+  return (
+    <div
+      className="absolute inset-0 flex transition-opacity duration-300"
+      style={{
+        zIndex: isActive ? 10 : -1,
+        pointerEvents: isActive ? 'auto' : 'none',
+        opacity: isActive ? 1 : 0
+      }}
+    >
+      <Suspense fallback={<PageLoader />}>
+        <Multiplayer />
+      </Suspense>
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   const activeTab = useLauncherStore((state) => state.activeTab);
   const { appearance, general } = useSettingsStore((state) => state.settings);
@@ -96,11 +127,11 @@ const App: React.FC = () => {
     }
   }, [general?.preventTouchAction]);
 
-  const PageLoader = () => (
-    <div className="absolute inset-0 flex items-center justify-center">
-      <span className="animate-pulse font-minecraft text-ore-text-muted">Loading...</span>
-    </div>
-  );
+
+
+
+
+
 
   return (
     <FocusProvider>
@@ -110,7 +141,8 @@ const App: React.FC = () => {
 
         <main className="relative flex flex-1">
           <AnimatePresence mode="wait">
-            <motion.div
+            {activeTab !== 'multiplayer' && (
+              <motion.div
               key={activeTab}
               initial={OreMotionTokens.pageInitial}
               animate={OreMotionTokens.pageAnimate}
@@ -120,7 +152,7 @@ const App: React.FC = () => {
               <Suspense fallback={<PageLoader />}>
                 {activeTab === 'home' && <Home />}
                 {activeTab === 'instances' && <Instances />}
-                {activeTab === 'multiplayer' && <Multiplayer />}
+
                 {activeTab === 'new-instance' && <NewInstance />}
                 {activeTab === 'instance-detail' && <InstanceDetail />}
                 {activeTab === 'instance-mod-download' && <InstanceModDownloadPage />}
@@ -128,7 +160,9 @@ const App: React.FC = () => {
                 {activeTab === 'settings' && <Settings />}
               </Suspense>
             </motion.div>
+            )}
           </AnimatePresence>
+          <MultiplayerGuard activeTab={activeTab} />
         </main>
 
         <DownloadManager />

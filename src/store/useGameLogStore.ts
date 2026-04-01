@@ -21,6 +21,7 @@ interface GameLogStore {
   logs: string[];
   crashReason: string | null;
   telemetry: StartupTelemetry;
+  latestLanPort: string | null;
   
   setOpen: (isOpen: boolean) => void;
   setInstanceId: (id: string) => void; 
@@ -43,6 +44,7 @@ export const useGameLogStore = create<GameLogStore>((set, get) => ({
   logs: [],
   crashReason: null,
   telemetry: { ...initialTelemetry },
+  latestLanPort: null,
 
   setOpen: (isOpen) => set({ isOpen }),
   setInstanceId: (id) => set({ currentInstanceId: id }),
@@ -116,12 +118,17 @@ export const useGameLogStore = create<GameLogStore>((set, get) => ({
       )) {
         newTelemetry.totalStartup = getElapsed();
       }
+
+      const portMatch = log.match(/(?:[Ll]ocal game hosted on(?: port)?|[局域网游戏]已在端口|Started on port)\s*(\d{4,5})/i);
+      if (portMatch) {
+        set({ latestLanPort: portMatch[1] });
+      }
     }
 
     return { logs: newLogs, gameState: nextState, telemetry: newTelemetry };
   }),
 
-  clearLogs: () => set({ logs: [], crashReason: null, gameState: 'idle', telemetry: { ...initialTelemetry } }),
+  clearLogs: () => set({ logs: [], crashReason: null, gameState: 'idle', telemetry: { ...initialTelemetry }, latestLanPort: null }),
 
   analyzeCrash: () => {
     const logs = get().logs;

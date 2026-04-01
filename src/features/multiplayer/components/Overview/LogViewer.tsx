@@ -17,8 +17,8 @@ const formatLogTime = (value: string) =>
 
 export const LogViewer: React.FC<LogViewerProps> = ({ logs, lastError }) => {
   return (
-    <div className="ore-multiplayer-card flex-1 min-h-0">
-      <div className="ore-multiplayer-card-heading">
+    <div className="ore-multiplayer-card flex-1 min-h-0 h-full">
+      <div className="ore-multiplayer-card-heading shrink-0">
         <div>
           <h3 className="ore-multiplayer-card-title">
             <span className="inline-flex items-center gap-2">

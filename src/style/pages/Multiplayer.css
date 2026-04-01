@@ -406,6 +406,10 @@
 }
 
 .ore-multiplayer-chooser-log {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
   width: min(100%, 58rem);
   margin: 0 auto;
 }

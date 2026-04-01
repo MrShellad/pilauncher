@@ -5,6 +5,8 @@ import { OreInput } from '../../../../ui/primitives/OreInput';
 import { OrePinInput } from '../../../../ui/primitives/OrePinInput';
 import { OreDropdown } from '../../../../ui/primitives/OreDropdown';
 import type { PiHubRole, SignalingServer } from '../../types';
+import { useGameLogStore } from '../../../../store/useGameLogStore';
+import { getCachedCustomSignaling, setCachedCustomSignaling } from '../../hooks/useMultiplayerViewModel';
 
 interface HostFlowProps {
   role: PiHubRole;
@@ -53,7 +55,9 @@ export const HostFlow: React.FC<HostFlowProps> = ({
   servers,
   isLoadingServers
 }) => {
-  const [showCustomSignaling, setShowCustomSignaling] = React.useState(false);
+  const cachedSignaling = getCachedCustomSignaling();
+  const [showCustomSignaling, setShowCustomSignaling] = React.useState(!!cachedSignaling && hostSignalingServer === cachedSignaling);
+  const latestLanPort = useGameLogStore((s) => s.latestLanPort);
   const [isPinAnimating, setIsPinAnimating] = React.useState(false);
   const prevInviteCode = React.useRef(inviteCode);
 
@@ -97,14 +101,30 @@ export const HostFlow: React.FC<HostFlowProps> = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <OreInput
-          label="Minecraft 服务端端口"
-          value={hostPort}
-          onChange={(event: any) => setHostPort(event.target.value)}
-          inputMode="numeric"
-          placeholder="25565"
-          disabled={isBusy}
-        />
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
+            <OreInput
+              label="Minecraft 服务端端口"
+              value={hostPort}
+              onChange={(event: any) => setHostPort(event.target.value)}
+              inputMode="numeric"
+              placeholder="25565"
+              disabled={isBusy}
+            />
+          </div>
+          <OreButton
+            type="button"
+            variant="secondary"
+            size="auto"
+            className="!h-[44px]"
+            onClick={() => {
+              if (latestLanPort) setHostPort(latestLanPort);
+            }}
+            disabled={isBusy || !latestLanPort}
+          >
+            获取端口
+          </OreButton>
+        </div>
         <div className="flex flex-col gap-1 w-full justify-end">
           <label className="text-[12px] font-minecraft font-bold uppercase tracking-wider text-[#B1B2B5]">
             信令服务器 {isLoadingServers ? '(测速中...)' : ''}
@@ -113,7 +133,11 @@ export const HostFlow: React.FC<HostFlowProps> = ({
             <div className="relative">
               <OreInput
                 value={hostSignalingServer}
-                onChange={(event: any) => setHostSignalingServer(event.target.value)}
+                onChange={(event: any) => {
+                  const val = event.target.value;
+                  setHostSignalingServer(val);
+                  setCachedCustomSignaling(val);
+                }}
                 placeholder="wss://signal.example.com"
                 disabled={isBusy}
               />
@@ -137,6 +161,7 @@ export const HostFlow: React.FC<HostFlowProps> = ({
                   label: `${s.region} - ${s.provider} ${s.measuredLatencyMs ? `(${s.measuredLatencyMs}ms)` : ''}`,
                   value: s.url
                 })),
+                ...(cachedSignaling ? [{ label: `历史设定 (${cachedSignaling})`, value: cachedSignaling }] : []),
                 { label: '自定义路线...', value: 'custom' }
               ]}
               onChange={(val) => {

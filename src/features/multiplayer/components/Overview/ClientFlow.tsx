@@ -5,6 +5,7 @@ import { OreInput } from '../../../../ui/primitives/OreInput';
 import { OrePinInput } from '../../../../ui/primitives/OrePinInput';
 import { OreDropdown } from '../../../../ui/primitives/OreDropdown';
 import type { PiHubTunnelInfo, SignalingServer } from '../../types';
+import { getCachedCustomSignaling, setCachedCustomSignaling } from '../../hooks/useMultiplayerViewModel';
 
 interface ClientFlowProps {
   isBusy: boolean;
@@ -47,7 +48,8 @@ export const ClientFlow: React.FC<ClientFlowProps> = ({
   servers,
   isLoadingServers
 }) => {
-  const [showCustomSignaling, setShowCustomSignaling] = React.useState(false);
+  const cachedSignaling = getCachedCustomSignaling();
+  const [showCustomSignaling, setShowCustomSignaling] = React.useState(!!cachedSignaling && clientSignalingServer === cachedSignaling);
 
   const renderReturnButton = () =>
     canReturnToChooser ? (
@@ -96,7 +98,11 @@ export const ClientFlow: React.FC<ClientFlowProps> = ({
             <div className="relative">
               <OreInput
                 value={clientSignalingServer}
-                onChange={(event: any) => setClientSignalingServer(event.target.value)}
+                onChange={(event: any) => {
+                  const val = event.target.value;
+                  setClientSignalingServer(val);
+                  setCachedCustomSignaling(val);
+                }}
                 placeholder="wss://signal.example.com"
                 disabled={isBusy}
               />
@@ -120,6 +126,7 @@ export const ClientFlow: React.FC<ClientFlowProps> = ({
                   label: `${s.region} - ${s.provider} ${s.measuredLatencyMs ? `(${s.measuredLatencyMs}ms)` : ''}`,
                   value: s.url
                 })),
+                ...(cachedSignaling ? [{ label: `历史设定 (${cachedSignaling})`, value: cachedSignaling }] : []),
                 { label: '自定义路线...', value: 'custom' }
               ]}
               onChange={(val) => {

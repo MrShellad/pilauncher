@@ -85,10 +85,10 @@ export const MultiplayerOverview: React.FC<MultiplayerOverviewProps> = () => {
             </div>
           ) : (
             <div className="ore-multiplayer-p2p-grid">
-              <div className="ore-multiplayer-stack ore-multiplayer-stack--secondary">
+              <div className="ore-multiplayer-stack ore-multiplayer-stack--secondary h-full">
                 <LogViewer logs={vm.session.logs} lastError={vm.session.lastError} />
               </div>
-              <div className="ore-multiplayer-stack ore-multiplayer-stack--primary">
+              <div className="ore-multiplayer-stack ore-multiplayer-stack--primary h-full">
                 {vm.selectedFlow === 'host' ? (
                   <HostFlow
                     role={vm.session.role as any}
