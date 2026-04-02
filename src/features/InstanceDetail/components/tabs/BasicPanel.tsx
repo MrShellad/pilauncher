@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { BUTTON_TYPES, getButtonIcon } from '../../../../ui/icons/SocialIcons';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { listen } from '@tauri-apps/api/event';
 
 import { OreInput } from '../../../../ui/primitives/OreInput';
 import { OreButton } from '../../../../ui/primitives/OreButton';
@@ -26,7 +27,12 @@ import { FormRow } from '../../../../ui/layout/FormRow';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { OreConfirmDialog } from '../../../../ui/primitives/OreConfirmDialog';
 
-import type { InstanceDetailData, CustomButton } from '../../../../hooks/pages/InstanceDetail/useInstanceDetail';
+import type {
+  InstanceDetailData,
+  CustomButton,
+  MissingRuntime,
+  VerifyInstanceRuntimeResult
+} from '../../../../hooks/pages/InstanceDetail/useInstanceDetail';
 
 interface BasicPanelProps {
   data: InstanceDetailData;
@@ -34,9 +40,27 @@ interface BasicPanelProps {
   onUpdateName: (newName: string) => Promise<void>;
   onUpdateCover: () => Promise<void>;
   onUpdateCustomButtons: (buttons: CustomButton[]) => Promise<void>;
-  onVerifyFiles: () => Promise<void>;
+  onVerifyFiles: () => Promise<VerifyInstanceRuntimeResult>;
+  onRepairFiles: (repair: MissingRuntime) => Promise<void>;
   onDelete: (skipConfirm?: boolean) => Promise<void>;
 }
+
+interface VerifyProgressEventPayload {
+  instance_id: string;
+  stage: string;
+  current: number;
+  total: number;
+  message?: string;
+}
+
+type VerifyDialogState =
+  | 'idle'
+  | 'verifying'
+  | 'repair'
+  | 'repairing'
+  | 'clean'
+  | 'queued'
+  | 'error';
 
 export const BasicPanel: React.FC<BasicPanelProps> = ({
   data,
@@ -45,6 +69,7 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
   onUpdateCover,
   onUpdateCustomButtons,
   onVerifyFiles,
+  onRepairFiles,
   onDelete,
 }) => {
   const [editName, setEditName] = useState(data.name || '');
@@ -52,6 +77,11 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
   const [successMsg, setSuccessMsg] = useState('');
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [customButtons, setCustomButtons] = useState<CustomButton[]>(data.customButtons || []);
+  const [isVerifyDialogOpen, setIsVerifyDialogOpen] = useState(false);
+  const [verifyState, setVerifyState] = useState<VerifyDialogState>('idle');
+  const [verifyProgress, setVerifyProgress] = useState({ current: 0, total: 1, message: '' });
+  const [verifyResult, setVerifyResult] = useState<VerifyInstanceRuntimeResult | null>(null);
+  const [verifyError, setVerifyError] = useState('');
 
   useEffect(() => {
     setEditName(data.name);
@@ -108,6 +138,151 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
     setIsDeleteModalOpen(false);
     await onDelete(true);
   };
+
+  const resetVerifyDialog = () => {
+    setVerifyState('idle');
+    setVerifyProgress({ current: 0, total: 1, message: '' });
+    setVerifyResult(null);
+    setVerifyError('');
+  };
+
+  const canCloseVerifyDialog = verifyState !== 'verifying' && verifyState !== 'repairing';
+
+  const handleCloseVerifyDialog = () => {
+    if (!canCloseVerifyDialog) return;
+    setIsVerifyDialogOpen(false);
+    resetVerifyDialog();
+  };
+
+  const handleStartVerify = async () => {
+    if (verifyState === 'verifying' || verifyState === 'repairing') return;
+
+    setIsVerifyDialogOpen(true);
+    setVerifyState('verifying');
+    setVerifyResult(null);
+    setVerifyError('');
+    setVerifyProgress({ current: 0, total: 1, message: '正在准备校验...' });
+
+    let unlisten: (() => void) | null = null;
+
+    try {
+      unlisten = await listen<VerifyProgressEventPayload>('instance-runtime-verify-progress', (event) => {
+        const payload = event.payload;
+        if (payload.instance_id !== data.id) return;
+
+        setVerifyProgress({
+          current: payload.current ?? 0,
+          total: Math.max(payload.total ?? 1, 1),
+          message: payload.message || '正在校验文件...',
+        });
+      });
+
+      const result = await onVerifyFiles();
+      setVerifyResult(result);
+      setVerifyState(result.needs_repair ? 'repair' : 'clean');
+    } catch (error) {
+      setVerifyError(error instanceof Error ? error.message : String(error));
+      setVerifyState('error');
+    } finally {
+      if (unlisten) unlisten();
+    }
+  };
+
+  const handleConfirmVerifyDialog = async () => {
+    if (verifyState === 'repair') {
+      if (!verifyResult?.repair) {
+        setVerifyError('校验结果缺少补全参数，无法继续。');
+        setVerifyState('error');
+        return;
+      }
+
+      try {
+        setVerifyState('repairing');
+        await onRepairFiles(verifyResult.repair);
+        setVerifyState('queued');
+      } catch (error) {
+        setVerifyError(error instanceof Error ? error.message : String(error));
+        setVerifyState('error');
+      }
+      return;
+    }
+
+    if (verifyState === 'clean' || verifyState === 'queued' || verifyState === 'error') {
+      handleCloseVerifyDialog();
+    }
+  };
+
+  const verifyBusy = verifyState === 'verifying' || verifyState === 'repairing';
+  const verifyPercent = Math.max(
+    0,
+    Math.min(100, Math.round((verifyProgress.current / Math.max(verifyProgress.total, 1)) * 100))
+  );
+  const verifyIssues = verifyResult?.issues ?? [];
+
+  const verifyDialogTone =
+    verifyState === 'repair' || verifyState === 'repairing'
+      ? 'warning'
+      : verifyState === 'error'
+        ? 'danger'
+        : 'info';
+
+  const verifyDialogTitle =
+    verifyState === 'repair'
+      ? '校验发现异常'
+      : verifyState === 'repairing'
+        ? '正在补全文件'
+        : verifyState === 'clean'
+          ? '校验完成'
+          : verifyState === 'queued'
+            ? '已加入下载队列'
+            : verifyState === 'error'
+              ? '校验失败'
+              : '正在校验文件';
+
+  const verifyDialogHeadline =
+    verifyState === 'repair'
+      ? '检测到文件缺失或哈希不一致。'
+      : verifyState === 'repairing'
+        ? '正在调用下载管理补全运行时文件。'
+        : verifyState === 'clean'
+          ? '当前实例运行时文件完整。'
+          : verifyState === 'queued'
+            ? '补全任务已加入下载管理。'
+            : verifyState === 'error'
+              ? '校验过程出现错误。'
+              : '请稍候，正在逐项校验。';
+
+  const verifyDialogDescription =
+    verifyState === 'repair'
+      ? '确认后将自动打开下载管理并开始补全。'
+      : verifyState === 'queued'
+        ? '你可以在下载管理中查看实时进度。'
+        : verifyState === 'error'
+          ? verifyError || '未知错误'
+          : verifyState === 'clean'
+            ? '未发现需要补全的运行时文件。'
+            : verifyProgress.message || '正在校验运行时...';
+
+  const verifyConfirmLabel =
+    verifyState === 'repair'
+      ? '开始补全'
+      : verifyState === 'repairing'
+        ? '补全中'
+        : verifyState === 'verifying'
+          ? '校验中'
+          : '关闭';
+
+  const verifySingleClose = verifyState === 'clean';
+  const verifyHeadlineNode = (
+    <span className="block min-h-[1.75rem] leading-6">
+      {verifyDialogHeadline}
+    </span>
+  );
+  const verifyDescriptionNode = (
+    <span className="block min-h-[2.5rem] leading-5 text-ore-text-muted">
+      {verifyDialogDescription}
+    </span>
+  );
 
   const isNameChanged = editName !== data.name && editName.trim() !== '';
 
@@ -323,8 +498,8 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
               <OreButton
                 focusKey="basic-btn-verify-files"
                 variant="secondary"
-                onClick={onVerifyFiles}
-                disabled={isSaving || isInitializing}
+                onClick={handleStartVerify}
+                disabled={isSaving || isInitializing || verifyBusy}
                 className="w-40"
               >
                 <ShieldCheck size={16} className="mr-2" /> 校验补全
@@ -353,6 +528,66 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
         </SettingsSection>
 
         {/* 彻底删除弹窗 */}
+        <OreConfirmDialog
+          isOpen={isVerifyDialogOpen}
+          onClose={handleCloseVerifyDialog}
+          onConfirm={() => {
+            void handleConfirmVerifyDialog();
+          }}
+          title={verifyDialogTitle}
+          headline={verifyHeadlineNode}
+          description={verifyDescriptionNode}
+          confirmLabel={verifyConfirmLabel}
+          hideCancelButton={verifySingleClose}
+          cancelLabel={verifyState === 'repair' ? '暂不补全' : '关闭'}
+          confirmVariant={verifyState === 'repair' ? 'primary' : 'secondary'}
+          tone={verifyDialogTone}
+          confirmFocusKey="basic-verify-confirm"
+          cancelFocusKey="basic-verify-cancel"
+          bodyClassName="flex h-full flex-col items-center justify-start text-center"
+          modalContentClassName="!p-5 overflow-hidden"
+          confirmIcon={
+            verifyState === 'repair'
+              ? <Wrench size={16} className="mr-2" />
+              : <ShieldCheck size={16} className="mr-2" />
+          }
+          dialogIcon={
+            verifyState === 'clean' || verifyState === 'queued'
+              ? <CheckCircle2 size={32} className="text-ore-green" />
+              : verifyState === 'error'
+                ? <AlertTriangle size={32} className="text-red-500" />
+                : <ShieldCheck size={32} className={verifyState === 'verifying' ? 'text-sky-400 animate-pulse' : 'text-sky-400'} />
+          }
+          isConfirming={verifyState === 'verifying' || verifyState === 'repairing'}
+          closeOnOutsideClick={canCloseVerifyDialog}
+          className="w-[560px] h-[440px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)]"
+        >
+          {(verifyState === 'verifying' || verifyState === 'repairing') && (
+            <div className="mt-4 w-full max-h-[172px] space-y-3 overflow-y-auto px-2 custom-scrollbar">
+              <div className="overflow-hidden rounded-full border-2 border-[#2A2A2C] bg-[#141415] shadow-inner">
+                <div
+                  className="h-3 bg-[#3C8527] transition-[width] duration-200"
+                  style={{ width: `${verifyPercent}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-xs font-bold uppercase tracking-[0.16em] text-[#A1A3A5]">
+                <span>{verifyProgress.message || '正在校验文件...'}</span>
+                <span className="text-ore-green">{verifyPercent}%</span>
+              </div>
+            </div>
+          )}
+
+          {verifyState === 'repair' && verifyIssues.length > 0 && (
+            <div className="mt-4 w-full max-h-[172px] overflow-y-auto rounded-sm border border-yellow-500/25 bg-yellow-500/10 px-4 py-3 text-left text-sm text-yellow-100 custom-scrollbar">
+              {verifyIssues.map((issue, index) => (
+                <div key={`${issue}-${index}`} className={index > 0 ? 'mt-2' : ''}>
+                  {issue}
+                </div>
+              ))}
+            </div>
+          )}
+        </OreConfirmDialog>
+
         <OreConfirmDialog
           isOpen={isDeleteModalOpen}
           onClose={() => setIsDeleteModalOpen(false)}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Download, Home as HomeIcon, Minus, Server, Settings, Square, X, Users } from 'lucide-react';
+import { Download, Home as HomeIcon, Minus, Server, Settings, Square, X, Users, Library as LibraryIcon } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
 import { useLauncherStore } from '../../store/useLauncherStore';
@@ -52,6 +52,7 @@ export const TitleBar: React.FC = () => {
     { id: 'instances', label: '实例', icon: <Server size={18} /> },
     { id: 'multiplayer', label: '联机', icon: <Users size={18} /> },
     { id: 'downloads', label: '下载', icon: <Download size={18} /> },
+    { id: 'library', label: '库', icon: <LibraryIcon size={18} /> },
     { id: 'settings', label: '设置', icon: <Settings size={18} /> },
   ];
 

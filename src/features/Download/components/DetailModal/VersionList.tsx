@@ -96,9 +96,12 @@ export const VersionList: React.FC<VersionListProps> = ({
                     onClick={() => handleVersionEnter(version, isInstalled)}
                     className={`
                       group relative flex items-center justify-between gap-3 overflow-hidden border-[2px]
-                      border-[var(--ore-downloadDetail-divider)] px-4 py-2.5 transition-none
-                      ${isInstalled ? 'bg-[var(--ore-downloadDetail-installedBg)] cursor-default' : 'bg-[var(--ore-downloadDetail-rowBg)] cursor-pointer'}
-                      ${focused ? 'z-20 outline outline-2 outline-offset-[3px] outline-white brightness-[1.03]' : ''}
+                      border-[var(--ore-downloadDetail-divider)] px-4 py-2.5
+                      transition-[filter,outline] duration-100
+                      ${isInstalled
+                        ? 'bg-[var(--ore-downloadDetail-installedBg)] cursor-default'
+                        : 'bg-[var(--ore-downloadDetail-rowBg)] cursor-pointer hover:brightness-[1.06]'}
+                      ${focused ? 'z-20 outline outline-2 outline-offset-[3px] outline-white brightness-[1.06]' : ''}
                     `}
                     style={{
                       boxShadow: isInstalled
@@ -139,7 +142,7 @@ export const VersionList: React.FC<VersionListProps> = ({
                           {t('download.status.alreadyInInstance', { defaultValue: 'Already in instance' })}
                         </span>
                       ) : (
-                        <span className="ore-btn ore-btn-primary ore-text-shadow pointer-events-none relative inline-flex !h-[3.25rem] min-w-[11.5rem] select-none items-center justify-center px-5 font-minecraft text-[0.875rem] font-black tracking-[0.12em] !text-[#0B0C0D]">
+                        <span className="ore-btn ore-btn-primary ore-text-shadow pointer-events-none relative inline-flex !h-[3.25rem] min-w-[11.5rem] select-none items-center justify-center px-5 font-minecraft text-[0.875rem] font-black tracking-[0.12em] !text-white">
                           <Download size={16} className="mr-2 shrink-0" />
                           {t('download.actions.downloadVersion', { defaultValue: 'Download Version' })}
                         </span>

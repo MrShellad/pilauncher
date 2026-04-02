@@ -7,6 +7,7 @@ export type TabType =
   | 'instances'
   | 'multiplayer'
   | 'downloads'
+  | 'library'
   | 'settings'
   | 'new-instance'
   | 'instance-detail'

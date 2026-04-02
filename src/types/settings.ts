@@ -39,7 +39,7 @@ export interface JavaSettings {
 export interface GameSettings {
   windowTitle: string;
   launcherVisibility: 'keep' | 'minimize' | 'close';
-  resolution: string; 
+  resolution: string;
   fullscreen: boolean;
   gamepadModCheck: boolean; // 手柄启动时自动检测手柄 Mod
 }
@@ -49,13 +49,13 @@ export interface DownloadSettings {
   // ✅ 核心修改：将原本单一的 source 拆分为四个独立通道
   vanillaSource: string;
   vanillaSourceUrl: string;
-  
+
   forgeSource: string;
   forgeSourceUrl: string;
-  
+
   fabricSource: string;
   fabricSourceUrl: string;
-  
+
   neoforgeSource: string;
   neoforgeSourceUrl: string;
 
@@ -96,7 +96,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     showLogOnFailure: true,
     basePath: '',
     deviceName: '',
-    deviceId: '',   
+    deviceId: '',
     preventTouchAction: true,
     thirdPartyDirs: [],
   } as any,
@@ -106,7 +106,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     maskColor: '#000000',
     maskOpacity: 60,
     maskGradient: true,
-    fontFamily: 'Minecraft', 
+    fontFamily: 'Minecraft',
   },
   java: {
     autoDetect: true,
@@ -121,12 +121,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
     },
     maxMemory: 4096,
     minMemory: 1024,
-    jvmArgs: '-XX:+UseG1GC -XX:+UnlockExperimentalVMOptions'
+    jvmArgs: '-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=50'
   },
   game: {
     windowTitle: 'Minecraft',
-    launcherVisibility: 'minimize', 
-    resolution: '854x480',          
+    launcherVisibility: 'minimize',
+    resolution: '854x480',
     fullscreen: true,
     gamepadModCheck: true,
   },
@@ -144,13 +144,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
     quiltSource: 'official',
     quiltSourceUrl: 'https://meta.quiltmc.org',
 
-    autoCheckLatency: false,     
-    concurrency: 12,            
-    speedLimit: 0,              
-    speedUnit: 'MB/s',          
-    retryCount: 5,              
-    timeout: 15,                
-    verifyAfterDownload: true,  
+    autoCheckLatency: false,
+    concurrency: 12,
+    speedLimit: 0,
+    speedUnit: 'MB/s',
+    retryCount: 5,
+    timeout: 15,
+    verifyAfterDownload: true,
     proxyType: 'none',
     proxyHost: '127.0.0.1',
     proxyPort: '7890',

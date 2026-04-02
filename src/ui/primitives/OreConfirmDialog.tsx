@@ -36,10 +36,13 @@ interface OreConfirmDialogProps {
   dialogIcon?: React.ReactNode;
   isConfirming?: boolean;
   className?: string;
+  modalContentClassName?: string;
+  bodyClassName?: string;
   closeOnOutsideClick?: boolean;
   tertiaryAction?: TertiaryAction;
   confirmationNote?: React.ReactNode;
   confirmationNoteTone?: NoteTone;
+  hideCancelButton?: boolean;
 }
 
 const toneClasses: Record<DialogTone, { shell: string; icon: string }> = {
@@ -82,16 +85,20 @@ export const OreConfirmDialog: React.FC<OreConfirmDialogProps> = ({
   dialogIcon,
   isConfirming = false,
   className = 'w-[450px]',
+  modalContentClassName,
+  bodyClassName = 'flex flex-col items-center justify-center py-4 text-center',
   closeOnOutsideClick = true,
   tertiaryAction,
   confirmationNote,
-  confirmationNoteTone = 'neutral'
+  confirmationNoteTone = 'neutral',
+  hideCancelButton = false
 }) => {
   const palette = toneClasses[tone];
   const resolvedDialogIcon = dialogIcon ?? <AlertTriangle size={32} className={palette.icon} />;
   const tertiaryFocusKey = tertiaryAction?.focusKey ?? 'ore-confirm-dialog-tertiary';
+  const defaultFocusKey = hideCancelButton ? confirmFocusKey : cancelFocusKey;
   const actionKeys = [
-    { key: cancelFocusKey, disabled: false },
+    hideCancelButton ? null : { key: cancelFocusKey, disabled: false },
     tertiaryAction ? { key: tertiaryFocusKey, disabled: !!tertiaryAction.disabled } : null,
     { key: confirmFocusKey, disabled: isConfirming }
   ].filter((item): item is { key: string; disabled: boolean } => Boolean(item));
@@ -126,19 +133,22 @@ export const OreConfirmDialog: React.FC<OreConfirmDialogProps> = ({
       title={title}
       hideCloseButton={true}
       className={className}
-      defaultFocusKey={cancelFocusKey}
+      contentClassName={modalContentClassName}
+      defaultFocusKey={defaultFocusKey}
       closeOnOutsideClick={closeOnOutsideClick}
       actions={
         <>
-          <OreButton
-            focusKey={cancelFocusKey}
-            variant="secondary"
-            onClick={onClose}
-            onArrowPress={(direction) => handleActionArrow(cancelFocusKey, direction)}
-            className="flex-1"
-          >
-            {cancelLabel}
-          </OreButton>
+          {!hideCancelButton && (
+            <OreButton
+              focusKey={cancelFocusKey}
+              variant="secondary"
+              onClick={onClose}
+              onArrowPress={(direction) => handleActionArrow(cancelFocusKey, direction)}
+              className="flex-1"
+            >
+              {cancelLabel}
+            </OreButton>
+          )}
           {tertiaryAction && (
             <OreButton
               focusKey={tertiaryFocusKey}
@@ -168,7 +178,7 @@ export const OreConfirmDialog: React.FC<OreConfirmDialogProps> = ({
         </>
       }
     >
-      <div className="flex flex-col items-center justify-center py-4 text-center">
+      <div className={bodyClassName}>
         <div className={`mb-4 flex h-16 w-16 items-center justify-center rounded-full border-2 ${palette.shell}`}>
           {resolvedDialogIcon}
         </div>

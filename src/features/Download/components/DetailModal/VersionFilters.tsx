@@ -193,8 +193,8 @@ export const VersionFilters: React.FC<VersionFiltersProps> = ({
       className="flex w-full flex-shrink-0 flex-col gap-3 border-b-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] px-4 py-3"
       style={{ boxShadow: 'var(--ore-downloadDetail-sectionInset)' }}
     >
-      <div className="flex flex-col gap-2 xl:flex-row xl:items-end xl:justify-between">
-        <div>
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+        <div className="shrink-0">
           <div className="font-minecraft text-base uppercase tracking-[0.16em] text-white">
             {t('download.filters.versionFilters', { defaultValue: 'Version Filters' })}
           </div>
@@ -206,8 +206,8 @@ export const VersionFilters: React.FC<VersionFiltersProps> = ({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          <div className="hidden items-center gap-2 intent-gamepad:flex">
+        <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+          <div className="flex items-center gap-2">
             <div
               className={`transition-transform duration-150 ${pressingLB ? 'scale-75' : 'scale-90'}`}
             >
@@ -222,13 +222,7 @@ export const VersionFilters: React.FC<VersionFiltersProps> = ({
               {t('download.actions.cycleLoader', { defaultValue: 'Cycle Loader' })}
             </span>
           </div>
-          <div className="flex items-center gap-2 intent-gamepad:hidden">
-            <ControlHint label="[" variant="keyboard" tone="neutral" />
-            <ControlHint label="]" variant="keyboard" tone="neutral" />
-            <span className="font-minecraft text-[10px] uppercase tracking-[0.14em] text-[var(--ore-downloadDetail-hintText)]">
-              {t('download.actions.cycleLoader', { defaultValue: 'Cycle Loader' })}
-            </span>
-          </div>
+
           <div className="font-minecraft text-[10px] uppercase tracking-[0.14em] text-[var(--ore-downloadDetail-labelText)]">
             {t('download.meta.current', { defaultValue: 'Current' })}: <span className="text-white">{loaderLabel}</span>
           </div>
@@ -250,7 +244,7 @@ export const VersionFilters: React.FC<VersionFiltersProps> = ({
               onChange={setActiveLoader}
               focusable={false}
               className="!m-0 h-full w-full [&>.ore-toggle-btn-group]:!h-full [&>.ore-toggle-btn-group]:!w-full"
-              buttonClassName="text-[11px]"
+              buttonClassName="text-[13px]"
             />
           </div>
         </div>

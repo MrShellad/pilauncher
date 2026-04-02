@@ -3,8 +3,11 @@ use crate::domain::event::DownloadProgressEvent;
 use crate::domain::modpack::ModpackMetadata;
 use crate::services::config_service::ConfigService;
 use crate::services::deployment_cancel;
+use crate::services::downloader::dependencies::scheduler::sha1_file;
 use crate::services::modpack_service;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
@@ -23,6 +26,320 @@ pub struct MissingRuntime {
 pub struct ImportResult {
     pub added: usize,
     pub missing: Vec<MissingRuntime>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct VerifyInstanceRuntimeResult {
+    pub instance_id: String,
+    pub needs_repair: bool,
+    pub issues: Vec<String>,
+    pub repair: Option<MissingRuntime>,
+}
+
+fn get_mc_os() -> &'static str {
+    match env::consts::OS {
+        "windows" => "windows",
+        "macos" => "osx",
+        "linux" => "linux",
+        _ => env::consts::OS,
+    }
+}
+
+fn get_mc_arch() -> &'static str {
+    match env::consts::ARCH {
+        "x86_64" => "64",
+        "x86" => "32",
+        "aarch64" => "arm64",
+        _ => env::consts::ARCH,
+    }
+}
+
+fn evaluate_library_rules(rules: Option<&Vec<serde_json::Value>>) -> bool {
+    let Some(rules) = rules else {
+        return true;
+    };
+
+    let current_os = get_mc_os();
+    let mut is_allowed = false;
+
+    for rule in rules {
+        let action = rule["action"].as_str().unwrap_or("disallow");
+        let os_match = match rule.get("os") {
+            Some(os_obj) => os_obj["name"].as_str().unwrap_or("") == current_os,
+            None => true,
+        };
+
+        if os_match {
+            is_allowed = action == "allow";
+        }
+    }
+
+    is_allowed
+}
+
+fn legacy_library_download_path(name: &str, classifier: Option<&str>) -> Option<String> {
+    let parts: Vec<&str> = name.split(':').collect();
+    if parts.len() < 3 {
+        return None;
+    }
+
+    let group = parts[0].replace('.', "/");
+    let artifact = parts[1];
+    let version = parts[2];
+
+    Some(match classifier {
+        Some(classifier) => format!(
+            "{}/{}/{}/{}-{}-{}.jar",
+            group, artifact, version, artifact, version, classifier
+        ),
+        None => format!(
+            "{}/{}/{}/{}-{}.jar",
+            group, artifact, version, artifact, version
+        ),
+    })
+}
+
+fn resolve_loader_folder(loader_type: &str, mc_version: &str, loader_version: &str) -> Option<String> {
+    if loader_version.trim().is_empty() || loader_type.eq_ignore_ascii_case("vanilla") {
+        return None;
+    }
+
+    match loader_type.to_lowercase().as_str() {
+        "fabric" => Some(format!("fabric-loader-{}-{}", loader_version, mc_version)),
+        "forge" => Some(format!("{}-forge-{}", mc_version, loader_version)),
+        "neoforge" => Some(format!("neoforge-{}", loader_version)),
+        "quilt" => Some(format!("quilt-loader-{}-{}", loader_version, mc_version)),
+        _ => None,
+    }
+}
+
+fn push_sample_issue(samples: &mut Vec<String>, issue: String) {
+    if samples.len() < 6 {
+        samples.push(issue);
+    }
+}
+
+fn push_verify_issue(issues: &mut Vec<String>, samples: &mut Vec<String>, issue: String) {
+    if issues.len() < 200 {
+        issues.push(issue.clone());
+    } else if issues.len() == 200 {
+        issues.push("Detected too many issues, showing partial result only.".to_string());
+    }
+    push_sample_issue(samples, issue);
+}
+
+fn emit_verify_progress<R: Runtime>(
+    app: &AppHandle<R>,
+    instance_id: &str,
+    current: u64,
+    total: u64,
+    message: impl Into<String>,
+) {
+    let _ = app.emit(
+        "instance-runtime-verify-progress",
+        DownloadProgressEvent {
+            instance_id: instance_id.to_string(),
+            stage: "VERIFY_RUNTIME".to_string(),
+            file_name: String::new(),
+            current,
+            total,
+            message: message.into(),
+        },
+    );
+}
+
+fn collect_manifest_library_targets(
+    manifest: &serde_json::Value,
+    runtime_dir: &Path,
+    seen_paths: &mut HashSet<String>,
+    targets: &mut Vec<(PathBuf, Option<String>, String)>,
+) {
+    let Some(libraries) = manifest["libraries"].as_array() else {
+        return;
+    };
+
+    for lib in libraries {
+        if !evaluate_library_rules(lib["rules"].as_array()) {
+            continue;
+        }
+
+        let lib_name = lib["name"].as_str().unwrap_or("unknown-library");
+
+        if let Some(artifact) = lib.pointer("/downloads/artifact") {
+            if let Some(dl_path) = artifact["path"].as_str() {
+                let path = runtime_dir.join("libraries").join(dl_path);
+                let key = path.to_string_lossy().to_string();
+                if seen_paths.insert(key) {
+                    targets.push((
+                        path,
+                        artifact["sha1"].as_str().map(|s| s.to_lowercase()),
+                        lib_name.to_string(),
+                    ));
+                }
+            }
+        } else if lib.get("downloads").is_none() {
+            if let Some(dl_path) = legacy_library_download_path(lib_name, None) {
+                let path = runtime_dir.join("libraries").join(&dl_path);
+                let key = path.to_string_lossy().to_string();
+                if seen_paths.insert(key) {
+                    targets.push((path, None, lib_name.to_string()));
+                }
+            }
+        }
+
+        if let Some(natives) = lib["natives"].as_object() {
+            let current_os = get_mc_os();
+            if let Some(classifier_val) = natives.get(current_os) {
+                let mut classifier_key = classifier_val.as_str().unwrap_or("").to_string();
+                if classifier_key.contains("${arch}") {
+                    classifier_key = classifier_key.replace("${arch}", get_mc_arch());
+                }
+
+                if let Some(classifier_obj) =
+                    lib.pointer(&format!("/downloads/classifiers/{}", classifier_key))
+                {
+                    if let Some(dl_path) = classifier_obj["path"].as_str() {
+                        let path = runtime_dir.join("libraries").join(dl_path);
+                        let key = path.to_string_lossy().to_string();
+                        if seen_paths.insert(key) {
+                            targets.push((
+                                path,
+                                classifier_obj["sha1"].as_str().map(|s| s.to_lowercase()),
+                                format!("{} ({})", lib_name, classifier_key),
+                            ));
+                        }
+                    }
+                } else if lib.get("downloads").is_none() {
+                    if let Some(dl_path) =
+                        legacy_library_download_path(lib_name, Some(&classifier_key))
+                    {
+                        let path = runtime_dir.join("libraries").join(&dl_path);
+                        let key = path.to_string_lossy().to_string();
+                        if seen_paths.insert(key) {
+                            targets.push((path, None, format!("{} ({})", lib_name, classifier_key)));
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn collect_asset_targets(
+    manifest: &serde_json::Value,
+    runtime_dir: &Path,
+    seen_paths: &mut HashSet<String>,
+    targets: &mut Vec<(PathBuf, Option<String>, String)>,
+    issues: &mut Vec<String>,
+    samples: &mut Vec<String>,
+) {
+    let Some(asset_index) = manifest.get("assetIndex") else {
+        return;
+    };
+    if asset_index.is_null() {
+        return;
+    }
+
+    let index_id = asset_index["id"].as_str().unwrap_or("").trim();
+    if index_id.is_empty() {
+        push_verify_issue(
+            issues,
+            samples,
+            "Missing assetIndex.id in version manifest.".to_string(),
+        );
+        return;
+    }
+
+    let index_path = runtime_dir
+        .join("assets")
+        .join("indexes")
+        .join(format!("{}.json", index_id));
+
+    if !index_path.exists() {
+        push_verify_issue(
+            issues,
+            samples,
+            format!("Missing assets index: {}", index_path.display()),
+        );
+        return;
+    }
+
+    let index_key = index_path.to_string_lossy().to_string();
+    if seen_paths.insert(index_key) {
+        targets.push((
+            index_path.clone(),
+            asset_index["sha1"].as_str().map(|s| s.to_lowercase()),
+            format!("assets-index-{}", index_id),
+        ));
+    }
+
+    let index_content = match fs::read_to_string(&index_path) {
+        Ok(content) => content,
+        Err(err) => {
+            push_verify_issue(
+                issues,
+                samples,
+                format!(
+                    "Failed to read assets index {} ({})",
+                    index_path.display(),
+                    err
+                ),
+            );
+            return;
+        }
+    };
+
+    let index_json: serde_json::Value = match serde_json::from_str(&index_content) {
+        Ok(value) => value,
+        Err(err) => {
+            push_verify_issue(
+                issues,
+                samples,
+                format!(
+                    "Failed to parse assets index {} ({})",
+                    index_path.display(),
+                    err
+                ),
+            );
+            return;
+        }
+    };
+
+    let Some(objects) = index_json["objects"].as_object() else {
+        push_verify_issue(
+            issues,
+            samples,
+            format!(
+                "Invalid assets index format (missing objects): {}",
+                index_path.display()
+            ),
+        );
+        return;
+    };
+
+    for (name, object) in objects {
+        let hash = object["hash"].as_str().unwrap_or("").trim().to_lowercase();
+        if hash.len() < 2 {
+            push_verify_issue(
+                issues,
+                samples,
+                format!("Invalid asset hash entry: {}", name),
+            );
+            continue;
+        }
+
+        let prefix = &hash[0..2];
+        let asset_path = runtime_dir
+            .join("assets")
+            .join("objects")
+            .join(prefix)
+            .join(&hash);
+
+        let key = asset_path.to_string_lossy().to_string();
+        if seen_paths.insert(key) {
+            targets.push((asset_path, Some(hash), format!("asset {}", name)));
+        }
+    }
 }
 
 /// 辅助函数：深度解析第三方 JSON 内容以获取准确的版本与 Loader
@@ -396,6 +713,221 @@ pub async fn import_third_party_instance<R: Runtime>(
 }
 
 #[tauri::command]
+pub async fn verify_instance_runtime<R: Runtime>(
+    app: AppHandle<R>,
+    instance_id: String,
+) -> Result<VerifyInstanceRuntimeResult, String> {
+    emit_verify_progress(&app, &instance_id, 0, 1, "Preparing runtime verification...");
+
+    let base_path_str = ConfigService::get_base_path(&app)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Base path is not configured".to_string())?;
+    let base_path = PathBuf::from(&base_path_str);
+    let runtime_dir = base_path.join("runtime");
+    let instance_json_path = base_path
+        .join("instances")
+        .join(&instance_id)
+        .join("instance.json");
+
+    if !instance_json_path.exists() {
+        return Err(format!(
+            "Instance config does not exist: {}",
+            instance_json_path.display()
+        ));
+    }
+
+    let config_content = fs::read_to_string(&instance_json_path).map_err(|e| e.to_string())?;
+    let config: crate::domain::instance::InstanceConfig =
+        serde_json::from_str(&config_content).map_err(|e| e.to_string())?;
+
+    if config.mc_version.trim().is_empty() {
+        return Err("Instance config missing mcVersion".to_string());
+    }
+
+    let mut all_issues = Vec::new();
+    let mut sample_issues = Vec::new();
+
+    let mc_version = config.mc_version.trim().to_string();
+    let core_dir = runtime_dir.join("versions").join(&mc_version);
+    let core_json_path = core_dir.join(format!("{}.json", mc_version));
+    let core_jar_path = core_dir.join(format!("{}.jar", mc_version));
+
+    let mut core_manifest: Option<serde_json::Value> = None;
+    if !core_json_path.exists() {
+        push_verify_issue(
+            &mut all_issues,
+            &mut sample_issues,
+            format!("Missing core version json: {}", core_json_path.display()),
+        );
+    } else {
+        match fs::read_to_string(&core_json_path)
+            .ok()
+            .and_then(|content| serde_json::from_str::<serde_json::Value>(&content).ok())
+        {
+            Some(json) => core_manifest = Some(json),
+            None => {
+                push_verify_issue(
+                    &mut all_issues,
+                    &mut sample_issues,
+                    format!("Failed to parse core version json: {}", core_json_path.display()),
+                );
+            }
+        }
+    }
+
+    let mut loader_manifest: Option<serde_json::Value> = None;
+    if let Some(folder) = resolve_loader_folder(&config.loader.r#type, &mc_version, &config.loader.version) {
+        let loader_json_path = runtime_dir
+            .join("versions")
+            .join(&folder)
+            .join(format!("{}.json", folder));
+
+        if !loader_json_path.exists() {
+            push_verify_issue(
+                &mut all_issues,
+                &mut sample_issues,
+                format!("Missing loader version json: {}", loader_json_path.display()),
+            );
+        } else {
+            match fs::read_to_string(&loader_json_path)
+                .ok()
+                .and_then(|content| serde_json::from_str::<serde_json::Value>(&content).ok())
+            {
+                Some(json) => loader_manifest = Some(json),
+                None => {
+                    push_verify_issue(
+                        &mut all_issues,
+                        &mut sample_issues,
+                        format!("Failed to parse loader version json: {}", loader_json_path.display()),
+                    );
+                }
+            }
+        }
+    }
+
+    let mut seen_paths = HashSet::new();
+    let mut targets: Vec<(PathBuf, Option<String>, String)> = Vec::new();
+
+    let core_target_key = core_jar_path.to_string_lossy().to_string();
+    if seen_paths.insert(core_target_key) {
+        targets.push((
+            core_jar_path.clone(),
+            core_manifest
+                .as_ref()
+                .and_then(|json| json.pointer("/downloads/client/sha1"))
+                .and_then(|value| value.as_str())
+                .map(|s| s.to_lowercase()),
+            format!("minecraft-core-{}", mc_version),
+        ));
+    }
+
+    if let Some(manifest) = core_manifest.as_ref() {
+        collect_manifest_library_targets(manifest, &runtime_dir, &mut seen_paths, &mut targets);
+        collect_asset_targets(
+            manifest,
+            &runtime_dir,
+            &mut seen_paths,
+            &mut targets,
+            &mut all_issues,
+            &mut sample_issues,
+        );
+    }
+    if let Some(manifest) = loader_manifest.as_ref() {
+        collect_manifest_library_targets(manifest, &runtime_dir, &mut seen_paths, &mut targets);
+        collect_asset_targets(
+            manifest,
+            &runtime_dir,
+            &mut seen_paths,
+            &mut targets,
+            &mut all_issues,
+            &mut sample_issues,
+        );
+    }
+
+    let total = targets.len().max(1) as u64;
+    for (idx, (target_path, expected_sha1, label)) in targets.iter().enumerate() {
+        let current = idx as u64 + 1;
+        emit_verify_progress(
+            &app,
+            &instance_id,
+            current,
+            total,
+            format!("Verifying {}", label),
+        );
+
+        if !target_path.exists() {
+            push_verify_issue(
+                &mut all_issues,
+                &mut sample_issues,
+                format!("Missing file: {}", target_path.display()),
+            );
+            continue;
+        }
+
+        if let Some(expected) = expected_sha1 {
+            match sha1_file(target_path).await {
+                Ok(actual) => {
+                    if actual.to_lowercase() != expected.to_lowercase() {
+                        push_verify_issue(
+                            &mut all_issues,
+                            &mut sample_issues,
+                            format!(
+                                "SHA1 mismatch: {} (expected {}, got {})",
+                                target_path.display(),
+                                expected,
+                                actual
+                            ),
+                        );
+                    }
+                }
+                Err(err) => {
+                    push_verify_issue(
+                        &mut all_issues,
+                        &mut sample_issues,
+                        format!("Failed to hash file: {} ({})", target_path.display(), err),
+                    );
+                }
+            }
+        }
+    }
+
+    if all_issues.len() > sample_issues.len() {
+        sample_issues.push(format!(
+            "Found {} issues in total (partial list shown).",
+            all_issues.len()
+        ));
+    }
+
+    emit_verify_progress(
+        &app,
+        &instance_id,
+        total,
+        total,
+        if all_issues.is_empty() {
+            "Runtime verification completed."
+        } else {
+            "Runtime verification completed with issues."
+        },
+    );
+
+    Ok(VerifyInstanceRuntimeResult {
+        instance_id: instance_id.clone(),
+        needs_repair: !all_issues.is_empty(),
+        issues: sample_issues,
+        repair: if all_issues.is_empty() {
+            None
+        } else {
+            Some(MissingRuntime {
+                instance_id,
+                mc_version: config.mc_version,
+                loader_type: config.loader.r#type,
+                loader_version: config.loader.version,
+            })
+        },
+    })
+}
+
+#[tauri::command]
 pub async fn download_missing_runtimes<R: Runtime>(
     app: AppHandle<R>,
     missing_list: Vec<MissingRuntime>,
@@ -429,7 +961,7 @@ pub async fn download_missing_runtimes<R: Runtime>(
         )
         .await;
 
-        let _ = crate::services::downloader::dependencies::download_dependencies(
+        let _ = crate::services::downloader::dependencies::download_dependencies_force_hash(
             &app,
             &m.instance_id,
             &m.mc_version,

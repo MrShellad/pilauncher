@@ -1,240 +1,78 @@
-// src/features/GameLog/components/GameLogSidebar.tsx
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, Loader2, AlertTriangle, Bug, Activity, Copy, Check, FileText, Share2, ChevronRight, Power } from 'lucide-react';
-import { Virtuoso } from 'react-virtuoso';
-import { listen } from '@tauri-apps/api/event'; 
-import { invoke } from '@tauri-apps/api/core';
-import { getCurrentWindow, UserAttentionType } from '@tauri-apps/api/window';
+import { Terminal, Loader2, AlertTriangle, Bug, Activity, Check, FileText, Share2, ChevronRight, Power, Copy, FolderOpen } from 'lucide-react';
+import { open as openExternal } from '@tauri-apps/plugin-shell';
+import { OreConfirmDialog } from '../../../ui/primitives/OreConfirmDialog';
 
-// ✅ 引入空间导航与输入驱动引擎
-import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
-import { useInputAction } from '../../../ui/focus/InputDriver';
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../ui/focus/FocusItem';
+import { useInputAction } from '../../../ui/focus/InputDriver';
 
 import { useGameLogStore } from '../../../store/useGameLogStore';
-import { useLauncherStore } from '../../../store/useLauncherStore';
-import { useGamepadModStore } from '../../../store/useGamepadModStore';
-import { renderHighlightedLog, defaultHighlightRules } from '../logic/LogHighlighter';
 import { OreButton } from '../../../ui/primitives/OreButton';
-import { INITIAL_DOWNLOAD_FOCUS_KEY } from '../../Settings/components/tabs/download/downloadSettings.constants';
+
+import { useWindowService } from '../hooks/useWindowService';
+import { useFocusManager } from '../hooks/useFocusManager';
+import { useGameProcessService } from '../hooks/useGameProcessService';
+import { useLogService } from '../hooks/useLogService';
+import { useExportService } from '../hooks/useExportService';
+import { TelemetryPanel } from './TelemetryPanel';
+import { LogView } from './LogView';
 
 export const GameLogSidebar: React.FC = () => {
   const { isOpen, setOpen, currentInstanceId, logs, gameState, crashReason, telemetry } = useGameLogStore();
-  const activeTab = useLauncherStore((state) => state.activeTab);
-  const scrollRef = useRef<HTMLElement | Window | null>(null);
-  const logBufferRef = useRef<string[]>([]);
-  const appWindowRef = useRef(getCurrentWindow());
-  const lastFocusBeforeOpenRef = useRef<string | null>(null);
-  const foregroundLockRef = useRef(false);
   
   const [showTelemetry, setShowTelemetry] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
+  const [exportedZipPath, setExportedZipPath] = useState<string | null>(null);
+  const [showExportError, setShowExportError] = useState<string | null>(null);
+  const [showKillConfirm, setShowKillConfirm] = useState(false);
   
-  const [copiedLine, setCopiedLine] = useState<number | null>(null);
-  const [copiedAll, setCopiedAll] = useState(false);
-
-  const fallbackFocusKeysByTab = useMemo<Record<string, string[]>>(() => ({
-    home: ['play-button', 'instance-button', 'settings-button', 'btn-profile', 'btn-login'],
-    instances: ['action-new', 'view-grid', 'view-list'],
-    downloads: ['download-search-input', 'download-grid-item-0'],
-    settings: [
-      'settings-device-name',
-      'settings-java-autodetect',
-      INITIAL_DOWNLOAD_FOCUS_KEY,
-      'btn-add-ms',
-      'color-preset-0',
-    ],
-    'new-instance': ['card-custom', 'btn-back-menu'],
-    'instance-detail': [
-      'overview-btn-play',
-      'basic-input-name',
-      'java-entry-point',
-      'save-btn-history',
-      'mod-btn-history',
-      'btn-open-resourcepack-folder',
-      'btn-open-shader-folder',
-    ],
-    'instance-mod-download': [
-      'instance-mod-page-back',
-      'inst-filter-search',
-      'download-grid-item-0',
-    ],
-  }), []);
-
-  const restoreFocusToCurrentPage = useCallback(() => {
-    const lastFocus = lastFocusBeforeOpenRef.current;
-    if (lastFocus && doesFocusableExist(lastFocus)) {
-      setFocus(lastFocus);
-      return;
-    }
-
-    const candidates = fallbackFocusKeysByTab[activeTab] || [];
-    const target = candidates.find((focusKey) => doesFocusableExist(focusKey));
-    if (target) setFocus(target);
-  }, [activeTab, fallbackFocusKeysByTab]);
-
+  const { forceLauncherToFront } = useWindowService();
+  const { restoreFocusToCurrentPage } = useFocusManager(isOpen);
+  const { killCurrentGame } = useGameProcessService();
+  
   const closeSidebarAndRestoreFocus = useCallback(() => {
     setOpen(false);
     setTimeout(() => restoreFocusToCurrentPage(), 80);
   }, [restoreFocusToCurrentPage, setOpen]);
 
-  const forceLauncherToFront = useCallback(async () => {
-    if (foregroundLockRef.current) return;
-    foregroundLockRef.current = true;
+  useLogService({ 
+    closeSidebarAndRestoreFocus, 
+    forceLauncherToFront 
+  });
 
-    const appWindow = appWindowRef.current;
+  const { isExporting, copiedAll, handleCopyAll, handleExportTxt, handleShareZip } = useExportService({
+    currentInstanceId,
+    logs
+  });
+
+  const onGenerateDiag = async () => {
     try {
-      const minimized = await appWindow.isMinimized().catch(() => false);
-      if (minimized) {
-        await appWindow.unminimize().catch(() => undefined);
-      }
-
-      await appWindow.show().catch(() => undefined);
-      await appWindow.setAlwaysOnTop(true).catch(() => undefined);
-      await appWindow.setFocus().catch(() => undefined);
-      await appWindow.requestUserAttention(UserAttentionType.Critical).catch(() => undefined);
-    } finally {
-      setTimeout(() => {
-        appWindow.requestUserAttention(null).catch(() => undefined);
-        appWindow.setAlwaysOnTop(false).catch(() => undefined);
-        foregroundLockRef.current = false;
-      }, 900);
+      const path = await handleShareZip();
+      setExportedZipPath(path);
+    } catch (e: any) {
+      setShowExportError(e.toString());
     }
-  }, []);
+  };
 
-  const isMinecraftStoppingLog = useCallback((line: string) => {
-    return line.includes('[minecraft/Minecraft]: Stopping!');
-  }, []);
-
-  // 1. 日志刷新时的自动滚底 (Virtuoso 的 followOutput 已经处理了自动滚动，这部分逻辑可以静默)
-
-  // ✅ 2. 焦点锁定：当侧边栏打开时，强制将空间焦点拉入日志区域
-  useEffect(() => {
-    if (isOpen) {
-      const currentFocus = getCurrentFocusKey();
-      if (currentFocus && currentFocus !== 'SN:ROOT' && !currentFocus.startsWith('log-')) {
-        lastFocusBeforeOpenRef.current = currentFocus;
-      }
-
-      // 延迟 100ms 等待抽屉动画和 DOM 挂载完成
-      const timer = setTimeout(() => {
-        const isGamepadPromptOpen = useGamepadModStore.getState().isOpen;
-        if (!isGamepadPromptOpen) {
-          setFocus('log-area');
-        }
-      }, 100);
-      return () => clearTimeout(timer);
+  const handleOpenZipFolder = useCallback(() => {
+    if (exportedZipPath) {
+      const dirIndex = Math.max(exportedZipPath.lastIndexOf('\\'), exportedZipPath.lastIndexOf('/'));
+      const dir = dirIndex > -1 ? exportedZipPath.substring(0, dirIndex) : exportedZipPath;
+      openExternal(dir).catch(console.error);
+      setExportedZipPath(null);
     }
-  }, [isOpen]);
+  }, [exportedZipPath]);
 
-  // ✅ 3. Y 键直驱：无论焦点在哪里，只要面板打开，按 Y 键直接切换遥测抽屉
+  const onConfirmKill = () => {
+    killCurrentGame();
+    setShowKillConfirm(false);
+  };
+
+  // Y 键直驱：无论焦点在哪里，只要面板打开，按 Y 键直接切换遥测抽屉
   useInputAction('ACTION_Y', () => {
     if (isOpen) setShowTelemetry(prev => !prev);
   });
-
-  // ✅ 4. 右摇杆硬件直驱：完美实现手柄原生级滚动
-  useEffect(() => {
-    if (!isOpen) return;
-    let rafId: number;
-    const pollGamepad = () => {
-      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-      const gp = gamepads.find(g => g !== null);
-      if (gp && scrollRef.current) {
-        // axes[3] 是标准 Xbox/SteamDeck 手柄的右摇杆 Y 轴
-        const rightStickY = gp.axes[3]; 
-        // 0.1 死区防漂移
-        if (Math.abs(rightStickY) > 0.1 && scrollRef.current instanceof HTMLElement) {
-          scrollRef.current.scrollTop += rightStickY * 15; 
-        }
-      }
-      rafId = requestAnimationFrame(pollGamepad);
-    };
-    rafId = requestAnimationFrame(pollGamepad);
-    return () => cancelAnimationFrame(rafId);
-  }, [isOpen]);
-
-  useEffect(() => {
-    const unlistenLog = listen<string>('game-log', (event) => {
-      const line = event.payload;
-      logBufferRef.current.push(line);
-
-      if (isMinecraftStoppingLog(line)) {
-        const store = useGameLogStore.getState();
-        store.setGameState('idle');
-        closeSidebarAndRestoreFocus();
-        void forceLauncherToFront();
-      }
-    });
-
-    const flushTimer = setInterval(() => {
-      if (logBufferRef.current.length > 0) {
-        useGameLogStore.getState().addLogs(logBufferRef.current);
-        logBufferRef.current = [];
-      }
-    }, 50); // 20 FPS Flush
-
-    const unlistenExit = listen<{code: number}>('game-exit', (event) => {
-      if (logBufferRef.current.length > 0) {
-        useGameLogStore.getState().addLogs(logBufferRef.current);
-        logBufferRef.current = [];
-      }
-      const store = useGameLogStore.getState();
-      if (event.payload.code !== 0) {
-        store.analyzeCrash();
-        store.setOpen(true);
-        void forceLauncherToFront();
-      } else {
-        store.setGameState('idle');
-      }
-    });
-    return () => { 
-      clearInterval(flushTimer);
-      unlistenLog.then(f => f()); 
-      unlistenExit.then(f => f()); 
-    };
-  }, [closeSidebarAndRestoreFocus, forceLauncherToFront, isMinecraftStoppingLog]); 
-
-  const handleCopyLine = (line: string, idx: number) => {
-    navigator.clipboard.writeText(line);
-    setCopiedLine(idx);
-    setTimeout(() => setCopiedLine(null), 2000);
-  };
-
-  const handleCopyAll = () => {
-    navigator.clipboard.writeText(logs.join('\n'));
-    setCopiedAll(true);
-    setTimeout(() => setCopiedAll(false), 2000);
-  };
-
-  const handleExportTxt = () => {
-    const blob = new Blob([logs.join('\n')], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `PiLauncher-Log-${new Date().getTime()}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleShareZip = async () => {
-    if (!currentInstanceId) return;
-    try {
-      setIsExporting(true);
-      const zipPath = await invoke<string>('export_diagnostics', {
-        instanceId: currentInstanceId,
-        launcherLogs: logs
-      });
-      alert(`诊断包生成成功！\n已保存至:\n${zipPath}`);
-    } catch (err) {
-      alert(`打包失败: ${err}`);
-    } finally {
-      setIsExporting(false);
-    }
-  };
 
   const telemetryItems = [
     { label: 'jvm_uptime', value: telemetry.jvmUptime, desc: 'JVM 启动时间' },
@@ -245,14 +83,15 @@ export const GameLogSidebar: React.FC = () => {
   ];
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ x: '100%', opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: '100%', opacity: 0 }}
-          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed top-0 right-0 h-full w-[600px] bg-[#141415] border-l-[3px] border-[#1E1E1F] shadow-2xl z-[99999] flex flex-col font-minecraft"
-        >
-          <FocusBoundary id="game-log-sidebar" trapFocus={isOpen} onEscape={closeSidebarAndRestoreFocus} className="flex flex-col h-full outline-none">
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ x: '100%', opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: '100%', opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed top-0 right-0 h-full w-[680px] bg-[#141415] border-l-[3px] border-[#1E1E1F] shadow-2xl z-[90] flex flex-col font-minecraft"
+          >
+            <FocusBoundary id="game-log-sidebar" trapFocus={isOpen} onEscape={closeSidebarAndRestoreFocus} className="flex flex-col h-full outline-none">
             
             <div className="h-14 bg-[#1E1E1F] flex items-center justify-between px-4 shrink-0 shadow-sm z-20">
               <div className="flex items-center text-white">
@@ -262,16 +101,6 @@ export const GameLogSidebar: React.FC = () => {
                   {gameState === 'launching' && <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-sm flex items-center"><Loader2 size={12} className="mr-1 animate-spin"/> 初始化中</span>}
                   {gameState === 'running' && <span className="text-xs bg-ore-green/20 text-ore-green px-2 py-0.5 rounded-sm flex items-center"><span className="w-1.5 h-1.5 bg-ore-green rounded-full mr-1.5 animate-pulse"/> 运行中</span>}
                   {gameState === 'crashed' && <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-sm flex items-center"><Bug size={12} className="mr-1"/> 已崩溃</span>}
-                  
-                  {(gameState === 'launching' || gameState === 'running') && (
-                    <button
-                      onClick={() => invoke('kill_current_game').catch(console.error)}
-                      className="ml-3 flex items-center bg-red-500/10 hover:bg-red-500/20 text-red-400 px-2 py-[3px] rounded-sm text-[11px] font-bold transition-colors border border-red-500/20"
-                      title="强制结束游戏进程"
-                    >
-                      <Power size={12} className="mr-1.5" /> 结束进程
-                    </button>
-                  )}
                 </div>
               </div>
               
@@ -283,7 +112,6 @@ export const GameLogSidebar: React.FC = () => {
                     className={`flex items-center outline-none text-xs px-2 py-1.5 rounded-sm transition-colors ${showTelemetry ? 'bg-white/10 text-white' : 'text-ore-text-muted hover:text-white hover:bg-white/5'} ${focused ? 'ring-2 ring-white scale-105 bg-white/10' : ''}`}
                   >
                     <Activity size={14} className="mr-1.5" /> 
-                    {/* ✅ 手柄模式下隐藏文字，展示专属 Y 键提示 */}
                     <span className="[.intent-controller_&]:hidden">性能遥测</span>
                     <span className="hidden [.intent-controller_&]:flex items-center gap-1.5">
                       性能遥测 <div className="w-3.5 h-3.5 rounded-full bg-[#EAB308] text-black flex items-center justify-center text-[9px] font-bold">Y</div>
@@ -294,23 +122,7 @@ export const GameLogSidebar: React.FC = () => {
             </div>
 
             <div className="flex-1 flex flex-col overflow-hidden relative">
-              <AnimatePresence>
-                {showTelemetry && (
-                  <motion.div 
-                    initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                    className="bg-[#1E1E1F] border-b border-black/40 overflow-hidden shrink-0 z-10"
-                  >
-                    <div className="p-3 grid grid-cols-2 sm:grid-cols-5 gap-2">
-                      {telemetryItems.map((item, idx) => (
-                        <div key={idx} className="bg-[#18181B] p-2 border border-white/5 rounded-sm flex flex-col justify-center">
-                          <div className="text-[10px] text-ore-text-muted mb-0.5">{item.desc}</div>
-                          <div className={`text-xs font-bold truncate ${item.value ? 'text-ore-green' : 'text-gray-600'}`}>{item.value || 'Wait...'}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <TelemetryPanel showTelemetry={showTelemetry} telemetryItems={telemetryItems} />
 
               <AnimatePresence>
                 {gameState === 'launching' && (
@@ -338,58 +150,7 @@ export const GameLogSidebar: React.FC = () => {
                 </div>
               )}
 
-              {/* ✅ 将日志区域改造成 FocusItem 以支持空间导航识别 */}
-              <FocusItem focusKey="log-area">
-                {({ ref: focusRef, focused }) => (
-                  <div className="flex-1 overflow-hidden relative flex flex-col">
-                    <div 
-                      className={`flex-1 flex flex-col p-3 transition-all duration-200 ${focused ? 'ring-2 ring-inset ring-ore-green/60 bg-white/[0.01]' : ''}`}
-                    >
-                      {logs.length === 0 ? (
-                         <div className="text-ore-text-muted/50 text-center mt-20 text-sm">Waiting for standard output...</div>
-                      ) : (
-                        <Virtuoso
-                          style={{ flex: 1 }}
-                          data={logs}
-                          followOutput="auto"
-                          scrollerRef={(node) => {
-                            if (node && node instanceof HTMLElement) {
-                              (scrollRef as any).current = node;
-                              (focusRef as any).current = node; // 把焦点和滚动引用全打在虚拟列表的滚动容器上
-                            }
-                          }}
-                          itemContent={(idx, line) => (
-                            <div className="group relative font-mono hover:bg-[#1E1E1F] px-2 py-1.5 border-b border-white/[0.03] transition-colors pr-10 text-[13px] leading-relaxed break-all select-text">
-                              {renderHighlightedLog(line, defaultHighlightRules)}
-                              
-                              <button 
-                                onClick={() => handleCopyLine(line, idx)}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-sm transition-all"
-                                title={copiedLine === idx ? "已复制！" : "复制此行"}
-                              >
-                                {copiedLine === idx ? <Check size={14} className="text-ore-green" /> : <Copy size={14} />}
-                              </button>
-                            </div>
-                          )}
-                        />
-                      )}
-                    </div>
-                    
-                    {/* ✅ 当焦点在此区域，并且处于手柄模式时，优雅地浮现右摇杆提示 */}
-                    <AnimatePresence>
-                      {focused && (
-                         <motion.div 
-                           initial={{opacity:0, y: 10}} animate={{opacity:1, y:0}} exit={{opacity:0, y:10}} 
-                           className="absolute bottom-4 right-6 pointer-events-none hidden [.intent-controller_&]:flex items-center gap-2 bg-[#18181B]/95 px-3 py-1.5 rounded-full border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.8)] z-50"
-                         >
-                           <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center border border-white/20 text-[10px] font-bold text-white">RS</div>
-                           <span className="text-xs text-ore-text-muted">上下翻滚日志</span>
-                         </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                )}
-              </FocusItem>
+              <LogView logs={logs} isOpen={isOpen} />
             </div>
 
             <div className="h-16 bg-[#1E1E1F] border-t-[3px] border-[#1E1E1F] flex items-center justify-between px-4 shrink-0 shadow-sm z-20">
@@ -400,38 +161,43 @@ export const GameLogSidebar: React.FC = () => {
               <div className="flex items-center space-x-3">
                 
                 {gameState === 'crashed' && (
-                  <FocusItem focusKey="log-btn-copyall" onEnter={handleCopyAll}>
-                    {({ ref, focused }) => (
-                      <button 
-                        ref={ref as any} onClick={handleCopyAll} 
-                        className={`flex items-center outline-none text-xs transition-colors ${copiedAll ? 'text-ore-green' : 'text-ore-text-muted hover:text-white'} ${focused ? 'text-white scale-105' : ''}`}
-                      >
-                        {copiedAll ? <Check size={14} className="mr-1"/> : <Copy size={14} className="mr-1" />}
-                        {copiedAll ? '已复制' : '复制全部'}
-                      </button>
-                    )}
-                  </FocusItem>
+                  <OreButton 
+                    focusKey="log-btn-copyall" 
+                    variant="secondary" 
+                    size="sm" 
+                    onClick={handleCopyAll}
+                    style={{ color: copiedAll ? '#4ade80' : undefined }}
+                  >
+                    {copiedAll ? <Check size={14} className="mr-1"/> : <Copy size={14} className="mr-1" />}
+                    {copiedAll ? '已复制' : '复制全部'}
+                  </OreButton>
                 )}
 
-                <FocusItem focusKey="log-btn-export" onEnter={handleExportTxt}>
-                  {({ ref, focused }) => (
-                    <button ref={ref as any} onClick={handleExportTxt} className={`flex items-center outline-none text-xs text-ore-text-muted hover:text-white transition-all ${focused ? 'text-white scale-105' : ''}`}>
-                      <FileText size={14} className="mr-1" /> 导出 TXT
-                    </button>
-                  )}
-                </FocusItem>
+                <OreButton focusKey="log-btn-export" variant="secondary" size="sm" onClick={handleExportTxt}>
+                  <FileText size={14} className="mr-1" /> 导出 TXT
+                </OreButton>
 
-                <FocusItem focusKey="log-btn-zip" onEnter={handleShareZip}>
-                  {({ ref, focused }) => (
-                    <button 
-                      ref={ref as any} disabled={isExporting} onClick={handleShareZip} 
-                      className={`flex items-center outline-none text-xs transition-all ${isExporting ? 'text-blue-500' : 'text-ore-text-muted hover:text-blue-400'} ${focused ? 'text-blue-400 scale-105' : ''}`} 
-                    >
-                      {isExporting ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Share2 size={14} className="mr-1" />} 
-                      {isExporting ? '打包中...' : '生成诊断包'}
-                    </button>
-                  )}
-                </FocusItem>
+                <OreButton 
+                  focusKey="log-btn-zip" 
+                  variant="secondary" 
+                  size="sm" 
+                  disabled={isExporting} 
+                  onClick={onGenerateDiag}
+                >
+                  {isExporting ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Share2 size={14} className="mr-1" />} 
+                  {isExporting ? '打包中...' : '诊断包'}
+                </OreButton>
+
+                {(gameState === 'launching' || gameState === 'running') && (
+                  <OreButton 
+                    focusKey="log-btn-kill" 
+                    variant="danger" 
+                    size="sm" 
+                    onClick={() => setShowKillConfirm(true)}
+                  >
+                    <Power size={14} className="mr-1" /> 结束进程
+                  </OreButton>
+                )}
 
                 <div className="w-px h-4 bg-white/10 mx-1"></div>
                 
@@ -445,6 +211,52 @@ export const GameLogSidebar: React.FC = () => {
           </FocusBoundary>
         </motion.div>
       )}
-    </AnimatePresence>
+      </AnimatePresence>
+
+      <OreConfirmDialog
+        isOpen={!!exportedZipPath}
+        onClose={() => setExportedZipPath(null)}
+        onConfirm={() => setExportedZipPath(null)}
+        title="生成成功"
+        headline="完整的诊断包已成功生成"
+        description={<div className="break-all">{exportedZipPath}</div>}
+        confirmLabel="完成"
+        confirmVariant="primary"
+        tone="info"
+        hideCancelButton
+        tertiaryAction={{
+          label: "打开所在目录",
+          onClick: handleOpenZipFolder,
+          icon: <FolderOpen size={16} className="mr-1" />,
+          variant: 'secondary'
+        }}
+      />
+
+      <OreConfirmDialog
+        isOpen={!!showExportError}
+        onClose={() => setShowExportError(null)}
+        onConfirm={() => setShowExportError(null)}
+        title="生成失败"
+        headline="诊断包打包发生异常"
+        description={showExportError}
+        confirmLabel="确定"
+        confirmVariant="primary"
+        tone="danger"
+        hideCancelButton
+      />
+
+      <OreConfirmDialog
+        isOpen={showKillConfirm}
+        onClose={() => setShowKillConfirm(false)}
+        onConfirm={onConfirmKill}
+        title="安全警告"
+        headline="确定要强制终止游戏吗？"
+        description="强行关闭进程可能导致当前游戏世界的存档损坏，或者造成未保存的数据丢失。仅在游戏完全无响应（卡死）时使用此功能。"
+        confirmLabel="强制结束"
+        cancelLabel="取消"
+        confirmVariant="danger"
+        tone="danger"
+      />
+    </>
   );
 };

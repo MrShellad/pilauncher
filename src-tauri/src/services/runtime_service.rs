@@ -293,7 +293,10 @@ pub fn validate_java_cache(cache_file: &Path) -> Result<ValidationResult, String
                     }
 
                     if Path::new(&normalized_path).exists() {
-                        if !valid.iter().any(|item: &JavaInstall| item.path == normalized_path) {
+                        if !valid
+                            .iter()
+                            .any(|item: &JavaInstall| item.path == normalized_path)
+                        {
                             valid.push(JavaInstall {
                                 version: java.version,
                                 path: normalized_path,
@@ -365,7 +368,8 @@ pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, Str
 
     if let Ok(java_home) = std::env::var("JAVA_HOME") {
         #[cfg(target_os = "windows")]
-        let p = prefer_windows_java_executable(PathBuf::from(java_home).join("bin").join("java.exe"));
+        let p =
+            prefer_windows_java_executable(PathBuf::from(java_home).join("bin").join("java.exe"));
         #[cfg(not(target_os = "windows"))]
         let p = PathBuf::from(java_home).join("bin").join("java");
         if p.exists() {
@@ -447,8 +451,7 @@ pub fn test_java_runtime(java_path: &str) -> Result<JavaInstall, String> {
 
     let normalized = normalize_java_candidate(trimmed, true)
         .unwrap_or_else(|| normalize_java_command_name(trimmed, true));
-    let normalized = if cfg!(target_os = "windows")
-        && normalized.eq_ignore_ascii_case("javaw.exe")
+    let normalized = if cfg!(target_os = "windows") && normalized.eq_ignore_ascii_case("javaw.exe")
     {
         "java.exe".to_string()
     } else {
@@ -461,12 +464,10 @@ pub fn test_java_runtime(java_path: &str) -> Result<JavaInstall, String> {
     #[cfg(target_os = "windows")]
     cmd.creation_flags(0x08000000);
 
-    let output = cmd
-        .output()
-        .map_err(|e| format!("无法执行 Java: {}", e))?;
+    let output = cmd.output().map_err(|e| format!("无法执行 Java: {}", e))?;
 
-    let version = extract_java_version(&output)
-        .ok_or_else(|| "无法解析 Java 版本输出".to_string())?;
+    let version =
+        extract_java_version(&output).ok_or_else(|| "无法解析 Java 版本输出".to_string())?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -526,7 +527,7 @@ pub fn get_instance_runtime(instance_dir: &Path) -> Result<RuntimeConfig, String
         java_path: "".to_string(),
         max_memory: 4096,
         min_memory: 1024,
-        jvm_args: "-XX:+UseG1GC -XX:+UnlockExperimentalVMOptions".to_string(),
+        jvm_args: "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=50".to_string(),
     };
 
     if !file_path.exists() {

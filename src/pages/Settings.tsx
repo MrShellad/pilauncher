@@ -1,5 +1,5 @@
 // /src/pages/Settings.tsx
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Settings as SettingsIcon, Monitor, Gamepad2, Coffee, Download, Users, Archive, Wrench, Info } from 'lucide-react';
 import { doesFocusableExist } from '@noriginmedia/norigin-spatial-navigation';
@@ -23,45 +23,50 @@ import { useInputAction } from '../ui/focus/InputDriver';
 import { ControlHint } from '../ui/components/ControlHint';
 
 const SETTINGS_TABS: ToggleOption[] = [
-  { value: 'general', label: (<div className="flex items-center justify-center space-x-2"><SettingsIcon size={16} /><span className="font-minecraft tracking-wider">常规</span></div>) },
+  { value: 'general',    label: (<div className="flex items-center justify-center space-x-2"><SettingsIcon size={16} /><span className="font-minecraft tracking-wider">常规</span></div>) },
   { value: 'appearance', label: (<div className="flex items-center justify-center space-x-2"><Monitor size={16} /><span className="font-minecraft tracking-wider">界面</span></div>) },
-  { value: 'game', label: (<div className="flex items-center justify-center space-x-2"><Gamepad2 size={16} /><span className="font-minecraft tracking-wider">游戏</span></div>) },
-  { value: 'java', label: (<div className="flex items-center justify-center space-x-2"><Coffee size={16} /><span className="font-minecraft tracking-wider">Java</span></div>) },
-  { value: 'download', label: (<div className="flex items-center justify-center space-x-2"><Download size={16} /><span className="font-minecraft tracking-wider">下载</span></div>) },
-  { value: 'account', label: (<div className="flex items-center justify-center space-x-2"><Users size={16} /><span className="font-minecraft tracking-wider">账户</span></div>) },
-  { value: 'data', label: (<div className="flex items-center justify-center space-x-2"><Archive size={16} /><span className="font-minecraft tracking-wider">数据</span></div>) },
-  { value: 'about', label: (<div className="flex items-center justify-center space-x-2"><Info size={16} /><span className="font-minecraft tracking-wider">关于</span></div>) },
+  { value: 'game',       label: (<div className="flex items-center justify-center space-x-2"><Gamepad2 size={16} /><span className="font-minecraft tracking-wider">游戏</span></div>) },
+  { value: 'java',       label: (<div className="flex items-center justify-center space-x-2"><Coffee size={16} /><span className="font-minecraft tracking-wider">Java</span></div>) },
+  { value: 'download',   label: (<div className="flex items-center justify-center space-x-2"><Download size={16} /><span className="font-minecraft tracking-wider">下载</span></div>) },
+  { value: 'account',    label: (<div className="flex items-center justify-center space-x-2"><Users size={16} /><span className="font-minecraft tracking-wider">账户</span></div>) },
+  { value: 'data',       label: (<div className="flex items-center justify-center space-x-2"><Archive size={16} /><span className="font-minecraft tracking-wider">数据</span></div>) },
+  { value: 'about',      label: (<div className="flex items-center justify-center space-x-2"><Info size={16} /><span className="font-minecraft tracking-wider">关于</span></div>) },
 ];
 
 export const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('general');
   const [pressingLT, setPressingLT] = useState(false);
   const [pressingRT, setPressingRT] = useState(false);
+  // Track slide direction: +1 = slide left (going forward), -1 = slide right (going back)
+  const slideDirRef = useRef<1 | -1>(1);
   const activeBoundaryId = useMemo(() => `settings-page-boundary:${activeTab}`, [activeTab]);
 
+  const slideVariants = {
+    enter: (dir: number) => ({ opacity: 0, x: dir * 36 }),
+    center: { opacity: 1, x: 0 },
+    exit: (dir: number) => ({ opacity: 0, x: dir * -36 }),
+  };
+
   const tabFallbackFocusKeys = useMemo<Record<string, string | undefined>>(() => ({
-    general: 'settings-device-name',
+    general:    'settings-device-name',
     appearance: 'color-preset-0',
-    game: 'settings-game-window-title',
-    java: 'settings-java-autodetect',
-    download: INITIAL_DOWNLOAD_FOCUS_KEY,
-    account: 'btn-add-ms',
-    data: 'settings-data-remove-dir-0',
-    about: 'settings-about-github'
+    game:       'settings-game-window-title',
+    java:       'settings-java-autodetect',
+    download:   INITIAL_DOWNLOAD_FOCUS_KEY,
+    account:    'btn-add-ms',
+    data:       'settings-data-remove-dir-0',
+    about:      'settings-about-github'
   }), []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       const targetKey = tabFallbackFocusKeys[activeTab];
-
       if (targetKey && doesFocusableExist(targetKey)) {
         focusManager.focus(targetKey);
         return;
       }
-
       focusManager.restoreFocus(activeBoundaryId, targetKey);
     }, 320);
-
     return () => clearTimeout(timer);
   }, [activeTab, activeBoundaryId, tabFallbackFocusKeys]);
 
@@ -73,7 +78,8 @@ export const Settings: React.FC = () => {
 
   const handleSwitchTab = useCallback((direction: -1 | 1) => {
     if (isTextEntryActive()) return;
-    
+    slideDirRef.current = direction;
+
     if (direction === -1) {
       setPressingLT(true);
       setTimeout(() => setPressingLT(false), 150);
@@ -87,19 +93,26 @@ export const Settings: React.FC = () => {
     setActiveTab(SETTINGS_TABS[nextIndex].value);
   }, [activeTab, isTextEntryActive]);
 
-  useInputAction('PAGE_LEFT', () => handleSwitchTab(-1));
+  const handleTabSelect = useCallback((value: string) => {
+    const currentIndex = SETTINGS_TABS.findIndex(t => t.value === activeTab);
+    const nextIndex = SETTINGS_TABS.findIndex(t => t.value === value);
+    slideDirRef.current = nextIndex >= currentIndex ? 1 : -1;
+    setActiveTab(value);
+  }, [activeTab]);
+
+  useInputAction('PAGE_LEFT',  () => handleSwitchTab(-1));
   useInputAction('PAGE_RIGHT', () => handleSwitchTab(1));
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'general': return <GeneralSettings />;
-      case 'java': return <JavaSettings />;
+      case 'general':    return <GeneralSettings />;
+      case 'java':       return <JavaSettings />;
       case 'appearance': return <AppearanceSettings />;
-      case 'game': return <GameSettings />;
-      case 'download': return <DownloadSettings />;
-      case 'account': return <AccountSettings />;
-      case 'data': return <DataSettings />;
-      case 'about': return <AboutSettings />;
+      case 'game':       return <GameSettings />;
+      case 'download':   return <DownloadSettings />;
+      case 'account':    return <AccountSettings />;
+      case 'data':       return <DataSettings />;
+      case 'about':      return <AboutSettings />;
       default: return (
         <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-ore-text-muted font-minecraft border-2 border-dashed border-ore-gray-border mx-8 mt-8">
           <Wrench size={48} className="mb-4 opacity-50" />
@@ -133,7 +146,7 @@ export const Settings: React.FC = () => {
                 <OreToggleButton
                   options={SETTINGS_TABS}
                   value={activeTab}
-                  onChange={setActiveTab}
+                  onChange={handleTabSelect}
                   size="lg"
                   uiScale="adaptive"
                   focusable={false}
@@ -155,13 +168,15 @@ export const Settings: React.FC = () => {
       </div>
 
       <div className="flex-1 w-full overflow-hidden relative">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" custom={slideDirRef.current}>
           <motion.div
             key={activeTab}
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            custom={slideDirRef.current}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.2, ease: 'easeOut' }}
             className="absolute inset-0"
           >
             <Suspense fallback={<div className="absolute inset-0" />}>

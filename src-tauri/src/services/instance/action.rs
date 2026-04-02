@@ -96,6 +96,48 @@ impl InstanceActionService {
         Ok(())
     }
 
+    /// 安全清理来自第三方目录导入的实例缓存
+    /// 返回被删除的关联实例数量
+    pub fn remove_imported_by_dir<R: Runtime>(app: &AppHandle<R>, dir: &str) -> Result<usize, String> {
+        let base_path = ConfigService::get_base_path(app)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "尚未配置基础数据目录".to_string())?;
+        
+        let instances_dir = PathBuf::from(base_path).join("instances");
+        if !instances_dir.exists() {
+            return Ok(0);
+        }
+
+        let mut removed = 0;
+        let target_dir = std::path::Path::new(dir);
+
+        if let Ok(entries) = fs::read_dir(instances_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    let json_path = path.join("instance.json");
+                    if json_path.exists() {
+                        if let Ok(content) = fs::read_to_string(&json_path) {
+                            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                                if let Some(tp) = json["third_party_path"].as_str() {
+                                    let tp_path = std::path::Path::new(tp);
+                                    if tp_path.starts_with(target_dir) {
+                                        if let Err(e) = fs::remove_dir_all(&path) {
+                                            eprintln!("Failed to remove imported instance {}: {}", path.display(), e);
+                                        } else {
+                                            removed += 1;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(removed)
+    }
+
     /// 修改实例 HeroLogo：将图片复制到 piconfig/herologo.{ext}，并将相对路径写入 instance.json
     pub fn change_herologo<R: Runtime>(
         app: &AppHandle<R>,

@@ -103,6 +103,61 @@ impl DbService {
                 FOREIGN KEY (sender_user_id) REFERENCES users(id),
                 FOREIGN KEY (receiver_user_id) REFERENCES users(id)
             );
+
+            -- ============== Library (库) System ================= --
+            CREATE TABLE IF NOT EXISTS starred_items (
+                id TEXT PRIMARY KEY,
+                type TEXT NOT NULL,
+                source TEXT NOT NULL,
+                project_id TEXT,
+                title TEXT,
+                author TEXT,
+                snapshot TEXT NOT NULL,
+                state TEXT NOT NULL,
+                meta TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS app_meta (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS sync_queue (
+                id TEXT PRIMARY KEY,
+                action TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS collections (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                type TEXT NOT NULL,
+                cover_image TEXT,
+                sort_order INTEGER DEFAULT 0,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS collection_items (
+                id TEXT PRIMARY KEY,
+                collection_id TEXT NOT NULL,
+                item_id TEXT NOT NULL,
+                position INTEGER DEFAULT 0,
+                extra TEXT,
+                created_at INTEGER NOT NULL,
+                UNIQUE (collection_id, item_id)
+            );
+
+            -- Indexes for Library System --
+            CREATE INDEX IF NOT EXISTS idx_starred_type ON starred_items(type);
+            CREATE INDEX IF NOT EXISTS idx_starred_updated ON starred_items(updated_at);
+            CREATE INDEX IF NOT EXISTS idx_starred_project ON starred_items(source, project_id);
+            CREATE INDEX IF NOT EXISTS idx_collection_items_collection ON collection_items(collection_id);
+            CREATE INDEX IF NOT EXISTS idx_collection_items_item ON collection_items(item_id);
             ",
         )
         .execute(pool)

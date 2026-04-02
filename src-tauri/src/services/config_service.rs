@@ -93,7 +93,8 @@ impl Default for JavaSettings {
             auto_detect: true,
             java_path: "java".to_string(),
             major_java_paths: HashMap::new(),
-            jvm_args: "-XX:+UseG1GC -XX:+UnlockExperimentalVMOptions".to_string(),
+            jvm_args: "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=50"
+                .to_string(),
             max_memory: 4096,
             min_memory: 1024,
         }

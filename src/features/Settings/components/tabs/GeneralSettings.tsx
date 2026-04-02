@@ -212,29 +212,29 @@ export const GeneralSettings: React.FC = () => {
     switch (checkStatus) {
       case 'checking':
         return (
-          <OreButton focusKey="settings-btn-check-update" size="sm" className="flex items-center gap-1.5" disabled>
-            <Loader2 size={14} className="animate-spin" />
+          <OreButton focusKey="settings-btn-check-update" size="sm" className="w-[160px] justify-center whitespace-nowrap" disabled>
+            <Loader2 size={14} className="animate-spin mr-1.5" />
             检查中...
           </OreButton>
         );
       case 'up-to-date':
         return (
-          <OreButton focusKey="settings-btn-check-update" size="sm" className="flex items-center gap-1.5" variant="secondary" disabled>
-            <CheckCircle2 size={14} className="text-ore-green" />
+          <OreButton focusKey="settings-btn-check-update" size="sm" className="w-[160px] justify-center whitespace-nowrap" variant="secondary" disabled>
+            <CheckCircle2 size={14} className="text-ore-green mr-1.5" />
             已是最新版本
           </OreButton>
         );
       case 'error':
         return (
-          <OreButton focusKey="settings-btn-check-update" size="sm" className="flex items-center gap-1.5" variant="danger" disabled>
-            <XCircle size={14} />
+          <OreButton focusKey="settings-btn-check-update" size="sm" className="w-[160px] justify-center whitespace-nowrap" variant="danger" disabled>
+            <XCircle size={14} className="mr-1.5" />
             检查失败
           </OreButton>
         );
       default:
         return (
-          <OreButton focusKey="settings-btn-check-update" size="sm" className="flex items-center gap-1.5" onClick={handleCheckUpdate}>
-            <RefreshCw size={14} />
+          <OreButton focusKey="settings-btn-check-update" size="sm" className="w-[160px] justify-center whitespace-nowrap" onClick={handleCheckUpdate}>
+            <RefreshCw size={14} className="mr-1.5" />
             检查更新
           </OreButton>
         );
@@ -252,12 +252,12 @@ export const GeneralSettings: React.FC = () => {
               <div className="relative focus-within:z-50">
                 <OreInput
                   focusKey="settings-device-name"
-                  width="11.25rem"
+                  width="10rem"
                   height="2.25rem"
                   value={general.deviceName}
                   onChange={(event) => updateGeneralSetting('deviceName', event.target.value)}
                   placeholder="输入设备名称"
-                  containerClassName="!space-y-0"
+                  containerClassName="!space-y-0 w-[160px]"
                 />
               </div>
             }
@@ -272,7 +272,7 @@ export const GeneralSettings: React.FC = () => {
                   options={languageOptions}
                   value={general.language}
                   onChange={(value) => updateGeneralSetting('language', value)}
-                  className="w-40"
+                  className="w-[160px]"
                   focusKey="settings-language"
                 />
               </div>
@@ -308,7 +308,7 @@ export const GeneralSettings: React.FC = () => {
                   options={closeBehaviorOptions}
                   value={general.closeBehavior}
                   onChange={(value) => updateGeneralSetting('closeBehavior', value as 'tray' | 'exit')}
-                  className="w-40"
+                  className="w-[160px]"
                   focusKey="settings-close-behavior"
                 />
               </div>
@@ -334,7 +334,7 @@ export const GeneralSettings: React.FC = () => {
               <OreButton
                 focusKey="settings-btn-toggle-fullscreen"
                 size="sm"
-                className="flex items-center"
+                className="w-[160px] justify-center whitespace-nowrap"
                 onClick={toggleFullscreen}
                 disabled={isFullscreenTransitioning}
               >
@@ -356,7 +356,7 @@ export const GeneralSettings: React.FC = () => {
                 focusKey="settings-btn-exit-app"
                 variant="danger"
                 size="sm"
-                className="flex items-center"
+                className="w-[160px] justify-center whitespace-nowrap"
                 onClick={() => setIsExitConfirmOpen(true)}
               >
                 <PowerOff size={14} className="mr-1.5" />
@@ -375,7 +375,7 @@ export const GeneralSettings: React.FC = () => {
                 focusKey="settings-btn-reset-settings"
                 variant="danger"
                 size="sm"
-                className="flex items-center"
+                className="w-[160px] justify-center whitespace-nowrap"
                 onClick={() => setIsResetConfirmOpen(true)}
               >
                 <RotateCcw size={14} className="mr-1.5" />

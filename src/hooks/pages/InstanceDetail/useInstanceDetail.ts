@@ -2,8 +2,17 @@ import { useEffect, useState } from 'react';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { ask, open } from '@tauri-apps/plugin-dialog';
 import { useLauncherStore } from '../../../store/useLauncherStore';
+import { useDownloadStore } from '../../../store/useDownloadStore';
 
-export type DetailTab = 'overview' | 'basic' | 'java' | 'saves' | 'mods' | 'resourcepacks' | 'shaders' | 'export';
+export type DetailTab =
+  | 'overview'
+  | 'basic'
+  | 'java'
+  | 'saves'
+  | 'mods'
+  | 'resourcepacks'
+  | 'shaders'
+  | 'export';
 
 export interface CustomButton {
   url: string;
@@ -22,6 +31,20 @@ export interface InstanceDetailData {
   playTime?: string;
   lastPlayed?: string;
   customButtons?: CustomButton[];
+}
+
+export interface MissingRuntime {
+  instance_id: string;
+  mc_version: string;
+  loader_type: string;
+  loader_version: string;
+}
+
+export interface VerifyInstanceRuntimeResult {
+  instance_id: string;
+  needs_repair: boolean;
+  issues: string[];
+  repair: MissingRuntime | null;
 }
 
 interface RawInstanceDetail {
@@ -44,10 +67,11 @@ interface RawInstanceDetail {
 export const useInstanceDetail = (instanceId: string) => {
   const activeTab = useLauncherStore((state) => state.instanceDetailTab) as DetailTab;
   const setActiveTab = useLauncherStore((state) => state.setInstanceDetailTab);
+  const setMainTab = useLauncherStore((state) => state.setActiveTab);
+
   const [data, setData] = useState<InstanceDetailData | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isInitializing, setIsInitializing] = useState(true);
-  // heroLogoUrl: null = 无自定义 logo，string = asset:// URL
   const [heroLogoUrl, setHeroLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -57,29 +81,29 @@ export const useInstanceDetail = (instanceId: string) => {
 
         const [realData, screenshotsRaw] = await Promise.all([
           invoke<RawInstanceDetail>('get_instance_detail', { id: instanceId }),
-          invoke<string[]>('get_instance_screenshots', { id: instanceId }).catch(() => [])
+          invoke<string[]>('get_instance_screenshots', { id: instanceId }).catch(() => []),
         ]);
 
         const coverUrl = realData.cover_absolute_path
           ? `${convertFileSrc(realData.cover_absolute_path)}?t=${Date.now()}`
           : '';
-
         const screenshots = screenshotsRaw.map((path) => `${convertFileSrc(path)}?t=${Date.now()}`);
 
-        const playTime = typeof realData.playTime === 'string'
-          ? realData.playTime
-          : typeof realData.play_time === 'string'
-            ? realData.play_time
-            : typeof realData.playTime === 'number'
-              ? `${realData.playTime} 小时`
-              : typeof realData.play_time === 'number'
-                ? `${realData.play_time} 小时`
-                : '';
+        const playTime =
+          typeof realData.playTime === 'string'
+            ? realData.playTime
+            : typeof realData.play_time === 'string'
+              ? realData.play_time
+              : typeof realData.playTime === 'number'
+                ? `${realData.playTime} 小时`
+                : typeof realData.play_time === 'number'
+                  ? `${realData.play_time} 小时`
+                  : '';
 
         setData({
           id: instanceId,
           name: realData.name || instanceId,
-          description: realData.description || '这个实例还没有添加任何描述。',
+          description: realData.description || '这个实例还没有描述。',
           coverUrl,
           screenshots,
           version: realData.game_version || realData.gameVersion || realData.mcVersion || '',
@@ -89,10 +113,10 @@ export const useInstanceDetail = (instanceId: string) => {
           customButtons: realData.custom_buttons || [],
         });
 
-        // 读取自定义 HeroLogo
-        const heroAbs = await invoke<string | null>('get_instance_herologo', { id: instanceId }).catch(() => null);
+        const heroAbs = await invoke<string | null>('get_instance_herologo', { id: instanceId }).catch(
+          () => null
+        );
         setHeroLogoUrl(heroAbs ? `${convertFileSrc(heroAbs)}?t=${Date.now()}` : null);
-
       } catch (error) {
         console.error('获取实例详情失败:', error);
       } finally {
@@ -100,7 +124,7 @@ export const useInstanceDetail = (instanceId: string) => {
       }
     };
 
-    fetchDetail();
+    void fetchDetail();
   }, [instanceId]);
 
   useEffect(() => {
@@ -113,7 +137,9 @@ export const useInstanceDetail = (instanceId: string) => {
     return () => clearInterval(timer);
   }, [data, activeTab]);
 
-  const handlePlay = () => console.log(`启动实例: ${data?.name}`);
+  const handlePlay = () => {
+    console.log(`启动实例: ${data?.name}`);
+  };
 
   const handleOpenFolder = async () => {
     try {
@@ -132,11 +158,14 @@ export const useInstanceDetail = (instanceId: string) => {
     const selected = await open({
       multiple: false,
       filters: [{ name: 'Image', extensions: ['png', 'jpg', 'jpeg', 'webp'] }],
-      title: '选择实例封面图'
+      title: '选择实例封面图',
     });
 
     if (selected && typeof selected === 'string') {
-      const newAbsPath = await invoke<string>('change_instance_cover', { id: instanceId, imagePath: selected });
+      const newAbsPath = await invoke<string>('change_instance_cover', {
+        id: instanceId,
+        imagePath: selected,
+      });
       const assetUrl = `${convertFileSrc(newAbsPath)}?t=${Date.now()}`;
       setData((prev) => (prev ? { ...prev, coverUrl: assetUrl } : null));
       return;
@@ -149,11 +178,14 @@ export const useInstanceDetail = (instanceId: string) => {
     const selected = await open({
       multiple: false,
       filters: [{ name: 'Image', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'] }],
-      title: '选择自定义 Hero Logo'
+      title: '选择自定义 Hero Logo',
     });
 
     if (selected && typeof selected === 'string') {
-      const newAbsPath = await invoke<string>('change_instance_herologo', { id: instanceId, imagePath: selected });
+      const newAbsPath = await invoke<string>('change_instance_herologo', {
+        id: instanceId,
+        imagePath: selected,
+      });
       setHeroLogoUrl(`${convertFileSrc(newAbsPath)}?t=${Date.now()}`);
       return;
     }
@@ -166,17 +198,23 @@ export const useInstanceDetail = (instanceId: string) => {
     setData((prev) => (prev ? { ...prev, customButtons } : null));
   };
 
-  const handleVerifyFiles = async () => {
-    console.log(`调用 Rust 校验并补全实例 ${instanceId} 的文件`);
+  const handleVerifyFiles = async (): Promise<VerifyInstanceRuntimeResult> => {
+    return invoke<VerifyInstanceRuntimeResult>('verify_instance_runtime', { instanceId });
   };
 
-  const handleDeleteInstance = async (skipConfirm: boolean = false): Promise<boolean> => {
+  const handleRepairRuntime = async (repair: MissingRuntime): Promise<void> => {
+    setMainTab('home');
+    useDownloadStore.getState().setPopupOpen(true);
+    await invoke('download_missing_runtimes', { missingList: [repair] });
+  };
+
+  const handleDeleteInstance = async (skipConfirm = false): Promise<boolean> => {
     if (!skipConfirm) {
       const confirmed = await ask(
-        '确定要彻底删除该实例吗？\n该操作不可逆转，所有存档和 MOD 将被永久清除。',
+        '确定要彻底删除该实例吗？\n该操作不可逆，所有存档和 MOD 都会被永久清除。',
         {
           title: '危险操作确认',
-          kind: 'warning'
+          kind: 'warning',
         }
       );
 
@@ -201,6 +239,7 @@ export const useInstanceDetail = (instanceId: string) => {
     handleUpdateHeroLogo,
     handleUpdateCustomButtons,
     handleVerifyFiles,
-    handleDeleteInstance
+    handleRepairRuntime,
+    handleDeleteInstance,
   };
 };

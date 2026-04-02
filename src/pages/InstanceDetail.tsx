@@ -57,6 +57,7 @@ const InstanceDetail: React.FC = () => {
     handleUpdateHeroLogo,
     handleUpdateCustomButtons,
     handleVerifyFiles,
+    handleRepairRuntime,
     handleDeleteInstance,
   } = useInstanceDetail(instanceId);
 
@@ -236,6 +237,7 @@ const InstanceDetail: React.FC = () => {
                 onUpdateCover={handleUpdateCover}
                 onUpdateCustomButtons={handleUpdateCustomButtons}
                 onVerifyFiles={handleVerifyFiles}
+                onRepairFiles={handleRepairRuntime}
                 onDelete={async (skipConfirm?: boolean) => {
                   const success = await handleDeleteInstance(skipConfirm);
                   if (success) setActiveTabGlobal('instances');

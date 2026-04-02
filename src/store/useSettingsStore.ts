@@ -82,6 +82,7 @@ interface SettingsStore {
   }) => Promise<{
     changed: boolean;
     hasPreviousSnapshot: boolean;
+    shouldNotifyChange: boolean;
   } | null>;
   resetSettings: () => void;
   _hasHydrated: boolean;
@@ -133,7 +134,7 @@ export const useSettingsStore = create<SettingsStore>()(
 
         try {
           const result = await autoScanAndFillJava(prevMajorJavaPaths);
-          if (!result) return { changed: false, hasPreviousSnapshot };
+          if (!result) return { changed: false, hasPreviousSnapshot, shouldNotifyChange: false };
 
           const nextMajorJavaPaths = result.hasAnyMatch ? result.majorJavaPaths : prevMajorJavaPaths;
           const nextJavaPath = result.javaPath || prevJavaPath;
@@ -143,6 +144,7 @@ export const useSettingsStore = create<SettingsStore>()(
             nextJavaPath,
             nextMajorJavaPaths
           );
+          const shouldNotifyChange = !!(options?.notifyIfChanged && changed && hasPreviousSnapshot);
 
           if (result.hasAnyMatch) {
             updateJavaSetting('majorJavaPaths', nextMajorJavaPaths);
@@ -158,10 +160,10 @@ export const useSettingsStore = create<SettingsStore>()(
             );
           }
 
-          return { changed, hasPreviousSnapshot };
+          return { changed, hasPreviousSnapshot, shouldNotifyChange };
         } catch (e) {
           console.error('静默 Java 自动检测失败:', e);
-          return { changed: false, hasPreviousSnapshot };
+          return { changed: false, hasPreviousSnapshot, shouldNotifyChange: false };
         }
       },
 

@@ -119,14 +119,6 @@ const ResourceCard = React.memo(({
   const supportsClient = project.client_side !== 'unsupported' && !!project.client_side;
   const supportsServer = project.server_side !== 'unsupported' && !!project.server_side;
   const focusKey = `download-grid-item-${index}`;
-  const statusBadgeCount = (isInstalled ? 1 : 0) + (supportsClient ? 1 : 0) + (supportsServer ? 1 : 0);
-  const titlePadClass = statusBadgeCount >= 3
-    ? 'pr-[13rem]'
-    : statusBadgeCount === 2
-      ? 'pr-[9rem]'
-      : statusBadgeCount === 1
-        ? 'pr-[5.75rem]'
-        : '';
 
   const timeAgo = (dateStr?: string) => {
     if (!dateStr) return t('download.time.unknown', { defaultValue: 'Unknown time' });
@@ -197,31 +189,6 @@ const ResourceCard = React.memo(({
             <div className={`absolute inset-y-0 left-0 w-1.5 ${isInstalled ? 'bg-[#6CC349]' : 'bg-[#48494A]'}`} />
             <div className="absolute inset-x-0 top-0 h-[4px] bg-white/25" />
 
-            {(isInstalled || supportsClient || supportsServer) && (
-              <div className="absolute right-2 top-2 z-10 flex items-center gap-[0.375rem]">
-                {isInstalled && (
-                  <div className="inline-flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#6CC349] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-black shadow-[inset_0_-2px_0_#3C8527] sm:text-[0.625rem]">
-                    <CheckCircle2 className="h-[0.6875rem] w-[0.6875rem]" />
-                    {t('download.status.installed', { defaultValue: 'Installed' })}
-                  </div>
-                )}
-
-                {supportsClient && (
-                  <div className="inline-flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#313233] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.12)] sm:text-[0.625rem]">
-                    <Monitor className="h-[0.6875rem] w-[0.6875rem]" />
-                    {t('download.env.client', { defaultValue: 'Client' })}
-                  </div>
-                )}
-
-                {supportsServer && (
-                  <div className="inline-flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#313233] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.12)] sm:text-[0.625rem]">
-                    <Server className="h-[0.6875rem] w-[0.6875rem]" />
-                    {t('download.env.server', { defaultValue: 'Server' })}
-                  </div>
-                )}
-              </div>
-            )}
-
             <div className="flex w-full gap-[0.875rem] p-[0.9375rem] pr-[1rem]">
               <div className="flex w-[6rem] shrink-0 flex-col gap-[0.625rem]">
                 <div className="flex min-h-[8rem] flex-col justify-between">
@@ -270,12 +237,38 @@ const ResourceCard = React.memo(({
               </div>
 
               <div className="flex min-w-0 flex-1 flex-col justify-between">
-                <div className="flex min-h-[8rem] flex-col justify-between pr-[4.75rem]">
+                <div className="flex min-h-[8rem] flex-col justify-between">
                   <div className="min-h-[4.25rem]">
-                    <div className={`truncate font-minecraft text-[1.1875rem] font-bold leading-[1.15] text-black ${titlePadClass}`}>
-                      {project.title}
+                    {/* 标题行：徽标 shrink-0 排在右侧，标题 min-w-0 截断 */}
+                    <div className="flex items-start gap-[0.5rem]">
+                      <div className="min-w-0 flex-1 truncate font-minecraft text-[1.1875rem] font-bold leading-[1.15] text-black">
+                        {project.title}
+                      </div>
+                      {(isInstalled || supportsClient || supportsServer) && (
+                        <div className="flex shrink-0 items-center gap-[0.375rem] pt-[0.125rem]">
+                          {isInstalled && (
+                            <div className="inline-flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#6CC349] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-black shadow-[inset_0_-2px_0_#3C8527] sm:text-[0.625rem]">
+                              <CheckCircle2 className="h-[0.6875rem] w-[0.6875rem]" />
+                              {t('download.status.installed', { defaultValue: 'Installed' })}
+                            </div>
+                          )}
+                          {supportsClient && (
+                            <div className="inline-flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#313233] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.12)] sm:text-[0.625rem]">
+                              <Monitor className="h-[0.6875rem] w-[0.6875rem]" />
+                              {t('download.env.client', { defaultValue: 'Client' })}
+                            </div>
+                          )}
+                          {supportsServer && (
+                            <div className="inline-flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#313233] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.12)] sm:text-[0.625rem]">
+                              <Server className="h-[0.6875rem] w-[0.6875rem]" />
+                              {t('download.env.server', { defaultValue: 'Server' })}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <p className={`mt-[0.5rem] min-h-[2.5rem] line-clamp-2 text-[0.9375rem] leading-[1.35] text-[#313233] ${titlePadClass}`}>
+                    {/* 描述：始终占满全宽，不受徽标数量影响 */}
+                    <p className="mt-[0.5rem] min-h-[2.5rem] line-clamp-2 text-[0.9375rem] leading-[1.35] text-[#313233]">
                       {project.description?.trim() || t('download.empty.noDescription', { defaultValue: 'No description provided yet.' })}
                     </p>
                   </div>

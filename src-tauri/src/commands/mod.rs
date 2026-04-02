@@ -12,6 +12,7 @@ pub mod launcher_cmd;
 pub mod loader_cmd;
 pub mod minecraft_cmd;
 pub mod modpack_cmd; // 新增 modpack_cmd 模块
+pub mod library_cmd; // 新增 library_cmd 模块
 pub mod network_cmd;
 pub mod qrcode_cmd;
 pub mod resource_cmd;
@@ -61,6 +62,8 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         instance::action_cmd::change_instance_cover,
         instance::action_cmd::change_instance_herologo,
         instance::action_cmd::delete_instance,
+        instance::action_cmd::remove_imported_instances,
+        instance::action_cmd::clean_logs,
         instance::action_cmd::get_instance_detail,
         instance::action_cmd::check_instance_gamepad,
         instance::action_cmd::check_gamepad_mod_status,
@@ -135,5 +138,14 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         qrcode_cmd::generate_device_auth_qr,
         update_cmd::check_update,
         update_cmd::install_update,
+        library_cmd::get_starred_items,
+        library_cmd::save_starred_item,
+        library_cmd::remove_starred_item,
+        library_cmd::get_collections,
+        library_cmd::save_collection,
+        library_cmd::remove_collection,
+        library_cmd::get_collection_items,
+        library_cmd::save_collection_item,
+        library_cmd::remove_collection_item,
     ])
 }

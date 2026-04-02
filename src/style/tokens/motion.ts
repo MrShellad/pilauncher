@@ -150,14 +150,14 @@ export const OreMotionTokens = {
       height: 'auto',
       paddingTop: 12,
       paddingBottom: 12,
-      transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] }
+      transition: { duration: 0.22, ease: "linear" }
     },
     collapsed: {
       opacity: 0,
       height: 0,
       paddingTop: 0,
       paddingBottom: 0,
-      transition: { duration: 0.16, ease: [0.4, 0, 1, 1] }
+      transition: { duration: 0.16, ease: "linear" }
     }
   } as Variants,
 
@@ -166,13 +166,13 @@ export const OreMotionTokens = {
       opacity: 1,
       height: 'auto',
       marginTop: 12,
-      transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] }
+      transition: { duration: 0.22, ease: "linear" }
     },
     hidden: {
       opacity: 0,
       height: 0,
       marginTop: 0,
-      transition: { duration: 0.16, ease: [0.4, 0, 1, 1] }
+      transition: { duration: 0.16, ease: "linear" }
     }
   } as Variants,
 

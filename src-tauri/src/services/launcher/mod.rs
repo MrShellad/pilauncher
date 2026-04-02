@@ -102,18 +102,75 @@ impl LauncherService {
 
         let args_clone = args.clone();
 
-        println!("==================================================");
-        println!("🚀 准备执行游戏进程！");
-        println!("🔧 实例名称: {}", instance_cfg.name);
-        println!(
-            "👤 玩家 ID: {}",
-            args_clone
-                .iter()
-                .skip_while(|&x| x != "--username")
-                .nth(1)
-                .unwrap_or(&"Unknown".to_string())
+        // --- Added for launcher log : Collect Diagnostic ---
+        let username_idx = args_clone.iter().position(|r| r == "--username");
+        let username = username_idx.and_then(|i| args_clone.get(i + 1)).cloned().unwrap_or_else(|| "Unknown".to_string());
+        
+        let token_idx = args_clone.iter().position(|r| r == "--accessToken");
+        let safe_args: Vec<String> = args_clone.iter().enumerate().map(|(i, arg)| {
+            if token_idx.map(|idx| idx + 1 == i).unwrap_or(false) {
+                "********".to_string()
+            } else {
+                arg.clone()
+            }
+        }).collect();
+
+        let cp_pos = safe_args.iter().position(|r| r == "-cp");
+        let cp_count = if let Some(i) = cp_pos {
+            if let Some(cp_str) = safe_args.get(i + 1) {
+                cp_str.matches(if cfg!(target_os = "windows") { ";" } else { ":" }).count() + 1
+            } else { 0 }
+        } else { 0 };
+
+        let filtered_args: Vec<String> = safe_args.iter().filter(|x| x.starts_with("-X") || x.starts_with("-D") || x.starts_with("--")).cloned().collect();
+
+        let diag_info = format!(
+            "==================================================\n\
+             🚀 PiLauncher 诊断日志 (Launcher Diagnostics)\n\
+             ==================================================\n\
+             🖥️ 基础环境: OS={} Arch={}\n\
+             ☕ Java 路径: {}\n\
+             📦 实例明细: [{}] {}\n\
+             🌐 玩家 ID: {}\n\
+             🛠️ 版本解析: {} -> {}\n\
+             🔧 Natives 存放: {}\n\
+             📚 Classpath 概览: 共 {} 项 (核心与依赖库)\n\
+             🔑 关键参数: {:?}\n\
+             📂 工作目录: {}\n\
+             🛡️ 进程保护: 敏感 Token 已隐藏\n\
+             =================== 完整启动命令 ===================\n\
+             \"{}\" {}\n\
+             ==================================================",
+            std::env::consts::OS, std::env::consts::ARCH,
+            actual_java_path,
+            instance_id, instance_cfg.name,
+            username,
+            instance_cfg.mc_version, target_version_id,
+            runtime_dir.join("versions").join(&instance_cfg.mc_version).join("natives").to_string_lossy(),
+            cp_count,
+            filtered_args,
+            game_dir.to_string_lossy(),
+            actual_java_path, safe_args.iter().map(|s| format!("\"{}\"", s)).collect::<Vec<_>>().join(" ")
         );
-        println!("==================================================");
+
+        let log_dir = base_dir.join("logs");
+        if !log_dir.exists() {
+            let _ = std::fs::create_dir_all(&log_dir);
+        }
+        let log_path = log_dir.join("launcher_log.txt");
+        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).write(true).truncate(true).open(&log_path) {
+            use std::io::Write;
+            let _ = writeln!(file, "{}", diag_info);
+        }
+
+        // 打印与发送诊断日志
+        for line in diag_info.lines() {
+            println!("[Launcher LOG] {}", line);
+            let _ = app.emit("game-log", line.to_string());
+        }
+
+        println!("🚀 准备执行游戏进程！PID will be captured...");
+        // --- Diagnostics End ---
 
         // ✅ 核心修复 3：跨平台安全的命令构建方式
         let mut cmd = Command::new(&actual_java_path);
@@ -126,29 +183,44 @@ impl LauncherService {
         #[cfg(target_os = "windows")]
         cmd.creation_flags(0x08000000);
 
-        let mut child = cmd.spawn().map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("无法启动 Java 进程，请检查环境变量: {}", e),
-            )
-        })?;
+        let mut child = match cmd.spawn() {
+            Ok(c) => {
+                let pid_str = format!("✅ 进程创建成功！PID: {:?}", c.id());
+                println!("{}", pid_str);
+                let _ = app.emit("game-log", pid_str.clone());
+                if let Ok(mut file) = std::fs::OpenOptions::new().append(true).open(&log_path) {
+                    use std::io::Write;
+                    let _ = writeln!(file, "{}", pid_str);
+                }
+                c
+            },
+            Err(e) => {
+                let err_msg = format!("❌ 进程创建失败 (Process Creation Failed): {}", e);
+                println!("{}", err_msg);
+                let _ = app.emit("game-log", err_msg.clone());
+                if let Ok(mut file) = std::fs::OpenOptions::new().append(true).open(&log_path) {
+                    use std::io::Write;
+                    let _ = writeln!(file, "{}", err_msg);
+                    let _ = writeln!(file, "💡 常见解决建议:\n  1. 检查环境变量中的 PATH 是否缺少 Java。\n  2. 如果填了自定义路径，请确保完整指向 java.exe 且存在。\n  3. 可能没有足够的系统权限。");
+                }
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("无法启动 Java 进程，请检查环境变量: {}", e),
+                ).into());
+            }
+        };
 
         if let Some(pid) = child.id() {
             crate::commands::launcher_cmd::CURRENT_GAME_PID
                 .store(pid, std::sync::atomic::Ordering::SeqCst);
         }
 
-        println!("✅ Java 进程已成功启动，PID: {:?}", child.id());
-        println!("💻 完整启动命令已隐藏（防止 Token 泄露）");
-        // 如果你需要调试完整的参数，可以解除下面这行的注释，但千万别在生产环境打印，否则用户的 Token 会写进日志！
-        // println!("\"{}\" \"{}\"", actual_java_path, args_clone.join("\" \""));
-        println!("==================================================");
-
         let stdout = child.stdout.take().unwrap();
         let stderr = child.stderr.take().unwrap();
 
         // 使用按字节读取 + Lossy 容错解析，避免乱码导致进程监控崩溃
         let app_out = app.clone();
+        let log_path_out = log_path.clone();
         tokio::spawn(async move {
             let mut reader = BufReader::new(stdout);
             let mut buf = Vec::new();
@@ -158,12 +230,17 @@ impl LauncherService {
                 }
                 let line = String::from_utf8_lossy(&buf).trim_end().to_string();
                 println!("[Game INFO] {}", line);
-                let _ = app_out.emit("game-log", line);
+                let _ = app_out.emit("game-log", line.clone());
+                if let Ok(mut file) = std::fs::OpenOptions::new().append(true).open(&log_path_out) {
+                    use std::io::Write;
+                    let _ = writeln!(file, "[STDOUT] {}", line);
+                }
                 buf.clear();
             }
         });
 
         let app_err = app.clone();
+        let log_path_err = log_path.clone();
         tokio::spawn(async move {
             let mut reader = BufReader::new(stderr);
             let mut buf = Vec::new();
@@ -173,7 +250,11 @@ impl LauncherService {
                 }
                 let line = String::from_utf8_lossy(&buf).trim_end().to_string();
                 eprintln!("[Game ERROR] {}", line);
-                let _ = app_err.emit("game-log", line);
+                let _ = app_err.emit("game-log", line.clone());
+                if let Ok(mut file) = std::fs::OpenOptions::new().append(true).open(&log_path_err) {
+                    use std::io::Write;
+                    let _ = writeln!(file, "[STDERR] {}", line);
+                }
                 buf.clear();
             }
         });
@@ -185,7 +266,13 @@ impl LauncherService {
             )
         })?;
 
-        println!("🛑 游戏进程已退出，状态: {}", status);
+        let exit_msg = format!("🛑 游戏进程已退出，状态: {}", status);
+        println!("{}", exit_msg);
+        let _ = app.emit("game-log", exit_msg.clone());
+        if let Ok(mut file) = std::fs::OpenOptions::new().append(true).open(&log_path) {
+            use std::io::Write;
+            let _ = writeln!(file, "{}", exit_msg);
+        }
 
         let code = status.code().unwrap_or(1);
         let _ = app.emit("game-exit", serde_json::json!({ "code": code }));

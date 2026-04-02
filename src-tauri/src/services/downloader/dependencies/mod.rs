@@ -18,8 +18,10 @@ mod progress;
 pub mod scheduler;
 
 pub use assets::download_assets;
+pub use assets::download_assets_force_hash;
 pub use game_core::load_version_manifest;
 pub use libraries::download_libraries;
+pub use libraries::download_libraries_force_hash;
 pub use progress::DownloadStage;
 pub use scheduler::{run_downloads, sha1_file, DownloadTask};
 
@@ -46,6 +48,48 @@ fn build_download_client(dl_settings: &DownloadSettings) -> AppResult<Client> {
     Ok(builder.build()?)
 }
 
+async fn download_dependencies_inner<R: Runtime>(
+    app: &AppHandle<R>,
+    instance_id: &str,
+    version_id: &str,
+    global_mc_root: &Path,
+    cancel: &Arc<AtomicBool>,
+    force_verify_hash: bool,
+) -> AppResult<()> {
+    let dl_settings = ConfigService::get_download_settings(app);
+    let client = build_download_client(&dl_settings)?;
+
+    let manifest = game_core::load_version_manifest(global_mc_root, version_id).await?;
+
+    if force_verify_hash {
+        libraries::download_libraries_force_hash(
+            app,
+            instance_id,
+            &client,
+            &manifest,
+            global_mc_root,
+            cancel,
+        )
+        .await?;
+    } else {
+        libraries::download_libraries(app, instance_id, &client, &manifest, global_mc_root, cancel)
+            .await?;
+    }
+
+    if is_cancelled(cancel) {
+        return Err(AppError::Cancelled);
+    }
+
+    if force_verify_hash {
+        assets::download_assets_force_hash(app, instance_id, &client, &manifest, global_mc_root, cancel)
+            .await?;
+    } else {
+        assets::download_assets(app, instance_id, &client, &manifest, global_mc_root, cancel).await?;
+    }
+
+    Ok(())
+}
+
 pub async fn download_dependencies<R: Runtime>(
     app: &AppHandle<R>,
     instance_id: &str,
@@ -53,19 +97,15 @@ pub async fn download_dependencies<R: Runtime>(
     global_mc_root: &Path,
     cancel: &Arc<AtomicBool>,
 ) -> AppResult<()> {
-    let dl_settings = ConfigService::get_download_settings(app);
-    let client = build_download_client(&dl_settings)?;
+    download_dependencies_inner(app, instance_id, version_id, global_mc_root, cancel, false).await
+}
 
-    let manifest = game_core::load_version_manifest(global_mc_root, version_id).await?;
-
-    libraries::download_libraries(app, instance_id, &client, &manifest, global_mc_root, cancel)
-        .await?;
-
-    if is_cancelled(cancel) {
-        return Err(AppError::Cancelled);
-    }
-
-    assets::download_assets(app, instance_id, &client, &manifest, global_mc_root, cancel).await?;
-
-    Ok(())
+pub async fn download_dependencies_force_hash<R: Runtime>(
+    app: &AppHandle<R>,
+    instance_id: &str,
+    version_id: &str,
+    global_mc_root: &Path,
+    cancel: &Arc<AtomicBool>,
+) -> AppResult<()> {
+    download_dependencies_inner(app, instance_id, version_id, global_mc_root, cancel, true).await
 }

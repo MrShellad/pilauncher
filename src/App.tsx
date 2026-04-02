@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { initGamepadModRegistry } from './services/gamepadModService';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -7,6 +7,7 @@ import { GameLogSidebar } from './features/GameLog/components/GameLogSidebar';
 import { GamepadModPrompt } from './features/Instances/components/GamepadModPrompt';
 import { SetupWizard } from './features/Setup/components/SetupWizard';
 import { JavaGuard } from './features/runtime/components/JavaGuard';
+import { JavaEnvironmentChangedDialog } from './features/runtime/components/JavaEnvironmentChangedDialog';
 import { useLauncherStore } from './store/useLauncherStore';
 import { useSettingsStore } from './store/useSettingsStore';
 import { OreMotionTokens } from './style/tokens/motion';
@@ -41,6 +42,7 @@ const Settings = lazy(() => import('./pages/Settings'));
 const InstanceDetail = lazy(() => import('./pages/InstanceDetail'));
 const ResourceDownloadPage = lazy(() => import('./pages/ResourceDownloadPage'));
 const InstanceModDownloadPage = lazy(() => import('./pages/InstanceModDownloadPage'));
+const LibraryPage = lazy(() => import('./pages/LibraryPage'));
 
 import { usePiHubSession } from './features/multiplayer/hooks/usePiHubSession';
 
@@ -80,6 +82,7 @@ const App: React.FC = () => {
   const javaAutoDetect = useSettingsStore((state) => state.settings.java.autoDetect);
   const triggerJavaAutoDetect = useSettingsStore((state) => state.triggerJavaAutoDetect);
   const startupJavaScanDoneRef = useRef(false);
+  const [isJavaEnvChangedDialogOpen, setIsJavaEnvChangedDialogOpen] = useState(false);
 
   useLayoutEffect(() => {
     injectDesignTokens();
@@ -102,7 +105,12 @@ const App: React.FC = () => {
     startupJavaScanDoneRef.current = true;
 
     if (!javaAutoDetect) return;
-    void triggerJavaAutoDetect({ source: 'startup', notifyIfChanged: true });
+    void (async () => {
+      const result = await triggerJavaAutoDetect({ source: 'startup', notifyIfChanged: false });
+      if (result?.changed && result.hasPreviousSnapshot) {
+        setIsJavaEnvChangedDialogOpen(true);
+      }
+    })();
   }, [hasHydrated, javaAutoDetect, triggerJavaAutoDetect]);
 
   // ✅ 启动时初始化手柄 Mod 注册表（从 Modrinth/CurseForge API 拉取版本信息）
@@ -164,6 +172,7 @@ const App: React.FC = () => {
               <Suspense fallback={<PageLoader />}>
                 {activeTab === 'home' && <Home />}
                 {activeTab === 'instances' && <Instances />}
+                {activeTab === 'library' && <LibraryPage />}
 
                 {activeTab === 'new-instance' && <NewInstance />}
                 {activeTab === 'instance-detail' && <InstanceDetail />}
@@ -182,6 +191,10 @@ const App: React.FC = () => {
         <SetupWizard />
         <GameLogSidebar />
         <GamepadModPrompt />
+        <JavaEnvironmentChangedDialog
+          isOpen={isJavaEnvChangedDialogOpen}
+          onClose={() => setIsJavaEnvChangedDialogOpen(false)}
+        />
       </div>
     </FocusProvider>
   );

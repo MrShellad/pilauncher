@@ -37,6 +37,47 @@ pub async fn delete_instance<R: Runtime>(app: AppHandle<R>, id: String) -> Resul
 }
 
 #[tauri::command]
+pub async fn remove_imported_instances<R: Runtime>(
+    app: AppHandle<R>,
+    dir_path: String,
+) -> Result<usize, String> {
+    InstanceActionService::remove_imported_by_dir(&app, &dir_path)
+}
+
+#[tauri::command]
+pub async fn clean_logs<R: Runtime>(app: AppHandle<R>) -> Result<usize, String> {
+    use crate::services::config_service::ConfigService;
+    use std::fs;
+    use std::path::PathBuf;
+
+    let base_path = ConfigService::get_base_path(&app)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "尚未配置基础数据目录".to_string())?;
+
+    let logs_dir = PathBuf::from(base_path).join("logs");
+    if !logs_dir.exists() {
+        return Ok(0);
+    }
+
+    let mut removed = 0usize;
+    if let Ok(entries) = fs::read_dir(&logs_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if fs::remove_file(&path).is_ok() {
+                    removed += 1;
+                }
+            } else if path.is_dir() {
+                if fs::remove_dir_all(&path).is_ok() {
+                    removed += 1;
+                }
+            }
+        }
+    }
+    Ok(removed)
+}
+
+#[tauri::command]
 pub async fn get_instance_detail<R: Runtime>(
     app: AppHandle<R>,
     id: String,

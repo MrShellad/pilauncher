@@ -1,6 +1,6 @@
-﻿// src/features/InstanceDetail/components/tabs/mods/InstanceFilterBar.tsx
+// src/features/InstanceDetail/components/tabs/mods/InstanceFilterBar.tsx
 import React from 'react';
-import { Search, RotateCcw, ArrowLeft } from 'lucide-react';
+import { Search, RotateCcw, ArrowLeft, Package, Image as LucideImage, Blocks } from 'lucide-react';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
 import { OreToggleButton } from '../../../../../ui/primitives/OreToggleButton';
@@ -29,7 +29,6 @@ interface InstanceFilterBarProps {
 }
 
 type FilterKey =
-  | 'inst-filter-back'
   | 'inst-filter-source'
   | 'inst-filter-category'
   | 'inst-filter-sort'
@@ -37,7 +36,14 @@ type FilterKey =
   | 'inst-filter-btn-search'
   | 'inst-filter-btn-reset';
 
-const secondRow: FilterKey[] = ['inst-filter-search', 'inst-filter-btn-search', 'inst-filter-btn-reset'];
+const secondRow: FilterKey[] = [
+  'inst-filter-source',
+  'inst-filter-category',
+  'inst-filter-sort',
+  'inst-filter-search',
+  'inst-filter-btn-search',
+  'inst-filter-btn-reset'
+];
 
 export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
   onBack,
@@ -56,9 +62,15 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
   onSearch,
   onReset
 }) => {
-  const firstRow: FilterKey[] = showBackButton
-    ? ['inst-filter-back', 'inst-filter-source', 'inst-filter-category', 'inst-filter-sort']
-    : ['inst-filter-source', 'inst-filter-category', 'inst-filter-sort'];
+  const pageMeta = React.useMemo(() => {
+    if (resourceTab === 'resourcepack') {
+      return { title: '实例资源包下载', icon: Package };
+    }
+    if (resourceTab === 'shader') {
+      return { title: '实例光影下载', icon: LucideImage };
+    }
+    return { title: '实例模组下载', icon: Blocks };
+  }, [resourceTab]);
 
   const sourceOptions = [
     {
@@ -111,40 +123,23 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
   };
 
   const handleArrow = (key: FilterKey) => (direction: string) => {
-    const firstRowIndex = firstRow.indexOf(key);
     const secondRowIndex = secondRow.indexOf(key);
 
     if (direction === 'left' || direction === 'right') {
-      const row = firstRowIndex >= 0 ? firstRow : secondRow;
-      const index = firstRowIndex >= 0 ? firstRowIndex : secondRowIndex;
       const nextIndex = direction === 'right'
-        ? (index + 1) % row.length
-        : (index - 1 + row.length) % row.length;
-      const nextKey = row[nextIndex];
+        ? (secondRowIndex + 1) % secondRow.length
+        : (secondRowIndex - 1 + secondRow.length) % secondRow.length;
+      const nextKey = secondRow[nextIndex];
       if (doesFocusableExist(nextKey)) setFocus(nextKey);
       return false;
     }
 
     if (direction === 'down') {
-      if (firstRowIndex >= 0) {
-        const nextKey = secondRow[Math.min(firstRowIndex, secondRow.length - 1)];
-        if (doesFocusableExist(nextKey)) {
-          setFocus(nextKey);
-          return false;
-        }
-      }
       return moveFocusToResults();
     }
 
     if (direction === 'up') {
-      if (secondRowIndex >= 0) {
-        const nextKey = firstRow[Math.min(secondRowIndex, firstRow.length - 1)];
-        if (doesFocusableExist(nextKey)) {
-          setFocus(nextKey);
-          return false;
-        }
-      }
-      return false;
+      return true;
     }
 
     return true;
@@ -153,26 +148,47 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
   return (
     <div className="mb-4 z-20 flex-shrink-0 border-2 border-[#2A2A2C] bg-[#18181B] p-4 shadow-md">
       <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center gap-4">
-          {showBackButton && (
-            <>
-              <OreButton
-                focusKey="inst-filter-back"
-                onArrowPress={handleArrow('inst-filter-back')}
-                variant="ghost"
-                size="auto"
+        {/* ROW 1: BACK BTN, TITLE, ENVIRONMENT */}
+        <div className="flex w-full items-center justify-between gap-4">
+          <div className="flex flex-1 justify-start">
+            {showBackButton && (
+              <button
                 onClick={onBack}
-                className="!h-[44px] !px-4 border border-white/5 bg-black/30 text-gray-400 hover:text-white"
+                className="flex h-[44px] cursor-pointer items-center justify-center rounded-sm border border-white/5 bg-black/30 px-4 font-minecraft tracking-wider text-gray-400 transition-colors hover:bg-black/50 hover:text-white active:scale-95"
               >
-                <ArrowLeft size={18} className="mr-1.5" />
+                <div className="mr-2 flex h-[18px] w-[18px] items-center justify-center rounded-full border-b-[2px] border-red-800 bg-red-600 pb-[1px] font-sans text-[10px] font-bold text-white shadow-sm">
+                  B
+                </div>
                 返回
-              </OreButton>
+              </button>
+            )}
+          </div>
 
-              <div className="hidden h-8 w-px bg-white/10 sm:block" />
-            </>
-          )}
+          <div className="flex flex-1 justify-center">
+            <div className="pointer-events-none flex items-center gap-2 font-minecraft text-sm uppercase tracking-[0.18em] text-[#E6E8EB]">
+              <pageMeta.icon size={16} className="text-ore-green" />
+              {pageMeta.title}
+            </div>
+          </div>
 
-          <div className="relative w-[280px] focus-within:z-50">
+          <div className="flex flex-1 justify-end">
+            <div className="flex flex-wrap items-center gap-2 rounded-sm border border-ore-green/30 bg-ore-green/10 px-3 py-2 text-xs font-minecraft tracking-wider text-ore-green">
+              <span className="text-white/70">已锁定环境</span>
+              <span className="rounded-sm border border-white/10 bg-black/30 px-2 py-1 text-white">
+                MC {lockedMcVersion || 'Unknown'}
+              </span>
+              {resourceTab === 'mod' && (
+                <span className="rounded-sm border border-white/10 bg-black/30 px-2 py-1 text-white">
+                  {loaderLabel}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ROW 2: FILTERS & SEARCH */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative w-[240px] shrink-0 focus-within:z-50">
             <FocusItem
               focusKey="inst-filter-source"
               onArrowPress={handleArrow('inst-filter-source')}
@@ -189,7 +205,7 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
             </FocusItem>
           </div>
 
-          <div className="relative min-w-[140px] flex-1 focus-within:z-50">
+          <div className="relative min-w-[120px] max-w-[160px] flex-1 focus-within:z-50">
             <OreDropdown
               focusKey="inst-filter-category"
               onArrowPress={handleArrow('inst-filter-category')}
@@ -200,7 +216,7 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
             />
           </div>
 
-          <div className="relative min-w-[140px] flex-1 focus-within:z-50">
+          <div className="relative min-w-[120px] max-w-[160px] flex-1 focus-within:z-50">
             <OreDropdown
               focusKey="inst-filter-sort"
               onArrowPress={handleArrow('inst-filter-sort')}
@@ -210,22 +226,8 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
               className="!h-[44px] w-full"
             />
           </div>
-        </div>
 
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex min-w-[220px] flex-wrap items-center gap-2 rounded-sm border border-ore-green/30 bg-ore-green/10 px-3 py-2 text-xs font-minecraft tracking-wider text-ore-green">
-            <span className="text-white/70">已锁定环境</span>
-            <span className="rounded-sm border border-white/10 bg-black/30 px-2 py-1 text-white">
-              MC {lockedMcVersion || 'Unknown'}
-            </span>
-            {resourceTab === 'mod' && (
-              <span className="rounded-sm border border-white/10 bg-black/30 px-2 py-1 text-white">
-                {loaderLabel}
-              </span>
-            )}
-          </div>
-
-          <div className="relative min-w-[200px] flex-1 focus-within:z-50">
+          <div className="relative min-w-[180px] flex-1 focus-within:z-50">
             <OreInput
               focusKey="inst-filter-search"
               width="100%"
@@ -246,7 +248,7 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
             />
           </div>
 
-          <div className="relative w-[120px] focus-within:z-50">
+          <div className="relative w-[100px] shrink-0 focus-within:z-50">
             <OreButton
               focusKey="inst-filter-btn-search"
               onArrowPress={handleArrow('inst-filter-btn-search')}
@@ -260,7 +262,7 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
             </OreButton>
           </div>
 
-          <div className="relative w-[100px] focus-within:z-50">
+          <div className="relative w-[90px] shrink-0 focus-within:z-50">
             <OreButton
               focusKey="inst-filter-btn-reset"
               onArrowPress={handleArrow('inst-filter-btn-reset')}
