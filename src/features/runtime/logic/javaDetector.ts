@@ -23,15 +23,20 @@ export const validateCachedJava = async (): Promise<JavaValidationResult> => {
 export const scanJava = async (): Promise<JavaInstall[]> => {
   try {
     const javas = await invoke<JavaInstall[]>('scan_java_environments');
-    return javas.sort((a, b) => b.version.localeCompare(a.version));
+    return javas.sort((a, b) => b.version.localeCompare(a.version, undefined, { numeric: true }));
   } catch (error) {
     console.error("扫描 Java 失败:", error);
     return [];
   }
 };
 
+export const testJavaRuntime = async (javaPath: string): Promise<JavaInstall> => {
+  return invoke<JavaInstall>('test_java_runtime', { javaPath });
+};
+
 // 智能判断适用版本
 export const getJavaRecommendation = (versionStr: string): string => {
+  if (versionStr.includes('25.')) return '推荐 1.26+ / 新快照';
   if (versionStr.includes('21.') || versionStr.includes('22.')) return '推荐 1.20.5+';
   if (versionStr.includes('17.')) return '推荐 1.17 - 1.20.4';
   if (versionStr.includes('1.8.') || versionStr.includes('8.')) return '推荐 1.16.5 及以下';
@@ -60,7 +65,7 @@ export async function autoScanAndFillJava(currentMajorPaths: Record<string, stri
     return null;
   };
 
-  const versions = ['8', '11', '16', '17', '21'];
+  const versions = ['8', '11', '16', '17', '21', '25'];
   let hasAnyMatch = false;
   versions.forEach((v) => {
     const match = findBestMatch(v);

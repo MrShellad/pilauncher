@@ -7,14 +7,20 @@ import { FlowSelector } from './FlowSelector';
 import { HostFlow } from './HostFlow';
 import { ClientFlow } from './ClientFlow';
 import { LogViewer } from './LogViewer';
+import { FocusItem } from '../../../../ui/focus/FocusItem';
+import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
 
 interface MultiplayerOverviewProps {}
 
 const defaultSidecarLabel = '项目内置 PiHub';
 
+const HEADER_FOCUS_ORDER = ['pihub-start', 'pihub-restart', 'pihub-stop'];
+
 export const MultiplayerOverview: React.FC<MultiplayerOverviewProps> = () => {
   const vm = useMultiplayerViewModel();
   const currentSidecarLabel = vm.session.activeStrategy?.label || defaultSidecarLabel;
+
+  const { handleLinearArrow } = useLinearNavigation(HEADER_FOCUS_ORDER, 'pihub-start');
 
   return (
     <section className="ore-multiplayer-surface">
@@ -25,39 +31,62 @@ export const MultiplayerOverview: React.FC<MultiplayerOverviewProps> = () => {
         </div>
 
         <div className="ore-multiplayer-inline-actions">
-          <OreButton
-            type="button"
-            size="auto"
-            variant="secondary"
-            onClick={() => void vm.session.start().catch(() => undefined)}
-            disabled={vm.session.lifecycle === 'starting'}
-          >
-            <span className="inline-flex items-center gap-2">
-              <Plug size={16} />
-              打开 PiHub
-            </span>
-          </OreButton>
-          <OreButton
-            type="button"
-            size="auto"
-            variant="secondary"
-            onClick={() => void vm.session.restart().catch(() => undefined)}
-            disabled={vm.session.lifecycle === 'starting'}
-          >
-            <span className="inline-flex items-center gap-2">
-              <RefreshCw size={16} />
-              重开 PiHub
-            </span>
-          </OreButton>
-          <OreButton
-            type="button"
-            size="auto"
-            variant="danger"
-            onClick={() => void vm.session.stop().catch(() => undefined)}
-            disabled={vm.session.lifecycle === 'idle' || vm.session.lifecycle === 'starting'}
-          >
-            关掉 PiHub
-          </OreButton>
+          <FocusItem focusKey="pihub-start" onArrowPress={handleLinearArrow} onEnter={() => { if (vm.session.lifecycle !== 'starting') void vm.session.start().catch(() => undefined); }}>
+            {({ ref, focused }) => (
+              <div ref={ref as React.RefObject<HTMLDivElement>} className={`rounded-sm transition-shadow duration-150 ${focused ? 'outline outline-2 outline-offset-[4px] outline-white' : 'outline outline-2 outline-offset-[4px] outline-transparent'}`}>
+                <OreButton
+                  type="button"
+                  size="auto"
+                  variant="secondary"
+                  onClick={() => void vm.session.start().catch(() => undefined)}
+                  disabled={vm.session.lifecycle === 'starting'}
+                  tabIndex={-1}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <Plug size={16} />
+                    打开 PiHub
+                  </span>
+                </OreButton>
+              </div>
+            )}
+          </FocusItem>
+
+          <FocusItem focusKey="pihub-restart" onArrowPress={handleLinearArrow} onEnter={() => { if (vm.session.lifecycle !== 'starting') void vm.session.restart().catch(() => undefined); }}>
+            {({ ref, focused }) => (
+              <div ref={ref as React.RefObject<HTMLDivElement>} className={`rounded-sm transition-shadow duration-150 ${focused ? 'outline outline-2 outline-offset-[4px] outline-white' : 'outline outline-2 outline-offset-[4px] outline-transparent'}`}>
+                <OreButton
+                  type="button"
+                  size="auto"
+                  variant="secondary"
+                  onClick={() => void vm.session.restart().catch(() => undefined)}
+                  disabled={vm.session.lifecycle === 'starting'}
+                  tabIndex={-1}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <RefreshCw size={16} />
+                    重开 PiHub
+                  </span>
+                </OreButton>
+              </div>
+            )}
+          </FocusItem>
+
+          <FocusItem focusKey="pihub-stop" onArrowPress={handleLinearArrow} onEnter={() => { if (vm.session.lifecycle !== 'idle' && vm.session.lifecycle !== 'starting') void vm.session.stop().catch(() => undefined); }}>
+            {({ ref, focused }) => (
+              <div ref={ref as React.RefObject<HTMLDivElement>} className={`rounded-sm transition-shadow duration-150 ${focused ? 'outline outline-2 outline-offset-[4px] outline-white' : 'outline outline-2 outline-offset-[4px] outline-transparent'}`}>
+                <OreButton
+                  type="button"
+                  size="auto"
+                  variant="danger"
+                  onClick={() => void vm.session.stop().catch(() => undefined)}
+                  disabled={vm.session.lifecycle === 'idle' || vm.session.lifecycle === 'starting'}
+                  tabIndex={-1}
+                >
+                  关掉 PiHub
+                </OreButton>
+              </div>
+            )}
+          </FocusItem>
         </div>
       </header>
 
@@ -91,7 +120,7 @@ export const MultiplayerOverview: React.FC<MultiplayerOverviewProps> = () => {
               <div className="ore-multiplayer-stack ore-multiplayer-stack--primary h-full">
                 {vm.selectedFlow === 'host' ? (
                   <HostFlow
-                    role={vm.session.role as any}
+                    role={vm.session.role as 'host' | 'client' | null}
                     isBusy={vm.session.isBusy}
                     manualAnswerRequired={vm.session.manualAnswerRequired}
                     inviteCode={vm.session.inviteCode}

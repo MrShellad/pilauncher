@@ -116,7 +116,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
       '11': '',
       '16': '',
       '17': '',
-      '21': ''
+      '21': '',
+      '25': ''
     },
     maxMemory: 4096,
     minMemory: 1024,

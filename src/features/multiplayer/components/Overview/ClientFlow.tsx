@@ -6,6 +6,8 @@ import { OrePinInput } from '../../../../ui/primitives/OrePinInput';
 import { OreDropdown } from '../../../../ui/primitives/OreDropdown';
 import type { PiHubTunnelInfo, SignalingServer } from '../../types';
 import { getCachedCustomSignaling, setCachedCustomSignaling } from '../../hooks/useMultiplayerViewModel';
+import { FocusItem } from '../../../../ui/focus/FocusItem';
+import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
 
 interface ClientFlowProps {
   isBusy: boolean;
@@ -27,6 +29,10 @@ interface ClientFlowProps {
   servers: SignalingServer[];
   isLoadingServers: boolean;
 }
+
+const SETUP_FOCUS_ORDER = ['client-return-top', 'client-proxy-port', 'client-signal-dropdown', 'client-pin-input', 'client-return-bottom', 'client-join'];
+const SETUP_CUSTOM_ORDER = ['client-return-top', 'client-proxy-port', 'client-custom-signal', 'client-signal-back', 'client-pin-input', 'client-return-bottom', 'client-join'];
+const ANSWER_FOCUS_ORDER = ['client-return-top', 'client-proxy-port', 'client-signal-dropdown', 'client-pin-input', 'client-return-bottom', 'client-join', 'client-copy-answer'];
 
 export const ClientFlow: React.FC<ClientFlowProps> = ({
   isBusy,
@@ -51,14 +57,31 @@ export const ClientFlow: React.FC<ClientFlowProps> = ({
   const cachedSignaling = getCachedCustomSignaling();
   const [showCustomSignaling, setShowCustomSignaling] = React.useState(!!cachedSignaling && clientSignalingServer === cachedSignaling);
 
+  const focusOrder = answerCode
+    ? ANSWER_FOCUS_ORDER
+    : showCustomSignaling
+      ? SETUP_CUSTOM_ORDER
+      : SETUP_FOCUS_ORDER;
+
+  const { handleLinearArrow } = useLinearNavigation(
+    focusOrder,
+    canReturnToChooser ? 'client-return-top' : 'client-proxy-port'
+  );
+
   const renderReturnButton = () =>
     canReturnToChooser ? (
-      <OreButton type="button" variant="secondary" size="auto" onClick={onReturnToChooser}>
-        <span className="inline-flex items-center gap-2">
-          <ChevronLeft size={16} />
-          返回选择
-        </span>
-      </OreButton>
+      <FocusItem focusKey="client-return-top" onArrowPress={handleLinearArrow} onEnter={onReturnToChooser}>
+        {({ ref, focused }) => (
+          <div ref={ref as React.RefObject<HTMLDivElement>} className={`rounded-sm transition-shadow duration-150 inline-block ${focused ? 'outline outline-2 outline-offset-[4px] outline-white' : 'outline outline-2 outline-offset-[4px] outline-transparent'}`}>
+            <OreButton type="button" variant="secondary" size="auto" onClick={onReturnToChooser} tabIndex={-1}>
+              <span className="inline-flex items-center gap-2">
+                <ChevronLeft size={16} />
+                返回选择
+              </span>
+            </OreButton>
+          </div>
+        )}
+      </FocusItem>
     ) : null;
 
   return (
@@ -82,62 +105,89 @@ export const ClientFlow: React.FC<ClientFlowProps> = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <OreInput
-          label="本地代理端口"
-          value={clientProxyPort}
-          onChange={(event: any) => setClientProxyPort(event.target.value)}
-          inputMode="numeric"
-          placeholder="50001"
-          disabled={isBusy}
-        />
+        <FocusItem focusKey="client-proxy-port" onArrowPress={handleLinearArrow}>
+          {({ ref, focused }) => (
+            <div ref={ref as React.RefObject<HTMLDivElement>} className={`rounded-sm transition-shadow duration-150 ${focused ? 'outline outline-[3px] outline-offset-[2px] outline-white' : ''}`}>
+              <OreInput
+                label="本地代理端口"
+                value={clientProxyPort}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => setClientProxyPort(event.target.value)}
+                inputMode="numeric"
+                placeholder="50001"
+                disabled={isBusy}
+                tabIndex={-1}
+              />
+            </div>
+          )}
+        </FocusItem>
+
         <div className="flex flex-col gap-1 w-full justify-end">
           <label className="text-[12px] font-minecraft font-bold uppercase tracking-wider text-[#B1B2B5]">
             信令服务器 {isLoadingServers ? '(测速中...)' : ''}
           </label>
           {showCustomSignaling ? (
             <div className="relative">
-              <OreInput
-                value={clientSignalingServer}
-                onChange={(event: any) => {
-                  const val = event.target.value;
-                  setClientSignalingServer(val);
-                  setCachedCustomSignaling(val);
-                }}
-                placeholder="wss://signal.example.com"
-                disabled={isBusy}
-              />
-              <button
-                type="button"
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[#78c6ff] hover:text-white"
-                onClick={() => {
-                  setShowCustomSignaling(false);
-                  if (servers.length > 0) setClientSignalingServer(servers[0].url);
-                }}
-              >
-                返回列表
-              </button>
+              <FocusItem focusKey="client-custom-signal" onArrowPress={handleLinearArrow}>
+                {({ ref, focused }) => (
+                  <div ref={ref as React.RefObject<HTMLDivElement>} className={`rounded-sm transition-shadow duration-150 ${focused ? 'outline outline-[3px] outline-offset-[2px] outline-white' : ''}`}>
+                    <OreInput
+                      value={clientSignalingServer}
+                      onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                        const val = event.target.value;
+                        setClientSignalingServer(val);
+                        setCachedCustomSignaling(val);
+                      }}
+                      placeholder="wss://signal.example.com"
+                      disabled={isBusy}
+                      tabIndex={-1}
+                    />
+                  </div>
+                )}
+              </FocusItem>
+              <FocusItem focusKey="client-signal-back" onArrowPress={handleLinearArrow} onEnter={() => { setShowCustomSignaling(false); if (servers.length > 0) setClientSignalingServer(servers[0].url); }}>
+                {({ ref, focused }) => (
+                  <button
+                    ref={ref as React.RefObject<HTMLButtonElement>}
+                    type="button"
+                    className={`absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[#78c6ff] hover:text-white rounded-sm px-1 ${focused ? 'outline outline-2 outline-offset-2 outline-[#78c6ff]' : ''}`}
+                    onClick={() => {
+                      setShowCustomSignaling(false);
+                      if (servers.length > 0) setClientSignalingServer(servers[0].url);
+                    }}
+                    tabIndex={-1}
+                  >
+                    返回列表
+                  </button>
+                )}
+              </FocusItem>
             </div>
           ) : (
-            <OreDropdown
-              disabled={isBusy}
-              value={clientSignalingServer}
-              options={[
-                ...servers.map((s) => ({
-                  label: `${s.region} - ${s.provider} ${s.measuredLatencyMs ? `(${s.measuredLatencyMs}ms)` : ''}`,
-                  value: s.url
-                })),
-                ...(cachedSignaling ? [{ label: `历史设定 (${cachedSignaling})`, value: cachedSignaling }] : []),
-                { label: '自定义路线...', value: 'custom' }
-              ]}
-              onChange={(val) => {
-                if (val === 'custom') {
-                  setShowCustomSignaling(true);
-                  setClientSignalingServer('');
-                } else {
-                  setClientSignalingServer(val);
-                }
-              }}
-            />
+            <FocusItem focusKey="client-signal-dropdown" onArrowPress={handleLinearArrow}>
+              {({ ref, focused }) => (
+                <div ref={ref as React.RefObject<HTMLDivElement>} className={`rounded-sm transition-shadow duration-150 ${focused ? 'outline outline-[3px] outline-offset-[2px] outline-white' : ''}`}>
+                  <OreDropdown
+                    disabled={isBusy}
+                    value={clientSignalingServer}
+                    options={[
+                      ...servers.map((s) => ({
+                        label: `${s.region} - ${s.provider} ${s.measuredLatencyMs ? `(${s.measuredLatencyMs}ms)` : ''}`,
+                        value: s.url
+                      })),
+                      ...(cachedSignaling ? [{ label: `历史设定 (${cachedSignaling})`, value: cachedSignaling }] : []),
+                      { label: '自定义路线...', value: 'custom' }
+                    ]}
+                    onChange={(val) => {
+                      if (val === 'custom') {
+                        setShowCustomSignaling(true);
+                        setClientSignalingServer('');
+                      } else {
+                        setClientSignalingServer(val);
+                      }
+                    }}
+                  />
+                </div>
+              )}
+            </FocusItem>
           )}
         </div>
       </div>
@@ -147,14 +197,19 @@ export const ClientFlow: React.FC<ClientFlowProps> = ({
           <span className="text-[#FFE866]">填写房主给您的 6 位加入口令</span>
           <span>JOIN_ROOM</span>
         </div>
-        <div className="py-2 flex justify-center">
-          <OrePinInput
-            value={inviteInput}
-            onChange={setInviteInput}
-            length={6}
-            disabled={isBusy}
-          />
-        </div>
+        <FocusItem focusKey="client-pin-input" onArrowPress={handleLinearArrow}>
+          {({ ref, focused }) => (
+            <div ref={ref as React.RefObject<HTMLDivElement>} className={`py-2 flex justify-center rounded-sm transition-shadow duration-150 ${focused ? 'outline outline-2 outline-offset-[4px] outline-[#78C6FF]' : ''}`}>
+              <OrePinInput
+                value={inviteInput}
+                onChange={setInviteInput}
+                length={6}
+                disabled={isBusy}
+              />
+            </div>
+          )}
+        </FocusItem>
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-2 border-t border-white/5 pt-4">
           <div className="flex items-center gap-3 px-3 py-2 bg-[#78C6FF]/10 border border-[#78C6FF]/20 rounded-sm">
             <div className="flex items-center gap-2 text-[12px] text-[#8CB3FF] font-bold">
@@ -168,27 +223,40 @@ export const ClientFlow: React.FC<ClientFlowProps> = ({
 
           <div className="flex flex-col-reverse sm:flex-row items-center gap-3 w-full sm:w-auto">
             {canReturnToChooser && (
-              <OreButton type="button" variant="secondary" size="auto" className="!w-full sm:!w-auto justify-center" onClick={onReturnToChooser}>
-                <span className="inline-flex items-center gap-2">
-                  <ChevronLeft size={16} />
-                  返回
-                </span>
-              </OreButton>
+              <FocusItem focusKey="client-return-bottom" onArrowPress={handleLinearArrow} onEnter={onReturnToChooser}>
+                {({ ref, focused }) => (
+                  <div ref={ref as React.RefObject<HTMLDivElement>} className={`w-full sm:w-auto rounded-sm transition-shadow duration-150 ${focused ? 'outline outline-2 outline-offset-[4px] outline-white' : 'outline outline-2 outline-offset-[4px] outline-transparent'}`}>
+                    <OreButton type="button" variant="secondary" size="auto" className="!w-full sm:!w-auto justify-center" onClick={onReturnToChooser} tabIndex={-1}>
+                      <span className="inline-flex items-center gap-2">
+                        <ChevronLeft size={16} />
+                        返回
+                      </span>
+                    </OreButton>
+                  </div>
+                )}
+              </FocusItem>
             )}
 
-            <OreButton
-              type="button"
-              variant="primary"
-              size="auto"
-              className="!w-full sm:!w-auto justify-center"
-              onClick={() => void handleJoinRoom().catch(() => undefined)}
-              disabled={!canJoinRoom}
-            >
-              <span className="inline-flex items-center gap-2">
-                <ArrowRightLeft size={16} />
-                加入房间
-              </span>
-            </OreButton>
+            <FocusItem focusKey="client-join" onArrowPress={handleLinearArrow} onEnter={() => { if (canJoinRoom) void handleJoinRoom().catch(() => undefined); }}>
+              {({ ref, focused }) => (
+                <div ref={ref as React.RefObject<HTMLDivElement>} className={`w-full sm:w-auto rounded-sm transition-shadow duration-150 ${focused ? 'outline outline-2 outline-offset-[4px] outline-white' : 'outline outline-2 outline-offset-[4px] outline-transparent'}`}>
+                  <OreButton
+                    type="button"
+                    variant="primary"
+                    size="auto"
+                    className="!w-full sm:!w-auto justify-center"
+                    onClick={() => void handleJoinRoom().catch(() => undefined)}
+                    disabled={!canJoinRoom}
+                    tabIndex={-1}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <ArrowRightLeft size={16} />
+                      加入房间
+                    </span>
+                  </OreButton>
+                </div>
+              )}
+            </FocusItem>
           </div>
         </div>
       </div>
@@ -203,22 +271,28 @@ export const ClientFlow: React.FC<ClientFlowProps> = ({
             {answerCode}
           </div>
           <div className="flex flex-col sm:flex-row justify-end gap-3 mt-2">
-            <OreButton
-              type="button"
-              variant="secondary"
-              size="auto"
-              className="!w-full sm:!w-auto justify-center"
-              onClick={() => void handleCopy('answer', answerCode)}
-            >
-              <span className="inline-flex items-center gap-2">
-                <Copy size={16} />
-                {copyState === 'answer' ? '已复制应答码' : '复制应答码'}
-              </span>
-            </OreButton>
+            <FocusItem focusKey="client-copy-answer" onArrowPress={handleLinearArrow} onEnter={() => handleCopy('answer', answerCode)}>
+              {({ ref, focused }) => (
+                <div ref={ref as React.RefObject<HTMLDivElement>} className={`w-full sm:w-auto rounded-sm transition-shadow duration-150 ${focused ? 'outline outline-2 outline-offset-[4px] outline-white' : 'outline outline-2 outline-offset-[4px] outline-transparent'}`}>
+                  <OreButton
+                    type="button"
+                    variant="secondary"
+                    size="auto"
+                    className="!w-full sm:!w-auto justify-center"
+                    onClick={() => handleCopy('answer', answerCode)}
+                    tabIndex={-1}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <Copy size={16} />
+                      {copyState === 'answer' ? '已复制应答码' : '复制应答码'}
+                    </span>
+                  </OreButton>
+                </div>
+              )}
+            </FocusItem>
           </div>
         </div>
       )}
-
     </div>
   );
 };

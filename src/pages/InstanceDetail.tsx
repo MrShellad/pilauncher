@@ -166,9 +166,14 @@ const InstanceDetail: React.FC = () => {
 
   if (!data) {
     return (
-      <div className="w-full h-full flex items-center justify-center text-white font-minecraft">
-        加载中...
-      </div>
+      <FocusContext.Provider value={focusKey}>
+        <div
+          ref={pageFocusRef}
+          className="w-full h-full flex items-center justify-center text-white font-minecraft"
+        >
+          加载中...
+        </div>
+      </FocusContext.Provider>
     );
   }
 

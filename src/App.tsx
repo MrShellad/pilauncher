@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useLayoutEffect } from 'react';
+import React, { Suspense, lazy, useEffect, useLayoutEffect, useRef } from 'react';
 import { initGamepadModRegistry } from './services/gamepadModService';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -76,6 +76,10 @@ const MultiplayerGuard: React.FC<{ activeTab: string }> = ({ activeTab }) => {
 const App: React.FC = () => {
   const activeTab = useLauncherStore((state) => state.activeTab);
   const { appearance, general } = useSettingsStore((state) => state.settings);
+  const hasHydrated = useSettingsStore((state) => state._hasHydrated);
+  const javaAutoDetect = useSettingsStore((state) => state.settings.java.autoDetect);
+  const triggerJavaAutoDetect = useSettingsStore((state) => state.triggerJavaAutoDetect);
+  const startupJavaScanDoneRef = useRef(false);
 
   useLayoutEffect(() => {
     injectDesignTokens();
@@ -92,6 +96,14 @@ const App: React.FC = () => {
       void i18n.changeLanguage(language);
     }
   }, [general?.language]);
+
+  useEffect(() => {
+    if (!hasHydrated || startupJavaScanDoneRef.current) return;
+    startupJavaScanDoneRef.current = true;
+
+    if (!javaAutoDetect) return;
+    void triggerJavaAutoDetect({ source: 'startup', notifyIfChanged: true });
+  }, [hasHydrated, javaAutoDetect, triggerJavaAutoDetect]);
 
   // ✅ 启动时初始化手柄 Mod 注册表（从 Modrinth/CurseForge API 拉取版本信息）
   useEffect(() => {

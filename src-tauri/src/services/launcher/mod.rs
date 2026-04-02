@@ -9,9 +9,6 @@ use tauri::{AppHandle, Emitter, Runtime};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
-// ✅ 仅在 Windows 平台下引入 CommandExt 以便后续隐藏黑框
-#[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
 
 use crate::domain::instance::InstanceConfig;
 use crate::domain::launcher::{Account, LoaderType};
@@ -98,18 +95,12 @@ impl LauncherService {
 
         let actual_java_path =
             if resolved_config.java_path == "auto" || resolved_config.java_path.is_empty() {
-                // ✅ Windows 优先使用 javaw，避免出现黑色控制台窗口
-                if cfg!(target_os = "windows") {
-                    "javaw".to_string()
-                } else {
-                    "java".to_string()
-                }
+                crate::services::runtime_service::launcher_default_java_command().to_string()
             } else {
                 resolved_config.java_path.clone()
             };
 
         let args_clone = args.clone();
-        let java_path_clone = actual_java_path.clone();
 
         println!("==================================================");
         println!("🚀 准备执行游戏进程！");
@@ -150,7 +141,7 @@ impl LauncherService {
         println!("✅ Java 进程已成功启动，PID: {:?}", child.id());
         println!("💻 完整启动命令已隐藏（防止 Token 泄露）");
         // 如果你需要调试完整的参数，可以解除下面这行的注释，但千万别在生产环境打印，否则用户的 Token 会写进日志！
-        // println!("\"{}\" \"{}\"", java_path_clone, args_clone.join("\" \""));
+        // println!("\"{}\" \"{}\"", actual_java_path, args_clone.join("\" \""));
         println!("==================================================");
 
         let stdout = child.stdout.take().unwrap();

@@ -56,6 +56,11 @@ pub async fn scan_java_environments<R: tauri::Runtime>(
 }
 
 #[tauri::command]
+pub async fn test_java_runtime(java_path: String) -> Result<JavaInstall, String> {
+    runtime_service::test_java_runtime(&java_path)
+}
+
+#[tauri::command]
 pub async fn get_required_java_major(mc_version: String) -> Result<String, String> {
     Ok(runtime_service::get_required_java_version(&mc_version))
 }

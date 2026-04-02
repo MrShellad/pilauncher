@@ -51,6 +51,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         runtime_cmd::get_system_memory,
         runtime_cmd::validate_java_cache,
         runtime_cmd::scan_java_environments,
+        runtime_cmd::test_java_runtime,
         runtime_cmd::get_required_java_major,
         runtime_cmd::resolve_global_java_for_version,
         runtime_cmd::resolve_instance_java,

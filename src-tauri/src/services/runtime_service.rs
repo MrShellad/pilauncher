@@ -23,45 +23,75 @@ pub fn get_system_memory() -> MemoryStats {
 
 pub fn launcher_default_java_command() -> &'static str {
     if cfg!(target_os = "windows") {
-        "javaw"
+        "java.exe"
     } else {
         "java"
     }
 }
 
 pub fn installer_default_java_command() -> &'static str {
-    "java"
+    if cfg!(target_os = "windows") {
+        "java.exe"
+    } else {
+        "java"
+    }
 }
 
 pub fn get_required_java_version(mc_version: &str) -> String {
-    let parts: Vec<&str> = mc_version.split('.').collect();
-    if parts.len() < 2 {
+    let raw = mc_version.trim().to_ascii_lowercase();
+    if raw.is_empty() {
         return "8".to_string();
     }
 
-    let Ok(minor) = parts[1].parse::<u32>() else {
-        return "8".to_string();
-    };
-
-    if minor >= 21 {
-        return "21".to_string();
+    if let Some(snapshot_year) = parse_snapshot_year(&raw) {
+        return required_java_for_snapshot_year(snapshot_year);
     }
 
-    if minor == 20 {
-        if let Some(patch) = parts.get(2).and_then(|v| v.parse::<u32>().ok()) {
-            if patch >= 5 {
-                return "21".to_string();
-            }
+    let parts: Vec<&str> = raw.split('.').collect();
+    if parts.len() >= 2 {
+        let Some(minor) = parse_prefixed_u32(parts[1]) else {
+            return "8".to_string();
+        };
+
+        if minor >= 26 {
+            return "25".to_string();
         }
-        return "17".to_string();
+
+        if minor >= 21 {
+            return "21".to_string();
+        }
+
+        if minor == 20 {
+            if let Some(patch) = parts.get(2).and_then(|part| parse_prefixed_u32(part)) {
+                if patch >= 5 {
+                    return "21".to_string();
+                }
+            }
+            return "17".to_string();
+        }
+
+        if minor >= 18 {
+            return "17".to_string();
+        }
+
+        if minor == 17 {
+            return "16".to_string();
+        }
     }
 
-    if minor >= 18 {
-        return "17".to_string();
-    }
-
-    if minor == 17 {
-        return "16".to_string();
+    if let Some(major) = parse_prefixed_u32(&raw) {
+        if major >= 26 {
+            return "25".to_string();
+        }
+        if major >= 21 {
+            return "21".to_string();
+        }
+        if major >= 18 {
+            return "17".to_string();
+        }
+        if major == 17 {
+            return "16".to_string();
+        }
     }
 
     "8".to_string()
@@ -119,7 +149,7 @@ fn normalize_java_path(java_path: String, fallback_java_command: &str) -> String
     if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("auto") {
         fallback_java_command.to_string()
     } else {
-        normalize_java_candidate(trimmed, false).unwrap_or_else(|| trimmed.to_string())
+        normalize_java_candidate(trimmed, true).unwrap_or_else(|| trimmed.to_string())
     }
 }
 
@@ -130,7 +160,7 @@ fn normalize_installer_java_path(java_path: String, fallback_java_command: &str)
     } else {
         normalize_java_candidate(trimmed, true).unwrap_or_else(|| {
             if cfg!(target_os = "windows") && trimmed.eq_ignore_ascii_case("javaw") {
-                "java".to_string()
+                "java.exe".to_string()
             } else {
                 trimmed.to_string()
             }
@@ -176,10 +206,56 @@ fn normalize_java_candidate(java_path: &str, prefer_console_binary: bool) -> Opt
 fn normalize_java_command_name(command: &str, prefer_console_binary: bool) -> String {
     #[cfg(target_os = "windows")]
     if prefer_console_binary && command.eq_ignore_ascii_case("javaw") {
-        return "java".to_string();
+        return "java.exe".to_string();
     }
 
     command.to_string()
+}
+
+fn parse_prefixed_u32(value: &str) -> Option<u32> {
+    let digits: String = value.chars().take_while(|c| c.is_ascii_digit()).collect();
+    if digits.is_empty() {
+        None
+    } else {
+        digits.parse::<u32>().ok()
+    }
+}
+
+fn parse_snapshot_year(value: &str) -> Option<u32> {
+    let lower = value.trim().to_ascii_lowercase();
+    let chars: Vec<char> = lower.chars().collect();
+    for index in 0..chars.len().saturating_sub(5) {
+        if chars[index].is_ascii_digit()
+            && chars[index + 1].is_ascii_digit()
+            && chars[index + 2] == 'w'
+            && chars[index + 3].is_ascii_digit()
+            && chars[index + 4].is_ascii_digit()
+            && chars[index + 5].is_ascii_lowercase()
+        {
+            return [chars[index], chars[index + 1]]
+                .iter()
+                .collect::<String>()
+                .parse::<u32>()
+                .ok();
+        }
+    }
+    None
+}
+
+fn required_java_for_snapshot_year(year: u32) -> String {
+    if year >= 26 {
+        return "25".to_string();
+    }
+    if year >= 24 {
+        return "21".to_string();
+    }
+    if year >= 21 {
+        return "17".to_string();
+    }
+    if year >= 20 {
+        return "16".to_string();
+    }
+    "8".to_string()
 }
 
 fn resolve_java_from_home(java_home: &Path, prefer_console_binary: bool) -> Option<String> {
@@ -203,22 +279,36 @@ fn resolve_java_from_home(java_home: &Path, prefer_console_binary: bool) -> Opti
 pub fn validate_java_cache(cache_file: &Path) -> Result<ValidationResult, String> {
     let mut valid = Vec::new();
     let mut missing = Vec::new();
+    let mut cache_changed = false;
 
     if cache_file.exists() {
         if let Ok(data) = fs::read_to_string(cache_file) {
             if let Ok(cached_javas) = serde_json::from_str::<Vec<JavaInstall>>(&data) {
                 for java in cached_javas {
-                    if Path::new(&java.path).exists() {
-                        valid.push(java);
+                    let normalized_path = prefer_windows_java_executable(PathBuf::from(&java.path))
+                        .to_string_lossy()
+                        .to_string();
+                    if normalized_path != java.path {
+                        cache_changed = true;
+                    }
+
+                    if Path::new(&normalized_path).exists() {
+                        if !valid.iter().any(|item: &JavaInstall| item.path == normalized_path) {
+                            valid.push(JavaInstall {
+                                version: java.version,
+                                path: normalized_path,
+                            });
+                        }
                     } else {
                         missing.push(java);
+                        cache_changed = true;
                     }
                 }
             }
         }
     }
 
-    if !missing.is_empty() {
+    if cache_changed || !missing.is_empty() {
         if let Ok(json) = serde_json::to_string(&valid) {
             fs::write(cache_file, json).ok();
         }
@@ -267,7 +357,7 @@ pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, Str
                 let is_java = p.is_file() && p.file_name().unwrap_or_default() == "java";
 
                 if is_java {
-                    paths_to_check.push(p.to_path_buf());
+                    paths_to_check.push(prefer_windows_java_executable(p.to_path_buf()));
                 }
             }
         }
@@ -275,7 +365,7 @@ pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, Str
 
     if let Ok(java_home) = std::env::var("JAVA_HOME") {
         #[cfg(target_os = "windows")]
-        let p = PathBuf::from(java_home).join("bin").join("java.exe");
+        let p = prefer_windows_java_executable(PathBuf::from(java_home).join("bin").join("java.exe"));
         #[cfg(not(target_os = "windows"))]
         let p = PathBuf::from(java_home).join("bin").join("java");
         if p.exists() {
@@ -301,7 +391,7 @@ pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, Str
                 let is_java = p.is_file() && p.file_name().unwrap_or_default() == "java";
 
                 if is_java {
-                    paths_to_check.push(p.to_path_buf());
+                    paths_to_check.push(prefer_windows_java_executable(p.to_path_buf()));
                 }
             }
         }
@@ -326,6 +416,74 @@ pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, Str
     Ok(installs)
 }
 
+#[cfg(target_os = "windows")]
+fn prefer_windows_java_executable(path: PathBuf) -> PathBuf {
+    let is_javaw = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| name.eq_ignore_ascii_case("javaw.exe"))
+        .unwrap_or(false);
+
+    if is_javaw {
+        let sibling = path.with_file_name("java.exe");
+        if sibling.exists() {
+            return sibling;
+        }
+    }
+
+    path
+}
+
+#[cfg(not(target_os = "windows"))]
+fn prefer_windows_java_executable(path: PathBuf) -> PathBuf {
+    path
+}
+
+pub fn test_java_runtime(java_path: &str) -> Result<JavaInstall, String> {
+    let trimmed = java_path.trim().trim_matches('"');
+    if trimmed.is_empty() {
+        return Err("Java 路径为空".to_string());
+    }
+
+    let normalized = normalize_java_candidate(trimmed, true)
+        .unwrap_or_else(|| normalize_java_command_name(trimmed, true));
+    let normalized = if cfg!(target_os = "windows")
+        && normalized.eq_ignore_ascii_case("javaw.exe")
+    {
+        "java.exe".to_string()
+    } else {
+        normalized
+    };
+
+    let mut cmd = Command::new(&normalized);
+    cmd.arg("-version");
+
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(0x08000000);
+
+    let output = cmd
+        .output()
+        .map_err(|e| format!("无法执行 Java: {}", e))?;
+
+    let version = extract_java_version(&output)
+        .ok_or_else(|| "无法解析 Java 版本输出".to_string())?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let reason = if stderr.is_empty() {
+            format!("Java 返回非零退出码: {}", output.status)
+        } else {
+            stderr
+        };
+        return Err(reason);
+    }
+
+    Ok(JavaInstall {
+        version,
+        path: normalized,
+    })
+}
+
 fn get_java_version(path: &Path) -> Option<String> {
     let mut cmd = Command::new(path);
     cmd.arg("-version");
@@ -334,15 +492,21 @@ fn get_java_version(path: &Path) -> Option<String> {
     cmd.creation_flags(0x08000000);
 
     let output = cmd.output().ok()?;
+    extract_java_version(&output)
+}
+
+fn extract_java_version(output: &std::process::Output) -> Option<String> {
+    let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
+    let primary = if stderr.trim().is_empty() {
+        stdout.as_ref()
+    } else {
+        stderr.as_ref()
+    };
 
-    let lines: Vec<&str> = stderr.lines().collect();
-    if lines.is_empty() {
-        return None;
-    }
-
-    let first_line = lines[0];
-    let is_64_bit = stderr.contains("64-Bit") || stderr.contains("64-bit");
+    let first_line = primary.lines().next()?;
+    let bitness_source = format!("{}\n{}", stdout, stderr);
+    let is_64_bit = bitness_source.contains("64-Bit") || bitness_source.contains("64-bit");
     let bitness = if is_64_bit { "64-bit" } else { "32-bit" };
 
     let parts: Vec<&str> = first_line.split('"').collect();
@@ -426,6 +590,12 @@ mod tests {
         assert_eq!(get_required_java_version("1.20.4"), "17");
         assert_eq!(get_required_java_version("1.20.5"), "21");
         assert_eq!(get_required_java_version("1.21.1"), "21");
+        assert_eq!(get_required_java_version("1.26"), "25");
+        assert_eq!(get_required_java_version("v1.26-pre1"), "25");
+        assert_eq!(get_required_java_version("26w14a"), "25");
+        assert_eq!(get_required_java_version("snapshot-26w14a"), "25");
+        assert_eq!(get_required_java_version("24w33a"), "21");
+        assert_eq!(get_required_java_version("release/24w33a"), "21");
     }
 
     #[test]

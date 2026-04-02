@@ -280,11 +280,11 @@ pub async fn download_java_env<R: Runtime>(
                                 );
 
                                 let mut new_java_path = String::new();
-                                // ✅ Windows 优先匹配 javaw.exe，避免回填后出现黑色控制台窗口
-                                let target_exe = if env::consts::OS == "windows" {
-                                    "javaw.exe"
+                                // Windows 优先匹配 java.exe（若不存在再回退 javaw.exe）
+                                let target_exes: Vec<&str> = if env::consts::OS == "windows" {
+                                    vec!["java.exe", "javaw.exe"]
                                 } else {
-                                    "java"
+                                    vec!["java"]
                                 };
                                 for entry in walkdir::WalkDir::new(&extract_target)
                                     .into_iter()
@@ -292,8 +292,20 @@ pub async fn download_java_env<R: Runtime>(
                                 {
                                     let p = entry.path();
                                     if p.is_file()
-                                        && p.file_name().unwrap_or_default() == target_exe
+                                        && target_exes
+                                            .iter()
+                                            .any(|name| p.file_name().unwrap_or_default() == *name)
                                     {
+                                        if env::consts::OS == "windows"
+                                            && p.file_name().unwrap_or_default() == "javaw.exe"
+                                        {
+                                            let sibling = p.with_file_name("java.exe");
+                                            if sibling.exists() {
+                                                new_java_path = sibling.to_string_lossy().to_string();
+                                                break;
+                                            }
+                                        }
+
                                         new_java_path = p.to_string_lossy().to_string();
                                         break;
                                     }

@@ -161,7 +161,7 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
         <div
           ref={focusRef as any}
           /* ✅ 提升默认高度至 40px，适配 TV 端阅读体验 */
-          className={`relative inline-block ${className} rounded-sm h-[40px] ${isOpen ? 'z-[100]' : (focused ? 'ring-2 ring-white scale-[1.02] z-40 shadow-lg brightness-110' : 'z-20')}`}
+          className={`relative block w-full rounded-sm h-[40px] ${className} ${isOpen ? 'z-[100]' : (focused ? 'ring-2 ring-white scale-[1.02] z-40 shadow-lg brightness-110' : 'z-20')}`}
         >
           <div ref={containerRef} className="h-full flex flex-col">
             <button
@@ -170,7 +170,7 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
               disabled={disabled}
               onClick={toggleDropdown}
               tabIndex={-1}
-              className={`ore-dropdown-trigger flex items-center justify-between px-3 ${isOpen ? 'is-open' : ''} ${focused && !isOpen ? 'border-transparent' : ''}`}
+              className={`ore-dropdown-trigger w-full flex items-center justify-between px-3 ${isOpen ? 'is-open' : ''} ${focused && !isOpen ? 'border-transparent' : ''}`}
             >
               {/* ✅ 支持内嵌前缀图标 */}
               <div className="flex items-center overflow-hidden">
@@ -196,7 +196,7 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
                   animate={{ opacity: 1, scaleY: 1 }}
                   exit={{ opacity: 0, scaleY: 0.95, transition: { duration: 0.1 } }}
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                  className="ore-dropdown-panel custom-scrollbar max-w-[280px]"
+                  className="ore-dropdown-panel custom-scrollbar min-w-full"
                   style={{
                     ...(placement === 'bottom' ? { top: '100%', marginTop: '2px' } : { bottom: '100%', marginBottom: '2px' }),
                     ...(alignRight ? { right: 0, left: 'auto' } : { left: 0, right: 'auto' })

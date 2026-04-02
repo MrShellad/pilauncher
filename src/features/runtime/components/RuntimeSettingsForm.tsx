@@ -1,22 +1,33 @@
 import React, { useCallback, useMemo } from 'react';
+import { TestTube2, Loader2 } from 'lucide-react';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
-import { SettingsSection } from '../../../ui/layout/SettingsSection';
 import { FormRow } from '../../../ui/layout/FormRow';
+import { SettingsSection } from '../../../ui/layout/SettingsSection';
+import { OreButton } from '../../../ui/primitives/OreButton';
 import { OreSwitch } from '../../../ui/primitives/OreSwitch';
-
+import type { RuntimeConfig } from '../types';
+import { useJavaRuntimeTestDialog } from '../hooks/useJavaRuntimeTestDialog';
 import { JavaSelector } from './JavaSelector';
+import { JavaTestResultDialog } from './JavaTestResultDialog';
 import { JVMParamsEditor } from './JVMParamsEditor';
 import { MemorySlider } from './MemorySlider';
-import type { RuntimeConfig } from '../types';
 
 export const RuntimeSettingsForm: React.FC<{
   mode: 'global' | 'instance';
   config: RuntimeConfig;
   onChange: (c: RuntimeConfig) => void;
-}> = ({ mode, config, onChange }) => {
+  mcVersion?: string;
+  recommendedJavaMajor?: string;
+}> = ({ mode, config, onChange, mcVersion, recommendedJavaMajor }) => {
   const isInstance = mode === 'instance';
   const handleChange = (key: keyof RuntimeConfig, value: any) => onChange({ ...config, [key]: value });
+  const { testingKey, dialog, closeDialog, runJavaTest } = useJavaRuntimeTestDialog();
+
+  const recommendationText = useMemo(() => {
+    if (!mcVersion || !recommendedJavaMajor) return '';
+    return `当前实例 MC ${mcVersion} 推荐 Java ${recommendedJavaMajor}`;
+  }, [mcVersion, recommendedJavaMajor]);
 
   const focusOrder = useMemo(() => {
     const order: string[] = [];
@@ -26,7 +37,7 @@ export const RuntimeSettingsForm: React.FC<{
     }
 
     if (!(isInstance && config.useGlobalJava)) {
-      order.push('java-btn-browse');
+      order.push('java-btn-browse', 'java-btn-test');
     }
 
     if (isInstance) {
@@ -40,36 +51,39 @@ export const RuntimeSettingsForm: React.FC<{
     return order;
   }, [config.useGlobalJava, config.useGlobalMemory, isInstance]);
 
-  const handleLinearArrow = useCallback((fallbackKey: string) => (direction: string) => {
-    const step = direction === 'left' || direction === 'up'
-      ? -1
-      : direction === 'right' || direction === 'down'
-        ? 1
-        : 0;
+  const handleLinearArrow = useCallback(
+    (fallbackKey: string) => (direction: string) => {
+      const step =
+        direction === 'left' || direction === 'up'
+          ? -1
+          : direction === 'right' || direction === 'down'
+            ? 1
+            : 0;
 
-    if (step === 0) return true;
+      if (step === 0) return true;
 
-    const currentFocusKey = getCurrentFocusKey();
-    const resolvedKey = currentFocusKey && focusOrder.includes(currentFocusKey)
-      ? currentFocusKey
-      : fallbackKey;
-    const currentIndex = focusOrder.indexOf(resolvedKey);
-    if (currentIndex === -1) return true;
+      const currentFocusKey = getCurrentFocusKey();
+      const resolvedKey =
+        currentFocusKey && focusOrder.includes(currentFocusKey) ? currentFocusKey : fallbackKey;
+      const currentIndex = focusOrder.indexOf(resolvedKey);
+      if (currentIndex === -1) return true;
 
-    for (
-      let nextIndex = currentIndex + step;
-      nextIndex >= 0 && nextIndex < focusOrder.length;
-      nextIndex += step
-    ) {
-      const nextKey = focusOrder[nextIndex];
-      if (doesFocusableExist(nextKey)) {
-        setFocus(nextKey);
-        return false;
+      for (
+        let nextIndex = currentIndex + step;
+        nextIndex >= 0 && nextIndex < focusOrder.length;
+        nextIndex += step
+      ) {
+        const nextKey = focusOrder[nextIndex];
+        if (doesFocusableExist(nextKey)) {
+          setFocus(nextKey);
+          return false;
+        }
       }
-    }
 
-    return true;
-  }, [focusOrder]);
+      return true;
+    },
+    [focusOrder]
+  );
 
   return (
     <>
@@ -89,17 +103,52 @@ export const RuntimeSettingsForm: React.FC<{
           />
         )}
 
-        <div className={`transition-opacity duration-300 ${isInstance && config.useGlobalJava ? 'pointer-events-none opacity-40' : 'opacity-100'}`}>
+        <div
+          className={`transition-opacity duration-300 ${
+            isInstance && config.useGlobalJava ? 'pointer-events-none opacity-40' : 'opacity-100'
+          }`}
+        >
           <FormRow
             label="Java 运行时路径"
-            description="请确保 Java 版本和当前 Minecraft 版本匹配。"
+            description={
+              recommendationText || '请确保 Java 版本和当前 Minecraft 版本匹配。'
+            }
+            vertical={true}
             control={
-              <JavaSelector
-                value={config.javaPath}
-                onChange={(value) => handleChange('javaPath', value)}
-                disabled={isInstance && config.useGlobalJava}
-                onArrowPress={handleLinearArrow('java-input-path')}
-              />
+              <div className="flex w-full items-stretch gap-2">
+                <div className="min-w-0 flex-1">
+                  <JavaSelector
+                    value={config.javaPath}
+                    onChange={(value) => handleChange('javaPath', value)}
+                    disabled={isInstance && config.useGlobalJava}
+                    onArrowPress={handleLinearArrow('java-input-path')}
+                  />
+                </div>
+                <OreButton
+                  focusKey="java-btn-test"
+                  onArrowPress={handleLinearArrow('java-btn-test')}
+                  variant="secondary"
+                  size="auto"
+                  onClick={() =>
+                    runJavaTest({
+                      key: 'instance-runtime',
+                      label: '实例 Java',
+                      javaPath: config.javaPath
+                    })
+                  }
+                  disabled={
+                    (isInstance && config.useGlobalJava) || !config.javaPath.trim() || testingKey !== null
+                  }
+                  className="shrink-0 !min-w-[7.5rem] !h-10 !px-4 !justify-center gap-1"
+                >
+                  {testingKey === 'instance-runtime' ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <TestTube2 size={14} />
+                  )}
+                  测试
+                </OreButton>
+              </div>
             }
           />
         </div>
@@ -122,7 +171,11 @@ export const RuntimeSettingsForm: React.FC<{
             />
           )}
 
-          <div className={`divide-y-2 divide-[#1E1E1F] transition-opacity duration-300 ${isInstance && config.useGlobalMemory ? 'pointer-events-none opacity-40' : 'opacity-100'}`}>
+          <div
+            className={`divide-y-2 divide-[#1E1E1F] transition-opacity duration-300 ${
+              isInstance && config.useGlobalMemory ? 'pointer-events-none opacity-40' : 'opacity-100'
+            }`}
+          >
             <FormRow
               label="最大内存分配"
               description="动态调整游戏可用 RAM，建议保留系统余量。"
@@ -137,7 +190,7 @@ export const RuntimeSettingsForm: React.FC<{
             />
             <FormRow
               label="JVM 附加参数"
-              description="高级选项。可添加额外启动参数用于优化或调试。"
+              description="高级选项，可添加额外启动参数用于优化或调试。"
               control={
                 <JVMParamsEditor
                   value={config.jvmArgs}
@@ -150,6 +203,12 @@ export const RuntimeSettingsForm: React.FC<{
           </div>
         </SettingsSection>
       </div>
+
+      <JavaTestResultDialog
+        state={dialog}
+        onClose={closeDialog}
+        focusKeyPrefix="instance-java-test-dialog"
+      />
     </>
   );
 };

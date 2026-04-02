@@ -11,6 +11,8 @@ import {
 import type { AdSlot, OnlineServer } from '../types';
 import { formatDate, openLink } from '../utils';
 import { OreButton } from '../../../ui/primitives/OreButton';
+import { FocusItem } from '../../../ui/focus/FocusItem';
+import { useLinearNavigation } from '../../../ui/focus/useLinearNavigation';
 
 interface OnlineServersListProps {
   servers: OnlineServer[];
@@ -40,6 +42,14 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
 }) => {
   const hasServers = !isLoading && !error && servers.length > 0;
 
+  const serverFocusOrder = [
+    'online-servers-refresh',
+    ...servers.map((s) => `server-website-${s.id}`),
+    ...servers.map((s) => `server-social-${s.id}`),
+    ...adSlots.slice(0, 3).map((a) => `ad-slot-${a.id}`)
+  ];
+  const { handleLinearArrow } = useLinearNavigation(serverFocusOrder, 'online-servers-refresh');
+
   return (
     <section className="ore-multiplayer-surface">
       <header className="ore-multiplayer-panel-header">
@@ -54,18 +64,25 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
           <div className="ore-multiplayer-meta" title={apiUrl || '未配置 VITE_ONLINE_SERVERS_API_URL'}>
             API · {apiUrl || '未配置'}
           </div>
-          <OreButton
-            type="button"
-            size="auto"
-            variant="secondary"
-            onClick={onRefresh}
-            disabled={isLoading}
-          >
-            <span className="inline-flex items-center gap-2">
-              <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-              刷新
-            </span>
-          </OreButton>
+          <FocusItem focusKey="online-servers-refresh" onArrowPress={handleLinearArrow} onEnter={onRefresh}>
+            {({ ref, focused }) => (
+              <div ref={ref as React.RefObject<HTMLDivElement>} className={`rounded-sm transition-shadow duration-150 ${focused ? 'outline outline-2 outline-offset-[4px] outline-white' : 'outline outline-2 outline-offset-[4px] outline-transparent'}`}>
+                <OreButton
+                  type="button"
+                  size="auto"
+                  variant="secondary"
+                  onClick={onRefresh}
+                  disabled={isLoading}
+                  tabIndex={-1}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+                    刷新
+                  </span>
+                </OreButton>
+              </div>
+            )}
+          </FocusItem>
         </div>
       </header>
 
@@ -147,25 +164,37 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
 
                     <div className="ore-multiplayer-link-row">
                       {server.homepageUrl && (
-                        <button
-                          type="button"
-                          className="ore-multiplayer-link-button"
-                          onClick={() => void openLink(server.homepageUrl)}
-                        >
-                          <Globe size={14} />
-                          官网
-                        </button>
+                        <FocusItem focusKey={`server-website-${server.id}`} onArrowPress={handleLinearArrow} onEnter={() => void openLink(server.homepageUrl!)}>
+                          {({ ref, focused }) => (
+                            <button
+                              ref={ref as React.RefObject<HTMLButtonElement>}
+                              type="button"
+                              className={`ore-multiplayer-link-button ${focused ? 'outline outline-[3px] outline-offset-[2px] outline-white' : ''}`}
+                              onClick={() => void openLink(server.homepageUrl!)}
+                              tabIndex={-1}
+                            >
+                              <Globe size={14} />
+                              官网
+                            </button>
+                          )}
+                        </FocusItem>
                       )}
 
                       {server.socials[0]?.url && (
-                        <button
-                          type="button"
-                          className="ore-multiplayer-link-button ore-multiplayer-link-button--primary"
-                          onClick={() => void openLink(server.socials[0].url)}
-                        >
-                          <MessageSquareShare size={14} />
-                          {server.socials[0].label}
-                        </button>
+                        <FocusItem focusKey={`server-social-${server.id}`} onArrowPress={handleLinearArrow} onEnter={() => void openLink(server.socials[0].url)}>
+                          {({ ref, focused }) => (
+                            <button
+                              ref={ref as React.RefObject<HTMLButtonElement>}
+                              type="button"
+                              className={`ore-multiplayer-link-button ore-multiplayer-link-button--primary ${focused ? 'outline outline-[3px] outline-offset-[2px] outline-white' : ''}`}
+                              onClick={() => void openLink(server.socials[0].url)}
+                              tabIndex={-1}
+                            >
+                              <MessageSquareShare size={14} />
+                              {server.socials[0].label}
+                            </button>
+                          )}
+                        </FocusItem>
                       )}
                     </div>
                   </footer>
@@ -183,22 +212,27 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
 
               <div className="ore-multiplayer-ad-grid">
                 {adSlots.slice(0, 3).map((ad) => (
-                  <article
-                    key={ad.id}
-                    className="ore-multiplayer-ad-card"
-                    onClick={() => ad.url && void openLink(ad.url)}
-                  >
-                    <div className="ore-multiplayer-ad-card-body">
-                      <Megaphone size={20} className="text-[var(--ore-color-background-warning-default)]" />
-                      <h3 className="ore-multiplayer-ad-title">{ad.title}</h3>
-                      <p className="ore-multiplayer-ad-description">{ad.description}</p>
-                    </div>
+                  <FocusItem key={ad.id} focusKey={`ad-slot-${ad.id}`} onArrowPress={handleLinearArrow} onEnter={() => { if (ad.url) void openLink(ad.url); }}>
+                    {({ ref, focused }) => (
+                      <article
+                        ref={ref as React.RefObject<HTMLElement>}
+                        className={`ore-multiplayer-ad-card ${focused ? 'outline outline-[3px] outline-offset-[2px] outline-white' : ''}`}
+                        onClick={() => ad.url && void openLink(ad.url)}
+                        tabIndex={-1}
+                      >
+                        <div className="ore-multiplayer-ad-card-body">
+                          <Megaphone size={20} className="text-[var(--ore-color-background-warning-default)]" />
+                          <h3 className="ore-multiplayer-ad-title">{ad.title}</h3>
+                          <p className="ore-multiplayer-ad-description">{ad.description}</p>
+                        </div>
 
-                    <div className="ore-multiplayer-ad-footer">
-                      <span>{ad.expiresAt ? `截止 ${formatDate(ad.expiresAt)}` : '等待素材投放'}</span>
-                      <strong>{ad.url ? '查看详情' : '预留中'}</strong>
-                    </div>
-                  </article>
+                        <div className="ore-multiplayer-ad-footer">
+                          <span>{ad.expiresAt ? `截止 ${formatDate(ad.expiresAt)}` : '等待素材投放'}</span>
+                          <strong>{ad.url ? '查看详情' : '预留中'}</strong>
+                        </div>
+                      </article>
+                    )}
+                  </FocusItem>
                 ))}
               </div>
             </div>

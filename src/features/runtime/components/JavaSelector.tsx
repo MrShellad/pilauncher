@@ -160,8 +160,8 @@ export const JavaSelector: React.FC<{
     const isWin = dirPath.includes('\\');
     const sep = isWin ? '\\' : '/';
     const executable = dirPath.endsWith('bin')
-      ? `${dirPath}${sep}${isWin ? 'javaw.exe' : 'java'}`
-      : `${dirPath}${sep}bin${sep}${isWin ? 'javaw.exe' : 'java'}`;
+      ? `${dirPath}${sep}${isWin ? 'java.exe' : 'java'}`
+      : `${dirPath}${sep}bin${sep}${isWin ? 'java.exe' : 'java'}`;
 
     onChange(executable);
     setIsBrowserOpen(false);
@@ -237,9 +237,10 @@ export const JavaSelector: React.FC<{
           variant="secondary"
           onClick={() => openSelectorModal(browseButtonFocusKey)}
           disabled={disabled}
-          className="shrink-0 !min-w-[7.5rem] !px-4 !justify-center"
+          className="shrink-0 !min-w-[7.5rem] !h-10 !px-4 !justify-center gap-1"
         >
-          选择...
+          <FolderOpen size={14} />
+          选择
         </OreButton>
       </div>
 
