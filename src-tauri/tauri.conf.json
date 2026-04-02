@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "PiLauncher",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "identifier": "com.mrshell.PiLauncher",
   "build": {
     "frontendDist": "../build",
@@ -21,7 +21,7 @@
         "fullscreen": false,
         "decorations": false,
         "transparent": true,
-        "devtools": true
+        "devtools": false
       }
     ],
     "security": {

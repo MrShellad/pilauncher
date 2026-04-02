@@ -29,6 +29,7 @@ modules:
 
     build-commands:
       - install -D PiLauncher /app/bin/PiLauncher
+      - chmod +x /app/bin/PiLauncher
       - install -D com.mrshell.PiLauncher.desktop /app/share/applications/com.mrshell.PiLauncher.desktop
       - install -D com.mrshell.PiLauncher.png /app/share/icons/hicolor/256x256/apps/com.mrshell.PiLauncher.png
       - install -D com.mrshell.PiLauncher.metainfo.xml /app/share/metainfo/com.mrshell.PiLauncher.metainfo.xml
