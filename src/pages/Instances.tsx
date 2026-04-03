@@ -4,6 +4,7 @@ import { useInstances } from '../hooks/pages/Instances/useInstances';
 import { OreButton } from '../ui/primitives/OreButton';
 import { Plus, FolderPlus, List, LayoutGrid, Loader2, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
 import { OreModal } from '../ui/primitives/OreModal';
+import { getCurrentFocusKey } from '@noriginmedia/norigin-spatial-navigation';
 
 import { InstanceListView } from '../features/Instances/components/InstanceListView';
 import { InstanceCardView } from '../features/Instances/components/InstanceCardView';
@@ -44,12 +45,33 @@ const Instances: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    if (instances.length === 0) return;
+    const timer = setTimeout(() => {
+      const currentFocusKey = getCurrentFocusKey();
+      const isActionAreaFocus =
+        currentFocusKey === 'SN:ROOT' ||
+        currentFocusKey === 'action-new' ||
+        currentFocusKey === 'action-folder' ||
+        currentFocusKey === 'view-grid' ||
+        currentFocusKey === 'view-list';
+
+      if (!isActionAreaFocus) return;
+
+      const firstInstanceFocusKey = viewMode === 'list'
+        ? `list-play-${instances[0].id}`
+        : `card-play-${instances[0].id}`;
+      focusManager.focus(firstInstanceFocusKey);
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [instances, viewMode]);
+
   return (
-    <FocusBoundary id="instances-page" isActive={!isDirModalOpen} className="flex flex-col w-full h-full p-6 sm:p-8 overflow-hidden bg-black/40">
+    <FocusBoundary id="instances-page" isActive={!isDirModalOpen} className="flex h-full w-full flex-col overflow-hidden px-6 pb-6 pt-3 sm:px-8 sm:pb-8 sm:pt-4">
 
       {/* 1. 顶部操作区 */}
       {/* ✅ 修复点 1：强制 flex-row 不换行，items-center 保证左右两组按钮绝对水平垂直居中对齐 */}
-      <div className="flex flex-row justify-between items-center w-full mb-6 flex-shrink-0 gap-4">
+      <div className="mb-4 flex w-full flex-shrink-0 flex-row items-center justify-between gap-4 lg:mb-5">
 
         {/* 左侧：视图切换器 (加上 flex-shrink-0 确保在极小宽度下也不会被挤压变形) */}
         <div className="flex items-center bg-[#1E1E1F] border-2 border-ore-gray-border p-0.5 flex-shrink-0">
@@ -89,16 +111,16 @@ const Instances: React.FC = () => {
             - 增加 -mr-2 (负 Margin) 抵消 p-2 带来的布局偏移，确保右侧依然能完美贴合屏幕边缘！
             - justify-end 确保按钮永远靠右对齐。
         */}
-        <div className="flex flex-row items-center justify-end gap-3 flex-1 overflow-x-auto scrollbar-none p-2 -mr-2">
+        <div className="mr-[-0.5rem] flex flex-1 flex-row items-center justify-end gap-3 overflow-x-auto p-[0.375rem] pt-[0.125rem] scrollbar-none">
 
           {/* 给每个包裹层加上 flex-shrink-0 防止在拥挤时被压缩 */}
           <FocusItem focusKey="action-new" onEnter={handleCreate}>
             {({ ref, focused }) => (
               <div ref={ref} className={`rounded-sm transition-shadow duration-150 flex-shrink-0 ${focused ? 'outline outline-2 outline-offset-[4px] outline-white' : 'outline outline-2 outline-offset-[4px] outline-transparent'}`}>
-                <OreButton variant="primary" size="auto" onClick={handleCreate} tabIndex={-1}>
-                  <span className="flex items-center justify-center whitespace-nowrap">
-                    <Plus size={18} className="mr-2 flex-shrink-0" />
-                    <span className="font-minecraft tracking-wider">新建实例</span>
+                <OreButton variant="primary" size="auto" className="!h-auto !min-w-0 !px-0" onClick={handleCreate} tabIndex={-1}>
+                  <span className="flex h-[clamp(2.35rem,3.1vh,3.6rem)] min-w-[clamp(9.2rem,14.2vw,15.4rem)] items-center justify-center whitespace-nowrap px-[clamp(0.65rem,1vw,1.2rem)]">
+                    <Plus className="mr-[clamp(0.35rem,0.6vw,0.6rem)] h-[clamp(0.9rem,1.1vw,1.25rem)] w-[clamp(0.9rem,1.1vw,1.25rem)] flex-shrink-0" />
+                    <span className="font-minecraft text-[clamp(0.9rem,0.84rem+0.4vw,1.15rem)] tracking-wider">新建实例</span>
                   </span>
                 </OreButton>
               </div>
@@ -108,10 +130,10 @@ const Instances: React.FC = () => {
           <FocusItem focusKey="action-folder" onEnter={() => setIsDirModalOpen(true)}>
             {({ ref, focused }) => (
               <div ref={ref} className={`rounded-sm transition-shadow duration-150 flex-shrink-0 ${focused ? 'outline outline-2 outline-offset-[4px] outline-white' : 'outline outline-2 outline-offset-[4px] outline-transparent'}`}>
-                <OreButton variant="secondary" size="auto" onClick={() => setIsDirModalOpen(true)} tabIndex={-1}>
-                  <span className="flex items-center justify-center whitespace-nowrap">
-                    <FolderPlus size={18} className="mr-2 flex-shrink-0" />
-                    <span className="font-minecraft tracking-wider">扫描实例目录</span>
+                <OreButton variant="secondary" size="auto" className="!h-auto !min-w-0 !px-0" onClick={() => setIsDirModalOpen(true)} tabIndex={-1}>
+                  <span className="flex h-[clamp(2.35rem,3.1vh,3.6rem)] min-w-[clamp(10.3rem,16.8vw,17.4rem)] items-center justify-center whitespace-nowrap px-[clamp(0.65rem,1vw,1.2rem)]">
+                    <FolderPlus className="mr-[clamp(0.35rem,0.6vw,0.6rem)] h-[clamp(0.9rem,1.1vw,1.25rem)] w-[clamp(0.9rem,1.1vw,1.25rem)] flex-shrink-0" />
+                    <span className="font-minecraft text-[clamp(0.9rem,0.84rem+0.4vw,1.15rem)] tracking-wider">扫描实例目录</span>
                   </span>
                 </OreButton>
               </div>

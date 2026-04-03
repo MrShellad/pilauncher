@@ -3,25 +3,15 @@ use crate::error::{AppError, AppResult};
 use crate::services::config_service::{ConfigService, DownloadSettings};
 use crate::services::deployment_cancel::is_cancelled;
 use crate::services::downloader::dependencies::scheduler::sha1_file;
-use sha1::{Digest, Sha1};
+use crate::services::downloader::transfer::{download_file, DownloadRateLimiter, DownloadTuning};
 use std::fs;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tauri::{AppHandle, Emitter, Runtime};
-use tokio::io::AsyncWriteExt;
 
-const PROGRESS_EMIT_INTERVAL_MS: u64 = 200;
 const RETRY_DELAY_MS: u64 = 1200;
-
-fn sha1_hex(bytes: &[u8]) -> String {
-    let digest = Sha1::digest(bytes);
-    digest
-        .iter()
-        .map(|b| format!("{:02x}", b))
-        .collect::<String>()
-}
 
 fn build_download_client(dl_settings: &DownloadSettings) -> AppResult<reqwest::Client> {
     let mut builder = reqwest::Client::builder()
@@ -46,6 +36,62 @@ fn build_download_client(dl_settings: &DownloadSettings) -> AppResult<reqwest::C
     Ok(builder.build()?)
 }
 
+fn read_cached_manifest(manifest_path: &Path) -> Option<serde_json::Value> {
+    let content = fs::read_to_string(manifest_path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+async fn fetch_manifest_with_retry(
+    client: &reqwest::Client,
+    manifest_urls: &[String],
+    manifest_path: &Path,
+    max_attempts: u32,
+) -> AppResult<String> {
+    let attempts = max_attempts.max(1).min(3);
+    let mut last_error: Option<String> = None;
+
+    for attempt in 1..=attempts {
+        for manifest_url in manifest_urls {
+            match client.get(manifest_url).send().await {
+                Ok(resp) if resp.status().is_success() => {
+                    let manifest_text = resp.text().await?;
+                    if let Some(parent) = manifest_path.parent() {
+                        let _ = fs::create_dir_all(parent);
+                    }
+                    let _ = fs::write(manifest_path, &manifest_text);
+                    return Ok(manifest_text);
+                }
+                Ok(resp) if resp.status().as_u16() == 429 || resp.status().is_server_error() => {
+                    last_error = Some(format!("{} from {}", resp.status(), manifest_url));
+                }
+                Ok(resp) => {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("Failed to fetch version list: {}", resp.status()),
+                    )
+                    .into());
+                }
+                Err(err) => {
+                    last_error = Some(format!("{} from {}", err, manifest_url));
+                }
+            }
+        }
+
+        if attempt < attempts {
+            tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS * attempt as u64)).await;
+        }
+    }
+
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Other,
+        format!(
+            "Failed to fetch version list: {}",
+            last_error.unwrap_or_else(|| "unknown error".to_string())
+        ),
+    )
+    .into())
+}
+
 pub async fn install_vanilla_core<R: Runtime>(
     app: &AppHandle<R>,
     instance_id: &str,
@@ -57,6 +103,9 @@ pub async fn install_vanilla_core<R: Runtime>(
     let client = build_download_client(&dl_settings)?;
     let max_attempts = dl_settings.retry_count.max(1);
     let stall_timeout = Duration::from_secs(dl_settings.timeout.max(1));
+    let runtime_dir = global_mc_root.join("runtime");
+    let manifest_cache_path = runtime_dir.join("version_manifest_v2.json");
+    let _ = fs::create_dir_all(&runtime_dir);
 
     let version_dir = global_mc_root.join("versions").join(version_id);
     fs::create_dir_all(&version_dir)?;
@@ -89,38 +138,65 @@ pub async fn install_vanilla_core<R: Runtime>(
         );
 
         let manifest_url = if dl_settings.vanilla_source == "official" {
-            "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json".to_string()
+            vec![
+                "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json".to_string(),
+                "https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json".to_string(),
+            ]
         } else {
-            format!(
-                "{}/mc/game/version_manifest_v2.json",
-                dl_settings.vanilla_source_url
-            )
+            vec![
+                format!(
+                    "{}/mc/game/version_manifest_v2.json",
+                    dl_settings.vanilla_source_url
+                ),
+                "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json".to_string(),
+            ]
         };
 
-        let manifest_res_raw = client.get(&manifest_url).send().await?;
-        if !manifest_res_raw.status().is_success() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!(
-                    "Failed to fetch version list: {}",
-                    manifest_res_raw.status()
-                ),
-            )
-            .into());
-        }
-        let manifest_res: serde_json::Value = manifest_res_raw.json().await?;
+        let mut manifest_res: Option<serde_json::Value> = read_cached_manifest(&manifest_cache_path);
+        let mut version_url = manifest_res
+            .as_ref()
+            .and_then(|manifest| manifest["versions"].as_array())
+            .and_then(|versions| {
+                versions
+                    .iter()
+                    .find(|v| v["id"].as_str().unwrap_or("") == version_id)
+                    .and_then(|v| v["url"].as_str())
+                    .map(|url| url.to_string())
+            });
 
-        let versions = manifest_res["versions"].as_array().ok_or_else(|| {
+        if version_url.is_none() {
+            let manifest_text = fetch_manifest_with_retry(
+                &client,
+                &manifest_url,
+                &manifest_cache_path,
+                dl_settings.retry_count.max(1),
+            )
+            .await?;
+            let parsed: serde_json::Value = serde_json::from_str(&manifest_text).map_err(|e| {
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("Failed to parse version list: {}", e),
+                )
+            })?;
+
+            version_url = parsed["versions"].as_array().and_then(|versions| {
+                versions
+                    .iter()
+                    .find(|v| v["id"].as_str().unwrap_or("") == version_id)
+                    .and_then(|v| v["url"].as_str())
+                    .map(|url| url.to_string())
+            });
+            manifest_res = Some(parsed);
+        }
+
+        let _manifest_res = manifest_res.ok_or_else(|| {
             std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 "Invalid version list format",
             )
         })?;
 
-        let version_url = versions
-            .iter()
-            .find(|v| v["id"].as_str().unwrap_or("") == version_id)
-            .and_then(|v| v["url"].as_str())
+        let version_url = version_url
             .ok_or_else(|| {
                 std::io::Error::new(std::io::ErrorKind::NotFound, "Target version URL not found")
             })?;
@@ -197,6 +273,24 @@ pub async fn install_vanilla_core<R: Runtime>(
         )
     };
 
+    let temp_jar_path = version_dir.join(format!("{}.jar.download", version_id));
+    let candidate_urls = if mirror_jar_url == jar_url {
+        vec![mirror_jar_url.clone()]
+    } else {
+        vec![mirror_jar_url.clone(), jar_url.to_string()]
+    };
+    let speed_limit_bytes_per_sec = ConfigService::download_speed_limit_bytes_per_sec(&dl_settings);
+    let rate_limiter = if speed_limit_bytes_per_sec > 0 {
+        Some(Arc::new(DownloadRateLimiter::new(speed_limit_bytes_per_sec)))
+    } else {
+        None
+    };
+    let tuning = DownloadTuning {
+        chunked_enabled: dl_settings.chunked_download_enabled,
+        chunked_threads: dl_settings.chunked_download_threads.max(1),
+        chunked_threshold_bytes: ConfigService::chunked_download_min_size_bytes(&dl_settings),
+    };
+
     let mut success = false;
     let mut last_error: Option<String> = None;
 
@@ -221,94 +315,35 @@ pub async fn install_vanilla_core<R: Runtime>(
             },
         );
 
-        let _ = tokio::fs::remove_file(&jar_path).await;
+        let _ = tokio::fs::remove_file(&temp_jar_path).await;
 
-        let mut response = match client.get(&mirror_jar_url).send().await {
-            Ok(res) => res,
-            Err(e) => {
-                last_error = Some(format!("request failed: {}", e));
+        let download_result = match download_file(
+            &client,
+            &candidate_urls,
+            &temp_jar_path,
+            tuning,
+            stall_timeout,
+            cancel,
+            rate_limiter.clone(),
+            None,
+        )
+        .await
+        {
+            Ok(result) => result,
+            Err(err) => {
+                last_error = Some(err.to_string());
                 if attempt < max_attempts {
                     tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
                 }
                 continue;
             }
         };
-
-        if !response.status().is_success() {
-            last_error = Some(format!("http status {}", response.status()));
-            if attempt < max_attempts {
-                tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
-            }
-            continue;
-        }
-
-        let total_size = response.content_length().unwrap_or(0);
-        let mut downloaded: u64 = 0;
-        let mut file = tokio::fs::File::create(&jar_path).await?;
-        let mut last_emit = Instant::now();
-        let mut stream_error: Option<String> = None;
-
-        loop {
-            let next_chunk = tokio::time::timeout(stall_timeout, response.chunk()).await;
-            match next_chunk {
-                Ok(Ok(Some(chunk))) => {
-                    if is_cancelled(cancel) {
-                        drop(file);
-                        let _ = tokio::fs::remove_file(&jar_path).await;
-                        return Err(AppError::Cancelled);
-                    }
-
-                    if let Err(e) = file.write_all(&chunk).await {
-                        stream_error = Some(format!("write failed: {}", e));
-                        break;
-                    }
-                    downloaded += chunk.len() as u64;
-
-                    if last_emit.elapsed().as_millis() >= PROGRESS_EMIT_INTERVAL_MS as u128 {
-                        let _ = app.emit(
-                            "instance-deployment-progress",
-                            DownloadProgressEvent {
-                                instance_id: instance_id.to_string(),
-                                stage: "VANILLA_CORE".to_string(),
-                                file_name: format!("{}.jar", version_id),
-                                current: downloaded,
-                                total: total_size.max(1),
-                                message: "Downloading game core...".to_string(),
-                            },
-                        );
-                        last_emit = Instant::now();
-                    }
-                }
-                Ok(Ok(None)) => break,
-                Ok(Err(e)) => {
-                    stream_error = Some(format!("stream failed: {}", e));
-                    break;
-                }
-                Err(_) => {
-                    stream_error =
-                        Some(format!("download stalled for {}s", stall_timeout.as_secs()));
-                    break;
-                }
-            }
-        }
-
-        file.flush().await?;
-        drop(file);
-
-        if let Some(err) = stream_error {
-            last_error = Some(err);
-            let _ = fs::remove_file(&jar_path);
-            if attempt < max_attempts {
-                tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
-            }
-            continue;
-        }
 
         if let Some(ref exp) = expected_sha1 {
-            let actual = sha1_file(&jar_path).await.unwrap_or_default();
+            let actual = sha1_file(&temp_jar_path).await.unwrap_or_default();
             if actual != *exp {
                 last_error = Some(format!("sha1 mismatch (expected {}, got {})", exp, actual));
-                let _ = fs::remove_file(&jar_path);
+                let _ = fs::remove_file(&temp_jar_path);
                 if attempt < max_attempts {
                     tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
                 }
@@ -316,11 +351,20 @@ pub async fn install_vanilla_core<R: Runtime>(
             }
         }
 
-        let final_total = if total_size > 0 {
-            total_size
-        } else {
-            downloaded.max(1)
-        };
+        if jar_path.exists() {
+            let _ = fs::remove_file(&jar_path);
+        }
+
+        if let Err(e) = fs::rename(&temp_jar_path, &jar_path) {
+            last_error = Some(format!("rename failed: {}", e));
+            let _ = fs::remove_file(&temp_jar_path);
+            if attempt < max_attempts {
+                tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
+            }
+            continue;
+        }
+
+        let final_total = download_result.total_bytes.max(1);
         let _ = app.emit(
             "instance-deployment-progress",
             DownloadProgressEvent {

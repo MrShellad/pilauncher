@@ -214,7 +214,10 @@ fn append_neoforge_bmcl_installer_urls(
 
     push_unique_url(
         urls,
-        format!("{}/version/{}/download/installer.jar", api_base, entry.version),
+        format!(
+            "{}/version/{}/download/installer.jar",
+            api_base, entry.version
+        ),
     );
 
     if let Some(installer_path) = entry.installer_path.as_deref() {

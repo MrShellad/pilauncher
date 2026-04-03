@@ -55,3 +55,24 @@ pub fn emit_download_progress<R: Runtime>(
         },
     );
 }
+
+pub fn emit_download_speed<R: Runtime>(
+    app: &AppHandle<R>,
+    instance_id: &str,
+    stage: DownloadStage,
+    file_name: String,
+    current: u64,
+    total: u64,
+) {
+    let _ = app.emit(
+        "instance-deployment-speed",
+        DownloadProgressEvent {
+            instance_id: instance_id.to_string(),
+            stage: stage.stage_name().to_string(),
+            file_name,
+            current,
+            total,
+            message: String::new(),
+        },
+    );
+}

@@ -1,57 +1,86 @@
 import React, { useMemo } from 'react';
-import type { StarredItem, SnapshotPayload, StatePayload } from '../../../types/library';
+import { ArrowUpRight, Package, Settings } from 'lucide-react';
+import type { SnapshotPayload, StarredItem, StatePayload } from '../../../types/library';
 import { OreButton } from '../../../ui/primitives/OreButton';
 
 interface LibraryItemCardProps {
   item: StarredItem;
 }
 
-export const LibraryItemCard: React.FC<LibraryItemCardProps> = ({ item }) => {
-  // Parse JSON payloads safely
-  const snapshot = useMemo<SnapshotPayload>(() => {
-    try { return JSON.parse(item.snapshot); } catch { return { title: 'Unknown' }; }
-  }, [item.snapshot]);
+const parseJSON = <T,>(value: string, fallback: T): T => {
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+};
 
-  const state = useMemo<StatePayload>(() => {
-    try { return JSON.parse(item.state); } catch { return { hasUpdate: false }; }
-  }, [item.state]);
+export const LibraryItemCard: React.FC<LibraryItemCardProps> = ({ item }) => {
+  const snapshot = useMemo<SnapshotPayload>(
+    () => parseJSON(item.snapshot, { title: 'Unknown Item' }),
+    [item.snapshot],
+  );
+
+  const state = useMemo<StatePayload>(
+    () => parseJSON(item.state, { hasUpdate: false }),
+    [item.state],
+  );
 
   const displayTitle = snapshot.title || item.title || 'Unknown Item';
   const displayAuthor = snapshot.author || item.author;
+  const updatedDate = new Date(item.updatedAt * 1000);
+  const updatedLabel = Number.isNaN(updatedDate.getTime())
+    ? 'Unknown date'
+    : updatedDate.toLocaleDateString();
 
   return (
-    <div className="relative flex flex-col justify-between overflow-hidden rounded-xl border border-white/10 bg-white/5 p-4 transition-all hover:border-white/20 hover:bg-white/10 hover:shadow-lg group">
-      <div className="flex items-start space-x-4">
-        {/* Icon */}
-        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-black/40">
+    <article
+      className="group relative flex min-h-[230px] flex-col justify-between overflow-hidden border-2 border-[color:var(--ore-library-card-border)] bg-[var(--ore-library-card-bg)] p-[var(--ore-spacing-base)] transition-[background-color,border-color,box-shadow] duration-150 hover:border-[color:var(--ore-library-card-borderHover)] hover:bg-[var(--ore-library-card-bgHover)] hover:shadow-[var(--ore-library-card-shadowHover)]"
+      style={{ fontFamily: 'var(--ore-typography-family-body)' }}
+    >
+      <div className="flex items-start gap-[var(--ore-spacing-base)]">
+        <div
+          className="shrink-0 overflow-hidden border-2 border-[color:var(--ore-color-border-primary-default)] bg-[var(--ore-library-card-mediaBg)]"
+          style={{
+            width: 'var(--ore-library-card-mediaSize)',
+            height: 'var(--ore-library-card-mediaSize)',
+          }}
+        >
           {snapshot.iconUrl ? (
-            <img src={snapshot.iconUrl} alt={displayTitle} className="h-full w-full object-cover" />
+            <img src={snapshot.iconUrl} alt={displayTitle} className="h-full w-full object-cover" loading="lazy" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-2xl">📦</div>
+            <div className="flex h-full w-full items-center justify-center text-[var(--ore-library-card-iconFallback)]">
+              <Package size={24} />
+            </div>
           )}
         </div>
 
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between">
-            <h3 className="truncate text-base font-bold text-white group-hover:text-ore-primary transition-colors">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-[var(--ore-spacing-xs)]">
+            <h3 className="truncate text-[length:var(--ore-typography-size-base)] font-bold text-[var(--ore-color-text-primary-default)] group-hover:text-[var(--ore-color-background-primary-default)]">
               {displayTitle}
             </h3>
             {state.hasUpdate && (
-              <span className="flex h-2.5 w-2.5 rounded-full bg-ore-danger ml-2" title="有可用的更新!" />
+              <span
+                className="inline-flex h-[10px] w-[10px] shrink-0 rounded-full bg-[var(--ore-library-card-updateDot)]"
+                title="Update available"
+              />
             )}
           </div>
-          
-          <p className="truncate text-sm text-white/50">
+
+          <p className="truncate text-[length:var(--ore-typography-size-sm)] text-[var(--ore-library-card-authorText)]">
             {displayAuthor ? `By ${displayAuthor}` : item.source}
           </p>
-          
-          <div className="mt-2 flex flex-wrap gap-1">
-            <span className="rounded bg-black/30 px-1.5 py-0.5 text-[10px] font-medium text-white/70 uppercase">
+
+          <div className="mt-[var(--ore-spacing-sm)] flex flex-wrap gap-[var(--ore-spacing-xs)]">
+            <span className="inline-flex items-center rounded-sm border-2 border-[color:var(--ore-color-border-primary-default)] bg-[var(--ore-library-card-tagBg)] px-[var(--ore-spacing-xs)] py-[1px] text-[length:var(--ore-typography-size-xs)] uppercase text-[var(--ore-library-card-tagText)]">
               {item.type}
             </span>
             {snapshot.loaders?.slice(0, 2).map((loader) => (
-              <span key={loader} className="rounded bg-ore-primary/20 px-1.5 py-0.5 text-[10px] font-medium text-ore-primary uppercase">
+              <span
+                key={loader}
+                className="inline-flex items-center rounded-sm border-2 border-[color:var(--ore-color-border-primary-default)] bg-[var(--ore-library-card-loaderTagBg)] px-[var(--ore-spacing-xs)] py-[1px] text-[length:var(--ore-typography-size-xs)] uppercase text-[var(--ore-library-card-loaderTagText)]"
+              >
                 {loader}
               </span>
             ))}
@@ -59,28 +88,27 @@ export const LibraryItemCard: React.FC<LibraryItemCardProps> = ({ item }) => {
         </div>
       </div>
 
-      {/* Hover ActionsOverlay */}
-      <div className="absolute inset-x-0 bottom-0 flex translate-y-full items-center justify-end space-x-2 bg-gradient-to-t from-black/80 to-transparent p-3 pt-8 pb-3 transition-transform duration-200 group-hover:translate-y-0">
-        <OreButton 
-          variant="secondary" 
-          size="sm" 
-          className="shadow-sm backdrop-blur-md bg-white/10"
-        >
-          设 置
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 flex translate-y-full items-center justify-end gap-[var(--ore-spacing-sm)] px-[var(--ore-spacing-base)] pb-[var(--ore-spacing-base)] pt-[calc(var(--ore-spacing-xl)+var(--ore-spacing-xs))] transition-transform duration-200 group-hover:translate-y-0"
+        style={{ backgroundImage: 'var(--ore-library-card-actionsGradient)' }}
+      >
+        <OreButton variant="secondary" size="sm" className="pointer-events-auto min-w-[7.25rem]">
+          <span className="inline-flex items-center gap-[var(--ore-spacing-xs)]">
+            <Settings size={14} />
+            设置
+          </span>
         </OreButton>
-        <OreButton 
-          variant="primary" 
-          size="sm" 
-          className="shadow-md"
-        >
-          查看
+        <OreButton variant="primary" size="sm" className="pointer-events-auto min-w-[7.25rem]">
+          <span className="inline-flex items-center gap-[var(--ore-spacing-xs)]">
+            <ArrowUpRight size={14} />
+            查看
+          </span>
         </OreButton>
       </div>
 
-      {/* Date Updated */}
-      <div className="mt-4 text-right text-[10px] text-white/30 transition-opacity duration-200 group-hover:opacity-0">
-        更新于 {new Date(item.updatedAt * 1000).toLocaleDateString()}
+      <div className="mt-[var(--ore-spacing-base)] text-right text-[length:var(--ore-typography-size-xs)] text-[var(--ore-library-card-metaText)] transition-opacity duration-200 group-hover:opacity-0">
+        更新于 {updatedLabel}
       </div>
-    </div>
+    </article>
   );
 };

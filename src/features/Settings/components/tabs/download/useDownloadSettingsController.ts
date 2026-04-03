@@ -36,6 +36,9 @@ export const useDownloadSettingsController = () => {
       'settings-download-speed-unit-1',
       'settings-download-speed-limit',
       'settings-download-concurrency',
+      'settings-download-chunked-enable',
+      'settings-download-chunked-threads',
+      'settings-download-chunked-threshold',
       'settings-download-timeout',
       'settings-download-retry',
       'settings-download-verify-hash'

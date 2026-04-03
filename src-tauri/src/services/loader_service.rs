@@ -87,13 +87,22 @@ fn build_client(dl_settings: &DownloadSettings) -> AppResult<Client> {
 
 fn source_cache_suffix(loader_type: &str, dl_settings: &DownloadSettings) -> String {
     match loader_type.to_lowercase().as_str() {
-        "fabric" => format!("{}|{}", dl_settings.fabric_source, dl_settings.fabric_source_url),
-        "forge" => format!("{}|{}", dl_settings.forge_source, dl_settings.forge_source_url),
+        "fabric" => format!(
+            "{}|{}",
+            dl_settings.fabric_source, dl_settings.fabric_source_url
+        ),
+        "forge" => format!(
+            "{}|{}",
+            dl_settings.forge_source, dl_settings.forge_source_url
+        ),
         "neoforge" => format!(
             "{}|{}",
             dl_settings.neoforge_source, dl_settings.neoforge_source_url
         ),
-        "quilt" => format!("{}|{}", dl_settings.quilt_source, dl_settings.quilt_source_url),
+        "quilt" => format!(
+            "{}|{}",
+            dl_settings.quilt_source, dl_settings.quilt_source_url
+        ),
         _ => String::new(),
     }
 }

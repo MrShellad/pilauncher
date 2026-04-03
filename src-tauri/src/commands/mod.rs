@@ -9,10 +9,10 @@ pub mod instance;
 pub mod java_cmd;
 pub mod lan_cmd;
 pub mod launcher_cmd;
+pub mod library_cmd; // 新增 library_cmd 模块
 pub mod loader_cmd;
 pub mod minecraft_cmd;
 pub mod modpack_cmd; // 新增 modpack_cmd 模块
-pub mod library_cmd; // 新增 library_cmd 模块
 pub mod network_cmd;
 pub mod qrcode_cmd;
 pub mod resource_cmd;
@@ -46,6 +46,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         system_cmd::get_system_fonts,
         settings_cmd::import_background_image,
         settings_cmd::delete_background_image,
+        settings_cmd::list_background_panoramas,
         settings_cmd::get_keybindings,
         settings_cmd::save_keybindings,
         system_cmd::check_steam_deck,

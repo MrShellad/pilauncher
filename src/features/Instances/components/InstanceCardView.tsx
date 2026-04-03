@@ -79,14 +79,14 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
             animate={focused ? "hover" : "rest"}
             whileHover="hover"
             className={`
-              relative flex flex-col w-[240px] md:w-[260px] lg:w-[270px] xl:w-[280px] rounded-[4px] cursor-pointer select-none group
+              relative flex h-[clamp(17rem,38vh,23.5rem)] min-w-[17.5rem] w-[clamp(17.5rem,20vw,24rem)] flex-col rounded-[0.25rem] cursor-pointer select-none group
               transition-all duration-200 transform-gpu
-              border-[4px] ${focused ? 'border-white shadow-[0_0_30px_rgba(255,255,255,0.2)] z-50' : 'border-transparent shadow-lg'}
+              border-[0.25rem] ${focused ? 'border-white shadow-[0_0_1.5rem_rgba(255,255,255,0.22)] z-50' : 'border-transparent shadow-[0_0.5rem_1rem_rgba(0,0,0,0.35)]'}
             `}
           >
-            <div className="flex flex-col h-full bg-[#141415] border-[3px] border-black border-b-[6px] rounded-[2px] overflow-hidden">
+            <div className="flex h-full flex-col overflow-hidden rounded-[0.125rem] border-[0.1875rem] border-[#111214] border-b-[0.375rem] bg-[#202226]">
 
-              <div className="relative w-full aspect-video bg-[#0A0A0C] overflow-hidden border-b-[3px] border-black">
+              <div className="relative w-full aspect-video overflow-hidden border-b-[0.1875rem] border-black bg-[#111214]">
                 {instance.coverUrl ? (
                   <motion.img
                     src={instance.coverUrl}
@@ -99,13 +99,11 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                   <div className="w-full h-full flex items-center justify-center text-xs text-gray-700 font-minecraft uppercase tracking-widest">No Cover</div>
                 )}
 
-                <div className={`absolute inset-0 transition-colors duration-300 pointer-events-none ${focused ? 'bg-black/10' : 'bg-black/50 group-hover:bg-black/30'}`} />
-
                 <div className="absolute top-2 right-2 z-30 flex items-center">
                   {focused ? (
-                    <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-1.5 bg-black/80 backdrop-blur-md px-2.5 py-1.5 rounded-sm border-[2px] border-[#EAB308]/50 shadow-xl pointer-events-none">
-                      <div className="w-[18px] h-[18px] rounded-full bg-[#EAB308] flex items-center justify-center text-[10px] font-black text-black leading-none pb-[1px] shadow-[0_0_8px_rgba(234,179,8,0.5)]">Y</div>
-                      <span className="text-[10px] text-white font-minecraft font-bold tracking-widest uppercase">详情</span>
+                    <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="pointer-events-none flex items-center gap-1.5 rounded-sm border-[0.125rem] border-[#EAB308]/50 bg-black/80 px-2.5 py-1.5 shadow-xl backdrop-blur-md">
+                      <div className="flex h-[1.125rem] w-[1.125rem] items-center justify-center rounded-full bg-[#EAB308] pb-[0.0625rem] text-[0.625rem] font-black leading-none text-black shadow-[0_0_0.5rem_rgba(234,179,8,0.5)]">Y</div>
+                      <span className="font-minecraft text-[0.625rem] font-bold uppercase tracking-widest text-white">详情</span>
                     </motion.div>
                   ) : (
                     <button
@@ -119,18 +117,18 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                 </div>
               </div>
 
-              <div className="w-full bg-[#1A1A1C] p-2 border-b-[3px] border-black">
+              <div className="flex w-full justify-center border-b-[0.1875rem] border-black bg-[#2A2D31] p-[clamp(0.5rem,0.9vh,0.85rem)]">
                 <OreButton
                   variant="primary"
-                  size="full"
-                  className={`!h-[44px] shadow-inner transition-all duration-300`}
+                  size="auto"
+                  className="!h-[clamp(2.9rem,3.8vh,4.3rem)] !w-[clamp(11.5rem,78%,17rem)] !min-w-[clamp(11.5rem,78%,17rem)] !px-[clamp(0.75rem,1.1vw,1.25rem)] !text-[length:clamp(0.95rem,0.9rem+0.35vw,1.15rem)] !tracking-[0.035em] brightness-105 transition-all duration-300"
                   onClick={handlePlayClick}
                   tabIndex={-1}
                 >
                   {isLaunching ? (
-                    <Loader2 size={18} className="animate-spin mr-2" />
+                    <Loader2 size={18} className="mr-2 animate-spin" />
                   ) : focused ? (
-                    <ControlHint label="A" variant="face" tone="green" className="mr-2 -ml-1 scale-90" />
+                    <ControlHint label="A" variant="face" tone="green" className="mr-2 -ml-1 scale-[0.82]" />
                   ) : (
                     <Play size={18} fill="currentColor" className="mr-2" />
                   )}
@@ -138,12 +136,12 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                 </OreButton>
               </div>
 
-              <div className="flex flex-col px-4 py-3 bg-[#141415] flex-1 justify-center">
-                <span className="text-white font-minecraft text-lg truncate drop-shadow-md tracking-wide">
+              <div className="flex flex-1 flex-col justify-center bg-[#2B2E33] px-[clamp(0.75rem,1vw,1rem)] py-[clamp(0.5rem,0.9vh,0.8rem)]">
+                <span className="truncate font-minecraft text-[length:clamp(0.9rem,0.82rem+0.36vw,1.1rem)] tracking-wide text-white drop-shadow-md">
                   {instance.name}
                 </span>
 
-                <div className="flex items-center text-gray-500 font-minecraft text-[11px] mt-1.5 space-x-2 truncate">
+                <div className="mt-1.5 flex items-center space-x-2 truncate font-minecraft text-[length:clamp(0.625rem,0.58rem+0.22vw,0.78rem)] text-gray-300">
                   <span className="bg-black/50 px-1.5 py-0.5 rounded-sm text-gray-300 border border-white/5 shadow-inner">
                     {instance.version}
                   </span>

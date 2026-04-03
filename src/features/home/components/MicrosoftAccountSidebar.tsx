@@ -94,6 +94,12 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
     if (isOpen) {
       fetchTrusted();
       scan();
+      const timer = window.setInterval(() => {
+        scan();
+      }, 5000);
+      return () => {
+        window.clearInterval(timer);
+      };
     } else {
       setTransferTarget(null);
     }

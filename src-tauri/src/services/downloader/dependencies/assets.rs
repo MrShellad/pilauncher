@@ -77,11 +77,7 @@ async fn download_assets_inner<R: Runtime>(
     };
     let retry_count = dl_settings.retry_count;
     let verify_hash = force_verify_hash || dl_settings.verify_after_download;
-    let limit_per_thread = if dl_settings.speed_limit > 0 {
-        (dl_settings.speed_limit * 1024 * 1024) / (concurrency as u64)
-    } else {
-        0
-    };
+    let speed_limit_bytes_per_sec = ConfigService::download_speed_limit_bytes_per_sec(&dl_settings);
 
     let index_id = index_meta["id"].as_str().unwrap_or("");
     let index_url = index_meta["url"].as_str().unwrap_or("");
@@ -192,7 +188,7 @@ async fn download_assets_inner<R: Runtime>(
         tasks,
         DownloadStage::Assets,
         concurrency,
-        limit_per_thread,
+        speed_limit_bytes_per_sec,
         retry_count,
         verify_hash,
         Duration::from_secs(dl_settings.timeout.max(1)),
@@ -209,7 +205,16 @@ pub async fn download_assets<R: Runtime>(
     global_mc_root: &std::path::Path,
     cancel: &Arc<AtomicBool>,
 ) -> AppResult<()> {
-    download_assets_inner(app, instance_id, client, manifest, global_mc_root, cancel, false).await
+    download_assets_inner(
+        app,
+        instance_id,
+        client,
+        manifest,
+        global_mc_root,
+        cancel,
+        false,
+    )
+    .await
 }
 
 pub async fn download_assets_force_hash<R: Runtime>(
@@ -220,5 +225,14 @@ pub async fn download_assets_force_hash<R: Runtime>(
     global_mc_root: &std::path::Path,
     cancel: &Arc<AtomicBool>,
 ) -> AppResult<()> {
-    download_assets_inner(app, instance_id, client, manifest, global_mc_root, cancel, true).await
+    download_assets_inner(
+        app,
+        instance_id,
+        client,
+        manifest,
+        global_mc_root,
+        cancel,
+        true,
+    )
+    .await
 }

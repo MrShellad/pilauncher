@@ -269,7 +269,7 @@ export const DataSettings: React.FC = () => {
           description={`当前位置: ${basePath || "尚未配置"}\n将游戏实例、日志、启动器配置等核心数据完整迁移至新的目录。`}
           vertical={false}
           control={
-            <OreButton variant="secondary" onClick={() => setBrowserOpen(true)} focusKey="settings-data-modify-dir" onArrowPress={handleLinearArrow} className="w-[160px] justify-center whitespace-nowrap">
+            <OreButton variant="secondary" onClick={() => setBrowserOpen(true)} focusKey="settings-data-modify-dir" onArrowPress={handleLinearArrow} className="w-[200px] justify-center whitespace-nowrap">
               <LogOut size={16} className="mr-1.5" /> 修改目录并迁移
             </OreButton>
           }
@@ -279,7 +279,7 @@ export const DataSettings: React.FC = () => {
           description="如果你对当前数据文件夹名字不满意，可以直接对其进行重命名，方便步骤选择或者辨别。"
           vertical={false}
           control={
-            <OreButton variant="secondary" onClick={openRenameModal} focusKey="settings-data-rename-dir" onArrowPress={handleLinearArrow} className="w-[160px] justify-center whitespace-nowrap">
+            <OreButton variant="secondary" onClick={openRenameModal} focusKey="settings-data-rename-dir" onArrowPress={handleLinearArrow} className="w-[200px] justify-center whitespace-nowrap">
               <Edit2 size={16} className="mr-1.5" /> 重命名文件夹
             </OreButton>
           }
@@ -294,7 +294,7 @@ export const DataSettings: React.FC = () => {
               onClick={() => setCleanLogsPhase('confirm')}
               focusKey="settings-data-clean-logs"
               onArrowPress={handleLinearArrow}
-              className="w-[160px] justify-center whitespace-nowrap"
+              className="w-[200px] justify-center whitespace-nowrap"
             >
               <FileX size={16} className="mr-1.5" /> 清理日志
             </OreButton>
@@ -335,7 +335,7 @@ export const DataSettings: React.FC = () => {
                   onClick={() => setRemoveDirTarget(dir)}
                   focusKey={`settings-data-remove-dir-${idx}`}
                   onArrowPress={handleLinearArrow}
-                  className="w-[160px] justify-center whitespace-nowrap"
+                  className="w-[200px] justify-center whitespace-nowrap"
                 >
                   <Trash2 size={14} className="mr-1.5" />
                   移除关联

@@ -128,6 +128,61 @@ export const OreTokens = {
     imageShadow: 'inset 0 -4px 0 rgba(0, 0, 0, 0.25)',
   },
 
+  library: {
+    sidebar: {
+      panel: {
+        bg: '#313233',
+        border: '#1E1E1F',
+        inset: 'inset 0 2px 0 rgba(255, 255, 255, 0.08)',
+      },
+      button: {
+        bg: '#48494A',
+        bgActive: '#67686A',
+        border: '#131313',
+        borderActive: '#FFFFFF',
+        shadow: 'inset -1px -1px #1E1E1F, inset 1px 1px #1E1E1F, inset -2px -2px #313233, inset 2px 2px #6D6D6E',
+      },
+      section: {
+        bg: '#313233',
+        border: '#FFFFFF',
+        text: '#D0D1D4',
+        action: '#B1B2B5',
+        actionHover: '#FFFFFF',
+        emptyText: '#8C8D90',
+        divider: '#58585A',
+      },
+      tag: {
+        bg: '#1E1E1F',
+        bgHover: '#58585A',
+        bgActive: '#6CC349',
+        border: '#000000',
+        text: '#FFFFFF',
+        textActive: '#000000',
+        inputBg: '#313233',
+        inputBorder: '#1E1E1F',
+        inputPlaceholder: '#B1B2B5',
+      },
+    },
+    card: {
+      bg: 'rgba(255, 255, 255, 0.05)',
+      bgHover: 'rgba(255, 255, 255, 0.1)',
+      border: '#58585A',
+      borderHover: '#6D6D6E',
+      shadowHover: 'inset 0 -4px 0 rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+      mediaBg: '#1E1E1F',
+      mediaSize: '56px',
+      iconFallback: '#D0D1D4',
+      authorText: '#B1B2B5',
+      tagBg: 'rgba(0, 0, 0, 0.3)',
+      tagText: '#D0D1D4',
+      loaderTagBg: 'rgba(60, 133, 39, 0.2)',
+      loaderTagText: '#6CC349',
+      updateDot: '#F46D6D',
+      actionsGradient: 'linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0))',
+      metaText: 'rgba(255, 255, 255, 0.3)',
+    },
+  },
+
   // ─────────────────────────────────────────────────────────────────────────
   // 📐 Spacing
   // Category: spacing

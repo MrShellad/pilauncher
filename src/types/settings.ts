@@ -21,6 +21,9 @@ export interface GeneralSettings {
 export interface AppearanceSettings {
   backgroundImage: string | null;
   backgroundBlur: number;
+  panoramaEnabled: boolean;
+  panoramaRotationSpeed: number;
+  panoramaRotationDirection: 'clockwise' | 'counterclockwise';
   maskColor: string;
   maskOpacity: number;
   maskGradient: boolean;
@@ -64,6 +67,9 @@ export interface DownloadSettings {
 
   autoCheckLatency: boolean;
   concurrency: number;
+  chunkedDownloadEnabled: boolean;
+  chunkedDownloadThreads: number;
+  chunkedDownloadMinSizeMb: number;
   speedLimit: number;
   speedUnit: 'MB/s' | 'Mbps';
   retryCount: number;
@@ -103,6 +109,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   appearance: {
     backgroundImage: null,
     backgroundBlur: 8,
+    panoramaEnabled: false,
+    panoramaRotationSpeed: 0.02,
+    panoramaRotationDirection: 'clockwise',
     maskColor: '#000000',
     maskOpacity: 60,
     maskGradient: true,
@@ -146,6 +155,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
     autoCheckLatency: false,
     concurrency: 12,
+    chunkedDownloadEnabled: true,
+    chunkedDownloadThreads: 4,
+    chunkedDownloadMinSizeMb: 32,
     speedLimit: 0,
     speedUnit: 'MB/s',
     retryCount: 5,

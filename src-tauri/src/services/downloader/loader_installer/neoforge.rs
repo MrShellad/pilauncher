@@ -149,7 +149,10 @@ pub(super) fn append_bmcl_installer_urls(
 
     push_unique_url(
         urls,
-        format!("{}/version/{}/download/installer.jar", api_base, entry.version),
+        format!(
+            "{}/version/{}/download/installer.jar",
+            api_base, entry.version
+        ),
     );
 
     if let Some(installer_path) = entry.installer_path.as_deref() {
@@ -245,7 +248,10 @@ pub(super) async fn install<R: Runtime>(
             file_name: "installer.jar".to_string(),
             current: 5,
             total: 100,
-            message: format!("姝ｅ湪涓嬭浇 NeoForge {} 瀹夎鍖呭厓鏁版嵁...", loader_version),
+            message: format!(
+                "姝ｅ湪涓嬭浇 NeoForge {} 瀹夎鍖呭厓鏁版嵁...",
+                loader_version
+            ),
         },
     );
 
@@ -417,22 +423,14 @@ mod tests {
             "rawVersion": "neoforge-21.1.222"
         });
         assert!(entry_matches(&modern_entry, "1.21.1", "21.1.222"));
-        assert!(entry_matches(
-            &modern_entry,
-            "1.21.1",
-            "neoforge-21.1.222"
-        ));
+        assert!(entry_matches(&modern_entry, "1.21.1", "neoforge-21.1.222"));
 
         let legacy_entry = serde_json::json!({
             "version": "47.1.12",
             "rawVersion": "1.20.1-47.1.12"
         });
         assert!(entry_matches(&legacy_entry, "1.20.1", "47.1.12"));
-        assert!(entry_matches(
-            &legacy_entry,
-            "1.20.1",
-            "1.20.1-47.1.12"
-        ));
+        assert!(entry_matches(&legacy_entry, "1.20.1", "1.20.1-47.1.12"));
         assert!(entry_matches(
             &legacy_entry,
             "1.20.1",

@@ -182,6 +182,69 @@ export const DownloadSettings: React.FC = () => {
             </div>
           }
         />
+        <div className="mt-4 pt-4 border-t border-white/5">
+          <FormRow
+            label="单文件分块下载"
+            description="对支持 Range 的大文件启用多连接下载，提升单文件速度，不影响文件并发数。"
+            control={
+              <OreSwitch
+                focusKey="settings-download-chunked-enable"
+                onArrowPress={handleLinearArrow}
+                checked={download.chunkedDownloadEnabled}
+                onChange={(v) => updateDownloadSetting('chunkedDownloadEnabled', v)}
+              />
+            }
+          />
+
+          <FormRow
+            label="分块线程数"
+            description="单个文件同时建立的下载连接数量。"
+            className="!lg:items-center"
+            control={
+              <div className="w-[320px] flex items-center gap-3">
+                <OreSlider
+                  className="flex-1"
+                  focusKey="settings-download-chunked-threads"
+                  onArrowPress={handleLinearArrow}
+                  value={download.chunkedDownloadThreads}
+                  min={2}
+                  max={8}
+                  step={1}
+                  disabled={!download.chunkedDownloadEnabled}
+                  onChange={(v) => updateDownloadSetting('chunkedDownloadThreads', v)}
+                />
+                <span className="text-ore-green font-minecraft text-sm font-bold min-w-[68px] text-right">
+                  {download.chunkedDownloadThreads}
+                </span>
+              </div>
+            }
+          />
+
+          <FormRow
+            label="分块阈值"
+            description="仅对达到该大小的文件启用分块下载，单位 MB。"
+            control={
+              <div className="flex items-center space-x-2">
+                <OreInput
+                  focusKey="settings-download-chunked-threshold"
+                  onArrowPress={handleLinearArrow}
+                  type="number"
+                  value={download.chunkedDownloadMinSizeMb}
+                  onChange={(e) =>
+                    updateDownloadSetting(
+                      'chunkedDownloadMinSizeMb',
+                      Math.max(1, Number(e.target.value) || 1)
+                    )
+                  }
+                  className="w-24 text-center font-bold text-ore-green"
+                  min={1}
+                  max={1024}
+                />
+                <span className="text-ore-text-muted font-minecraft text-sm">MB</span>
+              </div>
+            }
+          />
+        </div>
       </SettingsSection>
 
       <SettingsSection title="容错与校验" icon={<ShieldCheck size={18} />}>

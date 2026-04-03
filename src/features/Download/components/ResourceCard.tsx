@@ -225,7 +225,7 @@ export const ResourceCard = React.memo(({
                       )}
                     </div>
                     {/* 描述：始终占满全宽，不受徽标数量影响 */}
-                    <p className="mt-[0.5rem] min-h-[2.5rem] line-clamp-2 text-[0.9375rem] leading-[1.35] text-[#313233]">
+                    <p className="mt-[0.5rem] min-h-[2.5rem] line-clamp-2 text-[0.9375rem] leading-[1.35] text-[#313233] font-minecraft">
                       {project.description?.trim() || t('download.empty.noDescription', { defaultValue: 'No description provided yet.' })}
                     </p>
                   </div>

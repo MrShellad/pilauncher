@@ -81,10 +81,18 @@ async fn download_dependencies_inner<R: Runtime>(
     }
 
     if force_verify_hash {
-        assets::download_assets_force_hash(app, instance_id, &client, &manifest, global_mc_root, cancel)
-            .await?;
+        assets::download_assets_force_hash(
+            app,
+            instance_id,
+            &client,
+            &manifest,
+            global_mc_root,
+            cancel,
+        )
+        .await?;
     } else {
-        assets::download_assets(app, instance_id, &client, &manifest, global_mc_root, cancel).await?;
+        assets::download_assets(app, instance_id, &client, &manifest, global_mc_root, cancel)
+            .await?;
     }
 
     Ok(())

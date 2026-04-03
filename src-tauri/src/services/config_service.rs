@@ -15,6 +15,12 @@ pub struct DownloadSettings {
     #[serde(default = "default_minecraft_meta_source")]
     pub minecraft_meta_source: String,
     pub concurrency: usize,
+    #[serde(default = "default_chunked_download_enabled")]
+    pub chunked_download_enabled: bool,
+    #[serde(default = "default_chunked_download_threads")]
+    pub chunked_download_threads: usize,
+    #[serde(default = "default_chunked_download_min_size_mb")]
+    pub chunked_download_min_size_mb: u64,
     pub speed_limit: u64,
     pub speed_unit: String,
     pub proxy_type: String,
@@ -50,11 +56,26 @@ fn default_quilt_source_url() -> String {
     "https://meta.quiltmc.org".to_string()
 }
 
+fn default_chunked_download_enabled() -> bool {
+    true
+}
+
+fn default_chunked_download_threads() -> usize {
+    4
+}
+
+fn default_chunked_download_min_size_mb() -> u64 {
+    32
+}
+
 impl Default for DownloadSettings {
     fn default() -> Self {
         Self {
             minecraft_meta_source: "bangbang93".to_string(),
             concurrency: 16,
+            chunked_download_enabled: true,
+            chunked_download_threads: 4,
+            chunked_download_min_size_mb: 32,
             speed_limit: 0,
             speed_unit: "MB/s".to_string(),
             proxy_type: "none".to_string(),
@@ -119,6 +140,21 @@ impl Default for GameSettings {
 pub struct ConfigService;
 
 impl ConfigService {
+    pub fn download_speed_limit_bytes_per_sec(dl_settings: &DownloadSettings) -> u64 {
+        if dl_settings.speed_limit == 0 {
+            0
+        } else {
+            dl_settings.speed_limit.saturating_mul(1024 * 1024)
+        }
+    }
+
+    pub fn chunked_download_min_size_bytes(dl_settings: &DownloadSettings) -> u64 {
+        dl_settings
+            .chunked_download_min_size_mb
+            .max(1)
+            .saturating_mul(1024 * 1024)
+    }
+
     fn get_meta_path<R: Runtime>(app: &AppHandle<R>) -> AppResult<PathBuf> {
         Ok(app
             .path()

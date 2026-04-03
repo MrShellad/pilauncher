@@ -1,6 +1,6 @@
 // src/features/InstanceDetail/components/tabs/mods/InstanceFilterBar.tsx
 import React from 'react';
-import { Search, RotateCcw, ArrowLeft, Package, Image as LucideImage, Blocks } from 'lucide-react';
+import { Search, RotateCcw, Package, Image as LucideImage, Blocks } from 'lucide-react';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
 import { OreToggleButton } from '../../../../../ui/primitives/OreToggleButton';
@@ -95,12 +95,12 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
 
   const categoryOptions = resourceTab === 'mod'
     ? [
-        { label: '全部分类', value: '' },
-        { label: '科技', value: 'technology' },
-        { label: '魔法', value: 'magic' },
-        { label: '优化', value: 'optimization' },
-        { label: '实用', value: 'utility' }
-      ]
+      { label: '全部分类', value: '' },
+      { label: '科技', value: 'technology' },
+      { label: '魔法', value: 'magic' },
+      { label: '优化', value: 'optimization' },
+      { label: '实用', value: 'utility' }
+    ]
     : [{ label: '全部分类', value: '' }];
 
   const sortOptions = [

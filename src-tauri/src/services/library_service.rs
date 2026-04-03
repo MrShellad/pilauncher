@@ -16,24 +16,30 @@ impl LibraryService {
         .fetch_all(pool)
         .await?;
 
-        let items = rows.into_iter().map(|row| StarredItem {
-            id: row.get("id"),
-            r#type: row.get("type"),
-            source: row.get("source"),
-            project_id: row.get("project_id"),
-            title: row.get("title"),
-            author: row.get("author"),
-            snapshot: row.get("snapshot"),
-            state: row.get("state"),
-            meta: row.get("meta"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        }).collect();
+        let items = rows
+            .into_iter()
+            .map(|row| StarredItem {
+                id: row.get("id"),
+                r#type: row.get("type"),
+                source: row.get("source"),
+                project_id: row.get("project_id"),
+                title: row.get("title"),
+                author: row.get("author"),
+                snapshot: row.get("snapshot"),
+                state: row.get("state"),
+                meta: row.get("meta"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            })
+            .collect();
 
         Ok(items)
     }
 
-    pub async fn save_starred_item(pool: &SqlitePool, item: &StarredItem) -> Result<(), sqlx::Error> {
+    pub async fn save_starred_item(
+        pool: &SqlitePool,
+        item: &StarredItem,
+    ) -> Result<(), sqlx::Error> {
         sqlx::query(
             "INSERT INTO starred_items (id, type, source, project_id, title, author, snapshot, state, meta, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -70,7 +76,7 @@ impl LibraryService {
             .bind(item_id)
             .execute(pool)
             .await?;
-        
+
         // Also remove from any collections
         sqlx::query("DELETE FROM collection_items WHERE item_id = ?")
             .bind(item_id)
@@ -87,21 +93,24 @@ impl LibraryService {
     pub async fn get_collections(pool: &SqlitePool) -> Result<Vec<Collection>, sqlx::Error> {
         let rows = sqlx::query(
             "SELECT id, name, description, type, cover_image, sort_order, created_at, updated_at 
-             FROM collections ORDER BY sort_order ASC, created_at DESC"
+             FROM collections ORDER BY sort_order ASC, created_at DESC",
         )
         .fetch_all(pool)
         .await?;
 
-        let items = rows.into_iter().map(|row| Collection {
-            id: row.get("id"),
-            name: row.get("name"),
-            description: row.get("description"),
-            r#type: row.get("type"),
-            cover_image: row.get("cover_image"),
-            sort_order: row.get("sort_order"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        }).collect();
+        let items = rows
+            .into_iter()
+            .map(|row| Collection {
+                id: row.get("id"),
+                name: row.get("name"),
+                description: row.get("description"),
+                r#type: row.get("type"),
+                cover_image: row.get("cover_image"),
+                sort_order: row.get("sort_order"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            })
+            .collect();
 
         Ok(items)
     }
@@ -132,7 +141,10 @@ impl LibraryService {
         Ok(())
     }
 
-    pub async fn remove_collection(pool: &SqlitePool, collection_id: &str) -> Result<(), sqlx::Error> {
+    pub async fn remove_collection(
+        pool: &SqlitePool,
+        collection_id: &str,
+    ) -> Result<(), sqlx::Error> {
         sqlx::query("DELETE FROM collections WHERE id = ?")
             .bind(collection_id)
             .execute(pool)
@@ -150,34 +162,43 @@ impl LibraryService {
     // Collection Items
     // ------------------------------------------------------------------------
 
-    pub async fn get_collection_items(pool: &SqlitePool, collection_id: &str) -> Result<Vec<CollectionItem>, sqlx::Error> {
+    pub async fn get_collection_items(
+        pool: &SqlitePool,
+        collection_id: &str,
+    ) -> Result<Vec<CollectionItem>, sqlx::Error> {
         let rows = sqlx::query(
             "SELECT id, collection_id, item_id, position, extra, created_at 
-             FROM collection_items WHERE collection_id = ? ORDER BY position ASC"
+             FROM collection_items WHERE collection_id = ? ORDER BY position ASC",
         )
         .bind(collection_id)
         .fetch_all(pool)
         .await?;
 
-        let items = rows.into_iter().map(|row| CollectionItem {
-            id: row.get("id"),
-            collection_id: row.get("collection_id"),
-            item_id: row.get("item_id"),
-            position: row.get("position"),
-            extra: row.get("extra"),
-            created_at: row.get("created_at"),
-        }).collect();
+        let items = rows
+            .into_iter()
+            .map(|row| CollectionItem {
+                id: row.get("id"),
+                collection_id: row.get("collection_id"),
+                item_id: row.get("item_id"),
+                position: row.get("position"),
+                extra: row.get("extra"),
+                created_at: row.get("created_at"),
+            })
+            .collect();
 
         Ok(items)
     }
 
-    pub async fn save_collection_item(pool: &SqlitePool, item: &CollectionItem) -> Result<(), sqlx::Error> {
+    pub async fn save_collection_item(
+        pool: &SqlitePool,
+        item: &CollectionItem,
+    ) -> Result<(), sqlx::Error> {
         sqlx::query(
             "INSERT INTO collection_items (id, collection_id, item_id, position, extra, created_at)
              VALUES (?, ?, ?, ?, ?, ?)
              ON CONFLICT(collection_id, item_id) DO UPDATE SET
                 position=excluded.position,
-                extra=excluded.extra"
+                extra=excluded.extra",
         )
         .bind(&item.id)
         .bind(&item.collection_id)
@@ -191,7 +212,11 @@ impl LibraryService {
         Ok(())
     }
 
-    pub async fn remove_collection_item(pool: &SqlitePool, collection_id: &str, item_id: &str) -> Result<(), sqlx::Error> {
+    pub async fn remove_collection_item(
+        pool: &SqlitePool,
+        collection_id: &str,
+        item_id: &str,
+    ) -> Result<(), sqlx::Error> {
         sqlx::query("DELETE FROM collection_items WHERE collection_id = ? AND item_id = ?")
             .bind(collection_id)
             .bind(item_id)

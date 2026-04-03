@@ -1,11 +1,13 @@
 // src-tauri/src/services/instance/mod_manager.rs
 use crate::services::config_service::ConfigService;
+use crate::services::downloader::transfer::{download_file, DownloadRateLimiter, DownloadTuning};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap; // ✅ 引入哈希表用于缓存
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Runtime};
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -494,8 +496,9 @@ impl ModManagerService {
             let _write_guard = path_lock.lock().await;
 
             let dl_settings = ConfigService::get_download_settings(app);
-            let mut builder = reqwest::Client::builder()
-                .connect_timeout(std::time::Duration::from_secs(dl_settings.timeout.max(1)));
+            let mut builder = reqwest::Client::builder().connect_timeout(
+                std::time::Duration::from_secs(dl_settings.timeout.max(1)),
+            );
             if dl_settings.proxy_type != "none" {
                 let host = dl_settings.proxy_host.trim();
                 let port = dl_settings.proxy_port.trim();
@@ -512,56 +515,53 @@ impl ModManagerService {
                 }
             }
             let client = builder.build().map_err(|e| e.to_string())?;
-            let mut response = client
-                .get(download_url)
-                .send()
+
+            let speed_limit_bytes_per_sec =
+                ConfigService::download_speed_limit_bytes_per_sec(&dl_settings);
+            let rate_limiter = if speed_limit_bytes_per_sec > 0 {
+                Some(Arc::new(DownloadRateLimiter::new(speed_limit_bytes_per_sec)))
+            } else {
+                None
+            };
+            let tuning = DownloadTuning {
+                chunked_enabled: dl_settings.chunked_download_enabled,
+                chunked_threads: dl_settings.chunked_download_threads.max(1),
+                chunked_threshold_bytes: ConfigService::chunked_download_min_size_bytes(
+                    &dl_settings,
+                ),
+            };
+            let temp_shared_target = shared_target.with_extension("download");
+            let candidate_urls = vec![download_url.to_string()];
+            let no_cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+            let _ = app.emit(
+                "resource-download-progress",
+                crate::services::resource_service::ResourceProgressPayload {
+                    task_id: file_name.to_string(),
+                    file_name: file_name.to_string(),
+                    stage: "DOWNLOADING_MOD".to_string(),
+                    current: 0,
+                    total: 100,
+                    message: format!("正在下载: {}", file_name),
+                },
+            );
+
+            let download_result = download_file(
+                &client,
+                &candidate_urls,
+                &temp_shared_target,
+                tuning,
+                std::time::Duration::from_secs(dl_settings.timeout.max(1)),
+                &no_cancel,
+                rate_limiter,
+                None,
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+
+            let _ = tokio::fs::rename(&temp_shared_target, &shared_target)
                 .await
-                .map_err(|e| format!("下载请求失败: {}", e))?;
-
-            if !response.status().is_success() {
-                return Err(format!("下载失败，状态码: {}", response.status()));
-            }
-
-            let total_size = response.content_length().unwrap_or(0);
-            let mut downloaded: u64 = 0;
-
-            use std::time::Instant;
-            use tokio::io::AsyncWriteExt;
-            const PROGRESS_MS: u128 = 200;
-            let mut last_emit = Instant::now();
-
-            let mut dest = tokio::fs::File::create(&shared_target)
-                .await
-                .map_err(|e| format!("无法创建缓存文件: {}", e))?;
-
-            let stall_timeout = std::time::Duration::from_secs(dl_settings.timeout.max(1));
-            loop {
-                let next_chunk = tokio::time::timeout(stall_timeout, response.chunk())
-                    .await
-                    .map_err(|_| format!("download stalled for {}s", stall_timeout.as_secs()))?;
-                let Some(chunk) = next_chunk.map_err(|e| e.to_string())? else {
-                    break;
-                };
-                dest.write_all(&chunk)
-                    .await
-                    .map_err(|e| format!("写入磁盘失败: {}", e))?;
-                downloaded += chunk.len() as u64;
-
-                if last_emit.elapsed().as_millis() >= PROGRESS_MS || downloaded >= total_size {
-                    let _ = app.emit(
-                        "resource-download-progress",
-                        crate::services::resource_service::ResourceProgressPayload {
-                            task_id: file_name.to_string(),
-                            file_name: file_name.to_string(),
-                            stage: "DOWNLOADING_MOD".to_string(),
-                            current: downloaded,
-                            total: total_size.max(1),
-                            message: format!("正在下载手柄组件: {}", file_name),
-                        },
-                    );
-                    last_emit = Instant::now();
-                }
-            }
+                .map_err(|e| format!("移动缓存文件失败: {}", e))?;
 
             let _ = app.emit(
                 "resource-download-progress",
@@ -569,8 +569,8 @@ impl ModManagerService {
                     task_id: file_name.to_string(),
                     file_name: file_name.to_string(),
                     stage: "DONE".to_string(),
-                    current: total_size,
-                    total: total_size,
+                    current: download_result.total_bytes.max(1),
+                    total: download_result.total_bytes.max(1),
                     message: format!("成功: {}", file_name),
                 },
             );

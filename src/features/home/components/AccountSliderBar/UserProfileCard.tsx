@@ -1,5 +1,5 @@
 // src/features/home/components/AccountSliderBar/UserProfileCard.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { Monitor, Laptop, Smartphone, Gamepad2, Loader2, RefreshCcw, CheckCircle, Trash2 } from 'lucide-react';
@@ -34,8 +34,10 @@ interface UserProfileCardProps {
   onSelectTrustedDevice: (device: DiscoveredDevice | null) => void;
 }
 
+const normalizeDeviceId = (value?: string) => (value || '').trim().toLowerCase();
+
 export const UserProfileCard: React.FC<UserProfileCardProps> = ({
-  name, isPremium, hasPremiumAnywhere, accountsCount, avatarSrc, trusted, discovered, onCycleAccount, onRemoveTrust, onSelectTrustedDevice
+  name, isPremium, hasPremiumAnywhere, accountsCount, avatarSrc, trusted, discovered, onScan, isScanning, onCycleAccount, onRemoveTrust, onSelectTrustedDevice
 }) => {
   // 接收弹窗状态
   const [incomingData, setIncomingData] = useState<any>(null);
@@ -84,6 +86,17 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
     return <Smartphone size={16} className="text-gray-400" />;
   };
 
+  const onlineDeviceMap = useMemo(() => {
+    const map = new Map<string, DiscoveredDevice>();
+    discovered.forEach((device) => {
+      const key = normalizeDeviceId(device.device_id);
+      if (key) {
+        map.set(key, device);
+      }
+    });
+    return map;
+  }, [discovered]);
+
   return (
     <>
       <div className="flex flex-col border-[2px] border-[#313233] bg-[#1E1E1F] rounded-sm overflow-hidden shadow-xl">
@@ -122,14 +135,23 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
         <div className="flex flex-col bg-[#141415] p-3">
           <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center justify-between">
             <span>授信的设备 ({trusted.length})</span>
+            <button
+              type="button"
+              onClick={onScan}
+              className="inline-flex items-center gap-1 rounded-sm border border-white/10 px-1.5 py-0.5 text-[10px] text-gray-300 transition-colors hover:bg-white/10"
+              title="刷新在线状态"
+            >
+              {isScanning ? <Loader2 size={10} className="animate-spin" /> : <RefreshCcw size={10} />}
+              刷新
+            </button>
           </div>
 
           <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
             {trusted.length === 0 && <div className="text-xs text-gray-500 text-center py-2">暂无信任的其他设备</div>}
 
             {trusted.map(device => {
-              const onlineInfo = discovered.find(d => d.device_id === device.device_id);
-              const isOnline = !!onlineInfo;
+              const onlineInfo = onlineDeviceMap.get(normalizeDeviceId(device.device_id)) ?? null;
+              const isOnline = onlineInfo !== null;
 
               return (
                 <FocusItem key={device.device_id} focusKey={`trusted-${device.device_id}`} onEnter={() => isOnline && onSelectTrustedDevice(onlineInfo)}>

@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -7,13 +7,14 @@ use futures::stream::{iter, StreamExt};
 use reqwest::Client;
 use sha1::{Digest, Sha1};
 use tauri::{AppHandle, Runtime};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncReadExt;
 
 use crate::error::{AppError, AppResult};
 use crate::services::deployment_cancel::is_cancelled;
 use crate::services::downloader::logging::{log_download_event, DownloadLogLevel};
+use crate::services::downloader::transfer::{download_file, DownloadRateLimiter, DownloadTuning};
 
-use super::progress::{emit_download_progress, DownloadStage};
+use super::progress::{emit_download_progress, emit_download_speed, DownloadStage};
 
 const RETRY_DELAY_MS: u64 = 1200;
 const PROGRESS_EMIT_INTERVAL_MS: u64 = 100;
@@ -64,7 +65,7 @@ pub async fn run_downloads<R: Runtime>(
     tasks: Vec<DownloadTask>,
     stage: DownloadStage,
     concurrency: usize,
-    limit_per_thread: u64,
+    speed_limit_bytes_per_sec: u64,
     retry_count: u32,
     verify_hash: bool,
     stall_timeout: Duration,
@@ -88,22 +89,49 @@ pub async fn run_downloads<R: Runtime>(
     )
     .await;
 
+    let dl_settings = crate::services::config_service::ConfigService::get_download_settings(app);
+    let chunked_tuning = DownloadTuning {
+        chunked_enabled: dl_settings.chunked_download_enabled,
+        chunked_threads: dl_settings.chunked_download_threads.max(1),
+        chunked_threshold_bytes:
+            crate::services::config_service::ConfigService::chunked_download_min_size_bytes(
+                &dl_settings,
+            ),
+    };
+
     let completed = Arc::new(tokio::sync::Mutex::new(0u64));
     let last_emit = Arc::new(tokio::sync::Mutex::new(
         Instant::now() - Duration::from_millis(PROGRESS_EMIT_INTERVAL_MS),
     ));
+    let downloaded_bytes = Arc::new(AtomicU64::new(0));
+    let last_speed_emit = Arc::new(std::sync::Mutex::new(
+        Instant::now() - Duration::from_millis(PROGRESS_EMIT_INTERVAL_MS),
+    ));
+    let expected_total_bytes = tasks.iter().fold(0u64, |acc, task| {
+        acc.saturating_add(task.expected_size.unwrap_or(0))
+    });
     let failure_reason = Arc::new(tokio::sync::Mutex::new(None::<String>));
+    let rate_limiter = if speed_limit_bytes_per_sec > 0 {
+        Some(Arc::new(DownloadRateLimiter::new(speed_limit_bytes_per_sec)))
+    } else {
+        None
+    };
 
     let fetches = iter(tasks)
         .map(|task: DownloadTask| {
             let client = client.clone();
             let completed = Arc::clone(&completed);
             let last_emit = Arc::clone(&last_emit);
+            let downloaded_bytes = Arc::clone(&downloaded_bytes);
+            let last_speed_emit = Arc::clone(&last_speed_emit);
             let failure_reason = Arc::clone(&failure_reason);
+            let rate_limiter = rate_limiter.clone();
             let app = app.clone();
             let instance_id = instance_id.to_string();
             let cancel = Arc::clone(cancel);
             let stage_name = stage_name;
+            let tuning = chunked_tuning;
+            let speed_total = expected_total_bytes;
 
             async move {
                 if is_cancelled(&cancel) {
@@ -137,180 +165,194 @@ pub async fn run_downloads<R: Runtime>(
 
                     let _ = tokio::fs::remove_file(&tmp_path).await;
 
-                    let mut active_url: Option<String> = None;
-                    let mut response: Option<reqwest::Response> = None;
+                    let on_bytes: Arc<dyn Fn(u64) + Send + Sync> = {
+                        let downloaded_bytes = Arc::clone(&downloaded_bytes);
+                        let last_speed_emit = Arc::clone(&last_speed_emit);
+                        let app = app.clone();
+                        let instance_id = instance_id.clone();
+                        let task_name = task.name.clone();
 
-                    for candidate_url in &candidate_urls {
-                        match client.get(candidate_url).send().await {
-                            Ok(res) if res.status().is_success() => {
-                                active_url = Some(candidate_url.clone());
-                                response = Some(res);
-                                break;
-                            }
-                            Ok(res) => {
-                                last_error = Some(format!(
-                                    "status {} from {}",
-                                    res.status(),
-                                    candidate_url
-                                ));
-                            }
-                            Err(e) => {
-                                last_error =
-                                    Some(format!("connect failed from {}: {}", candidate_url, e));
-                            }
-                        }
-                    }
-
-                    let Some(response) = response else {
-                        if attempt < max_attempts {
-                            let ui_msg = format!(
-                                "Download failed, retrying ({}/{}) for {}",
-                                attempt, max_attempts, task.name
-                            );
-                            let raw_msg = format!(
-                                "all sources failed (attempt {}/{}): primary={} fallbacks={:?} err={}",
-                                attempt,
-                                max_attempts,
-                                task.url,
-                                task.fallback_urls,
-                                last_error
-                                    .clone()
-                                    .unwrap_or_else(|| "unknown error".to_string())
-                            );
-                            log_download_event(
-                                &app,
-                                &instance_id,
-                                stage_name,
-                                DownloadLogLevel::Warn,
-                                &ui_msg,
-                                Some(&raw_msg),
-                                true,
-                            )
-                            .await;
-                            tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
-                            continue;
-                        }
-                        break;
-                    };
-
-                    if let Some(parent) = tmp_path.parent() {
-                        let _ = tokio::fs::create_dir_all(parent).await;
-                    }
-
-                    let mut file = match tokio::fs::File::create(&tmp_path).await {
-                        Ok(f) => f,
-                        Err(e) => {
-                            last_error = Some(format!("create temp file failed: {}", e));
-                            break;
-                        }
-                    };
-
-                    let mut hasher = if verify_hash && task.expected_sha1.is_some() {
-                        Some(Sha1::new())
-                    } else {
-                        None
-                    };
-                    let mut downloaded_size: u64 = 0;
-                    let mut stream_ok = true;
-
-                    let active_url = active_url.unwrap_or_else(|| task.url.clone());
-                    let mut res = response;
-                    loop {
-                        let next_chunk = tokio::time::timeout(stall_timeout, res.chunk()).await;
-                        match next_chunk {
-                            Ok(Ok(Some(chunk))) => {
-                                if is_cancelled(&cancel) {
-                                    let _ = tokio::fs::remove_file(&tmp_path).await;
-                                    return;
+                        Arc::new(move |bytes| {
+                            let current_stage_bytes =
+                                downloaded_bytes.fetch_add(bytes, Ordering::Relaxed) + bytes;
+                            let should_emit_speed = {
+                                let now = Instant::now();
+                                let mut last = last_speed_emit.lock().unwrap();
+                                if now.duration_since(*last).as_millis()
+                                    >= PROGRESS_EMIT_INTERVAL_MS as u128
+                                {
+                                    *last = now;
+                                    true
+                                } else {
+                                    false
                                 }
+                            };
 
-                                if let Err(e) = file.write_all(&chunk).await {
-                                    last_error = Some(format!("write failed: {}", e));
-                                    stream_ok = false;
+                            if should_emit_speed {
+                                emit_download_speed(
+                                    &app,
+                                    &instance_id,
+                                    stage,
+                                    task_name.clone(),
+                                    current_stage_bytes,
+                                    speed_total.max(current_stage_bytes).max(1),
+                                );
+                            }
+                        })
+                    };
+
+                    match download_file(
+                        &client,
+                        &candidate_urls,
+                        &tmp_path,
+                        tuning,
+                        stall_timeout,
+                        &cancel,
+                        rate_limiter.clone(),
+                        Some(on_bytes),
+                    )
+                    .await
+                    {
+                        Ok(outcome) => {
+                            let downloaded_size = outcome.downloaded_bytes;
+
+                            if let Some(expected) = task.expected_size {
+                                if downloaded_size != expected {
+                                    last_error = Some(format!(
+                                        "size mismatch (expected {}, got {})",
+                                        expected, downloaded_size
+                                    ));
+                                    let _ = tokio::fs::remove_file(&tmp_path).await;
+                                    if attempt < max_attempts {
+                                        let ui_msg = format!(
+                                            "Size check failed, retrying ({}/{}) for {}",
+                                            attempt, max_attempts, task.name
+                                        );
+                                        let raw_msg = format!(
+                                            "size mismatch (attempt {}/{}): primary={} fallbacks={:?} expected={} got={}",
+                                            attempt,
+                                            max_attempts,
+                                            task.url,
+                                            task.fallback_urls,
+                                            expected,
+                                            downloaded_size
+                                        );
+                                        log_download_event(
+                                            &app,
+                                            &instance_id,
+                                            stage_name,
+                                            DownloadLogLevel::Warn,
+                                            &ui_msg,
+                                            Some(&raw_msg),
+                                            true,
+                                        )
+                                        .await;
+                                        tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS))
+                                            .await;
+                                        continue;
+                                    }
                                     break;
                                 }
+                            }
 
-                                if let Some(ref mut h) = hasher {
-                                    h.update(&chunk);
+                            if verify_hash {
+                                if let Some(expected) = task.expected_sha1.as_ref() {
+                                    let actual = sha1_file(&tmp_path).await.unwrap_or_default();
+                                    if actual != *expected {
+                                        last_error = Some(format!(
+                                            "sha1 mismatch (expected {}, got {})",
+                                            expected, actual
+                                        ));
+                                        let _ = tokio::fs::remove_file(&tmp_path).await;
+                                        if attempt < max_attempts {
+                                            let ui_msg = format!(
+                                                "SHA-1 check failed, retrying ({}/{}) for {}",
+                                                attempt, max_attempts, task.name
+                                            );
+                                            let raw_msg = format!(
+                                                "sha1 mismatch (attempt {}/{}): primary={} fallbacks={:?} expected={} got={}",
+                                                attempt,
+                                                max_attempts,
+                                                task.url,
+                                                task.fallback_urls,
+                                                expected,
+                                                actual
+                                            );
+                                            log_download_event(
+                                                &app,
+                                                &instance_id,
+                                                stage_name,
+                                                DownloadLogLevel::Warn,
+                                                &ui_msg,
+                                                Some(&raw_msg),
+                                                true,
+                                            )
+                                            .await;
+                                            tokio::time::sleep(Duration::from_millis(
+                                                RETRY_DELAY_MS,
+                                            ))
+                                            .await;
+                                            continue;
+                                        }
+                                        break;
+                                    }
                                 }
+                            }
 
-                                downloaded_size += chunk.len() as u64;
+                            if task.path.exists() {
+                                let _ = tokio::fs::remove_file(&task.path).await;
+                            }
 
-                                if limit_per_thread > 0 {
-                                    tokio::time::sleep(Duration::from_secs_f64(
-                                        chunk.len() as f64 / limit_per_thread as f64,
-                                    ))
+                            if let Err(e) = tokio::fs::rename(&tmp_path, &task.path).await {
+                                last_error = Some(format!("rename failed: {}", e));
+                                let _ = tokio::fs::remove_file(&tmp_path).await;
+                                if attempt < max_attempts {
+                                    let ui_msg = format!(
+                                        "Write failed, retrying ({}/{}) for {}",
+                                        attempt, max_attempts, task.name
+                                    );
+                                    let raw_msg = format!(
+                                        "rename failed (attempt {}/{}): tmp={} target={} err={}",
+                                        attempt,
+                                        max_attempts,
+                                        tmp_path.display(),
+                                        task.path.display(),
+                                        e
+                                    );
+                                    log_download_event(
+                                        &app,
+                                        &instance_id,
+                                        stage_name,
+                                        DownloadLogLevel::Warn,
+                                        &ui_msg,
+                                        Some(&raw_msg),
+                                        true,
+                                    )
                                     .await;
+                                    tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS))
+                                        .await;
+                                    continue;
                                 }
-                            }
-                            Ok(Ok(None)) => break,
-                            Ok(Err(e)) => {
-                                last_error = Some(format!("stream failed: {}", e));
-                                stream_ok = false;
                                 break;
                             }
-                            Err(_) => {
-                                last_error = Some(format!(
-                                    "stream stalled for {}s",
-                                    stall_timeout.as_secs()
-                                ));
-                                stream_ok = false;
-                                break;
-                            }
+
+                            success = true;
+                            break;
                         }
-                    }
-
-                    if let Err(e) = file.flush().await {
-                        last_error = Some(format!("flush failed: {}", e));
-                        stream_ok = false;
-                    }
-                    drop(file);
-
-                    if !stream_ok {
-                        let _ = tokio::fs::remove_file(&tmp_path).await;
-                        if attempt < max_attempts {
-                            let reason = last_error
-                                .clone()
-                                .unwrap_or_else(|| "stream failed".to_string());
-                            let ui_msg = format!(
-                                "Download interrupted, retrying ({}/{}) for {}",
-                                attempt, max_attempts, task.name
-                            );
-                            let raw_msg = format!(
-                                "stream failed (attempt {}/{}): url={} err={}",
-                                attempt, max_attempts, active_url, reason
-                            );
-                            log_download_event(
-                                &app,
-                                &instance_id,
-                                stage_name,
-                                DownloadLogLevel::Warn,
-                                &ui_msg,
-                                Some(&raw_msg),
-                                true,
-                            )
-                            .await;
-                            tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
-                            continue;
-                        }
-                        break;
-                    }
-
-                    if let Some(expected) = task.expected_size {
-                        if downloaded_size != expected {
-                            last_error = Some(format!(
-                                "size mismatch (expected {}, got {})",
-                                expected, downloaded_size
-                            ));
+                        Err(err) => {
+                            last_error = Some(err.to_string());
                             let _ = tokio::fs::remove_file(&tmp_path).await;
                             if attempt < max_attempts {
+                                let reason = last_error
+                                    .clone()
+                                    .unwrap_or_else(|| "download failed".to_string());
                                 let ui_msg = format!(
-                                    "Size check failed, retrying ({}/{}) for {}",
+                                    "Download interrupted, retrying ({}/{}) for {}",
                                     attempt, max_attempts, task.name
                                 );
                                 let raw_msg = format!(
-                                    "size mismatch (attempt {}/{}): url={} expected={} got={}",
-                                    attempt, max_attempts, active_url, expected, downloaded_size
+                                    "download failed (attempt {}/{}): primary={} fallbacks={:?} err={}",
+                                    attempt, max_attempts, task.url, task.fallback_urls, reason
                                 );
                                 log_download_event(
                                     &app,
@@ -328,88 +370,6 @@ pub async fn run_downloads<R: Runtime>(
                             break;
                         }
                     }
-
-                    if verify_hash {
-                        if let Some(expected) = task.expected_sha1.as_ref() {
-                            let digest = hasher
-                                .map(|h| h.finalize())
-                                .unwrap_or_else(|| Sha1::new().finalize());
-                            let actual = digest
-                                .iter()
-                                .map(|b| format!("{:02x}", b))
-                                .collect::<String>();
-
-                            if actual != *expected {
-                                last_error = Some(format!(
-                                    "sha1 mismatch (expected {}, got {})",
-                                    expected, actual
-                                ));
-                                let _ = tokio::fs::remove_file(&tmp_path).await;
-                                if attempt < max_attempts {
-                                    let ui_msg = format!(
-                                        "SHA-1 check failed, retrying ({}/{}) for {}",
-                                        attempt, max_attempts, task.name
-                                    );
-                                    let raw_msg = format!(
-                                        "sha1 mismatch (attempt {}/{}): url={} expected={} got={}",
-                                        attempt, max_attempts, active_url, expected, actual
-                                    );
-                                    log_download_event(
-                                        &app,
-                                        &instance_id,
-                                        stage_name,
-                                        DownloadLogLevel::Warn,
-                                        &ui_msg,
-                                        Some(&raw_msg),
-                                        true,
-                                    )
-                                    .await;
-                                    tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
-                                    continue;
-                                }
-                                break;
-                            }
-                        }
-                    }
-
-                    if task.path.exists() {
-                        let _ = tokio::fs::remove_file(&task.path).await;
-                    }
-
-                    if let Err(e) = tokio::fs::rename(&tmp_path, &task.path).await {
-                        last_error = Some(format!("rename failed: {}", e));
-                        let _ = tokio::fs::remove_file(&tmp_path).await;
-                        if attempt < max_attempts {
-                            let ui_msg = format!(
-                                "Write failed, retrying ({}/{}) for {}",
-                                attempt, max_attempts, task.name
-                            );
-                            let raw_msg = format!(
-                                "rename failed (attempt {}/{}): tmp={} target={} err={}",
-                                attempt,
-                                max_attempts,
-                                tmp_path.display(),
-                                task.path.display(),
-                                e
-                            );
-                            log_download_event(
-                                &app,
-                                &instance_id,
-                                stage_name,
-                                DownloadLogLevel::Warn,
-                                &ui_msg,
-                                Some(&raw_msg),
-                                true,
-                            )
-                            .await;
-                            tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
-                            continue;
-                        }
-                        break;
-                    }
-
-                    success = true;
-                    break;
                 }
 
                 if !success {
@@ -442,7 +402,7 @@ pub async fn run_downloads<R: Runtime>(
                     }
                 }
 
-                let mut time_ok = false;
+                let time_ok;
                 let c_val: u64;
                 {
                     let mut c = completed.lock().await;

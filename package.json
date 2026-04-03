@@ -28,6 +28,7 @@
     "react-virtuoso": "^4.18.3",
     "skinview3d": "^3.4.1",
     "skinview3d-blockbench": "^1.0.19",
+    "three": "0.181.1",
     "zustand": "^5.0.11"
   },
   "devDependencies": {
@@ -36,6 +37,7 @@
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "@types/three": "0.181.0",
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.24",
     "eslint": "^9.39.1",

@@ -419,11 +419,7 @@ async fn download_modrinth_mods<R: Runtime>(
     };
     let retry_count = dl_settings.retry_count;
     let verify_hash = dl_settings.verify_after_download;
-    let limit_per_thread = if dl_settings.speed_limit > 0 {
-        (dl_settings.speed_limit * 1024 * 1024) / (concurrency as u64)
-    } else {
-        0
-    };
+    let speed_limit_bytes_per_sec = ConfigService::download_speed_limit_bytes_per_sec(&dl_settings);
 
     let client = Client::builder()
         .user_agent("PiLauncher/1.0 (Modpack)")
@@ -548,7 +544,7 @@ async fn download_modrinth_mods<R: Runtime>(
         tasks,
         DownloadStage::Mods,
         concurrency,
-        limit_per_thread,
+        speed_limit_bytes_per_sec,
         retry_count,
         verify_hash,
         Duration::from_secs(dl_settings.timeout.max(1)),
@@ -594,11 +590,7 @@ async fn download_curseforge_mods<R: Runtime>(
     };
     let retry_count = dl_settings.retry_count;
     let verify_hash = dl_settings.verify_after_download;
-    let limit_per_thread = if dl_settings.speed_limit > 0 {
-        (dl_settings.speed_limit * 1024 * 1024) / (concurrency as u64)
-    } else {
-        0
-    };
+    let speed_limit_bytes_per_sec = ConfigService::download_speed_limit_bytes_per_sec(&dl_settings);
 
     let client = Client::builder()
         .user_agent("PiLauncher/1.0 (CurseForge)")
@@ -723,7 +715,7 @@ async fn download_curseforge_mods<R: Runtime>(
         tasks,
         DownloadStage::Mods,
         concurrency,
-        limit_per_thread,
+        speed_limit_bytes_per_sec,
         retry_count,
         verify_hash,
         Duration::from_secs(dl_settings.timeout.max(1)),

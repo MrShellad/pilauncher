@@ -126,11 +126,9 @@ pub async fn install_update<R: Runtime>(
 
     let updater = app
         .updater_builder()
-        .endpoints(vec![
-            endpoint
-                .parse()
-                .map_err(|e| format!("鏋勫缓鏇存柊 endpoint 澶辫触: {}", e))?,
-        ])
+        .endpoints(vec![endpoint
+            .parse()
+            .map_err(|e| format!("鏋勫缓鏇存柊 endpoint 澶辫触: {}", e))?])
         .map_err(|e| format!("閰嶇疆鏇存柊鍣ㄥけ璐? {}", e))?
         .build()
         .map_err(|e| format!("鍒涘缓鏇存柊鍣ㄥけ璐? {}", e))?;

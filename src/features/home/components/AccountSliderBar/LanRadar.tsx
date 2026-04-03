@@ -1,12 +1,10 @@
-// src/features/home/components/AccountSliderBar/LanRadar.tsx
-import React, { useState, useEffect, useRef } from 'react';
-import { Users, Loader2 } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Loader2, Users } from 'lucide-react';
 
+import { useAccountStore } from '../../../../store/useAccountStore';
+import { useSettingsStore } from '../../../../store/useSettingsStore';
 import { LanDeviceItem } from './LanDeviceItem';
 import type { DeviceInitInfo } from './LanDeviceItem';
-
-import { useSettingsStore } from '../../../../store/useSettingsStore';
-import { useAccountStore } from '../../../../store/useAccountStore';
 
 interface DiscoveredDevice {
   device_id: string;
@@ -27,93 +25,182 @@ interface LanRadarProps {
   onRequestTrust: (ip: string, port: number) => void;
 }
 
-export const LanRadar: React.FC<LanRadarProps> = ({ discovered, trusted, isScanning, isRequesting, onRequestTrust }) => {
-  const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null);
+const normalizeDeviceId = (value?: string) => (value || '').trim().toLowerCase();
+const getDeviceKey = (device: DiscoveredDevice) =>
+  normalizeDeviceId(device.device_id) || `${device.ip}:${device.port}`;
+
+export const LanRadar: React.FC<LanRadarProps> = ({
+  discovered,
+  trusted,
+  isScanning,
+  isRequesting,
+  onRequestTrust,
+}) => {
+  const [expandedDeviceKey, setExpandedDeviceKey] = useState<string | null>(null);
   const [richInfos, setRichInfos] = useState<Record<string, DeviceInitInfo>>({});
-  const fetchedRef = useRef<Set<string>>(new Set());
-  
+
   const { settings } = useSettingsStore();
   const { accounts } = useAccountStore();
-  
-  // 过滤掉自己的设备
-  const validDevices = discovered.filter(dev => dev.device_id !== settings.general.deviceId);
-  
-  // ✅ 过滤掉已信任的设备（已信任设备只在信任设备列表中展示）
-  const untrustedDevices = validDevices.filter(dev => !trusted.some(t => t.device_id === dev.device_id));
+
+  const selfDeviceId = normalizeDeviceId(settings.general.deviceId);
+  const trustedDeviceIds = useMemo(
+    () => new Set(trusted.map((item) => normalizeDeviceId(item.device_id))),
+    [trusted],
+  );
+
+  const validDevices = useMemo(
+    () => discovered.filter((device) => normalizeDeviceId(device.device_id) !== selfDeviceId),
+    [discovered, selfDeviceId],
+  );
+
+  const untrustedDevices = useMemo(
+    () =>
+      validDevices.filter(
+        (device) => !trustedDeviceIds.has(normalizeDeviceId(device.device_id)),
+      ),
+    [trustedDeviceIds, validDevices],
+  );
 
   useEffect(() => {
-    validDevices.forEach(dev => {
-      if (!fetchedRef.current.has(dev.device_id)) {
-        fetchedRef.current.add(dev.device_id);
-        fetch(`http://${dev.ip}:${dev.port}/device/init`)
-          .then(res => {
-            if(!res.ok) throw new Error("HTTP Status Error");
-            return res.json();
-          })
-          .then((data: DeviceInitInfo) => {
-            setRichInfos(prev => ({ ...prev, [dev.device_id]: data }));
-          })
-          .catch(() => {
-            fetchedRef.current.delete(dev.device_id);
-          });
-      }
+    if (validDevices.length === 0) {
+      setRichInfos({});
+      return;
+    }
+
+    let cancelled = false;
+    const onlineKeys = new Set(validDevices.map(getDeviceKey));
+
+    // Remove stale profile cache for offline devices.
+    setRichInfos((previous) => {
+      const next = { ...previous };
+      let changed = false;
+      Object.keys(next).forEach((key) => {
+        if (!onlineKeys.has(key)) {
+          delete next[key];
+          changed = true;
+        }
+      });
+      return changed ? next : previous;
     });
+
+    const fetchRichInfo = async () => {
+      await Promise.all(
+        validDevices.map(async (device) => {
+          const key = getDeviceKey(device);
+          try {
+            const response = await fetch(`http://${device.ip}:${device.port}/device/init`, {
+              cache: 'no-store',
+            });
+            if (!response.ok) throw new Error('HTTP status error');
+
+            const data = (await response.json()) as DeviceInitInfo;
+            if (cancelled) return;
+
+            setRichInfos((previous) => {
+              const previousData = previous[key];
+              if (
+                previousData &&
+                previousData.user_uuid === data.user_uuid &&
+                previousData.username === data.username &&
+                previousData.instance_id === data.instance_id &&
+                previousData.instance_name === data.instance_name &&
+                previousData.device_name === data.device_name
+              ) {
+                return previous;
+              }
+              return { ...previous, [key]: data };
+            });
+          } catch {
+            if (cancelled) return;
+            setRichInfos((previous) => {
+              if (!previous[key]) return previous;
+              const next = { ...previous };
+              delete next[key];
+              return next;
+            });
+          }
+        }),
+      );
+    };
+
+    void fetchRichInfo();
+    const timer = window.setInterval(() => {
+      void fetchRichInfo();
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, [validDevices]);
 
   const sortedDevices = [...untrustedDevices].sort((a, b) => {
-    const aRich = richInfos[a.device_id];
-    const bRich = richInfos[b.device_id];
-    const aIsOwn = aRich ? accounts.some(acc => acc.uuid === aRich.user_uuid) : false;
-    const bIsOwn = bRich ? accounts.some(acc => acc.uuid === bRich.user_uuid) : false;
+    const aRich = richInfos[getDeviceKey(a)];
+    const bRich = richInfos[getDeviceKey(b)];
+    const aIsOwn = aRich ? accounts.some((acc) => acc.uuid === aRich.user_uuid) : false;
+    const bIsOwn = bRich ? accounts.some((acc) => acc.uuid === bRich.user_uuid) : false;
 
     if (aIsOwn && !bIsOwn) return -1;
     if (!aIsOwn && bIsOwn) return 1;
-
     return 0;
   });
 
+  useEffect(() => {
+    if (!expandedDeviceKey) return;
+    const exists = validDevices.some((device) => getDeviceKey(device) === expandedDeviceKey);
+    if (!exists) {
+      setExpandedDeviceKey(null);
+    }
+  }, [expandedDeviceKey, validDevices]);
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between text-xs font-bold text-gray-400 uppercase tracking-wider pl-1">
+      <div className="flex items-center justify-between pl-1 text-xs font-bold uppercase tracking-wider text-gray-400">
         <div className="flex items-center">
-          <Users size={14} className="mr-2"/> 局域网雷达 ({untrustedDevices.length})
+          <Users size={14} className="mr-2" />
+          局域网雷达 ({untrustedDevices.length})
         </div>
         {isScanning && (
-          <div className="flex items-center gap-1.5 text-ore-green normal-case font-normal">
+          <div className="flex items-center gap-1.5 font-normal normal-case text-ore-green">
             <Loader2 size={12} className="animate-spin" />
             <span className="text-[10px]">正在扫描...</span>
           </div>
         )}
       </div>
-      
+
       <div className="flex flex-col gap-2">
         {untrustedDevices.length === 0 && !isScanning && (
-          <div className="text-sm text-gray-500 border-2 border-dashed border-[#313233] p-4 text-center">
+          <div className="border-2 border-dashed border-[#313233] p-4 text-center text-sm text-gray-500">
             局域网内空空如也。
           </div>
         )}
 
         {untrustedDevices.length === 0 && isScanning && (
-          <div className="text-sm text-gray-500 border-2 border-dashed border-[#313233] p-4 text-center flex items-center justify-center gap-2">
+          <div className="flex items-center justify-center gap-2 border-2 border-dashed border-[#313233] p-4 text-center text-sm text-gray-500">
             <Loader2 size={14} className="animate-spin text-ore-green" />
             正在扫描局域网中的设备...
           </div>
         )}
-        
-        {sortedDevices.map(dev => {
-          const richInfo = richInfos[dev.device_id];
-          const isOwnAccount = richInfo ? accounts.some(acc => acc.uuid === richInfo.user_uuid) : false;
+
+        {sortedDevices.map((device) => {
+          const key = getDeviceKey(device);
+          const richInfo = richInfos[key];
+          const isOwnAccount = richInfo
+            ? accounts.some((acc) => acc.uuid === richInfo.user_uuid)
+            : false;
 
           return (
             <LanDeviceItem
-              key={dev.device_id}
-              device={dev}
+              key={key}
+              device={device}
               richInfo={richInfo}
               isFriend={false}
               isOwnAccount={isOwnAccount}
               isRequesting={isRequesting}
-              isExpanded={expandedPlayerId === dev.device_id}
-              onToggleExpand={() => setExpandedPlayerId(prev => prev === dev.device_id ? null : dev.device_id)}
+              isExpanded={expandedDeviceKey === key}
+              onToggleExpand={() =>
+                setExpandedDeviceKey((previous) => (previous === key ? null : key))
+              }
               onRequestTrust={onRequestTrust}
             />
           );

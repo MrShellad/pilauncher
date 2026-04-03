@@ -1,5 +1,5 @@
 // src/hooks/useLan.ts
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
@@ -32,11 +32,42 @@ export interface OnlineDeviceCheck {
   public_key: string;
 }
 
+const normalizeDeviceId = (value?: string) => (value || '').trim().toLowerCase();
+
+const dedupeDiscoveredDevices = (list: DiscoveredDevice[]) => {
+  const map = new Map<string, DiscoveredDevice>();
+
+  for (const device of list) {
+    const normalizedId = normalizeDeviceId(device.device_id);
+    const key = normalizedId || `${device.ip}:${device.port}`;
+    const existing = map.get(key);
+
+    if (!existing) {
+      map.set(key, device);
+      continue;
+    }
+
+    const existingHasId = !!normalizeDeviceId(existing.device_id);
+    const incomingHasId = !!normalizedId;
+    if (!existingHasId && incomingHasId) {
+      map.set(key, device);
+      continue;
+    }
+
+    if (!existing.device_name && device.device_name) {
+      map.set(key, device);
+    }
+  }
+
+  return Array.from(map.values());
+};
+
 export const useLan = () => {
   const [discovered, setDiscovered] = useState<DiscoveredDevice[]>([]);
   const [trusted, setTrusted] = useState<TrustedDevice[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
+  const isScanningRef = useRef(false);
   
   // 接收好友请求状态
   const [incomingRequest, setIncomingRequest] = useState<IncomingTrustRequest | null>(null);
@@ -65,17 +96,20 @@ export const useLan = () => {
   }, []);
 
   const scan = useCallback(async () => {
-    if (isScanning) return;
+    if (isScanningRef.current) return;
+    isScanningRef.current = true;
     setIsScanning(true);
     try {
       const list = await invoke<DiscoveredDevice[]>('scan_lan_devices');
-      setDiscovered(list);
+      setDiscovered(dedupeDiscoveredDevices(list));
     } catch (e) {
       console.error("局域网扫描失败:", e);
+      setDiscovered([]);
     } finally {
+      isScanningRef.current = false;
       setIsScanning(false);
     }
-  }, [isScanning]);
+  }, []);
 
   const sendTrustRequest = async (ip: string, port: number) => {
     if (isRequesting) return;

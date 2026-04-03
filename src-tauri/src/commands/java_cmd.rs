@@ -2,7 +2,9 @@
 use serde_json::Value;
 use std::env;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Runtime};
+use crate::services::downloader::transfer::{download_file, DownloadRateLimiter, DownloadTuning};
 
 #[derive(serde::Serialize, Clone)]
 struct ResourceDownloadEvent {
@@ -186,163 +188,150 @@ pub async fn download_java_env<R: Runtime>(
             },
         );
 
-        match client.get(&download_url).send().await {
-            Ok(mut res) if res.status().is_success() => {
-                let actual_size = res.content_length().unwrap_or(100_000_000);
+        use crate::services::config_service::ConfigService;
+        if let Ok(Some(base_path_str)) = ConfigService::get_base_path(&app) {
+            let java_dir = PathBuf::from(&base_path_str).join("runtime").join("java");
+            let _ = tokio::fs::create_dir_all(&java_dir).await;
+            let target_file = java_dir.join(&file_name);
+            let temp_target_file = java_dir.join(format!("{}.download", file_name));
+            let dl_settings = ConfigService::get_download_settings(&app);
+            let speed_limit_bytes_per_sec =
+                ConfigService::download_speed_limit_bytes_per_sec(&dl_settings);
+            let rate_limiter = if speed_limit_bytes_per_sec > 0 {
+                Some(Arc::new(DownloadRateLimiter::new(speed_limit_bytes_per_sec)))
+            } else {
+                None
+            };
+            let tuning = DownloadTuning {
+                chunked_enabled: dl_settings.chunked_download_enabled,
+                chunked_threads: dl_settings.chunked_download_threads.max(1),
+                chunked_threshold_bytes: ConfigService::chunked_download_min_size_bytes(
+                    &dl_settings,
+                ),
+            };
+            let candidate_urls = vec![download_url.clone()];
 
-                use crate::services::config_service::ConfigService;
-                if let Ok(Some(base_path_str)) = ConfigService::get_base_path(&app) {
-                    let java_dir = PathBuf::from(&base_path_str).join("runtime").join("java");
-                    let _ = tokio::fs::create_dir_all(&java_dir).await;
-                    let target_file = java_dir.join(&file_name);
+            match download_file(
+                &client,
+                &candidate_urls,
+                &temp_target_file,
+                tuning,
+                std::time::Duration::from_secs(dl_settings.timeout.max(1)),
+                &cancel_token,
+                rate_limiter,
+                None,
+            )
+            .await
+            {
+                Ok(result) => {
+                    let actual_size = result.total_bytes.max(1);
+                    let _ = app.emit(
+                        "resource-download-progress",
+                        ResourceDownloadEvent {
+                            task_id: "java_download".to_string(),
+                            file_name: file_name.clone(),
+                            stage: "DOWNLOADING_MOD".to_string(),
+                            current: actual_size,
+                            total: actual_size,
+                            message: format!("正在高速下载: {}", file_name),
+                        },
+                    );
 
-                    if let Ok(mut file) = tokio::fs::File::create(&target_file).await {
-                        use tokio::io::AsyncWriteExt;
-                        let mut downloaded = 0;
-                        let mut last_emit = std::time::Instant::now();
-                        let mut download_success = false;
+                    let _ = app.emit(
+                        "resource-download-progress",
+                        ResourceDownloadEvent {
+                            task_id: "java_download".to_string(),
+                            file_name: file_name.clone(),
+                            stage: "EXTRACTING".to_string(),
+                            current: actual_size,
+                            total: actual_size,
+                            message: "正在解压 Java 运行环境...".to_string(),
+                        },
+                    );
 
-                        // ✅ 修复 3：严格拦截网络异常，避免残缺文件进入解压环节
-                        loop {
-                            if crate::services::deployment_cancel::is_cancelled(&cancel_token) {
-                                emit_err("下载已取消");
-                                break;
-                            }
-                            match res.chunk().await {
-                                Ok(Some(chunk)) => {
-                                    if file.write_all(&chunk).await.is_err() {
-                                        emit_err("写入本地磁盘失败");
-                                        break;
-                                    }
-                                    downloaded += chunk.len() as u64;
-                                    if last_emit.elapsed().as_millis() > 250
-                                        || downloaded == actual_size
-                                    {
-                                        let _ = app.emit(
-                                            "resource-download-progress",
-                                            ResourceDownloadEvent {
-                                                task_id: "java_download".to_string(),
-                                                file_name: file_name.clone(),
-                                                stage: "DOWNLOADING_MOD".to_string(),
-                                                current: downloaded,
-                                                total: actual_size,
-                                                message: format!("正在高速下载: {}", file_name),
-                                            },
-                                        );
-                                        last_emit = std::time::Instant::now();
-                                    }
-                                }
-                                Ok(None) => {
-                                    download_success = true; // 完整读取到文件末尾
-                                    break;
-                                }
-                                Err(e) => {
-                                    emit_err(&format!("网络传输中断或超时: {}", e));
-                                    break;
-                                }
-                            }
-                        }
+                    let _ = tokio::fs::rename(&temp_target_file, &target_file).await;
 
-                        let _ = file.flush().await;
-                        drop(file);
+                    let extract_target = java_dir.join(format!("jre-{}", version));
+                    let is_zip = ext == "zip";
+                    let target_file_clone = target_file.clone();
+                    let base_path_clone = base_path_str.clone();
 
-                        // 下载失败时自动清理损坏的文件，阻止继续运行
-                        if !download_success {
-                            let _ = tokio::fs::remove_file(&target_file).await;
-                            return;
-                        }
+                    let extract_result = tokio::task::spawn_blocking(move || {
+                        let res = extract_archive(&target_file_clone, &extract_target, is_zip);
+                        if res.is_ok() {
+                            let cache_file = PathBuf::from(&base_path_clone)
+                                .join("config")
+                                .join("java_cache.json");
+                            let _ = crate::services::runtime_service::scan_java_environments(
+                                &cache_file,
+                            );
 
-                        let _ = app.emit(
-                            "resource-download-progress",
-                            ResourceDownloadEvent {
-                                task_id: "java_download".to_string(),
-                                file_name: file_name.clone(),
-                                stage: "EXTRACTING".to_string(),
-                                current: actual_size,
-                                total: actual_size,
-                                message: "正在解压 Java 运行环境...".to_string(),
-                            },
-                        );
-
-                        let extract_target = java_dir.join(format!("jre-{}", version));
-                        let is_zip = ext == "zip";
-                        let target_file_clone = target_file.clone();
-                        let base_path_clone = base_path_str.clone();
-
-                        let extract_result = tokio::task::spawn_blocking(move || {
-                            let res = extract_archive(&target_file_clone, &extract_target, is_zip);
-                            if res.is_ok() {
-                                let cache_file = PathBuf::from(&base_path_clone)
-                                    .join("config")
-                                    .join("java_cache.json");
-                                let _ = crate::services::runtime_service::scan_java_environments(
-                                    &cache_file,
-                                );
-
-                                let mut new_java_path = String::new();
-                                // Windows 优先匹配 java.exe（若不存在再回退 javaw.exe）
-                                let target_exes: Vec<&str> = if env::consts::OS == "windows" {
-                                    vec!["java.exe", "javaw.exe"]
-                                } else {
-                                    vec!["java"]
-                                };
-                                for entry in walkdir::WalkDir::new(&extract_target)
-                                    .into_iter()
-                                    .filter_map(|e| e.ok())
+                            let mut new_java_path = String::new();
+                            // Windows 优先匹配 java.exe（若不存在再回退 javaw.exe）
+                            let target_exes: Vec<&str> = if env::consts::OS == "windows" {
+                                vec!["java.exe", "javaw.exe"]
+                            } else {
+                                vec!["java"]
+                            };
+                            for entry in walkdir::WalkDir::new(&extract_target)
+                                .into_iter()
+                                .filter_map(|e| e.ok())
+                            {
+                                let p = entry.path();
+                                if p.is_file()
+                                    && target_exes
+                                        .iter()
+                                        .any(|name| p.file_name().unwrap_or_default() == *name)
                                 {
-                                    let p = entry.path();
-                                    if p.is_file()
-                                        && target_exes
-                                            .iter()
-                                            .any(|name| p.file_name().unwrap_or_default() == *name)
+                                    if env::consts::OS == "windows"
+                                        && p.file_name().unwrap_or_default() == "javaw.exe"
                                     {
-                                        if env::consts::OS == "windows"
-                                            && p.file_name().unwrap_or_default() == "javaw.exe"
-                                        {
-                                            let sibling = p.with_file_name("java.exe");
-                                            if sibling.exists() {
-                                                new_java_path = sibling.to_string_lossy().to_string();
-                                                break;
-                                            }
+                                        let sibling = p.with_file_name("java.exe");
+                                        if sibling.exists() {
+                                            new_java_path = sibling.to_string_lossy().to_string();
+                                            break;
                                         }
-
-                                        new_java_path = p.to_string_lossy().to_string();
-                                        break;
                                     }
-                                }
-                                return Ok(new_java_path);
-                            }
-                            Err("Java 压缩包解压失败，文件可能已损坏".to_string())
-                        })
-                        .await;
 
-                        let _ = tokio::fs::remove_file(&target_file).await;
-
-                        match extract_result {
-                            Ok(Ok(new_java_path)) => {
-                                let _ = app.emit(
-                                    "resource-download-progress",
-                                    ResourceDownloadEvent {
-                                        task_id: "java_download".to_string(),
-                                        file_name: file_name.clone(),
-                                        stage: "DONE".to_string(),
-                                        current: actual_size,
-                                        total: actual_size,
-                                        message: format!("Java {} 部署完成！", version),
-                                    },
-                                );
-
-                                if !new_java_path.is_empty() {
-                                    let _ = app.emit("java-installed-auto-set", new_java_path);
+                                    new_java_path = p.to_string_lossy().to_string();
+                                    break;
                                 }
                             }
-                            Ok(Err(e)) => emit_err(&e),
-                            _ => emit_err("解压线程意外崩溃"),
+                            return Ok(new_java_path);
                         }
+                        Err("Java 压缩包解压失败，文件可能已损坏".to_string())
+                    })
+                    .await;
+
+                    let _ = tokio::fs::remove_file(&target_file).await;
+
+                    match extract_result {
+                        Ok(Ok(new_java_path)) => {
+                            let _ = app.emit(
+                                "resource-download-progress",
+                                ResourceDownloadEvent {
+                                    task_id: "java_download".to_string(),
+                                    file_name: file_name.clone(),
+                                    stage: "DONE".to_string(),
+                                    current: actual_size,
+                                    total: actual_size,
+                                    message: format!("Java {} 部署完成！", version),
+                                },
+                            );
+
+                            if !new_java_path.is_empty() {
+                                let _ = app.emit("java-installed-auto-set", new_java_path);
+                            }
+                        }
+                        Ok(Err(e)) => emit_err(&e),
+                        _ => emit_err("解压线程意外崩溃"),
                     }
                 }
+                Err(err) => {
+                    let _ = tokio::fs::remove_file(&temp_target_file).await;
+                    emit_err(&format!("下载服务器拒绝连接或超时: {}", err));
+                }
             }
-            _ => emit_err("下载服务器拒绝连接或超时"),
         }
 
         crate::services::deployment_cancel::unregister("java_download");

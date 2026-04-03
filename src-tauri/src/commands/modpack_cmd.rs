@@ -1,10 +1,12 @@
 // src-tauri/src/commands/modpack_cmd.rs
 use crate::domain::event::DownloadProgressEvent;
 use crate::domain::modpack::ModpackMetadata;
-use crate::services::config_service::ConfigService;
+use crate::services::config_service::{ConfigService, DownloadSettings};
 use crate::services::deployment_cancel;
 use crate::services::downloader::dependencies::scheduler::sha1_file;
+use crate::services::downloader::transfer::{download_file, DownloadRateLimiter, DownloadTuning};
 use crate::services::modpack_service;
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::env;
@@ -12,6 +14,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::time::Duration;
 use tauri::{AppHandle, Emitter, Runtime};
 
 #[derive(Serialize, Deserialize)]
@@ -77,6 +80,46 @@ fn evaluate_library_rules(rules: Option<&Vec<serde_json::Value>>) -> bool {
     is_allowed
 }
 
+fn build_modpack_download_client(dl_settings: &DownloadSettings) -> Result<Client, String> {
+    let mut builder = Client::builder()
+        .user_agent("PiLauncher/1.0 (Modpack)")
+        .connect_timeout(Duration::from_secs(dl_settings.timeout.max(1)));
+
+    if dl_settings.proxy_type != "none" {
+        let host = dl_settings.proxy_host.trim();
+        let port = dl_settings.proxy_port.trim();
+        if !host.is_empty() && !port.is_empty() {
+            let scheme = match dl_settings.proxy_type.as_str() {
+                "http" => "http",
+                "https" => "https",
+                "socks5" => "socks5h",
+                _ => "http",
+            };
+            let proxy_url = format!("{}://{}:{}", scheme, host, port);
+            builder = builder.proxy(reqwest::Proxy::all(&proxy_url).map_err(|e| e.to_string())?);
+        }
+    }
+
+    builder.build().map_err(|e| e.to_string())
+}
+
+fn normalize_modpack_download_url(url: &str) -> String {
+    url.trim().replace(' ', "%20")
+}
+
+fn file_name_from_url(url: &str) -> String {
+    reqwest::Url::parse(url)
+        .ok()
+        .and_then(|parsed| {
+            parsed
+                .path_segments()
+                .and_then(|segments| segments.last())
+                .map(|name| name.to_string())
+        })
+        .filter(|name| !name.trim().is_empty())
+        .unwrap_or_else(|| "modpack.zip".to_string())
+}
+
 fn legacy_library_download_path(name: &str, classifier: Option<&str>) -> Option<String> {
     let parts: Vec<&str> = name.split(':').collect();
     if parts.len() < 3 {
@@ -99,7 +142,11 @@ fn legacy_library_download_path(name: &str, classifier: Option<&str>) -> Option<
     })
 }
 
-fn resolve_loader_folder(loader_type: &str, mc_version: &str, loader_version: &str) -> Option<String> {
+fn resolve_loader_folder(
+    loader_type: &str,
+    mc_version: &str,
+    loader_version: &str,
+) -> Option<String> {
     if loader_version.trim().is_empty() || loader_type.eq_ignore_ascii_case("vanilla") {
         return None;
     }
@@ -216,7 +263,11 @@ fn collect_manifest_library_targets(
                         let path = runtime_dir.join("libraries").join(&dl_path);
                         let key = path.to_string_lossy().to_string();
                         if seen_paths.insert(key) {
-                            targets.push((path, None, format!("{} ({})", lib_name, classifier_key)));
+                            targets.push((
+                                path,
+                                None,
+                                format!("{} ({})", lib_name, classifier_key),
+                            ));
                         }
                     }
                 }
@@ -515,7 +566,10 @@ fn copy_and_check_instance(
             ),
             "forge" => format!("{}-forge-{}", config.mc_version, config.loader.version),
             "neoforge" => format!("neoforge-{}", config.loader.version),
-            "quilt" => format!("quilt-loader-{}-{}", config.loader.version, config.mc_version),
+            "quilt" => format!(
+                "quilt-loader-{}-{}",
+                config.loader.version, config.mc_version
+            ),
             _ => "".to_string(),
         };
 
@@ -717,7 +771,13 @@ pub async fn verify_instance_runtime<R: Runtime>(
     app: AppHandle<R>,
     instance_id: String,
 ) -> Result<VerifyInstanceRuntimeResult, String> {
-    emit_verify_progress(&app, &instance_id, 0, 1, "Preparing runtime verification...");
+    emit_verify_progress(
+        &app,
+        &instance_id,
+        0,
+        1,
+        "Preparing runtime verification...",
+    );
 
     let base_path_str = ConfigService::get_base_path(&app)
         .map_err(|e| e.to_string())?
@@ -769,14 +829,19 @@ pub async fn verify_instance_runtime<R: Runtime>(
                 push_verify_issue(
                     &mut all_issues,
                     &mut sample_issues,
-                    format!("Failed to parse core version json: {}", core_json_path.display()),
+                    format!(
+                        "Failed to parse core version json: {}",
+                        core_json_path.display()
+                    ),
                 );
             }
         }
     }
 
     let mut loader_manifest: Option<serde_json::Value> = None;
-    if let Some(folder) = resolve_loader_folder(&config.loader.r#type, &mc_version, &config.loader.version) {
+    if let Some(folder) =
+        resolve_loader_folder(&config.loader.r#type, &mc_version, &config.loader.version)
+    {
         let loader_json_path = runtime_dir
             .join("versions")
             .join(&folder)
@@ -786,7 +851,10 @@ pub async fn verify_instance_runtime<R: Runtime>(
             push_verify_issue(
                 &mut all_issues,
                 &mut sample_issues,
-                format!("Missing loader version json: {}", loader_json_path.display()),
+                format!(
+                    "Missing loader version json: {}",
+                    loader_json_path.display()
+                ),
             );
         } else {
             match fs::read_to_string(&loader_json_path)
@@ -798,7 +866,10 @@ pub async fn verify_instance_runtime<R: Runtime>(
                     push_verify_issue(
                         &mut all_issues,
                         &mut sample_issues,
-                        format!("Failed to parse loader version json: {}", loader_json_path.display()),
+                        format!(
+                            "Failed to parse loader version json: {}",
+                            loader_json_path.display()
+                        ),
                     );
                 }
             }
@@ -1049,6 +1120,29 @@ pub async fn download_and_import_modpack<R: Runtime>(
             .replace('/', "")
             .replace('\\', "");
 
+        let dl_settings = ConfigService::get_download_settings(&app);
+        let client = match build_modpack_download_client(&dl_settings) {
+            Ok(client) => client,
+            Err(err) => {
+                let _ = app.emit(
+                    "instance-deployment-progress",
+                    DownloadProgressEvent {
+                        instance_id: i_id.clone(),
+                        stage: "ERROR".to_string(),
+                        file_name: "".to_string(),
+                        current: 0,
+                        total: 100,
+                        message: format!("Modpack download client init failed: {}", err),
+                    },
+                );
+                return;
+            }
+        };
+
+        let normalized_url = normalize_modpack_download_url(&url);
+        let file_name = file_name_from_url(&normalized_url);
+        let max_attempts = dl_settings.retry_count.max(1);
+
         let _ = app.emit(
             "instance-deployment-progress",
             DownloadProgressEvent {
@@ -1062,57 +1156,50 @@ pub async fn download_and_import_modpack<R: Runtime>(
         );
 
         let temp_dir = std::env::temp_dir();
-        let file_name = url.split('/').last().unwrap_or("modpack.zip");
-        let temp_path = temp_dir.join(file_name);
+        let temp_path = temp_dir.join(&file_name);
+        let candidate_urls = vec![normalized_url.clone()];
+        let speed_limit_bytes_per_sec = ConfigService::download_speed_limit_bytes_per_sec(&dl_settings);
+        let rate_limiter = if speed_limit_bytes_per_sec > 0 {
+            Some(Arc::new(DownloadRateLimiter::new(speed_limit_bytes_per_sec)))
+        } else {
+            None
+        };
+        let tuning = DownloadTuning {
+            chunked_enabled: dl_settings.chunked_download_enabled,
+            chunked_threads: dl_settings.chunked_download_threads.max(1),
+            chunked_threshold_bytes: ConfigService::chunked_download_min_size_bytes(&dl_settings),
+        };
+        let no_cancel = Arc::new(AtomicBool::new(false));
+        let mut download_result = None;
+        let mut last_error: Option<String> = None;
 
-        let client = reqwest::Client::builder()
-            .user_agent("PiLauncher/1.0")
-            .build()
-            .unwrap();
-
-        if let Ok(mut res) = client.get(&url).send().await {
-            if res.status().is_success() {
-                let total_size = res.content_length().unwrap_or(0);
-                let mut file_data = Vec::new();
-                let mut downloaded = 0;
-
-                while let Ok(Some(chunk)) = res.chunk().await {
-                    file_data.extend_from_slice(&chunk);
-                    downloaded += chunk.len() as u64;
-
-                    if downloaded % (1024 * 512) < 10000 || downloaded == total_size {
-                        let _ = app.emit(
-                            "instance-deployment-progress",
-                            DownloadProgressEvent {
-                                instance_id: i_id.clone(),
-                                stage: "DOWNLOADING_MODPACK".to_string(),
-                                file_name: file_name.to_string(),
-                                current: downloaded,
-                                total: total_size,
-                                message: format!(
-                                    "Downloading modpack archive {:.1} MB",
-                                    downloaded as f64 / 1048576.0
-                                ),
-                            },
-                        );
+        for attempt in 1..=max_attempts {
+            match download_file(
+                &client,
+                &candidate_urls,
+                &temp_path,
+                tuning,
+                Duration::from_secs(dl_settings.timeout.max(1)),
+                &no_cancel,
+                rate_limiter.clone(),
+                None,
+            )
+            .await
+            {
+                Ok(result) => {
+                    download_result = Some(result);
+                    break;
+                }
+                Err(err) => {
+                    last_error = Some(err.to_string());
+                    if attempt < max_attempts {
+                        tokio::time::sleep(Duration::from_millis(800 * attempt as u64)).await;
                     }
                 }
-                let _ = std::fs::write(&temp_path, file_data);
-            } else {
-                let _ = app.emit(
-                    "instance-deployment-progress",
-                    DownloadProgressEvent {
-                        instance_id: i_id.clone(),
-                        stage: "ERROR".to_string(),
-                        file_name: "".to_string(),
-                        current: 0,
-                        total: 100,
-                        message: format!("Modpack download failed (HTTP {})", res.status()),
-                    },
-                );
-                return;
             }
-        } else {
+        }
+
+        let Some(download_result) = download_result else {
             let _ = app.emit(
                 "instance-deployment-progress",
                 DownloadProgressEvent {
@@ -1121,11 +1208,26 @@ pub async fn download_and_import_modpack<R: Runtime>(
                     file_name: "".to_string(),
                     current: 0,
                     total: 100,
-                    message: "Modpack download request failed".to_string(),
+                    message: format!(
+                        "Modpack download request failed: {}",
+                        last_error.unwrap_or_else(|| "unknown error".to_string())
+                    ),
                 },
             );
             return;
-        }
+        };
+
+        let _ = app.emit(
+            "instance-deployment-progress",
+            DownloadProgressEvent {
+                instance_id: i_id.clone(),
+                stage: "DOWNLOADING_MODPACK".to_string(),
+                file_name: file_name.clone(),
+                current: download_result.total_bytes.max(1),
+                total: download_result.total_bytes.max(1),
+                message: "Modpack archive downloaded, preparing installation...".to_string(),
+            },
+        );
 
         let cancel = deployment_cancel::register(&i_id);
         let result = crate::services::modpack_service::execute_import(

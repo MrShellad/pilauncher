@@ -1,13 +1,12 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::time::Instant;
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Runtime};
-use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
 // 引入跨层的 DTO
 use crate::domain::resource::{OreProjectDependency, OreProjectDetail, OreProjectVersion};
 use crate::services::file_write_lock;
+use crate::services::downloader::transfer::{download_file, DownloadRateLimiter, DownloadTuning};
 
 // ==========================================
 // 第三方 API (Modrinth) 的私有 DTO 模型
@@ -214,50 +213,75 @@ impl ResourceService {
         let path_lock = file_write_lock::lock_for_path(&path_key);
         let _write_guard = path_lock.lock().await;
 
-        // 2. 发起请求
-        let client = Client::new();
-        let mut response = client
-            .get(url)
-            .send()
-            .await
-            .map_err(|e| format!("请求失败: {}", e))?;
-
-        if !response.status().is_success() {
-            return Err(format!("下载失败, HTTP 状态码: {}", response.status()));
-        }
-
-        let total_size = response.content_length().unwrap_or(0);
-        let mut downloaded: u64 = 0;
-
-        let mut dest = File::create(&target_file_path)
-            .await
-            .map_err(|e| format!("无法创建文件: {}", e))?;
-
-        const PROGRESS_INTERVAL_MS: u128 = 200;
-        let mut last_emit = Instant::now();
-
-        // 3. 边下载，边写入，节流推送进度以便前端计算实时网速
-        while let Some(chunk) = response.chunk().await.map_err(|e| e.to_string())? {
-            dest.write_all(&chunk)
-                .await
-                .map_err(|e| format!("写入磁盘失败: {}", e))?;
-            downloaded += chunk.len() as u64;
-
-            if last_emit.elapsed().as_millis() >= PROGRESS_INTERVAL_MS || downloaded >= total_size {
-                let _ = app.emit(
-                    "resource-download-progress",
-                    ResourceProgressPayload {
-                        task_id: file_name.to_string(),
-                        file_name: file_name.to_string(),
-                        stage: "DOWNLOADING_MOD".to_string(),
-                        current: downloaded,
-                        total: total_size.max(1),
-                        message: format!("正在下载: {}", file_name),
-                    },
-                );
-                last_emit = Instant::now();
+        // 2. 发起下载（支持分块 / 单连接自动回退）
+        let dl_settings = crate::services::config_service::ConfigService::get_download_settings(app);
+        let mut builder = Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(dl_settings.timeout.max(1)));
+        if dl_settings.proxy_type != "none" {
+            let host = dl_settings.proxy_host.trim();
+            let port = dl_settings.proxy_port.trim();
+            if !host.is_empty() && !port.is_empty() {
+                let scheme = match dl_settings.proxy_type.as_str() {
+                    "http" => "http",
+                    "https" => "https",
+                    "socks5" => "socks5h",
+                    _ => "http",
+                };
+                let proxy_url = format!("{}://{}:{}", scheme, host, port);
+                builder = builder.proxy(reqwest::Proxy::all(&proxy_url).map_err(|e| e.to_string())?);
             }
         }
+        let client = builder.build().map_err(|e| format!("创建下载客户端失败: {}", e))?;
+
+        let speed_limit_bytes_per_sec =
+            crate::services::config_service::ConfigService::download_speed_limit_bytes_per_sec(
+                &dl_settings,
+            );
+        let rate_limiter = if speed_limit_bytes_per_sec > 0 {
+            Some(Arc::new(DownloadRateLimiter::new(speed_limit_bytes_per_sec)))
+        } else {
+            None
+        };
+        let tuning = DownloadTuning {
+            chunked_enabled: dl_settings.chunked_download_enabled,
+            chunked_threads: dl_settings.chunked_download_threads.max(1),
+            chunked_threshold_bytes:
+                crate::services::config_service::ConfigService::chunked_download_min_size_bytes(
+                    &dl_settings,
+                ),
+        };
+        let temp_target_path = target_file_path.with_extension("download");
+        let candidate_urls = vec![url.to_string()];
+
+        let _ = app.emit(
+            "resource-download-progress",
+            ResourceProgressPayload {
+                task_id: file_name.to_string(),
+                file_name: file_name.to_string(),
+                stage: "DOWNLOADING_MOD".to_string(),
+                current: 0,
+                total: 100,
+                message: format!("正在下载: {}", file_name),
+            },
+        );
+
+        let no_cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let download_result = download_file(
+            &client,
+            &candidate_urls,
+            &temp_target_path,
+            tuning,
+            std::time::Duration::from_secs(dl_settings.timeout.max(1)),
+            &no_cancel,
+            rate_limiter,
+            None,
+        )
+        .await
+        .map_err(|e| format!("下载失败: {}", e))?;
+
+        let _ = tokio::fs::rename(&temp_target_path, &target_file_path)
+            .await
+            .map_err(|e| format!("移动文件失败: {}", e))?;
 
         // 4. 下载完成封口事件
         let _ = app.emit(
@@ -266,8 +290,8 @@ impl ResourceService {
                 task_id: file_name.to_string(),
                 file_name: file_name.to_string(),
                 stage: "DONE".to_string(),
-                current: total_size,
-                total: total_size,
+                current: download_result.total_bytes.max(1),
+                total: download_result.total_bytes.max(1),
                 message: format!("成功: 下载完成 {}", file_name),
             },
         );

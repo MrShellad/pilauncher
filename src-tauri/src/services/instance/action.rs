@@ -98,11 +98,14 @@ impl InstanceActionService {
 
     /// 安全清理来自第三方目录导入的实例缓存
     /// 返回被删除的关联实例数量
-    pub fn remove_imported_by_dir<R: Runtime>(app: &AppHandle<R>, dir: &str) -> Result<usize, String> {
+    pub fn remove_imported_by_dir<R: Runtime>(
+        app: &AppHandle<R>,
+        dir: &str,
+    ) -> Result<usize, String> {
         let base_path = ConfigService::get_base_path(app)
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "尚未配置基础数据目录".to_string())?;
-        
+
         let instances_dir = PathBuf::from(base_path).join("instances");
         if !instances_dir.exists() {
             return Ok(0);
@@ -123,7 +126,11 @@ impl InstanceActionService {
                                     let tp_path = std::path::Path::new(tp);
                                     if tp_path.starts_with(target_dir) {
                                         if let Err(e) = fs::remove_dir_all(&path) {
-                                            eprintln!("Failed to remove imported instance {}: {}", path.display(), e);
+                                            eprintln!(
+                                                "Failed to remove imported instance {}: {}",
+                                                path.display(),
+                                                e
+                                            );
                                         } else {
                                             removed += 1;
                                         }

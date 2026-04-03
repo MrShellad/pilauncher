@@ -76,7 +76,7 @@ const LibraryPage: React.FC = () => {
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <div className="w-64 shrink-0 border-r border-white/5 bg-black/10 overflow-y-auto">
+        <div className="w-64 shrink-0 overflow-y-auto border-r-2 border-[var(--ore-library-sidebar-panel-border)] bg-[var(--ore-color-background-surface-raised)]">
           <CollectionSidebar 
             selectedGroupId={selectedGroupId}
             onSelectGroup={setSelectedGroupId}

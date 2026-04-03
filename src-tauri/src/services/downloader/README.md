@@ -57,11 +57,12 @@
 - **`scheduler.rs`**（并发调度）
   - 定义 `DownloadTask`（`url` / `path` / `name`）。
   - 实现 `run_downloads`：
-    - 使用 `buffer_unordered(concurrency)` 做并发调度。
+    - 使用 `buffer_unordered(concurrency)` 做文件级并发调度。
+    - 对单文件大资源，按 `DownloadSettings.chunkedDownloadEnabled` / `chunkedDownloadThreads` 自动尝试 Range 分块下载；不支持 Range 的源会自动回退到单连接下载。
     - 内部执行：
       - 取消检查。
       - 自动创建目标目录。
-      - 逐块读取响应并按线程限速写入本地。
+      - 逐块读取响应并按共享速率限制写入本地。
     - 统计已完成数量，并通过 `progress::emit_download_progress` 统一上报进度。
 
 - **`progress.rs`**（进度上报）
@@ -117,3 +118,4 @@ scheduler.rs
 - Retry count uses `DownloadSettings.retryCount` (minimum 1 attempt).
 - Progress emits are throttled by a dual threshold: file-count step + time interval.
 - The HTTP client timeout is sourced from `DownloadSettings.timeout`.
+- `concurrency` only controls how many files download at once. Single-file Range / multi-connection download is controlled separately by `chunkedDownloadEnabled`, `chunkedDownloadThreads`, and `chunkedDownloadMinSizeMb`.

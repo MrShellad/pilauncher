@@ -1,6 +1,11 @@
 use super::*;
 
-fn append_installer_urls(urls: &mut Vec<String>, base: &str, mc_version: &str, loader_version: &str) {
+fn append_installer_urls(
+    urls: &mut Vec<String>,
+    base: &str,
+    mc_version: &str,
+    loader_version: &str,
+) {
     let Some(base) = normalize_source_base(base) else {
         return;
     };

@@ -9,7 +9,6 @@ use tauri::{AppHandle, Emitter, Runtime};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
-
 use crate::domain::instance::InstanceConfig;
 use crate::domain::launcher::{Account, LoaderType};
 use crate::error::AppResult;
@@ -104,25 +103,47 @@ impl LauncherService {
 
         // --- Added for launcher log : Collect Diagnostic ---
         let username_idx = args_clone.iter().position(|r| r == "--username");
-        let username = username_idx.and_then(|i| args_clone.get(i + 1)).cloned().unwrap_or_else(|| "Unknown".to_string());
-        
+        let username = username_idx
+            .and_then(|i| args_clone.get(i + 1))
+            .cloned()
+            .unwrap_or_else(|| "Unknown".to_string());
+
         let token_idx = args_clone.iter().position(|r| r == "--accessToken");
-        let safe_args: Vec<String> = args_clone.iter().enumerate().map(|(i, arg)| {
-            if token_idx.map(|idx| idx + 1 == i).unwrap_or(false) {
-                "********".to_string()
-            } else {
-                arg.clone()
-            }
-        }).collect();
+        let safe_args: Vec<String> = args_clone
+            .iter()
+            .enumerate()
+            .map(|(i, arg)| {
+                if token_idx.map(|idx| idx + 1 == i).unwrap_or(false) {
+                    "********".to_string()
+                } else {
+                    arg.clone()
+                }
+            })
+            .collect();
 
         let cp_pos = safe_args.iter().position(|r| r == "-cp");
         let cp_count = if let Some(i) = cp_pos {
             if let Some(cp_str) = safe_args.get(i + 1) {
-                cp_str.matches(if cfg!(target_os = "windows") { ";" } else { ":" }).count() + 1
-            } else { 0 }
-        } else { 0 };
+                cp_str
+                    .matches(if cfg!(target_os = "windows") {
+                        ";"
+                    } else {
+                        ":"
+                    })
+                    .count()
+                    + 1
+            } else {
+                0
+            }
+        } else {
+            0
+        };
 
-        let filtered_args: Vec<String> = safe_args.iter().filter(|x| x.starts_with("-X") || x.starts_with("-D") || x.starts_with("--")).cloned().collect();
+        let filtered_args: Vec<String> = safe_args
+            .iter()
+            .filter(|x| x.starts_with("-X") || x.starts_with("-D") || x.starts_with("--"))
+            .cloned()
+            .collect();
 
         let diag_info = format!(
             "==================================================\n\
@@ -141,16 +162,28 @@ impl LauncherService {
              =================== 完整启动命令 ===================\n\
              \"{}\" {}\n\
              ==================================================",
-            std::env::consts::OS, std::env::consts::ARCH,
+            std::env::consts::OS,
+            std::env::consts::ARCH,
             actual_java_path,
-            instance_id, instance_cfg.name,
+            instance_id,
+            instance_cfg.name,
             username,
-            instance_cfg.mc_version, target_version_id,
-            runtime_dir.join("versions").join(&instance_cfg.mc_version).join("natives").to_string_lossy(),
+            instance_cfg.mc_version,
+            target_version_id,
+            runtime_dir
+                .join("versions")
+                .join(&instance_cfg.mc_version)
+                .join("natives")
+                .to_string_lossy(),
             cp_count,
             filtered_args,
             game_dir.to_string_lossy(),
-            actual_java_path, safe_args.iter().map(|s| format!("\"{}\"", s)).collect::<Vec<_>>().join(" ")
+            actual_java_path,
+            safe_args
+                .iter()
+                .map(|s| format!("\"{}\"", s))
+                .collect::<Vec<_>>()
+                .join(" ")
         );
 
         let log_dir = base_dir.join("logs");
@@ -158,7 +191,12 @@ impl LauncherService {
             let _ = std::fs::create_dir_all(&log_dir);
         }
         let log_path = log_dir.join("launcher_log.txt");
-        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).write(true).truncate(true).open(&log_path) {
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(&log_path)
+        {
             use std::io::Write;
             let _ = writeln!(file, "{}", diag_info);
         }
@@ -193,7 +231,7 @@ impl LauncherService {
                     let _ = writeln!(file, "{}", pid_str);
                 }
                 c
-            },
+            }
             Err(e) => {
                 let err_msg = format!("❌ 进程创建失败 (Process Creation Failed): {}", e);
                 println!("{}", err_msg);
@@ -206,7 +244,8 @@ impl LauncherService {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::Other,
                     format!("无法启动 Java 进程，请检查环境变量: {}", e),
-                ).into());
+                )
+                .into());
             }
         };
 

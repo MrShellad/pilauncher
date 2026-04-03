@@ -170,6 +170,17 @@ export const DownloadManager: React.FC = () => {
       });
     });
 
+    const unlistenInstanceSpeed = listen('instance-deployment-speed', (event: any) => {
+      const payload = event.payload;
+      addOrUpdateTask({
+        id: payload.task_id || payload.instance_id,
+        taskType: 'instance',
+        stage: payload.stage,
+        speedCurrent: payload.current,
+        message: payload.message ?? ''
+      });
+    });
+
     const unlistenDownloadLog = listen('download-task-log', (event: any) => {
       const payload = event.payload;
       const id = payload.task_id || payload.instance_id;
@@ -196,6 +207,7 @@ export const DownloadManager: React.FC = () => {
         stage: payload.stage || 'DOWNLOADING_MOD',
         current: payload.current,
         total: payload.total,
+        speedCurrent: payload.current,
         message: payload.message ?? ''
       });
     });
@@ -206,6 +218,7 @@ export const DownloadManager: React.FC = () => {
 
     return () => {
       unlistenInstance.then((fn) => fn());
+      unlistenInstanceSpeed.then((fn) => fn());
       unlistenDownloadLog.then((fn) => fn());
       unlistenResource.then((fn) => fn());
       unlistenJava.then((fn) => fn());
