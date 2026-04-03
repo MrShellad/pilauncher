@@ -204,6 +204,7 @@ export const InstanceModDownloadView: React.FC<{
   const [autoInstallDeps, setAutoInstallDeps] = useState(true);
   const [isCheckingDeps, setIsCheckingDeps] = useState(false);
   const [resultsScrollTop, setResultsScrollTop] = useState(0);
+  const pendingDepIdsRef = React.useRef<Set<string>>(new Set());
 
   const isHintVisible = resultsScrollTop > 48;
   const targetMc = resolvedMcVersion || resolveInstanceGameVersion(instanceConfig);
@@ -280,7 +281,7 @@ export const InstanceModDownloadView: React.FC<{
     setIsCheckingDeps(false);
   }, []);
 
-  const enqueueDownload = useCallback(async (version: OreProjectVersion, targetInstanceId: string) => {
+  const enqueueDownload = useCallback(async (version: OreProjectVersion, targetInstanceId: string, customProjectId?: string) => {
     useDownloadStore.getState().addOrUpdateTask({
       id: version.file_name,
       taskType: 'resource',
@@ -305,6 +306,19 @@ export const InstanceModDownloadView: React.FC<{
         instanceId: targetInstanceId,
         subFolder
       });
+
+      if (resourceTab === 'mod') {
+        const projectId = customProjectId || selectedProject?.id || '';
+        if (projectId) {
+          await invoke('update_mod_manifest', {
+            instanceId: targetInstanceId,
+            fileName: version.file_name,
+            platform: source === 'curseforge' ? 'curseforge' : 'modrinth',
+            projectId,
+            fileId: version.id, 
+          });
+        }
+      }
     } catch (error) {
       console.error('下载异常:', error);
       useDownloadStore.getState().addOrUpdateTask({
@@ -312,7 +326,7 @@ export const InstanceModDownloadView: React.FC<{
         message: `下载失败: ${error}`
       });
     }
-  }, [subFolder]);
+  }, [subFolder, resourceTab, source, selectedProject]);
 
   const resolveMissingDependencyInfo = useCallback(async (
     dependencies: OreProjectDependency[],
@@ -347,6 +361,7 @@ export const InstanceModDownloadView: React.FC<{
 
       for (const dependency of dependenciesToInstall) {
         if (!dependency.project_id) continue;
+        pendingDepIdsRef.current.add(dependency.project_id);
 
         try {
           const dependencyVersions = await fetchVersions(
@@ -356,9 +371,12 @@ export const InstanceModDownloadView: React.FC<{
           );
 
           if (dependencyVersions.length > 0) {
-            await enqueueDownload(dependencyVersions[0], targetInstanceId);
+            await enqueueDownload(dependencyVersions[0], targetInstanceId, dependency.project_id);
+          } else {
+             pendingDepIdsRef.current.delete(dependency.project_id);
           }
         } catch (error) {
+          pendingDepIdsRef.current.delete(dependency.project_id);
           console.error(`前置 ${dependency.project_id} 自动下载失败:`, error);
         }
       }
@@ -397,7 +415,10 @@ export const InstanceModDownloadView: React.FC<{
     }
 
     const missingDependencyEntries = requiredDependencies.filter(
-      (dependency) => !installedModIds.includes(dependency.project_id || '')
+      (dependency) => 
+        !installedModIds.includes(dependency.project_id || '') &&
+        dependency.project_id &&
+        !pendingDepIdsRef.current.has(dependency.project_id)
     );
 
     if (missingDependencyEntries.length === 0) {

@@ -17,6 +17,7 @@ import {
   getLocalizedDownloadTagLabel,
   prettifyDownloadTagLabel
 } from '../../../../Download/logic/downloadTagLabels';
+import { useDownloadStore } from '../../../../../store/useDownloadStore';
 
 interface ResourceGridProps {
   results: ModrinthProject[];
@@ -392,14 +393,31 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
     return () => observer.disconnect();
   }, [triggerLoadMore, results.length, isLoading, isLoadingMore]);
 
+  const tasks = useDownloadStore((state) => state.tasks);
+
+  const isSessionInstalled = useCallback(
+    (project: ModrinthProject) => {
+      const slugLower = (project.slug || '').toLowerCase();
+      if (!slugLower) return false;
+      return Object.values(tasks).some((task) => {
+        if (task.status !== 'completed' && task.stage !== 'DONE') return false;
+        if (task.taskType !== 'resource') return false;
+        const targetStr = (task.id || task.title || '').toLowerCase();
+        return targetStr.includes(slugLower);
+      });
+    },
+    [tasks]
+  );
+
   const isInstalled = useCallback(
     (project: ModrinthProject) =>
+      isSessionInstalled(project) ||
       installedMods.some(
         (mod) =>
           mod.modId === project.id ||
           (mod.fileName || '').toLowerCase().includes((project.slug || '').toLowerCase())
       ),
-    [installedMods]
+    [installedMods, isSessionInstalled]
   );
 
   const emptyLoading = isLoading && results.length === 0;

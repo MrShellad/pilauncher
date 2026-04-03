@@ -148,3 +148,22 @@ pub async fn extract_resourcepack_icon<R: tauri::Runtime>(
     };
     result
 }
+
+#[tauri::command]
+pub async fn update_mod_manifest<R: Runtime>(
+    app: AppHandle<R>,
+    instance_id: String,
+    file_name: String,
+    platform: String,
+    project_id: String,
+    file_id: String,
+) -> Result<(), String> {
+    ResourceManager::update_mod_manifest(
+        &app,
+        &instance_id,
+        &file_name,
+        &platform,
+        &project_id,
+        &file_id,
+    )
+}

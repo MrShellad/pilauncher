@@ -59,6 +59,7 @@ const ResourceDownloadPage: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<ModrinthProject | null>(null);
   const lastFocusBeforeModalRef = React.useRef<string>('download-search-input');
   const didInitialFocusRef = React.useRef(false);
+  const pendingDepIdsRef = React.useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -127,7 +128,11 @@ const ResourceDownloadPage: React.FC = () => {
       const currentInstalledMods = await modService.getMods(targetInstanceId);
       const installedIds = currentInstalledMods.map((mod) => mod.modId).filter(Boolean);
       const missingDeps = version.dependencies.filter(
-        (dependency) => dependency.dependency_type === 'required' && dependency.project_id && !installedIds.includes(dependency.project_id)
+        (dependency) => 
+          dependency.dependency_type === 'required' && 
+          dependency.project_id && 
+          !installedIds.includes(dependency.project_id) &&
+          !pendingDepIdsRef.current.has(dependency.project_id)
       );
 
       if (missingDeps.length === 0) return;
@@ -145,18 +150,26 @@ const ResourceDownloadPage: React.FC = () => {
       const fetchVersions = source === 'curseforge' ? fetchCurseForgeVersions : fetchModrinthVersions;
 
       for (const dependency of missingDeps) {
-        const depVersions = await fetchVersions(
-          dependency.project_id!,
-          targetGameVersion && targetGameVersion !== 'all' ? targetGameVersion : undefined,
-          targetLoader && targetLoader !== 'all' ? targetLoader : undefined
-        );
+        pendingDepIdsRef.current.add(dependency.project_id!);
+        try {
+          const depVersions = await fetchVersions(
+            dependency.project_id!,
+            targetGameVersion && targetGameVersion !== 'all' ? targetGameVersion : undefined,
+            targetLoader && targetLoader !== 'all' ? targetLoader : undefined
+          );
 
-        if (depVersions.length > 0) {
-          executeDownload(depVersions[0]);
+          if (depVersions.length > 0) {
+            executeDownload(depVersions[0]);
+          } else {
+            pendingDepIdsRef.current.delete(dependency.project_id!);
+          }
+        } catch (err) {
+          pendingDepIdsRef.current.delete(dependency.project_id!);
+          console.error(`处理前置依赖 ${dependency.project_id} 失败:`, err);
         }
       }
     } catch (error) {
-      console.error('处理前置依赖下载失败:', error);
+      console.error('处理前置依赖下载总流程失败:', error);
     }
   };
 

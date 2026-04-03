@@ -167,6 +167,26 @@ impl ResourceManager {
                 fs::remove_file(current_path).map_err(|e| e.to_string())?;
             }
         }
+
+        // 检测，如果删除的是 Mod，就在相应的 mod_manifest.json 取消注册
+        if res_type == ResourceType::Mod {
+            if let Some(instance_dir) = target_dir.parent() {
+                let manifest_path = instance_dir.join("mod_manifest.json");
+                if manifest_path.exists() {
+                    if let Ok(content) = fs::read_to_string(&manifest_path) {
+                        if let Ok(mut manifest) = serde_json::from_str::<serde_json::Value>(&content) {
+                            if let Some(obj) = manifest.as_object_mut() {
+                                let base_name = file_name.trim_end_matches(".disabled");
+                                if obj.remove(base_name).is_some() {
+                                    let _ = fs::write(&manifest_path, serde_json::to_string_pretty(&obj).unwrap_or_default());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -212,5 +232,52 @@ impl ResourceManager {
             item_count: count,
             description: desc.to_string(),
         })
+    }
+
+    // ================= 核心操作 5：手动下载时的 Manifest 同步 =================
+    pub fn update_mod_manifest<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        file_name: &str,
+        platform: &str,
+        project_id: &str,
+        file_id: &str,
+    ) -> Result<(), String> {
+        let base_path = ConfigService::get_base_path(app)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "尚未配置基础数据目录".to_string())?;
+
+        let manifest_path = std::path::PathBuf::from(base_path)
+            .join("instances")
+            .join(instance_id)
+            .join("mod_manifest.json");
+
+        let mut manifest = if manifest_path.exists() {
+            let content = fs::read_to_string(&manifest_path).unwrap_or_default();
+            serde_json::from_str::<serde_json::Value>(&content)
+                .unwrap_or_else(|_| serde_json::json!({}))
+        } else {
+            serde_json::json!({})
+        };
+
+        if let Some(obj) = manifest.as_object_mut() {
+            let base_name = file_name.trim_end_matches(".disabled").to_string();
+            obj.insert(
+                base_name,
+                serde_json::json!({
+                    "platform": platform,
+                    "projectId": project_id,
+                    "fileId": file_id
+                }),
+            );
+        }
+
+        fs::write(
+            &manifest_path,
+            serde_json::to_string_pretty(&manifest).unwrap_or_default(),
+        )
+        .map_err(|e| e.to_string())?;
+
+        Ok(())
     }
 }
