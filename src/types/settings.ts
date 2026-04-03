@@ -45,6 +45,7 @@ export interface GameSettings {
   resolution: string;
   fullscreen: boolean;
   gamepadModCheck: boolean; // 手柄启动时自动检测手柄 Mod
+  showGameLog: boolean; // 显示游戏日志面板
 }
 
 export interface DownloadSettings {
@@ -138,6 +139,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     resolution: '854x480',
     fullscreen: true,
     gamepadModCheck: true,
+    showGameLog: true,
   },
   download: {
     minecraftMetaSource: 'bangbang93',

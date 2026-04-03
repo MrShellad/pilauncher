@@ -66,6 +66,7 @@ export const GameSettings: React.FC = () => {
       'settings-game-window-title',
       'settings-game-fullscreen',
       ...resolutionKeys, // 展开所有分辨率的 index key
+      'settings-game-show-log',
       'launcher-vis-keep',
       'launcher-vis-minimize',
       'launcher-vis-close'
@@ -133,6 +134,20 @@ export const GameSettings: React.FC = () => {
       </SettingsSection>
 
       <SettingsSection title="启动器行为" icon={<Eye size={18} />}>
+
+        <FormRow
+          label="游戏日志面板"
+          description="启动游戏时展开带有日志输出的控制台面板。关闭后将显示方块跳跃动画，直到游戏加载完成。"
+          control={
+            <OreSwitch
+              focusKey="settings-game-show-log"
+              onArrowPress={handleLinearArrow}
+              checked={game.showGameLog ?? true}
+              onChange={(v) => updateGameSetting('showGameLog', v)}
+            />
+          }
+        />
+
         <FormRow
           label="游戏运行时的可见性"
           description="当 Minecraft 实例成功拉起并运行后，主启动器界面的处理方式。"

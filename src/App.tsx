@@ -3,7 +3,9 @@ import { initGamepadModRegistry } from './services/gamepadModService';
 import { AnimatePresence, motion } from 'framer-motion';
 
 import { DownloadManager } from './features/Download/components/DownloadManager/index';
+import { GameLogService } from './features/GameLog/components/GameLogService';
 import { GameLogSidebar } from './features/GameLog/components/GameLogSidebar';
+import { LaunchingAnimation } from './features/GameLog/components/LaunchingAnimation';
 import { GamepadModPrompt } from './features/Instances/components/GamepadModPrompt';
 import { SetupWizard } from './features/Setup/components/SetupWizard';
 import { JavaGuard } from './features/runtime/components/JavaGuard';
@@ -77,12 +79,15 @@ const MultiplayerGuard: React.FC<{ activeTab: string }> = ({ activeTab }) => {
 
 const App: React.FC = () => {
   const activeTab = useLauncherStore((state) => state.activeTab);
-  const { appearance, general } = useSettingsStore((state) => state.settings);
+  const { appearance, general, game } = useSettingsStore((state) => state.settings);
   const hasHydrated = useSettingsStore((state) => state._hasHydrated);
   const javaAutoDetect = useSettingsStore((state) => state.settings.java.autoDetect);
   const triggerJavaAutoDetect = useSettingsStore((state) => state.triggerJavaAutoDetect);
   const startupJavaScanDoneRef = useRef(false);
   const [isJavaEnvChangedDialogOpen, setIsJavaEnvChangedDialogOpen] = useState(false);
+
+  // Whether to show the log sidebar (default true for backwards-compat)
+  const showGameLog = game?.showGameLog ?? true;
 
   useLayoutEffect(() => {
     injectDesignTokens();
@@ -147,12 +152,6 @@ const App: React.FC = () => {
     }
   }, [general?.preventTouchAction]);
 
-
-
-
-
-
-
   return (
     <FocusProvider>
       <div className="relative flex h-screen w-screen flex-col overflow-hidden text-ore-text">
@@ -189,7 +188,12 @@ const App: React.FC = () => {
         <DownloadManager />
         <JavaGuard />
         <SetupWizard />
-        <GameLogSidebar />
+
+        {/* Always-mounted event listener — feeds logs into the store */}
+        <GameLogService />
+        {/* Game log UI: sidebar when enabled, progress animation when disabled */}
+        {showGameLog ? <GameLogSidebar /> : <LaunchingAnimation />}
+
         <GamepadModPrompt />
         <JavaEnvironmentChangedDialog
           isOpen={isJavaEnvChangedDialogOpen}
