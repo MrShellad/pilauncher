@@ -27,6 +27,7 @@ pub struct CreateInstancePayload {
     pub loader_version: Option<String>,
     pub save_path: String,
     pub cover_image: Option<String>,
+    pub server_binding: Option<ServerBinding>,
 }
 
 // --- 本地 instance.json 存储模型 ---

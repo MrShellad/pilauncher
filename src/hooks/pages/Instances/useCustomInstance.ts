@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { useLauncherStore } from '../../../store/useLauncherStore';
 import { useDownloadStore } from '../../../store/useDownloadStore';
 
 export type McVersionType = 'release' | 'snapshot' | 'rc' | 'pre' | 'special';
@@ -153,7 +154,17 @@ export const useCustomInstance = () => {
       loader_type: loaderType,
       loader_version: loaderVersion,
       save_path: savePath,
-      cover_image: coverImage, 
+      cover_image: coverImage,
+      server_binding: (() => {
+        const pendingBinding = useLauncherStore.getState().pendingServerBinding;
+        if (!pendingBinding) return undefined;
+        return {
+          uuid: pendingBinding.id,
+          name: pendingBinding.name,
+          ip: pendingBinding.address?.split(':')[0] || 'localhost',
+          port: pendingBinding.address?.includes(':') ? parseInt(pendingBinding.address.split(':')[1], 10) : 25565
+        };
+      })()
     };
     try {
       useDownloadStore.getState().addOrUpdateTask({
@@ -171,6 +182,7 @@ export const useCustomInstance = () => {
       await invoke('create_instance', { payload });
       // ✅ 触发全局下载任务面板展开
       useDownloadStore.getState().setPopupOpen(true);
+      useLauncherStore.getState().setPendingServerBinding(null);
       if (onSuccess) onSuccess();
     } catch (e) {
       console.error("创建失败", e);

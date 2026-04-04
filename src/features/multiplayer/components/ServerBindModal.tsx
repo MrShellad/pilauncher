@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Download, Link as LinkIcon, Server } from 'lucide-react';
+import { Link as LinkIcon, Server, Blocks, HardDrive, Plus } from 'lucide-react';
 import { OreModal } from '../../../ui/primitives/OreModal';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import type { OnlineServer } from '../types';
@@ -21,7 +21,7 @@ interface ServerBindModalProps {
 
 export const ServerBindModal: React.FC<ServerBindModalProps> = ({ isOpen, onClose, server }) => {
   const setActiveTab = useLauncherStore(state => state.setActiveTab);
-  
+
   const [instances, setInstances] = useState<InstanceItem[]>([]);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -56,10 +56,10 @@ export const ServerBindModal: React.FC<ServerBindModalProps> = ({ isOpen, onClos
 
   const handleBind = async () => {
     if (!server || !selectedInstanceId) return;
-    
+
     try {
       setIsBinding(true);
-      
+
       const ipMatch = server.address?.match(/^([^:]+)(?::(\d+))?$/);
       const ip = ipMatch ? ipMatch[1] : server.address || '';
       const port = ipMatch && ipMatch[2] ? parseInt(ipMatch[2], 10) : 25565;
@@ -73,7 +73,7 @@ export const ServerBindModal: React.FC<ServerBindModalProps> = ({ isOpen, onClos
           port
         }
       });
-      
+
       onClose();
       // Optional: Prompt to start game right away
       if (window.confirm(`绑定成功！是否立即启动 [${server.name}]?`)) {
@@ -92,13 +92,22 @@ export const ServerBindModal: React.FC<ServerBindModalProps> = ({ isOpen, onClos
     if (!server || !server.modpackUrl) return;
     try {
       setIsDownloading(true);
+      const ipMatch = server.address?.match(/^([^:]+)(?::(\d+))?$/);
+      const ip = ipMatch ? ipMatch[1] : server.address || '';
+      const port = ipMatch && ipMatch[2] ? parseInt(ipMatch[2], 10) : 25565;
+
       await invoke('download_and_import_modpack', {
         url: server.modpackUrl,
-        instanceName: server.name
+        instanceName: server.name,
+        serverBinding: {
+          uuid: server.id,
+          name: server.name,
+          ip,
+          port
+        }
       });
       onClose();
       setActiveTab('downloads');
-      alert('已触发整合包下载，请在下载中心查看进度。完成后请再次点击本服务器进行绑定。');
     } catch (error) {
       console.error('触发下载失败:', error);
       alert(`下载触发失败: ${error}`);
@@ -107,92 +116,133 @@ export const ServerBindModal: React.FC<ServerBindModalProps> = ({ isOpen, onClos
     }
   };
 
+  const handleCreateNew = () => {
+    if (!server) return;
+    useLauncherStore.getState().setPendingServerBinding(server);
+    onClose();
+    setActiveTab('new-instance');
+  };
+
   if (!server) return null;
+
+  const isModServer = server.isModded || server.serverType?.toLowerCase() === 'modded';
 
   return (
     <OreModal
       isOpen={isOpen}
       onClose={onClose}
-      title="服务器快速绑定与直连"
+      title={isModServer ? "专属服务器客户端部署" : "服务器快速绑定与直连"}
       className="w-[500px]"
     >
-      <div className="flex flex-col pt-2 pb-4 px-4 text-center">
-        <Server size={32} className="text-[#6CC349] mx-auto mb-4 drop-shadow-[0_0_8px_rgba(108,195,73,0.8)]" />
-        <h3 className="text-white font-minecraft font-bold text-xl mb-1 ore-text-shadow">
-          绑定到实例：{server.name}
-        </h3>
-        <p className="text-[#A0A0A0] font-minecraft text-xs mb-6 px-2">
-          绑定后，当您启动该实例时，PiLauncher 将通过 Quick Play 功能自动让您直连进入此服务器。
-        </p>
-
-        {/* 兼容实例下拉框 */}
-        <div className="bg-black/40 border border-white/10 p-4 rounded-sm flex flex-col items-start w-full mb-6 text-left">
-          <label className="text-white/80 font-minecraft text-sm mb-2">选择要绑定的本地实例</label>
-          {isLoading ? (
-            <div className="text-white/50 text-sm">正在检索本地实例...</div>
-          ) : instances.length > 0 ? (
-            <select
-              title="选择实例"
-              className="w-full bg-[#1E1E1F] border-2 border-white/20 p-2 text-white font-minecraft focus:border-[#FFE866] focus:outline-none transition-colors"
-              value={selectedInstanceId}
-              onChange={(e) => setSelectedInstanceId(e.target.value)}
-            >
-              {instances.map(inst => (
-                <option key={inst.id} value={inst.id}>
-                  {inst.name} ({inst.version} {inst.loader})
-                </option>
-              ))}
-            </select>
-          ) : (
-            <div className="text-[#E5A02E] text-sm">
-              没有找到适用于版本 {server.versions?.join(', ') || '未知'} 的本地实例。
-            </div>
-          )}
-        </div>
-
-        {/* 整合包提示区块 */}
-        {server.isModded && server.modpackUrl && (
-          <div className="bg-[#1E1E1F] border border-[#E5A02E]/30 p-4 rounded-sm flex flex-col items-start w-full mb-6 text-left relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-[#E5A02E]/5 rounded-bl-full pointer-events-none" />
-            <h4 className="text-[#E5A02E] font-bold font-minecraft text-sm mb-2 flex items-center">
-              <Download size={14} className="mr-2" />
-              该服务器需要专属整合包客户端
-            </h4>
-            <p className="text-white/60 text-xs mb-4">
-              为了确保最佳体验并防止缺少必要的 Mod，我们强烈建议您下载服务器提供的官方整合包。
+      <div className="flex flex-col pt-2 pb-4 px-4">
+        {isModServer && server.modpackUrl ? (
+          /* ================= MODDED VIEW ================= */
+          <div className="flex flex-col">
+            <Server size={32} className="text-ore-green mx-auto mb-4 drop-shadow-[0_0_8px_rgba(108,195,73,0.8)]" />
+            <h3 className="text-white font-minecraft text-center font-bold text-xl mb-1 ore-text-shadow">
+              部署：{server.name}
+            </h3>
+            <p className="text-[#A0A0A0] text-center font-minecraft text-xs mb-6 px-2 leading-relaxed">
+              这是一个 Mod 专属服务器，PiLauncher 将一键为您全自动部署最新整合包。<br />
+              下载导入完成后，您将自动获得一键直连能力。
             </p>
-            <OreButton
-              variant="secondary"
-              size="full"
-              onClick={handleDownloadModpack}
-              disabled={isDownloading}
-            >
-              部署并下载专属整合包 {isDownloading && '...'}
-            </OreButton>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="bg-black/30 p-3 flex items-center border border-white/5">
+                <Blocks size={24} className="text-blue-400 mr-3 opacity-80" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-ore-text-muted uppercase tracking-wider">游戏版本</span>
+                  <span className="font-minecraft text-white truncate">Minecraft {server.versions?.join(', ') || '未知'}</span>
+                </div>
+              </div>
+              <div className="bg-black/30 p-3 flex items-center border border-white/5 overflow-hidden">
+                <LinkIcon size={24} className="text-orange-400 mr-3 opacity-80" />
+                <div className="flex flex-col flex-1 min-w-0">
+                  <span className="text-[10px] text-ore-text-muted uppercase tracking-wider">服务器地址</span>
+                  <span className="font-minecraft text-white truncate">{server.address || '内部地址'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex w-full space-x-4 mt-2">
+              <OreButton variant="secondary" size="full" onClick={onClose}>
+                暂不部署
+              </OreButton>
+              <OreButton
+                variant="primary"
+                size="full"
+                onClick={handleDownloadModpack}
+                disabled={isDownloading}
+              >
+                <div className="flex items-center justify-center">
+                  <HardDrive size={16} className="mr-2 flex-shrink-0" />
+                  <span>{isDownloading ? '准备中...' : '开始部署'}</span>
+                </div>
+              </OreButton>
+            </div>
+          </div>
+        ) : (
+          /* ================= VANILLA VIEW ================= */
+          <div className="flex flex-col text-center">
+            <Server size={32} className="text-[#6CC349] mx-auto mb-4 drop-shadow-[0_0_8px_rgba(108,195,73,0.8)]" />
+            <h3 className="text-white font-minecraft font-bold text-xl mb-1 ore-text-shadow">
+              绑定到实例：{server.name}
+            </h3>
+            <p className="text-[#A0A0A0] font-minecraft text-xs mb-6 px-2">
+              绑定后，启动该实例将通过 Quick Play 绕过主菜单直接为您连接本服务器。
+            </p>
+
+            <div className="flex space-x-2 w-full mb-6 relative">
+              <div className="flex flex-col flex-1 text-left">
+                <label className="text-white/80 font-minecraft text-sm mb-2">选择要绑定的本地实例</label>
+                {isLoading ? (
+                  <div className="h-10 border border-white/10 bg-black/40 flex items-center px-4 text-white/50 text-sm">检索中...</div>
+                ) : (
+                  <select
+                    title="选择实例"
+                    className="w-full bg-[#1E1E1F] border-2 border-white/20 p-2 text-white font-minecraft focus:border-[#FFE866] focus:outline-none transition-colors"
+                    value={selectedInstanceId}
+                    onChange={(e) => setSelectedInstanceId(e.target.value)}
+                  >
+                    {!instances.length && <option value="">无匹配版本的实例</option>}
+                    {instances.map(inst => (
+                      <option key={inst.id} value={inst.id}>
+                        {inst.name} ({inst.version} {inst.loader})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-center mb-6">
+              <button
+                onClick={handleCreateNew}
+                className="flex items-center text-sm font-minecraft text-ore-green hover:text-white transition-colors"
+              >
+                <Plus size={16} className="mr-1" />
+                没有合适的？新建实例并绑定
+              </button>
+            </div>
+
+            <div className="flex w-full space-x-4">
+              <OreButton variant="secondary" size="full" onClick={onClose}>
+                取消
+              </OreButton>
+              <OreButton
+                variant="primary"
+                size="full"
+                onClick={handleBind}
+                disabled={instances.length === 0 || isBinding || !selectedInstanceId}
+              >
+                <div className="flex items-center justify-center">
+                  <LinkIcon size={16} className="mr-2 flex-shrink-0" />
+                  <span>{isBinding ? '绑定中...' : '确认绑定并直连'}</span>
+                </div>
+              </OreButton>
+            </div>
           </div>
         )}
-
-        {/* 底部操作区 */}
-        <div className="flex w-full space-x-4">
-          <OreButton
-            variant="secondary"
-            size="full"
-            onClick={onClose}
-          >
-            取消
-          </OreButton>
-          <OreButton
-            variant="primary"
-            size="full"
-            onClick={handleBind}
-            disabled={instances.length === 0 || isBinding || !selectedInstanceId}
-          >
-            <div className="flex items-center justify-center">
-              <LinkIcon size={16} className="mr-2 flex-shrink-0" />
-              <span>{isBinding ? '绑定中...' : '确认绑定并直连'}</span>
-            </div>
-          </OreButton>
-        </div>
       </div>
     </OreModal>
   );

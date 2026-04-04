@@ -1078,6 +1078,7 @@ pub async fn import_modpack<R: Runtime>(
     app: AppHandle<R>,
     zip_path: String,
     instance_name: String,
+    server_binding: Option<crate::domain::instance::ServerBinding>,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn(async move {
         let i_id = instance_name
@@ -1087,7 +1088,7 @@ pub async fn import_modpack<R: Runtime>(
 
         let cancel = deployment_cancel::register(&i_id);
         let result =
-            modpack_service::execute_import(&app, &zip_path, &instance_name, &cancel).await;
+            modpack_service::execute_import(&app, &zip_path, &instance_name, &cancel, server_binding).await;
         deployment_cancel::unregister(&i_id);
 
         if let Err(e) = result {
@@ -1114,6 +1115,7 @@ pub async fn download_and_import_modpack<R: Runtime>(
     app: AppHandle<R>,
     url: String,
     instance_name: String,
+    server_binding: Option<crate::domain::instance::ServerBinding>,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn(async move {
         let i_id = instance_name
@@ -1236,6 +1238,7 @@ pub async fn download_and_import_modpack<R: Runtime>(
             &temp_path.to_string_lossy(),
             &instance_name,
             &cancel,
+            server_binding,
         )
         .await;
         deployment_cancel::unregister(&i_id);

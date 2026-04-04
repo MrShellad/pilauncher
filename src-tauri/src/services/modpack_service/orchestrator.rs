@@ -207,6 +207,7 @@ pub async fn execute_import<R: Runtime>(
     zip_path: &str,
     instance_name: &str,
     cancel: &Arc<AtomicBool>,
+    server_binding: Option<crate::domain::instance::ServerBinding>,
 ) -> Result<(), String> {
     let base_dir = resolve_base_dir(app)?;
     let instance_id = sanitize_instance_id(instance_name);
@@ -217,6 +218,7 @@ pub async fn execute_import<R: Runtime>(
         instance_name,
         &base_dir,
         cancel,
+        server_binding,
     )
     .await;
 
@@ -234,6 +236,7 @@ async fn execute_import_inner<R: Runtime>(
     instance_name: &str,
     base_dir: &Path,
     cancel: &Arc<AtomicBool>,
+    server_binding: Option<crate::domain::instance::ServerBinding>,
 ) -> Result<(), String> {
     if is_cancelled(cancel) {
         return Err("Cancelled".to_string());
@@ -243,8 +246,27 @@ async fn execute_import_inner<R: Runtime>(
     let instance_root = base_dir.join("instances").join(instance_id);
 
     create_instance_layout(&instance_root)?;
-    let config = build_instance_config(instance_id, instance_name, &metadata);
+    let mut config = build_instance_config(instance_id, instance_name, &metadata);
+    config.server_binding = server_binding.clone();
     super::ops::write_instance_config(&instance_root, &config)?;
+
+    if let Some(binding) = &server_binding {
+        let bindings_index_path = base_dir.join("instances").join("server_bindings.json");
+        let mut all_bindings: serde_json::Value = if bindings_index_path.exists() {
+            let idx_content = std::fs::read_to_string(&bindings_index_path).unwrap_or_else(|_| "{}".to_string());
+            serde_json::from_str(&idx_content).unwrap_or_else(|_| serde_json::json!({}))
+        } else {
+            serde_json::json!({})
+        };
+        if let Some(obj) = all_bindings.as_object_mut() {
+            if let Ok(binding_val) = serde_json::to_value(binding) {
+                obj.insert(instance_id.to_string(), binding_val);
+                if let Ok(updated_index) = serde_json::to_string_pretty(&all_bindings) {
+                    let _ = std::fs::write(&bindings_index_path, updated_index);
+                }
+            }
+        }
+    }
 
     let _ = app.emit(
         "instance-deployment-progress",

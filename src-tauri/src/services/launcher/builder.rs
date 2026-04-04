@@ -493,6 +493,14 @@ impl LaunchCommandBuilder {
                 final_args.push("--port".to_string());
                 final_args.push(binding.port.to_string());
             }
+            if !final_args.contains(&"--quickPlayMultiplayer".to_string()) {
+                final_args.push("--quickPlayMultiplayer".to_string());
+                if binding.port != 25565 {
+                    final_args.push(format!("{}:{}", binding.ip, binding.port));
+                } else {
+                    final_args.push(binding.ip.clone());
+                }
+            }
         }
 
         final_args

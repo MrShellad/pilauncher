@@ -1,5 +1,6 @@
 // /src/store/useLauncherStore.ts
 import { create } from 'zustand';
+import type { OnlineServer } from '../features/multiplayer/types';
 
 // 1. 定义全局合法的路由 Tab 类型 (在这里新增了 'new-instance')
 export type TabType =
@@ -47,6 +48,10 @@ interface LauncherState {
   selectedInstanceId: string | null;
   setSelectedInstanceId: (id: string | null) => void;
 
+  // ✅ 新增：由于联机系统可能触发创建绑定实例，挂起目标服务器信标
+  pendingServerBinding: OnlineServer | null;
+  setPendingServerBinding: (server: OnlineServer | null) => void;
+
   // 新增：保存详情页当前的内部 Tab
   instanceDetailTab: DetailTabType;
   setInstanceDetailTab: (tab: DetailTabType) => void;
@@ -80,6 +85,9 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
   // ✅ 新增：初始化选中实例 ID 状态及修改方法
   selectedInstanceId: null,
   setSelectedInstanceId: (id) => set({ selectedInstanceId: id }),
+
+  pendingServerBinding: null,
+  setPendingServerBinding: (server) => set({ pendingServerBinding: server }),
 
   instanceDetailTab: 'overview',
   setInstanceDetailTab: (tab) => set({ instanceDetailTab: tab }),

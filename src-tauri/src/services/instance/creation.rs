@@ -87,12 +87,32 @@ impl InstanceCreationService {
             gamepad: None,
             custom_buttons: None,
             third_party_path: None,
-            server_binding: None,
+            server_binding: payload.server_binding.clone(),
         };
         fs::write(
             instance_root.join("instance.json"),
             serde_json::to_string_pretty(&config)?,
         )?;
+
+        if let Some(binding) = &payload.server_binding {
+            let bindings_index_path = base_dir.join("instances").join("server_bindings.json");
+            
+            let mut all_bindings: serde_json::Value = if bindings_index_path.exists() {
+                let idx_content = std::fs::read_to_string(&bindings_index_path).unwrap_or_else(|_| "{}".to_string());
+                serde_json::from_str(&idx_content).unwrap_or_else(|_| serde_json::json!({}))
+            } else {
+                serde_json::json!({})
+            };
+
+            if let Some(obj) = all_bindings.as_object_mut() {
+                if let Ok(binding_val) = serde_json::to_value(binding) {
+                    obj.insert(instance_id.clone(), binding_val);
+                    if let Ok(updated_index) = serde_json::to_string_pretty(&all_bindings) {
+                        let _ = std::fs::write(&bindings_index_path, updated_index);
+                    }
+                }
+            }
+        }
 
         let global_mc_root = base_dir.join("runtime");
         fs::create_dir_all(global_mc_root.join("assets"))?;
