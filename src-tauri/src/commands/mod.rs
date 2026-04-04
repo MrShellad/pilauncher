@@ -4,6 +4,7 @@ pub mod animation_cmd;
 pub mod auth_cmd;
 pub mod cache_cmd;
 pub mod config_cmd;
+pub mod download_benchmark_cmd;
 pub mod fs_cmd;
 pub mod instance;
 pub mod java_cmd;
@@ -139,6 +140,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         lan_cmd::remove_trusted_device,
         lan_cmd::verify_trusted_devices,
         network_cmd::run_network_test,
+        download_benchmark_cmd::run_download_benchmark,
         qrcode_cmd::generate_device_auth_qr,
         update_cmd::check_update,
         update_cmd::install_update,

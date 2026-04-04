@@ -53,7 +53,7 @@ pub(super) async fn install<R: Runtime>(
                 file_name: format!("{}.json", version_id),
                 current: 10,
                 total: 100,
-                message: format!("姝ｅ湪涓嬭浇 Quilt {} 閰嶇疆娓呭崟...", loader_version),
+                message: format!("正在下载 Quilt {} 版本清单...", loader_version),
             },
         );
 
@@ -70,7 +70,7 @@ pub(super) async fn install<R: Runtime>(
                 file_name: version_id.clone(),
                 current: 40,
                 total: 100,
-                message: "閰嶇疆娓呭崟宸插氨缁紝姝ｅ湪涓嬭浇 Quilt 渚濊禆...".to_string(),
+                message: "Quilt 版本清单已就绪，正在下载依赖...".to_string(),
             },
         );
     }
@@ -98,7 +98,7 @@ pub(super) async fn install<R: Runtime>(
             file_name: version_id.clone(),
             current: 100,
             total: 100,
-            message: "Quilt 鐜閮ㄧ讲瀹屾垚".to_string(),
+            message: "Quilt 环境部署完成".to_string(),
         },
     );
 

@@ -1297,7 +1297,7 @@ async fn install_neoforge<R: Runtime>(
         "install_profile.json",
         20,
         100,
-        "姝ｅ湪鎺ョ NeoForge installer 渚濊禆涓嬭浇...",
+        "正在解析 NeoForge installer 依赖清单...",
     );
     crate::services::downloader::dependencies::download_libraries(
         app,

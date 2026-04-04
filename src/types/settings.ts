@@ -156,7 +156,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     quiltSourceUrl: 'https://meta.quiltmc.org',
 
     autoCheckLatency: false,
-    concurrency: 12,
+    concurrency: 4,
     chunkedDownloadEnabled: true,
     chunkedDownloadThreads: 4,
     chunkedDownloadMinSizeMb: 32,

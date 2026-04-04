@@ -79,7 +79,7 @@ pub(super) async fn install<R: Runtime>(
             file_name: "installer.jar".to_string(),
             current: 5,
             total: 100,
-            message: format!("姝ｅ湪涓嬭浇 Forge {} 瀹夎鍖呭厓鏁版嵁...", loader_version),
+            message: format!("正在下载 Forge {} 安装包元数据...", loader_version),
         },
     );
 
@@ -115,7 +115,7 @@ pub(super) async fn install<R: Runtime>(
             file_name: format!("{}.json", version_id),
             current: 40,
             total: 100,
-            message: "Forge 鐗堟湰娓呭崟宸插氨缁紝姝ｅ湪涓嬭浇渚濊禆...".to_string(),
+            message: "Forge 版本清单已就绪，正在下载依赖...".to_string(),
         },
     );
 
@@ -133,7 +133,7 @@ pub(super) async fn install<R: Runtime>(
         "installer.jar",
         60,
         100,
-        "姝ｅ湪鎵ц Forge 瀹夎鍣?..",
+        "正在执行 Forge 安装器...",
     );
     run_java_installer(
         app,
@@ -153,7 +153,7 @@ pub(super) async fn install<R: Runtime>(
         format!("{}.json", version_id),
         80,
         100,
-        "Forge 瀹夎瀹屾垚锛屾鍦ㄨˉ榻愬苟鏍￠獙渚濊禆...",
+        "Forge 安装完成，正在补齐并校验依赖...",
     );
     crate::services::downloader::dependencies::download_dependencies(
         app,
@@ -175,7 +175,7 @@ pub(super) async fn install<R: Runtime>(
             file_name: String::new(),
             current: 100,
             total: 100,
-            message: "Forge 鐜閮ㄧ讲瀹屾垚".to_string(),
+            message: "Forge 环境部署完成".to_string(),
         },
     );
 

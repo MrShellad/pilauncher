@@ -13,7 +13,7 @@ use crate::services::deployment_cancel::is_cancelled;
 mod assets;
 mod game_core;
 mod libraries;
-mod mirror;
+pub mod mirror;
 mod progress;
 pub mod scheduler;
 

@@ -1,4 +1,4 @@
-{
+﻿{
   "version": "1.0.0",
   "apiEndpoint": "https://api.pilauncher.net/v1/config/download-sources",
   "sources": {
@@ -28,6 +28,11 @@
     ],
     "fabric": [
       {
+        "id": "bmclapi",
+        "name": "BMCLAPI",
+        "url": "https://bmclapi2.bangbang93.com/fabric-meta"
+      },
+      {
         "id": "official",
         "name": "Fabric 官方",
         "url": "https://meta.fabricmc.net"
@@ -55,7 +60,7 @@
     "java": [
       {
         "id": "adoptium",
-        "name": "Adoptium官方源",
+        "name": "Adoptium 官方源",
         "type": "api",
         "packages": [
           "jre",
@@ -65,7 +70,7 @@
       },
       {
         "id": "zulu",
-        "name": "Azul Zulu源",
+        "name": "Azul Zulu 源",
         "type": "api",
         "packages": [
           "jre",

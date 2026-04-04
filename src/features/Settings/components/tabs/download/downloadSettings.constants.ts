@@ -1,5 +1,9 @@
-import downloadConfig from '../../../../../assets/config/downloadsource.json';
-import type { DownloadSourceEntry, ProxyOption, SourceCategory } from './downloadSettings.types';
+﻿import downloadConfig from '../../../../../assets/config/downloadsource.json';
+import type {
+  DownloadSourceEntry,
+  ProxyOption,
+  SourceCategory
+} from './downloadSettings.types';
 
 const sources = downloadConfig.sources as {
   vanilla: DownloadSourceEntry[];
