@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { Image as ImageIcon, Sparkles, Type } from 'lucide-react';
@@ -18,6 +19,7 @@ import { OreSwitch } from '../../../../ui/primitives/OreSwitch';
 const PREDEFINED_COLORS = ['#000000', '#FFFFFF', '#18181B', '#2A2A2C', '#3C8527'];
 
 export const AppearanceSettings: React.FC = () => {
+  const { t } = useTranslation();
   const { settings, updateAppearanceSetting } = useSettingsStore();
   const { appearance } = settings;
 
@@ -114,7 +116,7 @@ export const AppearanceSettings: React.FC = () => {
 
   return (
     <SettingsPageLayout adaptiveScale>
-      <SettingsSection title="背景与主题" icon={<ImageIcon size={18} />}>
+      <SettingsSection title={t('settings.appearance.sections.background')} icon={<ImageIcon size={18} />}>
         <div className="p-6">
           <div className="group relative flex h-56 w-full flex-col items-center justify-center overflow-hidden border-2 border-dashed border-ore-gray-border bg-[#141415] transition-colors">
             {bgPreviewUrl ? (
@@ -133,7 +135,7 @@ export const AppearanceSettings: React.FC = () => {
                     focusKey="btn-bg-change"
                     onArrowPress={handleLinearArrow}
                   >
-                    更换图片
+                    {t('settings.appearance.btnChangeBg')}
                   </OreButton>
                   <OreButton
                     variant="danger"
@@ -142,7 +144,7 @@ export const AppearanceSettings: React.FC = () => {
                     focusKey="btn-bg-remove"
                     onArrowPress={handleLinearArrow}
                   >
-                    移除背景
+                    {t('settings.appearance.btnRemoveBg')}
                   </OreButton>
                 </div>
               </>
@@ -171,8 +173,8 @@ export const AppearanceSettings: React.FC = () => {
                       }`}
                     >
                       <ImageIcon size={40} className="mb-3" />
-                      <span className="font-minecraft text-lg">无背景</span>
-                      <span className="mt-1 font-minecraft text-xs">点击选择本地图片</span>
+                      <span className="font-minecraft text-lg">{t('settings.appearance.noBg')}</span>
+                      <span className="mt-1 font-minecraft text-xs">{t('settings.appearance.selectLocalInfo')}</span>
                     </div>
                   </div>
                 )}
@@ -182,8 +184,8 @@ export const AppearanceSettings: React.FC = () => {
         </div>
 
         <FormRow
-          label="背景模糊度"
-          description="调节主界面背景图的模糊效果。"
+          label={t('settings.appearance.bgBlur')}
+          description={t('settings.appearance.bgBlurDesc')}
           vertical={true}
           control={
             <div className="w-full">
@@ -208,8 +210,8 @@ export const AppearanceSettings: React.FC = () => {
         {hasMicrosoftAccount && (
           <>
             <FormRow
-              label="启用全景背景"
-              description="开启后将优先使用 base_path/config/background 下的有效全景图目录。"
+              label={t('settings.appearance.panoramaEnabled')}
+              description={t('settings.appearance.panoramaEnabledDesc')}
               control={
                 <OreSwitch
                   focusKey="settings-appearance-panorama-enabled"
@@ -221,8 +223,8 @@ export const AppearanceSettings: React.FC = () => {
             />
 
             <FormRow
-              label="全景旋转速度"
-              description="控制全景背景自动旋转速度，设为 0 可静止画面。"
+              label={t('settings.appearance.panoramaSpeed')}
+              description={t('settings.appearance.panoramaSpeedDesc')}
               vertical={true}
               control={
                 <div className="w-full">
@@ -244,10 +246,8 @@ export const AppearanceSettings: React.FC = () => {
             />
 
             <FormRow
-              label="全景旋转方向"
-              description={`当前为${
-                appearance.panoramaRotationDirection === 'clockwise' ? '顺时针' : '逆时针'
-              }。`}
+              label={t('settings.appearance.panoramaDirection')}
+              description={t('settings.appearance.panoramaDirectionDesc', { dir: appearance.panoramaRotationDirection === 'clockwise' ? t('settings.appearance.clockwise') : t('settings.appearance.counterclockwise') })}
               control={
                 <OreSwitch
                   focusKey="settings-appearance-panorama-direction"
@@ -267,8 +267,8 @@ export const AppearanceSettings: React.FC = () => {
         )}
 
         <FormRow
-          label="遮罩颜色"
-          description="覆盖在背景图上方的颜色，用于确保文字可读性。"
+          label={t('settings.appearance.maskColor')}
+          description={t('settings.appearance.maskColorDesc')}
           control={
             <div className="flex items-center space-x-3">
               {PREDEFINED_COLORS.map((color, idx) => (
@@ -338,8 +338,8 @@ export const AppearanceSettings: React.FC = () => {
         />
 
         <FormRow
-          label="遮罩透明度"
-          description="调节颜色遮罩透明级别，数值越大背景越暗。"
+          label={t('settings.appearance.maskOpacity')}
+          description={t('settings.appearance.maskOpacityDesc')}
           vertical={true}
           control={
             <div className="w-full">
@@ -358,11 +358,11 @@ export const AppearanceSettings: React.FC = () => {
         />
       </SettingsSection>
 
-      <SettingsSection title="排版与特效" icon={<Sparkles size={18} />}>
+      <SettingsSection title={t('settings.appearance.sections.typography')} icon={<Sparkles size={18} />}>
         <FormRow
           className="relative z-50"
-          label="启动器全局字体"
-          description="更改全局界面的主要字体。遇到不支持的字符时，会回退为默认 Minecraft 字体。"
+          label={t('settings.appearance.fontFamily')}
+          description={t('settings.appearance.fontFamilyDesc')}
           control={
             <div className="flex items-center space-x-2">
               {isLoadingFonts && <Type size={14} className="animate-pulse text-ore-text-muted" />}
@@ -381,8 +381,8 @@ export const AppearanceSettings: React.FC = () => {
 
         <FormRow
           className="relative z-40"
-          label="启用底部黑色渐变"
-          description="在启动器底部增加一层黑色渐变，提升文字和导航的可读性。"
+          label={t('settings.appearance.maskGradient')}
+          description={t('settings.appearance.maskGradientDesc')}
           control={
             <OreSwitch
               focusKey="settings-appearance-gradient"

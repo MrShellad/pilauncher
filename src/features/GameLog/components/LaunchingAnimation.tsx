@@ -78,6 +78,8 @@ export const LaunchingAnimation: React.FC = () => {
   const { killCurrentGame } = useGameProcessService();
   const lastLogLenRef       = useRef(0);
   const timerRef            = useRef<any>(null);
+  const overlayRef          = useRef<HTMLDivElement>(null);
+  const prevFocusRef        = useRef<HTMLElement | null>(null);
 
   // Advance progress based on logs — never regress
   useEffect(() => {
@@ -121,6 +123,22 @@ export const LaunchingAnimation: React.FC = () => {
 
   const isVisible = (gameState === 'launching' || gameState === 'running') && !hidden;
 
+  // Focus trap: move focus into overlay when visible, restore when hidden
+  useEffect(() => {
+    if (isVisible) {
+      prevFocusRef.current = document.activeElement as HTMLElement;
+      // Defer so the overlay element is in the DOM when we focus it
+      const raf = requestAnimationFrame(() => {
+        overlayRef.current?.focus();
+      });
+      return () => cancelAnimationFrame(raf);
+    } else {
+      // Restore focus to the element that had it before the overlay appeared
+      prevFocusRef.current?.focus();
+      prevFocusRef.current = null;
+    }
+  }, [isVisible]);
+
   const stageIdx = useMemo(() => {
     for (let i = STAGES.length - 1; i >= 0; i--) if (pct >= STAGES[i].at) return i;
     return -1;
@@ -137,11 +155,16 @@ export const LaunchingAnimation: React.FC = () => {
       {isVisible && (
         <motion.div
           key="launching-overlay"
+          ref={overlayRef}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
           data-tauri-drag-region="true"
           className="fixed inset-0 z-[89] flex flex-col items-center justify-center select-none"
           style={{ background: 'rgba(6,6,8,0.88)', backdropFilter: 'blur(14px) saturate(0.7)' }}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-label="游戏启动中"
         >
           {/* ── SVG Progress Ring ── */}
           <svg width="300" height="300" viewBox="0 0 300 300" style={{ overflow: 'visible' }} aria-hidden="true" data-tauri-drag-region="true">

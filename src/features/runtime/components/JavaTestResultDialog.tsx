@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { AlertTriangle, CheckCircle2, Wrench } from 'lucide-react';
 
 import { OreConfirmDialog } from '../../../ui/primitives/OreConfirmDialog';
@@ -9,6 +10,7 @@ export const JavaTestResultDialog: React.FC<{
   onClose: () => void;
   focusKeyPrefix?: string;
 }> = ({ state, onClose, focusKeyPrefix = 'java-test-dialog' }) => {
+  const { t } = useTranslation();
   const tone = state.tone === 'danger' ? 'danger' : state.tone === 'warning' ? 'warning' : 'info';
   const dialogIcon =
     state.tone === 'danger' ? (
@@ -30,8 +32,8 @@ export const JavaTestResultDialog: React.FC<{
       confirmationNote={state.detail}
       confirmationNoteTone={tone}
       tone={tone}
-      confirmLabel="知道了"
-      cancelLabel="关闭"
+      confirmLabel={t('settings.java.testDialog.confirm')}
+      cancelLabel={t('settings.java.testDialog.cancel')}
       confirmVariant={state.tone === 'danger' ? 'danger' : 'primary'}
       confirmFocusKey={`${focusKeyPrefix}-confirm`}
       cancelFocusKey={`${focusKeyPrefix}-cancel`}

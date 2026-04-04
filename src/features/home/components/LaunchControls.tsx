@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import { Play, Folder, Settings } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { focusManager } from '../../../ui/focus/FocusManager';
@@ -28,6 +29,7 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
   onSettings,
   onSelectInstance,
 }) => {
+  const { t } = useTranslation();
 
   const setActiveTab = useLauncherStore(state => state.setActiveTab);
   const setSelectedInstanceId = useLauncherStore(state => state.setSelectedInstanceId);
@@ -127,7 +129,7 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
                 >
                   <Play fill="currentColor" className={heroIconClass} />
                   <span className="font-minecraft font-bold tracking-[0.1em] uppercase leading-none">
-                    启动游戏
+                    {t('home.launchGame')}
                   </span>
                 </OreButton>
               </div>
@@ -186,7 +188,7 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
               >
                 <Settings className={iconClass} />
                 <span className="font-minecraft font-medium tracking-wide leading-none">
-                  实例详情
+                  {t('home.instanceDetail')}
                 </span>
               </OreButton>
             </div>

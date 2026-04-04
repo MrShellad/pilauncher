@@ -17,7 +17,6 @@ import {
 } from '../logic/downloadTagLabels';
 
 import {
-  blockClassName,
   firstRow,
   getLoaderOptions,
   getSortOptions,
@@ -79,6 +78,104 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   onReset
 }) => {
   const { t, i18n } = useTranslation();
+  const scaleClassName = `
+    [--filter-shell-px:0.875rem]
+    [--filter-shell-py:0.5rem]
+    [--filter-section-gap:0.5rem]
+    [--filter-row-gap:0.375rem]
+    [--filter-col-gap:0.375rem]
+    [--filter-control-h:2.5rem]
+    [--filter-tab-min-w:7.25rem]
+    [--filter-tab-max-w:48rem]
+    [--filter-tab-font:0.6875rem]
+    [--filter-tab-icon:0.9375rem]
+    [--filter-tab-gap:0.5rem]
+    [--filter-tab-px:0.75rem]
+    [--filter-tab-indicator-h:0.125rem]
+    [--filter-tab-indicator-bottom:0.25rem]
+    [--filter-tab-indicator-inset:0.625rem]
+    [--filter-action-font:0.8125rem]
+    [--filter-input-font:0.75rem]
+    [--filter-icon-size:0.875rem]
+    [--filter-control-hint-scale:1]
+    min-[1920px]:[--filter-shell-px:1rem]
+    min-[1920px]:[--filter-shell-py:0.625rem]
+    min-[1920px]:[--filter-section-gap:0.625rem]
+    min-[1920px]:[--filter-row-gap:0.5rem]
+    min-[1920px]:[--filter-col-gap:0.5rem]
+    min-[1920px]:[--filter-control-h:2.75rem]
+    min-[1920px]:[--filter-tab-min-w:8.25rem]
+    min-[1920px]:[--filter-tab-max-w:56rem]
+    min-[1920px]:[--filter-tab-font:0.75rem]
+    min-[1920px]:[--filter-tab-icon:1rem]
+    min-[1920px]:[--filter-tab-gap:0.625rem]
+    min-[1920px]:[--filter-tab-px:0.875rem]
+    min-[1920px]:[--filter-tab-indicator-h:0.1875rem]
+    min-[1920px]:[--filter-tab-indicator-bottom:0.3125rem]
+    min-[1920px]:[--filter-tab-indicator-inset:0.75rem]
+    min-[1920px]:[--filter-action-font:0.875rem]
+    min-[1920px]:[--filter-input-font:0.8125rem]
+    min-[1920px]:[--filter-icon-size:0.9375rem]
+    min-[1920px]:[--filter-control-hint-scale:1.08]
+    min-[2560px]:[--filter-shell-px:1.25rem]
+    min-[2560px]:[--filter-shell-py:0.75rem]
+    min-[2560px]:[--filter-section-gap:0.75rem]
+    min-[2560px]:[--filter-row-gap:0.625rem]
+    min-[2560px]:[--filter-col-gap:0.625rem]
+    min-[2560px]:[--filter-control-h:3rem]
+    min-[2560px]:[--filter-tab-min-w:9.25rem]
+    min-[2560px]:[--filter-tab-max-w:66rem]
+    min-[2560px]:[--filter-tab-font:0.875rem]
+    min-[2560px]:[--filter-tab-icon:1.125rem]
+    min-[2560px]:[--filter-tab-gap:0.75rem]
+    min-[2560px]:[--filter-tab-px:1rem]
+    min-[2560px]:[--filter-tab-indicator-h:0.1875rem]
+    min-[2560px]:[--filter-tab-indicator-bottom:0.375rem]
+    min-[2560px]:[--filter-tab-indicator-inset:0.875rem]
+    min-[2560px]:[--filter-action-font:0.9375rem]
+    min-[2560px]:[--filter-input-font:0.875rem]
+    min-[2560px]:[--filter-icon-size:1rem]
+    min-[2560px]:[--filter-control-hint-scale:1.16]
+    min-[3840px]:[--filter-shell-px:1.5rem]
+    min-[3840px]:[--filter-shell-py:0.875rem]
+    min-[3840px]:[--filter-section-gap:0.875rem]
+    min-[3840px]:[--filter-row-gap:0.75rem]
+    min-[3840px]:[--filter-col-gap:0.75rem]
+    min-[3840px]:[--filter-control-h:3.5rem]
+    min-[3840px]:[--filter-tab-min-w:10.75rem]
+    min-[3840px]:[--filter-tab-max-w:78rem]
+    min-[3840px]:[--filter-tab-font:1rem]
+    min-[3840px]:[--filter-tab-icon:1.25rem]
+    min-[3840px]:[--filter-tab-gap:0.875rem]
+    min-[3840px]:[--filter-tab-px:1.25rem]
+    min-[3840px]:[--filter-tab-indicator-h:0.25rem]
+    min-[3840px]:[--filter-tab-indicator-bottom:0.4375rem]
+    min-[3840px]:[--filter-tab-indicator-inset:1rem]
+    min-[3840px]:[--filter-action-font:1.0625rem]
+    min-[3840px]:[--filter-input-font:1rem]
+    min-[3840px]:[--filter-icon-size:1.125rem]
+    min-[3840px]:[--filter-control-hint-scale:1.28]
+  `;
+  const fieldClassName = 'min-w-0 min-h-[var(--filter-control-h)]';
+  const controlHintClassName = 'origin-center scale-[var(--filter-control-hint-scale)]';
+  const tabButtonClassName = `
+    relative flex h-[var(--filter-control-h)] min-w-[var(--filter-tab-min-w)] flex-1 items-center justify-center
+    gap-[var(--filter-tab-gap)] border-[0.125rem] border-[#141516] px-[var(--filter-tab-px)] pb-[0.1875rem]
+    font-minecraft text-[var(--filter-tab-font)] uppercase tracking-[0.14em] outline-none transition-none
+  `;
+  const sourceToggleClassName = `
+    !m-0
+    [&_.ore-toggle-btn-group]:!h-[var(--filter-control-h)]
+    [&_.ore-toggle-btn-item]:!h-[var(--filter-control-h)]
+    [&_.ore-toggle-btn-item]:!px-[0.75rem]
+    [&_.ore-toggle-btn-item]:!text-[var(--filter-input-font)]
+    [&_.ore-toggle-btn-item_svg]:size-[var(--filter-icon-size)]
+  `;
+  const inputContainerClassName = 'w-full !space-y-0 [&_svg]:size-[var(--filter-icon-size)]';
+  const inputClassName = '!border-[#0F1011] !bg-[#171819] !text-[var(--filter-input-font)] !text-white placeholder:!text-[#B8C0C7]';
+  const dropdownClassName =
+    'w-full !h-[var(--filter-control-h)] [&_.ore-dropdown-trigger]:!h-[var(--filter-control-h)] [&_.ore-dropdown-trigger]:!border-[#141516] [&_.ore-dropdown-trigger]:!bg-[#E4E7EB] [&_.ore-dropdown-trigger>div>span]:!text-[#121314] [&_.ore-dropdown-trigger>div>span]:!text-[var(--filter-input-font)] [&_.ore-dropdown-trigger_svg]:!text-[#121314] [&_.ore-dropdown-trigger_svg]:size-[var(--filter-icon-size)]';
+  const actionButtonClassName = 'w-full !h-[var(--filter-control-h)] !text-[var(--filter-action-font)] font-bold tracking-wider [&_svg]:size-[var(--filter-icon-size)]';
 
   const localizeCategoryLabel = useCallback((option: FilterOption) => {
     return getLocalizedDownloadOptionLabel({
@@ -190,19 +287,16 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     <FocusBoundary
       id="download-filter-bar"
       defaultFocusKey="download-search-input"
-      className="flex-shrink-0 border-b-[2px] border-[#1E1E1F] bg-[#313233] px-4 py-2 shadow-[inset_0_2px_0_rgba(255,255,255,0.08)]"
+      className={`flex-shrink-0 border-b-[0.125rem] border-[#1E1E1F] bg-[#313233] px-[var(--filter-shell-px)] py-[var(--filter-shell-py)] shadow-[inset_0_0.125rem_0_rgba(255,255,255,0.08)] ${scaleClassName}`}
     >
-      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-2">
-        <div className="flex min-h-[42px] items-center justify-center gap-2 sm:gap-3">
-          <div className="hidden shrink-0 items-center intent-gamepad:flex">
-            <ControlHint label="LT" variant="trigger" tone="dark" />
-          </div>
-          <div className="flex shrink-0 items-center intent-gamepad:hidden">
-            <ControlHint label="PgUp" variant="keyboard" tone="neutral" />
+      <div className="mx-auto flex w-full max-w-[93.75rem] flex-col gap-[var(--filter-section-gap)] min-[2560px]:max-w-[106.25rem] min-[3840px]:max-w-[137.5rem]">
+        <div className="flex min-h-[var(--filter-control-h)] items-center justify-center gap-[var(--filter-col-gap)]">
+          <div className="shrink-0 items-center flex">
+            <ControlHint label="LT" variant="trigger" tone="dark" className={controlHintClassName} />
           </div>
 
           <div className="flex min-w-0 flex-1 items-center justify-center">
-            <div className="flex min-w-0 max-w-[780px] flex-1 flex-wrap items-center justify-center gap-2">
+            <div className="flex min-w-0 max-w-[var(--filter-tab-max-w)] flex-1 flex-wrap items-center justify-center gap-[var(--filter-col-gap)]">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -214,39 +308,39 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                     tabIndex={-1}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => onTabChange(tab.id)}
-                    className={`
-                      relative flex h-[38px] min-w-[112px] flex-1 items-center justify-center gap-2 border-[2px] border-[#1E1E1F]
-                      px-3 pb-[3px] font-minecraft text-[11px] uppercase tracking-[0.14em] outline-none transition-none
-                      ${isActive ? 'bg-[#3C8527] text-white' : 'bg-[#D0D1D4] text-black hover:bg-[#E6E8EB]'}
-                    `}
+                    className={`${tabButtonClassName} ${isActive ? 'bg-[#3C8527] text-white' : 'bg-[#E4E7EB] text-[#121314] hover:bg-[#F0F3F6]'}`}
                     style={{
                       boxShadow: isActive
-                        ? 'inset 0 -3px #1D4D13, inset 2px 2px rgba(255,255,255,0.18), inset -2px -5px rgba(255,255,255,0.08)'
-                        : 'inset 0 -3px #58585A, inset 2px 2px rgba(255,255,255,0.65), inset -2px -5px rgba(255,255,255,0.35)'
+                        ? 'inset 0 -0.1875rem #1D4D13, inset 0.125rem 0.125rem rgba(255,255,255,0.18), inset -0.125rem -0.3125rem rgba(255,255,255,0.08)'
+                        : 'inset 0 -0.1875rem #58585A, inset 0.125rem 0.125rem rgba(255,255,255,0.8), inset -0.125rem -0.3125rem rgba(255,255,255,0.45)'
                     }}
                   >
-                    <Icon size={15} className={isActive ? 'text-white' : 'text-black'} />
+                    <Icon className={`size-[var(--filter-tab-icon)] ${isActive ? 'text-white' : 'text-[#121314]'}`} />
                     <span className="truncate">{tab.label}</span>
-                    {isActive && <span className="absolute inset-x-2.5 bottom-1 h-[2px] bg-white/90" />}
+                    {isActive && (
+                      <span
+                        className="absolute bg-white/90"
+                        style={{
+                          left: 'var(--filter-tab-indicator-inset)',
+                          right: 'var(--filter-tab-indicator-inset)',
+                          bottom: 'var(--filter-tab-indicator-bottom)',
+                          height: 'var(--filter-tab-indicator-h)'
+                        }}
+                      />
+                    )}
                   </button>
                 );
               })}
             </div>
           </div>
 
-          <div className="hidden shrink-0 items-center intent-gamepad:flex">
-            <ControlHint label="RT" variant="trigger" tone="dark" />
-          </div>
-          <div className="flex shrink-0 items-center intent-gamepad:hidden">
-            <ControlHint label="PgDn" variant="keyboard" tone="neutral" />
+          <div className="shrink-0 items-center flex">
+            <ControlHint label="RT" variant="trigger" tone="dark" className={controlHintClassName} />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-12">
-          <div className={`${blockClassName} md:col-span-1 lg:col-span-3`}>
-            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">
-              {t('download.filters.source', { defaultValue: 'Source' })}
-            </div>
+        <div className="grid grid-cols-1 gap-x-[var(--filter-col-gap)] gap-y-[var(--filter-row-gap)] md:grid-cols-2 lg:grid-cols-12">
+          <div className={`${fieldClassName} md:col-span-1 lg:col-span-3`}>
             <FocusItem
               focusKey="filter-source-toggle"
               onArrowPress={handleFilterArrow('filter-source-toggle')}
@@ -255,21 +349,21 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               {({ ref, focused }) => (
                 <div
                   ref={ref as React.RefObject<HTMLDivElement>}
-                  className={`rounded-sm ${focused ? 'outline outline-2 outline-offset-[3px] outline-white' : ''}`}
+                  className={focused ? 'outline outline-[0.125rem] outline-offset-[0.1875rem] outline-white' : ''}
                 >
                   <OreToggleButton
                     options={sourceOptions}
                     value={source}
                     onChange={(value) => setSource(value as DownloadSource)}
                     focusable={false}
-                    className="!m-0 !h-[36px]"
+                    className={sourceToggleClassName}
                     size="sm"
                   />
                 </div>
               )}
             </FocusItem>
             {source === 'curseforge' && !isCurseForgeAvailable && (
-              <div className="mt-1 text-[10px] text-[#FFD166]">
+              <div className="mt-0.5 text-[0.625rem] text-[#FFE08A]">
                 {t('download.curseforge.apiKeyMissing', {
                   defaultValue: 'Set VITE_CURSEFORGE_API_KEY to enable CurseForge requests.'
                 })}
@@ -277,14 +371,11 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             )}
           </div>
 
-          <div className={`${blockClassName} md:col-span-1 lg:col-span-5`}>
-            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">
-              {t('download.filters.keyword', { defaultValue: 'Keyword' })}
-            </div>
+          <div className={`${fieldClassName} md:col-span-2 lg:col-span-6 lg:justify-self-center lg:w-full`}>
             <OreInput
               focusKey="download-search-input"
               width="100%"
-              height="36px"
+              height="var(--filter-control-h)"
               value={query}
               onArrowPress={handleFilterArrow('download-search-input')}
               onChange={(event) => setQuery(event.target.value)}
@@ -292,101 +383,84 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                 if (event.key === 'Enter') onSearch();
               }}
               placeholder={t('download.placeholders.search', { defaultValue: 'Search resources or authors...' })}
-              prefixNode={<Search size={14} />}
-              containerClassName="!space-y-0 w-full"
+              prefixNode={<Search className="size-[var(--filter-icon-size)]" />}
+              className={inputClassName}
+              containerClassName={inputContainerClassName}
             />
           </div>
 
-          <div className={`${blockClassName} md:col-span-1 lg:col-span-2`}>
-            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">
-              {t('download.actions.search', { defaultValue: 'Search' })}
+          <div className={`${fieldClassName} md:col-span-2 lg:col-span-3`}>
+            <div className="grid h-full grid-cols-2 gap-[var(--filter-col-gap)]">
+              <OreButton
+                focusKey="download-btn-search"
+                onArrowPress={handleFilterArrow('download-btn-search')}
+                variant="primary"
+                size="auto"
+                onClick={onSearch}
+                className={`${actionButtonClassName} text-white`}
+              >
+                <Search className="mr-[0.375rem] size-[var(--filter-icon-size)] text-white" />
+                {t('download.actions.search', { defaultValue: 'Search' })}
+              </OreButton>
+
+              <OreButton
+                focusKey="download-btn-reset"
+                onArrowPress={handleFilterArrow('download-btn-reset')}
+                variant="secondary"
+                size="auto"
+                onClick={onReset}
+                className={`${actionButtonClassName} text-black`}
+              >
+                <RotateCcw className="mr-[0.375rem] size-[var(--filter-icon-size)] text-black" />
+                {t('download.actions.reset', { defaultValue: 'Reset' })}
+              </OreButton>
             </div>
-            <OreButton
-              focusKey="download-btn-search"
-              onArrowPress={handleFilterArrow('download-btn-search')}
-              variant="primary"
-              size="auto"
-              onClick={onSearch}
-              className="w-full !h-[36px] text-[13px] font-bold tracking-wider text-black"
-            >
-              <Search size={14} className="mr-1.5" />
-              {t('download.actions.search', { defaultValue: 'Search' })}
-            </OreButton>
           </div>
 
-          <div className={`${blockClassName} md:col-span-1 lg:col-span-2`}>
-            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">
-              {t('download.actions.reset', { defaultValue: 'Reset' })}
-            </div>
-            <OreButton
-              focusKey="download-btn-reset"
-              onArrowPress={handleFilterArrow('download-btn-reset')}
-              variant="secondary"
-              size="auto"
-              onClick={onReset}
-              className="w-full !h-[36px] text-[13px] text-black"
-            >
-              <RotateCcw size={14} className="mr-1.5" />
-              {t('download.actions.reset', { defaultValue: 'Reset' })}
-            </OreButton>
-          </div>
-
-          <div className={`${blockClassName} md:col-span-1 lg:col-span-3`}>
-            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">
-              {t('download.filters.gameVersion', { defaultValue: 'Game Version' })}
-            </div>
+          <div className={`${fieldClassName} md:col-span-1 lg:col-span-3`}>
             <OreDropdown
               focusKey="filter-mc-version"
               onArrowPress={handleFilterArrow('filter-mc-version')}
               options={translatedMcVersionOptions}
               value={mcVersion || ''}
               onChange={setMcVersion}
-              className="w-full !h-[36px]"
+              className={dropdownClassName}
               placeholder={t('download.filters.versionAll', { defaultValue: 'All Versions' })}
             />
           </div>
 
-          <div className={`${blockClassName} md:col-span-1 lg:col-span-3`}>
-            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">
-              {t('download.filters.loader', { defaultValue: 'Loader' })}
-            </div>
+          <div className={`${fieldClassName} md:col-span-1 lg:col-span-3`}>
             <OreDropdown
               focusKey="filter-loader"
               onArrowPress={handleFilterArrow('filter-loader')}
               options={loaderOptions}
               value={loaderType || ''}
               onChange={setLoaderType}
-              className="w-full !h-[36px]"
+              className={dropdownClassName}
               placeholder={t('download.filters.loaderAll', { defaultValue: 'All' })}
             />
           </div>
 
-          <div className={`${blockClassName} md:col-span-1 lg:col-span-3`}>
-            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">
-              {t('download.filters.category', { defaultValue: 'Category' })}
-            </div>
+          <div className={`${fieldClassName} md:col-span-1 lg:col-span-3`}>
             <OreDropdown
               focusKey="filter-category"
               onArrowPress={handleFilterArrow('filter-category')}
               options={translatedCategoryOptions}
               value={category || ''}
               onChange={setCategory}
-              className="w-full !h-[36px]"
+              className={dropdownClassName}
               placeholder={t('download.filters.categoryAll', { defaultValue: 'All Categories' })}
             />
           </div>
 
-          <div className={`${blockClassName} md:col-span-1 lg:col-span-3`}>
-            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-[0.18em] text-[#D0D1D4]">
-              {t('download.filters.sort', { defaultValue: 'Sort' })}
-            </div>
+          <div className={`${fieldClassName} md:col-span-1 lg:col-span-3`}>
             <OreDropdown
               focusKey="filter-sort"
               onArrowPress={handleFilterArrow('filter-sort')}
               options={sortOptions}
               value={sort || 'relevance'}
               onChange={setSort}
-              className="w-full !h-[36px]"
+              className={dropdownClassName}
               placeholder={t('download.sort.relevance', { defaultValue: 'Relevance' })}
             />
           </div>

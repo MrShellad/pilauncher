@@ -2,7 +2,7 @@ import React from 'react';
 import { Plug, RefreshCw } from 'lucide-react';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { useMultiplayerViewModel } from '../../hooks/useMultiplayerViewModel';
-import { StatusStrip } from './StatusStrip';
+
 import { FlowSelector } from './FlowSelector';
 import { HostFlow } from './HostFlow';
 import { ClientFlow } from './ClientFlow';
@@ -30,6 +30,47 @@ export const MultiplayerOverview: React.FC<MultiplayerOverviewProps> = () => {
           <p className="ore-multiplayer-panel-subtitle">当前接入：{currentSidecarLabel}</p>
         </div>
 
+        {/* 启动状态 & 连接状态 小标签 */}
+        <div className="ore-multiplayer-header-status">
+          <span
+            className="ore-multiplayer-status-badge"
+            data-tone={
+              vm.session.lifecycle === 'ready'
+                ? 'accent'
+                : vm.session.lifecycle === 'starting'
+                  ? 'warning'
+                  : vm.session.lifecycle === 'error'
+                    ? 'danger'
+                    : undefined
+            }
+          >
+            {vm.session.busyLabel ||
+              ({
+                idle: '未启动',
+                starting: '启动中',
+                ready: '已就绪',
+                stopped: '已停止',
+                error: '启动失败',
+              } as Record<string, string>)[vm.session.lifecycle] || vm.session.lifecycle}
+          </span>
+          <span
+            className="ore-multiplayer-status-badge"
+            data-tone={
+              vm.session.peerConnectionState === 'connected'
+                ? 'accent'
+                : vm.session.peerConnectionState === 'connecting' || vm.session.peerConnectionState === 'new'
+                  ? 'warning'
+                  : vm.session.peerConnectionState === 'failed' ||
+                    vm.session.peerConnectionState === 'closed' ||
+                    vm.session.peerConnectionState === 'disconnected'
+                    ? 'danger'
+                    : undefined
+            }
+          >
+            {vm.session.peerConnectionState || '等待连接'}
+          </span>
+        </div>
+
         <div className="ore-multiplayer-inline-actions">
           <FocusItem focusKey="pihub-start" onArrowPress={handleLinearArrow} onEnter={() => { if (vm.session.lifecycle !== 'starting') void vm.session.start().catch(() => undefined); }}>
             {({ ref, focused }) => (
@@ -37,7 +78,7 @@ export const MultiplayerOverview: React.FC<MultiplayerOverviewProps> = () => {
                 <OreButton
                   type="button"
                   size="auto"
-                  variant="secondary"
+                  variant="primary"
                   onClick={() => void vm.session.start().catch(() => undefined)}
                   disabled={vm.session.lifecycle === 'starting'}
                   tabIndex={-1}
@@ -92,16 +133,6 @@ export const MultiplayerOverview: React.FC<MultiplayerOverviewProps> = () => {
 
       <div className="ore-multiplayer-scroll">
         <div className="ore-multiplayer-stack">
-          <StatusStrip
-            lifecycle={vm.session.lifecycle}
-            busyLabel={vm.session.busyLabel}
-            peerConnectionState={vm.session.peerConnectionState}
-            tunnelInfo={vm.session.tunnelInfo}
-            localProxyPort={vm.session.localProxyPort}
-            role={vm.session.role}
-            selectedFlow={vm.selectedFlow}
-          />
-
           {vm.selectedFlow === null ? (
             <div className="ore-multiplayer-chooser">
               <FlowSelector onSelect={vm.setSelectedFlow} />

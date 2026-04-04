@@ -5,6 +5,7 @@ import { Settings as SettingsIcon, Monitor, Gamepad2, Coffee, Download, Users, A
 import { doesFocusableExist } from '@noriginmedia/norigin-spatial-navigation';
 
 import { lazy, Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
 import { INITIAL_DOWNLOAD_FOCUS_KEY } from '../features/Settings/components/tabs/download/downloadSettings.constants';
 
 const GeneralSettings    = lazy(() => import('../features/Settings/components/tabs/GeneralSettings').then(m => ({ default: m.GeneralSettings })));
@@ -22,24 +23,27 @@ import { focusManager } from '../ui/focus/FocusManager';
 import { useInputAction } from '../ui/focus/InputDriver';
 import { ControlHint } from '../ui/components/ControlHint';
 
-const SETTINGS_TABS: ToggleOption[] = [
-  { value: 'general',    label: (<div className="flex items-center justify-center space-x-2"><SettingsIcon size={16} /><span className="font-minecraft tracking-wider">常规</span></div>) },
-  { value: 'appearance', label: (<div className="flex items-center justify-center space-x-2"><Monitor size={16} /><span className="font-minecraft tracking-wider">界面</span></div>) },
-  { value: 'game',       label: (<div className="flex items-center justify-center space-x-2"><Gamepad2 size={16} /><span className="font-minecraft tracking-wider">游戏</span></div>) },
-  { value: 'java',       label: (<div className="flex items-center justify-center space-x-2"><Coffee size={16} /><span className="font-minecraft tracking-wider">Java</span></div>) },
-  { value: 'download',   label: (<div className="flex items-center justify-center space-x-2"><Download size={16} /><span className="font-minecraft tracking-wider">下载</span></div>) },
-  { value: 'account',    label: (<div className="flex items-center justify-center space-x-2"><Users size={16} /><span className="font-minecraft tracking-wider">账户</span></div>) },
-  { value: 'data',       label: (<div className="flex items-center justify-center space-x-2"><Archive size={16} /><span className="font-minecraft tracking-wider">数据</span></div>) },
-  { value: 'about',      label: (<div className="flex items-center justify-center space-x-2"><Info size={16} /><span className="font-minecraft tracking-wider">关于</span></div>) },
-];
+
 
 export const Settings: React.FC = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<string>('general');
   const [pressingLT, setPressingLT] = useState(false);
   const [pressingRT, setPressingRT] = useState(false);
   // Track slide direction: +1 = slide left (going forward), -1 = slide right (going back)
   const slideDirRef = useRef<1 | -1>(1);
   const activeBoundaryId = useMemo(() => `settings-page-boundary:${activeTab}`, [activeTab]);
+
+  const SETTINGS_TABS = useMemo<ToggleOption[]>(() => [
+    { value: 'general',    label: (<div className="flex items-center justify-center space-x-2"><SettingsIcon size={16} /><span className="font-minecraft tracking-wider">{t('settings.tabs.general')}</span></div>) },
+    { value: 'appearance', label: (<div className="flex items-center justify-center space-x-2"><Monitor size={16} /><span className="font-minecraft tracking-wider">{t('settings.tabs.appearance')}</span></div>) },
+    { value: 'game',       label: (<div className="flex items-center justify-center space-x-2"><Gamepad2 size={16} /><span className="font-minecraft tracking-wider">{t('settings.tabs.game')}</span></div>) },
+    { value: 'java',       label: (<div className="flex items-center justify-center space-x-2"><Coffee size={16} /><span className="font-minecraft tracking-wider">{t('settings.tabs.java')}</span></div>) },
+    { value: 'download',   label: (<div className="flex items-center justify-center space-x-2"><Download size={16} /><span className="font-minecraft tracking-wider">{t('settings.tabs.download')}</span></div>) },
+    { value: 'account',    label: (<div className="flex items-center justify-center space-x-2"><Users size={16} /><span className="font-minecraft tracking-wider">{t('settings.tabs.account')}</span></div>) },
+    { value: 'data',       label: (<div className="flex items-center justify-center space-x-2"><Archive size={16} /><span className="font-minecraft tracking-wider">{t('settings.tabs.data')}</span></div>) },
+    { value: 'about',      label: (<div className="flex items-center justify-center space-x-2"><Info size={16} /><span className="font-minecraft tracking-wider">{t('settings.tabs.about')}</span></div>) },
+  ], [t]);
 
   const slideVariants = {
     enter: (dir: number) => ({ opacity: 0, x: dir * 36 }),
@@ -91,14 +95,14 @@ export const Settings: React.FC = () => {
     const currentIndex = SETTINGS_TABS.findIndex(t => t.value === activeTab);
     const nextIndex = (currentIndex + direction + SETTINGS_TABS.length) % SETTINGS_TABS.length;
     setActiveTab(SETTINGS_TABS[nextIndex].value);
-  }, [activeTab, isTextEntryActive]);
+  }, [activeTab, isTextEntryActive, SETTINGS_TABS]);
 
   const handleTabSelect = useCallback((value: string) => {
     const currentIndex = SETTINGS_TABS.findIndex(t => t.value === activeTab);
     const nextIndex = SETTINGS_TABS.findIndex(t => t.value === value);
     slideDirRef.current = nextIndex >= currentIndex ? 1 : -1;
     setActiveTab(value);
-  }, [activeTab]);
+  }, [activeTab, SETTINGS_TABS]);
 
   useInputAction('PAGE_LEFT',  () => handleSwitchTab(-1));
   useInputAction('PAGE_RIGHT', () => handleSwitchTab(1));
@@ -116,7 +120,7 @@ export const Settings: React.FC = () => {
       default: return (
         <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-ore-text-muted font-minecraft border-2 border-dashed border-ore-gray-border mx-8 mt-8">
           <Wrench size={48} className="mb-4 opacity-50" />
-          <span className="text-lg tracking-widest">设置模块开发中...</span>
+          <span className="text-lg tracking-widest">{t('settings.developing')}</span>
         </div>
       );
     }

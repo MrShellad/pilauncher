@@ -57,7 +57,9 @@ export const getSourceOptions = (t: TFunction, source: string): ToggleOption[] =
     label: (
       <div className="flex w-full items-center justify-center gap-1 font-minecraft tracking-wider">
         <ModrinthIcon className={`text-[16px] ${source === 'modrinth' ? 'text-white' : 'text-ore-green'}`} />
-        {t('download.source.modrinth', { defaultValue: 'Modrinth' })}
+        <span className={source === 'modrinth' ? 'text-white' : 'text-black'}>
+          {t('download.source.modrinth', { defaultValue: 'Modrinth' })}
+        </span>
       </div>
     ),
     value: 'modrinth'
@@ -66,7 +68,9 @@ export const getSourceOptions = (t: TFunction, source: string): ToggleOption[] =
     label: (
       <div className="flex w-full items-center justify-center gap-1 font-minecraft tracking-wider">
         <CurseforgeIcon className={`text-[16px] ${source === 'curseforge' ? 'text-white' : 'text-[#F16436]'}`} />
-        {t('download.source.curseforge', { defaultValue: 'CurseForge' })}
+        <span className={source === 'curseforge' ? 'text-white' : 'text-black'}>
+          {t('download.source.curseforge', { defaultValue: 'CurseForge' })}
+        </span>
       </div>
     ),
     value: 'curseforge'

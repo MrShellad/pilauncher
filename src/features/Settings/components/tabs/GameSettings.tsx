@@ -1,5 +1,6 @@
 // src/features/Settings/components/tabs/GameSettings.tsx
 import React, { useEffect, useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { Monitor, Eye } from 'lucide-react';
 
@@ -26,6 +27,7 @@ const STANDARD_RESOLUTIONS = [
 ];
 
 export const GameSettings: React.FC = () => {
+  const { t } = useTranslation();
   const { settings, updateGameSetting } = useSettingsStore();
   const game = settings.game || DEFAULT_SETTINGS.game;
 
@@ -78,11 +80,11 @@ export const GameSettings: React.FC = () => {
   return (
     <SettingsPageLayout adaptiveScale>
 
-      <SettingsSection title="窗口与渲染" icon={<Monitor size={18} />}>
+      <SettingsSection title={t('settings.game.sections.window')} icon={<Monitor size={18} />}>
 
         <FormRow
-          label="自定义游戏标题"
-          description="修改 Minecraft 游戏窗口顶部显示的文字名称。"
+          label={t('settings.game.windowTitle')}
+          description={t('settings.game.windowTitleDesc')}
           control={
             <div className="w-56">
               <OreInput
@@ -97,8 +99,8 @@ export const GameSettings: React.FC = () => {
         />
 
         <FormRow
-          label="全屏模式"
-          description="启动游戏后直接进入独占全屏状态。如果你的游戏经常切出导致卡顿，建议关闭此项使用无边框窗口化。"
+          label={t('settings.game.fullscreen')}
+          description={t('settings.game.fullscreenDesc')}
           control={
             <OreSwitch
               focusKey="settings-game-fullscreen"
@@ -110,8 +112,8 @@ export const GameSettings: React.FC = () => {
         />
 
         <FormRow
-          label="启动分辨率"
-          description="设定游戏初始窗口的大小 (全屏模式下此项仅影响 UI 缩放)。已根据你的显示器自动隐藏不支持的超大分辨率。"
+          label={t('settings.game.resolution')}
+          description={t('settings.game.resolutionDesc')}
           vertical={true}
           control={
             /* ✅ 核心修复 2：外层隐藏破版，内层提供充足 padding 容纳焦点发光 */
@@ -133,11 +135,11 @@ export const GameSettings: React.FC = () => {
         />
       </SettingsSection>
 
-      <SettingsSection title="启动器行为" icon={<Eye size={18} />}>
+      <SettingsSection title={t('settings.game.sections.behavior')} icon={<Eye size={18} />}>
 
         <FormRow
-          label="游戏日志面板"
-          description="启动游戏时展开带有日志输出的控制台面板。关闭后将显示方块跳跃动画，直到游戏加载完成。"
+          label={t('settings.game.showLog')}
+          description={t('settings.game.showLogDesc')}
           control={
             <OreSwitch
               focusKey="settings-game-show-log"
@@ -149,8 +151,8 @@ export const GameSettings: React.FC = () => {
         />
 
         <FormRow
-          label="游戏运行时的可见性"
-          description="当 Minecraft 实例成功拉起并运行后，主启动器界面的处理方式。"
+          label={t('settings.game.visibility')}
+          description={t('settings.game.visibilityDesc')}
           vertical={true}
           control={
             <div className="w-full mt-2">

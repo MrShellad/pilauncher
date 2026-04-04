@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Coffee, Cpu, Download, Loader2, TestTube2 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -17,23 +18,11 @@ import { JVMParamsEditor } from '../../../runtime/components/JVMParamsEditor';
 import { MemorySlider } from '../../../runtime/components/MemorySlider';
 import { useJavaRuntimeTestDialog } from '../../../runtime/hooks/useJavaRuntimeTestDialog';
 
-const JAVA_OPTIONS = [
-  { label: 'Java 25 (适用于较新版本)', value: '25' },
-  { label: 'Java 21 (适用于 MC 1.21+)', value: '21' },
-  { label: 'Java 17 (适用于 MC 1.18 - 1.20)', value: '17' },
-  { label: 'Java 16 (适用于 MC 1.17)', value: '16' },
-  { label: 'Java 8 (适用于 MC 1.7 - 1.16)', value: '8' }
-];
-
-const MAJOR_ITEMS = [
-  { id: '25', label: 'Java 25', desc: '适用于 1.26+ 与新快照' },
-  { id: '8', label: 'Java 8', desc: '适用于 1.16.5 及更早版本' },
-  { id: '16', label: 'Java 16', desc: '专门用于 1.17 / 1.17.1' },
-  { id: '17', label: 'Java 17', desc: '适用于 1.18 - 1.20.4' },
-  { id: '21', label: 'Java 21', desc: '适用于 1.20.5 及更新版本' }
-];
+const JAVA_VERSIONS = ['25', '21', '17', '16', '8'] as const;
+const MAJOR_ITEM_IDS = ['25', '8', '16', '17', '21'] as const;
 
 export const JavaSettings: React.FC = () => {
+  const { t } = useTranslation();
   const { settings, updateJavaSetting, triggerJavaAutoDetect } = useSettingsStore();
   const java = settings.java;
 
@@ -46,13 +35,32 @@ export const JavaSettings: React.FC = () => {
 
   const { testingKey, dialog, closeDialog, runJavaTest } = useJavaRuntimeTestDialog();
 
+  const javaOptions = useMemo(
+    () =>
+      JAVA_VERSIONS.map((version) => ({
+        label: t(`settings.java.versions.${version}`),
+        value: version
+      })),
+    [t]
+  );
+
+  const majorItems = useMemo(
+    () =>
+      MAJOR_ITEM_IDS.map((id) => ({
+        id,
+        label: `Java ${id}`,
+        desc: t(`settings.java.majorDescriptions.${id}`)
+      })),
+    [t]
+  );
+
   const providerOptions = useMemo(
     () =>
       downloadSource.sources.java.map((source: any) => ({
-        label: source.name,
+        label: t(`settings.java.providers.${source.id}`, { defaultValue: source.name }),
         value: source.id
       })),
-    []
+    [t]
   );
 
   const focusOrder = useMemo(() => {
@@ -65,14 +73,14 @@ export const JavaSettings: React.FC = () => {
 
     if (!java.autoDetect && !isDetecting) {
       keys.push('settings-java-global-btn-browse', 'settings-java-global-btn-test');
-      MAJOR_ITEMS.forEach((item) => {
+      majorItems.forEach((item) => {
         keys.push(`settings-java-${item.id}-btn-browse`, `settings-java-${item.id}-btn-test`);
       });
     }
 
     keys.push('java-slider-memory', 'java-btn-recommend', 'java-input-jvm');
     return keys;
-  }, [isDetecting, java.autoDetect]);
+  }, [isDetecting, java.autoDetect, majorItems]);
 
   const { handleLinearArrow } = useLinearNavigation(focusOrder);
 
@@ -115,21 +123,18 @@ export const JavaSettings: React.FC = () => {
 
   return (
     <SettingsPageLayout adaptiveScale>
-      <SettingsSection title="自动下载获取" icon={<Download size={18} />}>
+      <SettingsSection title={t('settings.java.sections.autoDownload')} icon={<Download size={18} />}>
         <div className="px-6 py-4 bg-[#141415]/50 flex flex-col gap-4">
-          <p className="font-minecraft text-sm text-ore-text-muted leading-relaxed">
-            选择需要的 Java 版本和下载源，点击下载后将自动安装到本地
-            <code className="bg-black/30 px-1 rounded ml-1">runtime/Java</code> 目录。
-          </p>
+          <p className="font-minecraft text-sm text-ore-text-muted leading-relaxed" dangerouslySetInnerHTML={{ __html: t('settings.java.autoDownloadDesc') }} />
 
           <div className="grid grid-cols-12 gap-4 items-end w-full">
             <div className="col-span-12 sm:col-span-5">
-              <label className="text-xs text-ore-text-muted mb-1 block truncate">目标 Java 版本</label>
+              <label className="text-xs text-ore-text-muted mb-1 block truncate">{t('settings.java.targetVersion')}</label>
               <div className="w-full [&>button]:w-full [&>div]:w-full">
                 <OreDropdown
                   focusKey="settings-java-download-version"
                   onArrowPress={handleLinearArrow}
-                  options={JAVA_OPTIONS}
+                  options={javaOptions}
                   value={javaVersion}
                   onChange={setJavaVersion}
                   disabled={isDownloading}
@@ -138,7 +143,7 @@ export const JavaSettings: React.FC = () => {
             </div>
 
             <div className="col-span-12 sm:col-span-4">
-              <label className="text-xs text-ore-text-muted mb-1 block truncate">下载源</label>
+              <label className="text-xs text-ore-text-muted mb-1 block truncate">{t('settings.java.provider')}</label>
               <div className="w-full [&>button]:w-full [&>div]:w-full">
                 <OreDropdown
                   focusKey="settings-java-download-provider"
@@ -158,14 +163,17 @@ export const JavaSettings: React.FC = () => {
                 onClick={handleDownloadJava}
                 disabled={isDownloading}
                 variant="primary"
-                className="w-full flex justify-center items-center"
+                size="auto"
+                className="w-full !min-w-0 !h-10 !px-3 !justify-center gap-1 whitespace-nowrap overflow-hidden"
               >
                 {isDownloading ? (
-                  <Loader2 size={16} className="animate-spin mr-2" />
+                  <Loader2 size={16} className="animate-spin shrink-0" />
                 ) : (
-                  <Download size={16} className="mr-2" />
+                  <Download size={16} className="shrink-0" />
                 )}
-                {isDownloading ? '正在下载...' : '一键下载'}
+                <span className="truncate">
+                  {isDownloading ? t('settings.java.downloading') : t('settings.java.btnDownload')}
+                </span>
               </OreButton>
             </div>
           </div>
@@ -174,15 +182,15 @@ export const JavaSettings: React.FC = () => {
         </div>
       </SettingsSection>
 
-      <SettingsSection title="环境配置" icon={<Coffee size={18} />}>
+      <SettingsSection title={t('settings.java.sections.environment')} icon={<Coffee size={18} />}>
         <FormRow
           label={
             <div className="flex items-center gap-2">
-              自动检测 Java 环境
+              {t('settings.java.autoDetect')}
               {isDetecting && <Loader2 size={14} className="animate-spin text-ore-green" />}
             </div>
           }
-          description="开启后会在启动器启动时扫描一次并自动回填版本化 Java 路径。"
+          description={t('settings.java.autoDetectDesc')}
           control={
             <OreSwitch
               focusKey="settings-java-autodetect"
@@ -195,8 +203,8 @@ export const JavaSettings: React.FC = () => {
         />
 
         <FormRow
-          label="全局 Java 运行时路径（兜底）"
-          description="默认 Java 路径。当版本映射关闭或手动设置时可使用。"
+          label={t('settings.java.globalPath')}
+          description={t('settings.java.globalPathDesc')}
           vertical={true}
           control={
             <div className="w-full relative">
@@ -205,7 +213,7 @@ export const JavaSettings: React.FC = () => {
                   <JavaSelector
                     focusKeyPrefix="settings-java-global"
                     onArrowPress={handleLinearArrow}
-                    value={java.autoDetect && !java.javaPath ? '缺少Java环境' : java.javaPath || ''}
+                    value={java.autoDetect && !java.javaPath ? t('settings.java.missingAuth') : java.javaPath || ''}
                     onChange={(value) => {
                       updateJavaSetting('javaPath', value);
                       if (value) updateJavaSetting('autoDetect', false);
@@ -220,16 +228,22 @@ export const JavaSettings: React.FC = () => {
                   onArrowPress={handleLinearArrow}
                   variant="secondary"
                   size="auto"
-                  onClick={() => runJavaTest({ key: 'global', label: '全局 Java', javaPath: java.javaPath })}
+                  onClick={() =>
+                    runJavaTest({
+                      key: 'global',
+                      label: t('settings.java.testTargets.global'),
+                      javaPath: java.javaPath
+                    })
+                  }
                   disabled={java.autoDetect || isDetecting || !java.javaPath?.trim() || testingKey !== null}
-                  className="shrink-0 !min-w-[7.5rem] !h-10 !px-4 !justify-center gap-1"
+                  className="shrink-0 !min-w-[7.5rem] !h-10 !px-4 !justify-center gap-1 whitespace-nowrap"
                 >
                   {testingKey === 'global' ? (
                     <Loader2 size={14} className="animate-spin" />
                   ) : (
                     <TestTube2 size={14} />
                   )}
-                  测试
+                  {t('settings.java.btnTest')}
                 </OreButton>
               </div>
 
@@ -241,11 +255,11 @@ export const JavaSettings: React.FC = () => {
         <div className="px-6 py-2">
           <div className="h-[1px] bg-white/5 w-full my-2" />
           <p className="text-xs text-ore-text-muted mb-4 uppercase tracking-wider font-bold">
-            版本化全局配置（推荐）
+            {t('settings.java.majorConfig')}
           </p>
 
           <div className="flex flex-col gap-4">
-            {MAJOR_ITEMS.map((item) => {
+            {majorItems.map((item) => {
               const path = java.majorJavaPaths[item.id] || '';
               const testKey = `major-${item.id}`;
               return (
@@ -260,7 +274,7 @@ export const JavaSettings: React.FC = () => {
                       <JavaSelector
                         focusKeyPrefix={`settings-java-${item.id}`}
                         onArrowPress={handleLinearArrow}
-                        value={java.autoDetect && !path ? '缺少Java环境' : path}
+                        value={java.autoDetect && !path ? t('settings.java.missingAuth') : path}
                         onChange={(value) => {
                           const newPaths = { ...java.majorJavaPaths, [item.id]: value };
                           updateJavaSetting('majorJavaPaths', newPaths);
@@ -278,14 +292,14 @@ export const JavaSettings: React.FC = () => {
                       size="auto"
                       onClick={() => runJavaTest({ key: testKey, label: item.label, javaPath: path })}
                       disabled={java.autoDetect || isDetecting || !path.trim() || testingKey !== null}
-                      className="shrink-0 !min-w-[7.5rem] !h-10 !px-4 !justify-center gap-1"
+                      className="shrink-0 !min-w-[7.5rem] !h-10 !px-4 !justify-center gap-1 whitespace-nowrap"
                     >
                       {testingKey === testKey ? (
                         <Loader2 size={14} className="animate-spin" />
                       ) : (
                         <TestTube2 size={14} />
                       )}
-                      测试
+                      {t('settings.java.btnTest')}
                     </OreButton>
                   </div>
                 </div>
@@ -295,16 +309,16 @@ export const JavaSettings: React.FC = () => {
         </div>
       </SettingsSection>
 
-      <SettingsSection title="全局内存与参数" icon={<Cpu size={18} />}>
+      <SettingsSection title={t('settings.java.sections.memory')} icon={<Cpu size={18} />}>
         <div className="px-6 py-4 bg-[#141415]/50">
           <p className="font-minecraft text-sm text-ore-text-muted leading-relaxed">
-            默认情况下新建实例会继承这里的内存与参数配置；若实例开启了独立配置，则以实例设置为准。
+            {t('settings.java.memoryDesc')}
           </p>
         </div>
 
         <FormRow
-          label="全局最大内存分配"
-          description="动态调整游戏可用的最大 RAM。"
+          label={t('settings.java.maxMemory')}
+          description={t('settings.java.maxMemoryDesc')}
           control={
             <MemorySlider
               onArrowPress={handleLinearArrow}
@@ -316,8 +330,8 @@ export const JavaSettings: React.FC = () => {
         />
 
         <FormRow
-          label="全局 JVM 附加参数"
-          description="高级选项。会应用到继承全局设置的实例。"
+          label={t('settings.java.jvmArgs')}
+          description={t('settings.java.jvmArgsDesc')}
           vertical={true}
           control={
             <div className="w-full">

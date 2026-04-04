@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { SettingsSection } from '../../../../ui/layout/SettingsSection';
 import { Info, Github, Heart, Users, ExternalLink, Tv, Zap } from 'lucide-react';
@@ -9,6 +10,7 @@ import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
 
 export const AboutSettings: React.FC = () => {
+  const { t } = useTranslation();
   const [version, setVersion] = useState<string>('0.0.0');
 
   useEffect(() => {
@@ -55,7 +57,7 @@ export const AboutSettings: React.FC = () => {
       <SettingsPageLayout adaptiveScale>
 
         {/* ==================== 产品基础信息 ==================== */}
-        <SettingsSection title="产品信息" icon={<Info size={18} />}>
+        <SettingsSection title={t('settings.about.sections.product')} icon={<Info size={18} />}>
           {/* ✅ 2. 为纯展示区域添加 FocusItem 和 tabIndex={-1}，赋予阅读焦点 */}
           <FocusItem focusKey="settings-about-product" onArrowPress={handleLinearArrow}>
             {({ ref, focused }) => (
@@ -70,7 +72,7 @@ export const AboutSettings: React.FC = () => {
                   v{version}
                 </span>
                 <p className="text-ore-text-muted text-sm max-w-md text-center font-minecraft">
-                  专为掌机与手柄优化的跨平台 Minecraft 启动器。
+                  {t('settings.about.productDesc')}
                 </p>
               </div>
             )}
@@ -78,7 +80,7 @@ export const AboutSettings: React.FC = () => {
         </SettingsSection>
 
         {/* ==================== 关注与支持 ==================== */}
-        <SettingsSection title="关注与支持" icon={<Heart size={18} />}>
+        <SettingsSection title={t('settings.about.sections.support')} icon={<Heart size={18} />}>
           <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
             {links.map((item) => (
               <FocusItem key={item.id} focusKey={`settings-about-${item.id}`} onArrowPress={handleLinearArrow}>
@@ -107,7 +109,7 @@ export const AboutSettings: React.FC = () => {
                     </p>
                     <div className={`mt-4 flex items-center text-[10px] px-2 py-1 rounded transition-colors ${focused ? 'text-ore-green bg-ore-green/10' : 'text-ore-text-muted/50 bg-black/20'}`}>
                       <ExternalLink size={10} className="mr-1" />
-                      扫码或按A键访问
+                      {t('settings.about.scanOrA')}
                     </div>
                   </a>
                 )}
@@ -117,7 +119,7 @@ export const AboutSettings: React.FC = () => {
         </SettingsSection>
 
         {/* ==================== 赞助者列表 ==================== */}
-        <SettingsSection title="赞助者" icon={<Users size={18} />}>
+        <SettingsSection title={t('settings.about.sections.sponsors')} icon={<Users size={18} />}>
           {/* ✅ 4. 同样为底部展示区提供焦点垫脚石，方便用户手柄平滑滚动到底部 */}
           <FocusItem focusKey="settings-about-sponsors" onArrowPress={handleLinearArrow}>
             {({ ref, focused }) => (
@@ -128,14 +130,13 @@ export const AboutSettings: React.FC = () => {
                   }`}
               >
                 <Heart size={32} className="text-[#946ce6]/50 mb-3" />
-                <h3 className="text-white font-minecraft mb-2">感谢所有支持我们的赞助者</h3>
+                <h3 className="text-white font-minecraft mb-2">{t('settings.about.thanks')}</h3>
                 <p className="text-ore-text-muted text-sm max-w-xl leading-relaxed mb-4">
-                  正是因为有了你们的支持，PiLauncher 才能不断改进与完善。
-                  如果你也想支持我们，可以通过上方的爱发电进行赞助。
+                  {t('settings.about.thanksDesc')}
                 </p>
                 <div className="flex flex-wrap justify-center gap-2 mt-2">
                   <span className={`text-xs px-3 py-1.5 rounded border transition-colors ${focused ? 'text-white bg-white/10 border-white/20' : 'text-white/70 bg-white/5 border-white/10'}`}>
-                    虚位以待...
+                    {t('settings.about.emptySeat')}
                   </span>
                 </div>
               </div>

@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { OreModal } from '../../../ui/primitives/OreModal';
 import { OreInstanceCard } from '../../../ui/primitives/OreInstanceCard';
 import { useInstances } from '../../../hooks/pages/Instances/useInstances';
+import { useTranslation } from 'react-i18next';
 
 // 引入空间焦点引擎组件
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
@@ -26,6 +27,7 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
   onSelect,
 }) => {
   const { instances } = useInstances();
+  const { t } = useTranslation();
   
   // ✅ 获取全局存储的方法和记忆的 ID
   const globalSelectedId = useLauncherStore(state => state.selectedInstanceId);
@@ -55,7 +57,7 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
     <OreModal
       isOpen={isOpen}
       onClose={onClose}
-      title="选择启动实例"
+      title={t('home.selectInstanceModal.title')}
       className="w-full max-w-4xl"
     >
       <FocusBoundary id="instance-select-boundary" trapFocus={true} onEscape={onClose}>
@@ -63,10 +65,10 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
         {instances.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-[#1E1E1F] bg-[#141415]/50 m-2">
             <span className="text-ore-text-muted font-minecraft mb-2 tracking-wider">
-              尚未创建任何实例
+              {t('home.selectInstanceModal.empty')}
             </span>
             <span className="text-[#A0A0A0] font-minecraft text-xs">
-              请前往「实例管理」页面创建或导入你的第一个游戏环境
+              {t('home.selectInstanceModal.emptyHint')}
             </span>
           </div>
         ) : (

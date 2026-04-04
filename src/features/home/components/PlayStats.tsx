@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { Bell } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { getButtonIcon } from '../../../ui/icons/SocialIcons';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import { useLauncherStore } from '../../../store/useLauncherStore';
@@ -27,6 +28,7 @@ interface PiStyleConfig {
 }
 
 export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) => {
+  const { t } = useTranslation();
   const selectedInstanceId = useLauncherStore(state => state.selectedInstanceId);
   const [unreadNewsCount, setUnreadNewsCount] = useState(3);
   const [piConfig, setPiConfig] = useState<PiStyleConfig | null>(null);
@@ -135,7 +137,7 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
 
         <div className="flex items-center space-x-3">
           <div className="relative">
-            <OreButton focusKey="btn-notification" variant="secondary" size="auto" className={accountSquareClass} style={piConfig?.buttonStyle} onClick={() => setUnreadNewsCount(0)} title="通知与新闻" autoScroll={false}>
+            <OreButton focusKey="btn-notification" variant="secondary" size="auto" className={accountSquareClass} style={piConfig?.buttonStyle} onClick={() => setUnreadNewsCount(0)} title={t('home.notification')} autoScroll={false}>
               <Bell size={24} fill="#FACC15" className="text-yellow-600 drop-shadow-md" />
             </OreButton>
             {unreadNewsCount > 0 && (
@@ -147,7 +149,7 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
 
           {!currentAccount ? (
             <OreButton focusKey="btn-login" variant="secondary" size="auto" className="!h-12 !px-6" style={piConfig?.buttonStyle} onClick={msAuthState.startMicrosoftLogin} autoScroll={false}>
-              <span className="text-lg tracking-widest leading-none mt-0.5">添加账号</span>
+              <span className="text-lg tracking-widest leading-none mt-0.5">{t('home.addAccount')}</span>
             </OreButton>
           ) : (
             <OreButton focusKey="btn-profile" variant="secondary" size="auto" className="!h-12 !px-3 [&>button]:!justify-start" style={piConfig?.buttonStyle} onClick={() => setIsSidebarOpen(true)} autoScroll={false}>
@@ -159,15 +161,15 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
                 className={`w-7 h-7 mr-3 border border-black/20 shadow-sm transition-opacity duration-300 ${avatarSrc ? 'opacity-100' : 'opacity-30'}`}
                 style={{ imageRendering: 'pixelated' }} 
               />
-              <span className="text-lg tracking-widest leading-none mt-0.5">档案</span>
+              <span className="text-lg tracking-widest leading-none mt-0.5">{t('home.profile')}</span>
             </OreButton>
           )}
         </div>
 
         <div className="flex flex-col space-y-1 mt-4">
-          <span className="text-ore-text-muted text-xs font-bold uppercase tracking-wider">Play Time</span>
-          <span className="text-xl font-minecraft text-white drop-shadow-md">{playTime} H</span>
-          <span className="text-ore-text-muted text-xs font-bold uppercase tracking-wider mt-3">Last Played</span>
+          <span className="text-ore-text-muted text-xs font-bold uppercase tracking-wider">{t('home.playTime')}</span>
+          <span className="text-xl font-minecraft text-white drop-shadow-md">{playTime} {t('home.playTimeUnit')}</span>
+          <span className="text-ore-text-muted text-xs font-bold uppercase tracking-wider mt-3">{t('home.lastPlayed')}</span>
           <span className="text-base font-minecraft text-white drop-shadow-md">{lastPlayed}</span>
         </div>
       </div>

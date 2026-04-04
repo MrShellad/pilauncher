@@ -1,5 +1,6 @@
 // /src/pages/Home.tsx
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useHome } from '../hooks/pages/Home/useHome';
 import { useInstances } from '../hooks/pages/Instances/useInstances';
 import { useLauncherStore } from '../store/useLauncherStore'; 
@@ -13,6 +14,7 @@ import { InstanceSelectModal } from '../features/home/components/InstanceSelectM
 const Home: React.FC = () => {
   // ✅ 修复 1：移除 playTime 和 lastPlayed 解构，只保留 handleLaunch
   const { handleLaunch } = useHome();
+  const { t } = useTranslation();
   const { instances } = useInstances();
   
   const selectedInstanceId = useLauncherStore(state => state.selectedInstanceId);
@@ -26,9 +28,9 @@ const Home: React.FC = () => {
   
   // ✅ 修复 2：获取完整的当前实例对象，从中提取所有需要的展示数据
   const currentInstance = instances.find(i => i.id === currentId);
-  const currentInstanceName = currentInstance?.name || "选择实例";
+  const currentInstanceName = currentInstance?.name || t('home.selectInstance');
   const playTime = currentInstance?.playTime || 0;
-  const lastPlayed = currentInstance?.lastPlayed || "从未进行游戏";
+  const lastPlayed = currentInstance?.lastPlayed || t('home.neverPlayed');
 
   // 2. 弹窗中点击实例的逻辑
   const handleCardClick = (id: string) => {

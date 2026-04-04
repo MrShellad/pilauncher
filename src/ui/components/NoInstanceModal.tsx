@@ -1,5 +1,6 @@
 // /src/ui/components/NoInstanceModal.tsx
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { PackageOpen, Download, FolderInput } from 'lucide-react';
 import { OreModal } from '../primitives/OreModal';
 import { OreButton } from '../primitives/OreButton';
@@ -11,6 +12,7 @@ interface NoInstanceModalProps {
 }
 
 export const NoInstanceModal: React.FC<NoInstanceModalProps> = ({ isOpen, onClose }) => {
+  const { t } = useTranslation();
   const setActiveTab = useLauncherStore(state => state.setActiveTab);
 
   const handleGoToDownload = () => {
@@ -27,7 +29,7 @@ export const NoInstanceModal: React.FC<NoInstanceModalProps> = ({ isOpen, onClos
     <OreModal
       isOpen={isOpen}
       onClose={onClose}
-      title="无法启动游戏"
+      title={t('home.noInstance.title')}
       className="w-[480px]"
     >
       <div className="flex flex-col items-center justify-center pt-2 pb-4 px-4 text-center">
@@ -38,13 +40,10 @@ export const NoInstanceModal: React.FC<NoInstanceModalProps> = ({ isOpen, onClos
         </div>
 
         <h3 className="text-white font-minecraft font-bold text-xl mb-2 ore-text-shadow">
-          尚未创建任何实例
+          {t('home.noInstance.headline')}
         </h3>
 
-        <p className="text-[#A0A0A0] font-minecraft text-sm mb-6 leading-relaxed px-2">
-          启动游戏需要先创建或导入一个游戏实例。<br />
-          你可以前往「资源下载」寻找整合包，或从本地导入已有整合包。
-        </p>
+        <p className="text-[#A0A0A0] font-minecraft text-sm mb-6 leading-relaxed px-2" dangerouslySetInnerHTML={{ __html: t('home.noInstance.description') }} />
 
         <div className="flex space-x-4 w-full px-2">
           <OreButton
@@ -54,7 +53,7 @@ export const NoInstanceModal: React.FC<NoInstanceModalProps> = ({ isOpen, onClos
           >
             <div className="flex items-center justify-center">
               <FolderInput size={18} className="mr-2 flex-shrink-0" />
-              <span>导入整合包</span>
+              <span>{t('home.noInstance.importModpack')}</span>
             </div>
           </OreButton>
 
@@ -65,7 +64,7 @@ export const NoInstanceModal: React.FC<NoInstanceModalProps> = ({ isOpen, onClos
           >
             <div className="flex items-center justify-center">
               <Download size={18} className="mr-2 flex-shrink-0" />
-              <span>资源下载</span>
+              <span>{t('home.noInstance.downloadResource')}</span>
             </div>
           </OreButton>
         </div>

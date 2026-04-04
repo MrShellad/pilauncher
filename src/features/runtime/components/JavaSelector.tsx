@@ -1,5 +1,6 @@
 // src/features/runtime/components/JavaSelector.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { CheckCircle2, FolderOpen, Loader2, RefreshCw, Search } from 'lucide-react';
@@ -26,6 +27,7 @@ export const JavaSelector: React.FC<{
   onArrowPress?: (direction: string) => boolean;
   focusKeyPrefix?: string;
 }> = ({ value, onChange, disabled, isError, onArrowPress, focusKeyPrefix = 'java' }) => {
+  const { t } = useTranslation();
   const [isModalOpen, setModalOpen] = useState(false);
   const [javaList, setJavaList] = useState<JavaInstall[]>([]);
   const [isScanning, setIsScanning] = useState(false);
@@ -224,7 +226,7 @@ export const JavaSelector: React.FC<{
             readOnly
             tabIndex={-1}
             onFocus={(event) => event.currentTarget.blur()}
-            placeholder="点击选择 Java 路径..."
+            placeholder={t('settings.java.selector.placeholder')}
             disabled={disabled}
             className={`pointer-events-none cursor-pointer ${isError ? '!text-red-400 font-bold' : ''}`}
             containerClassName="!space-y-0"
@@ -237,17 +239,17 @@ export const JavaSelector: React.FC<{
           variant="secondary"
           onClick={() => openSelectorModal(browseButtonFocusKey)}
           disabled={disabled}
-          className="shrink-0 !min-w-[7.5rem] !h-10 !px-4 !justify-center gap-1"
+          className="shrink-0 !min-w-[7.5rem] !h-10 !px-4 !justify-center gap-1 whitespace-nowrap"
         >
           <FolderOpen size={14} />
-          选择
+          {t('settings.java.selector.select')}
         </OreButton>
       </div>
 
       <OreModal
         isOpen={isModalOpen}
         onClose={() => closeSelectorModal()}
-        title="选择 Java 运行时"
+        title={t('settings.java.selector.modalTitle')}
         hideTitleBar={true}
         defaultFocusKey={modalScanFocusKey}
         className="w-[37.5rem] h-[31.25rem]"
@@ -270,7 +272,7 @@ export const JavaSelector: React.FC<{
               className="flex-1 !min-w-0 !h-11 !justify-center gap-2"
             >
               <RefreshCw size={16} className={isScanning ? 'animate-spin' : ''} />
-              <span>{isScanning ? '扫描中...' : '重新扫描本机'}</span>
+              <span>{isScanning ? t('settings.java.selector.rescanning') : t('settings.java.selector.rescan')}</span>
             </OreButton>
 
             <OreButton
@@ -282,7 +284,7 @@ export const JavaSelector: React.FC<{
               className="flex-1 !min-w-0 !h-11 !justify-center gap-2"
             >
               <FolderOpen size={16} />
-              <span>手动浏览目录...</span>
+              <span>{t('settings.java.selector.manualBrowse')}</span>
             </OreButton>
           </div>
 
@@ -290,12 +292,12 @@ export const JavaSelector: React.FC<{
             {isScanning && javaList.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[2px] border-2 border-dashed border-[var(--ore-border-color)] bg-[var(--ore-modal-bg)]/55 p-6 text-ore-text-muted">
                 <Loader2 size={32} className="animate-spin opacity-60" />
-                <span className="font-minecraft text-sm tracking-wide">正在深度扫描磁盘...</span>
+                <span className="font-minecraft text-sm tracking-wide">{t('settings.java.selector.scanningDisk')}</span>
               </div>
             ) : javaList.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[2px] border-2 border-dashed border-[var(--ore-border-color)] bg-[var(--ore-modal-bg)]/55 p-6 text-ore-text-muted">
                 <Search size={32} className="opacity-60" />
-                <span className="font-minecraft text-sm tracking-wide">未扫描到可用的 Java 环境，请手动浏览</span>
+                <span className="font-minecraft text-sm tracking-wide">{t('settings.java.selector.notFound')}</span>
               </div>
             ) : (
               <div className="space-y-3 pb-2 pl-1 pt-1">

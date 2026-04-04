@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { UserPlus, Send, Loader2, ArrowLeft } from 'lucide-react'; 
+import { useTranslation } from 'react-i18next';
 
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../ui/focus/FocusItem';
@@ -31,6 +32,7 @@ interface DiscoveredDevice {
 }
 
 export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = ({ isOpen, onClose }) => {
+  const { t } = useTranslation();
   const { accounts, activeAccountId, setActiveAccount } = useAccountStore();
   const { settings } = useSettingsStore();
   const [avatarSrc, setAvatarSrc] = useState<string | null>(null);
@@ -176,10 +178,10 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
         targetId: selectedInstance,
         saveName: transferType === 'save' ? selectedSave : null
       });
-      alert("推送成功！");
+      alert(t('home.sidebar.pushSuccess'));
       setTransferTarget(null);
     } catch (e) {
-      alert(`推送失败: ${e}`);
+      alert(`${t('home.sidebar.pushFailed')}: ${e}`);
     } finally {
       setIsPushing(false);
     }
@@ -252,9 +254,9 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
                           <div className="p-4 border-b-2 border-[#2A2A2C] flex justify-between items-center bg-[#141415]">
                             <div>
                               <h3 className="text-white text-base font-bold flex items-center font-minecraft">
-                                <Send size={16} className="mr-2 text-blue-400" /> 隔空投送
+                                <Send size={16} className="mr-2 text-blue-400" /> {t('home.sidebar.airdrop')}
                               </h3>
-                              <span className="text-xs text-gray-400 mt-0.5 block">目标设备: {transferTarget.device_name} ({transferTarget.ip})</span>
+                              <span className="text-xs text-gray-400 mt-0.5 block">{t('home.sidebar.targetDevice')}: {transferTarget.device_name} ({transferTarget.ip})</span>
                             </div>
                             <FocusItem focusKey="btn-back-transfer" onEnter={() => setTransferTarget(null)}>
                               {({ ref, focused }) => (
@@ -269,23 +271,23 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
                           <div className="flex p-3 gap-2 bg-[#1A1A1B]">
                             <FocusItem focusKey="btn-transfer-type-instance">
                               {({ ref, focused }) => (
-                                <button ref={ref as any} onClick={() => setTransferType('instance')} className={`flex-1 py-2 text-sm border-b-2 transition-colors outline-none font-minecraft ${transferType === 'instance' ? 'border-blue-400 text-blue-400' : 'border-transparent text-gray-500'} ${focused ? 'bg-white/5' : ''}`}>打包实例</button>
+                                <button ref={ref as any} onClick={() => setTransferType('instance')} className={`flex-1 py-2 text-sm border-b-2 transition-colors outline-none font-minecraft ${transferType === 'instance' ? 'border-blue-400 text-blue-400' : 'border-transparent text-gray-500'} ${focused ? 'bg-white/5' : ''}`}>{t('home.sidebar.transferInstance')}</button>
                               )}
                             </FocusItem>
                             <FocusItem focusKey="btn-transfer-type-save">
                               {({ ref, focused }) => (
-                                <button ref={ref as any} onClick={() => setTransferType('save')} className={`flex-1 py-2 text-sm border-b-2 transition-colors outline-none font-minecraft ${transferType === 'save' ? 'border-green-400 text-green-400' : 'border-transparent text-gray-500'} ${focused ? 'bg-white/5' : ''}`}>提取存档</button>
+                                <button ref={ref as any} onClick={() => setTransferType('save')} className={`flex-1 py-2 text-sm border-b-2 transition-colors outline-none font-minecraft ${transferType === 'save' ? 'border-green-400 text-green-400' : 'border-transparent text-gray-500'} ${focused ? 'bg-white/5' : ''}`}>{t('home.sidebar.transferSave')}</button>
                               )}
                             </FocusItem>
                           </div>
 
                           {/* 选择区域 */}
                           <div className="p-5 flex-1 overflow-y-auto">
-                            <label className="text-xs text-gray-400 mb-2 block font-minecraft">{transferType === 'instance' ? '选择要发送的实例' : '从实例中提取'}</label>
+                            <label className="text-xs text-gray-400 mb-2 block font-minecraft">{transferType === 'instance' ? t('home.sidebar.selectInstanceToSend') : t('home.sidebar.selectInstanceToExtract')}</label>
                             <FocusItem focusKey="select-transfer-inst">
                               {({ ref, focused }) => (
                                 <select ref={ref as any} className={`w-full bg-[#141415] border-2 border-[#2A2A2C] text-white p-2 rounded-sm outline-none mb-4 transition-all font-minecraft ${focused ? 'ring-2 ring-blue-500' : ''}`} value={selectedInstance} onChange={(e) => transferType === 'save' ? handleFetchSaves(e.target.value) : setSelectedInstance(e.target.value)}>
-                                  <option value="" disabled>-- 请选择 --</option>
+                                  <option value="" disabled>{t('home.sidebar.selectPlaceholder')}</option>
                                   {instances.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
                                 </select>
                               )}
@@ -293,11 +295,11 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
 
                             {transferType === 'save' && (
                               <>
-                                <label className="text-xs text-gray-400 mb-2 block mt-2 font-minecraft">选择世界存档</label>
+                                <label className="text-xs text-gray-400 mb-2 block mt-2 font-minecraft">{t('home.sidebar.selectSave')}</label>
                                 <FocusItem focusKey="select-transfer-save">
                                   {({ ref, focused }) => (
                                     <select ref={ref as any} className={`w-full bg-[#141415] border-2 border-[#2A2A2C] text-white p-2 rounded-sm outline-none transition-all font-minecraft ${focused ? 'ring-2 ring-green-500' : ''}`} value={selectedSave} onChange={(e) => setSelectedSave(e.target.value)}>
-                                      <option value="" disabled>-- 请选择 --</option>
+                                      <option value="" disabled>{t('home.sidebar.selectPlaceholder')}</option>
                                       {saves.map(s => <option key={s} value={s}>{s}</option>)}
                                     </select>
                                   )}
@@ -310,7 +312,7 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
                           <div className="p-4 border-t-2 border-[#2A2A2C] bg-[#141415]">
                             <OreButton onClick={executePush} disabled={isPushing || !selectedInstance || (transferType === 'save' && !selectedSave)} variant="primary" className="w-full flex justify-center !h-11">
                               {isPushing ? <Loader2 size={16} className="animate-spin mr-2" /> : <Send size={16} className="mr-2" />}
-                              {isPushing ? '打包并发送中...' : '开始传送'}
+                              {isPushing ? t('home.sidebar.pushing') : t('home.sidebar.startTransfer')}
                             </OreButton>
                           </div>
                         </motion.div>
@@ -324,8 +326,8 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
                         >
                           <div className="text-gray-500 font-minecraft text-center flex flex-col items-center">
                             <span className="text-4xl mb-4 opacity-50">📡</span>
-                            <p className="text-lg mb-2 text-gray-400">传输控制台</p>
-                            <p className="text-xs opacity-60 max-w-[200px] leading-relaxed">点击左侧信任设备列表中的在线设备，即可在此处进行实例或存档的跨设备传输。</p>
+                            <p className="text-lg mb-2 text-gray-400">{t('home.sidebar.transferConsole')}</p>
+                            <p className="text-xs opacity-60 max-w-[200px] leading-relaxed">{t('home.sidebar.transferConsoleHint')}</p>
                           </div>
                         </motion.div>
                       )}
@@ -339,20 +341,18 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
         )}
       </AnimatePresence>
 
-      <OreModal isOpen={!!incomingRequest} onClose={() => resolveTrustRequest(false)} title="✨ 收到好友请求" closeOnOutsideClick={false}>
+      <OreModal isOpen={!!incomingRequest} onClose={() => resolveTrustRequest(false)} title={t('home.sidebar.trustRequestTitle')} closeOnOutsideClick={false}>
         <div className="p-6 flex flex-col items-center">
           <div className="w-16 h-16 bg-blue-500/20 border-2 border-blue-500/50 rounded-full flex items-center justify-center mb-4">
             <UserPlus size={28} className="text-blue-400" />
           </div>
-          <p className="text-white text-lg font-minecraft mb-2">
-            设备 <strong className="text-ore-green">{incomingRequest?.device_name}</strong> 请求与您建立局域网信任
-          </p>
+          <p className="text-white text-lg font-minecraft mb-2" dangerouslySetInnerHTML={{ __html: t('home.sidebar.trustRequestMessage', { deviceName: incomingRequest?.device_name }) }} />
           <p className="text-gray-400 text-xs mb-8 text-center max-w-xs leading-relaxed">
-            同意后，双方将可以跨端互传游戏实例与存档，并相互查看实时游戏状态。请确保这是您认识的设备。
+            {t('home.sidebar.trustRequestHint')}
           </p>
           <div className="flex w-full gap-4">
-            <OreButton className="flex-1 !h-12" variant="secondary" onClick={() => resolveTrustRequest(false)}>拒绝并忽略</OreButton>
-            <OreButton className="flex-1 !h-12" variant="primary" onClick={() => resolveTrustRequest(true)}>接受并信任</OreButton>
+            <OreButton className="flex-1 !h-12" variant="secondary" onClick={() => resolveTrustRequest(false)}>{t('home.sidebar.rejectTrust')}</OreButton>
+            <OreButton className="flex-1 !h-12" variant="primary" onClick={() => resolveTrustRequest(true)}>{t('home.sidebar.acceptTrust')}</OreButton>
           </div>
         </div>
       </OreModal>

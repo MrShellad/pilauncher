@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { AlertTriangle, UserPlus } from 'lucide-react';
 import { OreModal } from '../primitives/OreModal';
 import { OreButton } from '../primitives/OreButton';
@@ -10,6 +11,7 @@ interface NoAccountModalProps {
 }
 
 export const NoAccountModal: React.FC<NoAccountModalProps> = ({ isOpen, onClose }) => {
+  const { t } = useTranslation();
   const setActiveTab = useLauncherStore(state => state.setActiveTab);
 
   const handleGoToSettings = () => {
@@ -21,7 +23,7 @@ export const NoAccountModal: React.FC<NoAccountModalProps> = ({ isOpen, onClose 
     <OreModal
       isOpen={isOpen}
       onClose={onClose}
-      title="无法启动实例"
+      title={t('home.noAccount.title')}
       className="w-[420px]"
     >
       <div className="flex flex-col items-center justify-center pt-2 pb-4 px-4 text-center">
@@ -31,11 +33,9 @@ export const NoAccountModal: React.FC<NoAccountModalProps> = ({ isOpen, onClose 
           <AlertTriangle size={32} className="text-[#E52E3D] drop-shadow-[0_0_8px_rgba(229,46,61,0.8)]" />
         </div>
 
-        <h3 className="text-white font-minecraft font-bold text-xl mb-2 ore-text-shadow">未检测到游戏账号</h3>
+        <h3 className="text-white font-minecraft font-bold text-xl mb-2 ore-text-shadow">{t('home.noAccount.headline')}</h3>
 
-        <p className="text-[#A0A0A0] font-minecraft text-sm mb-6 leading-relaxed px-2">
-          启动 Minecraft 需要至少一个有效的游戏账号。<br />请前往设置页面添加微软账号。
-        </p>
+        <p className="text-[#A0A0A0] font-minecraft text-sm mb-6 leading-relaxed px-2" dangerouslySetInnerHTML={{ __html: t('home.noAccount.description') }} />
 
         {/* 底部操作按钮：内置在 Modal 内容区，完美继承空间导航功能 */}
         <div className="flex space-x-4 w-full px-2">
@@ -44,7 +44,7 @@ export const NoAccountModal: React.FC<NoAccountModalProps> = ({ isOpen, onClose 
             size="full"
             onClick={onClose}
           >
-            取消
+            {t('home.noAccount.cancel')}
           </OreButton>
 
           <OreButton
@@ -54,7 +54,7 @@ export const NoAccountModal: React.FC<NoAccountModalProps> = ({ isOpen, onClose 
           >
             <div className="flex items-center justify-center">
               <UserPlus size={18} className="mr-2" />
-              <span>添加</span>
+              <span>{t('home.noAccount.add')}</span>
             </div>
           </OreButton>
         </div>

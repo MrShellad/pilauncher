@@ -1,5 +1,5 @@
-// src/features/Settings/components/tabs/DownloadSettings.tsx
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Globe,
   Zap,
@@ -29,6 +29,7 @@ import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { useDownloadSettingsController } from './download/useDownloadSettingsController';
 
 export const DownloadSettings: React.FC = () => {
+  const { t } = useTranslation();
   const {
     download,
     minecraftMetaSource,
@@ -142,8 +143,8 @@ export const DownloadSettings: React.FC = () => {
         />
 
         <FormRow
-          label="全局下载限速"
-          description="设置为 0 表示不限速。"
+          label={t('settings.download.speedLimit')}
+          description={t('settings.download.speedLimitDesc')}
           control={
             <div className="flex items-center space-x-2">
               <OreInput

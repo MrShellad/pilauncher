@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Archive, Trash2, FolderOpen, Database, Edit2, LogOut, FileX, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
@@ -19,6 +20,7 @@ import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
 import { useSettingsStore } from '../../../../store/useSettingsStore';
 
 export const DataSettings: React.FC = () => {
+  const { t } = useTranslation();
   const { settings, updateGeneralSetting } = useSettingsStore();
   const thirdPartyDirs = settings.general.thirdPartyDirs || [];
   const basePath = settings.general.basePath;
@@ -263,9 +265,9 @@ export const DataSettings: React.FC = () => {
         </div>
       </OreModal>
 
-      <SettingsSection title="核心数据目录" icon={<Database size={18} />}>
+      <SettingsSection title={t('settings.data.sections.core')} icon={<Database size={18} />}>
         <FormRow
-          label="核心数据存储位置"
+          label={t('settings.data.coreLocation')}
           description={`当前位置: ${basePath || "尚未配置"}\n将游戏实例、日志、启动器配置等核心数据完整迁移至新的目录。`}
           vertical={false}
           control={
@@ -275,8 +277,8 @@ export const DataSettings: React.FC = () => {
           }
         />
         <FormRow
-          label="重命名数据文件夹"
-          description="如果你对当前数据文件夹名字不满意，可以直接对其进行重命名，方便步骤选择或者辨别。"
+          label={t('settings.data.renameDir')}
+          description={t('settings.data.renameDirDesc')}
           vertical={false}
           control={
             <OreButton variant="secondary" onClick={openRenameModal} focusKey="settings-data-rename-dir" onArrowPress={handleLinearArrow} className="w-[200px] justify-center whitespace-nowrap">
@@ -285,8 +287,8 @@ export const DataSettings: React.FC = () => {
           }
         />
         <FormRow
-          label="清理启动器日志"
-          description={`清空 logs/ 目录下的全部日志文件，释放磁盘空间。当前路径: ${basePath ? basePath + '/logs' : '尚未配置'}`}
+          label={t('settings.data.cleanLogs')}
+          description={t('settings.data.cleanLogsDesc', { path: basePath ? basePath + '/logs' : '' })}
           vertical={false}
           control={
             <OreButton
@@ -302,10 +304,10 @@ export const DataSettings: React.FC = () => {
         />
       </SettingsSection>
 
-      <SettingsSection title="导入的实例目录" icon={<Archive size={18} />}>
+      <SettingsSection title={t('settings.data.sections.thirdParty')} icon={<Archive size={18} />}>
         {thirdPartyDirs.length === 0 ? (
           <FormRow
-            label="已关联的第三方文件夹"
+            label={t('settings.data.thirdPartyList')}
             description="这些文件夹内的实例会在启动器启动时被自动扫描。移除关联不会删除本地文件和数据。"
             vertical={false}
             control={

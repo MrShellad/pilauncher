@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { testJavaRuntime } from '../logic/javaDetector';
 
@@ -13,18 +14,17 @@ export interface JavaTestDialogState {
   detail?: string;
 }
 
-const INITIAL_DIALOG_STATE: JavaTestDialogState = {
-  isOpen: false,
-  tone: 'info',
-  title: 'Java 测试',
-  headline: '',
-  description: '',
-  detail: ''
-};
-
 export const useJavaRuntimeTestDialog = () => {
+  const { t } = useTranslation();
   const [testingKey, setTestingKey] = useState<string | null>(null);
-  const [dialog, setDialog] = useState<JavaTestDialogState>(INITIAL_DIALOG_STATE);
+  const [dialog, setDialog] = useState<JavaTestDialogState>(() => ({
+    isOpen: false,
+    tone: 'info',
+    title: t('settings.java.testDialog.title'),
+    headline: '',
+    description: '',
+    detail: ''
+  }));
 
   const closeDialog = useCallback(() => {
     setDialog((prev) => ({ ...prev, isOpen: false }));
@@ -41,9 +41,9 @@ export const useJavaRuntimeTestDialog = () => {
       if (!path) {
         openDialog({
           tone: 'warning',
-          title: 'Java 测试',
-          headline: `${params.label} 未配置路径`,
-          description: '请先选择一个可执行的 Java 路径，再进行测试。',
+          title: t('settings.java.testDialog.title'),
+          headline: t('settings.java.testDialog.missingPathHeadline', { target: params.label }),
+          description: t('settings.java.testDialog.missingPathDesc'),
           detail: ''
         });
         return;
@@ -54,24 +54,24 @@ export const useJavaRuntimeTestDialog = () => {
         const result = await testJavaRuntime(path);
         openDialog({
           tone: 'info',
-          title: 'Java 测试通过',
-          headline: `${params.label} 可用`,
-          description: `版本: ${result.version}`,
-          detail: `路径: ${result.path}`
+          title: t('settings.java.testDialog.successTitle'),
+          headline: t('settings.java.testDialog.successHeadline', { target: params.label }),
+          description: t('settings.java.testDialog.successDesc', { version: result.version }),
+          detail: t('settings.java.testDialog.pathLabel', { path: result.path })
         });
       } catch (error: any) {
         openDialog({
           tone: 'danger',
-          title: 'Java 测试失败',
-          headline: `${params.label} 不可用`,
-          description: '当前路径无法作为 Java 运行时。',
+          title: t('settings.java.testDialog.failedTitle'),
+          headline: t('settings.java.testDialog.failedHeadline', { target: params.label }),
+          description: t('settings.java.testDialog.failedDesc'),
           detail: String(error)
         });
       } finally {
         setTestingKey(null);
       }
     },
-    [openDialog]
+    [openDialog, t]
   );
 
   return {

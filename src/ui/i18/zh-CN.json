@@ -1,4 +1,56 @@
 {
+  "home": {
+    "selectInstance": "选择实例",
+    "neverPlayed": "从未进行游戏",
+    "playTime": "游戏时长",
+    "playTimeUnit": "H",
+    "lastPlayed": "上次游玩",
+    "notification": "通知与新闻",
+    "addAccount": "添加账号",
+    "profile": "档案",
+    "launchGame": "启动游戏",
+    "instanceDetail": "实例详情",
+    "selectInstanceModal": {
+      "title": "选择启动实例",
+      "empty": "尚未创建任何实例",
+      "emptyHint": "请前往「实例管理」页面创建或导入你的第一个游戏环境"
+    },
+    "noAccount": {
+      "title": "无法启动实例",
+      "headline": "未检测到游戏账号",
+      "description": "启动 Minecraft 需要至少一个有效的游戏账号。<br />请前往设置页面添加微软账号。",
+      "cancel": "取消",
+      "add": "添加"
+    },
+    "noInstance": {
+      "title": "无法启动游戏",
+      "headline": "尚未创建任何实例",
+      "description": "启动游戏需要先创建或导入一个游戏实例。<br />你可以前往「资源下载」寻找整合包，或从本地导入已有整合包。",
+      "importModpack": "导入整合包",
+      "downloadResource": "资源下载"
+    },
+    "sidebar": {
+      "airdrop": "隔空投送",
+      "targetDevice": "目标设备",
+      "transferInstance": "打包实例",
+      "transferSave": "提取存档",
+      "selectInstanceToSend": "选择要发送的实例",
+      "selectInstanceToExtract": "从实例中提取",
+      "selectPlaceholder": "-- 请选择 --",
+      "selectSave": "选择世界存档",
+      "pushing": "打包并发送中...",
+      "startTransfer": "开始传送",
+      "pushSuccess": "推送成功！",
+      "pushFailed": "推送失败",
+      "transferConsole": "传输控制台",
+      "transferConsoleHint": "点击左侧信任设备列表中的在线设备，即可在此处进行实例或存档的跨设备传输。",
+      "trustRequestTitle": "✨ 收到好友请求",
+      "trustRequestMessage": "设备 <strong class=\"text-ore-green\">{{deviceName}}</strong> 请求与您建立局域网信任",
+      "trustRequestHint": "同意后，双方将可以跨端互传游戏实例与存档，并相互查看实时游戏状态。请确保这是您认识的设备。",
+      "rejectTrust": "拒绝并忽略",
+      "acceptTrust": "接受并信任"
+    }
+  },
   "multiplayer": {
     "title": "联机中心",
     "description": "社区服务器目录和 PiHub 直连入口。",
@@ -7,7 +59,7 @@
   },
   "download": {
     "tabs": {
-      "modpack": "\u6574\u5408\u5305",
+      "modpack": "整合包",
       "mod": "模组",
       "resourcepack": "资源包",
       "shader": "光影"
@@ -36,7 +88,7 @@
       "updated": "最近更新"
     },
     "actions": {
-      "togglePreview": "\u5c55\u5f00/\u6536\u8d77\u9884\u89c8",
+      "togglePreview": "展开/收起预览",
       "search": "搜索",
       "reset": "重置",
       "details": "详情",
@@ -120,7 +172,7 @@
       "512x_plus": "512x及以上",
       "adventure": "冒险",
       "adventure_and_rpg": "冒险与RPG",
-      "addons": "\u9644\u5c5e\u5185\u5bb9",
+      "addons": "附属内容",
       "api_and_library": "API与前置库",
       "applied_energistics_2": "应用能源2",
       "armor_tools_and_weapons": "盔甲、工具与武器",
@@ -129,7 +181,7 @@
       "biomes": "群系",
       "blocks": "方块",
       "bloom": "泛光",
-      "bukkit_plugins": "Bukkit \u63d2\u4ef6",
+      "bukkit_plugins": "Bukkit 插件",
       "cartoon": "卡通风格",
       "challenging": "高难度",
       "colored_lighting": "彩色光照",
@@ -171,17 +223,17 @@
       "minigame": "小游戏",
       "miscellaneous": "杂项",
       "mobs": "生物",
-      "mods": "\u6a21\u7ec4",
+      "mods": "模组",
       "modded": "模组支持",
       "modded_world": "模组世界",
       "models": "模型",
       "multiplayer": "多人",
       "optimization": "性能优化",
-      "ores_and_resources": "\u77ff\u7269\u4e0e\u8d44\u6e90",
+      "ores_and_resources": "矿物与资源",
       "path_tracing": "路径追踪",
       "pbr": "PBR",
       "potato": "土豆机",
-      "processing": "\u52a0\u5de5\u4e0e\u4ea7\u7ebf",
+      "processing": "加工与产线",
       "quests": "任务",
       "realistic": "写实",
       "redstone": "红石",
@@ -202,7 +254,7 @@
       "transportation": "运输",
       "tweaks": "微调",
       "utility": "实用工具",
-      "utility_qol": "\u5b9e\u7528\u4e0e QoL",
+      "utility_qol": "实用与 QoL",
       "vanilla_like": "原版风格",
       "world_gen": "世界生成",
       "worldgen": "世界生成"
@@ -210,75 +262,374 @@
   },
   "saves": {
     "triggers": {
-      "manual": "\u624b\u52a8\u5907\u4efd",
-      "autoExit": "\u9000\u51fa\u65f6\u5907\u4efd",
-      "autoInterval": "\u5b9a\u65f6\u5907\u4efd",
-      "restoreGuard": "\u6062\u590d\u524d\u4fdd\u62a4",
-      "legacy": "\u65e7\u7248\u5feb\u7167",
-      "unknown": "\u672a\u77e5\u6765\u6e90"
+      "manual": "手动备份",
+      "autoExit": "退出时备份",
+      "autoInterval": "定时备份",
+      "restoreGuard": "恢复前保护",
+      "legacy": "旧版快照",
+      "unknown": "未知来源"
     },
     "restoreModal": {
-      "title": "\u6062\u590d\u5b58\u6863\u5907\u4efd",
+      "title": "恢复存档备份",
       "hero": {
-        "verifyingTitle": "\u6b63\u5728\u6821\u9a8c\u5907\u4efd\u73af\u5883",
-        "safeTitle": "\u53ef\u4ee5\u5b89\u5168\u6062\u590d",
-        "warningTitle": "\u6062\u590d\u524d\u9700\u8981\u7559\u610f\u5dee\u5f02",
-        "verifyingDescription": "\u6b63\u5728\u5bf9\u6bd4\u5f53\u524d\u5b9e\u4f8b\u4e0e\u5907\u4efd\u65f6\u7684 Minecraft \u7248\u672c\u3001Loader\u3001Mod \u73af\u5883\u548c\u914d\u7f6e\u72b6\u6001\u3002",
-        "defaultDescription": "\u6062\u590d\u524d\u4f1a\u5148\u4e3a\u5f53\u524d\u4e16\u754c\u521b\u5efa\u4e00\u4e2a\u4fdd\u62a4\u5907\u4efd\uff0c\u7136\u540e\u518d\u8986\u76d6\u76ee\u6807\u5feb\u7167\u3002"
+        "verifyingTitle": "正在校验备份环境",
+        "safeTitle": "可以安全恢复",
+        "warningTitle": "恢复前需要留意差异",
+        "verifyingDescription": "正在对比当前实例与备份时的 Minecraft 版本、Loader、Mod 环境和配置状态。",
+        "defaultDescription": "恢复前会先为当前世界创建一个保护备份，然后再覆盖目标快照。"
       },
       "sections": {
-        "targetWorld": "\u76ee\u6807\u4e16\u754c",
-        "backupInfo": "\u5907\u4efd\u4fe1\u606f",
-        "gameEnvironment": "\u6e38\u620f\u73af\u5883",
-        "restoreStrategy": "\u6062\u590d\u7b56\u7565"
+        "targetWorld": "目标世界",
+        "backupInfo": "备份信息",
+        "gameEnvironment": "游戏环境",
+        "restoreStrategy": "恢复策略"
       },
       "labels": {
-        "folder": "\u6587\u4ef6\u5939",
-        "unknownLoader": "\u672a\u77e5 Loader",
-        "mcVersion": "MC\u7248\u672c",
-        "loaderVersion": "Loader\u7248\u672c",
+        "folder": "文件夹",
+        "unknownLoader": "未知 Loader",
+        "mcVersion": "MC版本",
+        "loaderVersion": "Loader版本",
         "mods": "MOD",
-        "configs": "\u914d\u7f6e",
-        "matches": "\u4e00\u81f4",
-        "differs": "\u4e0d\u4e00\u81f4",
-        "safeSnapshot": "\u5b89\u5168\u5feb\u7167",
-        "unsafeSnapshot": "\u975e\u5b89\u5168\u5feb\u7167",
-        "includesConfigSnapshot": "\u542b\u914d\u7f6e\u5feb\u7167"
+        "configs": "配置",
+        "matches": "一致",
+        "differs": "不一致",
+        "safeSnapshot": "安全快照",
+        "unsafeSnapshot": "非安全快照",
+        "includesConfigSnapshot": "含配置快照"
       },
       "strategy": {
-        "primary": "\u6062\u590d\u524d\u4f1a\u5148\u4e3a\u5f53\u524d\u4e16\u754c\u521b\u5efa\u4fdd\u62a4\u5907\u4efd\u3002",
-        "secondary": "\u4e16\u754c\u6570\u636e {{worldSize}}\uff0c\u914d\u7f6e\u6570\u636e {{configSize}}\u3002"
+        "primary": "恢复前会先为当前世界创建保护备份。",
+        "secondary": "世界数据 {{worldSize}}，配置数据 {{configSize}}。"
       },
       "toggle": {
-        "title": "\u540c\u65f6\u6062\u590d\u914d\u7f6e\u6587\u4ef6",
-        "description": "\u8fd9\u4f1a\u8986\u76d6\u5f53\u524d\u5b9e\u4f8b\u7684 `config` \u548c `defaultconfigs`\u3002\u9700\u8981\u5b8c\u6574\u56de\u6eda\u4e16\u754c\u4e0e\u914d\u7f6e\u65f6\u518d\u5f00\u542f\u3002"
+        "title": "同时恢复配置文件",
+        "description": "这会覆盖当前实例的 `config` 和 `defaultconfigs`。需要完整回滚世界与配置时再开启。"
       },
       "actions": {
-        "cancel": "\u53d6\u6d88",
-        "confirm": "\u786e\u8ba4\u6062\u590d",
-        "proceed": "\u7ee7\u7eed\u6062\u590d"
+        "cancel": "取消",
+        "confirm": "确认恢复",
+        "proceed": "继续恢复"
       },
       "metrics": {
-        "modCount": "{{count}} \u4e2aMOD"
+        "modCount": "{{count}} 个MOD"
       },
       "hints": {
-        "scrollInfo": "\u53f3\u6447\u6746\u53ef\u6eda\u52a8\u8be6\u60c5"
+        "scrollInfo": "右摇杆可滚动详情"
       },
       "warnings": {
-        "title": "\u98ce\u9669\u63d0\u9192",
-        "minecraftMismatch": "Minecraft \u7248\u672c\u4e0d\u4e00\u81f4\uff1a\u5f53\u524d {{current}}\uff0c\u5907\u4efd {{backup}}\u3002",
-        "loaderMismatch": "Loader \u7248\u672c\u4e0d\u4e00\u81f4\uff1a\u5f53\u524d {{current}}\uff0c\u5907\u4efd {{backup}}\u3002",
-        "modEnvironmentDiffers": "Mod \u73af\u5883\u6709\u5dee\u5f02\uff1a\u5f53\u524d {{current}} \u4e2a\uff0c\u5907\u4efd {{backup}} \u4e2a\u3002",
-        "missingMod": "\u7f3a\u5c11 Mod\uff1a{{fileName}}",
-        "changedMod": "Mod \u6587\u4ef6\u5df2\u53d8\u5316\uff1a{{fileName}}",
-        "extraMod": "\u672c\u5730\u591a\u51fa Mod\uff1a{{fileName}}",
-        "configSnapshotDiffers": "\u914d\u7f6e\u5feb\u7167\u4e0e\u5f53\u524d\u5b9e\u4f8b\u4e0d\u540c\uff0c\u5982\u9700\u5b8c\u6574\u56de\u6eda\u8bf7\u5f00\u542f\u6062\u590d\u914d\u7f6e\u6587\u4ef6\u3002",
-        "unsafeSnapshot": "\u8be5\u5feb\u7167\u88ab\u6807\u8bb0\u4e3a\u975e\u5b89\u5168\u5feb\u7167\uff0c\u53ef\u80fd\u662f\u5728\u4e16\u754c\u8fd0\u884c\u65f6\u521b\u5efa\u7684\u3002"
+        "title": "风险提醒",
+        "minecraftMismatch": "Minecraft 版本不一致：当前 {{current}}，备份 {{backup}}。",
+        "loaderMismatch": "Loader 版本不一致：当前 {{current}}，备份 {{backup}}。",
+        "modEnvironmentDiffers": "Mod 环境有差异：当前 {{current}} 个，备份 {{backup}} 个。",
+        "missingMod": "缺少 Mod：{{fileName}}",
+        "changedMod": "Mod 文件已变化：{{fileName}}",
+        "extraMod": "本地多出 Mod：{{fileName}}",
+        "configSnapshotDiffers": "配置快照与当前实例不同，如需完整回滚请开启恢复配置文件。",
+        "unsafeSnapshot": "该快照被标记为非安全快照，可能是在世界运行时创建的。"
       },
       "errors": {
-        "verifyFailed": "\u65e0\u6cd5\u5b8c\u6210\u6062\u590d\u6821\u9a8c\uff1a{{error}}",
-        "backupNotFound": "\u672a\u627e\u5230\u8be5\u5907\u4efd\u5feb\u7167\u3002"
+        "verifyFailed": "无法完成恢复校验：{{error}}",
+        "backupNotFound": "未找到该备份快照。"
       }
     }
+  },
+  "settings": {
+    "general": {
+      "sections": {
+        "basic": "基础",
+        "window": "窗口与应用",
+        "danger": "危险操作"
+      },
+      "deviceName": {
+        "label": "设备名称",
+        "description": "用于局域网发现与互联传输时的身份展示标识。",
+        "placeholder": "输入设备名称"
+      },
+      "language": {
+        "label": "启动器语言",
+        "description": "更改启动器的显示语言。重启后完全生效。"
+      },
+      "checkUpdate": {
+        "label": "检查更新",
+        "description": "通过 Tauri 应用内更新检查新版本，并在应用内直接下载与安装。",
+        "checking": "检查中...",
+        "upToDate": "已是最新版本",
+        "error": "检查失败",
+        "check": "检查更新"
+      },
+      "checkUpdateOnStart": {
+        "label": "启动时检查更新",
+        "description": "每次打开启动器时，主动检查是否存在新的应用版本。"
+      },
+      "closeBehavior": {
+        "label": "关闭按钮行为",
+        "description": "点击右上角“X”时执行的操作。当前设置会立即作用到标题栏关闭按钮。"
+      },
+      "preventTouchAction": {
+        "label": "阻止触碰操作",
+        "description": "全局禁用网页默认触控行为，如双指缩放、下拉刷新与系统级手势冲突。"
+      },
+      "toggleFullscreen": {
+        "label": "切换全屏",
+        "description": "手动进入或退出全屏模式。已加入短暂间隔，避免连续双击导致闪烁。",
+        "exit": "退出全屏",
+        "enter": "进入全屏"
+      },
+      "exitApp": {
+        "label": "退出应用",
+        "description": "关闭 PiLauncher 的当前应用进程。退出前会弹出确认提示。"
+      },
+      "resetSettings": {
+        "label": "恢复默认设置",
+        "description": "将启动器的所有设置项重置为初始状态，不会删除实例数据。"
+      },
+      "exitConfirm": {
+        "title": "确认退出",
+        "headline": "退出 PiLauncher",
+        "description": "确认后会直接退出当前应用。若仍有下载、安装或其他后台任务，它们也会一起停止。",
+        "confirm": "确认退出",
+        "cancel": "取消"
+      },
+      "resetConfirm": {
+        "title": "恢复默认设置",
+        "headline": "确认重置设置",
+        "description": "这会恢复启动器设置项，但不会删除实例、存档和下载内容。",
+        "confirm": "确认重置",
+        "cancel": "取消"
+      }
+    },
+    "java": {
+      "sections": {
+        "autoDownload": "自动下载获取",
+        "environment": "环境配置",
+        "memory": "全局内存与参数"
+      },
+      "autoDownloadDesc": "选择需要的 Java 版本和下载源，点击下载后将自动安装到本地 <code class=\"bg-black/30 px-1 rounded ml-1\">runtime/Java</code> 目录。",
+      "targetVersion": "目标 Java 版本",
+      "provider": "下载源",
+      "btnDownload": "一键下载",
+      "downloading": "正在下载...",
+      "autoDetect": "自动检测 Java 环境",
+      "autoDetectDesc": "开启后会在启动器启动时扫描一次并自动回填版本化 Java 路径。",
+      "globalPath": "全局 Java 运行时路径（兜底）",
+      "globalPathDesc": "默认 Java 路径。当版本映射关闭或手动设置时可使用。",
+      "btnTest": "测试",
+      "majorConfig": "版本化全局配置（推荐）",
+      "missingAuth": "缺少Java环境",
+      "memoryDesc": "默认情况下新建实例会继承这里的内存与参数配置；若实例开启了独立配置，则以实例设置为准。",
+      "maxMemory": "全局最大内存分配",
+      "maxMemoryDesc": "动态调整游戏可用的最大 RAM。",
+      "jvmArgs": "全局 JVM 附加参数",
+      "jvmArgsDesc": "高级选项。会应用到继承全局设置的实例。",
+      "versions": {
+        "8": "Java 8（适用于 MC 1.7 - 1.16）",
+        "16": "Java 16（适用于 MC 1.17）",
+        "17": "Java 17（适用于 MC 1.18 - 1.20）",
+        "21": "Java 21（适用于 MC 1.21+）",
+        "25": "Java 25（适用于较新版本与快照）"
+      },
+      "majorDescriptions": {
+        "8": "适用于 1.16.5 及更早版本",
+        "16": "专用于 1.17 / 1.17.1",
+        "17": "适用于 1.18 - 1.20.4",
+        "21": "适用于 1.20.5 及更新版本",
+        "25": "适用于 1.26+ 与新快照"
+      },
+      "providers": {
+        "adoptium": "Adoptium 官方源",
+        "zulu": "Azul Zulu 源",
+        "aks": "微软源"
+      },
+      "testTargets": {
+        "global": "全局 Java"
+      },
+      "selector": {
+        "placeholder": "点击选择 Java 路径...",
+        "select": "选择",
+        "modalTitle": "选择 Java 运行时",
+        "rescan": "重新扫描本机",
+        "rescanning": "扫描中...",
+        "manualBrowse": "手动浏览目录...",
+        "scanningDisk": "正在深度扫描磁盘中的 Java 环境...",
+        "notFound": "未检测到可用 Java 环境，请手动浏览目录"
+      },
+      "testDialog": {
+        "title": "Java 测试",
+        "missingPathHeadline": "{{target}} 未配置路径",
+        "missingPathDesc": "请先选择一个可执行的 Java 路径，再进行测试。",
+        "successTitle": "Java 测试通过",
+        "successHeadline": "{{target}} 可用",
+        "successDesc": "版本：{{version}}",
+        "pathLabel": "路径：{{path}}",
+        "failedTitle": "Java 测试失败",
+        "failedHeadline": "{{target}} 不可用",
+        "failedDesc": "当前路径无法作为 Java 运行时。",
+        "confirm": "知道了",
+        "cancel": "关闭"
+      }
+    },
+    "appearance": {
+      "sections": {
+        "background": "背景与主题",
+        "typography": "排版与特效"
+      },
+      "btnChangeBg": "更换图片",
+      "btnRemoveBg": "移除背景",
+      "noBg": "无背景",
+      "selectLocalInfo": "点击选择本地图片",
+      "bgBlur": "背景模糊度",
+      "bgBlurDesc": "调节主界面背景图的模糊效果。",
+      "panoramaEnabled": "启用全景背景",
+      "panoramaEnabledDesc": "开启后将优先使用 base_path/config/background 下的有效全景图目录。",
+      "panoramaSpeed": "全景旋转速度",
+      "panoramaSpeedDesc": "控制全景背景自动旋转速度，设为 0 可静止画面。",
+      "panoramaDirection": "全景旋转方向",
+      "panoramaDirectionDesc": "当前为{{dir}}。",
+      "clockwise": "顺时针",
+      "counterclockwise": "逆时针",
+      "maskColor": "遮罩颜色",
+      "maskColorDesc": "覆盖在背景图上方的颜色，用于确保文字可读性。",
+      "maskOpacity": "遮罩透明度",
+      "maskOpacityDesc": "调节颜色遮罩透明级别，数值越大背景越暗。",
+      "fontFamily": "启动器全局字体",
+      "fontFamilyDesc": "更改全局界面的主要字体。遇到不支持的字符时，会回退为默认 Minecraft 字体。",
+      "maskGradient": "启用底部黑色渐变",
+      "maskGradientDesc": "在启动器底部增加一层黑色渐变，提升文字和导航的可读性。"
+    },
+    "game": {
+      "sections": {
+        "window": "窗口与渲染",
+        "behavior": "启动器行为"
+      },
+      "windowTitle": "自定义游戏标题",
+      "windowTitleDesc": "修改 Minecraft 游戏窗口顶部显示的文字名称。",
+      "fullscreen": "全屏模式",
+      "fullscreenDesc": "启动游戏后直接进入独占全屏状态。如果你的游戏经常切出导致卡顿，建议关闭此项使用无边框窗口化。",
+      "resolution": "启动分辨率",
+      "resolutionDesc": "设定游戏初始窗口的大小 (全屏模式下此项仅影响 UI 缩放)。已根据你的显示器自动隐藏不支持的超大分辨率。",
+      "showLog": "游戏日志面板",
+      "showLogDesc": "启动游戏时展开带有日志输出的控制台面板。关闭后将显示方块跳跃动画，直到游戏加载完成。",
+      "visibility": "游戏运行时的可见性",
+      "visibilityDesc": "当 Minecraft 实例成功拉起并运行后，主启动器界面的处理方式。"
+    },
+    "download": {
+      "sections": {
+        "source": "组件下载源",
+        "speed": "速度与并发",
+        "faultTolerance": "容错与校验",
+        "proxy": "代理服务器",
+        "diagnostics": "网络诊断与测试"
+      },
+      "metaSource": "Minecraft 版本元数据源",
+      "metaSourceDesc": "用于获取 version_manifest_v2 版本列表。",
+      "autoLatency": "动态测速与自动切换",
+      "autoLatencyDesc": "下载前自动对可用节点进行延迟检测，并优先选择低延迟节点。",
+      "speedUnit": "速度显示单位",
+      "speedUnitDesc": "MB/s 与 Mbps 两种展示模式。",
+      "speedLimit": "全局下载限速",
+      "speedLimitDesc": "设置为 0 表示不限速。",
+      "concurrency": "最大并发任务数",
+      "concurrencyDesc": "并发越高速度可能越快，但也会增加网络和系统压力。",
+      "chunkedEnable": "单文件分块下载",
+      "chunkedEnableDesc": "对支持 Range 的大文件启用多连接下载，提升单文件速度，不影响文件并发数。",
+      "chunkedThreads": "分块线程数",
+      "chunkedThreadsDesc": "单个文件同时建立的下载连接数量。",
+      "chunkedThreshold": "分块阈值",
+      "chunkedThresholdDesc": "仅对达到该大小的文件启用分块下载，单位 MB。",
+      "timeout": "连接超时",
+      "timeoutDesc": "超过该时间未收到服务器响应时自动中断并重试。",
+      "retry": "失败重试次数",
+      "retryDesc": "单文件下载失败后的自动重试次数。",
+      "verifyHash": "下载后校验 (Hash)",
+      "verifyHashDesc": "下载完成后执行完整性校验，确保文件未损坏。",
+      "proxyMode": "代理模式",
+      "proxyModeDesc": "仅影响下载与 API 请求，不影响游戏联机。",
+      "proxyHost": "主机地址 (Host)",
+      "proxyPort": "端口 (Port)",
+      "diagTitle": "网络可用性检测",
+      "diagDesc": "测试启动器所需核心域名的连接质量，包括 DNS、TCP、TLS 与 HTTP 层级。",
+      "btnDiag": "开始全面诊断",
+      "diaging": "正在测试...",
+      "systemStatus": "系统与网络状态",
+      "scanQr": "扫描上方二维码\\n获取 Base64 诊断报告数据",
+      "analyzing": "正在深入抓取网络包并分析连通性...",
+      "clickToTest": "点击上方按钮开始测试网络连接状况"
+    },
+    "account": {
+      "sections": {
+        "identities": "身份库"
+      },
+      "btnAddMs": "添加微软正版",
+      "btnAddOffline": "添加离线账号",
+      "noAccount": "当前未连接任何游戏账户",
+      "noMcTip": "尚未拥有 Minecraft 正版授权？通过官方渠道安全获取游戏",
+      "buyMc": "Minecraft 官网获取",
+      "buyMs": "微软商店 (Windows Store)",
+      "delConfirmTitle": "确认移除账号",
+      "delConfirmDesc": "确定要移除此账号吗？此操作仅会从启动器中移除该身份，\\n不会删除您的任何本地游戏存档数据。",
+      "cancel": "取消操作",
+      "confirmDel": "确认移除"
+    },
+    "data": {
+      "sections": {
+        "core": "核心数据目录",
+        "thirdParty": "导入的实例目录"
+      },
+      "coreLocation": "核心数据存储位置",
+      "currentLoc": "当前位置: {{path}}\\n将游戏实例、日志、启动器配置等核心数据完整迁移至新的目录。",
+      "btnModify": "修改目录并迁移",
+      "renameDir": "重命名数据文件夹",
+      "renameDirDesc": "如果你对当前数据文件夹名字不满意，可以直接对其进行重命名，方便步骤选择或者辨别。",
+      "btnRename": "重命名文件夹",
+      "cleanLogs": "清理启动器日志",
+      "cleanLogsDesc": "清空 logs/ 目录下的全部日志文件，释放磁盘空间。当前路径: {{path}}",
+      "btnCleanLogs": "清理日志",
+      "removeConfirmTitle": "移除确认",
+      "removeConfirmHeadline": "确定要移除此关联目录吗？",
+      "removeConfirmDesc1": "此操作将取消与该外部目录的关联，并同步清理 PiLauncher 内对应的实例缓存数据。",
+      "removeConfirmDesc2": "原始目录内的文件和存档不会受到任何影响。",
+      "btnCancel": "取消",
+      "btnRemove": "确认移除",
+      "cleanLogsTitle": "清理日志",
+      "cleanLogsConfirmTitle": "此操作将删除 logs/ 目录下的所有日志文件，包括游戏启动日志和诊断记录。",
+      "cleanLogsConfirmDesc": "清理后不可撤销，建议先导出所需诊断包。当前路径: {{path}}",
+      "btnConfirmClean": "确认清理",
+      "btnDone": "完成",
+      "cleaning": "清理中，请稍候...",
+      "cleanSuccess": "清理完成",
+      "cleanSuccessDesc": "已成功清理 {{count}} 个日志条目",
+      "cleanFailed": "清理失败",
+      "renameModalTitle": "重命名目录",
+      "renameModalDesc": "修改成功后启动器会自动退出以应用新名称。",
+      "renameModalPlaceholder": "新文件夹名字...",
+      "btnConfirmRename": "确认重命名",
+      "noThirdParty": "暂无导入的外部目录",
+      "thirdPartyList": "已关联的第三方文件夹",
+      "thirdPartyListDesc1": "这些文件夹内的实例会在启动器启动时被自动扫描。移除关联不会删除本地文件和数据。",
+      "thirdPartyListDesc2": "这些外部文件夹内的游戏实例同样会被 PiLauncher 加载。点击移除仅取消关联，不会损伤本地文件。"
+    },
+    "about": {
+      "sections": {
+        "product": "产品信息",
+        "support": "关注与支持",
+        "sponsors": "赞助者"
+      },
+      "productDesc": "专为掌机与手柄优化的跨平台 Minecraft 启动器。",
+      "scanOrA": "扫码或按A键访问",
+      "thanks": "感谢所有支持我们的赞助者",
+      "thanksDesc": "正是因为有了你们的支持，PiLauncher 才能不断改进与完善。如果你也想支持我们，可以通过上方的爱发电进行赞助。",
+      "emptySeat": "虚位以待..."
+    },
+    "tabs": {
+      "general": "常规",
+      "appearance": "界面",
+      "game": "游戏",
+      "java": "Java",
+      "download": "下载",
+      "account": "账户",
+      "data": "数据",
+      "about": "关于"
+    },
+    "developing": "设置模块开发中..."
   }
 }

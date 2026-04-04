@@ -320,6 +320,48 @@
   line-height: 1.45;
 }
 
+/* Header status badges (lifecycle + peer connection) */
+.ore-multiplayer-header-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  margin-right: 8px;
+}
+
+.ore-multiplayer-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border: 2px solid var(--mp-border);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--mp-text-secondary);
+  font-family: var(--ore-typography-family-decorativeBold, var(--ore-font-decorativeBold, "Minecraft Five Bold", sans-serif));
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ore-multiplayer-status-badge[data-tone='accent'] {
+  border-color: rgba(108, 195, 73, 0.4);
+  background: rgba(108, 195, 73, 0.12);
+  color: var(--mp-success);
+}
+
+.ore-multiplayer-status-badge[data-tone='warning'] {
+  border-color: rgba(255, 232, 102, 0.4);
+  background: rgba(255, 232, 102, 0.10);
+  color: var(--mp-warning);
+}
+
+.ore-multiplayer-status-badge[data-tone='danger'] {
+  border-color: rgba(195, 54, 54, 0.4);
+  background: rgba(195, 54, 54, 0.12);
+  color: var(--ore-color-text-danger-default, #f46d6d);
+}
+
 .ore-multiplayer-meta {
   display: inline-flex;
   align-items: center;
@@ -749,7 +791,7 @@
 .ore-multiplayer-status-strip {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .ore-multiplayer-stat {

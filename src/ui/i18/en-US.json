@@ -1,4 +1,56 @@
 {
+  "home": {
+    "selectInstance": "Select Instance",
+    "neverPlayed": "Never played",
+    "playTime": "Play Time",
+    "playTimeUnit": "H",
+    "lastPlayed": "Last Played",
+    "notification": "Notifications & News",
+    "addAccount": "Add Account",
+    "profile": "Profile",
+    "launchGame": "Play",
+    "instanceDetail": "Instance Details",
+    "selectInstanceModal": {
+      "title": "Select Instance",
+      "empty": "No instances created yet",
+      "emptyHint": "Go to Instance Management to create or import your first game environment"
+    },
+    "noAccount": {
+      "title": "Cannot Launch Instance",
+      "headline": "No Game Account Detected",
+      "description": "Launching Minecraft requires at least one valid game account.<br />Please go to Settings to add a Microsoft account.",
+      "cancel": "Cancel",
+      "add": "Add"
+    },
+    "noInstance": {
+      "title": "Cannot Launch Game",
+      "headline": "No Instances Created",
+      "description": "You need to create or import a game instance first.<br />Browse Resource Downloads for modpacks, or import from local files.",
+      "importModpack": "Import Modpack",
+      "downloadResource": "Download Resources"
+    },
+    "sidebar": {
+      "airdrop": "AirDrop",
+      "targetDevice": "Target device",
+      "transferInstance": "Transfer Instance",
+      "transferSave": "Transfer Save",
+      "selectInstanceToSend": "Select instance to send",
+      "selectInstanceToExtract": "Extract from instance",
+      "selectPlaceholder": "-- Select --",
+      "selectSave": "Select world save",
+      "pushing": "Packing & sending...",
+      "startTransfer": "Start Transfer",
+      "pushSuccess": "Push successful!",
+      "pushFailed": "Push failed",
+      "transferConsole": "Transfer Console",
+      "transferConsoleHint": "Click a trusted online device from the list on the left to transfer instances or saves across devices.",
+      "trustRequestTitle": "✨ Friend Request",
+      "trustRequestMessage": "Device <strong class=\"text-ore-green\">{{deviceName}}</strong> wants to establish LAN trust with you",
+      "trustRequestHint": "Once accepted, you can transfer game instances and saves between devices, and view each other's real-time game status. Make sure you recognize this device.",
+      "rejectTrust": "Reject & Ignore",
+      "acceptTrust": "Accept & Trust"
+    }
+  },
   "multiplayer": {
     "title": "Multiplayer Hub",
     "description": "Community Server Directory and PiHub Direct Connect.",
@@ -280,5 +332,304 @@
         "backupNotFound": "Backup snapshot not found."
       }
     }
+  },
+  "settings": {
+    "general": {
+      "sections": {
+        "basic": "Basic",
+        "window": "Window & App",
+        "danger": "Danger Zone"
+      },
+      "deviceName": {
+        "label": "Device Name",
+        "description": "Identifier used for LAN discovery and file transfer.",
+        "placeholder": "Enter device name"
+      },
+      "language": {
+        "label": "Launcher Language",
+        "description": "Change the display language. Fully applied after restart."
+      },
+      "checkUpdate": {
+        "label": "Check for Updates",
+        "description": "Check for new versions and install updates seamlessly within Tauri.",
+        "checking": "Checking...",
+        "upToDate": "Up to date",
+        "error": "Check failed",
+        "check": "Check Update"
+      },
+      "checkUpdateOnStart": {
+        "label": "Check Update on Start",
+        "description": "Automatically check for a new version every time you open the launcher."
+      },
+      "closeBehavior": {
+        "label": "Close Button Behavior",
+        "description": "Action when clicking the 'X' button."
+      },
+      "preventTouchAction": {
+        "label": "Prevent Touch Action",
+        "description": "Disable default web touch behaviors globally."
+      },
+      "toggleFullscreen": {
+        "label": "Toggle Fullscreen",
+        "description": "Manually enter or exit fullscreen mode.",
+        "exit": "Exit Fullscreen",
+        "enter": "Enter Fullscreen"
+      },
+      "exitApp": {
+        "label": "Exit App",
+        "description": "Close PiLauncher totally. A prompt will be shown."
+      },
+      "resetSettings": {
+        "label": "Reset Settings",
+        "description": "Restore launcher settings to default. Data won't be deleted."
+      },
+      "exitConfirm": {
+        "title": "Confirm Exit",
+        "headline": "Exit PiLauncher",
+        "description": "Clicking confirm will exit the launcher immediately. Background tasks will stop.",
+        "confirm": "Exit Now",
+        "cancel": "Cancel"
+      },
+      "resetConfirm": {
+        "title": "Reset Settings",
+        "headline": "Confirm Reset",
+        "description": "Settings will be reset. Data and instances will be kept.",
+        "confirm": "Confirm Reset",
+        "cancel": "Cancel"
+      }
+    },
+    "java": {
+      "sections": {
+        "autoDownload": "Auto Download",
+        "environment": "Environment Config",
+        "memory": "Global Memory & Args"
+      },
+      "autoDownloadDesc": "Select version and provider, then download to <code class=\"bg-black/30 px-1 rounded ml-1\">runtime/Java</code> locally.",
+      "targetVersion": "Target Java Version",
+      "provider": "Provider",
+      "btnDownload": "Download Java",
+      "downloading": "Downloading...",
+      "autoDetect": "Auto-Detect Java Environment",
+      "autoDetectDesc": "If enabled, scans on startup and automatically picks the best versions.",
+      "globalPath": "Global Java Runtime (Fallback)",
+      "globalPathDesc": "Default Java path used when mapped version isn't available.",
+      "btnTest": "Test",
+      "majorConfig": "Version-specific Configurations (Recommended)",
+      "missingAuth": "Missing Java Environment",
+      "memoryDesc": "New instances inherit this global config by default unless customized.",
+      "maxMemory": "Global Maximum RAM Allocation",
+      "maxMemoryDesc": "Dynamically adjust the maximum RAM for the game.",
+      "jvmArgs": "Global Extra JVM Args",
+      "jvmArgsDesc": "Advanced level. Applies to instances that inherit settings.",
+      "versions": {
+        "8": "Java 8 (For MC 1.7 - 1.16)",
+        "16": "Java 16 (For MC 1.17)",
+        "17": "Java 17 (For MC 1.18 - 1.20)",
+        "21": "Java 21 (For MC 1.21+)",
+        "25": "Java 25 (For newer versions and snapshots)"
+      },
+      "majorDescriptions": {
+        "8": "Recommended for 1.16.5 and earlier",
+        "16": "Dedicated to 1.17 / 1.17.1",
+        "17": "Recommended for 1.18 - 1.20.4",
+        "21": "Recommended for 1.20.5 and newer",
+        "25": "Recommended for 1.26+ and snapshots"
+      },
+      "providers": {
+        "adoptium": "Adoptium Official",
+        "zulu": "Azul Zulu",
+        "aks": "Microsoft"
+      },
+      "testTargets": {
+        "global": "Global Java"
+      },
+      "selector": {
+        "placeholder": "Click to choose Java path...",
+        "select": "Select",
+        "modalTitle": "Select Java Runtime",
+        "rescan": "Rescan Local Java",
+        "rescanning": "Scanning...",
+        "manualBrowse": "Browse Folder...",
+        "scanningDisk": "Scanning drives for Java runtimes...",
+        "notFound": "No available Java detected. Please browse manually."
+      },
+      "testDialog": {
+        "title": "Java Test",
+        "missingPathHeadline": "{{target}} path is not configured",
+        "missingPathDesc": "Please choose an executable Java path before testing.",
+        "successTitle": "Java Test Passed",
+        "successHeadline": "{{target}} is available",
+        "successDesc": "Version: {{version}}",
+        "pathLabel": "Path: {{path}}",
+        "failedTitle": "Java Test Failed",
+        "failedHeadline": "{{target}} is unavailable",
+        "failedDesc": "The current path cannot be used as a Java runtime.",
+        "confirm": "OK",
+        "cancel": "Close"
+      }
+    },
+    "appearance": {
+      "sections": {
+        "background": "Background & Theme",
+        "typography": "Typography & Effects"
+      },
+      "btnChangeBg": "Change Image",
+      "btnRemoveBg": "Remove Background",
+      "noBg": "No Background",
+      "selectLocalInfo": "Click to select a local image",
+      "bgBlur": "Background Blur",
+      "bgBlurDesc": "Adjust the blur level for the main background image.",
+      "panoramaEnabled": "Enable Panorama",
+      "panoramaEnabledDesc": "Use effective panorama from base_path/config/background if available.",
+      "panoramaSpeed": "Panorama Speed",
+      "panoramaSpeedDesc": "Rotation speed for panorama background. Set 0 to pause.",
+      "panoramaDirection": "Panorama Direction",
+      "panoramaDirectionDesc": "Currently {{dir}}.",
+      "clockwise": "Clockwise",
+      "counterclockwise": "Counterclockwise",
+      "maskColor": "Mask Color",
+      "maskColorDesc": "Overlay color on background to ensure text readability.",
+      "maskOpacity": "Mask Opacity",
+      "maskOpacityDesc": "Overlay opacity. Higher value makes background darker.",
+      "fontFamily": "Global Font",
+      "fontFamilyDesc": "Main font for launcher. Fallbacks to Minecraft font if not supported.",
+      "maskGradient": "Enable Bottom Gradient",
+      "maskGradientDesc": "Add a black gradient at bottom to improve text/nav readability."
+    },
+    "game": {
+      "sections": {
+        "window": "Window & Render",
+        "behavior": "Launcher Behavior"
+      },
+      "windowTitle": "Custom Window Title",
+      "windowTitleDesc": "Text displayed on the Minecraft game window titlebar.",
+      "fullscreen": "Fullscreen Mode",
+      "fullscreenDesc": "Enter exclusive fullscreen on game start.",
+      "resolution": "Launch Resolution",
+      "resolutionDesc": "Initial game window size.",
+      "showLog": "Game Log Panel",
+      "showLogDesc": "Expand console with logs during startup until loading is finished.",
+      "visibility": "Visibility during Game Runtime",
+      "visibilityDesc": "Action after Minecraft instance is successfully launched."
+    },
+    "download": {
+      "sections": {
+        "source": "Component Download Source",
+        "speed": "Speed & Concurrency",
+        "faultTolerance": "Fault Tolerance & Validation",
+        "proxy": "Proxy Server",
+        "diagnostics": "Network Diagnostics"
+      },
+      "metaSource": "Minecraft Metadata Source",
+      "metaSourceDesc": "Used to fetch version_manifest_v2.",
+      "autoLatency": "Dynamic Auto-Switching",
+      "autoLatencyDesc": "Test latency before downloading and pick the lowest one.",
+      "speedUnit": "Speed Unit",
+      "speedUnitDesc": "Display mode: MB/s or Mbps.",
+      "speedLimit": "Global Speed Limit",
+      "speedLimitDesc": "0 means unlimited.",
+      "concurrency": "Max Concurrent Tasks",
+      "concurrencyDesc": "Higher concurrency increases speed but consumes more CPU/RAM.",
+      "chunkedEnable": "Chunked Downloading",
+      "chunkedEnableDesc": "Use multi-threaded downloads for large files that support Range.",
+      "chunkedThreads": "Chunked Threads",
+      "chunkedThreadsDesc": "Number of connections per file.",
+      "chunkedThreshold": "Chunk Threshold",
+      "chunkedThresholdDesc": "Apply chunked downloading for files larger than this (MB).",
+      "timeout": "Connection Timeout",
+      "timeoutDesc": "Time before automatically interrupting and retrying.",
+      "retry": "Max Retries",
+      "retryDesc": "Retry attempts when downloading a single file fails.",
+      "verifyHash": "Verify After Download (Hash)",
+      "verifyHashDesc": "Ensure file was not corrupted after downloaded.",
+      "proxyMode": "Proxy Mode",
+      "proxyModeDesc": "Affects downloads and APIs only, not game multi-player.",
+      "proxyHost": "Proxy Host",
+      "proxyPort": "Proxy Port",
+      "diagTitle": "Network Connection Diagnostic",
+      "diagDesc": "Check core domains accessibility, including DNS, TCP, TLS and HTTP.",
+      "btnDiag": "Start Full Diagnostic",
+      "diaging": "Testing...",
+      "systemStatus": "System & Network Status",
+      "scanQr": "Scan QR Code\\nTo get Base64 report",
+      "analyzing": "Analyzing packets and connectivity...",
+      "clickToTest": "Click the button to test network status"
+    },
+    "account": {
+      "sections": {
+        "identities": "Identity Library"
+      },
+      "btnAddMs": "Add Microsoft Acc",
+      "btnAddOffline": "Add Offline Acc",
+      "noAccount": "No game accounts connected yet",
+      "noMcTip": "Don't own Minecraft? Get it securely from official stores",
+      "buyMc": "Get on Minecraft.net",
+      "buyMs": "Microsoft Store",
+      "delConfirmTitle": "Confirm Removal",
+      "delConfirmDesc": "Are you sure? This only removes identity from launcher, \\nwill NOT delete local save data.",
+      "cancel": "Cancel",
+      "confirmDel": "Confirm Remove"
+    },
+    "data": {
+      "sections": {
+        "core": "Core Data Directory",
+        "thirdParty": "Imported Instances"
+      },
+      "coreLocation": "Core Data Location",
+      "currentLoc": "Current: {{path}}\\nMigrate all settings, logs, games to a new folder.",
+      "btnModify": "Change Folder & Migrate",
+      "renameDir": "Rename Data Folder",
+      "renameDirDesc": "Rename the current data folder to distinguish it from others.",
+      "btnRename": "Rename Folder",
+      "cleanLogs": "Clean Launcher Logs",
+      "cleanLogsDesc": "Empty all logs from logs/ directory to free space. Currently at: {{path}}",
+      "btnCleanLogs": "Clean Logs",
+      "removeConfirmTitle": "Confirm Removal",
+      "removeConfirmHeadline": "Are you sure to remove this linked dir?",
+      "removeConfirmDesc1": "This action unlinks the dir and cleans up related cache in PiLauncher.",
+      "removeConfirmDesc2": "Original files will not be touched.",
+      "btnCancel": "Cancel",
+      "btnRemove": "Remove",
+      "cleanLogsTitle": "Clean Logs",
+      "cleanLogsConfirmTitle": "This will delete all log files under logs/ directory.",
+      "cleanLogsConfirmDesc": "Irreversible. Revert is impossible. Loc: {{path}}",
+      "btnConfirmClean": "Confirm Clean",
+      "btnDone": "Done",
+      "cleaning": "Cleaning...",
+      "cleanSuccess": "Success",
+      "cleanSuccessDesc": "Cleaned {{count}} log entries.",
+      "cleanFailed": "Clean Failed",
+      "renameModalTitle": "Rename Directory",
+      "renameModalDesc": "Launcher will restart after a successful rename.",
+      "renameModalPlaceholder": "New folder name...",
+      "btnConfirmRename": "Confirm Rename",
+      "noThirdParty": "No external instances found",
+      "thirdPartyList": "Linked Third-Party Folders",
+      "thirdPartyListDesc1": "Scanned during startup. Removal doesn't delete local data.",
+      "thirdPartyListDesc2": "These external folders are managed by PiLauncher too."
+    },
+    "about": {
+      "sections": {
+        "product": "Product Information",
+        "support": "Support Us",
+        "sponsors": "Sponsors"
+      },
+      "productDesc": "Cross-platform Minecraft Launcher optimized for Gamepad and Handhelds.",
+      "scanOrA": "Scan or press A",
+      "thanks": "Thanks to all our sponsors",
+      "thanksDesc": "Because of your support, PiLauncher can continue to improve. You can sponsor us via AfDian above.",
+      "emptySeat": "Awaiting..."
+    },
+    "tabs": {
+      "general": "General",
+      "appearance": "Appearance",
+      "game": "Game",
+      "java": "Java",
+      "download": "Download",
+      "account": "Account",
+      "data": "Data",
+      "about": "About"
+    },
+    "developing": "Settings module under development..."
   }
 }
