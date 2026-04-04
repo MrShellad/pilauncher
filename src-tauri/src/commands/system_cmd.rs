@@ -5,7 +5,6 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use tauri::command;
-use tauri::Manager;
 use tauri::{AppHandle, Runtime};
 #[command]
 pub async fn get_system_fonts() -> Result<Vec<String>, String> {

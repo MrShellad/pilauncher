@@ -1,6 +1,6 @@
 [package]
 name = "PiLauncher"
-version = "0.1.18"
+version = "0.1.19"
 description = "A Minecraft Launcher"
 authors = ["mrshell"]
 license = ""

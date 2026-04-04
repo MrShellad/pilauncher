@@ -1,7 +1,7 @@
 // src-tauri/src/services/db_service.rs
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqlitePoolOptions},
-    Row, SqlitePool,
+    SqlitePool,
 };
 use std::fs;
 use std::path::Path;
