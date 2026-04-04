@@ -484,6 +484,17 @@ impl LaunchCommandBuilder {
             final_args.push("--fullscreen".to_string());
         }
 
+        if let Some(binding) = &self.config.server_binding {
+            if !final_args.contains(&"--server".to_string()) {
+                final_args.push("--server".to_string());
+                final_args.push(binding.ip.clone());
+            }
+            if !final_args.contains(&"--port".to_string()) {
+                final_args.push("--port".to_string());
+                final_args.push(binding.port.to_string());
+            }
+        }
+
         final_args
     }
 }

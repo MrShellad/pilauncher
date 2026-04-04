@@ -87,6 +87,7 @@ impl InstanceCreationService {
             gamepad: None,
             custom_buttons: None,
             third_party_path: None,
+            server_binding: None,
         };
         fs::write(
             instance_root.join("instance.json"),

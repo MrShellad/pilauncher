@@ -82,6 +82,7 @@ pub async fn execute_export<R: Runtime>(
             gamepad: None,
             custom_buttons: None,
             third_party_path: None,
+            server_binding: None,
         });
 
     let _ = app.emit(

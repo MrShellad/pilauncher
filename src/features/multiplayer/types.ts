@@ -6,24 +6,39 @@ export interface SocialLink {
   url?: string;
 }
 
+export interface FeatureTag {
+  label: string;
+  iconSvg?: string;
+  color?: string;
+}
+
 export interface OnlineServer {
   id: string;
   icon: string;
+  hero?: string;
   name: string;
+  versions?: string[];
   onlinePlayers: number;
   maxPlayers?: number;
   ping?: number;
   serverType: string;
   isModded: boolean;
+  modpackUrl?: string;
   requiresWhitelist: boolean;
   isSponsored: boolean;
   sponsoredUntil?: string;
   hasPaidFeatures: boolean;
+  ageRecommendation?: string;
   hasVoiceChat: boolean;
   homepageUrl?: string;
   socials: SocialLink[];
   description?: string;
   address?: string;
+  features?: FeatureTag[];
+  mechanics?: FeatureTag[];
+  elements?: FeatureTag[];
+  community?: FeatureTag[];
+  tags?: string[];
 }
 
 export interface AdSlot {

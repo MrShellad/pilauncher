@@ -96,6 +96,7 @@ impl ConfigResolver {
             resolution_height,
             fullscreen: global_game.fullscreen,
             custom_jvm_args,
+            server_binding: instance_cfg.server_binding.clone(),
         }
     }
 }

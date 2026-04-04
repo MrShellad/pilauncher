@@ -14,7 +14,7 @@ import '../style/pages/Multiplayer.css';
 const Multiplayer: React.FC = () => {
   const { t } = useTranslation();
   const [activeSection, setActiveSection] = useState<MultiplayerSection>('online-servers');
-  const { servers, adSlots, isLoading, error, lastUpdated, fetchServers, apiUrl } = useOnlineServers();
+  const { servers, adSlots, isLoading, error, lastUpdated, fetchServers } = useOnlineServers();
 
   const { handleLinearArrow } = useLinearNavigation(['multiplayer-toggle'], 'multiplayer-toggle');
 
@@ -63,8 +63,7 @@ const Multiplayer: React.FC = () => {
               isLoading={isLoading}
               error={error}
               lastUpdated={lastUpdated}
-              apiUrl={apiUrl}
-              onRefresh={() => void fetchServers()}
+              onRefresh={() => void fetchServers({ force: true })}
             />
           )}
 

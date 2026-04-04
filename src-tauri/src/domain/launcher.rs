@@ -10,6 +10,7 @@ pub struct ResolvedLaunchConfig {
     pub resolution_height: u32,
     pub fullscreen: bool,
     pub custom_jvm_args: Vec<String>,
+    pub server_binding: Option<crate::domain::instance::ServerBinding>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

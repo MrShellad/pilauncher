@@ -51,6 +51,7 @@ pub fn build_instance_config(
         gamepad: None,
         custom_buttons: None,
         third_party_path: None,
+        server_binding: None,
     }
 }
 

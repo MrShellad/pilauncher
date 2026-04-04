@@ -154,6 +154,28 @@ export const normalizeSocials = (value: unknown): SocialLink[] => {
     .filter((item): item is SocialLink => Boolean(item));
 };
 
+export const normalizeFeatureTag = (value: unknown): import('./types').FeatureTag | null => {
+  const record = toRecord(value);
+  if (!record) return null;
+  const label = getString(record.label);
+  if (!label) return null;
+  return {
+    label,
+    iconSvg: pickFirst(getString(record.iconSvg), getString(record.icon_svg)),
+    color: getString(record.color)
+  };
+};
+
+const ONLINE_SERVERS_API_URL = import.meta.env.VITE_ONLINE_SERVERS_API_URL?.trim() || '';
+const API_BASE_URL = ONLINE_SERVERS_API_URL ? new URL(ONLINE_SERVERS_API_URL).origin : '';
+
+const resolveUrl = (url?: string) => {
+  if (!url) return undefined;
+  if (url.startsWith('http')) return url;
+  if (url.startsWith('/') && API_BASE_URL) return `${API_BASE_URL}${url}`;
+  return url;
+};
+
 export const normalizeServer = (value: unknown, index: number): OnlineServer | null => {
   const record = toRecord(value);
   if (!record) {
@@ -181,14 +203,14 @@ export const normalizeServer = (value: unknown, index: number): OnlineServer | n
 
   return {
     id: pickFirst(getString(record.id), getString(record.slug)) || `server-${index + 1}`,
-    icon: pickFirst(
+    icon: resolveUrl(pickFirst(
       getString(record.icon),
       getString(record.icon_url),
       getString(record.iconUrl),
       getString(record.logo),
       getString(record.logo_url),
       getString(record.logoUrl)
-    ) || '',
+    )) || '',
     name,
     onlinePlayers,
     maxPlayers: pickFirst(
@@ -205,6 +227,7 @@ export const normalizeServer = (value: unknown, index: number): OnlineServer | n
       getString(record.category)
     ) || '未分类',
     isModded: pickFirst(getBoolean(record.isModded), getBoolean(record.is_modded), getBoolean(record.modded)) || false,
+    modpackUrl: pickFirst(getString(record.modpackUrl), getString(record.modpack_url), getString(record.modpack)),
     requiresWhitelist: pickFirst(
       getBoolean(record.requiresWhitelist),
       getBoolean(record.requires_whitelist),
@@ -224,6 +247,7 @@ export const normalizeServer = (value: unknown, index: number): OnlineServer | n
       getString(record.promotion_end_at)
     ),
     hasPaidFeatures: pickFirst(
+      getBoolean(record.hasPaidContent),
       getBoolean(record.hasPaidFeatures),
       getBoolean(record.has_paid_features),
       getBoolean(record.paid),
@@ -246,7 +270,15 @@ export const normalizeServer = (value: unknown, index: number): OnlineServer | n
       pickFirst(record.socials, record.social, record.socialGroups, record.social_groups, record.communities)
     ),
     description: pickFirst(getString(record.description), getString(record.summary)),
-    address: pickFirst(getString(record.address), getString(record.ip), getString(record.host))
+    address: pickFirst(getString(record.address), getString(record.ip), getString(record.host)),
+    hero: resolveUrl(pickFirst(getString(record.hero), getString(record.hero_url), getString(record.banner))),
+    versions: Array.isArray(record.versions) ? record.versions.map(getString).filter((v): v is string => Boolean(v)) : undefined,
+    ageRecommendation: pickFirst(getString(record.ageRecommendation), getString(record.age_recommendation)),
+    features: Array.isArray(record.features) ? record.features.map(normalizeFeatureTag).filter((v): v is import('./types').FeatureTag => Boolean(v)) : undefined,
+    mechanics: Array.isArray(record.mechanics) ? record.mechanics.map(normalizeFeatureTag).filter((v): v is import('./types').FeatureTag => Boolean(v)) : undefined,
+    elements: Array.isArray(record.elements) ? record.elements.map(normalizeFeatureTag).filter((v): v is import('./types').FeatureTag => Boolean(v)) : undefined,
+    community: Array.isArray(record.community) ? record.community.map(normalizeFeatureTag).filter((v): v is import('./types').FeatureTag => Boolean(v)) : undefined,
+    tags: Array.isArray(record.tags) ? record.tags.map(getString).filter((v): v is string => Boolean(v)) : undefined,
   };
 };
 

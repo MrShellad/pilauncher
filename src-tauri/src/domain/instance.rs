@@ -9,6 +9,14 @@ pub struct CustomButtonConfig {
     pub btn_type: String, // 'wiki', 'discord', 'twitter', 'youtube', 'github', 'website', 'other'
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ServerBinding {
+    pub uuid: String,
+    pub name: String,
+    pub ip: String,
+    pub port: u16,
+}
+
 // --- 前端请求模型 ---
 #[derive(Debug, Deserialize)]
 pub struct CreateInstancePayload {
@@ -44,6 +52,7 @@ pub struct InstanceConfig {
     pub gamepad: Option<bool>,
     pub custom_buttons: Option<Vec<CustomButtonConfig>>,
     pub third_party_path: Option<String>,
+    pub server_binding: Option<ServerBinding>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
