@@ -12,6 +12,7 @@ finish-args:
   - --socket=wayland
   - --socket=fallback-x11
   - --device=all
+  - --socket=pulseaudio
   - --filesystem=~/.local/share/Steam/userdata
   - --filesystem=home
   - --filesystem=xdg-data/.minecraft
