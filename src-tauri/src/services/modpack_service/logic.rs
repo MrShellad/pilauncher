@@ -55,6 +55,7 @@ pub fn build_instance_config(
         custom_buttons: None,
         third_party_path: None,
         server_binding: None,
+        auto_join_server: None,
     }
 }
 

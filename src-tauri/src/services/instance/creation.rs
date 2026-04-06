@@ -88,6 +88,7 @@ impl InstanceCreationService {
             custom_buttons: None,
             third_party_path: None,
             server_binding: payload.server_binding.clone(),
+            auto_join_server: if payload.server_binding.is_some() { Some(true) } else { None },
         };
         fs::write(
             instance_root.join("instance.json"),

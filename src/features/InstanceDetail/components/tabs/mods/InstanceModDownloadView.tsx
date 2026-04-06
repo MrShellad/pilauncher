@@ -202,6 +202,7 @@ export const InstanceModDownloadView: React.FC<{
   const [syncStep, setSyncStep] = useState(0);
   const [pendingDependencyVersion, setPendingDependencyVersion] = useState<OreProjectVersion | null>(null);
   const [pendingDependencyEntries, setPendingDependencyEntries] = useState<OreProjectDependency[]>([]);
+  const [pendingDependencyProjectId, setPendingDependencyProjectId] = useState('');
   const [missingDeps, setMissingDeps] = useState<MissingDependencyInfo[]>([]);
   const [autoInstallDeps, setAutoInstallDeps] = useState(true);
   const [isCheckingDeps, setIsCheckingDeps] = useState(false);
@@ -276,12 +277,13 @@ export const InstanceModDownloadView: React.FC<{
   const closeDependencyModal = useCallback(() => {
     setPendingDependencyVersion(null);
     setPendingDependencyEntries([]);
+    setPendingDependencyProjectId('');
     setMissingDeps([]);
     setAutoInstallDeps(true);
     setIsCheckingDeps(false);
   }, []);
 
-  const enqueueDownload = useCallback(async (version: OreProjectVersion, targetInstanceId: string, customProjectId?: string) => {
+  const enqueueDownload = useCallback(async (version: OreProjectVersion, targetInstanceId: string, explicitProjectId?: string) => {
     useDownloadStore.getState().addOrUpdateTask({
       id: version.file_name,
       taskType: 'resource',
@@ -308,7 +310,7 @@ export const InstanceModDownloadView: React.FC<{
       });
 
       if (resourceTab === 'mod') {
-        const projectId = customProjectId || selectedProject?.id || '';
+        const projectId = explicitProjectId || selectedProject?.id || '';
         if (projectId) {
           await invoke('update_mod_manifest', {
             instanceId: targetInstanceId,
@@ -359,7 +361,8 @@ export const InstanceModDownloadView: React.FC<{
   const downloadWithDependencies = useCallback(async (
     version: OreProjectVersion,
     targetInstanceId: string,
-    dependenciesToInstall: OreProjectDependency[] = []
+    dependenciesToInstall: OreProjectDependency[] = [],
+    primaryProjectId?: string
   ) => {
     if (dependenciesToInstall.length > 0) {
       const fetchVersions = source === 'curseforge' ? fetchCurseForgeVersions : fetchModrinthVersions;
@@ -389,16 +392,17 @@ export const InstanceModDownloadView: React.FC<{
       }
     }
 
-    await enqueueDownload(version, targetInstanceId);
+    await enqueueDownload(version, targetInstanceId, primaryProjectId);
   }, [enqueueDownload, resourceTab, source, targetLoader, targetMc]);
 
   const handleStartDownload = useCallback(async (
     version: OreProjectVersion,
     targetInstanceId: string,
-    autoInstallRequiredDeps?: boolean
+    autoInstallRequiredDeps?: boolean,
+    primaryProjectId = ''
   ) => {
     if (resourceTab !== 'mod' || targetInstanceId !== instanceId) {
-      await downloadWithDependencies(version, targetInstanceId);
+      await downloadWithDependencies(version, targetInstanceId, [], primaryProjectId);
       return;
     }
 
@@ -406,7 +410,8 @@ export const InstanceModDownloadView: React.FC<{
       await downloadWithDependencies(
         version,
         targetInstanceId,
-        autoInstallRequiredDeps ? pendingDependencyEntries : []
+        autoInstallRequiredDeps ? pendingDependencyEntries : [],
+        primaryProjectId
       );
       closeDependencyModal();
       return;
@@ -417,7 +422,7 @@ export const InstanceModDownloadView: React.FC<{
     );
 
     if (requiredDependencies.length === 0) {
-      await downloadWithDependencies(version, targetInstanceId);
+      await downloadWithDependencies(version, targetInstanceId, [], primaryProjectId);
       return;
     }
 
@@ -429,12 +434,13 @@ export const InstanceModDownloadView: React.FC<{
     );
 
     if (missingDependencyEntries.length === 0) {
-      await downloadWithDependencies(version, targetInstanceId);
+      await downloadWithDependencies(version, targetInstanceId, [], primaryProjectId);
       return;
     }
 
     setPendingDependencyVersion(version);
     setPendingDependencyEntries(missingDependencyEntries);
+    setPendingDependencyProjectId(primaryProjectId);
     setMissingDeps([]);
     setAutoInstallDeps(true);
     setIsCheckingDeps(true);
@@ -445,7 +451,7 @@ export const InstanceModDownloadView: React.FC<{
     } catch (error) {
       console.error('分析前置依赖失败:', error);
       closeDependencyModal();
-      await downloadWithDependencies(version, targetInstanceId);
+      await downloadWithDependencies(version, targetInstanceId, [], primaryProjectId);
       return;
     } finally {
       setIsCheckingDeps(false);
@@ -463,8 +469,16 @@ export const InstanceModDownloadView: React.FC<{
 
   const handleConfirmDependencyDownload = useCallback(async () => {
     if (!pendingDependencyVersion) return;
-    await handleStartDownload(pendingDependencyVersion, instanceId, autoInstallDeps);
-  }, [autoInstallDeps, handleStartDownload, instanceId, pendingDependencyVersion]);
+    await handleStartDownload(pendingDependencyVersion, instanceId, autoInstallDeps, pendingDependencyProjectId);
+  }, [autoInstallDeps, handleStartDownload, instanceId, pendingDependencyProjectId, pendingDependencyVersion]);
+
+  const handleDetailDownload = useCallback((
+    version: OreProjectVersion,
+    targetInstanceId: string,
+    autoInstallRequiredDeps?: boolean
+  ) => {
+    return handleStartDownload(version, targetInstanceId, autoInstallRequiredDeps, selectedProject?.id || '');
+  }, [handleStartDownload, selectedProject]);
 
   if (!isEnvLoaded || syncStep < 3) {
     return (
@@ -529,7 +543,7 @@ export const InstanceModDownloadView: React.FC<{
           setSelectedProject(null);
           setTimeout(() => setFocus('download-grid-item-0'), 50);
         }}
-        onDownload={handleStartDownload}
+        onDownload={handleDetailDownload}
         installedVersionIds={installedVersionIds}
         searchMcVersion={targetMc}
         searchLoader={resourceTab === 'mod' ? targetLoader : ''}

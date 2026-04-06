@@ -1,71 +1,231 @@
-// src/features/home/components/AccountSliderBar/MicrosoftAccountSidebar.tsx
-import React, { useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { invoke, convertFileSrc } from '@tauri-apps/api/core';
-import { UserPlus, Send, Loader2, ArrowLeft } from 'lucide-react'; 
-import { useTranslation } from 'react-i18next';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { convertFileSrc, invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+import { ArrowLeft, Loader2, Send, ShieldCheck, UserPlus } from 'lucide-react';
+import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
-import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
-import { FocusItem } from '../../../ui/focus/FocusItem';
+import type {
+  DiscoveredDevice,
+  TransferProgressEvent,
+  TransferRecord,
+} from '../../../hooks/useLan';
+import { useLan } from '../../../hooks/useLan';
 import { useAccountStore } from '../../../store/useAccountStore';
 import { useSettingsStore } from '../../../store/useSettingsStore';
-import { useLan } from '../../../hooks/useLan';
+import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
+import { FocusItem } from '../../../ui/focus/FocusItem';
 import { useInputAction } from '../../../ui/focus/InputDriver';
-
-import { UserProfileCard } from './AccountSliderBar/UserProfileCard';
-import { LanRadar } from './AccountSliderBar/LanRadar';
+import { OreButton } from '../../../ui/primitives/OreButton';
+import { OreModal } from '../../../ui/primitives/OreModal';
 import defaultAvatar from '../../../assets/home/account/128.png';
-import { setFocus, getCurrentFocusKey, doesFocusableExist } from '@noriginmedia/norigin-spatial-navigation';
-import { OreModal } from '../../../ui/primitives/OreModal'; 
-import { OreButton } from '../../../ui/primitives/OreButton'; 
+import { LanRadar } from './AccountSliderBar/LanRadar';
+import { UserProfileCard } from './AccountSliderBar/UserProfileCard';
 
 interface MicrosoftAccountSidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-interface DiscoveredDevice {
-  device_id: string;
-  device_name: string;
-  ip: string;
-  port: number;
-}
+const normalizeDeviceId = (value?: string) => (value || '').trim().toLowerCase();
 
-export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = ({ isOpen, onClose }) => {
-  const { t } = useTranslation();
+const formatTimestamp = (timestamp?: number | null) => {
+  if (!timestamp) {
+    return '刚刚';
+  }
+
+  const value = timestamp < 10_000_000_000 ? timestamp * 1000 : timestamp;
+  const date = new Date(value);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60_000));
+
+  if (diffMinutes < 1) {
+    return '刚刚';
+  }
+  if (diffMinutes < 60) {
+    return `${diffMinutes} 分钟前`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours} 小时前`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) {
+    return `${diffDays} 天前`;
+  }
+
+  return date.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const getTransferKindLabel = (transferType: string) =>
+  transferType === 'save' ? '存档' : '实例';
+
+const getStatusMeta = (status: string) => {
+  switch (status) {
+    case 'packing':
+      return { label: '打包中', className: 'bg-sky-500/15 text-sky-300 border-sky-500/30' };
+    case 'sending':
+      return { label: '发送中', className: 'bg-sky-500/15 text-sky-300 border-sky-500/30' };
+    case 'receiving':
+      return { label: '接收中', className: 'bg-sky-500/15 text-sky-300 border-sky-500/30' };
+    case 'received':
+      return { label: '已接收', className: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' };
+    case 'applying':
+      return { label: '部署中', className: 'bg-amber-500/15 text-amber-200 border-amber-500/30' };
+    case 'applied':
+      return { label: '已导入', className: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' };
+    case 'rejected':
+      return { label: '已拒绝', className: 'bg-amber-500/15 text-amber-200 border-amber-500/30' };
+    case 'failed':
+      return { label: '失败', className: 'bg-red-500/15 text-red-300 border-red-500/30' };
+    default:
+      return { label: status || '未知', className: 'bg-white/10 text-gray-300 border-white/15' };
+  }
+};
+
+const getProgressPercent = (progress?: TransferProgressEvent | null) => {
+  if (!progress) {
+    return 0;
+  }
+  if (progress.total > 0) {
+    return Math.max(0, Math.min(100, Math.round((progress.current / progress.total) * 100)));
+  }
+  if (['RECEIVED', 'REJECTED', 'FAILED', 'APPLIED'].includes(progress.stage)) {
+    return 100;
+  }
+  return 0;
+};
+
+const upsertRecord = (list: TransferRecord[], record: TransferRecord) => {
+  const next = list.filter((item) => item.transferId !== record.transferId);
+  next.push(record);
+  next.sort((a, b) => a.createdAt - b.createdAt);
+  return next;
+};
+
+export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = ({
+  isOpen,
+  onClose,
+}) => {
   const { accounts, activeAccountId, setActiveAccount } = useAccountStore();
   const { settings } = useSettingsStore();
   const [avatarSrc, setAvatarSrc] = useState<string | null>(null);
-
-  const { 
-    discovered, trusted, isScanning, isRequesting, 
-    incomingRequest, resolveTrustRequest, 
-    scan, sendTrustRequest, fetchTrusted,
-    removeTrustedDevice
-  } = useLan();
-
-  const currentAccount = accounts.find(acc => acc.uuid === activeAccountId);
-  const isPremium = currentAccount?.type?.toLowerCase() === 'microsoft';
-  const hasPremiumAnywhere = accounts.some(acc => acc.type?.toLowerCase() === 'microsoft');
-
-  // 核心功能区：传输面板状态
   const [transferTarget, setTransferTarget] = useState<DiscoveredDevice | null>(null);
   const [transferType, setTransferType] = useState<'instance' | 'save'>('instance');
-  const [instances, setInstances] = useState<{id: string, name: string}[]>([]);
+  const [instances, setInstances] = useState<{ id: string; name: string }[]>([]);
   const [saves, setSaves] = useState<string[]>([]);
-  const [selectedInstance, setSelectedInstance] = useState<string>('');
-  const [selectedSave, setSelectedSave] = useState<string>('');
+  const [selectedInstance, setSelectedInstance] = useState('');
+  const [selectedSave, setSelectedSave] = useState('');
   const [isPushing, setIsPushing] = useState(false);
+  const [transferHistory, setTransferHistory] = useState<TransferRecord[]>([]);
+  const [progressMap, setProgressMap] = useState<Record<string, TransferProgressEvent>>({});
+
+  const {
+    discovered,
+    trusted,
+    friends,
+    isScanning,
+    isRequesting,
+    incomingRequest,
+    resolveTrustRequest,
+    scan,
+    sendTrustRequest,
+    fetchTrusted,
+    fetchFriends,
+    trustDevice,
+    removeTrustedDevice,
+  } = useLan();
+
+  const currentAccount = accounts.find((item) => item.uuid === activeAccountId);
+  const isPremium = currentAccount?.type?.toLowerCase() === 'microsoft';
+  const hasPremiumAnywhere = accounts.some((item) => item.type?.toLowerCase() === 'microsoft');
+  const lastFocusRef = useRef<string | null>(null);
+  const timelineRef = useRef<HTMLDivElement | null>(null);
+
+  const selectedTargetOnline = useMemo(() => {
+    if (!transferTarget) {
+      return null;
+    }
+    return (
+      discovered.find(
+        (item) => normalizeDeviceId(item.device_id) === normalizeDeviceId(transferTarget.device_id),
+      ) || null
+    );
+  }, [discovered, transferTarget]);
+
+  const selectedFriend = useMemo(() => {
+    if (!transferTarget) {
+      return null;
+    }
+    return (
+      friends.find(
+        (item) => normalizeDeviceId(item.device_id) === normalizeDeviceId(transferTarget.device_id),
+      ) || null
+    );
+  }, [friends, transferTarget]);
+
+  const activeProgress = useMemo(() => {
+    if (!transferTarget) {
+      return null;
+    }
+    const entries = Object.values(progressMap).filter(
+      (item) => normalizeDeviceId(item.remoteDeviceId) === normalizeDeviceId(transferTarget.device_id),
+    );
+    if (entries.length === 0) {
+      return null;
+    }
+    return entries[entries.length - 1];
+  }, [progressMap, transferTarget]);
 
   const handleCycleAccount = () => {
-    if (accounts.length <= 1) return;
-    const currentIndex = accounts.findIndex(acc => acc.uuid === activeAccountId);
+    if (accounts.length <= 1) {
+      return;
+    }
+    const currentIndex = accounts.findIndex((item) => item.uuid === activeAccountId);
     const nextIndex = (currentIndex + 1) % accounts.length;
     setActiveAccount(accounts[nextIndex].uuid);
   };
 
-  // 记录打开侧边栏前的焦点，关闭时恢复
-  const lastFocusRef = useRef<string | null>(null);
+  const handleClose = () => {
+    onClose();
+    const last = lastFocusRef.current;
+    const fallback = 'btn-profile';
+    const target =
+      last && doesFocusableExist(last) ? last : doesFocusableExist(fallback) ? fallback : null;
+    if (target) {
+      window.setTimeout(() => setFocus(target), 80);
+    }
+  };
+
+  const fetchTransferHistory = async (deviceId?: string) => {
+    const list = await invoke<TransferRecord[]>('get_transfer_history', {
+      remoteDeviceId: deviceId || null,
+    });
+    setTransferHistory([...list].sort((a, b) => a.createdAt - b.createdAt));
+  };
+
+  const fetchLocalInstances = async () => {
+    const list = await invoke<{ id: string; name: string }[]>('get_local_instances');
+    setInstances(list);
+    if (!selectedInstance && list.length > 0) {
+      setSelectedInstance(list[0].id);
+    }
+    return list;
+  };
+
+  const fetchSavesForInstance = async (instanceId: string) => {
+    const saveList = await invoke<string[]>('get_instance_saves', { instanceId });
+    setSaves(saveList);
+    setSelectedSave((previous) => (saveList.includes(previous) ? previous : saveList[0] || ''));
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -76,16 +236,6 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
     }
   }, [isOpen]);
 
-  const handleClose = () => {
-    onClose();
-    const last = lastFocusRef.current;
-    const fallback = 'btn-profile';
-    const target = last && doesFocusableExist(last) ? last : (doesFocusableExist(fallback) ? fallback : null);
-    if (target) {
-      setTimeout(() => setFocus(target), 80);
-    }
-  };
-
   useInputAction('CANCEL', () => {
     if (isOpen) {
       handleClose();
@@ -93,131 +243,224 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
   });
 
   useEffect(() => {
-    if (isOpen) {
-      fetchTrusted();
-      scan();
-      const timer = window.setInterval(() => {
-        scan();
-      }, 5000);
-      return () => {
-        window.clearInterval(timer);
-      };
-    } else {
+    if (!isOpen) {
       setTransferTarget(null);
+      setTransferHistory([]);
+      setProgressMap({});
+      return;
     }
-  }, [isOpen, fetchTrusted, scan]);
 
-  // 推送自己的 MC 身份给本地 Rust 后端
+    void Promise.all([fetchTrusted(), fetchFriends()]);
+    void scan();
+
+    const timer = window.setInterval(() => {
+      void scan();
+    }, 5000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [fetchFriends, fetchTrusted, isOpen, scan]);
+
   useEffect(() => {
     if (currentAccount && settings.general.deviceId) {
-      invoke('update_lan_device_info', {
+      void invoke('update_lan_device_info', {
         info: {
           device_id: settings.general.deviceId,
           device_name: settings.general.deviceName,
           username: currentAccount.name,
           user_uuid: currentAccount.uuid,
           is_premium: isPremium,
-          is_donor: false, 
-          launcher_version: "1.0.0",
+          is_donor: false,
+          launcher_version: '1.0.0',
           instance_name: null,
           instance_id: null,
-          bg_url: "/device/bg"
+          bg_url: '/device/bg',
         },
-        localBgPath: "" 
+        localBgPath: '',
       }).catch(console.error);
     }
-  }, [currentAccount, settings.general.deviceId, settings.general.deviceName, isPremium]);
+  }, [currentAccount, isPremium, settings.general.deviceId, settings.general.deviceName]);
 
   useEffect(() => {
-    if (currentAccount) {
-      const fetchAvatar = async () => {
-        try {
-          const localPath = await invoke<string>('get_or_fetch_account_avatar', { 
-            uuid: currentAccount.uuid, 
-            username: currentAccount.name 
-          });
-          const cacheBuster = currentAccount.skinUrl?.split('?t=')[1] || 'init';
-          setAvatarSrc(`${convertFileSrc(localPath)}?t=${cacheBuster}`);
-        } catch (e) {
-          setAvatarSrc(defaultAvatar);
-        }
-      };
-      fetchAvatar();
+    if (!currentAccount) {
+      return;
     }
+
+    const fetchAvatar = async () => {
+      try {
+        const localPath = await invoke<string>('get_or_fetch_account_avatar', {
+          uuid: currentAccount.uuid,
+          username: currentAccount.name,
+        });
+        const cacheBuster = currentAccount.skinUrl?.split('?t=')[1] || 'init';
+        setAvatarSrc(`${convertFileSrc(localPath)}?t=${cacheBuster}`);
+      } catch {
+        setAvatarSrc(defaultAvatar);
+      }
+    };
+
+    void fetchAvatar();
   }, [currentAccount]);
 
-  // 传输面板逻辑
+  useEffect(() => {
+    if (!transferTarget) {
+      return;
+    }
+
+    void fetchTransferHistory(transferTarget.device_id).catch(console.error);
+    void fetchLocalInstances()
+      .then((list) => {
+        const defaultInstanceId = selectedInstance || list[0]?.id || '';
+        if (transferType === 'save' && defaultInstanceId) {
+          return fetchSavesForInstance(defaultInstanceId);
+        }
+        return undefined;
+      })
+      .catch(console.error);
+  }, [transferTarget]);
+
+  useEffect(() => {
+    if (transferType === 'save' && selectedInstance) {
+      void fetchSavesForInstance(selectedInstance).catch(console.error);
+    }
+    if (transferType === 'instance') {
+      setSaves([]);
+      setSelectedSave('');
+    }
+  }, [selectedInstance, transferType]);
+
+  useEffect(() => {
+    if (!transferTarget) {
+      return;
+    }
+
+    const latest = discovered.find(
+      (item) => normalizeDeviceId(item.device_id) === normalizeDeviceId(transferTarget.device_id),
+    );
+    if (
+      latest &&
+      (latest.ip !== transferTarget.ip ||
+        latest.port !== transferTarget.port ||
+        latest.device_name !== transferTarget.device_name)
+    ) {
+      setTransferTarget(latest);
+    }
+  }, [discovered, transferTarget]);
+
+  useEffect(() => {
+    const unlistenRecord = listen<TransferRecord>('lan-transfer-record-updated', (event) => {
+      const record = event.payload;
+      if (
+        transferTarget &&
+        normalizeDeviceId(record.remoteDeviceId) !== normalizeDeviceId(transferTarget.device_id)
+      ) {
+        return;
+      }
+      setTransferHistory((previous) => upsertRecord(previous, record));
+    });
+
+    const unlistenProgress = listen<TransferProgressEvent>('lan-transfer-progress', (event) => {
+      setProgressMap((previous) => ({
+        ...previous,
+        [event.payload.transferId]: event.payload,
+      }));
+    });
+
+    return () => {
+      void unlistenRecord.then((dispose) => dispose());
+      void unlistenProgress.then((dispose) => dispose());
+    };
+  }, [transferTarget]);
+
+  useEffect(() => {
+    if (!timelineRef.current) {
+      return;
+    }
+    timelineRef.current.scrollTop = timelineRef.current.scrollHeight;
+  }, [progressMap, transferHistory, transferTarget]);
+
   const handleSelectTrustedDevice = async (device: DiscoveredDevice | null) => {
     setTransferTarget(device);
-    if (device) {
-      try {
-        const list = await invoke<any[]>('get_local_instances');
-        setInstances(list);
-        if (list.length > 0) setSelectedInstance(list[0].id);
-      } catch (e) {}
+    setTransferHistory([]);
+    if (!device) {
+      return;
     }
-  };
 
-  const handleFetchSaves = async (instanceId: string) => {
-    setSelectedInstance(instanceId);
     try {
-      const saveList = await invoke<string[]>('get_instance_saves', { instanceId });
-      setSaves(saveList);
-      if (saveList.length > 0) setSelectedSave(saveList[0]);
-    } catch (e) {}
+      const list = await fetchLocalInstances();
+      const defaultInstanceId = selectedInstance || list[0]?.id || '';
+      if (defaultInstanceId) {
+        setSelectedInstance(defaultInstanceId);
+      }
+      if (transferType === 'save' && defaultInstanceId) {
+        await fetchSavesForInstance(defaultInstanceId);
+      }
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const executePush = async () => {
-    if (!transferTarget || !selectedInstance) return;
+    if (!transferTarget || !selectedInstance) {
+      return;
+    }
+
     setIsPushing(true);
     try {
-      await invoke('push_to_device', {
+      await invoke<string>('push_to_device', {
         targetIp: transferTarget.ip,
         targetPort: transferTarget.port,
-        transferType: transferType,
+        transferType,
         targetId: selectedInstance,
-        saveName: transferType === 'save' ? selectedSave : null
+        saveName: transferType === 'save' ? selectedSave : null,
+        remoteDeviceId: transferTarget.device_id,
+        remoteDeviceName: selectedFriend?.device_name || transferTarget.device_name,
+        remoteUsername: selectedFriend?.username || '',
       });
-      alert(t('home.sidebar.pushSuccess'));
-      setTransferTarget(null);
-    } catch (e) {
-      alert(`${t('home.sidebar.pushFailed')}: ${e}`);
+    } catch (error) {
+      alert(`推送失败: ${error}`);
     } finally {
       setIsPushing(false);
     }
   };
 
-  if (!currentAccount) return null;
+  if (!currentAccount) {
+    return null;
+  }
 
   return (
     <>
       <AnimatePresence>
         {isOpen && (
-          <FocusBoundary id="account-sidebar-boundary" trapFocus={true} onEscape={handleClose} className="fixed inset-0 z-[100] flex outline-none">
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }} 
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer"
+          <FocusBoundary
+            id="account-sidebar-boundary"
+            trapFocus={true}
+            onEscape={handleClose}
+            className="fixed inset-0 z-[100] flex outline-none"
+          >
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 cursor-pointer bg-black/60 backdrop-blur-sm"
               onClick={handleClose}
             />
 
-            <motion.div 
-              initial={{ x: '-100%', opacity: 0 }} 
-              animate={{ x: 0, opacity: 1 }} 
-              exit={{ x: '-100%', opacity: 0 }} 
+            <motion.div
+              initial={{ x: '-100%', opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: '-100%', opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               onAnimationComplete={() => setFocus('account-sidebar-boundary')}
-              className="absolute left-0 top-0 bottom-0 w-full md:w-[70vw] lg:w-[55vw] xl:w-[900px] bg-[#18181B] border-r-2 border-[#2A2A2C] shadow-2xl flex flex-col"
+              className="absolute left-0 top-0 bottom-0 flex w-full flex-col border-r-2 border-[#2A2A2C] bg-[#18181B] shadow-2xl md:w-[70vw] lg:w-[55vw] xl:w-[960px]"
             >
-              <div className="flex flex-col h-full overflow-y-auto custom-scrollbar p-6">
-                
-                <div className="flex-1 flex flex-col sm:flex-row gap-6 mb-6">
-                  {/* 左侧：用户信息与信任雷达 */}
-                  <div className="w-full sm:w-[320px] flex flex-col flex-shrink-0 gap-6">
-                    <UserProfileCard 
-                      name={currentAccount.name} 
-                      isPremium={isPremium} 
+              <div className="custom-scrollbar flex h-full flex-col overflow-y-auto p-6">
+                <div className="mb-6 flex flex-1 flex-col gap-6 sm:flex-row">
+                  <div className="flex w-full flex-shrink-0 flex-col gap-6 sm:w-[320px]">
+                    <UserProfileCard
+                      name={currentAccount.name}
+                      isPremium={isPremium}
                       hasPremiumAnywhere={hasPremiumAnywhere}
                       accountsCount={accounts.length}
                       avatarSrc={avatarSrc}
@@ -229,130 +472,330 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
                       onRemoveTrust={removeTrustedDevice}
                       onSelectTrustedDevice={handleSelectTrustedDevice}
                     />
-                    
-                    <LanRadar 
-                      discovered={discovered} 
-                      trusted={trusted} 
-                      isScanning={isScanning} 
-                      isRequesting={isRequesting} 
-                      onRequestTrust={sendTrustRequest} 
+
+                    <LanRadar
+                      discovered={discovered}
+                      trusted={trusted}
+                      friends={friends}
+                      isScanning={isScanning}
+                      isRequesting={isRequesting}
+                      onRequestTrust={sendTrustRequest}
+                      onTrustDevice={trustDevice}
                     />
                   </div>
 
-                  {/* 右侧：核心功能区 — 传输面板 */}
-                  <div className="flex-1 hidden sm:flex flex-col min-w-0">
+                  <div className="hidden min-w-0 flex-1 flex-col sm:flex">
                     <AnimatePresence mode="wait">
                       {transferTarget ? (
-                        <motion.div 
-                          key="transfer-panel"
-                          initial={{ opacity: 0, y: 10 }} 
-                          animate={{ opacity: 1, y: 0 }} 
+                        <motion.div
+                          key={`transfer-${transferTarget.device_id}`}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
-                          className="flex flex-col h-full border-[2px] border-[#313233] bg-[#1E1E1F] rounded-sm overflow-hidden"
+                          className="flex h-full flex-col overflow-hidden rounded-sm border-[2px] border-[#313233] bg-[#1E1E1F]"
                         >
-                          {/* 标题栏 */}
-                          <div className="p-4 border-b-2 border-[#2A2A2C] flex justify-between items-center bg-[#141415]">
+                          <div className="flex items-center justify-between border-b-2 border-[#2A2A2C] bg-[#141415] p-4">
                             <div>
-                              <h3 className="text-white text-base font-bold flex items-center font-minecraft">
-                                <Send size={16} className="mr-2 text-blue-400" /> {t('home.sidebar.airdrop')}
+                              <h3 className="flex items-center text-base font-bold text-white font-minecraft">
+                                <Send size={16} className="mr-2 text-blue-400" />
+                                隔空投送会话
                               </h3>
-                              <span className="text-xs text-gray-400 mt-0.5 block">{t('home.sidebar.targetDevice')}: {transferTarget.device_name} ({transferTarget.ip})</span>
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                                <span>{selectedFriend?.username || transferTarget.device_name}</span>
+                                <span>{selectedTargetOnline ? '在线' : '离线'}</span>
+                                <span>{transferTarget.ip}</span>
+                                {selectedFriend?.trust_level === 'trusted' && (
+                                  <span className="rounded-sm border border-emerald-500/30 bg-emerald-500/15 px-1.5 py-0.5 text-[10px] text-emerald-300">
+                                    已信任
+                                  </span>
+                                )}
+                              </div>
                             </div>
+
                             <FocusItem focusKey="btn-back-transfer" onEnter={() => setTransferTarget(null)}>
                               {({ ref, focused }) => (
-                                <button ref={ref as any} onClick={() => setTransferTarget(null)} className={`p-1.5 hover:bg-white/10 text-gray-400 rounded-sm transition-colors outline-none ${focused ? 'ring-2 ring-white' : ''}`}>
-                                  <ArrowLeft size={18}/>
+                                <button
+                                  ref={ref as any}
+                                  onClick={() => setTransferTarget(null)}
+                                  className={`rounded-sm p-1.5 text-gray-400 transition-colors hover:bg-white/10 ${
+                                    focused ? 'ring-2 ring-white' : ''
+                                  }`}
+                                >
+                                  <ArrowLeft size={18} />
                                 </button>
                               )}
                             </FocusItem>
                           </div>
 
-                          {/* 传输类型切换 */}
-                          <div className="flex p-3 gap-2 bg-[#1A1A1B]">
-                            <FocusItem focusKey="btn-transfer-type-instance">
-                              {({ ref, focused }) => (
-                                <button ref={ref as any} onClick={() => setTransferType('instance')} className={`flex-1 py-2 text-sm border-b-2 transition-colors outline-none font-minecraft ${transferType === 'instance' ? 'border-blue-400 text-blue-400' : 'border-transparent text-gray-500'} ${focused ? 'bg-white/5' : ''}`}>{t('home.sidebar.transferInstance')}</button>
-                              )}
-                            </FocusItem>
-                            <FocusItem focusKey="btn-transfer-type-save">
-                              {({ ref, focused }) => (
-                                <button ref={ref as any} onClick={() => setTransferType('save')} className={`flex-1 py-2 text-sm border-b-2 transition-colors outline-none font-minecraft ${transferType === 'save' ? 'border-green-400 text-green-400' : 'border-transparent text-gray-500'} ${focused ? 'bg-white/5' : ''}`}>{t('home.sidebar.transferSave')}</button>
-                              )}
-                            </FocusItem>
+                          <div
+                            ref={timelineRef}
+                            className="custom-scrollbar flex-1 space-y-4 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.12),_transparent_40%)] p-4"
+                          >
+                            {transferHistory.length === 0 && (
+                              <div className="flex h-full items-center justify-center rounded-sm border border-dashed border-white/10 bg-black/20 p-6 text-center text-sm text-gray-500">
+                                暂无和这台设备的投送记录。发送一个实例或存档后，这里会按聊天时间线展示状态。
+                              </div>
+                            )}
+                            {transferHistory.map((record) => {
+                              const isOutgoing = record.direction === 'outgoing';
+                              const statusMeta = getStatusMeta(record.status);
+                              const progress = progressMap[record.transferId];
+                              const percent = getProgressPercent(progress);
+                              const actor = isOutgoing
+                                ? '你'
+                                : record.remoteUsername || record.remoteDeviceName || '对方';
+
+                              return (
+                                <div
+                                  key={record.transferId}
+                                  className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}
+                                >
+                                  <div
+                                    className={`max-w-[78%] rounded-2xl border px-4 py-3 ${
+                                      isOutgoing
+                                        ? 'border-blue-500/25 bg-blue-500/10 text-white'
+                                        : 'border-white/10 bg-white/5 text-gray-100'
+                                    }`}
+                                  >
+                                    <div className="mb-2 flex items-center justify-between gap-3">
+                                      <span className="text-[11px] text-gray-400">
+                                        {actor}
+                                        {isOutgoing ? ' 在 ' : ' 于 '}
+                                        {formatTimestamp(record.createdAt)}
+                                        {isOutgoing ? ' 发出了 ' : ' 发来了 '}
+                                        {getTransferKindLabel(record.transferType)}
+                                      </span>
+                                      <span
+                                        className={`rounded-full border px-2 py-0.5 text-[10px] ${statusMeta.className}`}
+                                      >
+                                        {statusMeta.label}
+                                      </span>
+                                    </div>
+
+                                    <div className="text-sm font-semibold">{record.name}</div>
+
+                                    {progress && (
+                                      <div className="mt-3">
+                                        <div className="mb-1 flex items-center justify-between text-[11px] text-gray-400">
+                                          <span>{progress.message}</span>
+                                          <span>{percent}%</span>
+                                        </div>
+                                        <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                                          <div
+                                            className={`h-full transition-all ${
+                                              progress.status === 'failed'
+                                                ? 'bg-red-400'
+                                                : progress.status === 'rejected'
+                                                  ? 'bg-amber-300'
+                                                  : 'bg-blue-400'
+                                            }`}
+                                            style={{ width: `${percent}%` }}
+                                          />
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {record.errorMessage && (
+                                      <div className="mt-2 text-[11px] text-red-300">
+                                        {record.errorMessage}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
 
-                          {/* 选择区域 */}
-                          <div className="p-5 flex-1 overflow-y-auto">
-                            <label className="text-xs text-gray-400 mb-2 block font-minecraft">{transferType === 'instance' ? t('home.sidebar.selectInstanceToSend') : t('home.sidebar.selectInstanceToExtract')}</label>
-                            <FocusItem focusKey="select-transfer-inst">
-                              {({ ref, focused }) => (
-                                <select ref={ref as any} className={`w-full bg-[#141415] border-2 border-[#2A2A2C] text-white p-2 rounded-sm outline-none mb-4 transition-all font-minecraft ${focused ? 'ring-2 ring-blue-500' : ''}`} value={selectedInstance} onChange={(e) => transferType === 'save' ? handleFetchSaves(e.target.value) : setSelectedInstance(e.target.value)}>
-                                  <option value="" disabled>{t('home.sidebar.selectPlaceholder')}</option>
-                                  {instances.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
-                                </select>
-                              )}
-                            </FocusItem>
+                          <div className="border-t-2 border-[#2A2A2C] bg-[#141415] p-4">
+                            <div className="mb-3 flex gap-2">
+                              <FocusItem focusKey="btn-transfer-type-instance">
+                                {({ ref, focused }) => (
+                                  <button
+                                    ref={ref as any}
+                                    onClick={() => setTransferType('instance')}
+                                    className={`flex-1 rounded-sm border px-3 py-2 text-sm font-minecraft transition-colors ${
+                                      transferType === 'instance'
+                                        ? 'border-blue-500/30 bg-blue-500/10 text-blue-300'
+                                        : 'border-white/10 bg-white/5 text-gray-400'
+                                    } ${focused ? 'ring-2 ring-white' : ''}`}
+                                  >
+                                    发送实例
+                                  </button>
+                                )}
+                              </FocusItem>
 
-                            {transferType === 'save' && (
-                              <>
-                                <label className="text-xs text-gray-400 mb-2 block mt-2 font-minecraft">{t('home.sidebar.selectSave')}</label>
-                                <FocusItem focusKey="select-transfer-save">
+                              <FocusItem focusKey="btn-transfer-type-save">
+                                {({ ref, focused }) => (
+                                  <button
+                                    ref={ref as any}
+                                    onClick={() => setTransferType('save')}
+                                    className={`flex-1 rounded-sm border px-3 py-2 text-sm font-minecraft transition-colors ${
+                                      transferType === 'save'
+                                        ? 'border-green-500/30 bg-green-500/10 text-green-300'
+                                        : 'border-white/10 bg-white/5 text-gray-400'
+                                    } ${focused ? 'ring-2 ring-white' : ''}`}
+                                  >
+                                    发送存档
+                                  </button>
+                                )}
+                              </FocusItem>
+                            </div>
+
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <div>
+                                <label className="mb-2 block text-xs text-gray-400">选择实例</label>
+                                <FocusItem focusKey="select-transfer-inst">
                                   {({ ref, focused }) => (
-                                    <select ref={ref as any} className={`w-full bg-[#141415] border-2 border-[#2A2A2C] text-white p-2 rounded-sm outline-none transition-all font-minecraft ${focused ? 'ring-2 ring-green-500' : ''}`} value={selectedSave} onChange={(e) => setSelectedSave(e.target.value)}>
-                                      <option value="" disabled>{t('home.sidebar.selectPlaceholder')}</option>
-                                      {saves.map(s => <option key={s} value={s}>{s}</option>)}
+                                    <select
+                                      ref={ref as any}
+                                      className={`w-full rounded-sm border-2 border-[#2A2A2C] bg-[#101011] p-2 text-white outline-none ${
+                                        focused ? 'ring-2 ring-blue-500' : ''
+                                      }`}
+                                      value={selectedInstance}
+                                      onChange={(event) => setSelectedInstance(event.target.value)}
+                                    >
+                                      <option value="" disabled>
+                                        -- 请选择实例 --
+                                      </option>
+                                      {instances.map((instance) => (
+                                        <option key={instance.id} value={instance.id}>
+                                          {instance.name}
+                                        </option>
+                                      ))}
                                     </select>
                                   )}
                                 </FocusItem>
-                              </>
-                            )}
-                          </div>
+                              </div>
 
-                          {/* 发送按钮 */}
-                          <div className="p-4 border-t-2 border-[#2A2A2C] bg-[#141415]">
-                            <OreButton onClick={executePush} disabled={isPushing || !selectedInstance || (transferType === 'save' && !selectedSave)} variant="primary" className="w-full flex justify-center !h-11">
-                              {isPushing ? <Loader2 size={16} className="animate-spin mr-2" /> : <Send size={16} className="mr-2" />}
-                              {isPushing ? t('home.sidebar.pushing') : t('home.sidebar.startTransfer')}
-                            </OreButton>
+                              {transferType === 'save' && (
+                                <div>
+                                  <label className="mb-2 block text-xs text-gray-400">选择存档</label>
+                                  <FocusItem focusKey="select-transfer-save">
+                                    {({ ref, focused }) => (
+                                      <select
+                                        ref={ref as any}
+                                        className={`w-full rounded-sm border-2 border-[#2A2A2C] bg-[#101011] p-2 text-white outline-none ${
+                                          focused ? 'ring-2 ring-green-500' : ''
+                                        }`}
+                                        value={selectedSave}
+                                        onChange={(event) => setSelectedSave(event.target.value)}
+                                      >
+                                        <option value="" disabled>
+                                          -- 请选择存档 --
+                                        </option>
+                                        {saves.map((save) => (
+                                          <option key={save} value={save}>
+                                            {save}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    )}
+                                  </FocusItem>
+                                </div>
+                              )}
+                            </div>
+
+                            {activeProgress && (
+                              <div className="mt-3 rounded-sm border border-white/10 bg-white/5 p-3">
+                                <div className="mb-1 flex items-center justify-between text-xs text-gray-300">
+                                  <span>{activeProgress.message}</span>
+                                  <span>{getProgressPercent(activeProgress)}%</span>
+                                </div>
+                                <div className="h-2 overflow-hidden rounded-full bg-black/30">
+                                  <div
+                                    className="h-full bg-blue-400 transition-all"
+                                    style={{ width: `${getProgressPercent(activeProgress)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="mt-4 flex items-center gap-3">
+                              <div className="flex-1 text-xs text-gray-500">
+                                {selectedTargetOnline
+                                  ? '接收端在线，可以直接开始打包并投送。'
+                                  : '设备当前离线，无法发起投送。'}
+                              </div>
+                              <OreButton
+                                onClick={executePush}
+                                disabled={
+                                  isPushing ||
+                                  !selectedTargetOnline ||
+                                  !selectedInstance ||
+                                  (transferType === 'save' && !selectedSave)
+                                }
+                                variant="primary"
+                                className="min-w-[180px] justify-center !h-11"
+                              >
+                                {isPushing ? (
+                                  <Loader2 size={16} className="mr-2 animate-spin" />
+                                ) : (
+                                  <Send size={16} className="mr-2" />
+                                )}
+                                {isPushing ? '准备发送...' : '开始投送'}
+                              </OreButton>
+                            </div>
                           </div>
                         </motion.div>
                       ) : (
-                        <motion.div 
+                        <motion.div
                           key="placeholder"
-                          initial={{ opacity: 0 }} 
-                          animate={{ opacity: 1 }} 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
-                          className="flex flex-col h-full border-[2px] border-dashed border-[#313233] rounded-sm items-center justify-center bg-[#1E1E1F]/50"
+                          className="flex h-full flex-col items-center justify-center rounded-sm border-[2px] border-dashed border-[#313233] bg-[#1E1E1F]/50"
                         >
-                          <div className="text-gray-500 font-minecraft text-center flex flex-col items-center">
-                            <span className="text-4xl mb-4 opacity-50">📡</span>
-                            <p className="text-lg mb-2 text-gray-400">{t('home.sidebar.transferConsole')}</p>
-                            <p className="text-xs opacity-60 max-w-[200px] leading-relaxed">{t('home.sidebar.transferConsoleHint')}</p>
+                          <div className="flex max-w-[320px] flex-col items-center text-center text-gray-500 font-minecraft">
+                            <span className="mb-4 text-4xl opacity-50">⌁</span>
+                            <p className="mb-2 text-lg text-gray-300">隔空投送时间线</p>
+                            <p className="text-xs leading-relaxed opacity-70">
+                              从左侧信任设备列表选择在线设备后，这里会展示双方的实例或存档传输记录、接收结果和实时进度。
+                            </p>
                           </div>
                         </motion.div>
                       )}
                     </AnimatePresence>
                   </div>
                 </div>
-
               </div>
             </motion.div>
           </FocusBoundary>
         )}
       </AnimatePresence>
 
-      <OreModal isOpen={!!incomingRequest} onClose={() => resolveTrustRequest(false)} title={t('home.sidebar.trustRequestTitle')} closeOnOutsideClick={false}>
-        <div className="p-6 flex flex-col items-center">
-          <div className="w-16 h-16 bg-blue-500/20 border-2 border-blue-500/50 rounded-full flex items-center justify-center mb-4">
-            <UserPlus size={28} className="text-blue-400" />
+      <OreModal
+        isOpen={!!incomingRequest}
+        onClose={() => resolveTrustRequest(false)}
+        title={incomingRequest?.request_kind === 'trusted' ? '收到信任请求' : '收到好友请求'}
+        closeOnOutsideClick={false}
+      >
+        <div className="flex flex-col items-center p-6">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border-2 border-blue-500/50 bg-blue-500/20">
+            {incomingRequest?.request_kind === 'trusted' ? (
+              <ShieldCheck size={28} className="text-blue-400" />
+            ) : (
+              <UserPlus size={28} className="text-blue-400" />
+            )}
           </div>
-          <p className="text-white text-lg font-minecraft mb-2" dangerouslySetInnerHTML={{ __html: t('home.sidebar.trustRequestMessage', { deviceName: incomingRequest?.device_name }) }} />
-          <p className="text-gray-400 text-xs mb-8 text-center max-w-xs leading-relaxed">
-            {t('home.sidebar.trustRequestHint')}
+
+          <p className="mb-2 text-center text-lg text-white font-minecraft">
+            {incomingRequest?.device_name}
+            {incomingRequest?.request_kind === 'trusted' ? ' 请求将你设为信任设备' : ' 请求添加你为好友'}
           </p>
+
+          <p className="mb-8 max-w-xs text-center text-xs leading-relaxed text-gray-400">
+            {incomingRequest?.request_kind === 'trusted'
+              ? '接受后，对方设备会直接获得实例和存档投送权限。'
+              : '接受后只建立好友关系，不会自动开放实例和存档投送，仍需手动提升为信任设备。'}
+          </p>
+
           <div className="flex w-full gap-4">
-            <OreButton className="flex-1 !h-12" variant="secondary" onClick={() => resolveTrustRequest(false)}>{t('home.sidebar.rejectTrust')}</OreButton>
-            <OreButton className="flex-1 !h-12" variant="primary" onClick={() => resolveTrustRequest(true)}>{t('home.sidebar.acceptTrust')}</OreButton>
+            <OreButton className="flex-1 !h-12" variant="secondary" onClick={() => resolveTrustRequest(false)}>
+              拒绝
+            </OreButton>
+            <OreButton className="flex-1 !h-12" variant="primary" onClick={() => resolveTrustRequest(true)}>
+              {incomingRequest?.request_kind === 'trusted' ? '接受并信任' : '接受并加为好友'}
+            </OreButton>
           </div>
         </div>
       </OreModal>

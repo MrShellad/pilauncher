@@ -54,6 +54,7 @@ pub struct InstanceConfig {
     pub custom_buttons: Option<Vec<CustomButtonConfig>>,
     pub third_party_path: Option<String>,
     pub server_binding: Option<ServerBinding>,
+    pub auto_join_server: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

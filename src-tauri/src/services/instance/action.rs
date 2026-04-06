@@ -1,5 +1,5 @@
 // src-tauri/src/services/instance/action.rs
-use crate::domain::instance::CustomButtonConfig;
+use crate::domain::instance::{CustomButtonConfig, ServerBinding};
 use crate::services::config_service::ConfigService;
 use serde_json::Value;
 use std::fs;
@@ -197,6 +197,57 @@ impl InstanceActionService {
             // Serialize the array and assign it to the field
             json["custom_buttons"] =
                 serde_json::to_value(custom_buttons).map_err(|e| e.to_string())?;
+
+            fs::write(&json_path, serde_json::to_string_pretty(&json).unwrap())
+                .map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    }
+
+    pub fn update_server_binding<R: Runtime>(
+        app: &AppHandle<R>,
+        id: &str,
+        server_binding: Option<ServerBinding>,
+    ) -> Result<(), String> {
+        let instance_dir = Self::get_instance_dir(app, id)?;
+        let json_path = instance_dir.join("instance.json");
+
+        if json_path.exists() {
+            let data = fs::read_to_string(&json_path).map_err(|e| e.to_string())?;
+            let mut json: Value = serde_json::from_str(&data).unwrap_or(serde_json::json!({}));
+
+            match server_binding {
+                Some(binding) => {
+                    json["server_binding"] =
+                        serde_json::to_value(binding).map_err(|e| e.to_string())?;
+                }
+                None => {
+                    if let Some(obj) = json.as_object_mut() {
+                        obj.remove("server_binding");
+                        obj.remove("auto_join_server");
+                    }
+                }
+            }
+
+            fs::write(&json_path, serde_json::to_string_pretty(&json).unwrap())
+                .map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    }
+
+    pub fn update_auto_join_server<R: Runtime>(
+        app: &AppHandle<R>,
+        id: &str,
+        auto_join: bool,
+    ) -> Result<(), String> {
+        let instance_dir = Self::get_instance_dir(app, id)?;
+        let json_path = instance_dir.join("instance.json");
+
+        if json_path.exists() {
+            let data = fs::read_to_string(&json_path).map_err(|e| e.to_string())?;
+            let mut json: Value = serde_json::from_str(&data).unwrap_or(serde_json::json!({}));
+
+            json["auto_join_server"] = Value::Bool(auto_join);
 
             fs::write(&json_path, serde_json::to_string_pretty(&json).unwrap())
                 .map_err(|e| e.to_string())?;

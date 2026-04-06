@@ -1,5 +1,4 @@
-// src/hooks/useLan.ts
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
@@ -14,8 +13,10 @@ export interface TrustedDevice {
   device_id: string;
   device_name: string;
   user_uuid: string;
+  username: string;
   public_key_b64: string;
   trusted_at: number;
+  trust_level: string;
 }
 
 export interface IncomingTrustRequest {
@@ -24,12 +25,53 @@ export interface IncomingTrustRequest {
   user_uuid: string;
   username: string;
   public_key: string;
+  request_kind?: string;
 }
 
 export interface OnlineDeviceCheck {
   device_id: string;
   device_name: string;
   public_key: string;
+}
+
+export interface TransferRecord {
+  transferId: string;
+  direction: 'incoming' | 'outgoing';
+  remoteDeviceId: string;
+  remoteDeviceName: string;
+  remoteUsername: string;
+  transferType: 'instance' | 'save' | string;
+  name: string;
+  size: number;
+  status: string;
+  errorMessage?: string | null;
+  createdAt: number;
+  completedAt?: number | null;
+}
+
+export interface TransferProgressEvent {
+  transferId: string;
+  direction: 'incoming' | 'outgoing';
+  remoteDeviceId: string;
+  remoteDeviceName: string;
+  remoteUsername: string;
+  transferType: 'instance' | 'save' | string;
+  name: string;
+  status: string;
+  stage: string;
+  current: number;
+  total: number;
+  message: string;
+}
+
+export interface IncomingTransferNotice {
+  id: string;
+  type: 'instance' | 'save' | string;
+  name: string;
+  from: string;
+  fromDeviceId: string;
+  fromUsername: string;
+  tempPath: string;
 }
 
 const normalizeDeviceId = (value?: string) => (value || '').trim().toLowerCase();
@@ -65,45 +107,42 @@ const dedupeDiscoveredDevices = (list: DiscoveredDevice[]) => {
 export const useLan = () => {
   const [discovered, setDiscovered] = useState<DiscoveredDevice[]>([]);
   const [trusted, setTrusted] = useState<TrustedDevice[]>([]);
+  const [friends, setFriends] = useState<TrustedDevice[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
-  const isScanningRef = useRef(false);
-  
-  // 接收好友请求状态
   const [incomingRequest, setIncomingRequest] = useState<IncomingTrustRequest | null>(null);
-
-  // 监听底层事件
-  useEffect(() => {
-    const unlistenTrust = listen<IncomingTrustRequest>('trust_request_received', (event) => {
-      setIncomingRequest(event.payload);
-    });
-    const unlistenUpdate = listen('trust_list_updated', () => {
-      fetchTrusted();
-    });
-    return () => {
-      unlistenTrust.then(f => f());
-      unlistenUpdate.then(f => f());
-    };
-  }, []);
+  const isScanningRef = useRef(false);
 
   const fetchTrusted = useCallback(async () => {
     try {
       const list = await invoke<TrustedDevice[]>('get_trusted_devices');
       setTrusted(list);
-    } catch (e) {
-      console.error("获取信任设备失败:", e);
+    } catch (error) {
+      console.error('获取已信任设备失败:', error);
+    }
+  }, []);
+
+  const fetchFriends = useCallback(async () => {
+    try {
+      const list = await invoke<TrustedDevice[]>('get_friend_devices');
+      setFriends(list);
+    } catch (error) {
+      console.error('获取好友设备失败:', error);
     }
   }, []);
 
   const scan = useCallback(async () => {
-    if (isScanningRef.current) return;
+    if (isScanningRef.current) {
+      return;
+    }
+
     isScanningRef.current = true;
     setIsScanning(true);
     try {
       const list = await invoke<DiscoveredDevice[]>('scan_lan_devices');
       setDiscovered(dedupeDiscoveredDevices(list));
-    } catch (e) {
-      console.error("局域网扫描失败:", e);
+    } catch (error) {
+      console.error('局域网扫描失败:', error);
       setDiscovered([]);
     } finally {
       isScanningRef.current = false;
@@ -111,75 +150,119 @@ export const useLan = () => {
     }
   }, []);
 
-  const sendTrustRequest = async (ip: string, port: number) => {
-    if (isRequesting) return;
-    setIsRequesting(true);
-    try {
-      await invoke('send_trust_request', { targetIp: ip, targetPort: port });
-      alert("🎉 对方同意了您的请求！已添加为好友。");
-      fetchTrusted(); // 握手成功，刷新列表
-    } catch (e) {
-      alert(`${e}`);
-    } finally {
-      setIsRequesting(false);
-    }
-  };
+  useEffect(() => {
+    const unlistenTrust = listen<IncomingTrustRequest>('trust_request_received', (event) => {
+      setIncomingRequest(event.payload);
+    });
+    const unlistenUpdate = listen('trust_list_updated', () => {
+      void fetchTrusted();
+      void fetchFriends();
+    });
 
-  // 处理收到的好友请求
-  const resolveTrustRequest = async (accept: boolean) => {
-    if (!incomingRequest) return;
-    try {
-      await invoke('resolve_trust_request', {
-        deviceId: incomingRequest.device_id,
-        accept,
-        deviceName: incomingRequest.device_name,
-        userUuid: incomingRequest.user_uuid,
-        username: incomingRequest.username || '',
-        publicKey: incomingRequest.public_key
+    return () => {
+      void unlistenTrust.then((dispose) => dispose());
+      void unlistenUpdate.then((dispose) => dispose());
+    };
+  }, [fetchFriends, fetchTrusted]);
+
+  const sendTrustRequest = useCallback(
+    async (ip: string, port: number, requestKind: 'friend' | 'trusted' = 'friend') => {
+      if (isRequesting) {
+        return;
+      }
+
+      setIsRequesting(true);
+      try {
+        await invoke('send_trust_request', {
+          targetIp: ip,
+          targetPort: port,
+          requestKind,
+        });
+        await Promise.all([fetchTrusted(), fetchFriends()]);
+      } finally {
+        setIsRequesting(false);
+      }
+    },
+    [fetchFriends, fetchTrusted, isRequesting],
+  );
+
+  const resolveTrustRequest = useCallback(
+    async (accept: boolean) => {
+      if (!incomingRequest) {
+        return;
+      }
+
+      try {
+        await invoke('resolve_trust_request', {
+          deviceId: incomingRequest.device_id,
+          accept,
+          deviceName: incomingRequest.device_name,
+          userUuid: incomingRequest.user_uuid,
+          username: incomingRequest.username || '',
+          publicKey: incomingRequest.public_key,
+          requestKind: incomingRequest.request_kind || 'friend',
+        });
+        if (accept) {
+          await Promise.all([fetchTrusted(), fetchFriends()]);
+        }
+      } catch (error) {
+        console.error('处理好友请求失败:', error);
+      } finally {
+        setIncomingRequest(null);
+      }
+    },
+    [fetchFriends, fetchTrusted, incomingRequest],
+  );
+
+  const trustDevice = useCallback(
+    async (device: TrustedDevice) => {
+      await invoke('trust_device', {
+        deviceId: device.device_id,
+        deviceName: device.device_name,
+        userUuid: device.user_uuid,
+        username: device.username || '',
+        publicKeyB64: device.public_key_b64,
       });
-      if (accept) {
-        fetchTrusted(); // 我同意了，刷新我的列表
-      }
-    } catch (e) {
-      console.error("处理请求失败:", e);
-    } finally {
-      setIncomingRequest(null);
-    }
-  };
+      await Promise.all([fetchTrusted(), fetchFriends()]);
+    },
+    [fetchFriends, fetchTrusted],
+  );
 
-  // 删除信任设备
-  const removeTrustedDevice = async (deviceId: string) => {
-    try {
+  const removeTrustedDevice = useCallback(
+    async (deviceId: string) => {
       await invoke('remove_trusted_device', { deviceId });
-      fetchTrusted();
-    } catch (e) {
-      console.error("删除信任设备失败:", e);
-    }
-  };
+      await Promise.all([fetchTrusted(), fetchFriends()]);
+    },
+    [fetchFriends, fetchTrusted],
+  );
 
-  // 验证在线设备的信任状态（设备名或密钥不匹配则自动移除）
-  const verifyTrustedDevices = async (onlineDevices: OnlineDeviceCheck[]) => {
-    try {
-      const removed = await invoke<string[]>('verify_trusted_devices', { onlineDevices });
-      if (removed.length > 0) {
-        console.warn("以下信任设备因信息不匹配已自动移除:", removed);
-        fetchTrusted();
+  const verifyTrustedDevices = useCallback(
+    async (onlineDevices: OnlineDeviceCheck[]) => {
+      try {
+        const downgraded = await invoke<string[]>('verify_trusted_devices', { onlineDevices });
+        if (downgraded.length > 0) {
+          await Promise.all([fetchTrusted(), fetchFriends()]);
+        }
+      } catch (error) {
+        console.error('验证信任设备失败:', error);
       }
-    } catch (e) {
-      console.error("验证信任设备失败:", e);
-    }
-  };
+    },
+    [fetchFriends, fetchTrusted],
+  );
 
   return {
     discovered,
     trusted,
+    friends,
     isScanning,
     isRequesting,
     incomingRequest,
     scan,
     fetchTrusted,
+    fetchFriends,
     sendTrustRequest,
     resolveTrustRequest,
+    trustDevice,
     removeTrustedDevice,
     verifyTrustedDevices,
   };

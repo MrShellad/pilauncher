@@ -96,7 +96,11 @@ impl ConfigResolver {
             resolution_height,
             fullscreen: global_game.fullscreen,
             custom_jvm_args,
-            server_binding: instance_cfg.server_binding.clone(),
+            server_binding: if instance_cfg.auto_join_server.unwrap_or(true) {
+                instance_cfg.server_binding.clone()
+            } else {
+                None
+            },
         }
     }
 }

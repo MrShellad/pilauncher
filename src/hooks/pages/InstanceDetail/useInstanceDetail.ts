@@ -20,6 +20,13 @@ export interface CustomButton {
   type: string;
 }
 
+export interface ServerBindingInfo {
+  uuid: string;
+  name: string;
+  ip: string;
+  port: number;
+}
+
 export interface InstanceDetailData {
   id: string;
   name: string;
@@ -31,6 +38,8 @@ export interface InstanceDetailData {
   playTime?: string;
   lastPlayed?: string;
   customButtons?: CustomButton[];
+  serverBinding?: ServerBindingInfo;
+  autoJoinServer?: boolean;
 }
 
 export interface MissingRuntime {
@@ -62,6 +71,8 @@ interface RawInstanceDetail {
   lastPlayed?: string;
   last_played?: string;
   custom_buttons?: CustomButton[];
+  server_binding?: ServerBindingInfo;
+  auto_join_server?: boolean;
 }
 
 export const useInstanceDetail = (instanceId: string) => {
@@ -111,6 +122,8 @@ export const useInstanceDetail = (instanceId: string) => {
           playTime,
           lastPlayed: realData.lastPlayed || realData.last_played || '',
           customButtons: realData.custom_buttons || [],
+          serverBinding: realData.server_binding || undefined,
+          autoJoinServer: realData.auto_join_server ?? true,
         });
 
         const heroAbs = await invoke<string | null>('get_instance_herologo', { id: instanceId }).catch(
@@ -198,6 +211,16 @@ export const useInstanceDetail = (instanceId: string) => {
     setData((prev) => (prev ? { ...prev, customButtons } : null));
   };
 
+  const handleUpdateServerBinding = async (serverBinding: ServerBindingInfo | null) => {
+    await invoke('update_instance_server_binding', { id: instanceId, serverBinding });
+    setData((prev) => (prev ? { ...prev, serverBinding: serverBinding || undefined } : null));
+  };
+
+  const handleUpdateAutoJoinServer = async (autoJoin: boolean) => {
+    await invoke('update_instance_auto_join_server', { id: instanceId, autoJoin });
+    setData((prev) => (prev ? { ...prev, autoJoinServer: autoJoin } : null));
+  };
+
   const handleVerifyFiles = async (): Promise<VerifyInstanceRuntimeResult> => {
     return invoke<VerifyInstanceRuntimeResult>('verify_instance_runtime', { instanceId });
   };
@@ -238,6 +261,8 @@ export const useInstanceDetail = (instanceId: string) => {
     handleUpdateCover,
     handleUpdateHeroLogo,
     handleUpdateCustomButtons,
+    handleUpdateServerBinding,
+    handleUpdateAutoJoinServer,
     handleVerifyFiles,
     handleRepairRuntime,
     handleDeleteInstance,

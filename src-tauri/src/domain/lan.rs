@@ -13,12 +13,15 @@ pub struct DeviceIdentity {
 
 // 2. 已信任设备模型 (保存在 trusted_devices.json)
 #[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct TrustedDevice {
     pub device_id: String,
     pub device_name: String,
     pub user_uuid: String,
+    pub username: String,
     pub public_key_b64: String,
     pub trusted_at: i64,
+    pub trust_level: String,
 }
 
 // 3. 局域网扫描到的设备模型 (用于前端雷达大盘展示)
@@ -32,11 +35,14 @@ pub struct DiscoveredDevice {
 
 // 4. HTTP RPC 握手请求模型
 #[derive(Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct TrustRequest {
     pub device_id: String,
     pub device_name: String,
     pub user_uuid: String,
     pub public_key: String,
+    pub username: Option<String>,
+    pub request_kind: Option<String>,
 }
 
 // 5. 在线设备校验模型 (用于信任验证)
@@ -52,6 +58,7 @@ pub struct OnlineDeviceCheck {
 // 对方通过 /device/init 获取此信息，用于在 UI 上展示极其华丽的动态背景与名片
 // ==========================================
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct DeviceInitInfo {
     pub device_id: String,
     pub device_name: String,
@@ -63,4 +70,38 @@ pub struct DeviceInitInfo {
     pub instance_name: Option<String>, // 当前正在玩的整合包名字
     pub instance_id: Option<String>,   // 整合包ID
     pub bg_url: String,                // 个人中心背景图的拉取接口 (例如 "/device/bg")
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct TransferRecord {
+    pub transfer_id: String,
+    pub direction: String,
+    pub remote_device_id: String,
+    pub remote_device_name: String,
+    pub remote_username: String,
+    pub transfer_type: String,
+    pub name: String,
+    pub size: i64,
+    pub status: String,
+    pub error_message: Option<String>,
+    pub created_at: i64,
+    pub completed_at: Option<i64>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct TransferProgressEvent {
+    pub transfer_id: String,
+    pub direction: String,
+    pub remote_device_id: String,
+    pub remote_device_name: String,
+    pub remote_username: String,
+    pub transfer_type: String,
+    pub name: String,
+    pub status: String,
+    pub stage: String,
+    pub current: u64,
+    pub total: u64,
+    pub message: String,
 }

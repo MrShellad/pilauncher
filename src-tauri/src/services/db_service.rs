@@ -1,4 +1,3 @@
-// src-tauri/src/services/db_service.rs
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqlitePoolOptions},
     SqlitePool,
@@ -6,7 +5,6 @@ use sqlx::{
 use std::fs;
 use std::path::Path;
 
-// ✅ 全局数据库状态包装器，由于 SqlitePool 内部自带并发控制，不再需要 Mutex！
 pub struct AppDatabase {
     pub pool: SqlitePool,
 }
@@ -14,30 +12,24 @@ pub struct AppDatabase {
 pub struct DbService;
 
 impl DbService {
-    // 改为异步初始化
     pub async fn init_db(config_dir: &Path) -> Result<SqlitePool, String> {
         if !config_dir.exists() {
             fs::create_dir_all(config_dir).map_err(|e| e.to_string())?;
         }
         let db_path = config_dir.join("pilauncher_data.db");
 
-        // 配置 SQLite，如果文件不存在则自动创建
         let connect_options = SqliteConnectOptions::new()
             .filename(&db_path)
             .create_if_missing(true);
 
-        // 创建连接池
         let pool = SqlitePoolOptions::new()
             .connect_with(connect_options)
             .await
             .map_err(|e| e.to_string())?;
 
-        // 执行异步建表
         Self::create_tables(&pool)
             .await
             .map_err(|e| e.to_string())?;
-
-        // 迁移：为旧数据库补充 user_uuid 列
         Self::run_migrations(&pool)
             .await
             .map_err(|e| e.to_string())?;
@@ -46,7 +38,6 @@ impl DbService {
     }
 
     async fn create_tables(pool: &SqlitePool) -> Result<(), sqlx::Error> {
-        // sqlx 支持直接执行多条建表语句
         sqlx::query(
             "
             CREATE TABLE IF NOT EXISTS users (
@@ -80,8 +71,8 @@ impl DbService {
                 username TEXT DEFAULT '',
                 device_uuid TEXT UNIQUE NOT NULL,
                 device_name TEXT NOT NULL,
-                public_key_b64 TEXT NOT NULL, 
-                trust_level TEXT,
+                public_key_b64 TEXT NOT NULL,
+                trust_level TEXT DEFAULT 'trusted',
                 trusted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_used TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id)
@@ -89,22 +80,29 @@ impl DbService {
 
             CREATE TABLE IF NOT EXISTS transfers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                transfer_uuid TEXT,
+                direction TEXT DEFAULT 'outgoing',
                 sender_user_id INTEGER,
                 receiver_user_id INTEGER,
+                sender_device_id TEXT DEFAULT '',
                 sender_device TEXT NOT NULL,
+                receiver_device_id TEXT DEFAULT '',
                 receiver_device TEXT NOT NULL,
+                remote_device_id TEXT DEFAULT '',
+                remote_device_name TEXT DEFAULT '',
+                remote_username TEXT DEFAULT '',
                 type TEXT NOT NULL,
                 name TEXT NOT NULL,
                 size INTEGER NOT NULL,
                 hash TEXT,
                 status TEXT NOT NULL,
+                error_message TEXT DEFAULT '',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 completed_at TIMESTAMP,
                 FOREIGN KEY (sender_user_id) REFERENCES users(id),
                 FOREIGN KEY (receiver_user_id) REFERENCES users(id)
             );
 
-            -- ============== Library (库) System ================= --
             CREATE TABLE IF NOT EXISTS starred_items (
                 id TEXT PRIMARY KEY,
                 type TEXT NOT NULL,
@@ -152,7 +150,6 @@ impl DbService {
                 UNIQUE (collection_id, item_id)
             );
 
-            -- Indexes for Library System --
             CREATE INDEX IF NOT EXISTS idx_starred_type ON starred_items(type);
             CREATE INDEX IF NOT EXISTS idx_starred_updated ON starred_items(updated_at);
             CREATE INDEX IF NOT EXISTS idx_starred_project ON starred_items(source, project_id);
@@ -167,32 +164,90 @@ impl DbService {
     }
 
     async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
-        // 检查 trusted_devices 表是否已经有 user_uuid 列
-        let rows = sqlx::query("PRAGMA table_info(trusted_devices)")
+        let trusted_rows = sqlx::query("PRAGMA table_info(trusted_devices)")
             .fetch_all(pool)
             .await?;
 
-        let has_user_uuid = rows.iter().any(|row| {
-            let col_name: String = sqlx::Row::get(row, "name");
-            col_name == "user_uuid"
-        });
+        let has_trusted_column = |name: &str| {
+            trusted_rows.iter().any(|row| {
+                let col_name: String = sqlx::Row::get(row, "name");
+                col_name == name
+            })
+        };
 
-        if !has_user_uuid {
+        if !has_trusted_column("user_uuid") {
             sqlx::query("ALTER TABLE trusted_devices ADD COLUMN user_uuid TEXT DEFAULT ''")
                 .execute(pool)
                 .await?;
         }
 
-        // 迁移 2: 补充 username 列
-        let has_username = rows.iter().any(|row| {
-            let col_name: String = sqlx::Row::get(row, "name");
-            col_name == "username"
-        });
-
-        if !has_username {
+        if !has_trusted_column("username") {
             sqlx::query("ALTER TABLE trusted_devices ADD COLUMN username TEXT DEFAULT ''")
                 .execute(pool)
                 .await?;
+        }
+
+        if !has_trusted_column("trust_level") {
+            sqlx::query("ALTER TABLE trusted_devices ADD COLUMN trust_level TEXT DEFAULT 'trusted'")
+                .execute(pool)
+                .await?;
+        }
+
+        sqlx::query(
+            "UPDATE trusted_devices
+             SET trust_level = 'trusted'
+             WHERE trust_level IS NULL OR trim(trust_level) = ''",
+        )
+        .execute(pool)
+        .await?;
+
+        let transfer_rows = sqlx::query("PRAGMA table_info(transfers)")
+            .fetch_all(pool)
+            .await?;
+
+        let has_transfer_column = |name: &str| {
+            transfer_rows.iter().any(|row| {
+                let col_name: String = sqlx::Row::get(row, "name");
+                col_name == name
+            })
+        };
+
+        let transfer_alters = [
+            ("transfer_uuid", "ALTER TABLE transfers ADD COLUMN transfer_uuid TEXT"),
+            (
+                "direction",
+                "ALTER TABLE transfers ADD COLUMN direction TEXT DEFAULT 'outgoing'",
+            ),
+            (
+                "sender_device_id",
+                "ALTER TABLE transfers ADD COLUMN sender_device_id TEXT DEFAULT ''",
+            ),
+            (
+                "receiver_device_id",
+                "ALTER TABLE transfers ADD COLUMN receiver_device_id TEXT DEFAULT ''",
+            ),
+            (
+                "remote_device_id",
+                "ALTER TABLE transfers ADD COLUMN remote_device_id TEXT DEFAULT ''",
+            ),
+            (
+                "remote_device_name",
+                "ALTER TABLE transfers ADD COLUMN remote_device_name TEXT DEFAULT ''",
+            ),
+            (
+                "remote_username",
+                "ALTER TABLE transfers ADD COLUMN remote_username TEXT DEFAULT ''",
+            ),
+            (
+                "error_message",
+                "ALTER TABLE transfers ADD COLUMN error_message TEXT DEFAULT ''",
+            ),
+        ];
+
+        for (column, statement) in transfer_alters {
+            if !has_transfer_column(column) {
+                sqlx::query(statement).execute(pool).await?;
+            }
         }
 
         Ok(())

@@ -1,5 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { convertFileSrc } from '@tauri-apps/api/core';
+import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Blocks, Loader2, RefreshCw, CheckSquare, Square, Trash2, ArrowUpCircle } from 'lucide-react';
 
@@ -13,6 +12,7 @@ import { useInputAction } from '../../../../../ui/focus/InputDriver';
 import { useLinearNavigation } from '../../../../../ui/focus/useLinearNavigation';
 
 import type { ModMeta } from '../../../logic/modService';
+import { subscribeToModIcon, type ModIconPriority, type ModIconSnapshot } from '../../../logic/modIconService';
 
 interface ModListProps {
   mods: ModMeta[];
@@ -39,6 +39,26 @@ const toFocusSlug = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, '_');
 
 const PAGE_SIZE = 20;
 
+const getIconPriority = (
+  modIndex: number,
+  focusedIndex: number,
+  visibleCount: number
+): ModIconPriority => {
+  if (focusedIndex >= 0 && Math.abs(modIndex - focusedIndex) <= 2) {
+    return 'high';
+  }
+
+  if (modIndex < Math.min(visibleCount, 10)) {
+    return 'high';
+  }
+
+  if (focusedIndex >= 0 && Math.abs(modIndex - focusedIndex) <= 8) {
+    return 'medium';
+  }
+
+  return 'low';
+};
+
 export const ModList: React.FC<ModListProps> = ({
   mods,
   isLoading,
@@ -55,6 +75,7 @@ export const ModList: React.FC<ModListProps> = ({
   const [focusedRowFileName, setFocusedRowFileName] = useState<string | null>(mods[0]?.fileName ?? null);
   const [operationRowFileName, setOperationRowFileName] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [iconSnapshots, setIconSnapshots] = useState<Record<string, ModIconSnapshot>>({});
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const rowFocusKeyByFileName = useMemo(() => {
@@ -94,11 +115,69 @@ export const ModList: React.FC<ModListProps> = ({
 
     return map;
   }, [getActionFocusKey, mods, rowFocusKeyByFileName]);
+  const focusedRowIndex = useMemo(
+    () => mods.findIndex((mod) => mod.fileName === focusedRowFileName),
+    [focusedRowFileName, mods]
+  );
 
   // 当 mods 列表变化时（搜索/排序）重置懖载数
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
   }, [mods]);
+
+  useEffect(() => {
+    const activeFileNames = new Set(mods.map((mod) => mod.fileName));
+    setIconSnapshots((current) => {
+      const nextEntries = Object.entries(current).filter(([fileName]) => activeFileNames.has(fileName));
+      if (nextEntries.length === Object.keys(current).length) {
+        return current;
+      }
+      return Object.fromEntries(nextEntries);
+    });
+  }, [mods]);
+
+  useEffect(() => {
+    let disposed = false;
+    const disposers: Array<() => void> = [];
+
+    mods.slice(0, visibleCount).forEach((mod, modIndex) => {
+      const priority = getIconPriority(modIndex, focusedRowIndex, visibleCount);
+
+      void subscribeToModIcon(mod, priority, (snapshot) => {
+        if (disposed) return;
+
+        startTransition(() => {
+          setIconSnapshots((current) => {
+            const previous = current[mod.fileName];
+            if (
+              previous?.key === snapshot.key &&
+              previous?.src === snapshot.src &&
+              previous?.status === snapshot.status &&
+              previous?.isPlaceholder === snapshot.isPlaceholder
+            ) {
+              return current;
+            }
+
+            return {
+              ...current,
+              [mod.fileName]: snapshot
+            };
+          });
+        });
+      }).then((disconnect) => {
+        if (disposed) {
+          disconnect();
+          return;
+        }
+        disposers.push(disconnect);
+      });
+    });
+
+    return () => {
+      disposed = true;
+      disposers.forEach((dispose) => dispose());
+    };
+  }, [focusedRowIndex, mods, visibleCount]);
 
   // 手柄导航到尚未渲染的行时，自动扩展可见范围
   useEffect(() => {
@@ -464,10 +543,9 @@ export const ModList: React.FC<ModListProps> = ({
           const displayName = mod.name || mod.networkInfo?.title || mod.fileName;
           const displayDesc = mod.description || mod.networkInfo?.description || '暂无描述';
 
-          const cacheKey = mod.modifiedAt || mod.fileSize || mod.fileName;
-          const iconUrl = mod.iconAbsolutePath
-            ? `${convertFileSrc(mod.iconAbsolutePath)}?t=${cacheKey}`
-            : (mod.networkIconUrl || mod.networkInfo?.icon_url);
+          const iconSnapshot = iconSnapshots[mod.fileName];
+          const iconUrl = iconSnapshot?.src || null;
+          const isIconLoading = iconSnapshot?.status === 'loading' || (!!mod.isFetchingNetwork && !iconUrl);
 
           const rowFocusKey = rowFocusKeyByFileName.get(mod.fileName) ?? `mod-row-${toFocusSlug(mod.fileName)}`;
           const isRowInOperationMode = operationRowFileName === mod.fileName;
@@ -507,18 +585,28 @@ export const ModList: React.FC<ModListProps> = ({
                         onSelectMod(mod);
                       }}
                       leading={(
-                        <>
-                          {mod.isFetchingNetwork && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                              <Loader2 size={14} className="animate-spin text-ore-green" />
-                            </div>
-                          )}
+                        <div className="relative h-full w-full">
                           {iconUrl ? (
                             <img src={iconUrl} alt="icon" className="h-full w-full object-cover" />
                           ) : (
-                            <Blocks size={28} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />
+                            <div
+                              className={`flex h-full w-full items-center justify-center ${
+                                isIconLoading
+                                  ? 'animate-pulse bg-[radial-gradient(circle_at_top,rgba(62,180,137,0.3),rgba(0,0,0,0.12)_58%)]'
+                                  : 'bg-[linear-gradient(135deg,rgba(255,255,255,0.14),rgba(0,0,0,0.08))]'
+                              }`}
+                            >
+                              {isIconLoading ? (
+                                <Loader2 size={16} className="animate-spin text-ore-green" />
+                              ) : (
+                                <Blocks size={28} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />
+                              )}
+                            </div>
                           )}
-                        </>
+                          {isIconLoading && !iconUrl && (
+                            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[3px] bg-gradient-to-r from-transparent via-ore-green to-transparent opacity-80" />
+                          )}
+                        </div>
                       )}
                       title={displayName}
                       titleClassName={isPrimaryRow ? 'brightness-100' : ''}

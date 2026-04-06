@@ -12,7 +12,11 @@ import {
   FileText,
   Link2,
   Wrench,
-  AlertTriangle
+  AlertTriangle,
+  Server,
+  Globe,
+  Unplug,
+  Pencil
 } from 'lucide-react';
 import { BUTTON_TYPES, getButtonIcon } from '../../../../ui/icons/SocialIcons';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
@@ -26,12 +30,14 @@ import { SettingsSection } from '../../../../ui/layout/SettingsSection';
 import { FormRow } from '../../../../ui/layout/FormRow';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { OreConfirmDialog } from '../../../../ui/primitives/OreConfirmDialog';
+import { OreSwitch } from '../../../../ui/primitives/OreSwitch';
 
 import type {
   InstanceDetailData,
   CustomButton,
   MissingRuntime,
-  VerifyInstanceRuntimeResult
+  VerifyInstanceRuntimeResult,
+  ServerBindingInfo
 } from '../../../../hooks/pages/InstanceDetail/useInstanceDetail';
 
 interface BasicPanelProps {
@@ -40,6 +46,8 @@ interface BasicPanelProps {
   onUpdateName: (newName: string) => Promise<void>;
   onUpdateCover: () => Promise<void>;
   onUpdateCustomButtons: (buttons: CustomButton[]) => Promise<void>;
+  onUpdateServerBinding: (binding: ServerBindingInfo | null) => Promise<void>;
+  onUpdateAutoJoinServer: (autoJoin: boolean) => Promise<void>;
   onVerifyFiles: () => Promise<VerifyInstanceRuntimeResult>;
   onRepairFiles: (repair: MissingRuntime) => Promise<void>;
   onDelete: (skipConfirm?: boolean) => Promise<void>;
@@ -68,6 +76,8 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
   onUpdateName,
   onUpdateCover,
   onUpdateCustomButtons,
+  onUpdateServerBinding,
+  onUpdateAutoJoinServer,
   onVerifyFiles,
   onRepairFiles,
   onDelete,
@@ -82,6 +92,12 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
   const [verifyProgress, setVerifyProgress] = useState({ current: 0, total: 1, message: '' });
   const [verifyResult, setVerifyResult] = useState<VerifyInstanceRuntimeResult | null>(null);
   const [verifyError, setVerifyError] = useState('');
+
+  // --- 服务器编辑状态 ---
+  const [isEditingServer, setIsEditingServer] = useState(false);
+  const [editServerName, setEditServerName] = useState('');
+  const [editServerIp, setEditServerIp] = useState('');
+  const [editServerPort, setEditServerPort] = useState('');
 
   useEffect(() => {
     setEditName(data.name);
@@ -487,6 +503,167 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
               </div>
             }
           />
+        </SettingsSection>
+
+        {/* ==================== 2.5. 实例服务器 ==================== */}
+        <SettingsSection title="实例服务器" icon={<Server size={18} />}>
+          {data.serverBinding || isEditingServer ? (
+            <>
+              <FormRow
+                label="绑定服务器"
+                description={
+                  <>
+                    <span>{isEditingServer ? '修改服务器信息后点击保存即可生效。' : '当前实例已绑定到以下服务器，启动游戏时可自动连接。'}</span>
+                    {/* 服务器卡片（左侧, 在描述下方） */}
+                    <div className="flex items-center gap-3 px-4 py-3 bg-[#141415] border-2 border-[#2A2A2C] rounded-sm mt-3 max-w-[320px]">
+                      <div className="w-10 h-10 rounded-sm bg-[#1E1E1F] border-2 border-[#2A2A2C] flex items-center justify-center flex-shrink-0">
+                        <Globe size={20} className="text-emerald-400" />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-white font-minecraft text-sm font-bold truncate ore-text-shadow">
+                          {isEditingServer
+                            ? (editServerName.trim() || editServerIp.trim() || '未命名服务器')
+                            : data.serverBinding!.name}
+                        </span>
+                        <span className="text-ore-text-muted font-minecraft text-xs">
+                          {isEditingServer
+                            ? `${editServerIp.trim() || '...'}${editServerPort && editServerPort !== '25565' ? `:${editServerPort}` : ''}`
+                            : `${data.serverBinding!.ip}${data.serverBinding!.port !== 25565 ? `:${data.serverBinding!.port}` : ''}`}
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                }
+                control={
+                  isEditingServer ? (
+                    <div className="flex flex-col gap-3 w-full min-w-[280px] max-w-[360px]">
+                      <OreInput
+                        focusKey="basic-input-server-name"
+                        value={editServerName}
+                        onChange={(e) => setEditServerName(e.target.value)}
+                        disabled={isSaving || isInitializing}
+                        placeholder="服务器名称"
+                      />
+                      <div className="flex items-center gap-2">
+                        <OreInput
+                          focusKey="basic-input-server-ip"
+                          value={editServerIp}
+                          onChange={(e) => setEditServerIp(e.target.value)}
+                          disabled={isSaving || isInitializing}
+                          placeholder="服务器地址 (IP 或域名)"
+                          containerClassName="flex-[3]"
+                        />
+                        <OreInput
+                          focusKey="basic-input-server-port"
+                          value={editServerPort}
+                          onChange={(e) => setEditServerPort(e.target.value.replace(/[^0-9]/g, ''))}
+                          disabled={isSaving || isInitializing}
+                          placeholder="端口"
+                          containerClassName="flex-1"
+                        />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <OreButton
+                          focusKey="basic-btn-save-server"
+                          variant="primary"
+                          onClick={async () => {
+                            if (!editServerIp.trim()) return;
+                            setIsSaving(true);
+                            await onUpdateServerBinding({
+                              uuid: data.serverBinding?.uuid || crypto.randomUUID(),
+                              name: editServerName.trim() || editServerIp.trim(),
+                              ip: editServerIp.trim(),
+                              port: parseInt(editServerPort, 10) || 25565,
+                            });
+                            setIsSaving(false);
+                            setIsEditingServer(false);
+                            triggerSuccess('服务器信息已保存');
+                          }}
+                          disabled={isSaving || isInitializing || !editServerIp.trim()}
+                        >
+                          <Save size={16} className="mr-1.5" /> 保存
+                        </OreButton>
+                        <OreButton
+                          focusKey="basic-btn-cancel-edit-server"
+                          variant="secondary"
+                          onClick={() => setIsEditingServer(false)}
+                          disabled={isSaving}
+                        >
+                          取消
+                        </OreButton>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <OreButton
+                        focusKey="basic-btn-edit-server"
+                        variant="secondary"
+                        onClick={() => {
+                          setEditServerName(data.serverBinding!.name);
+                          setEditServerIp(data.serverBinding!.ip);
+                          setEditServerPort(String(data.serverBinding!.port));
+                          setIsEditingServer(true);
+                        }}
+                        disabled={isSaving || isInitializing}
+                      >
+                        <Pencil size={16} className="mr-1.5" /> 编辑
+                      </OreButton>
+                      <OreButton
+                        focusKey="basic-btn-unbind-server"
+                        variant="danger"
+                        onClick={async () => {
+                          await onUpdateServerBinding(null);
+                          setIsEditingServer(false);
+                          triggerSuccess('已解除服务器绑定');
+                        }}
+                        disabled={isSaving || isInitializing}
+                      >
+                        <Unplug size={16} className="mr-1.5" /> 解除绑定
+                      </OreButton>
+                    </div>
+                  )
+                }
+              />
+
+              {!isEditingServer && (
+                <FormRow
+                  label="启动时自动进入服务器"
+                  description="开启后，启动游戏将自动连接到绑定的服务器，无需手动选择。"
+                  control={
+                    <OreSwitch
+                      focusKey="basic-switch-auto-join"
+                      checked={data.autoJoinServer ?? true}
+                      onChange={async (checked) => {
+                        await onUpdateAutoJoinServer(checked);
+                        triggerSuccess(checked ? '已开启自动进入服务器' : '已关闭自动进入服务器');
+                      }}
+                      disabled={isSaving || isInitializing}
+                    />
+                  }
+                />
+              )}
+            </>
+          ) : (
+            <FormRow
+              label="绑定服务器"
+              description="当前实例未绑定任何服务器。你可以手动添加或在多人游戏页面中绑定。"
+              control={
+                <OreButton
+                  focusKey="basic-btn-add-server"
+                  variant="secondary"
+                  onClick={() => {
+                    setEditServerName('');
+                    setEditServerIp('');
+                    setEditServerPort('25565');
+                    setIsEditingServer(true);
+                  }}
+                  disabled={isSaving || isInitializing}
+                >
+                  <Plus size={16} className="mr-1.5" /> 添加服务器
+                </OreButton>
+              }
+            />
+          )}
         </SettingsSection>
 
         {/* ==================== 3. 实例维护 ==================== */}

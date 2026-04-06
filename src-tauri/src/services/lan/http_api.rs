@@ -1,6 +1,4 @@
-// src-tauri/src/services/lan/http_api.rs
 use axum::{
-    body::Bytes,
     extract::{
         ws::{Message, WebSocket},
         Query, State, WebSocketUpgrade,
@@ -11,6 +9,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use futures::StreamExt;
 use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashMap;
@@ -18,13 +17,16 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager};
+use tokio::io::AsyncWriteExt;
 use tokio::sync::{broadcast, oneshot};
-
-// ✅ 引入跨域中间件
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::domain::lan::{DeviceInitInfo, TrustRequest};
 use crate::services::config_service::ConfigService;
+use crate::services::db_service::AppDatabase;
+use crate::services::lan::transfer_records::{
+    emit_transfer_progress, upsert_transfer_record, TransferRecordUpsert,
+};
 use crate::services::lan::trust_store::TrustStore;
 
 const PNG_SIGNATURE: [u8; 8] = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
@@ -38,10 +40,18 @@ fn is_safe_user_uuid(user_uuid: &str) -> bool {
     !user_uuid.is_empty() && user_uuid.chars().all(|c| c.is_ascii_hexdigit() || c == '-')
 }
 
+fn decode_header_value(headers: &HeaderMap, name: &str, fallback: &str) -> String {
+    headers
+        .get(name)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| urlencoding::decode(value).ok())
+        .map(|value| value.into_owned())
+        .unwrap_or_else(|| fallback.to_string())
+}
+
 pub struct SharedLanState {
     pub pending_trusts: Mutex<HashMap<String, oneshot::Sender<Option<TrustRequest>>>>,
     pub ws_sender: broadcast::Sender<String>,
-
     pub current_device_info: Mutex<DeviceInitInfo>,
     pub local_bg_path: Mutex<String>,
 }
@@ -83,14 +93,10 @@ async fn auth_middleware(
     Ok(next.run(request).await)
 }
 
-// ==========================================
-// 核心握手接口
-// ==========================================
 async fn request_trust(
     State(state): State<Arc<AxumAppState>>,
     Json(payload): Json<TrustRequest>,
 ) -> Result<Json<TrustRequest>, StatusCode> {
-    // 检查是否拥有相同的游戏账号 UUID，如果是，则自动信任
     let my_user_uuid = state
         .shared_state
         .current_device_info
@@ -98,54 +104,70 @@ async fn request_trust(
         .unwrap()
         .user_uuid
         .clone();
+    let request_kind = payload
+        .request_kind
+        .clone()
+        .unwrap_or_else(|| "friend".to_string());
     let is_same_user = !my_user_uuid.is_empty() && my_user_uuid == payload.user_uuid;
 
     if is_same_user {
         let base_path = ConfigService::get_base_path(&state.tauri_app)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
             .unwrap_or_default();
-        let config_dir = std::path::PathBuf::from(base_path).join("config");
+        let config_dir = PathBuf::from(base_path).join("config");
         let my_identity = TrustStore::get_or_create_identity(&config_dir);
+        let db = state.tauri_app.state::<AppDatabase>();
+        let target_username = payload.username.clone().unwrap_or_default();
 
-        // 获取对方的 username（从 payload 中没有，用空字符串；将在前端通过 richInfo 补充）
-        let target_username = String::new();
+        let relationship_result = if request_kind == "trusted" {
+            TrustStore::add_trusted_device(
+                &db.pool,
+                payload.device_id.clone(),
+                payload.device_name.clone(),
+                payload.user_uuid.clone(),
+                target_username,
+                payload.public_key.clone(),
+            )
+            .await
+        } else {
+            TrustStore::add_friend_device(
+                &db.pool,
+                payload.device_id.clone(),
+                payload.device_name.clone(),
+                payload.user_uuid.clone(),
+                target_username,
+                payload.public_key.clone(),
+            )
+            .await
+        };
 
-        let db = state
-            .tauri_app
-            .state::<crate::services::db_service::AppDatabase>();
-        let _ = TrustStore::add_trusted_device(
-            &db.pool,
-            payload.device_id.clone(),
-            payload.device_name.clone(),
-            payload.user_uuid.clone(),
-            target_username,
-            payload.public_key.clone(),
-        )
-        .await;
-
-        // 发送更新事件刷新前端
+        relationship_result.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let _ = state.tauri_app.emit("trust_list_updated", json!({}));
+
+        let current_info = state
+            .shared_state
+            .current_device_info
+            .lock()
+            .unwrap()
+            .clone();
 
         return Ok(Json(TrustRequest {
             device_id: my_identity.device_id,
             device_name: my_identity.device_name,
             user_uuid: my_identity.user_uuid,
             public_key: my_identity.public_key_b64,
+            username: (!current_info.username.trim().is_empty()).then(|| current_info.username),
+            request_kind: Some(request_kind),
         }));
     }
 
     let (tx, rx) = oneshot::channel();
-
-    {
-        let mut pending = state.shared_state.pending_trusts.lock().unwrap();
-        pending.insert(payload.device_id.clone(), tx);
-    }
-
-    // 获取当前设备的 username 用于前端弹窗展示
-    let requester_username = {
-        // 尝试从对方设备获取 username - 此时我们没有直接的方式，放在 payload 里
-        String::new()
-    };
+    state
+        .shared_state
+        .pending_trusts
+        .lock()
+        .unwrap()
+        .insert(payload.device_id.clone(), tx);
 
     let _ = state.tauri_app.emit(
         "trust_request_received",
@@ -154,7 +176,8 @@ async fn request_trust(
             "device_name": payload.device_name,
             "user_uuid": payload.user_uuid,
             "public_key": payload.public_key,
-            "username": requester_username
+            "username": payload.username.unwrap_or_default(),
+            "request_kind": request_kind,
         }),
     );
 
@@ -165,13 +188,14 @@ async fn request_trust(
 }
 
 async fn get_device_init(State(state): State<Arc<AxumAppState>>) -> Json<DeviceInitInfo> {
-    let info = state
-        .shared_state
-        .current_device_info
-        .lock()
-        .unwrap()
-        .clone();
-    Json(info)
+    Json(
+        state
+            .shared_state
+            .current_device_info
+            .lock()
+            .unwrap()
+            .clone(),
+    )
 }
 
 async fn get_device_bg(State(state): State<Arc<AxumAppState>>) -> impl IntoResponse {
@@ -179,11 +203,12 @@ async fn get_device_bg(State(state): State<Arc<AxumAppState>>) -> impl IntoRespo
     if bg_path.is_empty() {
         return (StatusCode::NOT_FOUND, HeaderMap::new(), vec![]);
     }
+
     match fs::read(&bg_path) {
         Ok(bytes) => {
             let ext = std::path::Path::new(&bg_path)
                 .extension()
-                .and_then(|s| s.to_str())
+                .and_then(|item| item.to_str())
                 .unwrap_or("")
                 .to_lowercase();
             let content_type = match ext.as_str() {
@@ -193,6 +218,7 @@ async fn get_device_bg(State(state): State<Arc<AxumAppState>>) -> impl IntoRespo
                 "gif" => "image/gif",
                 _ => "application/octet-stream",
             };
+
             let mut headers = HeaderMap::new();
             headers.insert(header::CONTENT_TYPE, content_type.parse().unwrap());
             headers.insert(
@@ -246,8 +272,7 @@ async fn get_device_avatar(
         Err(_) => return (StatusCode::NOT_FOUND, HeaderMap::new(), vec![]),
     };
 
-    let is_valid_png = bytes.len() > PNG_SIGNATURE.len() && bytes.starts_with(&PNG_SIGNATURE);
-    if !is_valid_png {
+    if bytes.len() <= PNG_SIGNATURE.len() || !bytes.starts_with(&PNG_SIGNATURE) {
         return (StatusCode::NOT_FOUND, HeaderMap::new(), vec![]);
     }
 
@@ -263,8 +288,8 @@ async fn ws_handler(
 ) -> impl IntoResponse {
     let mut rx = state.shared_state.ws_sender.subscribe();
     ws.on_upgrade(move |mut socket: WebSocket| async move {
-        while let Ok(msg) = rx.recv().await {
-            if socket.send(Message::Text(msg.into())).await.is_err() {
+        while let Ok(message) = rx.recv().await {
+            if socket.send(Message::Text(message.into())).await.is_err() {
                 break;
             }
         }
@@ -274,44 +299,188 @@ async fn ws_handler(
 async fn receive_transfer(
     State(state): State<Arc<AxumAppState>>,
     headers: HeaderMap,
-    body: Bytes,
+    request: Request<axum::body::Body>,
 ) -> impl IntoResponse {
-    let t_type = headers
+    let transfer_id = headers
+        .get("X-Transfer-Id")
+        .and_then(|value| value.to_str().ok())
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    let transfer_type = headers
         .get("X-Transfer-Type")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("unknown");
-    let t_name = headers
-        .get("X-Transfer-Name")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("Unnamed");
-    let from_dev = headers
-        .get("X-Device-Name")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("Lan Device");
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("unknown")
+        .to_string();
+    let transfer_name = decode_header_value(&headers, "X-Transfer-Name", "Unnamed");
+    let from_device_name = decode_header_value(&headers, "X-Device-Name", "LAN Device");
+    let from_device_id = headers
+        .get("X-Device-Id")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_string();
+    let from_username = decode_header_value(&headers, "X-Username", "");
+    let total = headers
+        .get(header::CONTENT_LENGTH)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(0);
 
-    let temp_id = uuid::Uuid::new_v4().to_string();
     let app_dir = state
         .tauri_app
         .path()
         .app_data_dir()
         .unwrap_or_else(|_| PathBuf::from("."));
     let temp_dir = app_dir.join("temp_transfers");
-    fs::create_dir_all(&temp_dir).ok();
-
-    let temp_path = temp_dir.join(format!("{}.zip", temp_id));
-    if fs::write(&temp_path, body).is_ok() {
-        let _ = state.tauri_app.emit("transfer_received", json!({
-            "id": temp_id, "type": t_type, "name": t_name, "from": from_dev, "tempPath": temp_path.to_string_lossy().to_string()
-        }));
-        (StatusCode::OK, "Received")
-    } else {
-        (StatusCode::INTERNAL_SERVER_ERROR, "Disk Error")
+    if let Err(error) = fs::create_dir_all(&temp_dir) {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Create temp dir failed: {}", error),
+        );
     }
+
+    let temp_path = temp_dir.join(format!("{}.zip", transfer_id));
+    let mut file = match tokio::fs::File::create(&temp_path).await {
+        Ok(file) => file,
+        Err(error) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Create temp file failed: {}", error),
+            );
+        }
+    };
+
+    emit_transfer_progress(
+        &state.tauri_app,
+        &crate::domain::lan::TransferProgressEvent {
+            transfer_id: transfer_id.clone(),
+            direction: "incoming".to_string(),
+            remote_device_id: from_device_id.clone(),
+            remote_device_name: from_device_name.clone(),
+            remote_username: from_username.clone(),
+            transfer_type: transfer_type.clone(),
+            name: transfer_name.clone(),
+            status: "receiving".to_string(),
+            stage: "RECEIVING".to_string(),
+            current: 0,
+            total,
+            message: "正在接收来自局域网设备的传输内容".to_string(),
+        },
+    );
+
+    let mut received = 0_u64;
+    let mut body = request.into_body().into_data_stream();
+    while let Some(next_chunk) = body.next().await {
+        let chunk = match next_chunk {
+            Ok(chunk) => chunk,
+            Err(error) => {
+                let _ = tokio::fs::remove_file(&temp_path).await;
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Read body failed: {}", error),
+                );
+            }
+        };
+
+        if let Err(error) = file.write_all(&chunk).await {
+            let _ = tokio::fs::remove_file(&temp_path).await;
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Write temp file failed: {}", error),
+            );
+        }
+
+        received += chunk.len() as u64;
+        emit_transfer_progress(
+            &state.tauri_app,
+            &crate::domain::lan::TransferProgressEvent {
+                transfer_id: transfer_id.clone(),
+                direction: "incoming".to_string(),
+                remote_device_id: from_device_id.clone(),
+                remote_device_name: from_device_name.clone(),
+                remote_username: from_username.clone(),
+                transfer_type: transfer_type.clone(),
+                name: transfer_name.clone(),
+                status: "receiving".to_string(),
+                stage: "RECEIVING".to_string(),
+                current: received,
+                total,
+                message: "正在接收压缩包数据".to_string(),
+            },
+        );
+    }
+
+    if let Err(error) = file.flush().await {
+        let _ = tokio::fs::remove_file(&temp_path).await;
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Flush temp file failed: {}", error),
+        );
+    }
+
+    let current_info = state
+        .shared_state
+        .current_device_info
+        .lock()
+        .unwrap()
+        .clone();
+    let db = state.tauri_app.state::<AppDatabase>();
+    let _ = upsert_transfer_record(
+        &state.tauri_app,
+        &db,
+        TransferRecordUpsert {
+            transfer_id: &transfer_id,
+            direction: "incoming",
+            sender_device_id: &from_device_id,
+            sender_device: &from_device_name,
+            receiver_device_id: &current_info.device_id,
+            receiver_device: &current_info.device_name,
+            remote_device_id: &from_device_id,
+            remote_device_name: &from_device_name,
+            remote_username: &from_username,
+            transfer_type: &transfer_type,
+            name: &transfer_name,
+            size: received as i64,
+            status: "received".to_string(),
+            error_message: None,
+            mark_completed: false,
+        },
+    )
+    .await;
+
+    emit_transfer_progress(
+        &state.tauri_app,
+        &crate::domain::lan::TransferProgressEvent {
+            transfer_id: transfer_id.clone(),
+            direction: "incoming".to_string(),
+            remote_device_id: from_device_id.clone(),
+            remote_device_name: from_device_name.clone(),
+            remote_username: from_username.clone(),
+            transfer_type: transfer_type.clone(),
+            name: transfer_name.clone(),
+            status: "received".to_string(),
+            stage: "RECEIVED".to_string(),
+            current: received,
+            total: if total == 0 { received } else { total },
+            message: "文件已接收，等待用户确认".to_string(),
+        },
+    );
+
+    let _ = state.tauri_app.emit(
+        "transfer_received",
+        json!({
+            "id": transfer_id,
+            "type": transfer_type,
+            "name": transfer_name,
+            "from": from_device_name,
+            "fromDeviceId": from_device_id,
+            "fromUsername": from_username,
+            "tempPath": temp_path.to_string_lossy().to_string(),
+        }),
+    );
+
+    (StatusCode::OK, "Received".to_string())
 }
 
-// ==========================================
-// 服务启动装配
-// ==========================================
 pub async fn start_http_server(app: AppHandle, shared_state: Arc<SharedLanState>, port: u16) {
     let axum_state = Arc::new(AxumAppState {
         tauri_app: app.clone(),
@@ -326,7 +495,6 @@ pub async fn start_http_server(app: AppHandle, shared_state: Arc<SharedLanState>
             auth_middleware,
         ));
 
-    // ✅ 构建全局跨域规则：允许所有源、所有方法、所有自定义 Header（包含我们要发送的 X-Transfer-Type 等）
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
@@ -339,11 +507,11 @@ pub async fn start_http_server(app: AppHandle, shared_state: Arc<SharedLanState>
         .route("/device/avatar", get(get_device_avatar))
         .route("/ws", get(ws_handler))
         .nest("/api", secure_routes)
-        .layer(cors) // ✅ 将跨域层包裹在最外层
+        .layer(cors)
         .with_state(axum_state);
 
     let addr = format!("0.0.0.0:{}", port);
-    println!("[PiLauncher] 🌐 Axum Server 正在监听 {}", addr);
+    println!("[PiLauncher] Axum Server listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
     axum::serve(listener, app_router).await.unwrap();
 }

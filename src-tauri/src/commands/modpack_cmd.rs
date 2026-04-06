@@ -716,6 +716,7 @@ pub async fn import_third_party_instance<R: Runtime>(
         custom_buttons: None,
         third_party_path: Some(path.clone()),
         server_binding: None,
+        auto_join_server: None,
     };
 
     let config_content = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
@@ -1394,6 +1395,7 @@ pub async fn scan_instances_in_dir<R: Runtime>(
             custom_buttons: None,
             third_party_path: Some(child.to_string_lossy().to_string()),
             server_binding: None,
+            auto_join_server: None,
         };
 
         let config_content = match serde_json::to_string_pretty(&config) {

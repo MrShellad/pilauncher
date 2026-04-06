@@ -1,28 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2, Users } from 'lucide-react';
 
+import type { DiscoveredDevice, TrustedDevice } from '../../../../hooks/useLan';
 import { useAccountStore } from '../../../../store/useAccountStore';
 import { useSettingsStore } from '../../../../store/useSettingsStore';
-import { LanDeviceItem } from './LanDeviceItem';
-import type { DeviceInitInfo } from './LanDeviceItem';
-
-interface DiscoveredDevice {
-  device_id: string;
-  device_name: string;
-  ip: string;
-  port: number;
-}
-
-interface TrustedDevice {
-  device_id: string;
-}
+import { LanDeviceItem, type DeviceInitInfo } from './LanDeviceItem';
 
 interface LanRadarProps {
   discovered: DiscoveredDevice[];
   trusted: TrustedDevice[];
+  friends: TrustedDevice[];
   isScanning: boolean;
   isRequesting: boolean;
-  onRequestTrust: (ip: string, port: number) => void;
+  onRequestTrust: (ip: string, port: number, requestKind?: 'friend' | 'trusted') => void;
+  onTrustDevice: (device: TrustedDevice) => void;
 }
 
 const normalizeDeviceId = (value?: string) => (value || '').trim().toLowerCase();
@@ -32,9 +23,11 @@ const getDeviceKey = (device: DiscoveredDevice) =>
 export const LanRadar: React.FC<LanRadarProps> = ({
   discovered,
   trusted,
+  friends,
   isScanning,
   isRequesting,
   onRequestTrust,
+  onTrustDevice,
 }) => {
   const [expandedDeviceKey, setExpandedDeviceKey] = useState<string | null>(null);
   const [richInfos, setRichInfos] = useState<Record<string, DeviceInitInfo>>({});
@@ -47,17 +40,22 @@ export const LanRadar: React.FC<LanRadarProps> = ({
     () => new Set(trusted.map((item) => normalizeDeviceId(item.device_id))),
     [trusted],
   );
+  const friendMap = useMemo(() => {
+    const map = new Map<string, TrustedDevice>();
+    friends.forEach((item) => {
+      map.set(normalizeDeviceId(item.device_id), item);
+    });
+    return map;
+  }, [friends]);
 
   const validDevices = useMemo(
     () => discovered.filter((device) => normalizeDeviceId(device.device_id) !== selfDeviceId),
     [discovered, selfDeviceId],
   );
 
-  const untrustedDevices = useMemo(
+  const candidateDevices = useMemo(
     () =>
-      validDevices.filter(
-        (device) => !trustedDeviceIds.has(normalizeDeviceId(device.device_id)),
-      ),
+      validDevices.filter((device) => !trustedDeviceIds.has(normalizeDeviceId(device.device_id))),
     [trustedDeviceIds, validDevices],
   );
 
@@ -70,7 +68,6 @@ export const LanRadar: React.FC<LanRadarProps> = ({
     let cancelled = false;
     const onlineKeys = new Set(validDevices.map(getDeviceKey));
 
-    // Remove stale profile cache for offline devices.
     setRichInfos((previous) => {
       const next = { ...previous };
       let changed = false;
@@ -91,10 +88,14 @@ export const LanRadar: React.FC<LanRadarProps> = ({
             const response = await fetch(`http://${device.ip}:${device.port}/device/init`, {
               cache: 'no-store',
             });
-            if (!response.ok) throw new Error('HTTP status error');
+            if (!response.ok) {
+              throw new Error('HTTP status error');
+            }
 
             const data = (await response.json()) as DeviceInitInfo;
-            if (cancelled) return;
+            if (cancelled) {
+              return;
+            }
 
             setRichInfos((previous) => {
               const previousData = previous[key];
@@ -111,9 +112,13 @@ export const LanRadar: React.FC<LanRadarProps> = ({
               return { ...previous, [key]: data };
             });
           } catch {
-            if (cancelled) return;
+            if (cancelled) {
+              return;
+            }
             setRichInfos((previous) => {
-              if (!previous[key]) return previous;
+              if (!previous[key]) {
+                return previous;
+              }
               const next = { ...previous };
               delete next[key];
               return next;
@@ -134,19 +139,33 @@ export const LanRadar: React.FC<LanRadarProps> = ({
     };
   }, [validDevices]);
 
-  const sortedDevices = [...untrustedDevices].sort((a, b) => {
-    const aRich = richInfos[getDeviceKey(a)];
-    const bRich = richInfos[getDeviceKey(b)];
-    const aIsOwn = aRich ? accounts.some((acc) => acc.uuid === aRich.user_uuid) : false;
-    const bIsOwn = bRich ? accounts.some((acc) => acc.uuid === bRich.user_uuid) : false;
+  const sortedDevices = useMemo(() => {
+    return [...candidateDevices].sort((a, b) => {
+      const aKey = getDeviceKey(a);
+      const bKey = getDeviceKey(b);
+      const aRich = richInfos[aKey];
+      const bRich = richInfos[bKey];
+      const aId = normalizeDeviceId(a.device_id);
+      const bId = normalizeDeviceId(b.device_id);
+      const aIsOwn = aRich ? accounts.some((item) => item.uuid === aRich.user_uuid) : false;
+      const bIsOwn = bRich ? accounts.some((item) => item.uuid === bRich.user_uuid) : false;
+      const aIsFriend = friendMap.has(aId);
+      const bIsFriend = friendMap.has(bId);
 
-    if (aIsOwn && !bIsOwn) return -1;
-    if (!aIsOwn && bIsOwn) return 1;
-    return 0;
-  });
+      if (aIsOwn !== bIsOwn) {
+        return aIsOwn ? -1 : 1;
+      }
+      if (aIsFriend !== bIsFriend) {
+        return aIsFriend ? -1 : 1;
+      }
+      return a.device_name.localeCompare(b.device_name);
+    });
+  }, [accounts, candidateDevices, friendMap, richInfos]);
 
   useEffect(() => {
-    if (!expandedDeviceKey) return;
+    if (!expandedDeviceKey) {
+      return;
+    }
     const exists = validDevices.some((device) => getDeviceKey(device) === expandedDeviceKey);
     if (!exists) {
       setExpandedDeviceKey(null);
@@ -158,7 +177,7 @@ export const LanRadar: React.FC<LanRadarProps> = ({
       <div className="flex items-center justify-between pl-1 text-xs font-bold uppercase tracking-wider text-gray-400">
         <div className="flex items-center">
           <Users size={14} className="mr-2" />
-          局域网雷达 ({untrustedDevices.length})
+          局域网雷达 ({candidateDevices.length})
         </div>
         {isScanning && (
           <div className="flex items-center gap-1.5 font-normal normal-case text-ore-green">
@@ -169,13 +188,13 @@ export const LanRadar: React.FC<LanRadarProps> = ({
       </div>
 
       <div className="flex flex-col gap-2">
-        {untrustedDevices.length === 0 && !isScanning && (
+        {candidateDevices.length === 0 && !isScanning && (
           <div className="border-2 border-dashed border-[#313233] p-4 text-center text-sm text-gray-500">
-            局域网内空空如也。
+            附近没有待处理的好友或设备。
           </div>
         )}
 
-        {untrustedDevices.length === 0 && isScanning && (
+        {candidateDevices.length === 0 && isScanning && (
           <div className="flex items-center justify-center gap-2 border-2 border-dashed border-[#313233] p-4 text-center text-sm text-gray-500">
             <Loader2 size={14} className="animate-spin text-ore-green" />
             正在扫描局域网中的设备...
@@ -185,8 +204,10 @@ export const LanRadar: React.FC<LanRadarProps> = ({
         {sortedDevices.map((device) => {
           const key = getDeviceKey(device);
           const richInfo = richInfos[key];
+          const deviceId = normalizeDeviceId(device.device_id);
+          const relationship = friendMap.get(deviceId);
           const isOwnAccount = richInfo
-            ? accounts.some((acc) => acc.uuid === richInfo.user_uuid)
+            ? accounts.some((item) => item.uuid === richInfo.user_uuid)
             : false;
 
           return (
@@ -194,7 +215,9 @@ export const LanRadar: React.FC<LanRadarProps> = ({
               key={key}
               device={device}
               richInfo={richInfo}
-              isFriend={false}
+              relationship={relationship}
+              isFriend={!!relationship}
+              isTrusted={trustedDeviceIds.has(deviceId)}
               isOwnAccount={isOwnAccount}
               isRequesting={isRequesting}
               isExpanded={expandedDeviceKey === key}
@@ -202,6 +225,7 @@ export const LanRadar: React.FC<LanRadarProps> = ({
                 setExpandedDeviceKey((previous) => (previous === key ? null : key))
               }
               onRequestTrust={onRequestTrust}
+              onTrustDevice={onTrustDevice}
             />
           );
         })}

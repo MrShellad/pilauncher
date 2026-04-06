@@ -56,6 +56,8 @@ const InstanceDetail: React.FC = () => {
     handleUpdateCover,
     handleUpdateHeroLogo,
     handleUpdateCustomButtons,
+    handleUpdateServerBinding,
+    handleUpdateAutoJoinServer,
     handleVerifyFiles,
     handleRepairRuntime,
     handleDeleteInstance,
@@ -236,6 +238,8 @@ const InstanceDetail: React.FC = () => {
                 onUpdateName={handleUpdateName}
                 onUpdateCover={handleUpdateCover}
                 onUpdateCustomButtons={handleUpdateCustomButtons}
+                onUpdateServerBinding={handleUpdateServerBinding}
+                onUpdateAutoJoinServer={handleUpdateAutoJoinServer}
                 onVerifyFiles={handleVerifyFiles}
                 onRepairFiles={handleRepairRuntime}
                 onDelete={async (skipConfirm?: boolean) => {

@@ -1,5 +1,5 @@
 // src-tauri/src/commands/instance/action_cmd.rs
-use crate::domain::instance::CustomButtonConfig;
+use crate::domain::instance::{CustomButtonConfig, ServerBinding};
 use crate::services::instance::action::InstanceActionService;
 use tauri::{AppHandle, Runtime};
 
@@ -136,4 +136,22 @@ pub async fn install_remote_mod<R: Runtime>(
         &loader_type,
     )
     .await
+}
+
+#[tauri::command]
+pub async fn update_instance_server_binding<R: Runtime>(
+    app: AppHandle<R>,
+    id: String,
+    server_binding: Option<ServerBinding>,
+) -> Result<(), String> {
+    InstanceActionService::update_server_binding(&app, &id, server_binding)
+}
+
+#[tauri::command]
+pub async fn update_instance_auto_join_server<R: Runtime>(
+    app: AppHandle<R>,
+    id: String,
+    auto_join: bool,
+) -> Result<(), String> {
+    InstanceActionService::update_auto_join_server(&app, &id, auto_join)
 }
