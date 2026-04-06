@@ -1,6 +1,8 @@
 // src-tauri/src/services/instance/mod_manager.rs
+use crate::domain::mod_manifest::{ModManifestEntry, ModSourceKind};
 use crate::services::config_service::ConfigService;
 use crate::services::downloader::transfer::{download_file, DownloadRateLimiter, DownloadTuning};
+use crate::services::instance::mod_manifest_service::ModManifestService;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap; // ✅ 引入哈希表用于缓存
@@ -9,13 +11,6 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Runtime};
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct ModManifestEntry {
-    pub platform: String,
-    pub project_id: String,
-    pub file_id: String,
-}
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -107,12 +102,7 @@ impl ModManagerService {
 
         // ✅ 读取 mod_manifest.json 映射字典（位于实例根目录）
         let manifest_path = instance_dir.join("mod_manifest.json");
-        let manifest_dict: HashMap<String, ModManifestEntry> = if manifest_path.exists() {
-            let content = fs::read_to_string(&manifest_path).unwrap_or_default();
-            serde_json::from_str(&content).unwrap_or_default()
-        } else {
-            HashMap::new()
-        };
+        let manifest_dict = ModManifestService::load_from_mods_dir(&mods_dir, &manifest_path)?;
 
         let mut mods = Vec::new();
 
@@ -140,16 +130,11 @@ impl ModManagerService {
                         }
 
                         // ✅ 生成唯一的缓存 key
-                        let cache_key = if let Some(m) = &meta.manifest_entry {
-                            format!("{}_{}", m.platform, m.project_id)
-                        } else if let Some(mid) = &meta.mod_id {
-                            format!("local_{}", mid)
-                        } else {
-                            format!(
-                                "file_{}",
-                                base_name.replace(|c: char| !c.is_ascii_alphanumeric(), "_")
-                            )
-                        };
+                        let cache_key = ModManifestService::manifest_cache_key(
+                            meta.manifest_entry.as_ref(),
+                            meta.mod_id.as_deref(),
+                            &base_name,
+                        );
                         meta.cache_key = Some(cache_key.clone());
 
                         // ✅ 优先读取共享图标目录中缓存的实体图标
@@ -496,9 +481,8 @@ impl ModManagerService {
             let _write_guard = path_lock.lock().await;
 
             let dl_settings = ConfigService::get_download_settings(app);
-            let mut builder = reqwest::Client::builder().connect_timeout(
-                std::time::Duration::from_secs(dl_settings.timeout.max(1)),
-            );
+            let mut builder = reqwest::Client::builder()
+                .connect_timeout(std::time::Duration::from_secs(dl_settings.timeout.max(1)));
             if dl_settings.proxy_type != "none" {
                 let host = dl_settings.proxy_host.trim();
                 let port = dl_settings.proxy_port.trim();
@@ -519,7 +503,9 @@ impl ModManagerService {
             let speed_limit_bytes_per_sec =
                 ConfigService::download_speed_limit_bytes_per_sec(&dl_settings);
             let rate_limiter = if speed_limit_bytes_per_sec > 0 {
-                Some(Arc::new(DownloadRateLimiter::new(speed_limit_bytes_per_sec)))
+                Some(Arc::new(DownloadRateLimiter::new(
+                    speed_limit_bytes_per_sec,
+                )))
             } else {
                 None
             };
@@ -596,6 +582,16 @@ impl ModManagerService {
             },
         );
         Self::write_gamepad_meta(app, &meta)?;
+
+        let manifest_path = instance_dir.join("mod_manifest.json");
+        ModManifestService::upsert_downloaded_mod(
+            &manifest_path,
+            &target_path,
+            ModSourceKind::LauncherDownload,
+            None,
+            None,
+            None,
+        )?;
 
         Ok(())
     }

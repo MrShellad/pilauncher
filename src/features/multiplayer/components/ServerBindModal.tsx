@@ -1,25 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import React from 'react';
 import { Blocks, HardDrive, Link as LinkIcon, Play, Plus, Server } from 'lucide-react';
 import { OreModal } from '../../../ui/primitives/OreModal';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import type { OnlineServer } from '../types';
-import { useLauncherStore } from '../../../store/useLauncherStore';
-import { useGameLaunch } from '../../../hooks/useGameLaunch';
-
-interface InstanceItem {
-  id: string;
-  name: string;
-  version: string;
-  loader: string;
-}
-
-interface ServerBindingRecord {
-  uuid: string;
-  name: string;
-  ip: string;
-  port: number;
-}
+import { useServerBindModal } from '../hooks/useServerBindModal';
 
 interface ServerBindModalProps {
   isOpen: boolean;
@@ -27,178 +11,30 @@ interface ServerBindModalProps {
   server: OnlineServer | null;
 }
 
-const parseServerAddress = (server: OnlineServer) => {
-  const ipMatch = server.address?.match(/^([^:]+)(?::(\d+))?$/);
-  return {
-    ip: ipMatch ? ipMatch[1] : server.address || '',
-    port: ipMatch && ipMatch[2] ? parseInt(ipMatch[2], 10) : 25565,
-  };
-};
-
-const matchesBinding = (server: OnlineServer, binding: ServerBindingRecord) => {
-  const { ip, port } = parseServerAddress(server);
-  return (
-    binding.uuid === server.id ||
-    (binding.name && binding.name === server.name) ||
-    (binding.ip === ip && binding.port === port)
-  );
-};
-
 export const ServerBindModal: React.FC<ServerBindModalProps> = ({ isOpen, onClose, server }) => {
-  const setActiveTab = useLauncherStore((state) => state.setActiveTab);
-  const { launchGame, isLaunching } = useGameLaunch();
-
-  const [instances, setInstances] = useState<InstanceItem[]>([]);
-  const [selectedInstanceId, setSelectedInstanceId] = useState<string>('');
-  const [boundInstance, setBoundInstance] = useState<InstanceItem | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isBinding, setIsBinding] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [isCheckingBinding, setIsCheckingBinding] = useState(false);
-
-  useEffect(() => {
-    if (!isOpen || !server) {
-      setInstances([]);
-      setSelectedInstanceId('');
-      setBoundInstance(null);
-      setIsLoading(false);
-      setIsCheckingBinding(false);
-      return;
-    }
-
-    void initializeModal(server);
-  }, [isOpen, server]);
-
-  const initializeModal = async (currentServer: OnlineServer) => {
-    try {
-      setIsCheckingBinding(true);
-      setBoundInstance(null);
-
-      const [bindings, allInstances] = await Promise.all([
-        invoke<Record<string, ServerBindingRecord>>('get_server_bindings').catch(() => ({})),
-        invoke<InstanceItem[]>('get_all_instances').catch(() => []),
-      ]);
-
-      const matchedBindingEntry = Object.entries(bindings).find(([, binding]) => matchesBinding(currentServer, binding));
-      if (matchedBindingEntry) {
-        const [instanceId] = matchedBindingEntry;
-        const matchedInstance = allInstances.find((item) => item.id === instanceId);
-        setBoundInstance(
-          matchedInstance || {
-            id: instanceId,
-            name: instanceId,
-            version: '',
-            loader: '',
-          }
-        );
-        return;
-      }
-
-      await fetchCompatibleInstances(currentServer);
-    } finally {
-      setIsCheckingBinding(false);
-    }
-  };
-
-  const fetchCompatibleInstances = async (currentServer: OnlineServer) => {
-    try {
-      setIsLoading(true);
-      const gameVersions = currentServer.versions || [];
-      const data = await invoke<InstanceItem[]>('get_compatible_instances', {
-        gameVersions,
-        loaders: [],
-        ignoreLoader: true,
-      });
-      setInstances(data);
-      setSelectedInstanceId(data.length > 0 ? data[0].id : '');
-    } catch (error) {
-      console.error('获取兼容实例失败:', error);
-      setInstances([]);
-      setSelectedInstanceId('');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleLaunchBoundInstance = async () => {
-    if (!boundInstance) return;
-    onClose();
-    await launchGame(boundInstance.id);
-  };
-
-  const handleBind = async () => {
-    if (!server || !selectedInstanceId) return;
-
-    try {
-      setIsBinding(true);
-      const { ip, port } = parseServerAddress(server);
-
-      await invoke('bind_server_to_instance', {
-        instanceId: selectedInstanceId,
-        serverBinding: {
-          uuid: server.id,
-          name: server.name,
-          ip,
-          port,
-        },
-      });
-
-      const selectedInstance = instances.find((item) => item.id === selectedInstanceId);
-      setBoundInstance(
-        selectedInstance || {
-          id: selectedInstanceId,
-          name: selectedInstanceId,
-          version: '',
-          loader: '',
-        }
-      );
-    } catch (error) {
-      console.error('绑定失败:', error);
-      alert(`绑定失败: ${error}`);
-    } finally {
-      setIsBinding(false);
-    }
-  };
-
-  const handleDownloadModpack = async () => {
-    if (!server || !server.modpackUrl) return;
-
-    try {
-      setIsDownloading(true);
-      const { ip, port } = parseServerAddress(server);
-
-      await invoke('download_and_import_modpack', {
-        url: server.modpackUrl,
-        instanceName: server.name,
-        serverBinding: {
-          uuid: server.id,
-          name: server.name,
-          ip,
-          port,
-        },
-      });
-
-      onClose();
-      setActiveTab('downloads');
-    } catch (error) {
-      console.error('触发下载失败:', error);
-      alert(`下载触发失败: ${error}`);
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
-  const handleCreateNew = () => {
-    if (!server) return;
-    useLauncherStore.getState().setPendingServerBinding(server);
-    onClose();
-    setActiveTab('new-instance');
-  };
+  const {
+    boundInstance,
+    handleBind,
+    handleCreateNew,
+    handleDownloadModpack,
+    handleLaunchBoundInstance,
+    instances,
+    isBinding,
+    isCheckingBinding,
+    isDownloading,
+    isLaunching,
+    isLoading,
+    isModServer,
+    launchTargetName,
+    selectedInstanceId,
+    setSelectedInstanceId,
+  } = useServerBindModal({
+    isOpen,
+    onClose,
+    server,
+  });
 
   if (!server) return null;
-
-  const isModServer = server.isModded || server.serverType?.toLowerCase() === 'modded';
-  const launchTargetName = boundInstance?.name || server.name;
 
   return (
     <OreModal

@@ -5,8 +5,8 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Runtime};
 // 引入跨层的 DTO
 use crate::domain::resource::{OreProjectDependency, OreProjectDetail, OreProjectVersion};
-use crate::services::file_write_lock;
 use crate::services::downloader::transfer::{download_file, DownloadRateLimiter, DownloadTuning};
+use crate::services::file_write_lock;
 
 // ==========================================
 // 第三方 API (Modrinth) 的私有 DTO 模型
@@ -214,7 +214,8 @@ impl ResourceService {
         let _write_guard = path_lock.lock().await;
 
         // 2. 发起下载（支持分块 / 单连接自动回退）
-        let dl_settings = crate::services::config_service::ConfigService::get_download_settings(app);
+        let dl_settings =
+            crate::services::config_service::ConfigService::get_download_settings(app);
         let mut builder = Client::builder()
             .connect_timeout(std::time::Duration::from_secs(dl_settings.timeout.max(1)));
         if dl_settings.proxy_type != "none" {
@@ -228,17 +229,22 @@ impl ResourceService {
                     _ => "http",
                 };
                 let proxy_url = format!("{}://{}:{}", scheme, host, port);
-                builder = builder.proxy(reqwest::Proxy::all(&proxy_url).map_err(|e| e.to_string())?);
+                builder =
+                    builder.proxy(reqwest::Proxy::all(&proxy_url).map_err(|e| e.to_string())?);
             }
         }
-        let client = builder.build().map_err(|e| format!("创建下载客户端失败: {}", e))?;
+        let client = builder
+            .build()
+            .map_err(|e| format!("创建下载客户端失败: {}", e))?;
 
         let speed_limit_bytes_per_sec =
             crate::services::config_service::ConfigService::download_speed_limit_bytes_per_sec(
                 &dl_settings,
             );
         let rate_limiter = if speed_limit_bytes_per_sec > 0 {
-            Some(Arc::new(DownloadRateLimiter::new(speed_limit_bytes_per_sec)))
+            Some(Arc::new(DownloadRateLimiter::new(
+                speed_limit_bytes_per_sec,
+            )))
         } else {
             None
         };

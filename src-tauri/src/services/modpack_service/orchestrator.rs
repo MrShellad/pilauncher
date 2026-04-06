@@ -1,4 +1,8 @@
 use crate::domain::event::DownloadProgressEvent;
+use crate::domain::mod_manifest::{
+    build_file_state, build_manifest_entry, build_manifest_source, compute_file_hash,
+    mod_manifest_key, write_mod_manifest, ModManifest, ModSourceKind,
+};
 use crate::services::config_service::ConfigService;
 use crate::services::deployment_cancel::is_cancelled;
 use crate::services::downloader::dependencies::{
@@ -6,20 +10,11 @@ use crate::services::downloader::dependencies::{
 };
 use futures::stream::{iter, StreamExt};
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::collections::HashMap;
-
-#[derive(Serialize, Deserialize)]
-pub struct ModManifestEntry {
-    pub platform: String,
-    pub project_id: String,
-    pub file_id: String,
-}
-
-pub type ModManifest = HashMap<String, ModManifestEntry>;
 use std::env;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::Duration;
@@ -29,7 +24,7 @@ use super::logic::ModpackSourceHint;
 use super::logic::{build_instance_config, safe_relative_path, sanitize_instance_id};
 use super::ops::{
     create_instance_layout, detect_modpack_source, extract_overrides, open_modpack_archive,
-    parse_modpack, read_zip_entry_to_string, resolve_base_dir,
+    parse_modpack, read_pipack_manifest, read_zip_entry_to_string, resolve_base_dir,
 };
 
 #[derive(Deserialize)]
@@ -65,6 +60,29 @@ struct CurseForgeFileInfo {
 struct CurseForgeHash {
     algo: u32,
     value: String,
+}
+
+#[derive(Deserialize)]
+struct ModrinthVersionInfo {
+    project_id: String,
+    files: Vec<ModrinthVersionFile>,
+}
+
+#[derive(Deserialize)]
+struct ModrinthVersionFile {
+    url: String,
+    filename: String,
+    size: Option<u64>,
+    primary: Option<bool>,
+    hashes: HashMap<String, String>,
+}
+
+fn should_track_mod_manifest(path: &Path) -> bool {
+    path.extension()
+        .and_then(|value| value.to_str())
+        .map(|ext| ext.eq_ignore_ascii_case("jar"))
+        .unwrap_or(false)
+        && path.starts_with(Path::new("mods"))
 }
 
 fn resolve_curseforge_api_key() -> Option<String> {
@@ -202,6 +220,190 @@ async fn fetch_curseforge_file_info(
     Ok(payload.data)
 }
 
+async fn fetch_modrinth_version_info(
+    client: &Client,
+    version_id: &str,
+) -> Result<ModrinthVersionInfo, String> {
+    let url = format!("https://api.modrinth.com/v2/version/{}", version_id);
+    let res = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Modrinth request failed: {}", e))?;
+
+    if !res.status().is_success() {
+        return Err(format!(
+            "Modrinth request failed: {} (version {})",
+            res.status(),
+            version_id
+        ));
+    }
+
+    res.json()
+        .await
+        .map_err(|e| format!("Modrinth response parse failed: {}", e))
+}
+
+async fn file_matches_hash(
+    path: &Path,
+    hash: &crate::domain::mod_manifest::ModFileHash,
+) -> Result<bool, String> {
+    if !hash.algorithm.eq_ignore_ascii_case("sha1") {
+        return Ok(false);
+    }
+
+    let actual = sha1_file(path).await.map_err(|e| e.to_string())?;
+    Ok(actual.eq_ignore_ascii_case(&hash.value))
+}
+
+fn select_modrinth_file<'a>(
+    version_info: &'a ModrinthVersionInfo,
+    manifest_entry: &crate::domain::modpack::PiPackModEntry,
+) -> Option<&'a ModrinthVersionFile> {
+    let expected_hash = manifest_entry.hash.value.to_ascii_lowercase();
+    let normalized_name = manifest_entry
+        .file_name
+        .trim_end_matches(".disabled")
+        .to_string();
+
+    version_info
+        .files
+        .iter()
+        .find(|file| {
+            file.hashes
+                .get("sha1")
+                .map(|value| value.eq_ignore_ascii_case(&expected_hash))
+                .unwrap_or(false)
+        })
+        .or_else(|| {
+            version_info
+                .files
+                .iter()
+                .find(|file| file.filename == normalized_name)
+        })
+        .or_else(|| {
+            version_info
+                .files
+                .iter()
+                .find(|file| file.primary.unwrap_or(false))
+        })
+        .or_else(|| version_info.files.first())
+}
+
+async fn build_pipack_download_task(
+    client: &Client,
+    curseforge_api_key: Option<&str>,
+    manifest_entry: &crate::domain::modpack::PiPackModEntry,
+    target_path: &Path,
+    temp_root: &Path,
+) -> Result<Option<DownloadTask>, String> {
+    let platform = manifest_entry
+        .source
+        .platform
+        .as_deref()
+        .map(|value| value.trim().to_ascii_lowercase());
+    let project_id = manifest_entry
+        .source
+        .project_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let file_id = manifest_entry
+        .source
+        .file_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+
+    let Some(platform) = platform else {
+        return Ok(None);
+    };
+    let (Some(project_id), Some(file_id)) = (project_id, file_id) else {
+        return Ok(None);
+    };
+    let relative_path = safe_relative_path(&manifest_entry.path).ok_or_else(|| {
+        format!(
+            "Invalid mod path in PiPack manifest: {}",
+            manifest_entry.path
+        )
+    })?;
+    let temp_file_name = format!("{}.tmp", manifest_entry.file_name);
+
+    match platform.as_str() {
+        "modrinth" => {
+            let version_info = fetch_modrinth_version_info(client, file_id).await?;
+            if version_info.project_id != project_id {
+                return Err(format!(
+                    "Modrinth project mismatch for {}: expected {}, got {}",
+                    manifest_entry.file_name, project_id, version_info.project_id
+                ));
+            }
+
+            let Some(file_info) = select_modrinth_file(&version_info, manifest_entry) else {
+                return Ok(None);
+            };
+
+            let temp_path = temp_root
+                .join(&relative_path)
+                .with_file_name(&temp_file_name);
+
+            return Ok(Some(DownloadTask {
+                url: file_info.url.clone(),
+                fallback_urls: Vec::new(),
+                path: target_path.to_path_buf(),
+                temp_path,
+                name: manifest_entry.file_name.clone(),
+                expected_sha1: Some(manifest_entry.hash.value.to_ascii_lowercase()),
+                expected_size: file_info.size,
+            }));
+        }
+        "curseforge" => {
+            let api_key = curseforge_api_key.ok_or_else(|| {
+                "CurseForge API key is missing. Set VITE_CURSEFORGE_API_KEY or CURSEFORGE_API_KEY."
+                    .to_string()
+            })?;
+            let project_id_num = project_id
+                .parse::<u64>()
+                .map_err(|_| format!("Invalid CurseForge project id: {}", project_id))?;
+            let file_id_num = file_id
+                .parse::<u64>()
+                .map_err(|_| format!("Invalid CurseForge file id: {}", file_id))?;
+            let info =
+                fetch_curseforge_file_info(client, api_key, project_id_num, file_id_num).await?;
+            let file_name = Path::new(&info.file_name)
+                .file_name()
+                .map(|value| value.to_string_lossy().to_string())
+                .unwrap_or_else(|| {
+                    manifest_entry
+                        .file_name
+                        .trim_end_matches(".disabled")
+                        .to_string()
+                });
+            let url = match info.download_url {
+                Some(url) if !url.trim().is_empty() => url.replace(" ", "%20"),
+                _ => curseforge_edge_url(info.id, &file_name),
+            };
+
+            let temp_path = temp_root
+                .join(&relative_path)
+                .with_file_name(&temp_file_name);
+
+            return Ok(Some(DownloadTask {
+                url,
+                fallback_urls: Vec::new(),
+                path: target_path.to_path_buf(),
+                temp_path,
+                name: manifest_entry.file_name.clone(),
+                expected_sha1: Some(manifest_entry.hash.value.to_ascii_lowercase()),
+                expected_size: Some(info.file_length),
+            }));
+        }
+        _ => {}
+    }
+
+    Ok(None)
+}
+
 pub async fn execute_import<R: Runtime>(
     app: &AppHandle<R>,
     zip_path: &str,
@@ -243,17 +445,24 @@ async fn execute_import_inner<R: Runtime>(
     }
 
     let metadata = parse_modpack(zip_path)?;
+    let pipack_manifest = read_pipack_manifest(zip_path).ok();
+    let effective_server_binding = server_binding.or_else(|| {
+        pipack_manifest
+            .as_ref()
+            .and_then(|manifest| manifest.server.clone())
+    });
     let instance_root = base_dir.join("instances").join(instance_id);
 
     create_instance_layout(&instance_root)?;
     let mut config = build_instance_config(instance_id, instance_name, &metadata);
-    config.server_binding = server_binding.clone();
+    config.server_binding = effective_server_binding.clone();
     super::ops::write_instance_config(&instance_root, &config)?;
 
-    if let Some(binding) = &server_binding {
+    if let Some(binding) = &effective_server_binding {
         let bindings_index_path = base_dir.join("instances").join("server_bindings.json");
         let mut all_bindings: serde_json::Value = if bindings_index_path.exists() {
-            let idx_content = std::fs::read_to_string(&bindings_index_path).unwrap_or_else(|_| "{}".to_string());
+            let idx_content =
+                std::fs::read_to_string(&bindings_index_path).unwrap_or_else(|_| "{}".to_string());
             serde_json::from_str(&idx_content).unwrap_or_else(|_| serde_json::json!({}))
         } else {
             serde_json::json!({})
@@ -391,6 +600,7 @@ fn cleanup_modpack_artifacts(base_dir: &Path, instance_id: &str) {
     let _ = fs::remove_dir_all(temp_root.join(instance_id));
     let _ = fs::remove_dir_all(temp_root.join("curseforge").join(instance_id));
     let _ = fs::remove_dir_all(temp_root.join("modrinth").join(instance_id));
+    let _ = fs::remove_dir_all(temp_root.join("pipack").join(instance_id));
 }
 
 async fn fetch_modpack_mods<R: Runtime>(
@@ -403,6 +613,9 @@ async fn fetch_modpack_mods<R: Runtime>(
 ) -> Result<(), String> {
     let mut archive = open_modpack_archive(zip_path)?;
     match detect_modpack_source(&mut archive)? {
+        ModpackSourceHint::PiPack => {
+            download_pipack_mods(app, zip_path, instance_root, instance_id, base_dir, cancel).await
+        }
         ModpackSourceHint::Modrinth => {
             download_modrinth_mods(app, zip_path, instance_root, instance_id, base_dir, cancel)
                 .await
@@ -412,6 +625,167 @@ async fn fetch_modpack_mods<R: Runtime>(
                 .await
         }
     }
+}
+
+async fn download_pipack_mods<R: Runtime>(
+    app: &AppHandle<R>,
+    zip_path: &str,
+    instance_root: &Path,
+    instance_id: &str,
+    base_dir: &Path,
+    cancel: &Arc<AtomicBool>,
+) -> Result<(), String> {
+    let manifest = read_pipack_manifest(zip_path)?;
+    if manifest.mods.is_empty() {
+        return Ok(());
+    }
+
+    let dl_settings = ConfigService::get_download_settings(app);
+    let concurrency = if dl_settings.concurrency > 0 {
+        dl_settings.concurrency
+    } else {
+        16
+    };
+    let retry_count = dl_settings.retry_count;
+    let verify_hash = true;
+    let speed_limit_bytes_per_sec = ConfigService::download_speed_limit_bytes_per_sec(&dl_settings);
+
+    let client = Client::builder()
+        .user_agent("PiLauncher/1.0 (PiPack)")
+        .connect_timeout(Duration::from_secs(dl_settings.timeout.max(1)))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let temp_root = base_dir
+        .join("temp")
+        .join("modpack")
+        .join("pipack")
+        .join(instance_id);
+    tokio::fs::create_dir_all(&temp_root)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let curseforge_api_key = if manifest.mods.iter().any(|entry| {
+        entry
+            .source
+            .platform
+            .as_deref()
+            .is_some_and(|value| value.eq_ignore_ascii_case("curseforge"))
+            && entry
+                .source
+                .project_id
+                .as_deref()
+                .is_some_and(|value| !value.trim().is_empty())
+            && entry
+                .source
+                .file_id
+                .as_deref()
+                .is_some_and(|value| !value.trim().is_empty())
+    }) {
+        Some(resolve_curseforge_api_key().ok_or_else(|| {
+            "CurseForge API key is missing. Set VITE_CURSEFORGE_API_KEY or CURSEFORGE_API_KEY."
+                .to_string()
+        })?)
+    } else {
+        None
+    };
+
+    let mut tasks: Vec<DownloadTask> = Vec::new();
+    let mut manifest_data = ModManifest::new();
+
+    for entry in &manifest.mods {
+        if is_cancelled(cancel) {
+            return Err("Cancelled".to_string());
+        }
+
+        let relative_path = safe_relative_path(&entry.path)
+            .ok_or_else(|| format!("Invalid mod path in PiPack manifest: {}", entry.path))?;
+        let target_path = instance_root.join(&relative_path);
+
+        if target_path.exists() && file_matches_hash(&target_path, &entry.hash).await? {
+            let file_state = build_file_state(&target_path)?;
+            let hash = compute_file_hash(&target_path)?;
+            manifest_data.insert(
+                mod_manifest_key(&entry.file_name),
+                build_manifest_entry(entry.source.clone(), hash, file_state),
+            );
+            continue;
+        }
+
+        let remote_task = build_pipack_download_task(
+            &client,
+            curseforge_api_key.as_deref(),
+            entry,
+            &target_path,
+            &temp_root,
+        )
+        .await?;
+
+        match remote_task {
+            Some(task) => tasks.push(task),
+            None => {
+                if entry.bundled_path.is_some()
+                    && target_path.exists()
+                    && file_matches_hash(&target_path, &entry.hash).await?
+                {
+                    let file_state = build_file_state(&target_path)?;
+                    let hash = compute_file_hash(&target_path)?;
+                    manifest_data.insert(
+                        mod_manifest_key(&entry.file_name),
+                        build_manifest_entry(entry.source.clone(), hash, file_state),
+                    );
+                    continue;
+                }
+
+                return Err(format!(
+                    "Unable to resolve mod {} from platform and no valid bundled fallback was found",
+                    entry.file_name
+                ));
+            }
+        }
+    }
+
+    if !tasks.is_empty() {
+        run_downloads::<R>(
+            app,
+            instance_id,
+            &client,
+            tasks,
+            DownloadStage::Mods,
+            concurrency,
+            speed_limit_bytes_per_sec,
+            retry_count,
+            verify_hash,
+            Duration::from_secs(dl_settings.timeout.max(1)),
+            cancel,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    }
+
+    for entry in &manifest.mods {
+        let relative_path = safe_relative_path(&entry.path)
+            .ok_or_else(|| format!("Invalid mod path in PiPack manifest: {}", entry.path))?;
+        let target_path = instance_root.join(relative_path);
+        if !target_path.exists() {
+            continue;
+        }
+
+        let file_state = build_file_state(&target_path)?;
+        let hash = compute_file_hash(&target_path)?;
+        manifest_data.insert(
+            mod_manifest_key(&entry.file_name),
+            build_manifest_entry(entry.source.clone(), hash, file_state),
+        );
+    }
+
+    if !manifest_data.is_empty() {
+        let manifest_path = instance_root.join("mod_manifest.json");
+        let _ = std::fs::create_dir_all(instance_root.join("mods"));
+        write_mod_manifest(&manifest_path, &manifest_data)?;
+    }
+
+    Ok(())
 }
 
 async fn download_modrinth_mods<R: Runtime>(
@@ -456,7 +830,11 @@ async fn download_modrinth_mods<R: Runtime>(
         .map_err(|e| e.to_string())?;
 
     let mut tasks: Vec<DownloadTask> = Vec::new();
-    let mut manifest_data = ModManifest::new();
+    let mut tracked_manifest_sources: Vec<(
+        String,
+        crate::domain::mod_manifest::ModManifestSource,
+        PathBuf,
+    )> = Vec::new();
 
     for file in files {
         if let Some(env) = file.get("env") {
@@ -492,21 +870,24 @@ async fn download_modrinth_mods<R: Runtime>(
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| "download.bin".to_string());
 
-        let parts: Vec<&str> = url.split('/').collect();
-        if let Some(pos) = parts.iter().position(|&x| x == "data") {
-            if parts.len() > pos + 3 && parts[pos + 2] == "versions" {
-                manifest_data.insert(
-                    file_name.clone(),
-                    ModManifestEntry {
-                        platform: "modrinth".to_string(),
-                        project_id: parts[pos + 1].to_string(),
-                        file_id: parts[pos + 3].to_string(),
-                    },
-                );
+        let target_path = instance_root.join(&relative_path);
+        if should_track_mod_manifest(&relative_path) {
+            let parts: Vec<&str> = url.split('/').collect();
+            if let Some(pos) = parts.iter().position(|&x| x == "data") {
+                if parts.len() > pos + 3 && parts[pos + 2] == "versions" {
+                    tracked_manifest_sources.push((
+                        file_name.clone(),
+                        build_manifest_source(
+                            ModSourceKind::ModpackDeployment,
+                            Some("modrinth".to_string()),
+                            Some(parts[pos + 1].to_string()),
+                            Some(parts[pos + 3].to_string()),
+                        ),
+                        target_path.clone(),
+                    ));
+                }
             }
         }
-
-        let target_path = instance_root.join(&relative_path);
         let expected_sha1 = file
             .get("hashes")
             .and_then(|v| v.get("sha1"))
@@ -555,32 +936,38 @@ async fn download_modrinth_mods<R: Runtime>(
         });
     }
 
-    if tasks.is_empty() {
-        return Ok(());
+    if !tasks.is_empty() {
+        run_downloads::<R>(
+            app,
+            instance_id,
+            &client,
+            tasks,
+            DownloadStage::Mods,
+            concurrency,
+            speed_limit_bytes_per_sec,
+            retry_count,
+            verify_hash,
+            Duration::from_secs(dl_settings.timeout.max(1)),
+            cancel,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
     }
 
-    run_downloads::<R>(
-        app,
-        instance_id,
-        &client,
-        tasks,
-        DownloadStage::Mods,
-        concurrency,
-        speed_limit_bytes_per_sec,
-        retry_count,
-        verify_hash,
-        Duration::from_secs(dl_settings.timeout.max(1)),
-        cancel,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
+    let mut manifest_data = ModManifest::new();
+    for (file_name, source, target_path) in tracked_manifest_sources {
+        if let (Ok(file_state), Ok(hash)) = (
+            build_file_state(&target_path),
+            compute_file_hash(&target_path),
+        ) {
+            manifest_data.insert(file_name, build_manifest_entry(source, hash, file_state));
+        }
+    }
 
     if !manifest_data.is_empty() {
         let manifest_path = instance_root.join("mod_manifest.json");
         let _ = std::fs::create_dir_all(instance_root.join("mods"));
-        if let Ok(json) = serde_json::to_string_pretty(&manifest_data) {
-            let _ = fs::write(manifest_path, json);
-        }
+        let _ = crate::domain::mod_manifest::write_mod_manifest(&manifest_path, &manifest_data);
     }
 
     Ok(())
@@ -652,7 +1039,11 @@ async fn download_curseforge_mods<R: Runtime>(
     });
 
     let mut tasks: Vec<DownloadTask> = Vec::new();
-    let mut manifest_data = ModManifest::new();
+    let mut tracked_manifest_sources: Vec<(
+        String,
+        crate::domain::mod_manifest::ModManifestSource,
+        PathBuf,
+    )> = Vec::new();
     let mut info_results = info_stream.buffer_unordered(info_concurrency);
     while let Some(result) = info_results.next().await {
         let (entry, info) = result?;
@@ -661,15 +1052,6 @@ async fn download_curseforge_mods<R: Runtime>(
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| "mod.jar".to_string());
-
-        manifest_data.insert(
-            file_name.clone(),
-            ModManifestEntry {
-                platform: "curseforge".to_string(),
-                project_id: entry.project_id.to_string(),
-                file_id: entry.file_id.to_string(),
-            },
-        );
 
         let url = match info.download_url {
             // Replace spaces with %20 to avoid reqwest URL parse failures.
@@ -718,40 +1100,57 @@ async fn download_curseforge_mods<R: Runtime>(
         tasks.push(DownloadTask {
             url,
             fallback_urls: Vec::new(),
-            path: target_path,
+            path: target_path.clone(),
             temp_path,
-            name: file_name,
+            name: file_name.clone(),
             expected_sha1: if verify_hash { expected_sha1 } else { None },
             expected_size,
         });
+
+        tracked_manifest_sources.push((
+            file_name.clone(),
+            build_manifest_source(
+                ModSourceKind::ModpackDeployment,
+                Some("curseforge".to_string()),
+                Some(entry.project_id.to_string()),
+                Some(entry.file_id.to_string()),
+            ),
+            target_path.clone(),
+        ));
     }
 
-    if tasks.is_empty() {
-        return Ok(());
+    if !tasks.is_empty() {
+        run_downloads::<R>(
+            app,
+            instance_id,
+            &client,
+            tasks,
+            DownloadStage::Mods,
+            concurrency,
+            speed_limit_bytes_per_sec,
+            retry_count,
+            verify_hash,
+            Duration::from_secs(dl_settings.timeout.max(1)),
+            cancel,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
     }
 
-    run_downloads::<R>(
-        app,
-        instance_id,
-        &client,
-        tasks,
-        DownloadStage::Mods,
-        concurrency,
-        speed_limit_bytes_per_sec,
-        retry_count,
-        verify_hash,
-        Duration::from_secs(dl_settings.timeout.max(1)),
-        cancel,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
+    let mut manifest_data = ModManifest::new();
+    for (file_name, source, target_path) in tracked_manifest_sources {
+        if let (Ok(file_state), Ok(hash)) = (
+            build_file_state(&target_path),
+            compute_file_hash(&target_path),
+        ) {
+            manifest_data.insert(file_name, build_manifest_entry(source, hash, file_state));
+        }
+    }
 
     if !manifest_data.is_empty() {
         let manifest_path = instance_root.join("mod_manifest.json");
         let _ = std::fs::create_dir_all(instance_root.join("mods"));
-        if let Ok(json) = serde_json::to_string_pretty(&manifest_data) {
-            let _ = fs::write(manifest_path, json);
-        }
+        let _ = crate::domain::mod_manifest::write_mod_manifest(&manifest_path, &manifest_data);
     }
 
     Ok(())

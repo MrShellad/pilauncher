@@ -1,10 +1,10 @@
 // src-tauri/src/commands/java_cmd.rs
+use crate::services::downloader::transfer::{download_file, DownloadRateLimiter, DownloadTuning};
 use serde_json::Value;
 use std::env;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Runtime};
-use crate::services::downloader::transfer::{download_file, DownloadRateLimiter, DownloadTuning};
 
 #[derive(serde::Serialize, Clone)]
 struct ResourceDownloadEvent {
@@ -198,7 +198,9 @@ pub async fn download_java_env<R: Runtime>(
             let speed_limit_bytes_per_sec =
                 ConfigService::download_speed_limit_bytes_per_sec(&dl_settings);
             let rate_limiter = if speed_limit_bytes_per_sec > 0 {
-                Some(Arc::new(DownloadRateLimiter::new(speed_limit_bytes_per_sec)))
+                Some(Arc::new(DownloadRateLimiter::new(
+                    speed_limit_bytes_per_sec,
+                )))
             } else {
                 None
             };

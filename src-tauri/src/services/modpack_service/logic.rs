@@ -1,7 +1,9 @@
 use crate::domain::instance::{
     InstanceConfig, JavaConfig, LoaderConfig, MemoryConfig, ResolutionConfig,
 };
-use crate::domain::modpack::ModpackMetadata;
+use crate::domain::modpack::{
+    ModpackMetadata, PiPackManifest, PIPACK_FORMAT_VERSION, PIPACK_OVERRIDES_DIR,
+};
 use chrono::Local;
 use std::path::{Component, Path, PathBuf};
 
@@ -9,6 +11,7 @@ use std::path::{Component, Path, PathBuf};
 pub enum ModpackSourceHint {
     Modrinth,
     CurseForge,
+    PiPack,
 }
 
 pub fn sanitize_instance_id(instance_name: &str) -> String {
@@ -97,6 +100,9 @@ pub fn parse_curseforge_metadata(contents: &str) -> Result<ModpackMetadata, Stri
         loader_version,
         author,
         source: "CurseForge".to_string(),
+        pack_version: None,
+        packaged_at: None,
+        pack_uuid: None,
     })
 }
 
@@ -134,6 +140,33 @@ pub fn parse_modrinth_metadata(contents: &str) -> Result<ModpackMetadata, String
         loader_version,
         author: "Modrinth Creator".to_string(),
         source: "Modrinth".to_string(),
+        pack_version: None,
+        packaged_at: None,
+        pack_uuid: None,
+    })
+}
+
+pub fn parse_pipack_metadata(contents: &str) -> Result<ModpackMetadata, String> {
+    let manifest: PiPackManifest = serde_json::from_str(contents)
+        .map_err(|e| format!("Failed to parse PiPack manifest: {}", e))?;
+
+    if manifest.format_version != PIPACK_FORMAT_VERSION {
+        return Err(format!(
+            "Unsupported PiPack format version: {}",
+            manifest.format_version
+        ));
+    }
+
+    Ok(ModpackMetadata {
+        name: manifest.package.name,
+        version: manifest.minecraft.version,
+        loader: manifest.minecraft.loader,
+        loader_version: manifest.minecraft.loader_version,
+        author: manifest.package.author,
+        source: "PiPack".to_string(),
+        pack_version: Some(manifest.package.version),
+        packaged_at: Some(manifest.package.packaged_at),
+        pack_uuid: Some(manifest.package.uuid),
     })
 }
 
@@ -149,4 +182,64 @@ pub fn safe_relative_path(path: &str) -> Option<PathBuf> {
         }
     }
     Some(candidate.to_path_buf())
+}
+
+pub fn normalize_override_dir(value: Option<&str>) -> String {
+    let trimmed = value
+        .unwrap_or(PIPACK_OVERRIDES_DIR)
+        .trim_matches('/')
+        .trim_matches('\\');
+
+    if trimmed.is_empty() {
+        PIPACK_OVERRIDES_DIR.to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{normalize_override_dir, parse_pipack_metadata};
+
+    #[test]
+    fn parses_pipack_metadata() {
+        let metadata = parse_pipack_metadata(
+            r#"{
+                "formatVersion": 1,
+                "package": {
+                    "name": "Demo Pack",
+                    "version": "2.3.4",
+                    "author": "Pi",
+                    "description": "Demo",
+                    "uuid": "11111111-1111-1111-1111-111111111111",
+                    "packagedAt": "2026-04-06T12:00:00Z"
+                },
+                "minecraft": {
+                    "version": "1.20.1",
+                    "loader": "Forge",
+                    "loaderVersion": "47.4.18",
+                    "instanceId": "demo_pack",
+                    "instanceName": "Demo Pack"
+                },
+                "overrides": "overrides",
+                "mods": []
+            }"#,
+        )
+        .unwrap();
+
+        assert_eq!(metadata.name, "Demo Pack");
+        assert_eq!(metadata.version, "1.20.1");
+        assert_eq!(metadata.loader, "Forge");
+        assert_eq!(metadata.pack_version.as_deref(), Some("2.3.4"));
+        assert_eq!(
+            metadata.pack_uuid.as_deref(),
+            Some("11111111-1111-1111-1111-111111111111")
+        );
+    }
+
+    #[test]
+    fn normalizes_empty_override_dir() {
+        assert_eq!(normalize_override_dir(Some("")), "overrides");
+        assert_eq!(normalize_override_dir(Some("/custom/")), "custom");
+    }
 }

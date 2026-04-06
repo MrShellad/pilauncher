@@ -1,5 +1,5 @@
 use crate::domain::instance::InstanceConfig;
-use crate::domain::modpack::ModpackMetadata;
+use crate::domain::modpack::{ModpackMetadata, PiPackManifest, PIPACK_MANIFEST_FILE};
 use crate::services::config_service::ConfigService;
 use std::fs::{self, File};
 use std::io::{Read, Seek};
@@ -7,7 +7,10 @@ use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Runtime};
 use zip::ZipArchive;
 
-use super::logic::{parse_curseforge_metadata, parse_modrinth_metadata, ModpackSourceHint};
+use super::logic::{
+    normalize_override_dir, parse_curseforge_metadata, parse_modrinth_metadata,
+    parse_pipack_metadata, ModpackSourceHint,
+};
 
 pub fn resolve_base_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     let base_path_str = ConfigService::get_base_path(app)
@@ -37,18 +40,28 @@ pub fn read_zip_entry_to_string<R: Read + Seek>(
 pub fn detect_modpack_source<R: Read + Seek>(
     archive: &mut ZipArchive<R>,
 ) -> Result<ModpackSourceHint, String> {
+    if archive.by_name(PIPACK_MANIFEST_FILE).is_ok() {
+        return Ok(ModpackSourceHint::PiPack);
+    }
     if archive.by_name("modrinth.index.json").is_ok() {
         return Ok(ModpackSourceHint::Modrinth);
     }
     if archive.by_name("manifest.json").is_ok() {
         return Ok(ModpackSourceHint::CurseForge);
     }
-    Err("Unsupported modpack: missing modrinth.index.json and manifest.json".to_string())
+    Err(
+        "Unsupported modpack: missing pi_manifest.json, modrinth.index.json and manifest.json"
+            .to_string(),
+    )
 }
 
 pub fn parse_modpack(path: &str) -> Result<ModpackMetadata, String> {
     let mut archive = open_modpack_archive(path)?;
     match detect_modpack_source(&mut archive)? {
+        ModpackSourceHint::PiPack => {
+            let contents = read_zip_entry_to_string(&mut archive, PIPACK_MANIFEST_FILE)?;
+            parse_pipack_metadata(&contents)
+        }
         ModpackSourceHint::Modrinth => {
             let contents = read_zip_entry_to_string(&mut archive, "modrinth.index.json")?;
             parse_modrinth_metadata(&contents)
@@ -58,6 +71,12 @@ pub fn parse_modpack(path: &str) -> Result<ModpackMetadata, String> {
             parse_curseforge_metadata(&contents)
         }
     }
+}
+
+pub fn read_pipack_manifest(path: &str) -> Result<PiPackManifest, String> {
+    let mut archive = open_modpack_archive(path)?;
+    let contents = read_zip_entry_to_string(&mut archive, PIPACK_MANIFEST_FILE)?;
+    serde_json::from_str(&contents).map_err(|e| format!("Failed to parse PiPack manifest: {}", e))
 }
 
 pub fn create_instance_layout(instance_root: &Path) -> Result<(), String> {
@@ -125,6 +144,18 @@ pub fn extract_overrides(zip_path: &str, target_dir: &Path) -> Result<(), String
 fn resolve_override_prefixes<R: Read + Seek>(
     archive: &mut ZipArchive<R>,
 ) -> Result<Vec<PathBuf>, String> {
+    if let Ok(mut pipack_file) = archive.by_name(PIPACK_MANIFEST_FILE) {
+        let mut contents = String::new();
+        pipack_file
+            .read_to_string(&mut contents)
+            .map_err(|e| e.to_string())?;
+        let manifest: PiPackManifest =
+            serde_json::from_str(&contents).map_err(|e| e.to_string())?;
+        return Ok(vec![normalize_override_prefix(&normalize_override_dir(
+            Some(&manifest.overrides),
+        ))]);
+    }
+
     if let Ok(mut manifest_file) = archive.by_name("manifest.json") {
         let mut contents = String::new();
         manifest_file
@@ -157,13 +188,63 @@ fn normalize_override_prefix(prefix: &str) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::extract_overrides;
+    use super::{detect_modpack_source, extract_overrides, open_modpack_archive};
     use std::fs::{self, File};
     use std::io::Write;
     use std::path::Path;
     use uuid::Uuid;
     use zip::write::SimpleFileOptions;
     use zip::{CompressionMethod, ZipWriter};
+
+    #[test]
+    fn detects_pipack_source() {
+        let temp_root = create_temp_dir("pipack_detect");
+        let zip_path = temp_root.join("pack.pipack");
+
+        write_zip(
+            &zip_path,
+            &[(
+                "pi_manifest.json",
+                r#"{"formatVersion":1,"package":{"name":"Pack","version":"1.0.0","author":"Pi","description":"","uuid":"11111111-1111-1111-1111-111111111111","packagedAt":"2026-04-06T00:00:00Z"},"minecraft":{"version":"1.20.1","loader":"Fabric","loaderVersion":"0.16.10","instanceId":"pack","instanceName":"Pack"},"overrides":"overrides","mods":[]}"#,
+            )],
+        );
+
+        let mut archive = open_modpack_archive(zip_path.to_str().unwrap()).unwrap();
+        assert!(matches!(
+            detect_modpack_source(&mut archive).unwrap(),
+            crate::services::modpack_service::logic::ModpackSourceHint::PiPack
+        ));
+
+        let _ = fs::remove_dir_all(temp_root);
+    }
+
+    #[test]
+    fn extracts_pipack_override_directory() {
+        let temp_root = create_temp_dir("pipack_overrides");
+        let zip_path = temp_root.join("pack.pipack");
+        let instance_dir = temp_root.join("instance");
+
+        write_zip(
+            &zip_path,
+            &[
+                (
+                    "pi_manifest.json",
+                    r#"{"formatVersion":1,"package":{"name":"Pack","version":"1.0.0","author":"Pi","description":"","uuid":"11111111-1111-1111-1111-111111111111","packagedAt":"2026-04-06T00:00:00Z"},"minecraft":{"version":"1.20.1","loader":"Fabric","loaderVersion":"0.16.10","instanceId":"pack","instanceName":"Pack"},"overrides":"custom-overrides","mods":[]}"#,
+                ),
+                ("custom-overrides/config/settings.txt", "ok"),
+            ],
+        );
+
+        fs::create_dir_all(&instance_dir).unwrap();
+        extract_overrides(zip_path.to_str().unwrap(), &instance_dir).unwrap();
+
+        assert_eq!(
+            fs::read_to_string(instance_dir.join("config/settings.txt")).unwrap(),
+            "ok"
+        );
+
+        let _ = fs::remove_dir_all(temp_root);
+    }
 
     #[test]
     fn extracts_declared_curseforge_override_directory() {

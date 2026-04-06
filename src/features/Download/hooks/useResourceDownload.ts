@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 
 import mcvData from '../../../assets/download/mcv.json';
 import { searchModrinth, type ModrinthProject } from '../../InstanceDetail/logic/modrinthApi';
@@ -115,6 +116,20 @@ export const useResourceDownload = (
     ? (lockInstanceEnvironment && resolvedInstanceLoaderType ? resolvedInstanceLoaderType : loaderType)
     : '';
 
+  const refreshInstalledMods = useCallback(async () => {
+    if (!instanceId) {
+      setInstalledMods([]);
+      return;
+    }
+
+    try {
+      const mods = await modService.getMods(instanceId);
+      setInstalledMods(mods || []);
+    } catch {
+      setInstalledMods([]);
+    }
+  }, [instanceId]);
+
   useEffect(() => {
     const initEnv = async () => {
       if (!instanceId) {
@@ -122,12 +137,7 @@ export const useResourceDownload = (
         return;
       }
 
-      try {
-        const mods = await modService.getMods(instanceId);
-        setInstalledMods(mods || []);
-      } catch {
-        setInstalledMods([]);
-      }
+      await refreshInstalledMods();
 
       if (isCacheValid) return;
 
@@ -146,7 +156,40 @@ export const useResourceDownload = (
     };
 
     void initEnv();
-  }, [instanceId, isCacheValid]);
+  }, [instanceId, isCacheValid, refreshInstalledMods]);
+
+  useEffect(() => {
+    if (!instanceId) return;
+
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const unlistenPromise = listen<{
+      stage?: string;
+      current?: number;
+      total?: number;
+    }>('resource-download-progress', (event) => {
+      const payload = event.payload;
+      const isDone = payload?.stage === 'DONE'
+        || (
+          typeof payload?.current === 'number'
+          && typeof payload?.total === 'number'
+          && payload.total > 0
+          && payload.current >= payload.total
+        );
+
+      if (!isDone) return;
+
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        void refreshInstalledMods();
+      }, 150);
+    });
+
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [instanceId, refreshInstalledMods]);
 
   useEffect(() => {
     let cancelled = false;
@@ -360,6 +403,7 @@ export const useResourceDownload = (
     instanceConfig,
     isEnvLoaded,
     installedMods,
+    refreshInstalledMods,
     mcVersionOptions,
     categoryOptions,
     isCurseForgeAvailable: hasCurseForgeApiKey(),

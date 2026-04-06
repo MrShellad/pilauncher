@@ -41,6 +41,20 @@ export interface OnlineServer {
   tags?: string[];
 }
 
+export interface ServerBindableInstance {
+  id: string;
+  name: string;
+  version: string;
+  loader: string;
+}
+
+export interface ServerBindingRecord {
+  uuid: string;
+  name: string;
+  ip: string;
+  port: number;
+}
+
 export interface AdSlot {
   id: string;
   title: string;

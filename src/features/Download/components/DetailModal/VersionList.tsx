@@ -81,7 +81,10 @@ export const VersionList: React.FC<VersionListProps> = ({
       ) : (
         <>
           {displayVersions.map((version, idx) => {
-            const isInstalled = installedVersionIds.includes(version.id) || installedVersionIds.includes(version.version_number);
+            const isInstalled =
+              installedVersionIds.includes(version.id) ||
+              installedVersionIds.includes(version.version_number) ||
+              installedVersionIds.includes(version.file_name);
 
             return (
               <FocusItem

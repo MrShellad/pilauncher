@@ -11,7 +11,7 @@ import liteloaderIcon from '../../../../../assets/icons/tags/loaders/liteloader.
 import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../../ui/focus/FocusItem';
 import { ControlHint } from '../../../../../ui/components/ControlHint';
-import type { ModMeta } from '../../../logic/modService';
+import { isProjectInstalled, type ModMeta } from '../../../logic/modService';
 import type { ModrinthProject } from '../../../logic/modrinthApi';
 import {
   getLocalizedDownloadTagLabel,
@@ -412,11 +412,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   const isInstalled = useCallback(
     (project: ModrinthProject) =>
       isSessionInstalled(project) ||
-      installedMods.some(
-        (mod) =>
-          mod.modId === project.id ||
-          (mod.fileName || '').toLowerCase().includes((project.slug || '').toLowerCase())
-      ),
+      isProjectInstalled(project, installedMods),
     [installedMods, isSessionInstalled]
   );
 

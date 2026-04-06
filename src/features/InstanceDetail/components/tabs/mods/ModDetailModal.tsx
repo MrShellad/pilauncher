@@ -32,7 +32,10 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({ mod, instanceCon
     if (mod) {
       setDisplayMod(mod);
       // ✅ 强制联网更新一次 mod 信息
-      const query = mod.manifestEntry?.projectId || mod.modId || mod.fileName.replace('.jar', '').replace('.disabled', '').replace(/[-_v0-9\.]+$/, '');
+      const query =
+        mod.manifestEntry?.source.projectId ||
+        mod.modId ||
+        mod.fileName.replace('.jar', '').replace('.disabled', '').replace(/[-_v0-9\.]+$/, '');
       fetchModrinthInfo(query).then(netInfo => {
         if (netInfo) {
           setDisplayMod(prev => prev ? { ...prev, networkInfo: netInfo } : null);

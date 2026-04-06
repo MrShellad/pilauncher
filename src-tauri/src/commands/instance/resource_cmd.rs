@@ -1,5 +1,4 @@
 // src-tauri/src/commands/instance/resource_cmd.rs
-use crate::services::config_service::ConfigService;
 use crate::services::instance::resource_manager::{
     ResourceItem, ResourceManager, ResourceSnapshot, ResourceType,
 };
@@ -154,6 +153,7 @@ pub async fn update_mod_manifest<R: Runtime>(
     app: AppHandle<R>,
     instance_id: String,
     file_name: String,
+    source_kind: String,
     platform: String,
     project_id: String,
     file_id: String,
@@ -162,6 +162,7 @@ pub async fn update_mod_manifest<R: Runtime>(
         &app,
         &instance_id,
         &file_name,
+        &source_kind,
         &platform,
         &project_id,
         &file_id,

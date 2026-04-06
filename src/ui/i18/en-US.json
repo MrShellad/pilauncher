@@ -57,6 +57,34 @@
     "onlineServers": "Community Servers",
     "piHub": "PiHub Direct Connect"
   },
+  "instanceExport": {
+    "optimization": {
+      "formats": {
+        "zip": {
+          "label": "Standard ZIP",
+          "desc": "Maximum compatibility and full file bundling."
+        },
+        "curseforge": {
+          "label": "CurseForge",
+          "desc": "Exports a CurseForge-style archive with manifest.json."
+        },
+        "mrpack": {
+          "label": "Modrinth (mrpack)",
+          "desc": "Exports a Modrinth-compatible mrpack archive."
+        },
+        "pipack": {
+          "label": "PiPack",
+          "desc": "PiLauncher smart pack with mixed-source mod recovery."
+        }
+      },
+      "manifest": {
+        "title": "MANIFEST MODE",
+        "primary": "Prefer platform references over bundling mod files when the source can be resolved.",
+        "fallback": "Mods without a recoverable platform reference stay inside the archive as fallbacks.",
+        "pipackLocked": "PiPack always writes `pi_manifest.json` and only bundles mods that cannot be restored from their source platform."
+      }
+    }
+  },
   "download": {
     "tabs": {
       "mod": "Mods",

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Blocks, Image as ImageIcon, Package, type LucideIcon } from 'lucide-react';
@@ -10,7 +10,7 @@ import { ResourceGrid } from '../features/Download/components/ResourceGrid';
 import { fetchCurseForgeVersions } from '../features/Download/logic/curseforgeApi';
 import { useResourceDownload, type TabType } from '../features/Download/hooks/useResourceDownload';
 import { fetchModrinthVersions, type ModrinthProject, type OreProjectVersion } from '../features/InstanceDetail/logic/modrinthApi';
-import { modService } from '../features/InstanceDetail/logic/modService';
+import { getInstalledProjectIds, getInstalledVersionIds, modService } from '../features/InstanceDetail/logic/modService';
 import { useDownloadStore } from '../store/useDownloadStore';
 import { useLauncherStore } from '../store/useLauncherStore';
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
@@ -47,6 +47,7 @@ const ResourceDownloadPage: React.FC = () => {
     isLoadingMore,
     isEnvLoaded,
     installedMods,
+    refreshInstalledMods,
     instanceConfig,
     mcVersionOptions,
     categoryOptions,
@@ -60,6 +61,7 @@ const ResourceDownloadPage: React.FC = () => {
   const lastFocusBeforeModalRef = React.useRef<string>('download-search-input');
   const didInitialFocusRef = React.useRef(false);
   const pendingDepIdsRef = React.useRef<Set<string>>(new Set());
+  const installedVersionIds = useMemo(() => getInstalledVersionIds(installedMods), [installedMods]);
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -92,7 +94,7 @@ const ResourceDownloadPage: React.FC = () => {
 
     const subFolder = subFolderMap[activeTab];
 
-    const executeDownload = (targetVersion: OreProjectVersion) => {
+    const executeDownload = async (targetVersion: OreProjectVersion, customProjectId?: string) => {
       useDownloadStore.getState().addOrUpdateTask({
         id: targetVersion.file_name,
         taskType: 'resource',
@@ -103,12 +105,32 @@ const ResourceDownloadPage: React.FC = () => {
         message: t('download.progress.connecting', { defaultValue: 'Connecting...' })
       });
 
-      invoke('download_resource', {
-        url: targetVersion.download_url,
-        fileName: targetVersion.file_name,
-        instanceId: targetInstanceId,
-        subFolder
-      }).catch((error) => {
+      try {
+        await invoke('download_resource', {
+          url: targetVersion.download_url,
+          fileName: targetVersion.file_name,
+          instanceId: targetInstanceId,
+          subFolder
+        });
+
+        if (activeTab === 'mod') {
+          const projectId = customProjectId || selectedProject?.id || '';
+          if (projectId) {
+            await invoke('update_mod_manifest', {
+              instanceId: targetInstanceId,
+              fileName: targetVersion.file_name,
+              sourceKind: 'launcherDownload',
+              platform: source === 'curseforge' ? 'curseforge' : 'modrinth',
+              projectId,
+              fileId: targetVersion.id
+            });
+          }
+
+          if (targetInstanceId === instanceId) {
+            await refreshInstalledMods();
+          }
+        }
+      } catch (error) {
         console.error(`下载 ${targetVersion.file_name} 失败:`, error);
         useDownloadStore.getState().addOrUpdateTask({
           id: targetVersion.file_name,
@@ -117,16 +139,16 @@ const ResourceDownloadPage: React.FC = () => {
             error: String(error)
           })
         });
-      });
+      }
     };
 
-    executeDownload(version);
+    await executeDownload(version);
 
     if (!autoInstallDeps || !version.dependencies?.length) return;
 
     try {
       const currentInstalledMods = await modService.getMods(targetInstanceId);
-      const installedIds = currentInstalledMods.map((mod) => mod.modId).filter(Boolean);
+      const installedIds = getInstalledProjectIds(currentInstalledMods);
       const missingDeps = version.dependencies.filter(
         (dependency) => 
           dependency.dependency_type === 'required' && 
@@ -159,14 +181,13 @@ const ResourceDownloadPage: React.FC = () => {
           );
 
           if (depVersions.length > 0) {
-            executeDownload(depVersions[0]);
-          } else {
-            pendingDepIdsRef.current.delete(dependency.project_id!);
+            await executeDownload(depVersions[0], dependency.project_id!);
           }
         } catch (err) {
-          pendingDepIdsRef.current.delete(dependency.project_id!);
           console.error(`处理前置依赖 ${dependency.project_id} 失败:`, err);
         }
+
+        pendingDepIdsRef.current.delete(dependency.project_id!);
       }
     } catch (error) {
       console.error('处理前置依赖下载总流程失败:', error);
@@ -242,7 +263,7 @@ const ResourceDownloadPage: React.FC = () => {
           }, 50);
         }}
         onDownload={handleStartDownload}
-        installedVersionIds={installedMods.map((mod) => mod.modId || '').filter(Boolean)}
+        installedVersionIds={installedVersionIds}
         searchMcVersion={mcVersion}
         searchLoader={loaderType}
         activeTab={activeTab}

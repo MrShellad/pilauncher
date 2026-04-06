@@ -96,9 +96,10 @@ impl InstanceCreationService {
 
         if let Some(binding) = &payload.server_binding {
             let bindings_index_path = base_dir.join("instances").join("server_bindings.json");
-            
+
             let mut all_bindings: serde_json::Value = if bindings_index_path.exists() {
-                let idx_content = std::fs::read_to_string(&bindings_index_path).unwrap_or_else(|_| "{}".to_string());
+                let idx_content = std::fs::read_to_string(&bindings_index_path)
+                    .unwrap_or_else(|_| "{}".to_string());
                 serde_json::from_str(&idx_content).unwrap_or_else(|_| serde_json::json!({}))
             } else {
                 serde_json::json!({})

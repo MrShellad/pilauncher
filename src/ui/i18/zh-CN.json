@@ -57,6 +57,34 @@
     "onlineServers": "社区服务器",
     "piHub": "PiHub 直连"
   },
+  "instanceExport": {
+    "optimization": {
+      "formats": {
+        "zip": {
+          "label": "标准 ZIP",
+          "desc": "兼容性最高，完整打包所选文件。"
+        },
+        "curseforge": {
+          "label": "CurseForge",
+          "desc": "导出带 manifest.json 的 CurseForge 风格整合包。"
+        },
+        "mrpack": {
+          "label": "Modrinth (mrpack)",
+          "desc": "导出兼容 Modrinth 的 mrpack 整合包。"
+        },
+        "pipack": {
+          "label": "PiPack",
+          "desc": "PiLauncher 专属智能整合包，支持混合来源 Mod 恢复。"
+        }
+      },
+      "manifest": {
+        "title": "MANIFEST 模式",
+        "primary": "优先记录来源平台引用，而不是把 Mod 文件全部打进压缩包。",
+        "fallback": "无法从来源平台恢复的 Mod 会自动作为兜底文件保留在压缩包内。",
+        "pipackLocked": "PiPack 会始终写入 `pi_manifest.json`，并且只打包无法从来源平台恢复的 Mod。"
+      }
+    }
+  },
   "download": {
     "tabs": {
       "modpack": "整合包",

@@ -1087,8 +1087,14 @@ pub async fn import_modpack<R: Runtime>(
             .replace('\\', "");
 
         let cancel = deployment_cancel::register(&i_id);
-        let result =
-            modpack_service::execute_import(&app, &zip_path, &instance_name, &cancel, server_binding).await;
+        let result = modpack_service::execute_import(
+            &app,
+            &zip_path,
+            &instance_name,
+            &cancel,
+            server_binding,
+        )
+        .await;
         deployment_cancel::unregister(&i_id);
 
         if let Err(e) = result {
@@ -1161,9 +1167,12 @@ pub async fn download_and_import_modpack<R: Runtime>(
         let temp_dir = std::env::temp_dir();
         let temp_path = temp_dir.join(&file_name);
         let candidate_urls = vec![normalized_url.clone()];
-        let speed_limit_bytes_per_sec = ConfigService::download_speed_limit_bytes_per_sec(&dl_settings);
+        let speed_limit_bytes_per_sec =
+            ConfigService::download_speed_limit_bytes_per_sec(&dl_settings);
         let rate_limiter = if speed_limit_bytes_per_sec > 0 {
-            Some(Arc::new(DownloadRateLimiter::new(speed_limit_bytes_per_sec)))
+            Some(Arc::new(DownloadRateLimiter::new(
+                speed_limit_bytes_per_sec,
+            )))
         } else {
             None
         };

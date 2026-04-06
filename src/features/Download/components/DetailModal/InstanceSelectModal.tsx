@@ -9,7 +9,7 @@ import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreModal } from '../../../../ui/primitives/OreModal';
 import { getProjectDetails, type OreProjectVersion } from '../../../InstanceDetail/logic/modrinthApi';
-import { modService } from '../../../InstanceDetail/logic/modService';
+import { getInstalledProjectIds, modService } from '../../../InstanceDetail/logic/modService';
 
 interface CompatibleInstance {
   id: string;
@@ -221,7 +221,7 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
         await Promise.all(
           selectedIds.map(async (instanceId) => {
             const installedMods = await modService.getMods(instanceId).catch(() => []);
-            const installedModIds = new Set(installedMods.map((mod) => mod.modId).filter(Boolean));
+            const installedModIds = new Set(getInstalledProjectIds(installedMods));
 
             requiredDeps.forEach((dependency) => {
               const dependencyId = dependency.project_id;

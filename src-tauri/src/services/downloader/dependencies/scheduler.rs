@@ -112,7 +112,9 @@ pub async fn run_downloads<R: Runtime>(
     });
     let failure_reason = Arc::new(tokio::sync::Mutex::new(None::<String>));
     let rate_limiter = if speed_limit_bytes_per_sec > 0 {
-        Some(Arc::new(DownloadRateLimiter::new(speed_limit_bytes_per_sec)))
+        Some(Arc::new(DownloadRateLimiter::new(
+            speed_limit_bytes_per_sec,
+        )))
     } else {
         None
     };

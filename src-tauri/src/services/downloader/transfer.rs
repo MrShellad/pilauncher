@@ -210,7 +210,9 @@ async fn download_chunked_stream(
     on_bytes: Option<&Arc<dyn Fn(u64) + Send + Sync>>,
 ) -> AppResult<DownloadOutcome> {
     if !tuning.chunked_enabled || tuning.chunked_threads < CHUNKED_MIN_SEGMENTS {
-        return Err(AppError::Generic("chunked download is disabled".to_string()));
+        return Err(AppError::Generic(
+            "chunked download is disabled".to_string(),
+        ));
     }
 
     let probe = client
@@ -227,9 +229,8 @@ async fn download_chunked_stream(
         )));
     }
 
-    let total_size = parse_total_size_from_content_range(probe.headers()).ok_or_else(|| {
-        AppError::Generic(format!("missing content-range header for {}", url))
-    })?;
+    let total_size = parse_total_size_from_content_range(probe.headers())
+        .ok_or_else(|| AppError::Generic(format!("missing content-range header for {}", url)))?;
 
     if !tuning.should_use_chunked(total_size) {
         return Err(AppError::Generic(format!(
@@ -243,7 +244,9 @@ async fn download_chunked_stream(
         .max(CHUNKED_MIN_SEGMENTS)
         .min(usize::try_from(total_size).unwrap_or(usize::MAX).max(1));
     if segment_count < CHUNKED_MIN_SEGMENTS {
-        return Err(AppError::Generic("chunked download needs at least 2 segments".to_string()));
+        return Err(AppError::Generic(
+            "chunked download needs at least 2 segments".to_string(),
+        ));
     }
 
     if let Some(parent) = temp_path.parent() {

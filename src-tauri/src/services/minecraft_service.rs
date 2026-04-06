@@ -172,7 +172,9 @@ impl McMetadataService {
                             let _ = tokio::fs::write(&manifest_path, &manifest_content).await;
                             break 'fetch_attempts;
                         }
-                        Ok(resp) if resp.status().as_u16() == 429 || resp.status().is_server_error() => {
+                        Ok(resp)
+                            if resp.status().as_u16() == 429 || resp.status().is_server_error() =>
+                        {
                             last_error = Some(format!("{} from {}", resp.status(), candidate_url));
                         }
                         Ok(resp) => {
@@ -234,11 +236,9 @@ impl McMetadataService {
                     *cache = Some((manifest_url, fallback.clone()));
                     return Ok(fallback);
                 }
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    err.to_string(),
-                )
-                .into());
+                return Err(
+                    std::io::Error::new(std::io::ErrorKind::InvalidData, err.to_string()).into(),
+                );
             }
         };
 

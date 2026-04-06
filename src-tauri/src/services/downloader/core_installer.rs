@@ -152,7 +152,8 @@ pub async fn install_vanilla_core<R: Runtime>(
             ]
         };
 
-        let mut manifest_res: Option<serde_json::Value> = read_cached_manifest(&manifest_cache_path);
+        let mut manifest_res: Option<serde_json::Value> =
+            read_cached_manifest(&manifest_cache_path);
         let mut version_url = manifest_res
             .as_ref()
             .and_then(|manifest| manifest["versions"].as_array())
@@ -196,10 +197,9 @@ pub async fn install_vanilla_core<R: Runtime>(
             )
         })?;
 
-        let version_url = version_url
-            .ok_or_else(|| {
-                std::io::Error::new(std::io::ErrorKind::NotFound, "Target version URL not found")
-            })?;
+        let version_url = version_url.ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "Target version URL not found")
+        })?;
 
         let mirror_url = if dl_settings.vanilla_source == "official" {
             version_url.to_string()
@@ -281,7 +281,9 @@ pub async fn install_vanilla_core<R: Runtime>(
     };
     let speed_limit_bytes_per_sec = ConfigService::download_speed_limit_bytes_per_sec(&dl_settings);
     let rate_limiter = if speed_limit_bytes_per_sec > 0 {
-        Some(Arc::new(DownloadRateLimiter::new(speed_limit_bytes_per_sec)))
+        Some(Arc::new(DownloadRateLimiter::new(
+            speed_limit_bytes_per_sec,
+        )))
     } else {
         None
     };

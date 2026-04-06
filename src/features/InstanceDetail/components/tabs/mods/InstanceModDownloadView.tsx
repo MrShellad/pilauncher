@@ -18,6 +18,7 @@ import {
   type OreProjectDependency,
   type OreProjectVersion
 } from '../../../logic/modrinthApi';
+import { getInstalledProjectIds, getInstalledVersionIds } from '../../../logic/modService';
 import { useDownloadStore } from '../../../../../store/useDownloadStore';
 import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../../ui/focus/FocusItem';
@@ -188,6 +189,7 @@ export const InstanceModDownloadView: React.FC<{
     isLoadingMore,
     isEnvLoaded,
     installedMods,
+    refreshInstalledMods,
     instanceConfig,
     resolvedMcVersion,
     resolvedLoaderType,
@@ -212,10 +214,8 @@ export const InstanceModDownloadView: React.FC<{
     ? (resolvedLoaderType || resolveInstanceLoaderType(instanceConfig))
     : '';
   const loaderLabel = prettifyLoader(targetLoader);
-  const installedModIds = useMemo(
-    () => installedMods.map((item) => item.modId || '').filter(Boolean),
-    [installedMods]
-  );
+  const installedModIds = useMemo(() => getInstalledProjectIds(installedMods), [installedMods]);
+  const installedVersionIds = useMemo(() => getInstalledVersionIds(installedMods), [installedMods]);
   const yHintText = useMemo(() => '回到顶部', []);
   const subFolder = resourceTab === 'shader'
     ? 'shaderpacks'
@@ -313,10 +313,15 @@ export const InstanceModDownloadView: React.FC<{
           await invoke('update_mod_manifest', {
             instanceId: targetInstanceId,
             fileName: version.file_name,
+            sourceKind: 'launcherDownload',
             platform: source === 'curseforge' ? 'curseforge' : 'modrinth',
             projectId,
             fileId: version.id, 
           });
+        }
+
+        if (targetInstanceId === instanceId) {
+          await refreshInstalledMods();
         }
       }
     } catch (error) {
@@ -326,7 +331,7 @@ export const InstanceModDownloadView: React.FC<{
         message: `下载失败: ${error}`
       });
     }
-  }, [subFolder, resourceTab, source, selectedProject]);
+  }, [instanceId, refreshInstalledMods, resourceTab, selectedProject, source, subFolder]);
 
   const resolveMissingDependencyInfo = useCallback(async (
     dependencies: OreProjectDependency[],
@@ -372,12 +377,14 @@ export const InstanceModDownloadView: React.FC<{
 
           if (dependencyVersions.length > 0) {
             await enqueueDownload(dependencyVersions[0], targetInstanceId, dependency.project_id);
-          } else {
-             pendingDepIdsRef.current.delete(dependency.project_id);
           }
         } catch (error) {
-          pendingDepIdsRef.current.delete(dependency.project_id);
           console.error(`前置 ${dependency.project_id} 自动下载失败:`, error);
+        }
+      }
+      for (const dependency of dependenciesToInstall) {
+        if (dependency.project_id) {
+          pendingDepIdsRef.current.delete(dependency.project_id);
         }
       }
     }
@@ -523,7 +530,7 @@ export const InstanceModDownloadView: React.FC<{
           setTimeout(() => setFocus('download-grid-item-0'), 50);
         }}
         onDownload={handleStartDownload}
-        installedVersionIds={installedModIds}
+        installedVersionIds={installedVersionIds}
         searchMcVersion={targetMc}
         searchLoader={resourceTab === 'mod' ? targetLoader : ''}
         activeTab={resourceTab}

@@ -29,7 +29,10 @@ export const useModManager = (instanceId: string) => {
       const enrichedMods = localMods.map(m => ({ 
         ...m, 
         isFetchingNetwork: !m.name || (!m.iconAbsolutePath && !m.networkIconUrl),
-        isCheckingUpdate: !!m.manifestEntry && m.manifestEntry.platform === 'modrinth'
+        isCheckingUpdate:
+          m.manifestEntry?.source.platform === 'modrinth' &&
+          !!m.manifestEntry?.source.projectId &&
+          !!m.manifestEntry?.source.fileId
       }));
       setMods(enrichedMods);
 
@@ -54,12 +57,20 @@ export const useModManager = (instanceId: string) => {
         }
 
         // Check for updates
-        if (mod.manifestEntry && mod.manifestEntry.platform === 'modrinth') {
+        if (
+          mod.manifestEntry?.source.platform === 'modrinth' &&
+          mod.manifestEntry.source.projectId &&
+          mod.manifestEntry.source.fileId
+        ) {
           try {
-            const versions = await fetchModrinthVersions(mod.manifestEntry.projectId, targetMc, targetLoader);
+            const versions = await fetchModrinthVersions(
+              mod.manifestEntry.source.projectId,
+              targetMc,
+              targetLoader
+            );
             if (versions && versions.length > 0) {
               const latest = versions[0];
-              if (latest.id !== mod.manifestEntry.fileId) {
+              if (latest.id !== mod.manifestEntry.source.fileId) {
                 setMods(current => {
                   const newMods = [...current];
                   newMods[index].hasUpdate = true;

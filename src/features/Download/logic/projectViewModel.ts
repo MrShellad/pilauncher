@@ -1,5 +1,5 @@
 import type { ModrinthProject } from '../../InstanceDetail/logic/modrinthApi';
-import type { ModMeta } from '../../InstanceDetail/logic/modService';
+import { isProjectInstalled, type ModMeta } from '../../InstanceDetail/logic/modService';
 
 const KNOWN_LOADERS = ['fabric', 'forge', 'neoforge', 'quilt', 'liteloader'] as const;
 
@@ -80,9 +80,5 @@ export function buildProjectViewModel(
  * 判断一个 mod 是否已安装
  */
 export function checkIsInstalled(project: ModrinthProject, installedMods: ModMeta[]): boolean {
-  return installedMods.some(
-    (mod) =>
-      mod.modId === project.id ||
-      (mod.fileName || '').toLowerCase().includes((project.slug || '').toLowerCase())
-  );
+  return isProjectInstalled(project, installedMods);
 }
