@@ -10,7 +10,7 @@ use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter, Runtime};
+use tauri::{AppHandle, Emitter, Manager, Runtime}; // 加入 Manager
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -30,7 +30,7 @@ pub struct ModMetadata {
 }
 
 // 定义一个用于网络数据缓存的结构体
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Serialize, Deserialize, Clone, Default, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct ModCacheInfo {
     pub name: Option<String>,
@@ -79,31 +79,26 @@ impl ModManagerService {
     }
 
     // ================= 1. 读取并解析 Mods =================
-    pub fn get_mods<R: Runtime>(
+    pub async fn get_mods<R: Runtime>(
         app: &AppHandle<R>,
         instance_id: &str,
     ) -> Result<Vec<ModMetadata>, String> {
         let instance_dir = Self::get_instance_dir(app, instance_id)?;
         let mods_dir = instance_dir.join("mods");
         let shared_mods_dir = Self::get_shared_mods_dir(app)?;
-        let icons_dir = shared_mods_dir.join("icons");
-        let cache_path = shared_mods_dir.join("global_mod_cache.json");
+        let icons_base_dir = shared_mods_dir.join("icons");
 
         fs::create_dir_all(&mods_dir).ok();
-        fs::create_dir_all(&icons_dir).ok();
+        fs::create_dir_all(&icons_base_dir).ok();
 
-        // ✅ 读取公共本地缓存字典
-        let cache_dict: HashMap<String, ModCacheInfo> = if cache_path.exists() {
-            let content = fs::read_to_string(&cache_path).unwrap_or_default();
-            serde_json::from_str(&content).unwrap_or_default()
-        } else {
-            HashMap::new()
-        };
+        // 获取 DB Pool 进行全局缓存查询
+        let db = app.state::<crate::services::db_service::AppDatabase>();
+        let pool = db.pool.clone();
 
-        // ✅ 读取 mod_manifest.json 映射字典（位于实例根目录）
         let manifest_path = instance_dir.join("mod_manifest.json");
-        let manifest_dict = ModManifestService::load_from_mods_dir(&mods_dir, &manifest_path)?;
+        let mut manifest_dict = ModManifestService::load_from_mods_dir(&mods_dir, &manifest_path)?;
 
+        let mut tasks = Vec::new();
         let mut mods = Vec::new();
 
         if let Ok(entries) = fs::read_dir(&mods_dir) {
@@ -119,50 +114,197 @@ impl ModManagerService {
                     if file_name.ends_with(".jar") || file_name.ends_with(".jar.disabled") {
                         let is_enabled = !file_name.ends_with(".disabled");
                         let base_name = file_name.trim_end_matches(".disabled").to_string();
+                        
+                        let current_file_state = crate::domain::mod_manifest::build_file_state(&path).unwrap_or_default();
+                        let manifest_entry = manifest_dict.get(&base_name).cloned();
+                        
+                        // 1. FAST PATH: manifest_entry 存在且 file_state 完全匹配，无修改。
+                        // 强制治愈条件：如果 entry 中没有 name，说明是老版本的错误缓存，强制走 SLOW PATH 愈合。
+                        let is_fast_path = match &manifest_entry {
+                            Some(entry) => entry.file_state.as_ref() == Some(&current_file_state) && entry.name.is_some(),
+                            None => false,
+                        };
 
-                        // ✅ 先解析 JAR 基础信息（暂不提取图标）
-                        let mut meta = Self::parse_jar_meta(&path);
-                        meta.is_enabled = is_enabled;
+                        if is_fast_path {
+                            let entry = manifest_entry.unwrap();
+                            let icon_absolute_path = entry.icon_rel_path.as_ref().map(|rel| {
+                                shared_mods_dir.join(rel).to_string_lossy().to_string()
+                            });
 
-                        // ✅ 获取从整合包导入时生成的 manifest mapping
-                        if let Some(manifest) = manifest_dict.get(&base_name) {
-                            meta.manifest_entry = Some(manifest.clone());
+                            let meta = ModMetadata {
+                                file_name: file_name.clone(),
+                                mod_id: entry.mod_id.clone(),
+                                name: entry.name.clone(),
+                                version: entry.version.clone(),
+                                description: entry.description.clone(),
+                                icon_absolute_path,
+                                network_icon_url: None, // 如果需要可以保存到此，但不再重点使用
+                                file_size: current_file_state.size,
+                                is_enabled,
+                                modified_at: current_file_state.modified_at,
+                                cache_key: Some(crate::domain::mod_manifest::mod_manifest_key(&file_name)),
+                                manifest_entry: Some(entry),
+                            };
+                            mods.push(meta);
+                            continue;
                         }
 
-                        // ✅ 生成唯一的缓存 key
-                        let cache_key = ModManifestService::manifest_cache_key(
-                            meta.manifest_entry.as_ref(),
-                            meta.mod_id.as_deref(),
-                            &base_name,
-                        );
-                        meta.cache_key = Some(cache_key.clone());
+                        // 2. SLOW PATH: 变更或者新增，进入并发解析队列
+                        let shared_mods_dir_clone = shared_mods_dir.clone();
+                        let icons_base_dir_clone = icons_base_dir.clone();
+                        let pool_clone = pool.clone();
+                        let path_clone = path.clone();
+                        let base_name_clone = base_name.clone();
+                        
+                        tasks.push(tokio::spawn(async move {
+                            let shared_mods_dir_for_blocking = shared_mods_dir_clone.clone();
+                            // 使用 spawn_blocking 执行耗时 ZIP 解析操作
+                            let (mut meta, mut extracted_icon_rel_path, bucket_dir) = tokio::task::spawn_blocking(move || {
+                                let mut m = Self::parse_jar_meta(&path_clone);
+                                m.is_enabled = is_enabled;
+                                m.manifest_entry = manifest_entry.clone();
 
-                        // ✅ 优先读取共享图标目录中缓存的实体图标
-                        let cached_icon = Self::find_cached_icon(&icons_dir, &cache_key);
-                        if cached_icon.is_some() {
-                            meta.icon_absolute_path = cached_icon;
-                        } else {
-                            // 共享目录没有，从 JAR 提取并存入共享目录
-                            meta.icon_absolute_path =
-                                Self::extract_icon_to_shared(&path, &icons_dir, &cache_key);
-                        }
+                                let cache_key = ModManifestService::manifest_cache_key(
+                                    m.manifest_entry.as_ref(),
+                                    m.mod_id.as_deref(),
+                                    &base_name_clone,
+                                );
+                                m.cache_key = Some(cache_key.clone());
 
-                        // ✅ 兜底逻辑：从公共网络缓存补充名称/描述/在线图标
-                        if let Some(cached) = cache_dict.get(&cache_key) {
-                            if meta.name.is_none() {
-                                meta.name = cached.name.clone();
-                            }
-                            if meta.description.is_none() {
-                                meta.description = cached.description.clone();
-                            }
-                            if meta.icon_absolute_path.is_none() {
-                                meta.network_icon_url = cached.icon_url.clone();
-                            }
-                        }
+                                // 提取图标
+                                use sha1::{Digest, Sha1};
+                                let mut hasher = Sha1::new();
+                                hasher.update(cache_key.as_bytes());
+                                let hash = format!("{:x}", hasher.finalize());
+                                let bucket_dir = icons_base_dir_clone.join(&hash[0..2]);
+                                std::fs::create_dir_all(&bucket_dir).ok();
 
-                        mods.push(meta);
+                                let cached_icon = Self::find_cached_icon(&bucket_dir, &cache_key);
+                                let mut rel_path = None;
+                                if let Some(cached) = cached_icon {
+                                    m.icon_absolute_path = Some(cached.clone());
+                                    if let Ok(rel) = Path::new(&cached).strip_prefix(&shared_mods_dir_for_blocking) {
+                                        rel_path = Some(rel.to_string_lossy().replace('\\', "/"));
+                                    }
+                                } else {
+                                    m.icon_absolute_path = Self::extract_icon_to_shared(&path_clone, &bucket_dir, &cache_key);
+                                    if let Some(ref absolute) = m.icon_absolute_path {
+                                        if let Ok(rel) = Path::new(absolute).strip_prefix(&shared_mods_dir_for_blocking) {
+                                            rel_path = Some(rel.to_string_lossy().replace('\\', "/"));
+                                        }
+                                    }
+                                }
+
+                                (m, rel_path, bucket_dir)
+                            }).await.unwrap();
+
+                            // 查 SQL 全局网络缓存（作为内部 Fallback）
+                            let meta_cache_key = meta.cache_key.clone();
+                            if let Some(cache_key) = meta_cache_key {
+                                if let Ok(Some(row)) = sqlx::query_as::<_, ModCacheInfo>(
+                                    "SELECT name, description, icon_url FROM global_mod_cache WHERE cache_key = ?"
+                                )
+                                .bind(&cache_key)
+                                .fetch_optional(&pool_clone).await {
+                                    if meta.name.is_none() {
+                                        meta.name = row.name;
+                                    }
+                                    if meta.description.is_none() {
+                                        meta.description = row.description;
+                                    }
+                                    if meta.icon_absolute_path.is_none() {
+                                        if let Some(ref icon_url) = row.icon_url {
+                                            if !icon_url.starts_with("http") && !icon_url.is_empty() {
+                                                let abs_path = shared_mods_dir_clone.join(icon_url);
+                                                if abs_path.exists() {
+                                                    meta.icon_absolute_path = Some(abs_path.to_string_lossy().replace('\\', "/"));
+                                                    extracted_icon_rel_path = Some(icon_url.clone());
+                                                }
+                                            } else {
+                                                meta.network_icon_url = Some(icon_url.clone());
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // 强制介入：即便有 SQL 也可能缺失真正的名字和图标。尝试走下载平台回调！
+                                let meta_mod_id = meta.mod_id.clone();
+                                if let Some(mod_id) = meta_mod_id {
+                                    if meta.name.is_none() || meta.icon_absolute_path.is_none() {
+                                        let client = reqwest::Client::builder()
+                                            .timeout(std::time::Duration::from_secs(5))
+                                            .build()
+                                            .unwrap_or_default();
+                                        Self::fallback_api_metadata(
+                                            &client,
+                                            &mod_id,
+                                            &cache_key,
+                                            &bucket_dir,
+                                            &shared_mods_dir_clone,
+                                            &mut meta,
+                                            &mut extracted_icon_rel_path,
+                                        ).await;
+                                    }
+                                }
+                            }
+
+                            // 组装/更新 manifest_entry，写入新 file_state 锁定缓存
+                            let mut entry = meta.manifest_entry.clone().unwrap_or_else(|| {
+                                let source = ModSourceKind::Unknown;
+                                crate::domain::mod_manifest::build_manifest_entry(
+                                    crate::domain::mod_manifest::build_manifest_source(source, None, None, None),
+                                    crate::domain::mod_manifest::ModFileHash { algorithm: "none".into(), value: "none".into() },
+                                    current_file_state.clone()
+                                )
+                            });
+                            entry.file_state = Some(current_file_state);
+                            entry.mod_id = meta.mod_id.clone();
+                            entry.name = meta.name.clone();
+                            entry.version = meta.version.clone();
+                            entry.description = meta.description.clone();
+                            entry.icon_rel_path = extracted_icon_rel_path.clone();
+                            meta.manifest_entry = Some(entry);
+
+                            let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
+                            let db_icon_val = extracted_icon_rel_path.or_else(|| meta.network_icon_url.clone());
+                            if let Some(ref cache_key) = meta.cache_key {
+                                let _ = sqlx::query::<sqlx::Sqlite>(
+                                    r#"
+                                    INSERT INTO global_mod_cache (cache_key, name, description, icon_url, updated_at)
+                                    VALUES (?, ?, ?, ?, ?)
+                                    ON CONFLICT(cache_key) DO UPDATE SET
+                                        name = excluded.name,
+                                        description = excluded.description,
+                                        icon_url = excluded.icon_url,
+                                        updated_at = excluded.updated_at
+                                    "#
+                                )
+                                .bind(cache_key)
+                                .bind(meta.name.clone())
+                                .bind(meta.description.clone())
+                                .bind(db_icon_val)
+                                .bind(now)
+                                .execute(&pool_clone)
+                                .await;
+                            }
+
+                            (base_name, meta)
+                        }));
                     }
                 }
+            }
+        }
+
+        let mut manifest_dirty = false;
+        let results = futures::future::join_all(tasks).await;
+
+        for res in results {
+            if let Ok((base_name, meta)) = res {
+                if let Some(ref entry) = meta.manifest_entry {
+                    manifest_dict.insert(base_name, entry.clone());
+                    manifest_dirty = true;
+                }
+                mods.push(meta);
             }
         }
 
@@ -171,7 +313,139 @@ impl ModManagerService {
                 .cmp(&a.is_enabled)
                 .then_with(|| a.file_name.cmp(&b.file_name))
         });
+
+        // 保存新的字典到 mod_manifest.json
+        if manifest_dirty {
+            let _ = crate::domain::mod_manifest::write_mod_manifest(&manifest_path, &manifest_dict);
+        }
+
         Ok(mods)
+    }
+
+    // ================= 后端自发介入：强制通过 API 获取名称和图标 =================
+    async fn download_icon_to_bucket(
+        client: &reqwest::Client,
+        url: &str,
+        bucket_dir: &Path,
+        cache_key: &str,
+    ) -> Option<String> {
+        if let Ok(resp) = client.get(url).send().await {
+            if resp.status().is_success() {
+                if let Ok(bytes) = resp.bytes().await {
+                    let ext = "png"; // 简单回退为 png
+                    let target = bucket_dir.join(format!("{}.{}", cache_key, ext));
+                    if tokio::fs::write(&target, bytes).await.is_ok() {
+                        return Some(target.to_string_lossy().replace('\\', "/"));
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    async fn fallback_api_metadata(
+        client: &reqwest::Client,
+        mod_id: &str,
+        cache_key: &str,
+        bucket_dir: &Path,
+        shared_mods_dir: &Path,
+        meta: &mut ModMetadata,
+        extracted_icon_rel_path: &mut Option<String>,
+    ) {
+        let mut hit = false;
+        
+        // 1. 尝试 Modrinth
+        let modrinth_url = format!("https://api.modrinth.com/v2/project/{}", mod_id);
+        if let Ok(resp) = client.get(&modrinth_url).send().await {
+            if resp.status().is_success() {
+                if let Ok(json) = resp.json::<serde_json::Value>().await {
+                    hit = true;
+                    if meta.name.is_none() {
+                        meta.name = json["title"].as_str().map(|s| s.to_string());
+                    }
+                    if meta.description.is_none() {
+                        meta.description = json["description"].as_str().map(|s| s.to_string());
+                    }
+                    if meta.icon_absolute_path.is_none() {
+                        if let Some(icon_url) = json["icon_url"].as_str() {
+                            if let Some(path) = Self::download_icon_to_bucket(client, icon_url, bucket_dir, cache_key).await {
+                                meta.icon_absolute_path = Some(path.clone());
+                                if let Ok(rel) = Path::new(&path).strip_prefix(shared_mods_dir) {
+                                    *extracted_icon_rel_path = Some(rel.to_string_lossy().replace('\\', "/"));
+                                }
+                            }
+                        }
+                    }
+
+                    // 👉 Capture genuine project_id to heal dependency checking
+                    if let Some(project_id) = json["id"].as_str() {
+                        let mut entry = meta.manifest_entry.clone().unwrap_or_else(|| {
+                            crate::domain::mod_manifest::build_manifest_entry(
+                                crate::domain::mod_manifest::build_manifest_source(crate::domain::mod_manifest::ModSourceKind::ExternalImport, None, None, None),
+                                crate::domain::mod_manifest::ModFileHash { algorithm: "none".into(), value: "none".into() },
+                                crate::domain::mod_manifest::ModFileState::default()
+                            )
+                        });
+                        entry.source.platform = Some("modrinth".to_string());
+                        entry.source.project_id = Some(project_id.to_string());
+                        meta.manifest_entry = Some(entry);
+                    }
+                }
+            }
+        }
+
+        // 2. 尝试 CurseForge
+        if !hit {
+            let cf_key = std::env::var("VITE_CURSEFORGE_API_KEY")
+                .ok()
+                .or_else(|| std::env::var("CURSEFORGE_API_KEY").ok())
+                .or_else(|| option_env!("CURSEFORGE_API_KEY").map(|s| s.to_string()))
+                .or_else(|| option_env!("VITE_CURSEFORGE_API_KEY").map(|s| s.to_string()));
+
+            if let Some(key) = cf_key {
+                let cf_url = format!("https://api.curseforge.com/v1/mods/search?gameId=432&slug={}", mod_id);
+                if let Ok(resp) = client.get(&cf_url).header("x-api-key", &key).send().await {
+                    if resp.status().is_success() {
+                        if let Ok(json) = resp.json::<serde_json::Value>().await {
+                            if let Some(data) = json["data"].as_array() {
+                                if let Some(first) = data.first() {
+                                    if meta.name.is_none() {
+                                        meta.name = first["name"].as_str().map(|s| s.to_string());
+                                    }
+                                    if meta.description.is_none() {
+                                        meta.description = first["summary"].as_str().map(|s| s.to_string());
+                                    }
+                                    if meta.icon_absolute_path.is_none() {
+                                        if let Some(icon_url) = first["logo"]["thumbnailUrl"].as_str().or_else(|| first["logo"]["url"].as_str()) {
+                                            if let Some(path) = Self::download_icon_to_bucket(client, icon_url, bucket_dir, cache_key).await {
+                                                meta.icon_absolute_path = Some(path.clone());
+                                                if let Ok(rel) = Path::new(&path).strip_prefix(shared_mods_dir) {
+                                                    *extracted_icon_rel_path = Some(rel.to_string_lossy().replace('\\', "/"));
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // 👉 Capture genuine project_id from CurseForge fallback too!
+                                    if let Some(cf_id_num) = first["id"].as_i64() {
+                                        let mut entry = meta.manifest_entry.clone().unwrap_or_else(|| {
+                                            crate::domain::mod_manifest::build_manifest_entry(
+                                                crate::domain::mod_manifest::build_manifest_source(crate::domain::mod_manifest::ModSourceKind::ExternalImport, None, None, None),
+                                                crate::domain::mod_manifest::ModFileHash { algorithm: "none".into(), value: "none".into() },
+                                                crate::domain::mod_manifest::ModFileState::default()
+                                            )
+                                        });
+                                        entry.source.platform = Some("curseforge".to_string());
+                                        entry.source.project_id = Some(cf_id_num.to_string());
+                                        meta.manifest_entry = Some(entry);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// 只解析 JAR 元信息（名称、版本、描述、mod_id），不提取图标
@@ -202,6 +476,9 @@ impl ModManagerService {
 
         if let Ok(file) = File::open(jar_path) {
             if let Ok(mut archive) = zip::ZipArchive::new(file) {
+                let mut parsed = false;
+                
+                // 1. Fabric 解析
                 if let Ok(mut mod_json) = archive.by_name("fabric.mod.json") {
                     let mut contents = String::new();
                     if mod_json.read_to_string(&mut contents).is_ok() {
@@ -210,6 +487,71 @@ impl ModManagerService {
                             meta.name = json["name"].as_str().map(|s| s.to_string());
                             meta.version = json["version"].as_str().map(|s| s.to_string());
                             meta.description = json["description"].as_str().map(|s| s.to_string());
+                            parsed = true;
+                        }
+                    }
+                }
+
+                // 2. Forge / NeoForge 解析
+                if !parsed {
+                    for toml_path in ["META-INF/mods.toml", "META-INF/neoforge.mods.toml"] {
+                        if let Ok(mut mod_toml) = archive.by_name(toml_path) {
+                            let mut contents = String::new();
+                            if mod_toml.read_to_string(&mut contents).is_ok() {
+                                if let Ok(id_re) = regex::Regex::new(r#"modId\s*=\s*(?:"|')([^"']+)(?:"|')"#) {
+                                    if let Some(caps) = id_re.captures(&contents) {
+                                        meta.mod_id = Some(caps[1].to_string());
+                                    }
+                                }
+                                if let Ok(name_re) = regex::Regex::new(r#"displayName\s*=\s*(?:"|')([^"']+)(?:"|')"#) {
+                                    if let Some(caps) = name_re.captures(&contents) {
+                                        meta.name = Some(caps[1].to_string());
+                                    }
+                                }
+                                if let Ok(version_re) = regex::Regex::new(r#"version\s*=\s*(?:"|')([^"']+)(?:"|')"#) {
+                                    if let Some(caps) = version_re.captures(&contents) {
+                                        let v = caps[1].to_string();
+                                        if v != "${file.jarVersion}" {
+                                            meta.version = Some(v);
+                                        }
+                                    }
+                                }
+                                if let Ok(desc_re1) = regex::Regex::new(r#"(?s)description\s*=\s*'''(.*?)'''"#) {
+                                    if let Some(caps) = desc_re1.captures(&contents) {
+                                        meta.description = Some(caps[1].trim().to_string());
+                                    } else if let Ok(desc_re2) = regex::Regex::new(r#"description\s*=\s*"([^"]+)""#) {
+                                        if let Some(caps) = desc_re2.captures(&contents) {
+                                            meta.description = Some(caps[1].to_string());
+                                        }
+                                    }
+                                }
+                                parsed = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // 3. 1.12.2 及以下旧版 mcmod.info 解析
+                if !parsed {
+                    if let Ok(mut mcmod_info) = archive.by_name("mcmod.info") {
+                        let mut contents = String::new();
+                        if mcmod_info.read_to_string(&mut contents).is_ok() {
+                            if let Ok(json) = serde_json::from_str::<Value>(&contents) {
+                                let mods = if json.is_array() {
+                                    json.as_array()
+                                } else {
+                                    json["modList"].as_array()
+                                };
+                                if let Some(mods_arr) = mods {
+                                    if let Some(first_mod) = mods_arr.first() {
+                                        meta.mod_id = first_mod["modid"].as_str().map(|s| s.to_string());
+                                        meta.name = first_mod["name"].as_str().map(|s| s.to_string());
+                                        meta.version = first_mod["version"].as_str().map(|s| s.to_string());
+                                        meta.description = first_mod["description"].as_str().map(|s| s.to_string());
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -235,29 +577,84 @@ impl ModManagerService {
         icons_dir: &Path,
         cache_key: &str,
     ) -> Option<String> {
-        let file_name = jar_path
+        let _file_name = jar_path
             .file_name()
             .unwrap_or_default()
             .to_string_lossy()
             .to_string();
         if let Ok(file) = File::open(jar_path) {
             if let Ok(mut archive) = zip::ZipArchive::new(file) {
-                let icon_path_in_jar: Option<String> = {
-                    let mut result = None;
-                    if let Ok(mut mod_json) = archive.by_name("fabric.mod.json") {
-                        let mut contents = String::new();
-                        if mod_json.read_to_string(&mut contents).is_ok() {
-                            if let Ok(json) = serde_json::from_str::<Value>(&contents) {
-                                result = json["icon"].as_str().map(|s| s.to_string());
+                let mut icon_path_in_jar = None;
+
+                // 1. Fabric 解析
+                if let Ok(mut mod_json) = archive.by_name("fabric.mod.json") {
+                    let mut contents = String::new();
+                    if mod_json.read_to_string(&mut contents).is_ok() {
+                        if let Ok(json) = serde_json::from_str::<Value>(&contents) {
+                            if let Some(icon) = json["icon"].as_str() {
+                                icon_path_in_jar = Some(icon.to_string());
                             }
                         }
                     }
-                    result
-                };
+                }
+
+                // 2. Forge / NeoForge 解析
+                if icon_path_in_jar.is_none() {
+                    for toml_path in ["META-INF/mods.toml", "META-INF/neoforge.mods.toml"] {
+                        if let Ok(mut mod_toml) = archive.by_name(toml_path) {
+                            let mut contents = String::new();
+                            if mod_toml.read_to_string(&mut contents).is_ok() {
+                                if let Ok(logo_re) = regex::Regex::new(r#"logoFile\s*=\s*(?:"|')([^"']+)(?:"|')"#) {
+                                    if let Some(caps) = logo_re.captures(&contents) {
+                                        icon_path_in_jar = Some(caps[1].to_string());
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 3. mcmod.info 解析
+                if icon_path_in_jar.is_none() {
+                    if let Ok(mut mcmod_info) = archive.by_name("mcmod.info") {
+                        let mut contents = String::new();
+                        if mcmod_info.read_to_string(&mut contents).is_ok() {
+                            if let Ok(json) = serde_json::from_str::<Value>(&contents) {
+                                let mods = if json.is_array() {
+                                    json.as_array()
+                                } else {
+                                    json["modList"].as_array()
+                                };
+                                if let Some(mods_arr) = mods {
+                                    if let Some(first_mod) = mods_arr.first() {
+                                        if let Some(logo) = first_mod["logoFile"].as_str() {
+                                            if !logo.is_empty() {
+                                                icon_path_in_jar = Some(logo.to_string());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 4. Default Fallbacks
+                if icon_path_in_jar.is_none() {
+                    let fallbacks = ["pack.png", "logo.png", "icon.png", "assets/icon.png"];
+                    for f in fallbacks {
+                        if archive.by_name(f).is_ok() {
+                            icon_path_in_jar = Some(f.to_string());
+                            break;
+                        }
+                    }
+                }
 
                 if let Some(icon_path) = icon_path_in_jar {
-                    if let Ok(mut icon_file) = archive.by_name(&icon_path) {
-                        let ext = Path::new(&icon_path)
+                    let clean_path = icon_path.trim_start_matches('/');
+                    if let Ok(mut icon_file) = archive.by_name(clean_path) {
+                        let ext = Path::new(&clean_path)
                             .extension()
                             .unwrap_or_default()
                             .to_string_lossy()
@@ -268,50 +665,55 @@ impl ModManagerService {
                             ext
                         };
                         let target = icons_dir.join(format!("{}.{}", cache_key, ext));
+                        
+                        // 确保 bucket 目录存在!!!
+                        let _ = std::fs::create_dir_all(icons_dir);
+
                         if let Ok(mut out_file) = File::create(&target) {
                             if std::io::copy(&mut icon_file, &mut out_file).is_ok() {
-                                return Some(target.to_string_lossy().to_string());
+                                return Some(target.to_string_lossy().replace('\\', "/"));
                             }
                         }
                     }
                 }
-                // Fallback: try icons/<mod_id>.png embedded in archive root
-                let _ = file_name;
             }
         }
         None
     }
 
-    // ✅ 修改：将前端获取到的网络数据持久化写入 global_mod_cache.json
-    pub fn update_mod_cache<R: Runtime>(
+    // ✅ 修改：将前端获取到的网络数据持久化写入 SQLite global_mod_cache 表
+    pub async fn update_mod_cache<R: Runtime>(
         app: &AppHandle<R>,
         cache_key: &str,
         name: &str,
         desc: &str,
         icon_url: &str,
     ) -> Result<(), String> {
-        let shared_mods_dir = Self::get_shared_mods_dir(app)?;
-        let cache_path = shared_mods_dir.join("global_mod_cache.json");
+        let db = app.state::<crate::services::db_service::AppDatabase>();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
 
-        let mut cache: HashMap<String, ModCacheInfo> = if cache_path.exists() {
-            let content = fs::read_to_string(&cache_path).unwrap_or_default();
-            serde_json::from_str(&content).unwrap_or_default()
-        } else {
-            HashMap::new()
-        };
-
-        // 以全局 cache_key 为 Key 存入
-        cache.insert(
-            cache_key.to_string(),
-            ModCacheInfo {
-                name: Some(name.to_string()),
-                description: Some(desc.to_string()),
-                icon_url: Some(icon_url.to_string()),
-            },
-        );
-
-        let new_content = serde_json::to_string_pretty(&cache).unwrap();
-        fs::write(&cache_path, new_content).map_err(|e| e.to_string())?;
+        sqlx::query::<sqlx::Sqlite>(
+            r#"
+            INSERT INTO global_mod_cache (cache_key, name, description, icon_url, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(cache_key) DO UPDATE SET
+                name = excluded.name,
+                description = excluded.description,
+                icon_url = excluded.icon_url,
+                updated_at = excluded.updated_at
+            "#
+        )
+        .bind(cache_key)
+        .bind(name)
+        .bind(desc)
+        .bind(icon_url)
+        .bind(now)
+        .execute(&db.pool)
+        .await
+        .map_err(|e| e.to_string())?;
 
         Ok(())
     }

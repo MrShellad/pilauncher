@@ -58,7 +58,7 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
     setActiveVersion,
     loaderOptions,
     availableVersions
-  } = useDownloadDetail(project, instanceConfig, source, searchMcVersion, searchLoader);
+  } = useDownloadDetail(project, instanceConfig, source, searchMcVersion, searchLoader, activeTab);
 
   useEffect(() => {
     if (!project) return;
@@ -91,7 +91,16 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
   };
 
   const strictlyFilteredVersions = useMemo(() => {
-    return versions.filter((version) => {
+    return versions.map(v => {
+      if (activeTab === 'mod') {
+        const validModLoaders = ['fabric', 'forge', 'neoforge'];
+        return {
+          ...v,
+          loaders: v.loaders.filter(l => validModLoaders.includes(l.toLowerCase()))
+        };
+      }
+      return v;
+    }).filter((version) => {
       const targetLoader = directInstallInstanceId ? searchLoader : (activeLoader || searchLoader);
       const targetVersion = directInstallInstanceId ? searchMcVersion : (activeVersion || searchMcVersion);
 
@@ -231,6 +240,7 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
         <InstanceSelectModal
           isOpen={!!pendingVersion && !directInstallInstanceId}
           version={pendingVersion}
+          projectId={project.id || (project as any).project_id}
           onClose={() => setPendingVersion(null)}
           onConfirm={(instanceIds, autoInstallDeps) => {
             const version = pendingVersion;

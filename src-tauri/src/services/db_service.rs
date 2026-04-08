@@ -155,6 +155,14 @@ impl DbService {
             CREATE INDEX IF NOT EXISTS idx_starred_project ON starred_items(source, project_id);
             CREATE INDEX IF NOT EXISTS idx_collection_items_collection ON collection_items(collection_id);
             CREATE INDEX IF NOT EXISTS idx_collection_items_item ON collection_items(item_id);
+
+            CREATE TABLE IF NOT EXISTS global_mod_cache (
+                cache_key TEXT PRIMARY KEY,
+                name TEXT,
+                description TEXT,
+                icon_url TEXT,
+                updated_at INTEGER NOT NULL
+            );
             ",
         )
         .execute(pool)

@@ -1,0 +1,21 @@
+    Blocking waiting for file lock on build directory
+    Checking PiLauncher v0.1.19 (H:\VSCodeWork\pilauncher\src-tauri)
+warning: value assigned to `ms_access_token` is never read
+   --> src\services\auth_service.rs:107:31
+    |
+107 |     let mut ms_access_token = String::new();
+    |                               ^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `ms_refresh_token` is never read
+   --> src\services\auth_service.rs:108:32
+    |
+108 |     let mut ms_refresh_token = String::new();
+    |                                ^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: `PiLauncher` (lib) generated 2 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.24s

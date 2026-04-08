@@ -39,7 +39,8 @@ export const useDownloadDetail = (
   instanceConfig: DownloadInstanceConfig | null,
   source: DownloadSource,
   searchMcVersion?: string,
-  searchLoader?: string
+  searchLoader?: string,
+  activeTab?: string
 ) => {
   const { t } = useTranslation();
   const [details, setDetails] = useState<OreProjectDetail | null>(null);
@@ -105,8 +106,15 @@ export const useDownloadDetail = (
     if (!details) return options;
 
     const uniqueLoaders = Array.from(new Set((details.loaders || []).filter(Boolean)));
+    const validModLoaders = ['fabric', 'forge', 'neoforge'];
+    
     uniqueLoaders.forEach((loader) => {
       const normalized = loader.toLowerCase();
+      
+      if (activeTab === 'mod' && !validModLoaders.includes(normalized)) {
+        return;
+      }
+      
       const icon = loaderIconMap[normalized];
       const label = t(`download.tags.loader.${normalized}`, {
         defaultValue: normalized === 'neoforge'

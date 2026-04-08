@@ -58,7 +58,7 @@ impl ModFileHash {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ModFileState {
     pub size: u64,
@@ -72,6 +72,18 @@ pub struct ModManifestEntry {
     pub hash: ModFileHash,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub file_state: Option<ModFileState>,
+
+    // New Metadata Cache Fields
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon_rel_path: Option<String>,
 }
 
 pub type ModManifest = HashMap<String, ModManifestEntry>;
@@ -157,6 +169,11 @@ pub fn build_manifest_entry(
         source,
         hash,
         file_state: Some(file_state),
+        mod_id: None,
+        name: None,
+        version: None,
+        description: None,
+        icon_rel_path: None,
     }
 }
 

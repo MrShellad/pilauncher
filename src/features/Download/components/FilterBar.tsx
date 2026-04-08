@@ -308,14 +308,14 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                     tabIndex={-1}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => onTabChange(tab.id)}
-                    className={`${tabButtonClassName} ${isActive ? 'bg-[#3C8527] text-white' : 'bg-[#E4E7EB] text-[#121314] hover:bg-[#F0F3F6]'}`}
+                    className={`${tabButtonClassName} ${isActive ? 'bg-[#3C8527] !text-white' : 'bg-[#E4E7EB] !text-[#121314] hover:bg-[#F0F3F6]'}`}
                     style={{
                       boxShadow: isActive
                         ? 'inset 0 -0.1875rem #1D4D13, inset 0.125rem 0.125rem rgba(255,255,255,0.18), inset -0.125rem -0.3125rem rgba(255,255,255,0.08)'
                         : 'inset 0 -0.1875rem #58585A, inset 0.125rem 0.125rem rgba(255,255,255,0.8), inset -0.125rem -0.3125rem rgba(255,255,255,0.45)'
                     }}
                   >
-                    <Icon className={`size-[var(--filter-tab-icon)] ${isActive ? 'text-white' : 'text-[#121314]'}`} />
+                    <Icon className={`size-[var(--filter-tab-icon)] ${isActive ? '!text-white' : '!text-[#121314]'}`} />
                     <span className="truncate">{tab.label}</span>
                     {isActive && (
                       <span
@@ -397,9 +397,9 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                 variant="primary"
                 size="auto"
                 onClick={onSearch}
-                className={`${actionButtonClassName} text-white`}
+                className={`${actionButtonClassName} !text-white`}
               >
-                <Search className="mr-[0.375rem] size-[var(--filter-icon-size)] text-white" />
+                <Search className="mr-[0.375rem] size-[var(--filter-icon-size)] !text-white" />
                 {t('download.actions.search', { defaultValue: 'Search' })}
               </OreButton>
 
@@ -409,9 +409,9 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                 variant="secondary"
                 size="auto"
                 onClick={onReset}
-                className={`${actionButtonClassName} text-black`}
+                className={`${actionButtonClassName} !text-black`}
               >
-                <RotateCcw className="mr-[0.375rem] size-[var(--filter-icon-size)] text-black" />
+                <RotateCcw className="mr-[0.375rem] size-[var(--filter-icon-size)] !text-black" />
                 {t('download.actions.reset', { defaultValue: 'Reset' })}
               </OreButton>
             </div>

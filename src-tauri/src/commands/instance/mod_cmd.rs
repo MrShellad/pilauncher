@@ -6,7 +6,7 @@ pub async fn get_instance_mods<R: Runtime>(
     app: AppHandle<R>,
     id: String,
 ) -> Result<Vec<ModMetadata>, String> {
-    ModManagerService::get_mods(&app, &id)
+    ModManagerService::get_mods(&app, &id).await
 }
 
 #[tauri::command]
@@ -37,7 +37,7 @@ pub async fn update_mod_cache<R: tauri::Runtime>(
 ) -> Result<(), String> {
     crate::services::instance::mod_manager::ModManagerService::update_mod_cache(
         &app, &cache_key, &name, &desc, &icon_url,
-    )
+    ).await
 }
 
 #[tauri::command]

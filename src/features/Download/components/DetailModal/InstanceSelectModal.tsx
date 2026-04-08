@@ -9,7 +9,7 @@ import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreModal } from '../../../../ui/primitives/OreModal';
 import { getProjectDetails, type OreProjectVersion } from '../../../InstanceDetail/logic/modrinthApi';
-import { getInstalledProjectIds, modService } from '../../../InstanceDetail/logic/modService';
+import { getInstalledProjectIds, getInstalledVersionIds, modService } from '../../../InstanceDetail/logic/modService';
 
 interface CompatibleInstance {
   id: string;
@@ -29,6 +29,7 @@ interface InstanceSelectModalProps {
   onClose: () => void;
   onConfirm: (instanceIds: string[], autoInstallDeps: boolean) => void | Promise<void>;
   ignoreLoader?: boolean;
+  projectId?: string;
 }
 
 const AUTO_DEPS_FOCUS_KEY = 'modal-inst-auto-deps';
@@ -41,7 +42,8 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
   version,
   onClose,
   onConfirm,
-  ignoreLoader = false
+  ignoreLoader = false,
+  projectId
 }) => {
   const [instances, setInstances] = useState<CompatibleInstance[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -49,6 +51,8 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
   const [isCheckingDeps, setIsCheckingDeps] = useState(false);
   const [missingDeps, setMissingDeps] = useState<MissingDependency[]>([]);
   const [autoInstallDeps, setAutoInstallDeps] = useState(true);
+  const [isScanningMods, setIsScanningMods] = useState(false);
+  const [alreadyInstalledInstanceIds, setAlreadyInstalledInstanceIds] = useState<Set<string>>(new Set());
   const lastFocusBeforeModalRef = useRef<string | null>(null);
 
   const initialFocusKey = instances.length > 0 ? getInstanceFocusKey(instances[0].id) : CANCEL_BUTTON_FOCUS_KEY;
@@ -188,6 +192,55 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
   useEffect(() => {
     setSelectedIds((prev) => prev.filter((instanceId) => instances.some((instance) => instance.id === instanceId)));
   }, [instances]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (instances.length === 0 || !version) {
+      setAlreadyInstalledInstanceIds(new Set());
+      return;
+    }
+
+    const checkInstalled = async () => {
+      const installedSet = new Set<string>();
+      setIsScanningMods(true);
+
+      for (const instance of instances) {
+        if (cancelled) break;
+        // Yield to the event loop so the UI (like loading spinners) doesn't freeze
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        try {
+          const mods = await modService.getMods(instance.id).catch(() => []);
+          const installedProjectIds = getInstalledProjectIds(mods);
+          const installedVersionIds = getInstalledVersionIds(mods);
+
+          const hasProject = projectId && installedProjectIds.includes(projectId);
+          const hasVersion = installedVersionIds.includes(version.id) || 
+                             installedVersionIds.includes(version.version_number) || 
+                             (version.file_name && installedVersionIds.includes(version.file_name));
+
+          if (hasProject || hasVersion) {
+            installedSet.add(instance.id);
+            // Feel free to do progressive updates if you want:
+            setAlreadyInstalledInstanceIds(new Set(installedSet));
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      if (!cancelled) {
+        setAlreadyInstalledInstanceIds(installedSet);
+        setIsScanningMods(false);
+      }
+    };
+
+    void checkInstalled();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [instances, version]);
 
   useEffect(() => {
     let cancelled = false;
@@ -393,7 +446,7 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
                     onClick={() => handleInstanceClick(instance.id)}
                     className={`
                       relative flex cursor-pointer items-center gap-3 overflow-hidden rounded-sm border p-3 transition-none
-                      ${isSelected ? 'border-ore-green bg-ore-green/10' : 'border-white/5 bg-black/30 hover:border-white/20'}
+                      ${isSelected ? 'border-ore-green bg-ore-green/10' : alreadyInstalledInstanceIds.has(instance.id) ? 'border-yellow-500/40 bg-yellow-500/10 hover:border-yellow-500/60' : 'border-white/5 bg-black/30 hover:border-white/20'}
                       ${focused ? 'z-10 scale-[1.02] ring-2 ring-white shadow-[0_0_15px_rgba(255,255,255,0.1)] brightness-110' : ''}
                     `}
                   >
@@ -419,14 +472,21 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
                       </div>
                     </div>
 
-                    {isSelected && (
+                    {isSelected ? (
                       <div className="ml-3 flex-shrink-0 text-right">
                         <CheckCircle2 className="ml-auto text-ore-green" size={20} />
                         <div className="mt-1 text-[10px] uppercase tracking-[0.12em] text-ore-green">
                           {'\u5df2\u9009\u62e9'}
                         </div>
                       </div>
-                    )}
+                    ) : alreadyInstalledInstanceIds.has(instance.id) ? (
+                      <div className="ml-3 flex-shrink-0 text-right">
+                        <CheckCircle2 className="ml-auto text-yellow-500 opacity-60" size={20} />
+                        <div className="mt-1 text-[10px] uppercase tracking-[0.12em] text-yellow-500 opacity-60">
+                          {'\u5df2\u5b58\u5728'}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 )}
               </FocusItem>
@@ -441,10 +501,18 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
         </div>
 
         <div className="flex items-center justify-between gap-4">
-          <div className="min-h-[1rem] font-minecraft text-[10px] uppercase tracking-[0.14em] text-gray-400">
-            {selectedIds.length > 0
-              ? `\u5df2\u9009\u62e9 ${selectedIds.length} \u4e2a\u5b9e\u4f8b`
-              : '\u8bf7\u81f3\u5c11\u9009\u62e9\u4e00\u4e2a\u5b9e\u4f8b'}
+          <div className="flex items-center gap-3">
+            <div className="min-h-[1rem] font-minecraft text-[10px] uppercase tracking-[0.14em] text-gray-400">
+              {selectedIds.length > 0
+                ? `\u5df2\u9009\u62e9 ${selectedIds.length} \u4e2a\u5b9e\u4f8b`
+                : '\u8bf7\u81f3\u5c11\u9009\u62e9\u4e00\u4e2a\u5b9e\u4f8b'}
+            </div>
+            {isScanningMods && (
+              <div className="flex items-center text-[10px] font-minecraft uppercase tracking-wider text-ore-green">
+                <Loader2 className="mr-1.5 animate-spin" size={12} />
+                {'\u6b63\u5728\u626b\u63cf\u5b9e\u4f8b\u5185\u7684 MOD...'}
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-4">

@@ -1,7 +1,7 @@
 // /src/features/InstanceDetail/hooks/useModManager.ts
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { modService, type ModMeta } from '../logic/modService';
-import { fetchModrinthInfo, fetchModrinthVersions } from '../logic/modrinthApi';
+import { fetchModrinthVersions } from '../logic/modrinthApi';
 
 export type ModSortType = 'time' | 'name' | 'fileName';
 export type ModSortOrder = 'asc' | 'desc';
@@ -28,7 +28,7 @@ export const useModManager = (instanceId: string) => {
       const localMods = await modService.getMods(instanceId);
       const enrichedMods = localMods.map(m => ({ 
         ...m, 
-        isFetchingNetwork: !m.name || (!m.iconAbsolutePath && !m.networkIconUrl),
+        isFetchingNetwork: false,
         isCheckingUpdate:
           m.manifestEntry?.source.platform === 'modrinth' &&
           !!m.manifestEntry?.source.projectId &&
@@ -36,67 +36,58 @@ export const useModManager = (instanceId: string) => {
       }));
       setMods(enrichedMods);
 
-      enrichedMods.forEach(async (mod, index) => {
-        if (!mod.name || (!mod.iconAbsolutePath && !mod.networkIconUrl)) {
-          const query = mod.modId || mod.fileName.replace('.jar', '').replace('.disabled', '').replace(/[-_v0-9\.]+$/, '');
-          const netInfo = await fetchModrinthInfo(query);
-          
-          if (netInfo && mod.cacheKey) {
-            modService.updateModCache(
-              mod.cacheKey, 
-              netInfo.title, netInfo.description, netInfo.icon_url
-            ).catch(console.error);
-          }
-          
-          setMods(current => {
-            const newMods = [...current];
-            newMods[index].networkInfo = netInfo;
-            newMods[index].isFetchingNetwork = false;
-            return newMods;
-          });
-        }
-
-        // Check for updates
-        if (
-          mod.manifestEntry?.source.platform === 'modrinth' &&
-          mod.manifestEntry.source.projectId &&
-          mod.manifestEntry.source.fileId
-        ) {
-          try {
-            const versions = await fetchModrinthVersions(
-              mod.manifestEntry.source.projectId,
-              targetMc,
-              targetLoader
-            );
-            if (versions && versions.length > 0) {
-              const latest = versions[0];
-              if (latest.id !== mod.manifestEntry.source.fileId) {
-                setMods(current => {
-                  const newMods = [...current];
-                  newMods[index].hasUpdate = true;
-                  newMods[index].updateVersionName = latest.name || latest.version_number;
-                  newMods[index].updateDownloadUrl = latest.download_url;
-                  newMods[index].updateFileId = latest.id;
-                  newMods[index].isCheckingUpdate = false;
-                  return newMods;
-                });
-                return;
+      // 后台缓速检测更新逻辑（避免触发 API 限流 429）
+      (async () => {
+        for (let index = 0; index < enrichedMods.length; index++) {
+          const mod = enrichedMods[index];
+          if (
+            mod.manifestEntry?.source.platform === 'modrinth' &&
+            mod.manifestEntry.source.projectId &&
+            mod.manifestEntry.source.fileId
+          ) {
+            try {
+              const versions = await fetchModrinthVersions(
+                mod.manifestEntry.source.projectId,
+                targetMc,
+                targetLoader
+              );
+              if (versions && versions.length > 0) {
+                const latest = versions[0];
+                if (latest.id !== mod.manifestEntry.source.fileId) {
+                  setMods(current => {
+                    const newMods = [...current];
+                    newMods[index].hasUpdate = true;
+                    newMods[index].updateVersionName = latest.name || latest.version_number;
+                    newMods[index].updateDownloadUrl = latest.download_url;
+                    newMods[index].updateFileId = latest.id;
+                    newMods[index].isCheckingUpdate = false;
+                    return newMods;
+                  });
+                  await new Promise(r => setTimeout(r, 200)); // 限流睡眠
+                  continue;
+                }
               }
+            } catch (e) {
+              console.error("Update check failed", e);
             }
-          } catch (e) { console.error("Update check failed", e); }
-          setMods(current => {
-            const newMods = [...current];
-            newMods[index].isCheckingUpdate = false;
-            return newMods;
-          });
+            
+            setMods(current => {
+              const newMods = [...current];
+              newMods[index].isCheckingUpdate = false;
+              return newMods;
+            });
+            await new Promise(r => setTimeout(r, 200)); // 限流睡眠
+          }
         }
-      });
-    } catch (e) { console.error(e); } finally { setIsLoading(false); }
+      })();
+    } catch (e) { 
+      console.error(e); 
+    } finally { 
+      setIsLoading(false); 
+    }
   }, [instanceId]);
 
   useEffect(() => { loadMods(); }, [loadMods]);
-
-  // ✅ 新增：使用 useMemo 动态计算排序结果
   const sortedMods = useMemo(() => {
     return [...mods].sort((a, b) => {
       let comparison = 0;

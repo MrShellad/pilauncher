@@ -52,10 +52,8 @@ export const VersionList: React.FC<VersionListProps> = ({
     return true;
   };
 
-  const handleVersionEnter = (version: OreProjectVersion, isInstalled: boolean) => {
-    if (!isInstalled) {
-      onDownload(version);
-    }
+  const handleVersionEnter = (version: OreProjectVersion) => {
+    onDownload(version);
   };
 
   return (
@@ -90,20 +88,20 @@ export const VersionList: React.FC<VersionListProps> = ({
               <FocusItem
                 key={version.id}
                 focusKey={getVersionRowFocusKey(idx)}
-                onEnter={() => handleVersionEnter(version, isInstalled)}
+                onEnter={() => handleVersionEnter(version)}
                 onArrowPress={handleVersionArrow(idx)}
               >
                 {({ ref, focused }) => (
                   <div
                     ref={ref as any}
-                    onClick={() => handleVersionEnter(version, isInstalled)}
+                    onClick={() => handleVersionEnter(version)}
                     className={`
                       group relative flex items-center justify-between gap-3 overflow-hidden border-[2px]
                       border-[var(--ore-downloadDetail-divider)] px-4 py-2.5
-                      transition-[filter,outline] duration-100
+                      transition-[filter,outline] duration-100 cursor-pointer hover:brightness-[1.06]
                       ${isInstalled
-                        ? 'bg-[var(--ore-downloadDetail-installedBg)] cursor-default'
-                        : 'bg-[var(--ore-downloadDetail-rowBg)] cursor-pointer hover:brightness-[1.06]'}
+                        ? 'bg-[var(--ore-downloadDetail-installedBg)]'
+                        : 'bg-[var(--ore-downloadDetail-rowBg)]'}
                       ${focused ? 'z-20 outline outline-2 outline-offset-[3px] outline-white brightness-[1.06]' : ''}
                     `}
                     style={{
