@@ -6,8 +6,6 @@ import { MultiplayerOverview } from '../features/multiplayer/components/Overview
 import { OreToggleButton } from '../ui/primitives/OreToggleButton';
 import { useTranslation } from 'react-i18next';
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
-import { FocusItem } from '../ui/focus/FocusItem';
-import { useLinearNavigation } from '../ui/focus/useLinearNavigation';
 import { useInputAction } from '../ui/focus/InputDriver';
 
 import '../style/pages/Multiplayer.css';
@@ -16,8 +14,6 @@ const Multiplayer: React.FC = () => {
   const { t } = useTranslation();
   const [activeSection, setActiveSection] = useState<MultiplayerSection>('online-servers');
   const { servers, adSlots, isLoading, error, lastUpdated, fetchServers } = useOnlineServers();
-
-  const { handleLinearArrow } = useLinearNavigation([], 'multiplayer-page');
 
   useInputAction('TAB_LEFT', () => setActiveSection('online-servers'));
   useInputAction('PAGE_LEFT', () => setActiveSection('online-servers'));

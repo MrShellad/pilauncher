@@ -1,10 +1,10 @@
 import React from 'react';
 import { RefreshCw, Server } from 'lucide-react';
 import type { AdSlot, OnlineServer } from '../types';
-import { formatDate } from '../utils';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import { useInputMode } from '../../../ui/focus/FocusProvider';
 import { useInputAction } from '../../../ui/focus/InputDriver';
+import { focusManager } from '../../../ui/focus/FocusManager';
 import { useLinearNavigation } from '../../../ui/focus/useLinearNavigation';
 import { OnlineServerCard } from './OnlineServerCard';
 import { ServerBindModal } from './ServerBindModal';
@@ -14,7 +14,6 @@ interface OnlineServersListProps {
   adSlots: AdSlot[];
   isLoading: boolean;
   error: string | null;
-  lastUpdated: string | null;
   onRefresh: () => void;
 }
 
@@ -23,7 +22,6 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
   adSlots: _adSlots,
   isLoading,
   error,
-  lastUpdated,
   onRefresh,
 }) => {
   void _adSlots;

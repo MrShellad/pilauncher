@@ -1,6 +1,4 @@
 import React from 'react';
-import { Plug, RefreshCw } from 'lucide-react';
-import { OreButton } from '../../../../ui/primitives/OreButton';
 import { useMultiplayerViewModel } from '../../hooks/useMultiplayerViewModel';
 
 import { FlowSelector } from './FlowSelector';
@@ -9,8 +7,6 @@ import { ClientFlow } from './ClientFlow';
 import { LogViewer } from './LogViewer';
 
 interface MultiplayerOverviewProps {}
-
-const defaultSidecarLabel = '项目内置 PiHub';
 
 export const MultiplayerOverview: React.FC<MultiplayerOverviewProps> = () => {
   const vm = useMultiplayerViewModel();
