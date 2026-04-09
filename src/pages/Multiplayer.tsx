@@ -57,7 +57,6 @@ const Multiplayer: React.FC = () => {
               adSlots={adSlots}
               isLoading={isLoading}
               error={error}
-              lastUpdated={lastUpdated}
               onRefresh={() => void fetchServers({ force: true })}
             />
           )}
