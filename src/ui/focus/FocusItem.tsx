@@ -13,7 +13,8 @@ interface FocusItemRenderProps {
 
 interface FocusItemProps {
   focusKey?: string;         
-  disabled?: boolean;        
+  disabled?: boolean;
+  focusable?: boolean;       
   onEnter?: () => void;      
   onFocus?: () => void;      
   onArrowPress?: (direction: string) => boolean | void;
@@ -25,6 +26,7 @@ interface FocusItemProps {
 export const FocusItem: React.FC<FocusItemProps> = ({
   focusKey,
   disabled = false,
+  focusable = true,
   onEnter,
   onFocus,
   onArrowPress,
@@ -38,7 +40,7 @@ export const FocusItem: React.FC<FocusItemProps> = ({
 
   const { ref, focused, hasFocusedChild, focusKey: resolvedFocusKey } = useFocusable({
     // 当所处页面被 hidden 时，强制剥夺所有元素的聚焦能力
-    focusable: !disabled && isBoundaryActive, 
+    focusable: focusable && !disabled && isBoundaryActive, 
     focusKey: focusKey,
     onEnterPress: onEnter,
     onArrowPress: (direction) => onArrowPress?.(direction) ?? true,

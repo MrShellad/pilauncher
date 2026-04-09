@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Globe, MessageSquareShare, Server } from 'lucide-react';
 import type { OnlineServer, SocialLink } from '../types';
 import { copyText, openLink } from '../utils';
+import { FocusItem } from '../../../ui/focus/FocusItem';
 
 interface OnlineServerCardProps {
   server: OnlineServer;
@@ -171,6 +172,8 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onAr
     setIsExpanded((current) => !current);
   };
 
+  const [isCardFocused, setIsCardFocused] = useState(false);
+
   const handleCopyIp = async () => {
     try {
       const copied = await copyText(server.address);
@@ -181,17 +184,25 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onAr
   };
 
   return (
-    <article className="ore-online-server-card">
+    <article 
+      className={`ore-online-server-card ${isCardFocused ? 'is-focused' : ''}`} 
+      onFocus={() => setIsCardFocused(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          setIsCardFocused(false);
+        }
+      }}
+      onKeyDown={(event) => {
+        if (event.key.toLowerCase() === 'y') {
+          event.preventDefault();
+          handleToggleDrawer();
+        }
+      }}
+    >
       <button
         type="button"
         className="ore-online-server-card__hero-trigger"
         onClick={handleToggleDrawer}
-        onKeyDown={(event) => {
-          if (event.key.toLowerCase() === 'y') {
-            event.preventDefault();
-            handleToggleDrawer();
-          }
-        }}
         aria-expanded={isExpanded}
       >
         <div className="ore-online-server-card__hero-image">
@@ -285,26 +296,38 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onAr
       </div>
 
       <div className="ore-online-server-card__action-bar">
-        <button
-          type="button"
-          className="ore-online-server-card__action ore-online-server-card__action--secondary"
-          onClick={handleCopyIp}
-          disabled={!server.address}
-        >
-          {copyState === 'success'
-            ? '已复制 IP'
-            : copyState === 'error'
-              ? '复制失败'
-              : '复制 IP'}
-        </button>
-        <button
-          type="button"
-          className="ore-online-server-card__action ore-online-server-card__action--primary"
-          onClick={() => onClick?.(server)}
-          disabled={!onClick}
-        >
-          进入游戏
-        </button>
+        <FocusItem focusKey={`server-card-${server.id}-copy`} onArrowPress={onArrowPress} onEnter={handleCopyIp}>
+          {({ ref, focused }) => (
+            <button
+              ref={ref as React.RefObject<HTMLButtonElement>}
+              type="button"
+              className={`ore-online-server-card__action ore-online-server-card__action--secondary ${focused ? 'outline outline-[3px] outline-offset-[2px] outline-white z-10' : ''}`}
+              onClick={handleCopyIp}
+              disabled={!server.address}
+              tabIndex={-1}
+            >
+              {copyState === 'success'
+                ? '已复制 IP'
+                : copyState === 'error'
+                  ? '复制失败'
+                  : '复制 IP'}
+            </button>
+          )}
+        </FocusItem>
+        <FocusItem focusKey={`server-card-${server.id}-play`} onArrowPress={onArrowPress} onEnter={() => onClick?.(server)}>
+          {({ ref, focused }) => (
+            <button
+              ref={ref as React.RefObject<HTMLButtonElement>}
+              type="button"
+              className={`ore-online-server-card__action ore-online-server-card__action--primary ${focused ? 'outline outline-[3px] outline-offset-[2px] outline-white z-10' : ''}`}
+              onClick={() => onClick?.(server)}
+              disabled={!onClick}
+              tabIndex={-1}
+            >
+              进入游戏
+            </button>
+          )}
+        </FocusItem>
       </div>
     </article>
   );

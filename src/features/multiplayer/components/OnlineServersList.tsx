@@ -49,19 +49,24 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
 
   useInputAction('ACTION_X', handleControllerRefresh);
 
-  const serverFocusOrder = ['online-servers-refresh'];
-  const { handleLinearArrow } = useLinearNavigation(serverFocusOrder, 'online-servers-refresh');
+  const serverFocusKeys = React.useMemo(
+    () => servers.flatMap((s) => [`server-card-${s.id}-play`, `server-card-${s.id}-copy`]),
+    [servers]
+  );
+  const serverFocusOrder = [...serverFocusKeys];
+  const defaultFocusKey = serverFocusKeys.length > 0 ? serverFocusKeys[0] : undefined;
+  const { handleLinearArrow } = useLinearNavigation(serverFocusOrder, defaultFocusKey);
+
+  React.useEffect(() => {
+    if (serverFocusKeys.length > 0) {
+      setTimeout(() => {
+        focusManager.focus(serverFocusKeys[0]);
+      }, 50);
+    }
+  }, [serverFocusKeys]);
 
   return (
     <>
-      <header className="ore-multiplayer-panel-header">
-        <div className="ore-multiplayer-panel-heading">
-          <h2 className="ore-multiplayer-panel-title">社区服务器目录</h2>
-          <p className="ore-multiplayer-panel-subtitle">
-            {lastUpdated ? `上次同步 ${formatDate(lastUpdated)}` : '尚未完成首次拉取'}
-          </p>
-        </div>
-      </header>
 
       <div className="ore-multiplayer-floating-action">
         <OreButton
@@ -71,8 +76,7 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
           className="ore-multiplayer-floating-action__button"
           onClick={handleRefresh}
           disabled={isLoading}
-          focusKey="online-servers-refresh"
-          onArrowPress={handleLinearArrow}
+          focusable={false}
           autoScroll={false}
         >
           <span className="ore-multiplayer-floating-action__content">

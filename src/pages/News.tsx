@@ -8,6 +8,7 @@ import { useLauncherStore } from '../store/useLauncherStore';
 import { useNewsStore } from '../store/useNewsStore';
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { focusManager } from '../ui/focus/FocusManager';
+import { useInputAction } from '../ui/focus/InputDriver';
 import { NewspaperIcon } from '../ui/icons/NewspaperIcon';
 import { OreButton } from '../ui/primitives/OreButton';
 
@@ -19,6 +20,7 @@ const News: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const pendingFocusKeyRef = useRef<string | null>(null);
+  const hasInitialFocusRef = useRef(false);
   const setActiveTab = useLauncherStore((state) => state.setActiveTab);
   const { rawItems, isLoading, isRefreshing, error, ensureSessionRefresh, refreshNews, markAllRead } = useNewsStore();
 
@@ -31,13 +33,27 @@ const News: React.FC = () => {
     void ensureSessionRefresh();
   }, [ensureSessionRefresh]);
 
+  useInputAction('ACTION_X', () => {
+    if (!isRefreshing) {
+      void refreshNews({ background: rawItems.length > 0 });
+    }
+  });
+
+  useInputAction('CANCEL', () => {
+    setActiveTab('home');
+  });
+
   useEffect(() => {
+    if (hasInitialFocusRef.current || items.length === 0) return;
+
     let attempts = 0;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    const firstKey = `news-official-${getNewsFocusKeySegment(items[0].id)}`;
 
     const tryFocusEntry = () => {
-      if (doesFocusableExist('news-refresh-button')) {
-        focusManager.focus('news-refresh-button');
+      if (doesFocusableExist(firstKey)) {
+        focusManager.focus(firstKey);
+        hasInitialFocusRef.current = true;
         return;
       }
 
@@ -51,7 +67,7 @@ const News: React.FC = () => {
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, []);
+  }, [items]);
 
   useEffect(() => {
     if (items.length > 0) {
@@ -98,8 +114,6 @@ const News: React.FC = () => {
   const resolvedError = error ? `${pageCopy.error}: ${error}` : null;
   const focusSequence = useMemo(
     () => [
-      'news-refresh-button',
-      'news-back-button',
       ...visibleItems.flatMap((item) => {
         const focusSegment = getNewsFocusKeySegment(item.id);
         return [`news-official-${focusSegment}`, `news-wiki-${focusSegment}`];
@@ -181,7 +195,6 @@ const News: React.FC = () => {
     <FocusBoundary
       id="news-page"
       trapFocus
-      defaultFocusKey="news-refresh-button"
       className="flex h-full w-full overflow-hidden"
     >
       <div
@@ -206,29 +219,29 @@ const News: React.FC = () => {
 
             <div className="flex flex-wrap gap-3">
               <OreButton
-                focusKey="news-refresh-button"
+                focusable={false}
                 variant="primary"
                 size="auto"
                 className="!h-11 gap-2 !px-4 !text-white"
                 onClick={() => void refreshNews({ background: rawItems.length > 0 })}
-                onArrowPress={(direction) => moveLinearFocus('news-refresh-button', direction)}
                 autoScroll={false}
               >
                 <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
                 <span>{pageCopy.refresh}</span>
+                <span className="ml-1 rounded bg-black/40 px-1.5 py-0.5 text-[0.65rem] text-white/70">X</span>
               </OreButton>
 
               <OreButton
-                focusKey="news-back-button"
+                focusable={false}
                 variant="secondary"
                 size="auto"
                 className="!h-11 gap-2 !px-4"
                 onClick={() => setActiveTab('home')}
-                onArrowPress={(direction) => moveLinearFocus('news-back-button', direction)}
                 autoScroll={false}
               >
                 <ArrowLeft size={18} />
                 <span>{pageCopy.back}</span>
+                <span className="ml-1 rounded bg-black/20 px-1.5 py-0.5 text-[0.65rem] text-ore-text-muted">B</span>
               </OreButton>
             </div>
           </div>

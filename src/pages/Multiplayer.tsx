@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { FocusItem } from '../ui/focus/FocusItem';
 import { useLinearNavigation } from '../ui/focus/useLinearNavigation';
+import { useInputAction } from '../ui/focus/InputDriver';
 
 import '../style/pages/Multiplayer.css';
 
@@ -16,7 +17,12 @@ const Multiplayer: React.FC = () => {
   const [activeSection, setActiveSection] = useState<MultiplayerSection>('online-servers');
   const { servers, adSlots, isLoading, error, lastUpdated, fetchServers } = useOnlineServers();
 
-  const { handleLinearArrow } = useLinearNavigation(['multiplayer-toggle'], 'multiplayer-toggle');
+  const { handleLinearArrow } = useLinearNavigation([], 'multiplayer-page');
+
+  useInputAction('TAB_LEFT', () => setActiveSection('online-servers'));
+  useInputAction('PAGE_LEFT', () => setActiveSection('online-servers'));
+  useInputAction('TAB_RIGHT', () => setActiveSection('multiplayer'));
+  useInputAction('PAGE_RIGHT', () => setActiveSection('multiplayer'));
 
   return (
     <FocusBoundary id="multiplayer-page" isActive={true} className="ore-multiplayer-page">
@@ -31,27 +37,20 @@ const Multiplayer: React.FC = () => {
             </p>
           </div>
 
-          <div className="w-full md:w-auto flex-shrink-0 mt-2 md:mt-0">
-            <FocusItem focusKey="multiplayer-toggle" onArrowPress={handleLinearArrow} onEnter={() => {
-              const next = activeSection === 'online-servers' ? 'multiplayer' : 'online-servers';
-              setActiveSection(next);
-            }}>
-              {({ ref, focused }) => (
-                <div ref={ref as React.RefObject<HTMLDivElement>} className={`rounded-sm transition-shadow duration-150 flex-shrink-0 ${focused ? 'outline outline-2 outline-offset-[4px] outline-white' : 'outline outline-2 outline-offset-[4px] outline-transparent'}`}>
-                  <OreToggleButton
-                    options={[
-                      { label: t('multiplayer.onlineServers'), value: 'online-servers' },
-                      { label: t('multiplayer.piHub'), value: 'multiplayer' }
-                    ]}
-                    value={activeSection}
-                    onChange={(value) => setActiveSection(value as MultiplayerSection)}
-                    size="lg"
-                    focusable={false}
-                    className="!w-full md:!w-[24rem]"
-                  />
-                </div>
-              )}
-            </FocusItem>
+          <div className="w-full md:w-auto flex-shrink-0 mt-2 md:mt-0 flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center w-7 h-7 rounded border border-white/10 bg-black/40 text-white/80 font-bold text-[10px] shadow-sm select-none">LT</div>
+            <OreToggleButton
+              options={[
+                { label: t('multiplayer.onlineServers'), value: 'online-servers' },
+                { label: t('multiplayer.piHub'), value: 'multiplayer' }
+              ]}
+              value={activeSection}
+              onChange={(value) => setActiveSection(value as MultiplayerSection)}
+              size="lg"
+              focusable={false}
+              className="!w-full md:!w-[22rem]"
+            />
+            <div className="flex items-center justify-center w-7 h-7 rounded border border-white/10 bg-black/40 text-white/80 font-bold text-[10px] shadow-sm select-none">RT</div>
           </div>
         </header>
 

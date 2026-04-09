@@ -152,7 +152,7 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
               title={t('home.notification')}
               autoScroll={false}
             >
-              <NewspaperIcon className="block h-[1.45rem] w-[1.45rem] shrink-0 text-[#FACC15] drop-shadow-md" />
+              <NewspaperIcon className="block h-[1.45rem] w-[1.45rem] shrink-0 text-black drop-shadow-md" />
             </OreButton>
             {unreadNewsCount > 0 && (
               <div className="absolute -top-2 -right-2 min-w-[1.45rem] bg-ore-red text-white text-[10px] font-bold font-minecraft px-1.5 py-0.5 rounded-sm z-20 border-[2px] border-[#1E1E1F] shadow-sm pointer-events-none select-none text-center leading-none">

@@ -1,7 +1,6 @@
 // /src/features/home/components/LaunchControls.tsx
 import React, { useEffect, useState } from 'react';
 import { OreButton } from '../../../ui/primitives/OreButton';
-import { Play, Folder, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { FocusItem } from '../../../ui/focus/FocusItem';
@@ -40,10 +39,8 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
   const inputMode = useInputMode();
   const { instances } = useInstances();
 
-  const innerButtonClass = "h-[clamp(48px,6vh,64px)] text-[clamp(16px,1.8vh,20px)] flex items-center justify-center gap-3 w-full transition-colors duration-200";
-  const iconClass = "flex-shrink-0 w-[clamp(20px,2.5vh,28px)] h-[clamp(20px,2.5vh,28px)]";
-  const heroButtonClass = "h-[clamp(56px,7.5vh,76px)] text-[clamp(18px,2.2vh,24px)] flex items-center justify-center gap-3 w-full transition-colors duration-200";
-  const heroIconClass = "flex-shrink-0 w-[clamp(24px,3vh,32px)] h-[clamp(24px,3vh,32px)]";
+  const innerButtonClass = "h-[clamp(48px,4vw,90px)] text-[clamp(16px,1.5vw,28px)] flex items-center justify-center gap-3 w-full transition-colors duration-200";
+  const heroButtonClass = "h-[clamp(56px,5vw,110px)] text-[clamp(18px,1.8vw,32px)] flex items-center justify-center gap-3 w-full transition-colors duration-200";
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -98,7 +95,7 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
 
   return (
     <>
-      <div className="flex flex-col items-center justify-center space-y-[clamp(20px,3vh,32px)] w-[clamp(280px,25vw,420px)]">
+      <div className="flex flex-col items-center justify-center space-y-[clamp(20px,2vw,40px)] w-[clamp(280px,25vw,600px)]">
 
         {/* 1. Play 主按钮 */}
         <FocusItem focusKey="play-button" onEnter={handlePlayClick} autoScroll={false}>
@@ -127,7 +124,6 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
                   onClick={handlePlayClick}
                   tabIndex={-1}
                 >
-                  <Play fill="currentColor" className={heroIconClass} />
                   <span className="font-minecraft font-bold tracking-[0.1em] uppercase leading-none">
                     {t('home.launchGame')}
                   </span>
@@ -157,7 +153,6 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
                 onClick={onSelectInstance}
                 tabIndex={-1}
               >
-                <Folder className={iconClass} />
                 <span className="font-minecraft truncate max-w-[70%] tracking-wide leading-none">
                   {instanceName}
                 </span>
@@ -186,7 +181,6 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
                 onClick={handleSettingsClick}
                 tabIndex={-1}
               >
-                <Settings className={iconClass} />
                 <span className="font-minecraft font-medium tracking-wide leading-none">
                   {t('home.instanceDetail')}
                 </span>
@@ -208,4 +202,4 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
       />
     </>
   );
-};
+};
