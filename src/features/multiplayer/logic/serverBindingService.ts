@@ -7,9 +7,12 @@ interface DownloadAndImportModpackInput {
   serverBinding: ServerBindingRecord;
 }
 
-export const serverBindingService = {
-  getServerBindings: () => invoke<Record<string, ServerBindingRecord>>('get_server_bindings'),
+export interface InstanceBindingState {
+  serverBinding?: ServerBindingRecord;
+  autoJoinServer: boolean;
+}
 
+export const serverBindingService = {
   getAllInstances: () => invoke<ServerBindableInstance[]>('get_all_instances'),
 
   getCompatibleInstances: (gameVersions: string[]) =>
@@ -19,8 +22,14 @@ export const serverBindingService = {
       ignoreLoader: true,
     }),
 
+  getInstanceServerBinding: (instanceId: string) =>
+    invoke<InstanceBindingState>('get_instance_server_binding', { id: instanceId }),
+
+  findBoundInstanceForServer: (serverBinding: ServerBindingRecord) =>
+    invoke<string | null>('find_bound_instance_for_server', { serverBinding }),
+
   bindServerToInstance: (instanceId: string, serverBinding: ServerBindingRecord) =>
-    invoke('bind_server_to_instance', {
+    invoke<InstanceBindingState>('bind_server_to_instance', {
       instanceId,
       serverBinding,
     }),

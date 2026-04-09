@@ -5,6 +5,7 @@ import type { OnlineServer } from '../features/multiplayer/types';
 // 1. 定义全局合法的路由 Tab 类型 (在这里新增了 'new-instance')
 export type TabType =
   | 'home'
+  | 'news'
   | 'instances'
   | 'multiplayer'
   | 'downloads'
@@ -39,6 +40,8 @@ interface LauncherState {
   // 全局导航/路由状态
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
+  unreadNewsCount: number;
+  setUnreadNewsCount: (count: number) => void;
 
   // 当前选中的游戏实例状态 (用于全局启动游戏)
   currentInstance: InstanceData | null;
@@ -72,6 +75,8 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
   // --- 导航状态 ---
   activeTab: 'home',
   setActiveTab: (tab) => set({ activeTab: tab }),
+  unreadNewsCount: 4,
+  setUnreadNewsCount: (count) => set({ unreadNewsCount: count }),
 
   // --- 实例状态 ---
   currentInstance: {

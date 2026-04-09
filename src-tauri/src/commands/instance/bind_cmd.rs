@@ -1,82 +1,57 @@
-// src-tauri/src/commands/instance/bind_cmd.rs
-use crate::domain::instance::{InstanceConfig, ServerBinding};
-use crate::error::AppResult;
-use crate::services::config_service::ConfigService;
-use std::fs;
-use std::path::PathBuf;
-use tauri::{AppHandle, Runtime};
+use crate::domain::instance::{InstanceBindingState, ServerBinding};
+use crate::error::{AppError, AppResult};
+use crate::services::db_service::AppDatabase;
+use crate::services::instance::binding::InstanceBindingService;
+use tauri::{AppHandle, Runtime, State};
 
 #[tauri::command]
 pub async fn bind_server_to_instance<R: Runtime>(
     app: AppHandle<R>,
+    db: State<'_, AppDatabase>,
     instance_id: String,
     server_binding: ServerBinding,
-) -> AppResult<()> {
-    let base_path_str = ConfigService::get_base_path(&app)?
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "未配置数据目录"))?;
+) -> AppResult<InstanceBindingState> {
+    let mut config =
+        InstanceBindingService::upsert_instance_from_disk(&app, &db.pool, &instance_id).await?;
 
-    let base_dir = PathBuf::from(&base_path_str);
-    let instances_dir = base_dir.join("instances");
-    let instance_dir = instances_dir.join(&instance_id);
-    let config_path = instance_dir.join("instance.json");
+    let canonical_binding = InstanceBindingService::replace_binding_for_instance(
+        &db.pool,
+        &instance_id,
+        &server_binding,
+        true,
+    )
+    .await?;
 
-    if !config_path.exists() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            format!("找不到实例配置文件: {}", config_path.display()),
-        )
-        .into());
-    }
+    config.server_binding = Some(canonical_binding);
+    config.auto_join_server = Some(true);
+    InstanceBindingService::write_instance_config(&app, &instance_id, &config)
+        .map_err(AppError::Generic)?;
 
-    // 1. Update instance.json
-    let content = fs::read_to_string(&config_path)?;
-    let mut config: InstanceConfig = serde_json::from_str(&content)?;
-
-    config.server_binding = Some(server_binding.clone());
-
-    let new_content = serde_json::to_string_pretty(&config)?;
-    fs::write(&config_path, new_content)?;
-
-    // 2. Update server_bindings.json index
-    let bindings_index_path = instances_dir.join("server_bindings.json");
-
-    let mut all_bindings: serde_json::Value = if bindings_index_path.exists() {
-        let idx_content =
-            fs::read_to_string(&bindings_index_path).unwrap_or_else(|_| "{}".to_string());
-        serde_json::from_str(&idx_content).unwrap_or_else(|_| serde_json::json!({}))
-    } else {
-        serde_json::json!({})
-    };
-
-    if let Some(obj) = all_bindings.as_object_mut() {
-        let binding_val = serde_json::to_value(&server_binding)?;
-        obj.insert(instance_id, binding_val);
-    }
-
-    let updated_index = serde_json::to_string_pretty(&all_bindings)?;
-    fs::write(&bindings_index_path, updated_index)?;
-
-    Ok(())
+    InstanceBindingService::get_instance_binding_state(&app, &db.pool, &instance_id).await
 }
 
 #[tauri::command]
 pub async fn get_server_bindings<R: Runtime>(
     app: AppHandle<R>,
+    db: State<'_, AppDatabase>,
 ) -> AppResult<std::collections::HashMap<String, ServerBinding>> {
-    let base_path_str = ConfigService::get_base_path(&app)?
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "未配置数据目录"))?;
+    InstanceBindingService::get_server_bindings(&app, &db.pool).await
+}
 
-    let bindings_index_path = PathBuf::from(base_path_str)
-        .join("instances")
-        .join("server_bindings.json");
+#[tauri::command]
+pub async fn get_instance_server_binding<R: Runtime>(
+    app: AppHandle<R>,
+    db: State<'_, AppDatabase>,
+    id: String,
+) -> AppResult<InstanceBindingState> {
+    InstanceBindingService::get_instance_binding_state(&app, &db.pool, &id).await
+}
 
-    if !bindings_index_path.exists() {
-        return Ok(std::collections::HashMap::new());
-    }
-
-    let idx_content = fs::read_to_string(&bindings_index_path)?;
-    let all_bindings: std::collections::HashMap<String, ServerBinding> =
-        serde_json::from_str(&idx_content)?;
-
-    Ok(all_bindings)
+#[tauri::command]
+pub async fn find_bound_instance_for_server<R: Runtime>(
+    app: AppHandle<R>,
+    db: State<'_, AppDatabase>,
+    server_binding: ServerBinding,
+) -> AppResult<Option<String>> {
+    InstanceBindingService::find_bound_instance_for_server(&app, &db.pool, &server_binding).await
 }

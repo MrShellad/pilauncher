@@ -7,7 +7,6 @@ import {
   createServerBindingRecord,
   getErrorMessage,
   isModdedServer,
-  matchesServerBinding,
   resolveBoundInstance,
 } from '../serverBindingUtils';
 
@@ -75,8 +74,8 @@ export const useServerBindModal = ({ isOpen, onClose, server }: UseServerBindMod
         setInstances([]);
         setSelectedInstanceId('');
 
-        const [bindingsResult, allInstancesResult] = await Promise.allSettled([
-          serverBindingService.getServerBindings(),
+        const [boundInstanceIdResult, allInstancesResult] = await Promise.allSettled([
+          serverBindingService.findBoundInstanceForServer(createServerBindingRecord(currentServer)),
           serverBindingService.getAllInstances(),
         ]);
 
@@ -84,23 +83,19 @@ export const useServerBindModal = ({ isOpen, onClose, server }: UseServerBindMod
           return;
         }
 
-        if (bindingsResult.status === 'rejected') {
-          console.warn('读取服务器绑定失败:', bindingsResult.reason);
+        if (boundInstanceIdResult.status === 'rejected') {
+          console.warn('读取服务器绑定失败:', boundInstanceIdResult.reason);
         }
         if (allInstancesResult.status === 'rejected') {
           console.warn('读取实例列表失败:', allInstancesResult.reason);
         }
 
-        const bindings = bindingsResult.status === 'fulfilled' ? bindingsResult.value : {};
+        const boundInstanceId =
+          boundInstanceIdResult.status === 'fulfilled' ? boundInstanceIdResult.value : null;
         const allInstances = allInstancesResult.status === 'fulfilled' ? allInstancesResult.value : [];
 
-        const matchedBindingEntry = Object.entries(bindings).find(([, binding]) =>
-          matchesServerBinding(currentServer, binding)
-        );
-
-        if (matchedBindingEntry) {
-          const [instanceId] = matchedBindingEntry;
-          setBoundInstance(resolveBoundInstance(instanceId, allInstances));
+        if (boundInstanceId) {
+          setBoundInstance(resolveBoundInstance(boundInstanceId, allInstances));
           return;
         }
 
@@ -147,12 +142,14 @@ export const useServerBindModal = ({ isOpen, onClose, server }: UseServerBindMod
     try {
       setIsBinding(true);
 
-      await serverBindingService.bindServerToInstance(
+      const bindingState = await serverBindingService.bindServerToInstance(
         selectedInstanceId,
         createServerBindingRecord(server)
       );
 
-      setBoundInstance(resolveBoundInstance(selectedInstanceId, instances));
+      if (bindingState.serverBinding) {
+        setBoundInstance(resolveBoundInstance(selectedInstanceId, instances));
+      }
     } catch (error) {
       console.error('绑定失败:', error);
       alert(`绑定失败: ${getErrorMessage(error)}`);

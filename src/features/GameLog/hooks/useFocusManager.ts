@@ -10,6 +10,7 @@ export const useFocusManager = (isOpen: boolean) => {
 
   const fallbackFocusKeysByTab = useMemo<Record<string, string[]>>(() => ({
     home: ['play-button', 'instance-button', 'settings-button', 'btn-profile', 'btn-login'],
+    news: ['news-refresh-button', 'news-back-button'],
     instances: ['action-new', 'view-grid', 'view-list'],
     downloads: ['download-search-input', 'download-grid-item-0'],
     settings: [

@@ -16,6 +16,7 @@ interface FocusBoundaryProps {
   onEscape?: () => void;
   isActive?: boolean;
   defaultFocusKey?: string;
+  style?: React.CSSProperties;
 }
 
 export const FocusBoundary: React.FC<FocusBoundaryProps> = ({
@@ -25,7 +26,8 @@ export const FocusBoundary: React.FC<FocusBoundaryProps> = ({
   trapFocus = false,
   onEscape,
   isActive = true,
-  defaultFocusKey
+  defaultFocusKey,
+  style
 }) => {
   const { ref, focusKey, focused, hasFocusedChild } = useFocusable({
     // Boundary itself must never become a focus target.
@@ -68,7 +70,7 @@ export const FocusBoundary: React.FC<FocusBoundaryProps> = ({
   return (
     <BoundaryContext.Provider value={{ id, isActive }}>
       <FocusContext.Provider value={focusKey}>
-        <div ref={ref} className={className} tabIndex={-1} style={{ outline: 'none' }}>
+        <div ref={ref} className={className} tabIndex={-1} style={{ outline: 'none', ...style }}>
           {children}
         </div>
       </FocusContext.Provider>

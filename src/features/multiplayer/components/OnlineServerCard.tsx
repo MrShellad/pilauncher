@@ -1,8 +1,7 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Globe, MessageSquareShare, Server } from 'lucide-react';
-import type { OnlineServer } from '../types';
-import { openLink } from '../utils';
-import { FocusItem } from '../../../ui/focus/FocusItem';
+import type { OnlineServer, SocialLink } from '../types';
+import { copyText, openLink } from '../utils';
 
 interface OnlineServerCardProps {
   server: OnlineServer;
@@ -10,187 +9,302 @@ interface OnlineServerCardProps {
   onClick?: (server: OnlineServer) => void;
 }
 
+type WarningTone = 'version' | 'age' | 'paid';
+
+interface WarningChip {
+  tone: WarningTone;
+  label: string;
+}
+
+interface DrawerLink {
+  label: string;
+  url: string;
+  isWebsite: boolean;
+}
+
 const localizeServerType = (server: OnlineServer): string => {
   const normalizedType = server.serverType?.trim().toLowerCase();
   if (server.isModded || normalizedType === 'modded') {
     return 'MOD服';
   }
-  return server.serverType;
+  return server.serverType?.trim() || '社区服';
+};
+
+const getWarningChips = (server: OnlineServer): WarningChip[] => {
+  const chips: WarningChip[] = [];
+
+  if (server.versions?.length) {
+    chips.push({
+      tone: 'version',
+      label: server.versions.join(', '),
+    });
+  }
+
+  if (server.ageRecommendation) {
+    chips.push({
+      tone: 'age',
+      label: server.ageRecommendation,
+    });
+  }
+
+  if (server.hasPaidFeatures) {
+    chips.push({
+      tone: 'paid',
+      label: '含内购',
+    });
+  }
+
+  return chips;
+};
+
+const getMetaTags = (server: OnlineServer, serverTypeLabel: string): Array<{ tone: 'green' | 'blue'; label: string }> => {
+  const tags: Array<{ tone: 'green' | 'blue'; label: string }> = [];
+
+  const playerLabel = server.maxPlayers
+    ? `${server.onlinePlayers}/${server.maxPlayers} 在线`
+    : `${server.onlinePlayers} 在线`;
+  tags.push({ tone: 'green', label: playerLabel });
+
+  if (serverTypeLabel) {
+    tags.push({ tone: 'blue', label: serverTypeLabel });
+  }
+
+  tags.push({
+    tone: 'blue',
+    label: server.isModded ? '模组整合' : '纯净原版',
+  });
+
+  if (server.requiresWhitelist) {
+    tags.push({
+      tone: 'blue',
+      label: '白名单准入',
+    });
+  } else if (server.hasVoiceChat) {
+    tags.push({
+      tone: 'blue',
+      label: '语音社群',
+    });
+  }
+
+  return tags.slice(0, 4);
+};
+
+const getDrawerLinks = (server: OnlineServer): DrawerLink[] => {
+  const seen = new Set<string>();
+  const links: DrawerLink[] = [];
+
+  const pushLink = (label: string, url?: string) => {
+    const href = url?.trim();
+    if (!href || seen.has(href)) {
+      return;
+    }
+
+    seen.add(href);
+    const lowerLabel = label.toLowerCase();
+    const isWebsite =
+      lowerLabel.includes('官网') ||
+      lowerLabel.includes('网站') ||
+      lowerLabel.includes('网页') ||
+      lowerLabel.includes('web');
+
+    links.push({
+      label,
+      url: href,
+      isWebsite,
+    });
+  };
+
+  pushLink('官方网站', server.homepageUrl);
+  server.socials.forEach((social: SocialLink) => pushLink(social.label || '社区链接', social.url));
+
+  return links;
+};
+
+const WarningIcon: React.FC<{ tone: WarningTone }> = ({ tone }) => {
+  if (tone === 'version') {
+    return (
+      <svg className="ore-online-server-card__warning-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16zM12 22.27L5 18.27v-8.54L12 13.73v8.54zm1-8.54 7-4v8.54l-7 4v-8.54zM12 11.73 5 7.73l7-4 7 4-7 4z" />
+      </svg>
+    );
+  }
+
+  if (tone === 'age') {
+    return (
+      <svg className="ore-online-server-card__warning-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg className="ore-online-server-card__warning-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z" />
+    </svg>
+  );
 };
 
 export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onArrowPress, onClick }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [copyState, setCopyState] = useState<'idle' | 'success' | 'error'>('idle');
+
+  void onArrowPress;
+
+  useEffect(() => {
+    if (copyState === 'idle') {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => setCopyState('idle'), 2000);
+    return () => window.clearTimeout(timer);
+  }, [copyState]);
+
   const serverTypeLabel = localizeServerType(server);
-  const isModdedType = server.isModded || server.serverType?.trim().toLowerCase() === 'modded';
+  const warningChips = useMemo(() => getWarningChips(server), [server]);
+  const metaTags = useMemo(() => getMetaTags(server, serverTypeLabel), [server, serverTypeLabel]);
+  const drawerLinks = useMemo(() => getDrawerLinks(server), [server]);
+  const description =
+    server.description?.trim() ||
+    '这是一个经过精选收录的社区服务器，展开后可查看详细介绍与外部入口。';
+
+  const handleToggleDrawer = () => {
+    setIsExpanded((current) => !current);
+  };
+
+  const handleCopyIp = async () => {
+    try {
+      const copied = await copyText(server.address);
+      setCopyState(copied ? 'success' : 'error');
+    } catch {
+      setCopyState('error');
+    }
+  };
 
   return (
-    <article
-      className="ore-multiplayer-server-card group relative flex flex-col overflow-hidden rounded-sm border border-transparent bg-[#FAFAFA] transition-all hover:border-[#FFE866]/50 cursor-pointer"
-      onClick={() => onClick?.(server)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          onClick?.(server);
-        }
-      }}
-    >
-      <div className="relative h-[160px] md:h-[180px] 2xl:h-[220px] w-full overflow-hidden border-b-2 border-[#1e1e1f] bg-[#1e1e1f]">
-        {server.hero ? (
-          <img
-            src={server.hero}
-            alt={server.name}
-            className="absolute inset-0 h-full w-full object-cover opacity-80 transition-transform duration-500 ease-out group-hover:scale-105"
-            loading="lazy"
-          />
-        ) : server.icon ? (
-          <img
-            src={server.icon}
-            alt={server.name}
-            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-40 blur-md"
-            loading="lazy"
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#2E2E30] to-[#1E1E1F]">
-            <Server size={48} className="text-[#58585A] opacity-50" />
-          </div>
-        )}
-
-        {server.isSponsored && (
-          <div className="absolute top-0 right-0 z-10 border-b-2 border-l-2 border-[#D4C15A] bg-[var(--ore-color-background-warning-default,#FFE866)] px-3 py-1 font-minecraft text-[10px] text-black shadow-md md:text-xs">
-            推广
-          </div>
-        )}
-
-        <div className="absolute bottom-3 left-3 right-3 z-10 flex flex-col gap-1.5">
-          <div className="flex items-end justify-between gap-3">
-            <h3 className="m-0 min-w-0 flex-1 truncate font-minecraft text-xl leading-none tracking-wide text-white drop-shadow-[2px_2px_0_rgba(0,0,0,0.8)] md:text-2xl 2xl:text-3xl">
-              {server.name}
-            </h3>
-
-            <div className="inline-flex min-w-[170px] items-center justify-end gap-2 text-white">
-              <svg viewBox="0 0 16 16" className="h-5 w-5 shrink-0 md:h-[22px] md:w-[22px]" fill="none" aria-hidden="true">
-                <circle cx="8" cy="5.2" r="2.35" fill="#6CC349" stroke="#000000" strokeWidth="1.1" />
-                <path d="M3.25 13.25c0-2.3 2.2-4.15 4.75-4.15s4.75 1.85 4.75 4.15" stroke="#000000" strokeWidth="1.1" strokeLinecap="round" />
-              </svg>
-              <span className="inline-flex items-center font-minecraft text-[13px] leading-none drop-shadow-[1px_1px_0_rgba(0,0,0,0.8)] md:text-[15px]">
-                {server.onlinePlayers}
-              </span>
+    <article className="ore-online-server-card">
+      <button
+        type="button"
+        className="ore-online-server-card__hero-trigger"
+        onClick={handleToggleDrawer}
+        onKeyDown={(event) => {
+          if (event.key.toLowerCase() === 'y') {
+            event.preventDefault();
+            handleToggleDrawer();
+          }
+        }}
+        aria-expanded={isExpanded}
+      >
+        <div className="ore-online-server-card__hero-image">
+          {server.hero ? (
+            <img
+              src={server.hero}
+              alt={server.name}
+              className="ore-online-server-card__hero-media"
+              loading="lazy"
+            />
+          ) : server.icon ? (
+            <img
+              src={server.icon}
+              alt={server.name}
+              className="ore-online-server-card__hero-media ore-online-server-card__hero-media--soft"
+              loading="lazy"
+            />
+          ) : (
+            <div className="ore-online-server-card__hero-placeholder">
+              <Server size={56} />
             </div>
+          )}
+
+          <div className="ore-online-server-card__hero-gradient" />
+
+          <div className="ore-online-server-card__gamepad-hint">
+            <span className="ore-online-server-card__gamepad-button">Y</span>
+            <span>{isExpanded ? '收起详情' : '展开详情'}</span>
           </div>
 
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0 flex flex-1 flex-wrap items-center gap-1.5">
-              {serverTypeLabel && (
-                <span className="inline-flex h-[28px] items-center gap-1.5 border border-white/10 bg-black/60 px-2 py-1 text-[13px] font-normal text-white/90 shadow-inner md:h-[30px] md:text-[14px]">
-                  {isModdedType && (
-                    <svg viewBox="0 0 16 16" className="h-4 w-4 shrink-0 md:h-[18px] md:w-[18px]" fill="none" aria-hidden="true">
-                      <path d="M6.1 2.25h3.8l.65 1.7h2.5v2.1h-1.05l-.55 1.35v4.3H4.55v-4.3L4 6.05H2.95v-2.1h2.5l.65-1.7Z" stroke="currentColor" strokeWidth="1.1" />
-                      <circle cx="6.1" cy="8.35" r="0.8" fill="currentColor" />
-                      <circle cx="9.9" cy="8.35" r="0.8" fill="currentColor" />
-                    </svg>
-                  )}
-                  <span className="inline-flex items-center leading-none">{serverTypeLabel}</span>
-                </span>
-              )}
-              {server.versions && server.versions.length > 0 && (
-                <span className="inline-flex h-[28px] items-center border border-white/10 bg-black/60 px-2 py-1 text-[13px] font-normal text-white/90 shadow-inner md:h-[30px] md:text-[14px]">
-                  {server.versions.join(', ')}
-                </span>
-              )}
-            </div>
+          <div className="ore-online-server-card__hero-bottom">
+            <h3 className="ore-online-server-card__hero-title">{server.name}</h3>
 
-            <div className="flex min-w-[170px] items-center justify-end gap-2 self-end">
-              {server.hasPaidFeatures && (
-                <span className="inline-flex h-[28px] items-center gap-1.5 border border-black/30 bg-[#FFE866] px-2 py-1 text-[13px] font-normal text-[#C33636] shadow-inner md:h-[30px] md:text-[14px]">
-                  <svg viewBox="0 0 16 16" className="h-4 w-4 shrink-0 md:h-[18px] md:w-[18px]" fill="none" aria-hidden="true">
-                    <path d="M3 5.25h10v7.5H3z" stroke="currentColor" strokeWidth="1.1" />
-                    <path d="M5 5.25V4a3 3 0 0 1 6 0v1.25" stroke="currentColor" strokeWidth="1.1" />
-                    <circle cx="8" cy="8.95" r="1.1" fill="currentColor" />
-                  </svg>
-                  <span className="inline-flex items-center leading-none">含付费</span>
-                </span>
-              )}
-              {server.ageRecommendation && (
-                <span className="inline-flex h-[28px] items-center gap-1.5 border border-black/40 bg-white/20 px-2 py-1 text-[13px] font-normal text-white shadow-inner backdrop-blur-md md:h-[30px] md:text-[14px]">
-                  <svg viewBox="0 0 16 16" className="h-4 w-4 shrink-0 md:h-[18px] md:w-[18px]" fill="none" aria-hidden="true">
-                    <path d="M8 2.2 12.5 4v3.9c0 2.45-1.67 4.47-4.5 5.9-2.83-1.43-4.5-3.45-4.5-5.9V4L8 2.2Z" stroke="currentColor" strokeWidth="1.1" />
-                    <path d="M8 5.6v3.4M8 11.1h.01" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-                  </svg>
-                  <span className="inline-flex items-center leading-none">{server.ageRecommendation}</span>
-                </span>
-              )}
-            </div>
+            {warningChips.length > 0 && (
+              <div className="ore-online-server-card__warnings">
+                {warningChips.map((chip) => (
+                  <span
+                    key={`${chip.tone}-${chip.label}`}
+                    className={`ore-online-server-card__warning ore-online-server-card__warning--${chip.tone}`}
+                  >
+                    <WarningIcon tone={chip.tone} />
+                    {chip.label}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </button>
+
+      <div className="ore-online-server-card__meta-row">
+        {metaTags.map((tag) => (
+          <span
+            key={`${tag.tone}-${tag.label}`}
+            className={`ore-online-server-card__meta-tag ore-online-server-card__meta-tag--${tag.tone}`}
+          >
+            {tag.label}
+          </span>
+        ))}
+      </div>
+
+      <div className={`ore-online-server-card__drawer ${isExpanded ? 'is-open' : ''}`}>
+        <div className="ore-online-server-card__drawer-inner">
+          <div className="ore-online-server-card__drawer-content">
+            <p className="ore-online-server-card__description">{description}</p>
+
+            {drawerLinks.length > 0 && (
+              <div className="ore-online-server-card__links">
+                {drawerLinks.map((link, index) => (
+                  <button
+                    key={`${link.url}-${index}`}
+                    type="button"
+                    className="ore-online-server-card__link-block"
+                    onClick={() => void openLink(link.url)}
+                    title={link.label}
+                  >
+                    <span className="ore-online-server-card__link-title">
+                      {link.isWebsite ? (
+                        <Globe size={16} className="ore-online-server-card__link-icon" />
+                      ) : (
+                        <MessageSquareShare size={16} className="ore-online-server-card__link-icon" />
+                      )}
+                      {link.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-3 bg-gradient-to-b from-[#FFFFFF] to-[#F8F8F8] p-3 md:p-4">
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          {(() => {
-            const allTags = [...(server.features || []), ...(server.mechanics || []), ...(server.elements || [])];
-            if (allTags.length > 0) {
-              return allTags.map((feat, idx) => (
-                <div
-                  key={idx}
-                  className="flex max-w-full items-center gap-1 border border-black/10 bg-white/85 px-2 py-1 shadow-sm"
-                  style={{ borderColor: feat.color ? `${feat.color}45` : '' }}
-                >
-                  {feat.iconSvg && (
-                    <div
-                      className="flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center opacity-90 md:h-4 md:w-4"
-                      dangerouslySetInnerHTML={{ __html: feat.iconSvg }}
-                      style={{ color: feat.color || '#2F2F2F' }}
-                    />
-                  )}
-                  <span className="truncate text-[11px] font-normal leading-none md:text-xs" style={{ color: feat.color || '#2F2F2F' }}>
-                    {feat.label}
-                  </span>
-                </div>
-              ));
-            }
-
-            return <span className="py-1 text-[11px] italic text-black/45 md:text-xs">精选标签中</span>;
-          })()}
-        </div>
-
-        {server.socials && server.socials.length > 0 && (
-          <div className="mt-auto flex flex-wrap items-center justify-end gap-2 border-t border-black/10 pt-2 md:pt-3">
-            {server.socials.map((social, idx) => {
-              if (!social.url) return null;
-              const isWebsite =
-                social.label.toLowerCase().includes('网页') ||
-                social.label.toLowerCase().includes('官网') ||
-                social.label.toLowerCase().includes('web');
-
-              return (
-                <FocusItem
-                  key={idx}
-                  focusKey={`server-${server.id}-social-${idx}`}
-                  onArrowPress={onArrowPress}
-                  onEnter={() => void openLink(social.url!)}
-                >
-                  {({ ref, focused }) => (
-                    <button
-                      ref={ref as React.RefObject<HTMLButtonElement>}
-                      type="button"
-                      className={`flex h-7 w-7 items-center justify-center border border-black/20 bg-white/70 transition-colors hover:bg-white/90 active:bg-white md:h-8 md:w-8 ${
-                        focused ? 'outline outline-2 outline-black outline-offset-1' : ''
-                      }`}
-                      title={social.label}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void openLink(social.url!);
-                      }}
-                      tabIndex={-1}
-                    >
-                      {isWebsite ? <Globe size={14} className="text-black/80" /> : <MessageSquareShare size={14} className="text-black/80" />}
-                    </button>
-                  )}
-                </FocusItem>
-              );
-            })}
-          </div>
-        )}
+      <div className="ore-online-server-card__action-bar">
+        <button
+          type="button"
+          className="ore-online-server-card__action ore-online-server-card__action--secondary"
+          onClick={handleCopyIp}
+          disabled={!server.address}
+        >
+          {copyState === 'success'
+            ? '已复制 IP'
+            : copyState === 'error'
+              ? '复制失败'
+              : '复制 IP'}
+        </button>
+        <button
+          type="button"
+          className="ore-online-server-card__action ore-online-server-card__action--primary"
+          onClick={() => onClick?.(server)}
+          disabled={!onClick}
+        >
+          进入游戏
+        </button>
       </div>
     </article>
   );

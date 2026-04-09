@@ -1,15 +1,20 @@
 // /src/pages/Home.tsx
-import React, { useState } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHome } from '../hooks/pages/Home/useHome';
 import { useInstances } from '../hooks/pages/Instances/useInstances';
 import { useLauncherStore } from '../store/useLauncherStore'; 
 
 import { PlayStats } from '../features/home/components/PlayStats';
-import { SkinViewerPlaceholder } from '../features/home/components/SkinViewerPlaceholder';
 import { HeroLogo } from '../features/home/components/HeroLogo';
 import { LaunchControls } from '../features/home/components/LaunchControls';
 import { InstanceSelectModal } from '../features/home/components/InstanceSelectModal';
+
+const SkinViewerPlaceholder = lazy(() =>
+  import('../features/home/components/SkinViewerPlaceholder').then((module) => ({
+    default: module.SkinViewerPlaceholder,
+  })),
+);
 
 const Home: React.FC = () => {
   // ✅ 修复 1：移除 playTime 和 lastPlayed 解构，只保留 handleLaunch
@@ -50,7 +55,9 @@ const Home: React.FC = () => {
     <div className="w-full h-full relative">
       {/* ✅ 修复 3：将提取出的数据传给 PlayStats */}
       <PlayStats playTime={playTime} lastPlayed={lastPlayed} />
-      <SkinViewerPlaceholder />
+      <Suspense fallback={null}>
+        <SkinViewerPlaceholder />
+      </Suspense>
 
       <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
         <HeroLogo instanceId={currentId || null} />

@@ -1,11 +1,13 @@
 // src/features/home/components/PlayStats.tsx
 import React, { useState, useEffect } from 'react';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
-import { Bell } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getButtonIcon } from '../../../ui/icons/SocialIcons';
+import { NewspaperIcon } from '../../../ui/icons/NewspaperIcon';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import { useLauncherStore } from '../../../store/useLauncherStore';
+import { useNewsStore } from '../../../store/useNewsStore';
+import { openExternalLink } from '../../../utils/openExternalLink';
 
 import { useAccountStore } from '../../../store/useAccountStore';
 import { useMicrosoftAuth } from '../../Settings/hooks/useMicrosoftAuth';
@@ -30,7 +32,8 @@ interface PiStyleConfig {
 export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) => {
   const { t } = useTranslation();
   const selectedInstanceId = useLauncherStore(state => state.selectedInstanceId);
-  const [unreadNewsCount, setUnreadNewsCount] = useState(3);
+  const setActiveTab = useLauncherStore(state => state.setActiveTab);
+  const unreadNewsCount = useNewsStore(state => state.unreadCount);
   const [piConfig, setPiConfig] = useState<PiStyleConfig | null>(null);
 
   // 获取全局账号与 setActiveAccount 方法
@@ -107,8 +110,8 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
     return <IconComp size={20} />;
   };
 
-  const squareBtnClass = "!min-w-0 !w-11 !h-11 [&>button]:!px-0";
-  const accountSquareClass = "!min-w-0 !w-12 !h-12 [&>button]:!px-0";
+  const squareBtnClass = "!min-w-0 !w-11 !h-11 !p-0 !justify-center !items-center";
+  const accountSquareClass = "!min-w-0 !w-12 !h-12 !p-0 !justify-center !items-center";
 
   return (
     <>
@@ -118,7 +121,7 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
           {piConfig?.wiki && (() => {
             const WikiIcon = getButtonIcon('wiki');
             return (
-              <OreButton focusKey="btn-wiki" variant="secondary" size="auto" className={squareBtnClass} style={piConfig.buttonStyle} onClick={() => window.open(piConfig.wiki!.url)} title={piConfig.wiki!.label || 'Wiki'} autoScroll={false}>
+              <OreButton focusKey="btn-wiki" variant="secondary" size="auto" className={squareBtnClass} style={piConfig.buttonStyle} onClick={() => void openExternalLink(piConfig.wiki!.url)} title={piConfig.wiki!.label || 'Wiki'} autoScroll={false}>
                 <WikiIcon size={20} />
               </OreButton>
             );
@@ -127,7 +130,7 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
           {piConfig?.socials && piConfig.socials.length > 0 && (
             <div className="flex space-x-3">
               {piConfig.socials.slice(0, 5).map((social, index) => (
-                <OreButton key={index} focusKey={`btn-social-${index}`} variant="secondary" size="auto" className={squareBtnClass} style={piConfig.buttonStyle} onClick={() => window.open(social.url)} title={social.type} autoScroll={false}>
+                <OreButton key={index} focusKey={`btn-social-${index}`} variant="secondary" size="auto" className={squareBtnClass} style={piConfig.buttonStyle} onClick={() => void openExternalLink(social.url)} title={social.type} autoScroll={false}>
                   {renderSocialIcon(social.type)}
                 </OreButton>
               ))}
@@ -137,11 +140,22 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
 
         <div className="flex items-center space-x-3">
           <div className="relative">
-            <OreButton focusKey="btn-notification" variant="secondary" size="auto" className={accountSquareClass} style={piConfig?.buttonStyle} onClick={() => setUnreadNewsCount(0)} title={t('home.notification')} autoScroll={false}>
-              <Bell size={24} fill="#FACC15" className="text-yellow-600 drop-shadow-md" />
+            <OreButton
+              focusKey="btn-notification"
+              variant="secondary"
+              size="auto"
+              className={accountSquareClass}
+              style={piConfig?.buttonStyle}
+              onClick={() => {
+                setActiveTab('news');
+              }}
+              title={t('home.notification')}
+              autoScroll={false}
+            >
+              <NewspaperIcon className="block h-[1.45rem] w-[1.45rem] shrink-0 text-[#FACC15] drop-shadow-md" />
             </OreButton>
             {unreadNewsCount > 0 && (
-              <div className="absolute -top-1.5 -right-1.5 bg-ore-red text-white text-[10px] font-bold font-minecraft px-1.5 py-0.5 rounded-sm z-20 border-[2px] border-[#1E1E1F] shadow-sm pointer-events-none select-none">
+              <div className="absolute -top-2 -right-2 min-w-[1.45rem] bg-ore-red text-white text-[10px] font-bold font-minecraft px-1.5 py-0.5 rounded-sm z-20 border-[2px] border-[#1E1E1F] shadow-sm pointer-events-none select-none text-center leading-none">
                 {unreadNewsCount > 99 ? '99+' : unreadNewsCount}
               </div>
             )}
@@ -152,7 +166,7 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
               <span className="text-lg tracking-widest leading-none mt-0.5">{t('home.addAccount')}</span>
             </OreButton>
           ) : (
-            <OreButton focusKey="btn-profile" variant="secondary" size="auto" className="!h-12 !px-3 [&>button]:!justify-start" style={piConfig?.buttonStyle} onClick={() => setIsSidebarOpen(true)} autoScroll={false}>
+            <OreButton focusKey="btn-profile" variant="secondary" size="auto" className="!h-12 !px-3 !justify-start" style={piConfig?.buttonStyle} onClick={() => setIsSidebarOpen(true)} autoScroll={false}>
               {/* ✅ 彻底采用本地图片作为 onerror 断网兜底 */}
               <img 
                 src={avatarSrc || defaultAvatar} 

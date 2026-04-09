@@ -17,6 +17,13 @@ pub struct ServerBinding {
     pub port: u16,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct InstanceBindingState {
+    pub server_binding: Option<ServerBinding>,
+    pub auto_join_server: bool,
+}
+
 // --- 前端请求模型 ---
 #[derive(Debug, Deserialize)]
 pub struct CreateInstancePayload {

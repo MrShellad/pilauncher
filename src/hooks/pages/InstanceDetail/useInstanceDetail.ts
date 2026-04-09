@@ -56,6 +56,11 @@ export interface VerifyInstanceRuntimeResult {
   repair: MissingRuntime | null;
 }
 
+interface InstanceBindingState {
+  serverBinding?: ServerBindingInfo;
+  autoJoinServer: boolean;
+}
+
 interface RawInstanceDetail {
   name?: string;
   description?: string;
@@ -90,8 +95,12 @@ export const useInstanceDetail = (instanceId: string) => {
       try {
         setIsInitializing(true);
 
-        const [realData, screenshotsRaw] = await Promise.all([
+        const [realData, bindingState, screenshotsRaw] = await Promise.all([
           invoke<RawInstanceDetail>('get_instance_detail', { id: instanceId }),
+          invoke<InstanceBindingState>('get_instance_server_binding', { id: instanceId }).catch(() => ({
+            serverBinding: undefined,
+            autoJoinServer: false,
+          })),
           invoke<string[]>('get_instance_screenshots', { id: instanceId }).catch(() => []),
         ]);
 
@@ -122,8 +131,8 @@ export const useInstanceDetail = (instanceId: string) => {
           playTime,
           lastPlayed: realData.lastPlayed || realData.last_played || '',
           customButtons: realData.custom_buttons || [],
-          serverBinding: realData.server_binding || undefined,
-          autoJoinServer: realData.auto_join_server ?? true,
+          serverBinding: bindingState.serverBinding || undefined,
+          autoJoinServer: bindingState.autoJoinServer,
         });
 
         const heroAbs = await invoke<string | null>('get_instance_herologo', { id: instanceId }).catch(
@@ -212,13 +221,35 @@ export const useInstanceDetail = (instanceId: string) => {
   };
 
   const handleUpdateServerBinding = async (serverBinding: ServerBindingInfo | null) => {
-    await invoke('update_instance_server_binding', { id: instanceId, serverBinding });
-    setData((prev) => (prev ? { ...prev, serverBinding: serverBinding || undefined } : null));
+    const bindingState = await invoke<InstanceBindingState>('update_instance_server_binding', {
+      id: instanceId,
+      serverBinding,
+    });
+    setData((prev) =>
+      prev
+        ? {
+            ...prev,
+            serverBinding: bindingState.serverBinding || undefined,
+            autoJoinServer: bindingState.autoJoinServer,
+          }
+        : null
+    );
   };
 
   const handleUpdateAutoJoinServer = async (autoJoin: boolean) => {
-    await invoke('update_instance_auto_join_server', { id: instanceId, autoJoin });
-    setData((prev) => (prev ? { ...prev, autoJoinServer: autoJoin } : null));
+    const bindingState = await invoke<InstanceBindingState>('update_instance_auto_join_server', {
+      id: instanceId,
+      autoJoin,
+    });
+    setData((prev) =>
+      prev
+        ? {
+            ...prev,
+            serverBinding: bindingState.serverBinding || undefined,
+            autoJoinServer: bindingState.autoJoinServer,
+          }
+        : null
+    );
   };
 
   const handleVerifyFiles = async (): Promise<VerifyInstanceRuntimeResult> => {

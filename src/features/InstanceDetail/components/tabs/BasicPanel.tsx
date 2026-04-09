@@ -570,7 +570,7 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
                             if (!editServerIp.trim()) return;
                             setIsSaving(true);
                             await onUpdateServerBinding({
-                              uuid: data.serverBinding?.uuid || crypto.randomUUID(),
+                              uuid: data.serverBinding?.uuid || '',
                               name: editServerName.trim() || editServerIp.trim(),
                               ip: editServerIp.trim(),
                               port: parseInt(editServerPort, 10) || 25565,

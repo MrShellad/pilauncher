@@ -1,12 +1,22 @@
-// src/ui/primitives/OreDropdown.tsx
-import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Check, Search } from 'lucide-react';
-import { FocusItem } from '../focus/FocusItem';
-
+import React, {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Check, ChevronDown, Search } from 'lucide-react';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
 
-export interface DropdownOption { label: string; value: string; }
+import { FocusItem } from '../focus/FocusItem';
+
+export interface DropdownOption {
+  label: string;
+  value: string;
+}
 
 interface OreDropdownProps {
   options: DropdownOption[];
@@ -19,172 +29,287 @@ interface OreDropdownProps {
   onArrowPress?: (direction: string) => boolean | void;
   searchable?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
-  prefixNode?: React.ReactNode; // ✅ 新增：支持前缀图标
+  prefixNode?: React.ReactNode;
 }
 
+type DropdownPlacement = 'bottom' | 'top';
+
+const PANEL_WIDTH_FALLBACK = 260;
+
 export const OreDropdown: React.FC<OreDropdownProps> = ({
-  options, value, onChange, placeholder = 'Select...', disabled = false, className = '', focusKey, onArrowPress, searchable = false, onOpenChange, prefixNode
+  options,
+  value,
+  onChange,
+  placeholder = 'Select...',
+  disabled = false,
+  className = '',
+  focusKey,
+  onArrowPress,
+  searchable = false,
+  onOpenChange,
+  prefixNode,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [placement, setPlacement] = useState<'bottom' | 'top'>('bottom');
+  const [placement, setPlacement] = useState<DropdownPlacement>('bottom');
   const [alignRight, setAlignRight] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const dropdownId = useMemo(() => Math.random().toString(36).substring(2, 9), []);
+  const dropdownId = useId().replace(/:/g, '');
+  const panelId = `ore-dropdown-panel-${dropdownId}`;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const selectedOption = value !== '' ? options.find((opt) => opt.value === value) : undefined;
-
-  useEffect(() => {
-    const handleGlobalToggle = (e: any) => {
-      if (e.detail !== dropdownId) {
-        setIsOpen(false);
-        onOpenChange?.(false);
-      }
-    };
-    window.addEventListener('ore-dropdown-toggle', handleGlobalToggle);
-    return () => window.removeEventListener('ore-dropdown-toggle', handleGlobalToggle);
-  }, [dropdownId, onOpenChange]);
-
-  const toggleDropdown = () => {
-    if (disabled) return;
-    const nextState = !isOpen;
-    setIsOpen(nextState);
-    onOpenChange?.(nextState);
-    if (nextState) {
-      window.dispatchEvent(new CustomEvent('ore-dropdown-toggle', { detail: dropdownId }));
-    }
-  };
-
-  useEffect(() => { if (!isOpen) setSearchTerm(''); }, [isOpen]);
-  useEffect(() => { if (isOpen) pause(); else resume(); return () => resume(); }, [isOpen]);
+  const selectedOption = useMemo(
+    () => (value !== '' ? options.find((option) => option.value === value) : undefined),
+    [options, value],
+  );
 
   const filteredOptions = useMemo(() => {
-    if (!searchable || !searchTerm) return options;
-    return options.filter(opt =>
-      opt.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      opt.value.toLowerCase().includes(searchTerm.toLowerCase())
+    if (!searchable || !searchTerm) {
+      return options;
+    }
+
+    const normalizedTerm = searchTerm.toLowerCase();
+    return options.filter(
+      (option) =>
+        option.label.toLowerCase().includes(normalizedTerm) ||
+        option.value.toLowerCase().includes(normalizedTerm),
     );
   }, [options, searchable, searchTerm]);
 
+  const closeDropdown = useCallback(() => {
+    setIsOpen((previous) => {
+      if (!previous) {
+        return previous;
+      }
+
+      onOpenChange?.(false);
+      return false;
+    });
+  }, [onOpenChange]);
+
+  const openDropdown = useCallback(() => {
+    if (disabled) {
+      return;
+    }
+
+    setIsOpen((previous) => {
+      if (previous) {
+        return previous;
+      }
+
+      onOpenChange?.(true);
+      return true;
+    });
+
+    window.dispatchEvent(new CustomEvent('ore-dropdown-toggle', { detail: dropdownId }));
+  }, [disabled, dropdownId, onOpenChange]);
+
+  const toggleDropdown = useCallback(() => {
+    if (disabled) {
+      return;
+    }
+
+    if (isOpen) {
+      closeDropdown();
+    } else {
+      openDropdown();
+    }
+  }, [closeDropdown, disabled, isOpen, openDropdown]);
+
+  const selectOption = useCallback(
+    (nextValue: string) => {
+      onChange(nextValue);
+      closeDropdown();
+    },
+    [closeDropdown, onChange],
+  );
+
+  useEffect(() => {
+    if (disabled) {
+      closeDropdown();
+    }
+  }, [closeDropdown, disabled]);
+
+  useEffect(() => {
+    const handleGlobalToggle = (event: Event) => {
+      const customEvent = event as CustomEvent<string>;
+      if (customEvent.detail !== dropdownId) {
+        closeDropdown();
+      }
+    };
+
+    window.addEventListener('ore-dropdown-toggle', handleGlobalToggle);
+    return () => window.removeEventListener('ore-dropdown-toggle', handleGlobalToggle);
+  }, [closeDropdown, dropdownId]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchTerm('');
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     if (isOpen) {
-      const idx = filteredOptions.findIndex(opt => opt.value === value);
-      setHighlightedIndex(idx >= 0 ? idx : 0);
+      pause();
     } else {
+      resume();
+    }
+
+    return () => resume();
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
       setHighlightedIndex(-1);
+      return;
     }
-  }, [isOpen, value, filteredOptions]);
+
+    const selectedIndex = filteredOptions.findIndex((option) => option.value === value);
+    setHighlightedIndex(selectedIndex >= 0 ? selectedIndex : filteredOptions.length > 0 ? 0 : -1);
+  }, [filteredOptions, isOpen, value]);
 
   useEffect(() => {
-    if (isOpen && panelRef.current && highlightedIndex >= 0) {
-      const optionsContainer = panelRef.current.querySelector('.options-scroll-container');
-      if (!optionsContainer) return;
-      const target = optionsContainer.children[highlightedIndex] as HTMLElement;
-      if (target) {
-        const containerTop = panelRef.current.scrollTop;
-        const containerBottom = containerTop + panelRef.current.clientHeight;
-        const searchBoxHeight = searchable ? 52 : 0;
-        const targetTop = target.offsetTop + searchBoxHeight;
-        const targetBottom = targetTop + target.offsetHeight;
-
-        if (targetTop < containerTop + searchBoxHeight) {
-          panelRef.current.scrollTop = targetTop - searchBoxHeight - 8;
-        } else if (targetBottom > containerBottom) {
-          panelRef.current.scrollTop = targetBottom - panelRef.current.clientHeight + 8;
-        }
-      }
+    if (!isOpen || highlightedIndex < 0) {
+      return;
     }
-  }, [highlightedIndex, isOpen, searchable]);
+
+    const optionElements = panelRef.current?.querySelectorAll<HTMLElement>('.ore-dropdown-item');
+    optionElements?.[highlightedIndex]?.scrollIntoView({
+      block: 'nearest',
+    });
+  }, [highlightedIndex, isOpen]);
 
   useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.key)) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-      } else {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(event.key)) {
         return;
       }
 
-      if (e.key === 'ArrowDown') setHighlightedIndex(prev => Math.min(filteredOptions.length - 1, prev + 1));
-      else if (e.key === 'ArrowUp') setHighlightedIndex(prev => Math.max(0, prev - 1));
-      else if (e.key === 'Enter') {
-        if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
-          onChange(filteredOptions[highlightedIndex].value);
-          setIsOpen(false);
-          onOpenChange?.(false);
-        }
-      } else if (e.key === 'Escape') {
-        setIsOpen(false);
-        onOpenChange?.(false);
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+
+      if (event.key === 'ArrowDown') {
+        setHighlightedIndex((previous) => {
+          if (filteredOptions.length === 0) {
+            return -1;
+          }
+          return Math.min(filteredOptions.length - 1, previous + 1);
+        });
+        return;
       }
+
+      if (event.key === 'ArrowUp') {
+        setHighlightedIndex((previous) => {
+          if (filteredOptions.length === 0) {
+            return -1;
+          }
+          return Math.max(0, previous - 1);
+        });
+        return;
+      }
+
+      if (event.key === 'Enter') {
+        if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
+          selectOption(filteredOptions[highlightedIndex].value);
+        }
+        return;
+      }
+
+      closeDropdown();
     };
+
     window.addEventListener('keydown', handleKeyDown, { capture: true });
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
-  }, [isOpen, highlightedIndex, filteredOptions, onChange, onOpenChange]);
+  }, [closeDropdown, filteredOptions, highlightedIndex, isOpen, selectOption]);
 
   useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-        onOpenChange?.(false);
+    if (!isOpen) {
+      return;
+    }
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        closeDropdown();
       }
     };
-    if (isOpen) document.addEventListener('mousedown', handleOutsideClick);
+
+    document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [isOpen, onOpenChange]);
+  }, [closeDropdown, isOpen]);
 
   useLayoutEffect(() => {
-    if (isOpen && triggerRef.current && panelRef.current) {
-      const triggerRect = triggerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - triggerRect.bottom;
-      const spaceAbove = triggerRect.top;
-      setPlacement(spaceBelow < panelRef.current.offsetHeight && spaceAbove > spaceBelow ? 'top' : 'bottom');
-
-      if (window.innerWidth - triggerRect.right < 260) {
-        setAlignRight(true);
-      } else {
-        setAlignRight(false);
-      }
+    if (!isOpen || !triggerRef.current || !panelRef.current) {
+      return;
     }
-  }, [isOpen, options]);
+
+    const triggerRect = triggerRef.current.getBoundingClientRect();
+    const panelHeight = panelRef.current.offsetHeight;
+    const panelWidth = panelRef.current.offsetWidth || PANEL_WIDTH_FALLBACK;
+    const availableBelow = window.innerHeight - triggerRect.top;
+    const availableAbove = triggerRect.bottom;
+
+    setPlacement(panelHeight > availableBelow && availableAbove > availableBelow ? 'top' : 'bottom');
+    setAlignRight(triggerRect.left + panelWidth > window.innerWidth && triggerRect.right - panelWidth >= 0);
+  }, [filteredOptions.length, isOpen, options.length, searchTerm, searchable]);
 
   return (
-    <FocusItem focusKey={focusKey} disabled={disabled} onArrowPress={onArrowPress} onEnter={toggleDropdown}>
+    <FocusItem
+      focusKey={focusKey}
+      disabled={disabled}
+      onArrowPress={onArrowPress}
+      onEnter={toggleDropdown}
+    >
       {({ ref: focusRef, focused }) => (
         <div
-          ref={focusRef as any}
-          /* ✅ 提升默认高度至 40px，适配 TV 端阅读体验 */
-          className={`relative block w-full rounded-sm h-[40px] ${className} ${isOpen ? 'z-[100]' : (focused ? 'ring-2 ring-white scale-[1.02] z-40 shadow-lg brightness-110' : 'z-20')}`}
+          ref={focusRef as React.RefObject<HTMLDivElement>}
+          className={`ore-dropdown-root relative block h-[40px] w-full rounded-sm ${className} ${
+            isOpen ? 'z-[100]' : focused ? 'z-40 scale-[1.02] ring-2 ring-white shadow-lg brightness-110' : 'z-20'
+          }`}
         >
-          <div ref={containerRef} className="h-full flex flex-col">
+          <div ref={containerRef} className="relative flex h-full flex-col">
             <button
               ref={triggerRef}
               type="button"
               disabled={disabled}
               onClick={toggleDropdown}
               tabIndex={-1}
-              className={`ore-dropdown-trigger w-full flex items-center justify-between px-3 ${isOpen ? 'is-open' : ''} ${focused && !isOpen ? 'border-transparent' : ''}`}
+              aria-expanded={isOpen}
+              aria-haspopup="listbox"
+              aria-controls={panelId}
+              className={`ore-dropdown-trigger ${isOpen ? 'is-open' : ''}`}
             >
-              {/* ✅ 支持内嵌前缀图标 */}
-              <div className="flex items-center overflow-hidden">
+              <div className="ore-dropdown-trigger__content">
                 {prefixNode && (
-                  <div className={`mr-2 flex-shrink-0 transition-colors ${!selectedOption ? 'text-[#48494A]' : 'text-black'}`}>
+                  <div
+                    className={`ore-dropdown-trigger__prefix ${!selectedOption ? 'is-placeholder' : ''}`}
+                  >
                     {prefixNode}
                   </div>
                 )}
-                <span className={`truncate font-minecraft font-bold ${!selectedOption ? 'text-[#48494A]' : 'text-black'}`}>
+                <span
+                  className={`ore-dropdown-trigger__label ${!selectedOption ? 'is-placeholder' : ''}`}
+                >
                   {selectedOption ? selectedOption.label : placeholder}
                 </span>
               </div>
-              <motion.div animate={{ rotate: isOpen ? (placement === 'bottom' ? 180 : -180) : 0 }} transition={{ duration: 0.2 }} className="ml-2 flex-shrink-0">
-                <ChevronDown size={18} className={!selectedOption ? 'text-[#48494A]' : 'text-black'} />
+
+              <motion.div
+                animate={{ rotate: isOpen ? (placement === 'bottom' ? 180 : -180) : 0 }}
+                transition={{ duration: 0.18 }}
+                className={`ore-dropdown-trigger__arrow ${disabled ? 'is-disabled' : ''} ${
+                  !selectedOption ? 'is-placeholder' : ''
+                }`}
+              >
+                <ChevronDown size={18} />
               </motion.div>
             </button>
 
@@ -192,50 +317,75 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
               {isOpen && (
                 <motion.div
                   ref={panelRef}
-                  initial={{ opacity: 0, scaleY: 0.95, originY: placement === 'bottom' ? 0 : 1 }}
-                  animate={{ opacity: 1, scaleY: 1 }}
-                  exit={{ opacity: 0, scaleY: 0.95, transition: { duration: 0.1 } }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                  className="ore-dropdown-panel custom-scrollbar min-w-full"
-                  style={{
-                    ...(placement === 'bottom' ? { top: '100%', marginTop: '2px' } : { bottom: '100%', marginBottom: '2px' }),
-                    ...(alignRight ? { right: 0, left: 'auto' } : { left: 0, right: 'auto' })
+                  id={panelId}
+                  role="listbox"
+                  initial={{
+                    opacity: 0,
+                    scaleY: 0.96,
+                    originY: placement === 'bottom' ? 0 : 1,
                   }}
+                  animate={{ opacity: 1, scaleY: 1 }}
+                  exit={{ opacity: 0, scaleY: 0.96, transition: { duration: 0.1 } }}
+                  transition={{ duration: 0.16, ease: 'easeOut' }}
+                  className="ore-dropdown-panel custom-scrollbar"
+                  data-placement={placement}
+                  style={
+                    placement === 'bottom'
+                      ? alignRight
+                        ? { top: 0, right: 0 }
+                        : { top: 0, left: 0 }
+                      : alignRight
+                        ? { bottom: 0, right: 0 }
+                        : { bottom: 0, left: 0 }
+                  }
+                  onMouseDown={(event) => event.stopPropagation()}
                 >
                   {searchable && (
                     <div className="ore-dropdown-search-wrapper">
-                      <div className="relative flex items-center h-full">
-                        <Search size={14} className="absolute left-3 text-gray-400 pointer-events-none" />
+                      <div className="relative flex h-full items-center">
+                        <Search
+                          size={14}
+                          className="pointer-events-none absolute left-3 text-[#B1B2B5]"
+                        />
                         <input
                           autoFocus
                           type="text"
-                          placeholder="搜索..."
                           value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
+                          placeholder="搜索..."
+                          onChange={(event) => setSearchTerm(event.target.value)}
+                          onClick={(event) => event.stopPropagation()}
                           className="ore-dropdown-search-input"
                         />
                       </div>
                     </div>
                   )}
 
-                  <div className="options-scroll-container flex flex-col py-1">
+                  <div className="options-scroll-container ore-dropdown-options-list">
                     {filteredOptions.length === 0 ? (
-                      <div className="px-4 py-8 text-center text-sm text-gray-400 font-minecraft">无匹配结果</div>
+                      <div className="ore-dropdown-empty">无匹配结果</div>
                     ) : (
-                      filteredOptions.map((opt, idx) => {
-                        const isSelected = opt.value === value;
-                        const isHighlighted = highlightedIndex === idx;
+                      filteredOptions.map((option, index) => {
+                        const isSelected = option.value === value;
+                        const isHighlighted = highlightedIndex === index;
+
                         return (
-                          <div
-                            key={opt.value}
-                            onMouseEnter={() => setHighlightedIndex(idx)}
-                            onClick={() => { onChange(opt.value); setIsOpen(false); onOpenChange?.(false); }}
-                            className={`ore-dropdown-item ${isSelected ? 'is-selected' : ''} ${isHighlighted ? 'is-highlighted' : ''}`}
+                          <button
+                            key={option.value}
+                            type="button"
+                            role="option"
+                            aria-selected={isSelected}
+                            onMouseEnter={() => setHighlightedIndex(index)}
+                            onClick={() => selectOption(option.value)}
+                            className={`ore-dropdown-item ${isSelected ? 'is-selected' : ''} ${
+                              isHighlighted ? 'is-highlighted' : ''
+                            }`}
+                            tabIndex={-1}
                           >
-                            <span className="font-minecraft whitespace-normal break-words pr-2">{opt.label}</span>
-                            {isSelected && <Check size={18} className="text-white ml-3 flex-shrink-0" />}
-                          </div>
+                            <span className="ore-dropdown-item__label">{option.label}</span>
+                            <span className="ore-dropdown-item__check" aria-hidden="true">
+                              {isSelected ? <Check size={16} strokeWidth={3} /> : null}
+                            </span>
+                          </button>
                         );
                       })
                     )}

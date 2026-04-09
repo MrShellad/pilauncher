@@ -1,66 +1,125 @@
 @tailwind components;
 /* /src/style/ui/primitives/OreDropdown.css */
 @layer components {
-  /* ================= 1. 瑙﹀彂鍣ㄦ寜閽?(鏈睍寮€鏃? ================= */
   .ore-dropdown-trigger {
-    @apply flex items-center justify-between w-full h-full px-3 font-minecraft text-sm font-bold select-none transition-none focus:outline-none border-[2px] border-[#1E1E1F] text-black;
-    background-color: #D0D1D4;
-    box-shadow: inset 0 -4px #58585A, inset 2px 2px rgba(255, 255, 255, 0.6), inset -2px -6px rgba(255, 255, 255, 0.4);
-    padding-bottom: 4px;
+    @apply relative flex h-full w-full items-center justify-between overflow-hidden border-[2px] border-[#1E1E1F] text-black transition-none select-none focus:outline-none;
+    box-sizing: border-box;
+    background-color: #d0d1d4;
+    box-shadow:
+      inset 0 -4px #58585a,
+      inset 3px 3px rgba(255, 255, 255, 0.6),
+      inset -3px -7px rgba(255, 255, 255, 0.4);
+    padding: 10px 38px 16px 10px;
   }
 
   .ore-dropdown-trigger:hover:not(:disabled):not(.is-open) {
-    background-color: #B1B2B5;
-    box-shadow: inset 0 -4px #58585A, inset 2px 2px rgba(255, 255, 255, 0.8), inset -2px -6px rgba(255, 255, 255, 0.6);
+    background-color: #b1b2b5;
+    box-shadow:
+      inset 0 -4px #58585a,
+      inset 3px 3px rgba(255, 255, 255, 0.8),
+      inset -3px -7px rgba(255, 255, 255, 0.6);
   }
 
-  /* 灞曞紑鏃剁殑娣卞潙鍑归櫡鐘舵€?*/
   .ore-dropdown-trigger.is-open {
-    background-color: #B1B2B5;
-    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.8), inset -2px -2px rgba(255, 255, 255, 0.6);
-    padding-bottom: 0;
-    padding-top: 4px;
+    background-color: #b1b2b5;
   }
 
   .ore-dropdown-trigger:disabled {
-    background-color: #D0D1D4;
-    border-color: #8C8D90;
-    box-shadow: inset 0 -4px #B1B2B5;
-    color: #48494A;
-    @apply opacity-80 cursor-not-allowed;
+    @apply cursor-not-allowed;
+    background-color: #d0d1d4;
+    border-color: #8c8d90;
+    box-shadow: inset 0 -4px #b1b2b5;
+    color: #48494a;
   }
 
-  /* ================= 2. 涓嬫媺闈㈡澘瀹瑰櫒 (鎮诞灞? ================= */
+  .ore-dropdown-trigger__content {
+    @apply flex min-w-0 items-center;
+  }
+
+  .ore-dropdown-trigger__prefix {
+    @apply mr-2 flex-shrink-0 text-black transition-colors;
+  }
+
+  .ore-dropdown-trigger__prefix.is-placeholder {
+    color: #48494a;
+  }
+
+  .ore-dropdown-trigger__label {
+    @apply truncate font-minecraft font-bold text-black;
+  }
+
+  .ore-dropdown-trigger__label.is-placeholder {
+    color: #48494a;
+  }
+
+  .ore-dropdown-trigger__arrow {
+    @apply pointer-events-none absolute right-[10px] flex -translate-y-1/2 items-center justify-center text-black;
+    top: calc(50% - 2px);
+    width: 24px;
+  }
+
+  .ore-dropdown-trigger__arrow.is-placeholder,
+  .ore-dropdown-trigger__arrow.is-disabled {
+    color: #48494a;
+  }
+
   .ore-dropdown-panel {
-    @apply absolute min-w-[100%] w-max border-[2px] border-[#1E1E1F] z-[100] max-h-72 overflow-y-auto rounded-sm;
-    background-color: #58585A;
-    box-shadow: inset 2px 0 #8C8D90, inset -2px 0 #8C8D90, inset 0 2px #8C8D90, inset 0 -2px #8C8D90, 0 20px 50px rgba(0, 0, 0, 0.8);
+    @apply absolute z-[100] max-h-72 overflow-y-auto border-[2px] border-[#1E1E1F];
+    box-sizing: content-box;
+    width: calc(100% - 4px);
+    min-width: max-content;
+    max-width: min(32rem, calc(100vw - 24px));
+    background-color: #58585a;
+    box-shadow:
+      inset 2px 0 #8c8d90,
+      inset -2px 0 #8c8d90,
+      inset 0 2px #8c8d90,
+      inset 0 -2px #8c8d90,
+      0 20px 50px rgba(0, 0, 0, 0.8);
   }
 
-  /* ================= 3. 鍐呴儴鎼滅储妗?================= */
   .ore-dropdown-search-wrapper {
-    @apply sticky top-0 bg-[#58585A] z-20 p-2 shadow-sm;
-    box-shadow: inset 0 -2px #8C8D90;
+    @apply sticky top-0 z-20 p-2;
+    background-color: #58585a;
+    box-shadow: inset 0 -2px #8c8d90;
   }
-  
+
   .ore-dropdown-search-input {
-    @apply w-full h-[32px] border-[2px] border-[#1E1E1F] pl-8 pr-2 text-xs text-white font-minecraft focus:outline-none transition-colors placeholder:text-gray-300;
+    @apply h-[32px] w-full border-[2px] border-[#1E1E1F] pl-8 pr-2 font-minecraft text-xs text-white placeholder:text-[#B1B2B5] transition-colors focus:outline-none;
     background-color: #313233;
     box-shadow: inset 0 4px #242425;
   }
 
-  /* ================= 4. 鍗曚釜閫夐」 ================= */
+  .ore-dropdown-options-list {
+    @apply flex flex-col;
+  }
+
   .ore-dropdown-item {
-    @apply relative flex justify-between items-center w-full px-3 py-2 min-h-[40px] text-sm cursor-pointer select-none transition-none text-white;
-    box-shadow: inset 0 1px #8C8D90, inset 0 -1px #8C8D90;
+    @apply flex min-h-[40px] w-full items-center justify-between border-0 px-[10px] py-0 text-left text-sm text-white transition-none;
+    background: transparent;
+    box-shadow: inset 0 1px #8c8d90, inset 0 -1px #8c8d90;
+    cursor: pointer;
   }
 
   .ore-dropdown-item:hover,
   .ore-dropdown-item.is-highlighted {
-    background-color: #6D6D6E;
+    background-color: #6d6d6e;
   }
 
   .ore-dropdown-item.is-selected {
-    @apply text-white font-bold;
+    @apply font-bold;
+  }
+
+  .ore-dropdown-item__label {
+    @apply min-w-0 flex-1 break-words pr-2 font-minecraft;
+  }
+
+  .ore-dropdown-item__check {
+    @apply flex flex-shrink-0 items-center justify-center text-white;
+    width: 24px;
+  }
+
+  .ore-dropdown-empty {
+    @apply px-4 py-8 text-center font-minecraft text-sm text-[#D0D1D4];
   }
 }

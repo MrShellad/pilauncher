@@ -1,4 +1,5 @@
 pub mod action;
+pub mod binding;
 pub mod creation;
 pub mod listing;
 pub mod manifest_builder;

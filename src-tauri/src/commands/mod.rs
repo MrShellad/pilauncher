@@ -98,6 +98,8 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         instance::listing_cmd::get_instance_herologo,
         instance::bind_cmd::bind_server_to_instance,
         instance::bind_cmd::get_server_bindings,
+        instance::bind_cmd::get_instance_server_binding,
+        instance::bind_cmd::find_bound_instance_for_server,
         instance::save_cmd::open_saves_folder,
         resource_cmd::get_ore_project_detail,
         resource_cmd::get_ore_project_versions,

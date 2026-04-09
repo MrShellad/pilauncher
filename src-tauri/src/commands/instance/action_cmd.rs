@@ -1,7 +1,8 @@
-// src-tauri/src/commands/instance/action_cmd.rs
-use crate::domain::instance::{CustomButtonConfig, ServerBinding};
+use crate::domain::instance::{CustomButtonConfig, InstanceBindingState, ServerBinding};
+use crate::services::db_service::AppDatabase;
 use crate::services::instance::action::InstanceActionService;
-use tauri::{AppHandle, Runtime};
+use crate::services::instance::binding::InstanceBindingService;
+use tauri::{AppHandle, Runtime, State};
 
 #[tauri::command]
 pub async fn rename_instance<R: Runtime>(
@@ -9,7 +10,6 @@ pub async fn rename_instance<R: Runtime>(
     id: String,
     new_name: String,
 ) -> Result<(), String> {
-    // 将提取到的前端参数，传递给底层 Service
     InstanceActionService::rename(&app, &id, &new_name)
 }
 
@@ -32,8 +32,15 @@ pub async fn change_instance_herologo<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn delete_instance<R: Runtime>(app: AppHandle<R>, id: String) -> Result<(), String> {
-    InstanceActionService::delete(&app, &id)
+pub async fn delete_instance<R: Runtime>(
+    app: AppHandle<R>,
+    db: State<'_, AppDatabase>,
+    id: String,
+) -> Result<(), String> {
+    InstanceActionService::delete(&app, &id)?;
+    InstanceBindingService::delete_instance_records(&db.pool, &id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -80,9 +87,19 @@ pub async fn clean_logs<R: Runtime>(app: AppHandle<R>) -> Result<usize, String> 
 #[tauri::command]
 pub async fn get_instance_detail<R: Runtime>(
     app: AppHandle<R>,
+    db: State<'_, AppDatabase>,
     id: String,
 ) -> Result<serde_json::Value, String> {
-    InstanceActionService::get_detail(&app, &id)
+    let mut detail = InstanceActionService::get_detail(&app, &id)?;
+    let binding_state = InstanceBindingService::get_instance_binding_state(&app, &db.pool, &id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    detail["server_binding"] =
+        serde_json::to_value(binding_state.server_binding).map_err(|e| e.to_string())?;
+    detail["auto_join_server"] = serde_json::Value::Bool(binding_state.auto_join_server);
+
+    Ok(detail)
 }
 
 #[tauri::command]
@@ -141,17 +158,56 @@ pub async fn install_remote_mod<R: Runtime>(
 #[tauri::command]
 pub async fn update_instance_server_binding<R: Runtime>(
     app: AppHandle<R>,
+    db: State<'_, AppDatabase>,
     id: String,
     server_binding: Option<ServerBinding>,
-) -> Result<(), String> {
-    InstanceActionService::update_server_binding(&app, &id, server_binding)
+) -> Result<InstanceBindingState, String> {
+    let mut config = InstanceBindingService::load_instance_config(&app, &id)?;
+    let auto_join = config.auto_join_server.unwrap_or(true);
+
+    match server_binding {
+        Some(binding) => {
+            InstanceBindingService::upsert_instance(&db.pool, &config)
+                .await
+                .map_err(|e| e.to_string())?;
+            let canonical_binding = InstanceBindingService::replace_binding_for_instance(
+                &db.pool, &id, &binding, auto_join,
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+            config.server_binding = Some(canonical_binding);
+            config.auto_join_server = Some(auto_join);
+        }
+        None => {
+            InstanceBindingService::clear_bindings_for_instance(&db.pool, &id)
+                .await
+                .map_err(|e| e.to_string())?;
+            config.server_binding = None;
+            config.auto_join_server = None;
+        }
+    }
+
+    InstanceBindingService::write_instance_config(&app, &id, &config)?;
+    InstanceBindingService::get_instance_binding_state(&app, &db.pool, &id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn update_instance_auto_join_server<R: Runtime>(
     app: AppHandle<R>,
+    db: State<'_, AppDatabase>,
     id: String,
     auto_join: bool,
-) -> Result<(), String> {
-    InstanceActionService::update_auto_join_server(&app, &id, auto_join)
+) -> Result<InstanceBindingState, String> {
+    InstanceBindingService::set_instance_auto_join(&db.pool, &id, auto_join)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut config = InstanceBindingService::load_instance_config(&app, &id)?;
+    config.auto_join_server = Some(auto_join);
+    InstanceBindingService::write_instance_config(&app, &id, &config)?;
+    InstanceBindingService::get_instance_binding_state(&app, &db.pool, &id)
+        .await
+        .map_err(|e| e.to_string())
 }

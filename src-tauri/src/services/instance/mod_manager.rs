@@ -114,10 +114,10 @@ impl ModManagerService {
                     if file_name.ends_with(".jar") || file_name.ends_with(".jar.disabled") {
                         let is_enabled = !file_name.ends_with(".disabled");
                         let base_name = file_name.trim_end_matches(".disabled").to_string();
-                        
+
                         let current_file_state = crate::domain::mod_manifest::build_file_state(&path).unwrap_or_default();
                         let manifest_entry = manifest_dict.get(&base_name).cloned();
-                        
+
                         // 1. FAST PATH: manifest_entry 存在且 file_state 完全匹配，无修改。
                         // 强制治愈条件：如果 entry 中没有 name，说明是老版本的错误缓存，强制走 SLOW PATH 愈合。
                         let is_fast_path = match &manifest_entry {
@@ -155,7 +155,7 @@ impl ModManagerService {
                         let pool_clone = pool.clone();
                         let path_clone = path.clone();
                         let base_name_clone = base_name.clone();
-                        
+
                         tasks.push(tokio::spawn(async move {
                             let shared_mods_dir_for_blocking = shared_mods_dir_clone.clone();
                             // 使用 spawn_blocking 执行耗时 ZIP 解析操作
@@ -353,7 +353,7 @@ impl ModManagerService {
         extracted_icon_rel_path: &mut Option<String>,
     ) {
         let mut hit = false;
-        
+
         // 1. 尝试 Modrinth
         let modrinth_url = format!("https://api.modrinth.com/v2/project/{}", mod_id);
         if let Ok(resp) = client.get(&modrinth_url).send().await {
@@ -477,7 +477,7 @@ impl ModManagerService {
         if let Ok(file) = File::open(jar_path) {
             if let Ok(mut archive) = zip::ZipArchive::new(file) {
                 let mut parsed = false;
-                
+
                 // 1. Fabric 解析
                 if let Ok(mut mod_json) = archive.by_name("fabric.mod.json") {
                     let mut contents = String::new();
@@ -665,7 +665,7 @@ impl ModManagerService {
                             ext
                         };
                         let target = icons_dir.join(format!("{}.{}", cache_key, ext));
-                        
+
                         // 确保 bucket 目录存在!!!
                         let _ = std::fs::create_dir_all(icons_dir);
 

@@ -40,6 +40,11 @@ impl From<reqwest::Error> for AppError {
     }
 }
 // 实现 Display 接口，用于格式化错误输出
+impl From<sqlx::Error> for AppError {
+    fn from(error: sqlx::Error) -> Self {
+        AppError::Generic(format!("Database Error: {}", error))
+    }
+}
 impl std::fmt::Display for AppError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

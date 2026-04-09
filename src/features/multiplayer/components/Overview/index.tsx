@@ -23,7 +23,7 @@ export const MultiplayerOverview: React.FC<MultiplayerOverviewProps> = () => {
   const { handleLinearArrow } = useLinearNavigation(HEADER_FOCUS_ORDER, 'pihub-start');
 
   return (
-    <section className="ore-multiplayer-surface">
+    <>
       <header className="ore-multiplayer-panel-header">
         <div className="ore-multiplayer-panel-heading">
           <h2 className="ore-multiplayer-panel-title">PiHub 直连</h2>
@@ -200,6 +200,6 @@ export const MultiplayerOverview: React.FC<MultiplayerOverviewProps> = () => {
           )}
         </div>
       </div>
-    </section>
+    </>
   );
 };

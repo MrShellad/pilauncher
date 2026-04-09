@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, Runtime};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 use super::logic::ModpackSourceHint;
 use super::logic::{build_instance_config, safe_relative_path, sanitize_instance_id};
@@ -426,6 +426,20 @@ pub async fn execute_import<R: Runtime>(
 
     if result.is_err() || is_cancelled(cancel) {
         cleanup_modpack_artifacts(&base_dir, &instance_id);
+
+        let db = app.state::<crate::services::db_service::AppDatabase>();
+        if let Err(error) =
+            crate::services::instance::binding::InstanceBindingService::delete_instance_records(
+                &db.pool,
+                &instance_id,
+            )
+            .await
+        {
+            eprintln!(
+                "[ModpackImport] Failed to remove database records for {} after cleanup: {}",
+                instance_id, error
+            );
+        }
     }
 
     result
@@ -458,23 +472,24 @@ async fn execute_import_inner<R: Runtime>(
     config.server_binding = effective_server_binding.clone();
     super::ops::write_instance_config(&instance_root, &config)?;
 
+    let db = app.state::<crate::services::db_service::AppDatabase>();
+    crate::services::instance::binding::InstanceBindingService::upsert_instance(&db.pool, &config)
+        .await
+        .map_err(|e| e.to_string())?;
+
     if let Some(binding) = &effective_server_binding {
-        let bindings_index_path = base_dir.join("instances").join("server_bindings.json");
-        let mut all_bindings: serde_json::Value = if bindings_index_path.exists() {
-            let idx_content =
-                std::fs::read_to_string(&bindings_index_path).unwrap_or_else(|_| "{}".to_string());
-            serde_json::from_str(&idx_content).unwrap_or_else(|_| serde_json::json!({}))
-        } else {
-            serde_json::json!({})
-        };
-        if let Some(obj) = all_bindings.as_object_mut() {
-            if let Ok(binding_val) = serde_json::to_value(binding) {
-                obj.insert(instance_id.to_string(), binding_val);
-                if let Ok(updated_index) = serde_json::to_string_pretty(&all_bindings) {
-                    let _ = std::fs::write(&bindings_index_path, updated_index);
-                }
-            }
-        }
+        let canonical_binding =
+            crate::services::instance::binding::InstanceBindingService::replace_binding_for_instance(
+                &db.pool,
+                instance_id,
+                binding,
+                true,
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+        config.server_binding = Some(canonical_binding);
+        config.auto_join_server = Some(true);
+        super::ops::write_instance_config(&instance_root, &config)?;
     }
 
     let _ = app.emit(

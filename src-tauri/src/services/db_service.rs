@@ -163,6 +163,45 @@ impl DbService {
                 icon_url TEXT,
                 updated_at INTEGER NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS instances (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                mc_version TEXT NOT NULL,
+                loader_type TEXT,
+                loader_version TEXT,
+                java_path TEXT,
+                min_memory INTEGER DEFAULT 1024,
+                max_memory INTEGER DEFAULT 4096,
+                icon_path TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS servers (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                address TEXT NOT NULL,
+                port INTEGER NOT NULL DEFAULT 25565,
+                icon_base64 TEXT,
+                hide_address BOOLEAN NOT NULL DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS instance_servers (
+                instance_id TEXT NOT NULL,
+                server_id TEXT NOT NULL,
+                is_primary BOOLEAN NOT NULL DEFAULT 0,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (instance_id, server_id),
+                FOREIGN KEY (instance_id) REFERENCES instances(id) ON DELETE CASCADE,
+                FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_instance_servers_instance
+                ON instance_servers(instance_id, sort_order);
+            CREATE INDEX IF NOT EXISTS idx_servers_address
+                ON servers(address, port);
             ",
         )
         .execute(pool)
@@ -196,9 +235,11 @@ impl DbService {
         }
 
         if !has_trusted_column("trust_level") {
-            sqlx::query("ALTER TABLE trusted_devices ADD COLUMN trust_level TEXT DEFAULT 'trusted'")
-                .execute(pool)
-                .await?;
+            sqlx::query(
+                "ALTER TABLE trusted_devices ADD COLUMN trust_level TEXT DEFAULT 'trusted'",
+            )
+            .execute(pool)
+            .await?;
         }
 
         sqlx::query(
@@ -221,7 +262,10 @@ impl DbService {
         };
 
         let transfer_alters = [
-            ("transfer_uuid", "ALTER TABLE transfers ADD COLUMN transfer_uuid TEXT"),
+            (
+                "transfer_uuid",
+                "ALTER TABLE transfers ADD COLUMN transfer_uuid TEXT",
+            ),
             (
                 "direction",
                 "ALTER TABLE transfers ADD COLUMN direction TEXT DEFAULT 'outgoing'",

@@ -2,15 +2,17 @@ use chrono::Local;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use tauri::{AppHandle, Emitter, Runtime};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 use crate::domain::event::DownloadProgressEvent;
 use crate::domain::instance::{
     CreateInstancePayload, InstanceConfig, JavaConfig, LoaderConfig, MemoryConfig, ResolutionConfig,
 };
 use crate::error::{AppError, AppResult};
+use crate::services::db_service::AppDatabase;
 use crate::services::deployment_cancel;
 use crate::services::downloader::logging::sanitize_filename;
+use crate::services::instance::binding::InstanceBindingService;
 
 pub struct InstanceCreationService;
 
@@ -88,32 +90,35 @@ impl InstanceCreationService {
             custom_buttons: None,
             third_party_path: None,
             server_binding: payload.server_binding.clone(),
-            auto_join_server: if payload.server_binding.is_some() { Some(true) } else { None },
+            auto_join_server: if payload.server_binding.is_some() {
+                Some(true)
+            } else {
+                None
+            },
         };
         fs::write(
             instance_root.join("instance.json"),
             serde_json::to_string_pretty(&config)?,
         )?;
 
+        let db = app.state::<AppDatabase>();
+        InstanceBindingService::upsert_instance(&db.pool, &config).await?;
+
         if let Some(binding) = &payload.server_binding {
-            let bindings_index_path = base_dir.join("instances").join("server_bindings.json");
-
-            let mut all_bindings: serde_json::Value = if bindings_index_path.exists() {
-                let idx_content = std::fs::read_to_string(&bindings_index_path)
-                    .unwrap_or_else(|_| "{}".to_string());
-                serde_json::from_str(&idx_content).unwrap_or_else(|_| serde_json::json!({}))
-            } else {
-                serde_json::json!({})
-            };
-
-            if let Some(obj) = all_bindings.as_object_mut() {
-                if let Ok(binding_val) = serde_json::to_value(binding) {
-                    obj.insert(instance_id.clone(), binding_val);
-                    if let Ok(updated_index) = serde_json::to_string_pretty(&all_bindings) {
-                        let _ = std::fs::write(&bindings_index_path, updated_index);
-                    }
-                }
-            }
+            let canonical_binding = InstanceBindingService::replace_binding_for_instance(
+                &db.pool,
+                &instance_id,
+                binding,
+                true,
+            )
+            .await?;
+            let mut persisted_config = config;
+            persisted_config.server_binding = Some(canonical_binding);
+            persisted_config.auto_join_server = Some(true);
+            fs::write(
+                instance_root.join("instance.json"),
+                serde_json::to_string_pretty(&persisted_config)?,
+            )?;
         }
 
         let global_mc_root = base_dir.join("runtime");
@@ -187,6 +192,16 @@ impl InstanceCreationService {
                             );
                         }
                     }
+                }
+
+                let db = app.state::<AppDatabase>();
+                if let Err(error) =
+                    InstanceBindingService::delete_instance_records(&db.pool, &instance_id).await
+                {
+                    eprintln!(
+                        "[Deployment] Failed to remove database records for cancelled instance {}: {}",
+                        instance_id, error
+                    );
                 }
 
                 let _ = app.emit(
