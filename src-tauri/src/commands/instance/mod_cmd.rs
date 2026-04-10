@@ -49,10 +49,17 @@ pub async fn open_mod_folder<R: tauri::Runtime>(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "尚未配置基础数据目录".to_string())?;
 
-    let mods_dir = std::path::PathBuf::from(base_path)
-        .join("instances")
-        .join(id)
-        .join("mods");
+    let mut target_dir = std::path::PathBuf::from(base_path).join("instances").join(&id);
+    let json_path = target_dir.join("instance.json");
+    if let Ok(content) = std::fs::read_to_string(json_path) {
+        if let Ok(config) = serde_json::from_str::<crate::domain::instance::InstanceConfig>(&content) {
+            if let Some(tp) = config.third_party_path {
+                target_dir = std::path::PathBuf::from(tp);
+            }
+        }
+    }
+
+    let mods_dir = target_dir.join("mods");
     std::fs::create_dir_all(&mods_dir).ok(); // 确保目录存在
 
     // ✅ 跨平台唤起系统自带的文件管理器

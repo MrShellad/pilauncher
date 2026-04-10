@@ -54,10 +54,17 @@ pub async fn open_resource_folder<R: tauri::Runtime>(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "尚未配置基础数据目录".to_string())?;
 
-    let target_dir = std::path::PathBuf::from(base_path)
-        .join("instances")
-        .join(id)
-        .join(res_type.folder_name());
+    let mut target_dir = std::path::PathBuf::from(base_path).join("instances").join(&id);
+    let json_path = target_dir.join("instance.json");
+    if let Ok(content) = std::fs::read_to_string(json_path) {
+        if let Ok(config) = serde_json::from_str::<crate::domain::instance::InstanceConfig>(&content) {
+            if let Some(tp) = config.third_party_path {
+                target_dir = std::path::PathBuf::from(tp);
+            }
+        }
+    }
+
+    let target_dir = target_dir.join(res_type.folder_name());
     std::fs::create_dir_all(&target_dir).ok(); // 确保目录存在
 
     #[cfg(target_os = "windows")]
@@ -111,10 +118,18 @@ pub async fn extract_resourcepack_icon<R: tauri::Runtime>(
         return Ok(Some(icon_path.to_string_lossy().to_string()));
     }
 
+    let mut pack_root = std::path::PathBuf::from(&base_path).join("instances").join(&instance_id);
+    let json_path = pack_root.join("instance.json");
+    if let Ok(content) = std::fs::read_to_string(json_path) {
+        if let Ok(config) = serde_json::from_str::<crate::domain::instance::InstanceConfig>(&content) {
+            if let Some(tp) = config.third_party_path {
+                pack_root = std::path::PathBuf::from(tp);
+            }
+        }
+    }
+
     // 资源包目录
-    let pack_path = std::path::PathBuf::from(&base_path)
-        .join("instances")
-        .join(&instance_id)
+    let pack_path = pack_root
         .join("resourcepacks")
         .join(&file_name);
 

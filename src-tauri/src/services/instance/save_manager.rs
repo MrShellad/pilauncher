@@ -182,6 +182,20 @@ impl SaveManagerService {
         Ok(Self::get_base_dir(app)?.join("instances").join(instance_id))
     }
 
+    fn get_game_dir<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+    ) -> Result<PathBuf, String> {
+        let instance_dir = Self::get_instance_dir(app, instance_id)?;
+        let mut game_dir = instance_dir.clone();
+        if let Ok(config) = Self::get_instance_config(&instance_dir) {
+            if let Some(tp) = config.third_party_path {
+                game_dir = PathBuf::from(tp);
+            }
+        }
+        Ok(game_dir)
+    }
+
     fn get_backups_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
         Ok(Self::get_base_dir(app)?.join("backups").join("saves"))
     }
@@ -633,7 +647,8 @@ impl SaveManagerService {
         safe_backup: bool,
     ) -> Result<SaveBackupMetadata, String> {
         let instance_dir = Self::get_instance_dir(app, instance_id)?;
-        let src_save_dir = instance_dir.join("saves").join(folder_name);
+        let game_dir = Self::get_game_dir(app, instance_id)?;
+        let src_save_dir = game_dir.join("saves").join(folder_name);
         if !src_save_dir.exists() {
             return Err("save folder does not exist".to_string());
         }
@@ -647,7 +662,7 @@ impl SaveManagerService {
         let final_backup_dir = world_root_dir.join(&backup_id);
         let temp_backup_dir = world_root_dir.join(format!(".{}.tmp", backup_id));
         let world_file_count = Self::count_files(&src_save_dir);
-        let config_sources = Self::get_config_backup_sources(&instance_dir);
+        let config_sources = Self::get_config_backup_sources(&game_dir);
         let config_file_count = config_sources
             .iter()
             .map(|(path, _)| Self::count_files(path))
@@ -713,7 +728,7 @@ impl SaveManagerService {
                 "FINALIZE",
             );
 
-            let environment = Self::snapshot_environment(&instance_dir);
+            let environment = Self::snapshot_environment(&game_dir);
 
             let meta = SaveBackupMetadata {
                 backup_id: backup_id.clone(),
@@ -902,8 +917,9 @@ impl SaveManagerService {
         meta: &SaveBackupMetadata,
     ) -> Result<SaveRestoreCheckResult, String> {
         let instance_dir = Self::get_instance_dir(app, instance_id)?;
+        let game_dir = Self::get_game_dir(app, instance_id)?;
         let instance_config = Self::get_instance_config(&instance_dir)?;
-        let current_environment = Self::snapshot_environment(&instance_dir);
+        let current_environment = Self::snapshot_environment(&game_dir);
         let mut warnings = Vec::new();
 
         let game_matches = instance_config.mc_version == meta.game.mc_version;
@@ -1003,7 +1019,7 @@ impl SaveManagerService {
         app: &AppHandle<R>,
         instance_id: &str,
     ) -> Result<Vec<SaveItem>, String> {
-        let saves_dir = Self::get_instance_dir(app, instance_id)?.join("saves");
+        let saves_dir = Self::get_game_dir(app, instance_id)?.join("saves");
         fs::create_dir_all(&saves_dir).map_err(|e| e.to_string())?;
 
         let mut saves = Vec::new();
@@ -1050,7 +1066,7 @@ impl SaveManagerService {
         folder_name: &str,
         direct_delete: bool,
     ) -> Result<(), String> {
-        let src_save_dir = Self::get_instance_dir(app, instance_id)?
+        let src_save_dir = Self::get_game_dir(app, instance_id)?
             .join("saves")
             .join(folder_name);
         if !src_save_dir.exists() {
@@ -1108,7 +1124,8 @@ impl SaveManagerService {
         let record = Self::find_backup_record(app, instance_id, backup_id)?;
 
         let instance_dir = Self::get_instance_dir(app, instance_id)?;
-        let saves_dir = instance_dir.join("saves");
+        let game_dir = Self::get_game_dir(app, instance_id)?;
+        let saves_dir = game_dir.join("saves");
         fs::create_dir_all(&saves_dir).map_err(|e| e.to_string())?;
 
         let target_folder_name = record.meta.world.folder_name.clone();
@@ -1155,11 +1172,11 @@ impl SaveManagerService {
 
             Self::restore_snapshot_dir(
                 &temp_configs_root.join("config"),
-                &instance_dir.join("config"),
+                &game_dir.join("config"),
             )?;
             Self::restore_snapshot_dir(
                 &temp_configs_root.join("defaultconfigs"),
-                &instance_dir.join("defaultconfigs"),
+                &game_dir.join("defaultconfigs"),
             )?;
             let _ = Self::remove_dir_if_exists(&temp_configs_root);
         }
@@ -1188,7 +1205,7 @@ impl SaveManagerService {
         app: &AppHandle<R>,
         instance_id: &str,
     ) -> Result<(), String> {
-        let saves_dir = Self::get_instance_dir(app, instance_id)?.join("saves");
+        let saves_dir = Self::get_game_dir(app, instance_id)?.join("saves");
         fs::create_dir_all(&saves_dir).map_err(|e| e.to_string())?;
 
         #[cfg(target_os = "windows")]

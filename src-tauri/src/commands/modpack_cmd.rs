@@ -8,6 +8,7 @@ use crate::services::downloader::transfer::{download_file, DownloadRateLimiter, 
 use crate::services::modpack_service;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashSet;
 use std::env;
 use std::fs;
@@ -17,7 +18,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Runtime};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MissingRuntime {
     pub instance_id: String,
     pub mc_version: String,
@@ -530,6 +531,48 @@ fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result
         }
     }
     Ok(())
+}
+
+pub fn detect_missing_runtime_for_instance(
+    runtime_dir: &std::path::Path,
+    instance: &ThirdPartyInstanceCandidate,
+) -> Option<MissingRuntime> {
+    let core_dir = runtime_dir.join("versions").join(&instance.mc_version);
+    let core_json = core_dir.join(format!("{}.json", instance.mc_version));
+    let core_jar = core_dir.join(format!("{}.jar", instance.mc_version));
+
+    let mut is_missing = !core_json.exists() || !core_jar.exists();
+
+    if instance.loader_type != "vanilla" && !instance.loader_version.is_empty() {
+        let loader_folder = match instance.loader_type.as_str() {
+            "fabric" => format!("fabric-loader-{}-{}", instance.loader_version, instance.mc_version),
+            "forge" => format!("{}-forge-{}", instance.mc_version, instance.loader_version),
+            "neoforge" => format!("neoforge-{}", instance.loader_version),
+            "quilt" => format!("quilt-loader-{}-{}", instance.loader_version, instance.mc_version),
+            _ => "".to_string(),
+        };
+        if !loader_folder.is_empty() {
+            let loader_json = runtime_dir
+                .join("versions")
+                .join(&loader_folder)
+                .join(format!("{}.json", loader_folder));
+
+            if !loader_json.exists() {
+                is_missing = true;
+            }
+        }
+    }
+
+    if !is_missing {
+        return None;
+    }
+
+    Some(MissingRuntime {
+        instance_id: instance.id.clone(),
+        mc_version: instance.mc_version.clone(),
+        loader_type: instance.loader_type.clone(),
+        loader_version: instance.loader_version.clone(),
+    })
 }
 
 fn copy_and_check_instance(
@@ -1527,4 +1570,476 @@ mod tests {
         assert_eq!(loader, "forge");
         assert_eq!(version, "43.2.0");
     }
+}
+
+
+// ... Third party classes here ...
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ThirdPartyImportInstance {
+    pub id: String,
+    pub name: String,
+    pub path: String,
+    pub version_json_path: String,
+    pub mc_version: String,
+    pub loader_type: String,
+    pub loader_version: String,
+    pub status: String,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ThirdPartyImportSource {
+    pub source_path: String,
+    pub root_path: String,
+    pub versions_path: String,
+    pub source_kind: String,
+    pub source_label: String,
+    pub launcher_hint: String,
+    pub has_assets: bool,
+    pub has_libraries: bool,
+    pub instance_count: usize,
+    pub importable_count: usize,
+    pub already_imported_count: usize,
+    pub conflict_count: usize,
+    pub instances: Vec<ThirdPartyImportInstance>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ThirdPartyImportFailure {
+    pub instance_id: String,
+    pub path: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ThirdPartyImportResult {
+    pub source_path: String,
+    pub root_path: String,
+    pub source_kind: String,
+    pub added: usize,
+    pub skipped: usize,
+    pub failed: usize,
+    pub missing: Vec<crate::commands::modpack_cmd::MissingRuntime>,
+    pub imported_instances: Vec<ThirdPartyImportInstance>,
+    pub skipped_instances: Vec<ThirdPartyImportInstance>,
+    pub failed_instances: Vec<ThirdPartyImportFailure>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ThirdPartyImportProgressEvent {
+    pub source_path: String,
+    pub phase: String,
+    pub level: String,
+    pub current: u64,
+    pub total: u64,
+    pub message: String,
+    pub instance_id: Option<String>,
+}
+
+pub struct ThirdPartyInstanceCandidate {
+    pub id: String,
+    pub name: String,
+    pub path: String,
+    pub version_json_path: String,
+    pub mc_version: String,
+    pub loader_type: String,
+    pub loader_version: String,
+}
+
+fn emit_third_party_import_progress<R: Runtime>(
+    app: &AppHandle<R>,
+    source_path: &str,
+    phase: &str,
+    level: &str,
+    current: u64,
+    total: u64,
+    message: String,
+    instance_id: Option<&str>,
+) {
+    let _ = app.emit(
+        "third-party-import-progress",
+        ThirdPartyImportProgressEvent {
+            source_path: source_path.to_string(),
+            phase: phase.to_string(),
+            level: level.to_string(),
+            current,
+            total,
+            message,
+            instance_id: instance_id.map(|s| s.to_string()),
+        },
+    );
+}
+
+fn resolve_third_party_source(
+    path: &Path,
+    label: String,
+    kind: String,
+) -> Option<ThirdPartyImportSource> {
+    let mut root_path = path.to_path_buf();
+    let mut versions_path = path.join("versions");
+
+    if path.file_name().and_then(|n| n.to_str()) == Some("versions") {
+        versions_path = path.to_path_buf();
+        if let Some(parent) = path.parent() {
+            root_path = parent.to_path_buf();
+        }
+    } else if !versions_path.exists() {
+        return None;
+    }
+
+    Some(ThirdPartyImportSource {
+        source_path: path.to_string_lossy().to_string(),
+        root_path: root_path.to_string_lossy().to_string(),
+        versions_path: versions_path.to_string_lossy().to_string(),
+        source_kind: kind,
+        source_label: label,
+        launcher_hint: "Minecraft".to_string(),
+        has_assets: root_path.join("assets").exists(),
+        has_libraries: root_path.join("libraries").exists(),
+        instance_count: 0,
+        importable_count: 0,
+        already_imported_count: 0,
+        conflict_count: 0,
+        instances: vec![],
+    })
+}
+
+fn scan_third_party_source(
+    source: &ThirdPartyImportSource,
+    instances_dir: &Path,
+) -> Option<ThirdPartyImportSource> {
+    let mut result = source.clone();
+    let versions_dir = PathBuf::from(&source.versions_path);
+
+    if !versions_dir.exists() {
+        return None;
+    }
+
+    if let Ok(entries) = fs::read_dir(versions_dir) {
+        for entry in entries.flatten() {
+            let child = entry.path();
+            if !child.is_dir() {
+                continue;
+            }
+
+            let dir_name = child.file_name().unwrap_or_default().to_string_lossy().to_string();
+            let version_json = child.join(format!("{}.json", dir_name));
+            
+            if !version_json.exists() {
+                continue;
+            }
+
+            result.instance_count += 1;
+
+            let dest_dir = instances_dir.join(&dir_name);
+            let mut status = "importable".to_string();
+            if dest_dir.exists() {
+                if dest_dir.join("instance.json").exists() {
+                    let json_content = fs::read_to_string(dest_dir.join("instance.json")).unwrap_or_default();
+                    if json_content.contains(&child.to_string_lossy().to_string()) {
+                        status = "already_imported".to_string();
+                        result.already_imported_count += 1;
+                    } else {
+                        status = "name_conflict".to_string();
+                        result.conflict_count += 1;
+                    }
+                } else {
+                    status = "name_conflict".to_string();
+                    result.conflict_count += 1;
+                }
+            } else {
+                result.importable_count += 1;
+            }
+
+            let content = fs::read_to_string(&version_json).unwrap_or_default();
+            let json: Value = serde_json::from_str(&content).unwrap_or(Value::Null);
+            let (mc_version, loader_type, loader_version) = super::modpack_cmd::parse_third_party_json(&dir_name, &json);
+
+            result.instances.push(ThirdPartyImportInstance {
+                id: dir_name.clone(),
+                name: dir_name,
+                path: child.to_string_lossy().to_string(),
+                version_json_path: version_json.to_string_lossy().to_string(),
+                mc_version,
+                loader_type,
+                loader_version,
+                status,
+            });
+        }
+    }
+
+    Some(result)
+}
+
+fn import_one_third_party_instance(
+    instance: &ThirdPartyImportInstance,
+    instances_dir: &Path,
+    _runtime_dir: &Path,
+) -> Result<(), String> {
+    let dest_dir = instances_dir.join(&instance.id);
+    fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
+
+    let config = crate::domain::instance::InstanceConfig {
+        id: instance.id.clone(),
+        name: instance.name.clone(),
+        mc_version: instance.mc_version.clone(),
+        loader: crate::domain::instance::LoaderConfig {
+            r#type: instance.loader_type.clone(),
+            version: instance.loader_version.clone(),
+        },
+        java: crate::domain::instance::JavaConfig {
+            path: "auto".to_string(),
+            version: "auto".to_string(),
+        },
+        memory: crate::domain::instance::MemoryConfig {
+            min: 1024,
+            max: 4096,
+        },
+        resolution: crate::domain::instance::ResolutionConfig {
+            width: 854,
+            height: 480,
+        },
+        play_time: 0.0,
+        last_played: "".to_string(),
+        created_at: chrono::Local::now().to_rfc3339(),
+        cover_image: None,
+        hero_logo: None,
+        gamepad: None,
+        custom_buttons: None,
+        third_party_path: Some(instance.path.clone()),
+        server_binding: None,
+        auto_join_server: None,
+    };
+
+    let config_content = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+    fs::write(dest_dir.join("instance.json"), &config_content).map_err(|e| e.to_string())?;
+    fs::write(PathBuf::from(&instance.path).join("instance.json"), &config_content).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn detect_third_party_launcher_sources<R: Runtime>(
+    app: AppHandle<R>,
+    path: Option<String>,
+) -> Result<Vec<ThirdPartyImportSource>, String> {
+    let instances_dir = crate::services::config_service::ConfigService::get_base_path(&app)
+        .ok()
+        .flatten()
+        .map(|base_path| PathBuf::from(base_path).join("instances"))
+        .unwrap_or_else(|| PathBuf::from("__missing_instances_dir__"));
+
+    let mut sources = Vec::new();
+
+    if let Some(raw_path) = path {
+        let trimmed_path = raw_path.trim();
+        if !trimmed_path.is_empty() {
+            if let Some(source) = resolve_third_party_source(Path::new(trimmed_path), "手动选择".to_string(), "manual".to_string()) {
+                if let Some(scanned) = scan_third_party_source(&source, &instances_dir) {
+                    sources.push(scanned);
+                }
+            }
+        }
+    } else {
+        // Here we could auto-detect common paths or return empty
+    }
+
+    Ok(sources)
+}
+
+#[tauri::command]
+pub async fn import_third_party_launcher_source<R: Runtime>(
+    app: AppHandle<R>,
+    path: String,
+) -> Result<ThirdPartyImportResult, String> {
+    let trimmed_path = path.trim();
+    if trimmed_path.is_empty() {
+        return Err("导入路径不能为空".to_string());
+    }
+
+    let resolved = resolve_third_party_source(
+        Path::new(trimmed_path),
+        "手动选择".to_string(),
+        "manual".to_string(),
+    )
+    .ok_or_else(|| "该目录不是可识别的 .minecraft、versions 或独立实例目录".to_string())?;
+
+    let source_path = resolved.source_path.clone();
+    emit_third_party_import_progress(
+        &app,
+        &source_path,
+        "PREPARING",
+        "info",
+        0,
+        1,
+        "正在识别启动器库结构...".to_string(),
+        None,
+    );
+
+    let base_path_str = crate::services::config_service::ConfigService::get_base_path(&app)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Base path is not configured".to_string())?;
+    let instances_dir = PathBuf::from(&base_path_str).join("instances");
+    let runtime_dir = PathBuf::from(&base_path_str).join("runtime");
+    fs::create_dir_all(&instances_dir).map_err(|e| e.to_string())?;
+
+    let source = scan_third_party_source(&resolved, &instances_dir)
+        .ok_or_else(|| "未在该目录中发现可导入的 PCL/HMCL 类实例".to_string())?;
+
+    let total = source.instance_count.max(1) as u64;
+    emit_third_party_import_progress(
+        &app,
+        &source_path,
+        "DISCOVERED",
+        "info",
+        0,
+        total,
+        format!("识别到 {} 个候选实例，开始导入...", source.instance_count),
+        None,
+    );
+
+    let mut result = ThirdPartyImportResult {
+        source_path: source.source_path.clone(),
+        root_path: source.root_path.clone(),
+        source_kind: source.source_kind.clone(),
+        added: 0,
+        skipped: 0,
+        failed: 0,
+        missing: Vec::new(),
+        imported_instances: Vec::new(),
+        skipped_instances: Vec::new(),
+        failed_instances: Vec::new(),
+    };
+
+    for (index, instance) in source.instances.into_iter().enumerate() {
+        let current = index as u64 + 1;
+
+        match instance.status.as_str() {
+            "already_imported" => {
+                emit_third_party_import_progress(
+                    &app,
+                    &source_path,
+                    "SKIPPED",
+                    "warning",
+                    current,
+                    total,
+                    format!("{} 已经导入过，跳过。", instance.name),
+                    Some(&instance.id),
+                );
+                result.skipped += 1;
+                result.skipped_instances.push(instance);
+                continue;
+            }
+            "name_conflict" => {
+                emit_third_party_import_progress(
+                    &app,
+                    &source_path,
+                    "SKIPPED",
+                    "warning",
+                    current,
+                    total,
+                    format!("{} 与本地现有实例重名，跳过。", instance.name),
+                    Some(&instance.id),
+                );
+                result.skipped += 1;
+                result.skipped_instances.push(instance);
+                continue;
+            }
+            _ => {}
+        }
+
+        emit_third_party_import_progress(
+            &app,
+            &source_path,
+            "IMPORTING",
+            "info",
+            current,
+            total,
+            format!("正在注册实例 {}...", instance.name),
+            Some(&instance.id),
+        );
+
+        match import_one_third_party_instance(&instance, &instances_dir, &runtime_dir) {
+            Ok(()) => {
+                let instance_meta = ThirdPartyInstanceCandidate {
+                    id: instance.id.clone(),
+                    name: instance.name.clone(),
+                    path: instance.path.clone(),
+                    version_json_path: instance.version_json_path.clone(),
+                    mc_version: instance.mc_version.clone(),
+                    loader_type: instance.loader_type.clone(),
+                    loader_version: instance.loader_version.clone(),
+                };
+                if let Some(missing_runtime) =
+                    detect_missing_runtime_for_instance(&runtime_dir, &instance_meta)
+                {
+                    emit_third_party_import_progress(
+                        &app,
+                        &source_path,
+                        "VERIFY_RUNTIME",
+                        "warning",
+                        current,
+                        total,
+                        format!("{} 导入完成，但还缺少运行时依赖。", instance.name),
+                        Some(&instance.id),
+                    );
+                    result.missing.push(missing_runtime);
+                } else {
+                    emit_third_party_import_progress(
+                        &app,
+                        &source_path,
+                        "IMPORTED",
+                        "success",
+                        current,
+                        total,
+                        format!("{} 导入完成。", instance.name),
+                        Some(&instance.id),
+                    );
+                }
+
+                let mut imported_instance = instance;
+                imported_instance.status = "imported".to_string();
+                result.added += 1;
+                result.imported_instances.push(imported_instance);
+            }
+            Err(error) => {
+                emit_third_party_import_progress(
+                    &app,
+                    &source_path,
+                    "FAILED",
+                    "error",
+                    current,
+                    total,
+                    format!("{} 导入失败: {}", instance.name, error),
+                    Some(&instance.id),
+                );
+                result.failed += 1;
+                result.failed_instances.push(ThirdPartyImportFailure {
+                    instance_id: instance.id.clone(),
+                    path: instance.path.clone(),
+                    reason: error,
+                });
+            }
+        }
+    }
+
+    emit_third_party_import_progress(
+        &app,
+        &source_path,
+        "DONE",
+        if result.failed > 0 { "warning" } else { "success" },
+        total,
+        total,
+        format!(
+            "导入结束：新增 {}，跳过 {}，失败 {}。",
+            result.added, result.skipped, result.failed
+        ),
+        None,
+    );
+
+    Ok(result)
 }

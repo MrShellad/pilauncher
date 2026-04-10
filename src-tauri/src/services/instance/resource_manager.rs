@@ -61,12 +61,29 @@ impl ResourceManager {
         Ok(PathBuf::from(base_path).join("instances").join(instance_id))
     }
 
+    fn get_game_dir<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+    ) -> Result<PathBuf, String> {
+        let instance_root = Self::get_instance_root(app, instance_id)?;
+        let mut target_dir = instance_root.clone();
+        let json_path = instance_root.join("instance.json");
+        if let Ok(content) = fs::read_to_string(&json_path) {
+            if let Ok(config) = serde_json::from_str::<crate::domain::instance::InstanceConfig>(&content) {
+                if let Some(tp) = config.third_party_path {
+                    target_dir = PathBuf::from(tp);
+                }
+            }
+        }
+        Ok(target_dir)
+    }
+
     fn get_target_dir<R: Runtime>(
         app: &AppHandle<R>,
         instance_id: &str,
         res_type: &ResourceType,
     ) -> Result<PathBuf, String> {
-        let target_dir = Self::get_instance_root(app, instance_id)?.join(res_type.folder_name());
+        let target_dir = Self::get_game_dir(app, instance_id)?.join(res_type.folder_name());
         if !target_dir.exists() {
             fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
         }
@@ -223,7 +240,7 @@ impl ResourceManager {
     ) -> Result<(), String> {
         let instance_root = Self::get_instance_root(app, instance_id)?;
         let manifest_path = instance_root.join("mod_manifest.json");
-        let target_path = instance_root.join("mods").join(file_name);
+        let target_path = Self::get_game_dir(app, instance_id)?.join("mods").join(file_name);
 
         ModManifestService::upsert_downloaded_mod(
             &manifest_path,

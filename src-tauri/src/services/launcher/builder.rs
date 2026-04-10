@@ -13,6 +13,7 @@ pub struct LaunchCommandBuilder {
     runtime_dir: PathBuf,
     mc_version: String,
     target_version_id: String,
+    third_party_root: Option<PathBuf>,
 }
 
 impl LaunchCommandBuilder {
@@ -23,6 +24,7 @@ impl LaunchCommandBuilder {
         target_version_id: &str,
         game_dir: PathBuf,
         runtime_dir: PathBuf,
+        third_party_root: Option<PathBuf>,
     ) -> Self {
         Self {
             config,
@@ -31,6 +33,7 @@ impl LaunchCommandBuilder {
             target_version_id: target_version_id.to_string(),
             game_dir,
             runtime_dir,
+            third_party_root,
         }
     }
 
@@ -94,17 +97,68 @@ impl LaunchCommandBuilder {
         }
     }
 
+    fn get_minecraft_root(&self) -> PathBuf {
+        if let Some(tp_root) = &self.third_party_root {
+            if let Some(versions_dir) = tp_root.parent() {
+                if versions_dir.file_name().and_then(|n| n.to_str()) == Some("versions") {
+                    if let Some(mc_root) = versions_dir.parent() {
+                        return mc_root.to_path_buf();
+                    }
+                }
+            }
+        }
+        self.runtime_dir.clone()
+    }
+
+    fn get_libraries_dir(&self) -> PathBuf {
+        let tp_libs = self.get_minecraft_root().join("libraries");
+        if tp_libs.exists() {
+            return tp_libs;
+        }
+        self.runtime_dir.join("libraries")
+    }
+
     fn get_version_data(&self, version_id: &str) -> Option<Value> {
-        let path = self
+        if let Some(tp_root) = &self.third_party_root {
+            let tp_json = tp_root.join(format!("{}.json", version_id));
+            if tp_json.exists() {
+                if let Ok(content) = std::fs::read_to_string(&tp_json) {
+                    if let Ok(json) = serde_json::from_str(&content) {
+                        return Some(json);
+                    }
+                }
+            }
+        }
+        
+        let json_path = self
+            .get_minecraft_root()
+            .join("versions")
+            .join(version_id)
+            .join(format!("{}.json", version_id));
+
+        if json_path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&json_path) {
+                if let Ok(json) = serde_json::from_str(&content) {
+                    return Some(json);
+                }
+            }
+        }
+
+        // 终极回退机制，保障PiLauncher资源仍被搜索
+        let fallback_json = self
             .runtime_dir
             .join("versions")
             .join(version_id)
             .join(format!("{}.json", version_id));
-        if let Ok(content) = fs::read_to_string(&path) {
-            serde_json::from_str(&content).ok()
-        } else {
-            None
+            
+        if fallback_json.exists() && fallback_json != json_path {
+            if let Ok(content) = std::fs::read_to_string(&fallback_json) {
+                if let Ok(json) = serde_json::from_str(&content) {
+                    return Some(json);
+                }
+            }
         }
+        None
     }
 
     // ✅ 新增：跨平台 Natives 原生库解压逻辑
@@ -145,7 +199,10 @@ impl LaunchCommandBuilder {
                             || (current_os == "osx" && key.contains("macos"));
                         if match_os {
                             if let Some(path_str) = val.get("path").and_then(|p| p.as_str()) {
-                                let jar_path = self.runtime_dir.join("libraries").join(path_str);
+                                let mut jar_path = self.get_libraries_dir().join(path_str);
+                                if !jar_path.exists() {
+                                    jar_path = self.runtime_dir.join("libraries").join(path_str);
+                                }
                                 if jar_path.exists() {
                                     if let Ok(file) = fs::File::open(&jar_path) {
                                         // 依赖 zip crate，需要在 Cargo.toml 中添加 `zip = "0.6"`
@@ -199,7 +256,7 @@ impl LaunchCommandBuilder {
             .replace(
                 "${assets_root}",
                 &self
-                    .runtime_dir
+                    .get_minecraft_root()
                     .join("assets")
                     .to_string_lossy()
                     .to_string(),
@@ -220,8 +277,7 @@ impl LaunchCommandBuilder {
             .replace(
                 "${library_directory}",
                 &self
-                    .runtime_dir
-                    .join("libraries")
+                    .get_libraries_dir()
                     .to_string_lossy()
                     .to_string(),
             )
@@ -351,7 +407,6 @@ impl LaunchCommandBuilder {
         }
 
         let mut cp = Vec::new();
-        let libs_dir = self.runtime_dir.join("libraries");
         let current_os = match env::consts::OS {
             "windows" => "windows",
             "macos" => "osx",
@@ -409,7 +464,10 @@ impl LaunchCommandBuilder {
             }
 
             for dl_path in paths_to_check {
-                let jar_path = libs_dir.join(&dl_path);
+                let mut jar_path = self.get_libraries_dir().join(&dl_path);
+                if !jar_path.exists() {
+                    jar_path = self.runtime_dir.join("libraries").join(&dl_path);
+                }
                 if jar_path.exists() {
                     let path_str = jar_path.to_string_lossy().to_string();
                     if !cp.contains(&path_str) {
@@ -419,13 +477,12 @@ impl LaunchCommandBuilder {
             }
         }
 
-        let version_jar = self
-            .runtime_dir
-            .join("versions")
-            .join(&self.mc_version)
-            .join(format!("{}.jar", self.mc_version));
-        if version_jar.exists() {
-            cp.push(version_jar.to_string_lossy().to_string());
+        let mut core_jar = self.get_minecraft_root().join("versions").join(&self.mc_version).join(format!("{}.jar", self.mc_version));
+        if !core_jar.exists() {
+            core_jar = self.runtime_dir.join("versions").join(&self.mc_version).join(format!("{}.jar", self.mc_version));
+        }
+        if core_jar.exists() {
+            cp.push(core_jar.to_string_lossy().to_string());
         }
 
         let cp_separator = if cfg!(target_os = "windows") {

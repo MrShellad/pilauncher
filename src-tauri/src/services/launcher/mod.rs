@@ -73,6 +73,14 @@ impl LauncherService {
             ),
         };
 
+        let mut third_party_root = None;
+        if let Some(tp_path) = &instance_cfg.third_party_path {
+            let tp_pathbuf = std::path::PathBuf::from(tp_path);
+            if tp_pathbuf.exists() {
+                third_party_root = Some(tp_pathbuf);
+            }
+        }
+
         let builder = LaunchCommandBuilder::new(
             resolved_config.clone(),
             auth_session,
@@ -80,6 +88,7 @@ impl LauncherService {
             &target_version_id,
             game_dir.clone(),
             runtime_dir.clone(),
+            third_party_root,
         );
 
         // ✅ 核心修复 2：在生成参数前，必须先解压跨平台的原生库！

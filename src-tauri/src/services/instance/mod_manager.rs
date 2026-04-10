@@ -84,7 +84,17 @@ impl ModManagerService {
         instance_id: &str,
     ) -> Result<Vec<ModMetadata>, String> {
         let instance_dir = Self::get_instance_dir(app, instance_id)?;
-        let mods_dir = instance_dir.join("mods");
+        
+        let mut game_dir = instance_dir.clone();
+        let config_path = instance_dir.join("instance.json");
+        if let Ok(content) = fs::read_to_string(&config_path) {
+            if let Ok(cfg) = serde_json::from_str::<crate::domain::instance::InstanceConfig>(&content) {
+                if let Some(tp) = cfg.third_party_path {
+                    game_dir = PathBuf::from(tp);
+                }
+            }
+        }
+        let mods_dir = game_dir.join("mods");
         let shared_mods_dir = Self::get_shared_mods_dir(app)?;
         let icons_base_dir = shared_mods_dir.join("icons");
 
@@ -725,15 +735,21 @@ impl ModManagerService {
     ) -> Result<bool, String> {
         let instance_dir = Self::get_instance_dir(app, instance_id)?;
         let config_path = instance_dir.join("instance.json");
-        let mods_dir = instance_dir.join("mods");
 
-        // 读取当前 instance.json
+        // 读取当前 instance.json 并解析真实游戏目录
+        let mut game_dir = instance_dir.clone();
         let mut config: Option<crate::domain::instance::InstanceConfig> = None;
         if config_path.exists() {
             if let Ok(content) = fs::read_to_string(&config_path) {
-                config = serde_json::from_str(&content).ok();
+                if let Ok(cfg) = serde_json::from_str::<crate::domain::instance::InstanceConfig>(&content) {
+                    if let Some(ref tp) = cfg.third_party_path {
+                        game_dir = PathBuf::from(tp);
+                    }
+                    config = Some(cfg);
+                }
             }
         }
+        let mods_dir = game_dir.join("mods");
 
         let mut has_gamepad = false;
         if let Ok(entries) = fs::read_dir(&mods_dir) {
