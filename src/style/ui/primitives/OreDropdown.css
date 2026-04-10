@@ -1,4 +1,5 @@
 @tailwind components;
+
 /* /src/style/ui/primitives/OreDropdown.css */
 @layer components {
   .ore-dropdown-trigger {
@@ -9,7 +10,8 @@
       inset 0 -4px #58585a,
       inset 3px 3px rgba(255, 255, 255, 0.6),
       inset -3px -7px rgba(255, 255, 255, 0.4);
-    padding: 10px 38px 16px 10px;
+    /* 修改这里：原为 10px 38px 16px 10px */
+    padding: 10px 10px 16px 10px;
   }
 
   .ore-dropdown-trigger:hover:not(:disabled):not(.is-open) {
@@ -33,7 +35,7 @@
   }
 
   .ore-dropdown-trigger__content {
-    @apply flex min-w-0 items-center;
+    @apply flex min-w-0 flex-1 items-center;
   }
 
   .ore-dropdown-trigger__prefix {
@@ -45,7 +47,7 @@
   }
 
   .ore-dropdown-trigger__label {
-    @apply truncate font-minecraft font-bold text-black;
+    @apply flex flex-1 items-center min-w-0 font-minecraft font-bold text-black;
   }
 
   .ore-dropdown-trigger__label.is-placeholder {
@@ -53,8 +55,9 @@
   }
 
   .ore-dropdown-trigger__arrow {
-    @apply pointer-events-none absolute right-[10px] flex -translate-y-1/2 items-center justify-center text-black;
-    top: calc(50% - 2px);
+    /* 移除了 absolute, right-[10px], -translate-y-1/2，新增了 shrink-0 */
+    @apply pointer-events-none flex shrink-0 items-center justify-center text-black;
+    /* 移除 top: calc(50% - 2px); */
     width: 24px;
   }
 
@@ -111,7 +114,7 @@
   }
 
   .ore-dropdown-item__label {
-    @apply min-w-0 flex-1 break-words pr-2 font-minecraft;
+    @apply flex flex-1 items-center min-w-0 pr-2 font-minecraft;
   }
 
   .ore-dropdown-item__check {

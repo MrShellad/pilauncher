@@ -390,12 +390,13 @@ impl InstanceBindingService {
             Err(error) => return Err(error.into()),
         };
 
-        let instances_dir = PathBuf::from(base_path).join("instances");
+        let instances_dir = PathBuf::from(&base_path).join("instances");
         if !instances_dir.exists() {
             return Ok(());
         }
 
-        let entries = fs::read_dir(instances_dir)?;
+        let mut on_disk_ids: Vec<String> = Vec::new();
+        let entries = fs::read_dir(&instances_dir)?;
         for entry in entries.flatten() {
             let path = entry.path();
             if !path.is_dir() {
@@ -408,8 +409,39 @@ impl InstanceBindingService {
             };
 
             Self::sync_instance_binding_from_disk(app, pool, &instance_id).await?;
+            on_disk_ids.push(instance_id);
         }
 
+        // Clean up stale bindings for instances no longer on disk
+        Self::cleanup_stale_bindings(pool, &on_disk_ids).await?;
+
+        Ok(())
+    }
+
+    async fn cleanup_stale_bindings(
+        pool: &SqlitePool,
+        on_disk_ids: &[String],
+    ) -> AppResult<()> {
+        let db_instance_ids: Vec<String> = sqlx::query_scalar(
+            "SELECT DISTINCT instance_id FROM instance_servers",
+        )
+        .fetch_all(pool)
+        .await?;
+
+        for id in &db_instance_ids {
+            if !on_disk_ids.iter().any(|disk_id| disk_id == id) {
+                sqlx::query("DELETE FROM instance_servers WHERE instance_id = ?")
+                    .bind(id)
+                    .execute(pool)
+                    .await?;
+                sqlx::query("DELETE FROM instances WHERE id = ?")
+                    .bind(id)
+                    .execute(pool)
+                    .await?;
+            }
+        }
+
+        Self::cleanup_orphan_servers(pool).await?;
         Ok(())
     }
 

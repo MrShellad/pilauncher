@@ -26,6 +26,7 @@ export const useServerBindModal = ({ isOpen, onClose, server }: UseServerBindMod
   const [isLoading, setIsLoading] = useState(false);
   const [isBinding, setIsBinding] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isUnbinding, setIsUnbinding] = useState(false);
   const [isCheckingBinding, setIsCheckingBinding] = useState(false);
 
   const resetState = useCallback(() => {
@@ -125,6 +126,25 @@ export const useServerBindModal = ({ isOpen, onClose, server }: UseServerBindMod
     };
   }, [initializeModal, isOpen, resetState, server]);
 
+  const handleUnbind = useCallback(async () => {
+    if (!boundInstance || !server) {
+      return;
+    }
+
+    try {
+      setIsUnbinding(true);
+      await serverBindingService.unbindServerFromInstance(boundInstance.id);
+      setBoundInstance(null);
+
+      let cancelled = false;
+      await fetchCompatibleInstances(server, () => cancelled);
+    } catch (error) {
+      console.error('解绑失败:', error);
+    } finally {
+      setIsUnbinding(false);
+    }
+  }, [boundInstance, fetchCompatibleInstances, server]);
+
   const handleLaunchBoundInstance = useCallback(async () => {
     if (!boundInstance) {
       return;
@@ -198,6 +218,7 @@ export const useServerBindModal = ({ isOpen, onClose, server }: UseServerBindMod
     handleCreateNew,
     handleDownloadModpack,
     handleLaunchBoundInstance,
+    handleUnbind,
     instances,
     isBinding,
     isCheckingBinding,
@@ -205,6 +226,7 @@ export const useServerBindModal = ({ isOpen, onClose, server }: UseServerBindMod
     isLaunching,
     isLoading,
     isModServer: server ? isModdedServer(server) : false,
+    isUnbinding,
     launchTargetName: boundInstance?.name || server?.name || '',
     selectedInstanceId,
     setSelectedInstanceId,

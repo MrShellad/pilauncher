@@ -34,6 +34,12 @@ export const serverBindingService = {
       serverBinding,
     }),
 
+  unbindServerFromInstance: (instanceId: string) =>
+    invoke<InstanceBindingState>('update_instance_server_binding', {
+      id: instanceId,
+      serverBinding: null,
+    }),
+
   downloadAndImportModpack: ({ url, instanceName, serverBinding }: DownloadAndImportModpackInput) =>
     invoke('download_and_import_modpack', {
       url,
