@@ -163,11 +163,14 @@ impl LaunchCommandBuilder {
 
     // ✅ 新增：跨平台 Natives 原生库解压逻辑
     pub fn extract_natives(&self) -> Result<(), String> {
-        let natives_dir = self
-            .runtime_dir
-            .join("versions")
-            .join(&self.mc_version)
-            .join("natives");
+        let natives_dir = if let Some(tp_root) = &self.third_party_root {
+            tp_root.join("natives")
+        } else {
+            self.runtime_dir
+                .join("versions")
+                .join(&self.mc_version)
+                .join("natives")
+        };
 
         if !natives_dir.exists() {
             fs::create_dir_all(&natives_dir).map_err(|e| e.to_string())?;
@@ -477,10 +480,30 @@ impl LaunchCommandBuilder {
             }
         }
 
-        let mut core_jar = self.get_minecraft_root().join("versions").join(&self.mc_version).join(format!("{}.jar", self.mc_version));
+        let mut core_jar = if let Some(tp_root) = &self.third_party_root {
+            let tp_jar = tp_root.join(format!("{}.jar", self.target_version_id));
+            if tp_jar.exists() {
+                tp_jar
+            } else {
+                self.get_minecraft_root()
+                    .join("versions")
+                    .join(&self.mc_version)
+                    .join(format!("{}.jar", self.mc_version))
+            }
+        } else {
+            self.runtime_dir
+                .join("versions")
+                .join(&self.mc_version)
+                .join(format!("{}.jar", self.mc_version))
+        };
+
         if !core_jar.exists() {
-            core_jar = self.runtime_dir.join("versions").join(&self.mc_version).join(format!("{}.jar", self.mc_version));
+            core_jar = self.runtime_dir
+                .join("versions")
+                .join(&self.mc_version)
+                .join(format!("{}.jar", self.mc_version));
         }
+
         if core_jar.exists() {
             cp.push(core_jar.to_string_lossy().to_string());
         }
@@ -491,13 +514,16 @@ impl LaunchCommandBuilder {
             ":"
         };
         let classpath_string = cp.join(cp_separator);
-        let natives_dir = self
-            .runtime_dir
-            .join("versions")
-            .join(&self.mc_version)
-            .join("natives")
-            .to_string_lossy()
-            .to_string();
+        let natives_dir = if let Some(tp_root) = &self.third_party_root {
+            tp_root.join("natives")
+        } else {
+            self.runtime_dir
+                .join("versions")
+                .join(&self.mc_version)
+                .join("natives")
+        }
+        .to_string_lossy()
+        .to_string();
 
         let mut final_args = Vec::new();
 
