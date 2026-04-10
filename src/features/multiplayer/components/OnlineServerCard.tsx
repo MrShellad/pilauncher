@@ -37,7 +37,7 @@ const getWarningChips = (server: OnlineServer): WarningChip[] => {
   if (server.versions?.length) {
     chips.push({
       tone: 'version',
-      label: server.versions.join(', '),
+      label: server.versions[0],
     });
   }
 
@@ -58,12 +58,33 @@ const getWarningChips = (server: OnlineServer): WarningChip[] => {
   return chips;
 };
 
-const getMetaTags = (server: OnlineServer, serverTypeLabel: string): Array<{ tone: 'green' | 'blue'; label: string }> => {
+interface LiveStatus {
+  isOnline: boolean;
+  online?: number;
+  max?: number;
+}
+
+const getMetaTags = (
+  server: OnlineServer, 
+  serverTypeLabel: string,
+  liveStatus: LiveStatus | null
+): Array<{ tone: 'green' | 'blue'; label: string }> => {
   const tags: Array<{ tone: 'green' | 'blue'; label: string }> = [];
 
-  const playerLabel = server.maxPlayers
+  let playerLabel = server.maxPlayers
     ? `${server.onlinePlayers}/${server.maxPlayers} 在线`
     : `${server.onlinePlayers} 在线`;
+
+  if (liveStatus) {
+    if (liveStatus.isOnline && liveStatus.online !== undefined) {
+      playerLabel = liveStatus.max !== undefined
+        ? `${liveStatus.online}/${liveStatus.max} 在线`
+        : `${liveStatus.online} 在线`;
+    } else if (!liveStatus.isOnline) {
+      playerLabel = '离线 / 检索中';
+    }
+  }
+
   tags.push({ tone: 'green', label: playerLabel });
 
   if (serverTypeLabel) {
@@ -148,8 +169,7 @@ const WarningIcon: React.FC<{ tone: WarningTone }> = ({ tone }) => {
 export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onArrowPress, onClick }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [copyState, setCopyState] = useState<'idle' | 'success' | 'error'>('idle');
-
-  void onArrowPress;
+  const [liveStatus, setLiveStatus] = useState<LiveStatus | null>(null);
 
   useEffect(() => {
     if (copyState === 'idle') {
@@ -160,9 +180,38 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onAr
     return () => window.clearTimeout(timer);
   }, [copyState]);
 
+  useEffect(() => {
+    if (!server.address) return;
+    let mounted = true;
+    
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch(`https://api.mcstatus.io/v2/status/java/${server.address}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (mounted) {
+          setLiveStatus({
+            isOnline: data.online,
+            online: data.players?.online,
+            max: data.players?.max
+          });
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    void fetchStatus();
+    const interval = setInterval(fetchStatus, 30000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [server.address]);
+
   const serverTypeLabel = localizeServerType(server);
   const warningChips = useMemo(() => getWarningChips(server), [server]);
-  const metaTags = useMemo(() => getMetaTags(server, serverTypeLabel), [server, serverTypeLabel]);
+  const metaTags = useMemo(() => getMetaTags(server, serverTypeLabel, liveStatus), [server, serverTypeLabel, liveStatus]);
   const drawerLinks = useMemo(() => getDrawerLinks(server), [server]);
   const description =
     server.description?.trim() ||
@@ -267,7 +316,7 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onAr
       <div className={`ore-online-server-card__drawer ${isExpanded ? 'is-open' : ''}`}>
         <div className="ore-online-server-card__drawer-inner">
           <div className="ore-online-server-card__drawer-content">
-            <p className="ore-online-server-card__description">{description}</p>
+            <div className="ore-online-server-card__description" dangerouslySetInnerHTML={{ __html: description }} />
 
             {drawerLinks.length > 0 && (
               <div className="ore-online-server-card__links">

@@ -2,6 +2,9 @@ import React from 'react';
 import { Blocks, HardDrive, Link as LinkIcon, Play, Plus, Server } from 'lucide-react';
 import { OreModal } from '../../../ui/primitives/OreModal';
 import { OreButton } from '../../../ui/primitives/OreButton';
+import { OreDropdown } from '../../../ui/primitives/OreDropdown';
+import { FocusItem } from '../../../ui/focus/FocusItem';
+import { useLinearNavigation } from '../../../ui/focus/useLinearNavigation';
 import type { OnlineServer } from '../types';
 import { useServerBindModal } from '../hooks/useServerBindModal';
 
@@ -34,6 +37,16 @@ export const ServerBindModal: React.FC<ServerBindModalProps> = ({ isOpen, onClos
     server,
   });
 
+  const focusOrder = React.useMemo(() => {
+    if (isCheckingBinding) return [];
+    if (boundInstance) return ['modal-launch-cancel', 'modal-launch-action'];
+    if (isModServer && server?.modpackUrl) return ['modal-mod-cancel', 'modal-mod-action'];
+    if (!instances.length) return ['modal-bind-create', 'modal-bind-cancel'];
+    return ['modal-bind-dropdown', 'modal-bind-create', 'modal-bind-cancel', 'modal-bind-action'];
+  }, [isCheckingBinding, boundInstance, isModServer, server, instances.length]);
+
+  const { handleLinearArrow } = useLinearNavigation(focusOrder, focusOrder[0]);
+
   if (!server) return null;
 
   return (
@@ -42,6 +55,8 @@ export const ServerBindModal: React.FC<ServerBindModalProps> = ({ isOpen, onClos
       onClose={onClose}
       title={boundInstance ? '启动已关联实例' : isModServer ? '部署专属客户端' : '服务器快速绑定与直连'}
       className="w-[500px]"
+      hideCloseButton
+      defaultFocusKey={focusOrder[0]}
     >
       <div className="flex flex-col px-4 pt-2 pb-4">
         {isCheckingBinding ? (
@@ -78,10 +93,10 @@ export const ServerBindModal: React.FC<ServerBindModalProps> = ({ isOpen, onClos
             </div>
 
             <div className="flex w-full space-x-4">
-              <OreButton variant="secondary" size="full" onClick={onClose} disabled={isLaunching}>
+              <OreButton variant="secondary" size="full" onClick={onClose} disabled={isLaunching} focusKey="modal-launch-cancel" onArrowPress={handleLinearArrow}>
                 取消
               </OreButton>
-              <OreButton variant="primary" size="full" onClick={handleLaunchBoundInstance} disabled={isLaunching}>
+              <OreButton variant="primary" size="full" onClick={handleLaunchBoundInstance} disabled={isLaunching} focusKey="modal-launch-action" onArrowPress={handleLinearArrow}>
                 <div className="flex items-center justify-center">
                   <Play size={16} className="mr-2 flex-shrink-0" />
                   <span>{isLaunching ? '启动中...' : '启动游戏'}</span>
@@ -117,10 +132,10 @@ export const ServerBindModal: React.FC<ServerBindModalProps> = ({ isOpen, onClos
             </div>
 
             <div className="mt-2 flex w-full space-x-4">
-              <OreButton variant="secondary" size="full" onClick={onClose}>
+              <OreButton variant="secondary" size="full" onClick={onClose} focusKey="modal-mod-cancel" onArrowPress={handleLinearArrow}>
                 暂不部署
               </OreButton>
-              <OreButton variant="primary" size="full" onClick={handleDownloadModpack} disabled={isDownloading}>
+              <OreButton variant="primary" size="full" onClick={handleDownloadModpack} disabled={isDownloading} focusKey="modal-mod-action" onArrowPress={handleLinearArrow}>
                 <div className="flex items-center justify-center">
                   <HardDrive size={16} className="mr-2 flex-shrink-0" />
                   <span>{isDownloading ? '准备中...' : '开始部署'}</span>
@@ -133,7 +148,7 @@ export const ServerBindModal: React.FC<ServerBindModalProps> = ({ isOpen, onClos
             <Server size={32} className="mx-auto mb-4 text-[#6CC349] drop-shadow-[0_0_8px_rgba(108,195,73,0.8)]" />
             <h3 className="mb-1 font-minecraft text-xl font-bold text-white ore-text-shadow">绑定到实例：{server.name}</h3>
             <p className="mb-6 px-2 font-minecraft text-xs text-[#A0A0A0]">
-              绑定后，启动该实例将通过 Quick Play 绕过主菜单，直接连接到该服务器。
+              绑定后，启动该实例将通过快速连接功能，直接连接到该服务器。
             </p>
 
             <div className="relative mb-6 flex w-full space-x-2">
@@ -142,35 +157,42 @@ export const ServerBindModal: React.FC<ServerBindModalProps> = ({ isOpen, onClos
                 {isLoading ? (
                   <div className="flex h-10 items-center border border-white/10 bg-black/40 px-4 text-sm text-white/50">检索中...</div>
                 ) : (
-                  <select
-                    title="选择实例"
-                    className="w-full border-2 border-white/20 bg-[#1E1E1F] p-2 font-minecraft text-white transition-colors focus:border-[#FFE866] focus:outline-none"
+                  <OreDropdown
                     value={selectedInstanceId}
-                    onChange={(e) => setSelectedInstanceId(e.target.value)}
-                  >
-                    {!instances.length && <option value="">无匹配版本的实例</option>}
-                    {instances.map((inst) => (
-                      <option key={inst.id} value={inst.id}>
-                        {inst.name} ({inst.version} {inst.loader})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSelectedInstanceId}
+                    options={
+                      instances.length > 0 
+                        ? instances.map(inst => ({ value: inst.id, label: `${inst.name} (${inst.version} ${inst.loader})` }))
+                        : [{ value: '', label: '无匹配版本的实例' }]
+                    }
+                    focusKey="modal-bind-dropdown"
+                    onArrowPress={handleLinearArrow}
+                    disabled={instances.length === 0}
+                  />
                 )}
               </div>
             </div>
 
             <div className="mb-6 flex justify-center">
-              <button
-                onClick={handleCreateNew}
-                className="flex items-center text-sm font-minecraft text-ore-green transition-colors hover:text-white"
-              >
-                <Plus size={16} className="mr-1" />
-                没有合适的？新建实例并绑定
-              </button>
+              <FocusItem focusKey="modal-bind-create" onArrowPress={handleLinearArrow} onEnter={handleCreateNew}>
+                {({ ref, focused }) => (
+                  <button
+                    ref={ref as any}
+                    onClick={handleCreateNew}
+                    tabIndex={-1}
+                    className={`flex items-center text-sm font-minecraft transition-colors outline-none
+                      ${focused ? 'text-white underline drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-ore-green hover:text-white'}
+                    `}
+                  >
+                    <Plus size={16} className="mr-1" />
+                    没有合适的？新建实例并绑定
+                  </button>
+                )}
+              </FocusItem>
             </div>
 
             <div className="flex w-full space-x-4">
-              <OreButton variant="secondary" size="full" onClick={onClose}>
+              <OreButton variant="secondary" size="full" onClick={onClose} focusKey="modal-bind-cancel" onArrowPress={handleLinearArrow}>
                 取消
               </OreButton>
               <OreButton
@@ -178,10 +200,12 @@ export const ServerBindModal: React.FC<ServerBindModalProps> = ({ isOpen, onClos
                 size="full"
                 onClick={handleBind}
                 disabled={instances.length === 0 || isBinding || !selectedInstanceId}
+                focusKey="modal-bind-action"
+                onArrowPress={handleLinearArrow}
               >
                 <div className="flex items-center justify-center">
                   <LinkIcon size={16} className="mr-2 flex-shrink-0" />
-                  <span>{isBinding ? '绑定中...' : '确认绑定并直连'}</span>
+                  <span>{isBinding ? '绑定中...' : '绑定并直连'}</span>
                 </div>
               </OreButton>
             </div>

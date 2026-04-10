@@ -1,2 +1,0 @@
-Fabric loader version: 0.18.4
-Fabric MC version: 1.20.1

@@ -270,7 +270,14 @@ export const normalizeServer = (value: unknown, index: number): OnlineServer | n
       pickFirst(record.socials, record.social, record.socialGroups, record.social_groups, record.communities)
     ),
     description: pickFirst(getString(record.description), getString(record.summary)),
-    address: pickFirst(getString(record.address), getString(record.ip), getString(record.host)),
+    address: (() => {
+      const rawAddress = pickFirst(getString(record.address), getString(record.ip), getString(record.host));
+      const port = pickFirst(getNumber(record.port));
+      if (rawAddress && port && port !== 25565 && !rawAddress.includes(':')) {
+        return `${rawAddress}:${port}`;
+      }
+      return rawAddress;
+    })(),
     hero: resolveUrl(pickFirst(getString(record.hero), getString(record.hero_url), getString(record.banner))),
     versions: Array.isArray(record.versions) ? record.versions.map(getString).filter((v): v is string => Boolean(v)) : undefined,
     ageRecommendation: pickFirst(getString(record.ageRecommendation), getString(record.age_recommendation)),

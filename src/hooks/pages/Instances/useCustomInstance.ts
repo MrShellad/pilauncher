@@ -73,7 +73,15 @@ export const useCustomInstance = () => {
   };
 
   useEffect(() => {
-    fetchVersions(false);
+    fetchVersions(true);
+  }, []);
+
+  useEffect(() => {
+    const pendingBinding = useLauncherStore.getState().pendingServerBinding;
+    if (pendingBinding && !pendingBinding.isModded && pendingBinding.versions && pendingBinding.versions.length > 0) {
+      setGameVersion(pendingBinding.versions[0]);
+      setStep(2);
+    }
   }, []);
 
   const handleRefreshVersions = () => fetchVersions(true);

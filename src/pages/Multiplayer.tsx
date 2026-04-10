@@ -13,7 +13,7 @@ import '../style/pages/Multiplayer.css';
 const Multiplayer: React.FC = () => {
   const { t } = useTranslation();
   const [activeSection, setActiveSection] = useState<MultiplayerSection>('online-servers');
-  const { servers, adSlots, isLoading, error, lastUpdated, fetchServers } = useOnlineServers();
+  const { servers, adSlots, isLoading, error, fetchServers } = useOnlineServers();
 
   useInputAction('TAB_LEFT', () => setActiveSection('online-servers'));
   useInputAction('PAGE_LEFT', () => setActiveSection('online-servers'));
