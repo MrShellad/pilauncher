@@ -1,8 +1,24 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Globe, MessageSquareShare, Server } from 'lucide-react';
 import type { OnlineServer, SocialLink } from '../types';
 import { copyText, openLink } from '../utils';
 import { FocusItem } from '../../../ui/focus/FocusItem';
+import { useInputAction } from '../../../ui/focus/InputDriver';
+import { useInputMode } from '../../../ui/focus/FocusProvider';
+
+/** Headless handler: listens for ACTION_Y and toggles the drawer only when this card is focused */
+const CardYHandler: React.FC<{ focused: boolean; onAction: () => void }> = ({ focused, onAction }) => {
+  const actionRef = useRef(onAction);
+  useEffect(() => { actionRef.current = onAction; }, [onAction]);
+
+  useInputAction('ACTION_Y', useCallback(() => {
+    if (focused) {
+      actionRef.current();
+    }
+  }, [focused]));
+
+  return null;
+};
 
 interface OnlineServerCardProps {
   server: OnlineServer;
@@ -170,6 +186,8 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onAr
   const [isExpanded, setIsExpanded] = useState(false);
   const [copyState, setCopyState] = useState<'idle' | 'success' | 'error'>('idle');
   const [liveStatus, setLiveStatus] = useState<LiveStatus | null>(null);
+  const cardRef = useRef<HTMLElement>(null);
+  const inputMode = useInputMode();
 
   useEffect(() => {
     if (copyState === 'idle') {
@@ -223,6 +241,13 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onAr
 
   const [isCardFocused, setIsCardFocused] = useState(false);
 
+  // Scroll the card into view when any child FocusItem gets focused (focus-follow)
+  const handleChildFocused = useCallback(() => {
+    if (inputMode !== 'mouse' && cardRef.current) {
+      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [inputMode]);
+
   const handleCopyIp = async () => {
     try {
       const copied = await copyText(server.address);
@@ -234,6 +259,7 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onAr
 
   return (
     <article 
+      ref={cardRef}
       className={`ore-online-server-card ${isCardFocused ? 'is-focused' : ''}`} 
       onFocus={() => setIsCardFocused(true)}
       onBlur={(e) => {
@@ -345,8 +371,10 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onAr
       </div>
 
       <div className="ore-online-server-card__action-bar">
-        <FocusItem focusKey={`server-card-${server.id}-copy`} onArrowPress={onArrowPress} onEnter={handleCopyIp}>
+        <FocusItem focusKey={`server-card-${server.id}-copy`} onArrowPress={onArrowPress} onEnter={handleCopyIp} onFocus={handleChildFocused} autoScroll={false}>
           {({ ref, focused }) => (
+            <>
+            <CardYHandler focused={focused} onAction={handleToggleDrawer} />
             <button
               ref={ref as React.RefObject<HTMLButtonElement>}
               type="button"
@@ -361,10 +389,13 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onAr
                   ? '复制失败'
                   : '复制 IP'}
             </button>
+            </>
           )}
         </FocusItem>
-        <FocusItem focusKey={`server-card-${server.id}-play`} onArrowPress={onArrowPress} onEnter={() => onClick?.(server)}>
+        <FocusItem focusKey={`server-card-${server.id}-play`} onArrowPress={onArrowPress} onEnter={() => onClick?.(server)} onFocus={handleChildFocused} autoScroll={false}>
           {({ ref, focused }) => (
+            <>
+            <CardYHandler focused={focused} onAction={handleToggleDrawer} />
             <button
               ref={ref as React.RefObject<HTMLButtonElement>}
               type="button"
@@ -375,6 +406,7 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onAr
             >
               进入游戏
             </button>
+            </>
           )}
         </FocusItem>
       </div>

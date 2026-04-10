@@ -392,6 +392,13 @@
 }
 
 .ore-multiplayer-scroll--directory {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  padding: 0;
   padding-bottom: 6rem;
 }
 
@@ -1269,20 +1276,21 @@
 }
 
 .ore-online-server-grid {
-  display: grid;
+  display: flex;
+  flex-direction: row;
   min-height: 100%;
-  width: 100%;
-  align-content: center;
-  justify-items: center;
-  gap: 1.25rem;
-  grid-template-columns: repeat(auto-fit, minmax(min(42rem, 100%), 1fr));
+  width: max-content;
+  min-width: 100%;
+  align-items: center;
+  gap: 2.5rem;
+  padding: 0 calc(50% - 21rem);
 }
 
 .ore-online-server-card {
-  width: min(100%, 42rem);
-  justify-self: center;
-  align-self: center;
-  margin: 1.25rem auto;
+  flex: 0 0 42rem;
+  width: 42rem;
+  scroll-snap-align: center;
+  margin: 0;
   overflow: hidden;
   border-top: 0.125rem solid #5a5b5c;
   border-right: 0.125rem solid #333334;
@@ -1314,7 +1322,7 @@
 
 .ore-online-server-card__hero-image {
   position: relative;
-  height: 14rem;
+  height: 20rem;
   width: 100%;
   overflow: hidden;
   background:
@@ -1872,7 +1880,15 @@
   }
 
   .ore-online-server-grid {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    width: 100%;
+    padding: 1rem;
+    gap: 1.5rem;
+  }
+
+  .ore-online-server-card {
+    width: 100%;
+    flex: 0 0 auto;
   }
 
   .ore-online-server-card__hero-image {
