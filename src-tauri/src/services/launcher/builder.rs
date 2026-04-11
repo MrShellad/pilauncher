@@ -129,7 +129,7 @@ impl LaunchCommandBuilder {
                 }
             }
         }
-        
+
         let json_path = self
             .get_minecraft_root()
             .join("versions")
@@ -150,7 +150,7 @@ impl LaunchCommandBuilder {
             .join("versions")
             .join(version_id)
             .join(format!("{}.json", version_id));
-            
+
         if fallback_json.exists() && fallback_json != json_path {
             if let Ok(content) = std::fs::read_to_string(&fallback_json) {
                 if let Ok(json) = serde_json::from_str(&content) {
@@ -279,10 +279,7 @@ impl LaunchCommandBuilder {
             )
             .replace(
                 "${library_directory}",
-                &self
-                    .get_libraries_dir()
-                    .to_string_lossy()
-                    .to_string(),
+                &self.get_libraries_dir().to_string_lossy().to_string(),
             )
             .replace("${classpath}", classpath)
             .replace("${natives_directory}", natives_dir)
@@ -498,7 +495,8 @@ impl LaunchCommandBuilder {
         };
 
         if !core_jar.exists() {
-            core_jar = self.runtime_dir
+            core_jar = self
+                .runtime_dir
                 .join("versions")
                 .join(&self.mc_version)
                 .join(format!("{}.jar", self.mc_version));

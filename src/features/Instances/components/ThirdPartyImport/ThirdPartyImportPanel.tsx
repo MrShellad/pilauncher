@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Database, FolderOpen, Loader2 } from 'lucide-react';
+import { FolderOpen, Loader2 } from 'lucide-react';
 import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreModal } from '../../../../ui/primitives/OreModal';

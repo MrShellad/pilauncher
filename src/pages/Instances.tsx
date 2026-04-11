@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { getCurrentFocusKey } from '@noriginmedia/norigin-spatial-navigation';
 import {
   FolderPlus,
@@ -19,7 +19,6 @@ import { DirectoryBrowserModal } from '../ui/components/DirectoryBrowserModal';
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { FocusItem } from '../ui/focus/FocusItem';
 import { focusManager } from '../ui/focus/FocusManager';
-import { OreModal } from '../ui/primitives/OreModal';
 import { OreButton } from '../ui/primitives/OreButton';
 
 const Instances: React.FC = () => {
