@@ -1,10 +1,15 @@
 // src-tauri/src/services/launcher/builder.rs
 use crate::domain::launcher::{AuthSession, ResolvedLaunchConfig};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::path::PathBuf;
+
+struct VersionManifest {
+    id: String,
+    json: Value,
+}
 
 pub struct LaunchCommandBuilder {
     config: ResolvedLaunchConfig,
@@ -37,14 +42,12 @@ impl LaunchCommandBuilder {
         }
     }
 
-    // ✅ 核心修复：采用严格的特性白名单机制与运行时的系统判定
     fn check_rules(rules: Option<&Vec<Value>>) -> bool {
         if let Some(rules_arr) = rules {
             let mut result = false;
             for rule in rules_arr {
                 let action = rule["action"].as_str().unwrap_or("");
 
-                // 1. 运行时判定操作系统
                 let mut os_match = true;
                 if let Some(os) = rule.get("os") {
                     let current_os = match env::consts::OS {
@@ -58,31 +61,28 @@ impl LaunchCommandBuilder {
                     }
                 }
 
-                // 2. 判定特殊特性 (Features)
                 let mut features_match = true;
                 if let Some(features) = rule.get("features").and_then(|f| f.as_object()) {
                     for (feat_name, feat_val) in features {
                         let required_val = feat_val.as_bool().unwrap_or(false);
 
-                        // ⚡️ 定义我们 PiLauncher 当前激活的特性状态
                         let our_val = match feat_name.as_str() {
-                            "has_custom_resolution" => true,       // 我们确实手动注入了分辨率
-                            "is_demo_user" => false,               // 绝对不开启试玩模式
-                            "has_quick_plays_log" => false,        // 不启用快捷游玩日志
-                            "is_quick_play_singleplayer" => false, // 不启用单人快捷游玩
-                            "is_quick_play_multiplayer" => false,  // 不启用多人快捷游玩
-                            "is_quick_play_realms" => false,       // 不启用领域快捷游玩
-                            _ => false, // 兜底：任何未知的官方新特性，统统设为 false 拒绝注入！
+                            "has_custom_resolution" => true,
+                            "is_demo_user" => false,
+                            "has_quick_plays_log" => false,
+                            "is_quick_play_singleplayer" => false,
+                            "is_quick_play_multiplayer" => false,
+                            "is_quick_play_realms" => false,
+                            _ => false,
                         };
 
                         if required_val != our_val {
                             features_match = false;
-                            break; // 只要有一个特性不匹配，这条规则就直接作废
+                            break;
                         }
                     }
                 }
 
-                // 3. 综合评估
                 if os_match && features_match {
                     if action == "allow" {
                         result = true;
@@ -144,7 +144,6 @@ impl LaunchCommandBuilder {
             }
         }
 
-        // 终极回退机制，保障PiLauncher资源仍被搜索
         let fallback_json = self
             .runtime_dir
             .join("versions")
@@ -161,7 +160,121 @@ impl LaunchCommandBuilder {
         None
     }
 
-    // ✅ 新增：跨平台 Natives 原生库解压逻辑
+    fn get_launch_version_candidates(&self) -> Vec<String> {
+        let mut candidates = Vec::new();
+
+        if let Some(third_party_id) = self
+            .third_party_root
+            .as_ref()
+            .and_then(|path| path.file_name())
+            .and_then(|name| name.to_str())
+            .map(|id| id.to_string())
+        {
+            candidates.push(third_party_id);
+        }
+
+        for version_id in [&self.target_version_id, &self.mc_version] {
+            if !version_id.is_empty() && !candidates.iter().any(|id| id == version_id) {
+                candidates.push(version_id.clone());
+            }
+        }
+
+        candidates
+    }
+
+    fn get_version_chain(&self) -> Result<Vec<VersionManifest>, String> {
+        let candidates = self.get_launch_version_candidates();
+        let mut current_id = candidates
+            .iter()
+            .find(|candidate| self.get_version_data(candidate.as_str()).is_some())
+            .cloned()
+            .ok_or_else(|| format!("找不到版本 JSON，候选项: {}", candidates.join(", ")))?;
+
+        let mut chain = Vec::new();
+        let mut visited = HashSet::new();
+
+        loop {
+            if !visited.insert(current_id.clone()) {
+                return Err(format!("检测到循环继承链: {}", current_id));
+            }
+
+            let json = self
+                .get_version_data(&current_id)
+                .ok_or_else(|| format!("找不到版本 JSON: {}", current_id))?;
+
+            let parent_id = json
+                .get("inheritsFrom")
+                .and_then(|value| value.as_str())
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| value.to_string());
+
+            chain.push(VersionManifest {
+                id: current_id,
+                json,
+            });
+
+            if let Some(parent_id) = parent_id {
+                current_id = parent_id;
+            } else {
+                break;
+            }
+        }
+
+        chain.reverse();
+        Ok(chain)
+    }
+
+    fn get_best_effort_version_chain(&self) -> Vec<VersionManifest> {
+        match self.get_version_chain() {
+            Ok(chain) => chain,
+            Err(err) => {
+                eprintln!("[Launcher WARNING] {}", err);
+                self.get_launch_version_candidates()
+                    .into_iter()
+                    .find_map(|id| {
+                        self.get_version_data(&id)
+                            .map(|json| VersionManifest { id, json })
+                    })
+                    .into_iter()
+                    .collect()
+            }
+        }
+    }
+
+    fn library_key(lib: &Value) -> Option<String> {
+        let name = lib.get("name").and_then(|value| value.as_str())?;
+        let parts: Vec<&str> = name.split(':').collect();
+        let group = parts.first().copied().unwrap_or("");
+        let artifact = parts.get(1).copied().unwrap_or("");
+        let classifier = if parts.len() >= 4 { parts[3] } else { "" };
+        Some(format!("{}:{}:{}", group, artifact, classifier))
+    }
+
+    fn merge_libraries(version_chain: &[VersionManifest]) -> Vec<Value> {
+        let mut lib_indices: HashMap<String, usize> = HashMap::new();
+        let mut all_libraries = Vec::new();
+
+        for manifest in version_chain {
+            if let Some(libs) = manifest.json["libraries"].as_array() {
+                for lib in libs {
+                    if let Some(key) = Self::library_key(lib) {
+                        if let Some(&idx) = lib_indices.get(&key) {
+                            all_libraries[idx] = lib.clone();
+                        } else {
+                            lib_indices.insert(key, all_libraries.len());
+                            all_libraries.push(lib.clone());
+                        }
+                    } else {
+                        all_libraries.push(lib.clone());
+                    }
+                }
+            }
+        }
+
+        all_libraries
+    }
+
     pub fn extract_natives(&self) -> Result<(), String> {
         let natives_dir = if let Some(tp_root) = &self.third_party_root {
             tp_root.join("natives")
@@ -183,54 +296,50 @@ impl LaunchCommandBuilder {
             _ => env::consts::OS,
         };
 
-        let json = self
-            .get_version_data(&self.mc_version)
-            .ok_or("找不到核心版本 JSON")?;
+        let version_chain = self.get_version_chain()?;
 
-        if let Some(libs) = json["libraries"].as_array() {
-            for lib in libs {
-                if !Self::check_rules(lib.get("rules").and_then(|v| v.as_array())) {
-                    continue;
-                }
+        for lib in Self::merge_libraries(&version_chain) {
+            if !Self::check_rules(lib.get("rules").and_then(|v| v.as_array())) {
+                continue;
+            }
 
-                if let Some(classifiers) = lib
-                    .pointer("/downloads/classifiers")
-                    .and_then(|c| c.as_object())
-                {
-                    for (key, val) in classifiers {
-                        let match_os = key.contains(current_os)
-                            || (current_os == "osx" && key.contains("macos"));
-                        if match_os {
-                            if let Some(path_str) = val.get("path").and_then(|p| p.as_str()) {
-                                let mut jar_path = self.get_libraries_dir().join(path_str);
-                                if !jar_path.exists() {
-                                    jar_path = self.runtime_dir.join("libraries").join(path_str);
-                                }
-                                if jar_path.exists() {
-                                    if let Ok(file) = fs::File::open(&jar_path) {
-                                        // 依赖 zip crate，需要在 Cargo.toml 中添加 `zip = "0.6"`
-                                        if let Ok(mut archive) = zip::ZipArchive::new(file) {
-                                            for i in 0..archive.len() {
-                                                if let Ok(mut file) = archive.by_index(i) {
-                                                    let file_name = file.name().to_string();
-                                                    // 排除 META-INF 目录和文件夹本身
-                                                    if file_name.contains("META-INF")
-                                                        || file_name.ends_with('/')
-                                                    {
-                                                        continue;
-                                                    }
-                                                    let outpath = natives_dir.join(&file_name);
-                                                    if let Some(p) = outpath.parent() {
-                                                        let _ = fs::create_dir_all(p);
-                                                    }
-                                                    if let Ok(mut outfile) =
-                                                        fs::File::create(&outpath)
-                                                    {
-                                                        let _ =
-                                                            std::io::copy(&mut file, &mut outfile);
-                                                    }
-                                                }
-                                            }
+            if let Some(classifiers) = lib
+                .pointer("/downloads/classifiers")
+                .and_then(|c| c.as_object())
+            {
+                for (key, val) in classifiers {
+                    let match_os =
+                        key.contains(current_os) || (current_os == "osx" && key.contains("macos"));
+                    if !match_os {
+                        continue;
+                    }
+
+                    if let Some(path_str) = val.get("path").and_then(|p| p.as_str()) {
+                        let mut jar_path = self.get_libraries_dir().join(path_str);
+                        if !jar_path.exists() {
+                            jar_path = self.runtime_dir.join("libraries").join(path_str);
+                        }
+                        if !jar_path.exists() {
+                            continue;
+                        }
+
+                        if let Ok(file) = fs::File::open(&jar_path) {
+                            if let Ok(mut archive) = zip::ZipArchive::new(file) {
+                                for i in 0..archive.len() {
+                                    if let Ok(mut file) = archive.by_index(i) {
+                                        let file_name = file.name().to_string();
+                                        if file_name.contains("META-INF")
+                                            || file_name.ends_with('/')
+                                        {
+                                            continue;
+                                        }
+
+                                        let outpath = natives_dir.join(&file_name);
+                                        if let Some(parent) = outpath.parent() {
+                                            let _ = fs::create_dir_all(parent);
+                                        }
+                                        if let Ok(mut outfile) = fs::File::create(&outpath) {
+                                            let _ = std::io::copy(&mut file, &mut outfile);
                                         }
                                     }
                                 }
@@ -240,18 +349,20 @@ impl LaunchCommandBuilder {
                 }
             }
         }
+
         Ok(())
     }
 
     fn resolve_placeholders(
         &self,
         arg: &str,
+        version_name: &str,
         classpath: &str,
         natives_dir: &str,
         asset_index: &str,
     ) -> String {
         arg.replace("${auth_player_name}", &self.auth.player_name)
-            .replace("${version_name}", &self.mc_version)
+            .replace("${version_name}", version_name)
             .replace(
                 "${game_directory}",
                 &self.game_dir.to_string_lossy().to_string(),
@@ -304,63 +415,56 @@ impl LaunchCommandBuilder {
         let mut asset_index = self.mc_version.clone();
         let mut legacy_args = None;
 
-        let mut lib_indices: HashMap<String, usize> = HashMap::new();
-        let mut all_libraries: Vec<Value> = Vec::new();
+        let version_chain = self.get_best_effort_version_chain();
+        if version_chain.is_empty() {
+            return Vec::new();
+        }
 
-        let parent_json = self.get_version_data(&self.mc_version);
-        let target_json = if self.mc_version != self.target_version_id {
-            self.get_version_data(&self.target_version_id)
-        } else {
-            None
-        };
+        let launch_version_id = version_chain
+            .last()
+            .map(|manifest| manifest.id.clone())
+            .unwrap_or_else(|| self.mc_version.clone());
+        let launch_jar_id = version_chain
+            .last()
+            .and_then(|manifest| {
+                manifest
+                    .json
+                    .get("jar")
+                    .and_then(|value| value.as_str())
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(|value| value.to_string())
+            })
+            .unwrap_or_else(|| launch_version_id.clone());
+        let all_libraries = Self::merge_libraries(&version_chain);
 
-        let jsons = vec![parent_json, target_json];
-        for json_opt in jsons {
-            if let Some(json) = json_opt {
-                if let Some(id) = json.pointer("/assetIndex/id").and_then(|v| v.as_str()) {
-                    asset_index = id.to_string();
-                }
-                if let Some(mc) = json["mainClass"].as_str() {
-                    main_class = mc.to_string();
-                }
-                if let Some(la) = json["minecraftArguments"].as_str() {
-                    legacy_args = Some(la.to_string());
-                }
+        for manifest in &version_chain {
+            let json = &manifest.json;
 
-                if let Some(libs) = json["libraries"].as_array() {
-                    for lib in libs {
-                        if let Some(name) = lib["name"].as_str() {
-                            let parts: Vec<&str> = name.split(':').collect();
-                            let group = parts.get(0).unwrap_or(&"");
-                            let artifact = parts.get(1).unwrap_or(&"");
-                            let classifier = if parts.len() >= 4 { parts[3] } else { "" };
-                            let key = format!("{}:{}:{}", group, artifact, classifier);
+            if let Some(id) = json.pointer("/assetIndex/id").and_then(|v| v.as_str()) {
+                asset_index = id.to_string();
+            }
+            if let Some(mc) = json["mainClass"].as_str() {
+                main_class = mc.to_string();
+            }
+            if let Some(la) = json["minecraftArguments"].as_str() {
+                legacy_args = Some(la.to_string());
+            }
 
-                            if let Some(&idx) = lib_indices.get(&key) {
-                                all_libraries[idx] = lib.clone();
-                            } else {
-                                lib_indices.insert(key, all_libraries.len());
-                                all_libraries.push(lib.clone());
-                            }
-                        }
-                    }
-                }
-
-                if let Some(args) = json.get("arguments").and_then(|v| v.as_object()) {
-                    if let Some(jvm) = args.get("jvm").and_then(|v| v.as_array()) {
-                        for arg in jvm {
-                            if let Some(s) = arg.as_str() {
-                                jvm_args_raw.push(s.to_string());
-                            } else if let Some(obj) = arg.as_object() {
-                                if Self::check_rules(obj.get("rules").and_then(|v| v.as_array())) {
-                                    if let Some(values) = obj.get("value") {
-                                        if let Some(s) = values.as_str() {
-                                            jvm_args_raw.push(s.to_string());
-                                        } else if let Some(arr) = values.as_array() {
-                                            for v in arr {
-                                                if let Some(s) = v.as_str() {
-                                                    jvm_args_raw.push(s.to_string());
-                                                }
+            if let Some(args) = json.get("arguments").and_then(|v| v.as_object()) {
+                if let Some(jvm) = args.get("jvm").and_then(|v| v.as_array()) {
+                    for arg in jvm {
+                        if let Some(s) = arg.as_str() {
+                            jvm_args_raw.push(s.to_string());
+                        } else if let Some(obj) = arg.as_object() {
+                            if Self::check_rules(obj.get("rules").and_then(|v| v.as_array())) {
+                                if let Some(values) = obj.get("value") {
+                                    if let Some(s) = values.as_str() {
+                                        jvm_args_raw.push(s.to_string());
+                                    } else if let Some(arr) = values.as_array() {
+                                        for v in arr {
+                                            if let Some(s) = v.as_str() {
+                                                jvm_args_raw.push(s.to_string());
                                             }
                                         }
                                     }
@@ -368,20 +472,20 @@ impl LaunchCommandBuilder {
                             }
                         }
                     }
-                    if let Some(game) = args.get("game").and_then(|v| v.as_array()) {
-                        for arg in game {
-                            if let Some(s) = arg.as_str() {
-                                game_args_raw.push(s.to_string());
-                            } else if let Some(obj) = arg.as_object() {
-                                if Self::check_rules(obj.get("rules").and_then(|v| v.as_array())) {
-                                    if let Some(values) = obj.get("value") {
-                                        if let Some(s) = values.as_str() {
-                                            game_args_raw.push(s.to_string());
-                                        } else if let Some(arr) = values.as_array() {
-                                            for v in arr {
-                                                if let Some(s) = v.as_str() {
-                                                    game_args_raw.push(s.to_string());
-                                                }
+                }
+                if let Some(game) = args.get("game").and_then(|v| v.as_array()) {
+                    for arg in game {
+                        if let Some(s) = arg.as_str() {
+                            game_args_raw.push(s.to_string());
+                        } else if let Some(obj) = arg.as_object() {
+                            if Self::check_rules(obj.get("rules").and_then(|v| v.as_array())) {
+                                if let Some(values) = obj.get("value") {
+                                    if let Some(s) = values.as_str() {
+                                        game_args_raw.push(s.to_string());
+                                    } else if let Some(arr) = values.as_array() {
+                                        for v in arr {
+                                            if let Some(s) = v.as_str() {
+                                                game_args_raw.push(s.to_string());
                                             }
                                         }
                                     }
@@ -427,7 +531,6 @@ impl LaunchCommandBuilder {
                 paths_to_check.push(path.to_string());
             }
 
-            // 运行时判定收集当前系统的 jar 包路径
             if let Some(classifiers) = lib
                 .pointer("/downloads/classifiers")
                 .and_then(|c| c.as_object())
@@ -478,20 +581,20 @@ impl LaunchCommandBuilder {
         }
 
         let mut core_jar = if let Some(tp_root) = &self.third_party_root {
-            let tp_jar = tp_root.join(format!("{}.jar", self.target_version_id));
+            let tp_jar = tp_root.join(format!("{}.jar", launch_jar_id));
             if tp_jar.exists() {
                 tp_jar
             } else {
                 self.get_minecraft_root()
                     .join("versions")
-                    .join(&self.mc_version)
-                    .join(format!("{}.jar", self.mc_version))
+                    .join(&launch_jar_id)
+                    .join(format!("{}.jar", launch_jar_id))
             }
         } else {
             self.runtime_dir
                 .join("versions")
-                .join(&self.mc_version)
-                .join(format!("{}.jar", self.mc_version))
+                .join(&launch_jar_id)
+                .join(format!("{}.jar", launch_jar_id))
         };
 
         if !core_jar.exists() {
@@ -534,6 +637,7 @@ impl LaunchCommandBuilder {
         for arg in jvm_args_raw {
             final_args.push(self.resolve_placeholders(
                 &arg,
+                &launch_version_id,
                 &classpath_string,
                 &natives_dir,
                 &asset_index,
@@ -545,6 +649,7 @@ impl LaunchCommandBuilder {
         for arg in game_args_raw {
             final_args.push(self.resolve_placeholders(
                 &arg,
+                &launch_version_id,
                 &classpath_string,
                 &natives_dir,
                 &asset_index,

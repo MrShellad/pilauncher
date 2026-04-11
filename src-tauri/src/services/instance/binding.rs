@@ -418,15 +418,11 @@ impl InstanceBindingService {
         Ok(())
     }
 
-    async fn cleanup_stale_bindings(
-        pool: &SqlitePool,
-        on_disk_ids: &[String],
-    ) -> AppResult<()> {
-        let db_instance_ids: Vec<String> = sqlx::query_scalar(
-            "SELECT DISTINCT instance_id FROM instance_servers",
-        )
-        .fetch_all(pool)
-        .await?;
+    async fn cleanup_stale_bindings(pool: &SqlitePool, on_disk_ids: &[String]) -> AppResult<()> {
+        let db_instance_ids: Vec<String> =
+            sqlx::query_scalar("SELECT DISTINCT instance_id FROM instance_servers")
+                .fetch_all(pool)
+                .await?;
 
         for id in &db_instance_ids {
             if !on_disk_ids.iter().any(|disk_id| disk_id == id) {

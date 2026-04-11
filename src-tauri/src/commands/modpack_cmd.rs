@@ -545,10 +545,16 @@ pub fn detect_missing_runtime_for_instance(
 
     if instance.loader_type != "vanilla" && !instance.loader_version.is_empty() {
         let loader_folder = match instance.loader_type.as_str() {
-            "fabric" => format!("fabric-loader-{}-{}", instance.loader_version, instance.mc_version),
+            "fabric" => format!(
+                "fabric-loader-{}-{}",
+                instance.loader_version, instance.mc_version
+            ),
             "forge" => format!("{}-forge-{}", instance.mc_version, instance.loader_version),
             "neoforge" => format!("neoforge-{}", instance.loader_version),
-            "quilt" => format!("quilt-loader-{}-{}", instance.loader_version, instance.mc_version),
+            "quilt" => format!(
+                "quilt-loader-{}-{}",
+                instance.loader_version, instance.mc_version
+            ),
             _ => "".to_string(),
         };
         if !loader_folder.is_empty() {
@@ -1572,7 +1578,6 @@ mod tests {
     }
 }
 
-
 // ... Third party classes here ...
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -1726,9 +1731,13 @@ fn scan_third_party_source(
                 continue;
             }
 
-            let dir_name = child.file_name().unwrap_or_default().to_string_lossy().to_string();
+            let dir_name = child
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
             let version_json = child.join(format!("{}.json", dir_name));
-            
+
             if !version_json.exists() {
                 continue;
             }
@@ -1739,7 +1748,8 @@ fn scan_third_party_source(
             let mut status = "importable".to_string();
             if dest_dir.exists() {
                 if dest_dir.join("instance.json").exists() {
-                    let json_content = fs::read_to_string(dest_dir.join("instance.json")).unwrap_or_default();
+                    let json_content =
+                        fs::read_to_string(dest_dir.join("instance.json")).unwrap_or_default();
                     if json_content.contains(&child.to_string_lossy().to_string()) {
                         status = "already_imported".to_string();
                         result.already_imported_count += 1;
@@ -1757,7 +1767,8 @@ fn scan_third_party_source(
 
             let content = fs::read_to_string(&version_json).unwrap_or_default();
             let json: Value = serde_json::from_str(&content).unwrap_or(Value::Null);
-            let (mc_version, loader_type, loader_version) = super::modpack_cmd::parse_third_party_json(&dir_name, &json);
+            let (mc_version, loader_type, loader_version) =
+                super::modpack_cmd::parse_third_party_json(&dir_name, &json);
 
             result.instances.push(ThirdPartyImportInstance {
                 id: dir_name.clone(),
@@ -1817,7 +1828,11 @@ fn import_one_third_party_instance(
 
     let config_content = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
     fs::write(dest_dir.join("instance.json"), &config_content).map_err(|e| e.to_string())?;
-    fs::write(PathBuf::from(&instance.path).join("instance.json"), &config_content).map_err(|e| e.to_string())?;
+    fs::write(
+        PathBuf::from(&instance.path).join("instance.json"),
+        &config_content,
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -1838,7 +1853,11 @@ pub async fn detect_third_party_launcher_sources<R: Runtime>(
     if let Some(raw_path) = path {
         let trimmed_path = raw_path.trim();
         if !trimmed_path.is_empty() {
-            if let Some(source) = resolve_third_party_source(Path::new(trimmed_path), "手动选择".to_string(), "manual".to_string()) {
+            if let Some(source) = resolve_third_party_source(
+                Path::new(trimmed_path),
+                "手动选择".to_string(),
+                "manual".to_string(),
+            ) {
                 if let Some(scanned) = scan_third_party_source(&source, &instances_dir) {
                     sources.push(scanned);
                 }
@@ -2031,7 +2050,11 @@ pub async fn import_third_party_launcher_source<R: Runtime>(
         &app,
         &source_path,
         "DONE",
-        if result.failed > 0 { "warning" } else { "success" },
+        if result.failed > 0 {
+            "warning"
+        } else {
+            "success"
+        },
         total,
         total,
         format!(

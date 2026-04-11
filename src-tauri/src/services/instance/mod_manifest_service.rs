@@ -52,7 +52,10 @@ impl ModManifestService {
         Ok(manifest)
     }
 
-    pub fn load_from_mods_dir(mods_dir: &Path, manifest_path: &Path) -> Result<ModManifest, String> {
+    pub fn load_from_mods_dir(
+        mods_dir: &Path,
+        manifest_path: &Path,
+    ) -> Result<ModManifest, String> {
         Self::collect_from_mods_dir(mods_dir, manifest_path, false)
     }
 

@@ -31,7 +31,12 @@ fn is_valid_png(bytes: &[u8]) -> bool {
 }
 
 fn normalize_request_kind(value: Option<&str>) -> &'static str {
-    match value.unwrap_or("friend").trim().to_ascii_lowercase().as_str() {
+    match value
+        .unwrap_or("friend")
+        .trim()
+        .to_ascii_lowercase()
+        .as_str()
+    {
         "trusted" => "trusted",
         _ => "friend",
     }
@@ -333,7 +338,9 @@ pub async fn get_trusted_devices(db: State<'_, AppDatabase>) -> Result<Vec<Trust
                 username: row.try_get("username").unwrap_or_default(),
                 public_key_b64: row.try_get("public_key_b64").unwrap_or_default(),
                 trusted_at,
-                trust_level: row.try_get("trust_level").unwrap_or_else(|_| "trusted".to_string()),
+                trust_level: row
+                    .try_get("trust_level")
+                    .unwrap_or_else(|_| "trusted".to_string()),
             })
         })
         .collect()
@@ -367,7 +374,9 @@ pub async fn get_friend_devices(db: State<'_, AppDatabase>) -> Result<Vec<Truste
                 username: row.try_get("username").unwrap_or_default(),
                 public_key_b64: row.try_get("public_key_b64").unwrap_or_default(),
                 trusted_at,
-                trust_level: row.try_get("trust_level").unwrap_or_else(|_| "friend".to_string()),
+                trust_level: row
+                    .try_get("trust_level")
+                    .unwrap_or_else(|_| "friend".to_string()),
             })
         })
         .collect()
@@ -432,7 +441,10 @@ pub async fn verify_trusted_devices(
         let db_device_name: String = row.try_get("device_name").unwrap_or_default();
         let db_public_key: String = row.try_get("public_key_b64").unwrap_or_default();
 
-        if let Some(online) = online_devices.iter().find(|item| item.device_id == db_device_id) {
+        if let Some(online) = online_devices
+            .iter()
+            .find(|item| item.device_id == db_device_id)
+        {
             if online.device_name != db_device_name || online.public_key != db_public_key {
                 sqlx::query(
                     "UPDATE trusted_devices
@@ -629,14 +641,17 @@ pub async fn push_to_device<R: Runtime>(
     );
 
     let result: Result<String, String> = async {
-        if let Err(error) =
-            transfer_service::zip_dir_with_progress(&src_dir, &temp_zip, |current, total, message| {
+        if let Err(error) = transfer_service::zip_dir_with_progress(
+            &src_dir,
+            &temp_zip,
+            |current, total, message| {
                 emit_stage("packing", "PACKING", current, total, message);
-            })
-        {
+            },
+        ) {
             let message = format!("打包失败: {}", error);
-            let _ = upsert_transfer_record(&app, &db, make_upsert("failed", 0, Some(&message), true))
-                .await;
+            let _ =
+                upsert_transfer_record(&app, &db, make_upsert("failed", 0, Some(&message), true))
+                    .await;
             emit_stage("failed", "FAILED", 0, 0, message.clone());
             return Err(message);
         }
@@ -747,7 +762,10 @@ pub async fn push_to_device<R: Runtime>(
             ))
             .header("X-Transfer-Id", transfer_id.clone())
             .header("X-Transfer-Type", transfer_type.clone())
-            .header("X-Transfer-Name", urlencoding::encode(&item_name).into_owned())
+            .header(
+                "X-Transfer-Name",
+                urlencoding::encode(&item_name).into_owned(),
+            )
             .header(
                 "X-Device-Name",
                 urlencoding::encode(&sender_device_name).into_owned(),
@@ -829,7 +847,9 @@ pub async fn reject_received_transfer<R: Runtime>(
 ) -> Result<(), String> {
     let state = app.state::<Arc<SharedLanState>>();
     let current_info = state.current_device_info.lock().unwrap().clone();
-    let size = fs::metadata(&temp_path).map(|meta| meta.len() as i64).unwrap_or(0);
+    let size = fs::metadata(&temp_path)
+        .map(|meta| meta.len() as i64)
+        .unwrap_or(0);
 
     fs::remove_file(&temp_path).map_err(|e| format!("清理临时文件失败: {}", e))?;
 
@@ -896,31 +916,32 @@ pub async fn apply_received_transfer<R: Runtime>(
         .map_err(|e| e.to_string())?
         .unwrap_or_default();
     let zip_file = PathBuf::from(&temp_path);
-    let archive_size = fs::metadata(&zip_file).map(|meta| meta.len() as i64).unwrap_or(0);
+    let archive_size = fs::metadata(&zip_file)
+        .map(|meta| meta.len() as i64)
+        .unwrap_or(0);
     let remote_device_id = remote_device_id.unwrap_or_default();
     let remote_device_name = remote_device_name.unwrap_or_else(|| "局域网设备".to_string());
     let remote_username = remote_username.unwrap_or_default();
     let transfer_name = name.unwrap_or_else(|| "未命名传输".to_string());
 
-    let make_upsert = |status: &str,
-                       error_message: Option<&str>,
-                       mark_completed: bool| TransferRecordUpsert {
-        transfer_id: &transfer_id,
-        direction: "incoming",
-        sender_device_id: &remote_device_id,
-        sender_device: &remote_device_name,
-        receiver_device_id: &current_info.device_id,
-        receiver_device: &current_info.device_name,
-        remote_device_id: &remote_device_id,
-        remote_device_name: &remote_device_name,
-        remote_username: &remote_username,
-        transfer_type: &transfer_type,
-        name: &transfer_name,
-        size: archive_size,
-        status: status.to_string(),
-        error_message: error_message.map(str::to_string),
-        mark_completed,
-    };
+    let make_upsert =
+        |status: &str, error_message: Option<&str>, mark_completed: bool| TransferRecordUpsert {
+            transfer_id: &transfer_id,
+            direction: "incoming",
+            sender_device_id: &remote_device_id,
+            sender_device: &remote_device_name,
+            receiver_device_id: &current_info.device_id,
+            receiver_device: &current_info.device_name,
+            remote_device_id: &remote_device_id,
+            remote_device_name: &remote_device_name,
+            remote_username: &remote_username,
+            transfer_type: &transfer_type,
+            name: &transfer_name,
+            size: archive_size,
+            status: status.to_string(),
+            error_message: error_message.map(str::to_string),
+            mark_completed,
+        };
 
     let emit_stage = |status: &str, stage: &str, current: u64, total: u64, message: String| {
         emit_transfer_progress(
@@ -1033,8 +1054,8 @@ pub async fn apply_received_transfer<R: Runtime>(
             Ok(final_name)
         }
         Err(error) => {
-            let _ = upsert_transfer_record(&app, &db, make_upsert("failed", Some(&error), true))
-                .await;
+            let _ =
+                upsert_transfer_record(&app, &db, make_upsert("failed", Some(&error), true)).await;
             emit_stage("failed", "FAILED", 100, 100, error.clone());
             Err(error)
         }

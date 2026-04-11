@@ -39,7 +39,9 @@ fn row_to_transfer_record(row: &sqlx::sqlite::SqliteRow) -> Result<TransferRecor
         transfer_id: row.try_get("transfer_uuid").map_err(|e| e.to_string())?,
         direction: row.try_get("direction").map_err(|e| e.to_string())?,
         remote_device_id: row.try_get("remote_device_id").map_err(|e| e.to_string())?,
-        remote_device_name: row.try_get("remote_device_name").map_err(|e| e.to_string())?,
+        remote_device_name: row
+            .try_get("remote_device_name")
+            .map_err(|e| e.to_string())?,
         remote_username: row
             .try_get::<Option<String>, _>("remote_username")
             .unwrap_or_default()
@@ -48,7 +50,9 @@ fn row_to_transfer_record(row: &sqlx::sqlite::SqliteRow) -> Result<TransferRecor
         name: row.try_get("name").map_err(|e| e.to_string())?,
         size: row.try_get("size").unwrap_or(0_i64),
         status: row.try_get("status").map_err(|e| e.to_string())?,
-        error_message: row.try_get::<Option<String>, _>("error_message").unwrap_or_default(),
+        error_message: row
+            .try_get::<Option<String>, _>("error_message")
+            .unwrap_or_default(),
         created_at,
         completed_at,
     })
@@ -208,9 +212,6 @@ pub async fn fetch_transfer_history(
     rows.iter().map(row_to_transfer_record).collect()
 }
 
-pub fn emit_transfer_progress<R: Runtime>(
-    app: &AppHandle<R>,
-    payload: &TransferProgressEvent,
-) {
+pub fn emit_transfer_progress<R: Runtime>(app: &AppHandle<R>, payload: &TransferProgressEvent) {
     let _ = app.emit("lan-transfer-progress", payload);
 }

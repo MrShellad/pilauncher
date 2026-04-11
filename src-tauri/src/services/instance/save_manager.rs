@@ -182,10 +182,7 @@ impl SaveManagerService {
         Ok(Self::get_base_dir(app)?.join("instances").join(instance_id))
     }
 
-    fn get_game_dir<R: Runtime>(
-        app: &AppHandle<R>,
-        instance_id: &str,
-    ) -> Result<PathBuf, String> {
+    fn get_game_dir<R: Runtime>(app: &AppHandle<R>, instance_id: &str) -> Result<PathBuf, String> {
         let instance_dir = Self::get_instance_dir(app, instance_id)?;
         let mut game_dir = instance_dir.clone();
         if let Ok(config) = Self::get_instance_config(&instance_dir) {
