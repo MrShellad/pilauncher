@@ -3,7 +3,18 @@ import { Download } from 'lucide-react';
 
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 
-export const FloatingButton = ({ isOpen, onClick, activeCount, hasTasks }: any) => {
+const RING_RADIUS = 46;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
+export const FloatingButton = ({ isOpen, onClick, activeCount, hasTasks, progress }: {
+  isOpen: boolean;
+  onClick: () => void;
+  activeCount: number;
+  hasTasks: boolean;
+  progress: number;
+}) => {
+  const dashOffset = RING_CIRCUMFERENCE - (progress / 100) * RING_CIRCUMFERENCE;
+
   return (
     <AnimatePresence>
       {!isOpen && hasTasks && (
@@ -29,21 +40,34 @@ export const FloatingButton = ({ isOpen, onClick, activeCount, hasTasks }: any) 
                 </span>
               )}
 
+              {/* Progress ring showing actual task progress */}
               <svg className="pointer-events-none absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="46" fill="transparent" stroke="#333" strokeWidth="4" />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="46"
-                  fill="transparent"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  className={activeCount > 0 ? 'animate-[spin_3s_linear_infinite] stroke-dasharray-[100_200] text-ore-green' : 'hidden'}
-                />
+                <circle cx="50" cy="50" r={RING_RADIUS} fill="transparent" stroke="#333" strokeWidth="4" />
+                {activeCount > 0 && (
+                  <motion.circle
+                    cx="50"
+                    cy="50"
+                    r={RING_RADIUS}
+                    fill="transparent"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    className="text-ore-green"
+                    strokeDasharray={RING_CIRCUMFERENCE}
+                    animate={{ strokeDashoffset: dashOffset }}
+                    transition={{ ease: 'linear', duration: 0.5 }}
+                  />
+                )}
               </svg>
 
-              <div className="pointer-events-none absolute -top-[1.875rem] right-0 rounded-[0.1875rem] bg-black/70 px-[0.5rem] py-[0.125rem] text-[0.6875rem] text-ore-text-muted shadow-sm">
-                手柄菜单键：打开/关闭
+              {/* Key hint: Xbox View button (two overlapping squares) */}
+              <div className="pointer-events-none absolute -top-[2.25rem] right-0 flex items-center gap-[0.25rem]">
+                <span className="inline-flex items-center justify-center drop-shadow-[0_1px_0_rgba(0,0,0,0.45)]" aria-hidden="true">
+                  <svg width="24" height="24" viewBox="0 0 24 24" className="h-6 w-auto" fill="none">
+                    <rect x="3" y="7" width="10" height="10" rx="1.5" stroke="#B1B2B5" strokeWidth="2" fill="#313233" />
+                    <rect x="9" y="4" width="10" height="10" rx="1.5" stroke="#B1B2B5" strokeWidth="2" fill="#313233" />
+                  </svg>
+                </span>
               </div>
             </motion.button>
           )}

@@ -12,6 +12,9 @@ export interface DownloadTask {
   current: number;
   total: number;
   speed: string;
+  speedBytes: number;
+  eta: string;
+  pipelineStage: number;
   logs: string[];
   lastUpdate: number;
   lastCurrent: number;
@@ -35,19 +38,52 @@ interface DownloadStore {
 
 const FILE_COUNT_PROGRESS_STAGES = new Set(['LIBRARIES', 'ASSETS', 'DOWNLOADING_MOD']);
 
-const formatSpeed = (bytesDiff: number, timeDiff: number, unit: string) => {
-  const speedMBps = bytesDiff / (1024 * 1024) / timeDiff;
+const PIPELINE_STAGE_MAP: Record<string, number> = {
+  DOWNLOADING_MODPACK: 0,
+  VANILLA_CORE: 0,
+  LOADER_CORE: 0,
+  LIBRARIES: 0,
+  DOWNLOADING_MOD: 0,
+  DOWNLOADING_RESOURCEPACK: 0,
+  DOWNLOADING_SHADER: 0,
+  EXTRACTING: 1,
+  ASSETS: 2,
+  ERROR: -1,
+  DONE: 3,
+};
+
+const formatSpeed = (bytesDiff: number, timeDiff: number, unit: string): { str: string; bytes: number } => {
+  const bytesPerSec = bytesDiff / timeDiff;
+  const speedMBps = bytesPerSec / (1024 * 1024);
 
   if (unit === 'Mbps') {
     const speedMbps = speedMBps * 8;
-    return speedMbps > 1
+    const str = speedMbps > 1
       ? `${speedMbps.toFixed(2)} Mbps`
       : `${(speedMbps * 1000).toFixed(2)} Kbps`;
+    return { str, bytes: bytesPerSec };
   }
 
-  return speedMBps > 1
+  const str = speedMBps > 1
     ? `${speedMBps.toFixed(2)} MB/s`
-    : `${(bytesDiff / 1024 / timeDiff).toFixed(2)} KB/s`;
+    : `${(bytesPerSec / 1024).toFixed(2)} KB/s`;
+  return { str, bytes: bytesPerSec };
+};
+
+const formatEta = (remaining: number, speedBytesPerSec: number): string => {
+  if (speedBytesPerSec <= 0 || remaining <= 0) return '';
+  const seconds = Math.ceil(remaining / speedBytesPerSec);
+  if (seconds > 3600) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    return `剩余 ${h}时${m}分`;
+  }
+  if (seconds > 60) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `剩余 ${m}分${s}秒`;
+  }
+  return `剩余 ${seconds}秒`;
 };
 
 export const useDownloadStore = create<DownloadStore>((set) => ({
@@ -67,6 +103,7 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
       const downloadSettings = useSettingsStore.getState().settings?.download;
       const unit = downloadSettings?.speedUnit || 'MB/s';
       let speedStr = existingTask?.speed || '计算中...';
+      let speedBytes = existingTask?.speedBytes || 0;
 
       const isFileCountProgressStage = FILE_COUNT_PROGRESS_STAGES.has(stage);
       const hasExplicitSpeedSample = update.speedCurrent !== undefined;
@@ -82,7 +119,9 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
         const timeDiff = (now - previousSampleAt) / 1000;
         if (timeDiff >= 0.2) {
           const bytesDiff = update.speedCurrent! - (existingTask.lastSpeedCurrent ?? 0);
-          speedStr = formatSpeed(bytesDiff, timeDiff, unit);
+          const result = formatSpeed(bytesDiff, timeDiff, unit);
+          speedStr = result.str;
+          speedBytes = result.bytes;
         }
       } else if (
         canDeriveSpeedFromCurrent &&
@@ -93,7 +132,9 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
         const timeDiff = (now - existingTask.lastUpdate) / 1000;
         if (timeDiff >= 0.2) {
           const bytesDiff = update.current - existingTask.lastCurrent;
-          speedStr = formatSpeed(bytesDiff, timeDiff, unit);
+          const result = formatSpeed(bytesDiff, timeDiff, unit);
+          speedStr = result.str;
+          speedBytes = result.bytes;
         }
       }
 
@@ -128,6 +169,13 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
           ? Math.round((update.current / update.total) * 100)
           : existingTask?.progress || 0;
 
+      const currentVal = update.current ?? existingTask?.current ?? 0;
+      const totalVal = update.total ?? existingTask?.total ?? 0;
+      const remaining = totalVal - currentVal;
+      const etaStr = isDone || isError ? '' : formatEta(remaining, speedBytes);
+
+      const pipelineStage = isDone ? 3 : isError ? -1 : (PIPELINE_STAGE_MAP[stage] ?? existingTask?.pipelineStage ?? 0);
+
       const newTask: DownloadTask = {
         id: update.id,
         taskType,
@@ -140,6 +188,9 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
         total: update.total ?? existingTask?.total ?? 0,
         speedCurrent: update.speedCurrent ?? existingTask?.speedCurrent,
         speed: isDone || isError ? '0 KB/s' : speedStr,
+        speedBytes: isDone || isError ? 0 : speedBytes,
+        eta: etaStr,
+        pipelineStage,
         logs: newLogs.slice(-50),
         lastUpdate: now,
         lastCurrent: update.current ?? existingTask?.lastCurrent ?? 0,

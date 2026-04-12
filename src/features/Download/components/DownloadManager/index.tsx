@@ -57,8 +57,16 @@ export const DownloadManager: React.FC = () => {
   const updateJavaSetting = useSettingsStore((state) => state.updateJavaSetting);
 
   const taskList = Object.values(tasks);
-  const activeTasksCount = taskList.filter((task) => task.status === 'downloading').length;
+  const activeTasks = taskList.filter((task) => task.status === 'downloading');
+  const activeTasksCount = activeTasks.length;
   const hasTasks = taskList.length > 0;
+
+  // Aggregate progress for floating button ring
+  const aggregatedProgress = activeTasksCount > 0
+    ? Math.round(activeTasks.reduce((sum, t) => sum + t.progress, 0) / activeTasksCount)
+    : taskList.length > 0
+      ? Math.round(taskList.reduce((sum, t) => sum + t.progress, 0) / taskList.length)
+      : 0;
 
   const previousPopupOpenRef = useRef(isPopupOpen);
   const lastPageFocusRef = useRef<string | null>(null);
@@ -96,7 +104,7 @@ export const DownloadManager: React.FC = () => {
     setPopupOpen(false);
   }, [setPopupOpen]);
 
-  useInputAction('MENU', () => {
+  useInputAction('VIEW', () => {
     if (!hasTasks) return;
 
     if (isPopupOpen) {
@@ -244,6 +252,7 @@ export const DownloadManager: React.FC = () => {
           onClick={openPanel}
           activeCount={activeTasksCount}
           hasTasks={hasTasks}
+          progress={aggregatedProgress}
         />
       </div>
     </div>

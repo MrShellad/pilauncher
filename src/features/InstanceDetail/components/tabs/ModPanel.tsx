@@ -44,23 +44,30 @@ interface PendingDeleteState {
 
 // 普通模式的焦点序列（top-to-bottom，与 ModList 导航配合）
 const NORMAL_FOCUS_ORDER = [
+  'mod-btn-folder',
+  'mod-btn-download',
   'mod-btn-history',
   'mod-btn-snapshot',
+  'mod-btn-select-all',
   'mod-btn-sort-time',
   'mod-btn-sort-name',
   'mod-btn-sort-filename',
   'mod-search-input',
   'mod-search-clear',
-  'mod-btn-folder',
-  'mod-btn-download',
 ];
 
 // 批量选择模式的焦点序列（排序按钮隐藏，搜索框移至此行）
 const BATCH_FOCUS_ORDER = [
+  'mod-btn-folder',
+  'mod-btn-download',
   'mod-btn-history',
   'mod-btn-snapshot',
+  'mod-btn-batch-select',
+  'mod-btn-batch-enable',
+  'mod-btn-batch-disable',
+  'mod-btn-batch-delete',
   'mod-search-input',
-  'mod-search-clear',
+  'mod-btn-batch-exit',
 ];
 
 export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
@@ -278,7 +285,7 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
 
   return (
     <SettingsPageLayout>
-      {/* 快照行 */}
+      {/* 快照行（含文件夹与下载按钮） */}
       <div className="mb-4 flex items-center justify-between border-2 border-[#2A2A2C] bg-[#18181B] p-4">
         <div>
           <h3 className="flex items-center font-minecraft text-white">
@@ -289,6 +296,35 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         </div>
 
         <div className="flex items-center gap-3">
+          <OreButton
+            focusKey="mod-btn-folder"
+            variant="secondary"
+            size="auto"
+            onClick={openModFolder}
+            onArrowPress={handleLinearArrow}
+            className="!h-10 !min-h-10"
+          >
+            <FolderOpen size={16} className="mr-2" />
+            打开文件夹
+          </OreButton>
+
+          <OreButton
+            focusKey="mod-btn-download"
+            variant="primary"
+            size="auto"
+            onClick={() => {
+              setInstanceDownloadTarget('mod');
+              setActiveTab('instance-mod-download');
+            }}
+            onArrowPress={handleLinearArrow}
+            className="!h-10 !min-h-10"
+          >
+            <DownloadCloud size={16} className="mr-2" />
+            下载 MOD
+          </OreButton>
+
+          <div className="mx-1 h-6 w-px bg-white/15" />
+
           <OreButton
             focusKey="mod-btn-history"
             variant="secondary"
@@ -320,20 +356,31 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
           <div className="flex h-full w-full items-center justify-between rounded border-2 border-ore-green/30 bg-ore-green/10 px-3 animate-in fade-in slide-in-from-top-1">
           {/* 左：已选数量 + 操作按钮 */}
           <div className="flex items-center gap-3">
-            <button
-              onClick={handleSelectAll}
-              className="flex h-10 cursor-pointer items-center font-minecraft text-sm text-white hover:text-ore-green hover:underline decoration-ore-green underline-offset-4"
+            <FocusItem
+              focusKey="mod-btn-batch-select"
+              onEnter={handleSelectAll}
+              onArrowPress={handleLinearArrow}
             >
-              <CheckSquare size={16} className="mr-1.5 text-ore-green" />
-              已选择 {selectedMods.size} 项
-            </button>
+              {({ ref, focused }) => (
+                <button
+                  ref={ref as React.RefObject<HTMLButtonElement>}
+                  onClick={handleSelectAll}
+                  className={`flex h-10 cursor-pointer items-center px-2 font-minecraft text-sm text-white hover:text-ore-green hover:underline decoration-ore-green underline-offset-4 transition-all focus:outline-none ${focused ? 'bg-[#2A2A2C] ring-2 ring-white rounded scale-105' : ''}`}
+                >
+                  <CheckSquare size={16} className="mr-1.5 text-ore-green" />
+                  已选择 {selectedMods.size} 项
+                </button>
+              )}
+            </FocusItem>
 
             <div className="mx-1 h-4 w-px bg-white/20" />
 
             <OreButton
+              focusKey="mod-btn-batch-enable"
               size="auto"
               variant="secondary"
               onClick={handleBatchEnable}
+              onArrowPress={handleLinearArrow}
               className="!h-10 !min-h-10"
             >
               <Power size={14} className="mr-1.5" />
@@ -341,9 +388,11 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
             </OreButton>
 
             <OreButton
+              focusKey="mod-btn-batch-disable"
               size="auto"
               variant="secondary"
               onClick={handleBatchDisable}
+              onArrowPress={handleLinearArrow}
               className="!h-10 !min-h-10"
             >
               <Power size={14} className="mr-1.5 opacity-50" />
@@ -351,9 +400,11 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
             </OreButton>
 
             <OreButton
+              focusKey="mod-btn-batch-delete"
               size="auto"
               variant="danger"
               onClick={handleBatchDelete}
+              onArrowPress={handleLinearArrow}
               className="!h-10 !min-h-10"
             >
               <Trash2 size={14} className="mr-1.5" />
@@ -376,9 +427,11 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
             </div>
 
             <OreButton
+              focusKey="mod-btn-batch-exit"
               size="auto"
               variant="secondary"
               onClick={() => setSelectedMods(new Set())}
+              onArrowPress={handleLinearArrow}
               className="!h-10 !min-h-10 flex-shrink-0"
             >
               <X size={16} className="mr-1.5" />
@@ -391,13 +444,22 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
           /* 普通模式 */
           <>
             <div className="flex min-w-0 flex-1 items-center gap-3">
-              <button
-                onClick={handleSelectAll}
-                className="mr-1 flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center text-gray-400 transition-colors hover:text-white"
-                title={isAllSelected ? '取消全选' : '全选'}
+              <FocusItem
+                focusKey="mod-btn-select-all"
+                onEnter={handleSelectAll}
+                onArrowPress={handleLinearArrow}
               >
-                {isAllSelected ? <CheckSquare size={18} className="text-ore-green" /> : <Square size={18} />}
-              </button>
+                {({ ref, focused }) => (
+                  <button
+                    ref={ref as React.RefObject<HTMLButtonElement>}
+                    onClick={handleSelectAll}
+                    className={`mr-1 flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center text-gray-400 transition-colors hover:text-white focus:outline-none ${focused ? 'bg-[#2A2A2C] ring-2 ring-white rounded scale-110 shadow-lg z-20' : ''}`}
+                    title={isAllSelected ? '取消全选' : '全选'}
+                  >
+                    {isAllSelected ? <CheckSquare size={18} className="text-ore-green" /> : <Square size={18} />}
+                  </button>
+                )}
+              </FocusItem>
 
               <div className="relative z-10 flex h-10 flex-shrink-0 border-2 border-[#1E1E1F] bg-[#141415] p-0.5 shadow-inner">
                 <FocusItem
@@ -482,34 +544,7 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
               )}
             </div>
 
-            <div className="flex flex-shrink-0 items-center gap-3">
-              <OreButton
-                focusKey="mod-btn-folder"
-                variant="secondary"
-                size="auto"
-                onClick={openModFolder}
-                onArrowPress={handleLinearArrow}
-                className="!h-10 !min-h-10"
-              >
-                <FolderOpen size={16} className="mr-2" />
-                打开文件夹
-              </OreButton>
 
-              <OreButton
-                focusKey="mod-btn-download"
-                variant="primary"
-                size="auto"
-                onClick={() => {
-                  setInstanceDownloadTarget('mod');
-                  setActiveTab('instance-mod-download');
-                }}
-                onArrowPress={handleLinearArrow}
-                className="!h-10 !min-h-10"
-              >
-                <DownloadCloud size={16} className="mr-2" />
-                下载 MOD
-              </OreButton>
-            </div>
           </>
         )}
       </div>

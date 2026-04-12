@@ -1,10 +1,11 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronRight, Download } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
 import type { DownloadTask } from '../../../../store/useDownloadStore';
 import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
 import { OreButton } from '../../../../ui/primitives/OreButton';
+import { ControlHint } from '../../../../ui/components/ControlHint';
 import { OreMotionTokens } from '../../../../style/tokens/motion';
 import { TaskItem } from './TaskItem';
 
@@ -74,12 +75,23 @@ export const TaskPanel = ({ isOpen, onClose, taskList, setActiveTab, removeTask 
             </motion.div>
 
             <div
-              className="flex shrink-0 items-center justify-between gap-[1rem] border-t-[0.125rem] border-[var(--ore-border-color)] bg-[var(--ore-modal-footer-bg)] px-[1rem] py-[0.75rem]"
+              className="flex shrink-0 items-center justify-between gap-[0.75rem] border-t-[0.125rem] border-[var(--ore-border-color)] bg-[var(--ore-modal-footer-bg)] px-[1rem] py-[0.625rem]"
               style={{ boxShadow: 'var(--ore-modal-footer-shadow)' }}
             >
-              <div className="text-[0.75rem] font-minecraft leading-[1.4] text-[var(--ore-color-text-muted-default)]">
-                <div>手柄菜单键也可以直接隐藏任务窗口</div>
-                <div className="text-[var(--ore-color-text-secondary-default)]">隐藏后焦点会返回当前页面的可操作按钮</div>
+              <div className="flex items-center gap-[0.75rem] text-[0.6875rem] font-minecraft text-[var(--ore-color-text-muted-default)]">
+                <div className="flex items-center gap-[0.25rem]">
+                  <span className="inline-flex items-center justify-center drop-shadow-[0_1px_0_rgba(0,0,0,0.45)]" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" className="h-5 w-auto" fill="none">
+                      <rect x="3" y="7" width="10" height="10" rx="1.5" stroke="#B1B2B5" strokeWidth="2" fill="#313233" />
+                      <rect x="9" y="4" width="10" height="10" rx="1.5" stroke="#B1B2B5" strokeWidth="2" fill="#313233" />
+                    </svg>
+                  </span>
+                  <span>隐藏</span>
+                </div>
+                <div className="flex items-center gap-[0.25rem]">
+                  <ControlHint label="Y" variant="face" tone="yellow" className="scale-[0.75] origin-center" />
+                  <span>日志</span>
+                </div>
               </div>
 
               <OreButton
@@ -88,11 +100,10 @@ export const TaskPanel = ({ isOpen, onClose, taskList, setActiveTab, removeTask 
                 size="auto"
                 autoScroll={false}
                 onClick={onClose}
-                className="!h-[clamp(2.375rem,3vw,2.75rem)] !min-w-[8.75rem] !px-[1rem]"
+                className="!h-[clamp(2rem,2.5vw,2.5rem)] !min-w-[6rem] !px-[0.75rem] text-[0.8125rem]"
               >
-                <span className="flex items-center">
+                <span className="flex items-center gap-[0.25rem]">
                   隐藏面板
-                  <ChevronRight className="ml-[0.375rem] h-[1rem] w-[1rem]" />
                 </span>
               </OreButton>
             </div>

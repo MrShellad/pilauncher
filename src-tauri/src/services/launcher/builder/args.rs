@@ -527,16 +527,18 @@ impl LaunchCommandBuilder {
 
         if let Some(core_jar) = self.resolve_core_jar(launch_jar_id, allow_minecraft_fallback) {
             Self::push_unique_entry(&mut cp, &mut seen, core_jar.to_string_lossy().to_string());
-        } else if let Some(path) = self
-            .core_jar_candidates(launch_jar_id, allow_minecraft_fallback)
-            .first()
-        {
-            Self::push_missing_entry(
-                &mut missing,
-                &mut missing_seen,
-                "缺失游戏主文件",
-                path,
-            );
+        } else if allow_minecraft_fallback {
+            if let Some(path) = self
+                .core_jar_candidates(launch_jar_id, allow_minecraft_fallback)
+                .first()
+            {
+                Self::push_missing_entry(
+                    &mut missing,
+                    &mut missing_seen,
+                    "缺失游戏主文件",
+                    path,
+                );
+            }
         }
 
         ResolvedClasspath {

@@ -169,27 +169,31 @@ export const MaintenanceSection: React.FC<MaintenanceSectionProps> = ({
         className="w-[560px] h-[440px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)]"
       >
         {(verifyState === 'verifying' || verifyState === 'repairing') && (
-          <div className="mt-4 w-full max-h-[172px] space-y-3 overflow-y-auto px-2 custom-scrollbar">
-            <div className="overflow-hidden rounded-full border-2 border-[#2A2A2C] bg-[#141415] shadow-inner">
+          <div className="mt-4 w-full space-y-4 px-2">
+            <div className="overflow-hidden border-2 border-[#1E1E1F] bg-[#48494A] shadow-[inset_0_-4px_#333334]">
               <div
-                className="h-3 bg-[#3C8527] transition-[width] duration-200"
+                className="h-5 bg-[#3C8527] shadow-[inset_0_-4px_#1D4D13,inset_3px_3px_rgba(255,255,255,0.2),inset_-3px_-7px_rgba(255,255,255,0.1)] transition-[width] duration-300 ease-out"
                 style={{ width: `${verifyPercent}%` }}
               />
             </div>
-            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-[0.16em] text-[#A1A3A5]">
-              <span>{verifyProgress.message || '正在校验文件...'}</span>
-              <span className="text-ore-green">{verifyPercent}%</span>
+            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-[0.16em] text-[#A1A3A5] drop-shadow-[0_2px_0_rgba(0,0,0,0.5)]">
+              <span>{verifyState === 'verifying' ? '正在进行整体校验...' : '正在进行运行时补全...'}</span>
+              <span className="text-white">{verifyPercent}%</span>
             </div>
           </div>
         )}
 
         {verifyState === 'repair' && verifyIssues.length > 0 && (
-          <div className="mt-4 w-full max-h-[172px] overflow-y-auto rounded-sm border border-yellow-500/25 bg-yellow-500/10 px-4 py-3 text-left text-sm text-yellow-100 custom-scrollbar">
-            {verifyIssues.map((issue, index) => (
-              <div key={`${issue}-${index}`} className={index > 0 ? 'mt-2' : ''}>
-                {issue}
+          <div className="mt-4 w-full border-2 border-[#1E1E1F] bg-[#48494A] shadow-[inset_0_-4px_#333334,inset_3px_3px_rgba(255,255,255,0.1)] px-4 py-3 text-left text-sm text-white font-bold drop-shadow-[0_2px_0_rgba(0,0,0,0.5)]">
+            <div className="truncate">
+              {verifyIssues[0].replace('Missing file: ', '缺失文件: ')}
+            </div>
+            {verifyIssues.length > 1 && (
+              <div className="mt-2 text-[#FFE866] flex items-center">
+                <AlertTriangle size={14} className="mr-1.5" />
+                ... 及其他 {verifyIssues.length - 1} 处异常被检测到
               </div>
-            ))}
+            )}
           </div>
         )}
       </OreConfirmDialog>
