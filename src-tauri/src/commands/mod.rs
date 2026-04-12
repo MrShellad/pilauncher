@@ -126,6 +126,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         modpack_cmd::scan_instances_in_dir,
         modpack_cmd::import_third_party_instance,
         modpack_cmd::download_missing_runtimes,
+        modpack_cmd::verify_instance_runtime,
         modpack_cmd::export_modpack,
         java_cmd::download_java_env,
         fs_cmd::get_drives,

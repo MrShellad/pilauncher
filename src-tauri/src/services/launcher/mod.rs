@@ -1,9 +1,9 @@
-// src-tauri/src/services/launcher/mod.rs
 pub mod auth;
 pub mod builder;
 pub mod resolver;
 
-use std::path::PathBuf;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use tauri::{AppHandle, Emitter, Runtime};
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -11,13 +11,35 @@ use tokio::process::Command;
 
 use crate::domain::instance::InstanceConfig;
 use crate::domain::launcher::{Account, LoaderType};
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 
 use auth::AuthService;
-use builder::LaunchCommandBuilder;
+use builder::{LaunchCommandBuilder, LaunchPreparationError};
 use resolver::ConfigResolver;
 
 pub struct LauncherService;
+
+fn append_log_line(log_path: &Path, line: &str) {
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_path)
+    {
+        let _ = writeln!(file, "{}", line);
+    }
+}
+
+fn log_launch_preparation_error<R: Runtime>(
+    app: &AppHandle<R>,
+    log_path: &Path,
+    error: &LaunchPreparationError,
+) {
+    for line in error.diagnostic_lines() {
+        println!("{}", line);
+        let _ = app.emit("game-log", line.clone());
+        append_log_line(log_path, &line);
+    }
+}
 
 impl LauncherService {
     pub async fn launch_instance<R: Runtime>(
@@ -31,20 +53,22 @@ impl LauncherService {
         let base_dir = PathBuf::from(base_path);
         let instance_dir = base_dir.join("instances").join(instance_id);
         let runtime_dir = base_dir.join("runtime");
+        let log_dir = base_dir.join("logs");
+        if !log_dir.exists() {
+            let _ = std::fs::create_dir_all(&log_dir);
+        }
+        let log_path = log_dir.join("launcher_log.txt");
 
         let config_path = instance_dir.join("instance.json");
-
         let content = std::fs::read_to_string(&config_path)?;
         let instance_cfg: InstanceConfig = serde_json::from_str(&content)?;
 
-        // ✅ 拦截第三方实例外接路径，注入游戏运行池
         let mut game_dir = instance_dir.clone();
         if let Some(third_party) = &instance_cfg.third_party_path {
             game_dir = PathBuf::from(third_party);
         }
 
         let resolved_config = ConfigResolver::resolve(app, &instance_cfg);
-
         let auth_session = AuthService::build_session(account, &runtime_dir);
 
         let loader_type = match instance_cfg.loader.r#type.to_lowercase().as_str() {
@@ -55,7 +79,6 @@ impl LauncherService {
             _ => LoaderType::Vanilla,
         };
 
-        // ✅ 核心修复 1：摒弃危险的遍历扫描，采用绝对精确的硬拼接方案
         let target_version_id = match loader_type {
             LoaderType::Vanilla => instance_cfg.mc_version.clone(),
             LoaderType::Fabric => format!(
@@ -75,7 +98,7 @@ impl LauncherService {
 
         let mut third_party_root = None;
         if let Some(tp_path) = &instance_cfg.third_party_path {
-            let tp_pathbuf = std::path::PathBuf::from(tp_path);
+            let tp_pathbuf = PathBuf::from(tp_path);
             if tp_pathbuf.exists() {
                 third_party_root = Some(tp_pathbuf);
             }
@@ -91,15 +114,22 @@ impl LauncherService {
             third_party_root,
         );
 
-        // ✅ 核心修复 2：在生成参数前，必须先解压跨平台的原生库！
-        if let Err(e) = builder.extract_natives() {
-            eprintln!(
-                "[Game WARNING] 解压 Natives 失败，游戏可能闪退或没有声音: {}",
-                e
-            );
+        let args = match builder.build_args() {
+            Ok(args) => args,
+            Err(error) => {
+                log_launch_preparation_error(app, &log_path, &error);
+                return Err(AppError::Generic(error.user_message().to_string()));
+            }
+        };
+
+        if let Err(error) = builder.extract_natives() {
+            log_launch_preparation_error(app, &log_path, &error);
+            return Err(AppError::Generic(error.user_message().to_string()));
         }
 
-        let args = builder.build_args();
+        let resolved_natives_dir = builder.natives_dir();
+        let resolved_assets_dir = builder.assets_dir();
+        let resolved_libraries_dir = builder.libraries_dir();
 
         let actual_java_path =
             if resolved_config.java_path == "auto" || resolved_config.java_path.is_empty() {
@@ -109,20 +139,18 @@ impl LauncherService {
             };
 
         let args_clone = args.clone();
-
-        // --- Added for launcher log : Collect Diagnostic ---
-        let username_idx = args_clone.iter().position(|r| r == "--username");
+        let username_idx = args_clone.iter().position(|arg| arg == "--username");
         let username = username_idx
-            .and_then(|i| args_clone.get(i + 1))
+            .and_then(|index| args_clone.get(index + 1))
             .cloned()
             .unwrap_or_else(|| "Unknown".to_string());
 
-        let token_idx = args_clone.iter().position(|r| r == "--accessToken");
+        let token_idx = args_clone.iter().position(|arg| arg == "--accessToken");
         let safe_args: Vec<String> = args_clone
             .iter()
             .enumerate()
-            .map(|(i, arg)| {
-                if token_idx.map(|idx| idx + 1 == i).unwrap_or(false) {
+            .map(|(index, arg)| {
+                if token_idx.map(|token| token + 1 == index).unwrap_or(false) {
                     "********".to_string()
                 } else {
                     arg.clone()
@@ -130,47 +158,60 @@ impl LauncherService {
             })
             .collect();
 
-        let cp_pos = safe_args.iter().position(|r| r == "-cp");
-        let cp_count = if let Some(i) = cp_pos {
-            if let Some(cp_str) = safe_args.get(i + 1) {
-                cp_str
-                    .matches(if cfg!(target_os = "windows") {
-                        ";"
-                    } else {
-                        ":"
-                    })
-                    .count()
-                    + 1
-            } else {
-                0
-            }
+        let path_separator = if cfg!(target_os = "windows") {
+            ";"
         } else {
-            0
+            ":"
         };
+        let count_path_entries = |value: &str| value.matches(path_separator).count() + 1;
+        let cp_pos = safe_args
+            .iter()
+            .position(|arg| arg == "-cp" || arg == "--class-path");
+        let cp_count = cp_pos
+            .and_then(|index| safe_args.get(index + 1))
+            .map(|value| count_path_entries(value))
+            .unwrap_or(0);
+        let module_path_count = safe_args
+            .iter()
+            .enumerate()
+            .find_map(|(index, arg)| {
+                if arg == "-p" || arg == "--module-path" {
+                    safe_args.get(index + 1).cloned()
+                } else if let Some(value) = arg.strip_prefix("-p=") {
+                    Some(value.to_string())
+                } else {
+                    arg.strip_prefix("--module-path=")
+                        .map(|value| value.to_string())
+                }
+            })
+            .map(|value| count_path_entries(&value))
+            .unwrap_or(0);
 
         let filtered_args: Vec<String> = safe_args
             .iter()
-            .filter(|x| x.starts_with("-X") || x.starts_with("-D") || x.starts_with("--"))
+            .filter(|arg| arg.starts_with("-X") || arg.starts_with("-D") || arg.starts_with("--"))
             .cloned()
             .collect();
 
         let diag_info = format!(
             "==================================================\n\
-             🚀 PiLauncher 诊断日志 (Launcher Diagnostics)\n\
-             ==================================================\n\
-             🖥️ 基础环境: OS={} Arch={}\n\
-             ☕ Java 路径: {}\n\
-             📦 实例明细: [{}] {}\n\
-             🌐 玩家 ID: {}\n\
-             🛠️ 版本解析: {} -> {}\n\
-             🔧 Natives 存放: {}\n\
-             📚 Classpath 概览: 共 {} 项 (核心与依赖库)\n\
-             🔑 关键参数: {:?}\n\
-             📂 工作目录: {}\n\
-             🛡️ 进程保护: 敏感 Token 已隐藏\n\
-             =================== 完整启动命令 ===================\n\
-             \"{}\" {}\n\
-             ==================================================",
+Launcher Diagnostics\n\
+==================================================\n\
+OS: {}  Arch: {}\n\
+Java Path: {}\n\
+Instance: [{}] {}\n\
+Player: {}\n\
+Version Chain: {} -> {}\n\
+Natives Dir: {}\n\
+Classpath Entries: {}\n\
+Key Args: {:?}\n\
+Game Dir: {}\n\
+Command:\n\
+\"{}\" {}\n\
+Assets Root: {}\n\
+Libraries Root: {}\n\
+Module Path Entries: {}\n\
+==================================================",
             std::env::consts::OS,
             std::env::consts::ARCH,
             actual_java_path,
@@ -179,80 +220,64 @@ impl LauncherService {
             username,
             instance_cfg.mc_version,
             target_version_id,
-            runtime_dir
-                .join("versions")
-                .join(&instance_cfg.mc_version)
-                .join("natives")
-                .to_string_lossy(),
+            resolved_natives_dir.to_string_lossy(),
             cp_count,
             filtered_args,
             game_dir.to_string_lossy(),
             actual_java_path,
             safe_args
                 .iter()
-                .map(|s| format!("\"{}\"", s))
+                .map(|arg| format!("\"{}\"", arg))
                 .collect::<Vec<_>>()
-                .join(" ")
+                .join(" "),
+            resolved_assets_dir.to_string_lossy(),
+            resolved_libraries_dir.to_string_lossy(),
+            module_path_count
         );
 
-        let log_dir = base_dir.join("logs");
-        if !log_dir.exists() {
-            let _ = std::fs::create_dir_all(&log_dir);
-        }
-        let log_path = log_dir.join("launcher_log.txt");
         if let Ok(mut file) = std::fs::OpenOptions::new()
             .create(true)
             .write(true)
             .truncate(true)
             .open(&log_path)
         {
-            use std::io::Write;
             let _ = writeln!(file, "{}", diag_info);
         }
 
-        // 打印与发送诊断日志
         for line in diag_info.lines() {
             println!("[Launcher LOG] {}", line);
             let _ = app.emit("game-log", line.to_string());
         }
 
-        println!("🚀 准备执行游戏进程！PID will be captured...");
-        // --- Diagnostics End ---
-
-        // ✅ 核心修复 3：跨平台安全的命令构建方式
         let mut cmd = Command::new(&actual_java_path);
         cmd.args(args)
             .current_dir(&game_dir)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
-        // 仅在 Windows 编译时追加隐藏黑框的特性，保障 Mac/Linux 正常编译
         #[cfg(target_os = "windows")]
         cmd.creation_flags(0x08000000);
 
         let mut child = match cmd.spawn() {
-            Ok(c) => {
-                let pid_str = format!("✅ 进程创建成功！PID: {:?}", c.id());
+            Ok(child) => {
+                let pid_str = format!("游戏进程创建成功，PID: {:?}", child.id());
                 println!("{}", pid_str);
                 let _ = app.emit("game-log", pid_str.clone());
-                if let Ok(mut file) = std::fs::OpenOptions::new().append(true).open(&log_path) {
-                    use std::io::Write;
-                    let _ = writeln!(file, "{}", pid_str);
-                }
-                c
+                append_log_line(&log_path, &pid_str);
+                child
             }
-            Err(e) => {
-                let err_msg = format!("❌ 进程创建失败 (Process Creation Failed): {}", e);
+            Err(error) => {
+                let err_msg = format!("游戏进程创建失败: {}", error);
                 println!("{}", err_msg);
                 let _ = app.emit("game-log", err_msg.clone());
-                if let Ok(mut file) = std::fs::OpenOptions::new().append(true).open(&log_path) {
-                    use std::io::Write;
-                    let _ = writeln!(file, "{}", err_msg);
-                    let _ = writeln!(file, "💡 常见解决建议:\n  1. 检查环境变量中的 PATH 是否缺少 Java。\n  2. 如果填了自定义路径，请确保完整指向 java.exe 且存在。\n  3. 可能没有足够的系统权限。");
-                }
+                append_log_line(&log_path, &err_msg);
+                append_log_line(
+                    &log_path,
+                    "常见建议: 1. 检查 Java 路径是否正确 2. 检查 java.exe 是否存在 3. 检查权限",
+                );
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::Other,
-                    format!("无法启动 Java 进程，请检查环境变量: {}", e),
+                    format!("无法启动 Java 进程，请检查 Java 路径: {}", error),
                 )
                 .into());
             }
@@ -266,23 +291,19 @@ impl LauncherService {
         let stdout = child.stdout.take().unwrap();
         let stderr = child.stderr.take().unwrap();
 
-        // 使用按字节读取 + Lossy 容错解析，避免乱码导致进程监控崩溃
         let app_out = app.clone();
         let log_path_out = log_path.clone();
         tokio::spawn(async move {
             let mut reader = BufReader::new(stdout);
             let mut buf = Vec::new();
-            while let Ok(n) = reader.read_until(b'\n', &mut buf).await {
-                if n == 0 {
+            while let Ok(read) = reader.read_until(b'\n', &mut buf).await {
+                if read == 0 {
                     break;
                 }
                 let line = String::from_utf8_lossy(&buf).trim_end().to_string();
                 println!("[Game INFO] {}", line);
                 let _ = app_out.emit("game-log", line.clone());
-                if let Ok(mut file) = std::fs::OpenOptions::new().append(true).open(&log_path_out) {
-                    use std::io::Write;
-                    let _ = writeln!(file, "[STDOUT] {}", line);
-                }
+                append_log_line(&log_path_out, &format!("[STDOUT] {}", line));
                 buf.clear();
             }
         });
@@ -292,35 +313,29 @@ impl LauncherService {
         tokio::spawn(async move {
             let mut reader = BufReader::new(stderr);
             let mut buf = Vec::new();
-            while let Ok(n) = reader.read_until(b'\n', &mut buf).await {
-                if n == 0 {
+            while let Ok(read) = reader.read_until(b'\n', &mut buf).await {
+                if read == 0 {
                     break;
                 }
                 let line = String::from_utf8_lossy(&buf).trim_end().to_string();
                 eprintln!("[Game ERROR] {}", line);
                 let _ = app_err.emit("game-log", line.clone());
-                if let Ok(mut file) = std::fs::OpenOptions::new().append(true).open(&log_path_err) {
-                    use std::io::Write;
-                    let _ = writeln!(file, "[STDERR] {}", line);
-                }
+                append_log_line(&log_path_err, &format!("[STDERR] {}", line));
                 buf.clear();
             }
         });
 
-        let status = child.wait().await.map_err(|e| {
+        let status = child.wait().await.map_err(|error| {
             std::io::Error::new(
                 std::io::ErrorKind::Other,
-                format!("等待进程时发生错误: {}", e),
+                format!("等待游戏进程时发生错误: {}", error),
             )
         })?;
 
-        let exit_msg = format!("🛑 游戏进程已退出，状态: {}", status);
+        let exit_msg = format!("游戏进程已退出，状态: {}", status);
         println!("{}", exit_msg);
         let _ = app.emit("game-log", exit_msg.clone());
-        if let Ok(mut file) = std::fs::OpenOptions::new().append(true).open(&log_path) {
-            use std::io::Write;
-            let _ = writeln!(file, "{}", exit_msg);
-        }
+        append_log_line(&log_path, &exit_msg);
 
         let code = status.code().unwrap_or(1);
         let _ = app.emit("game-exit", serde_json::json!({ "code": code }));

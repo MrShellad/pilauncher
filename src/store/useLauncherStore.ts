@@ -66,7 +66,7 @@ interface LauncherState {
   background: BackgroundData;
   setBackground: (bgUpdate: Partial<BackgroundData>) => void;
 
-  // 系统底层交互动作
+  // 系统底层交互动作 (Mock - 实际启动请使用 useGameLaunch 钩子)
   launchGame: () => Promise<void>;
 }
 
@@ -120,6 +120,7 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
       return;
     }
 
-    console.log(`[Tauri IPC Mock] 正在通过 Rust 层启动游戏: ${currentInstance.name} (ID: ${currentInstance.id})...`);
+    console.warn("[LauncherStore] launchGame 仅仅是状态修改桩（Mock），真实的启动流程请使用由 useGameLaunch hook 提供的 launchGame 方法！");
+    console.log(`[Tauri IPC Mock] 伪启动模拟: ${currentInstance.name} (ID: ${currentInstance.id})...`);
   }
 }));
