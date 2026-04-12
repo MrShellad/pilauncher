@@ -1,6 +1,7 @@
 // /src/features/InstanceDetail/hooks/useModManager.ts
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { modService, type ModMeta } from '../logic/modService';
+import { listen } from '@tauri-apps/api/event';
+import { modService, type ModMeta, type SnapshotProgressEvent, type InstanceSnapshot, type SnapshotDiff } from '../logic/modService';
 import { fetchModrinthVersions } from '../logic/modrinthApi';
 
 export type ModSortType = 'time' | 'name' | 'fileName';
@@ -9,7 +10,8 @@ export type ModSortOrder = 'asc' | 'desc';
 export const useModManager = (instanceId: string) => {
   const [mods, setMods] = useState<ModMeta[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isCreatingSnapshot, setIsCreatingSnapshot] = useState(false);
+  const [snapshotState, setSnapshotState] = useState<'idle' | 'snapshotting' | 'rolling_back'>('idle');
+  const [snapshotProgress, setSnapshotProgress] = useState<SnapshotProgressEvent | null>(null);
   const [instanceConfig, setInstanceConfig] = useState<any>(null);
   
   // ✅ 新增：排序状态
@@ -138,10 +140,48 @@ export const useModManager = (instanceId: string) => {
     } catch (e) { console.error(e); loadMods(); }
   };
 
-  const createSnapshot = async () => {
-    setIsCreatingSnapshot(true);
-    try { await modService.createSnapshot(instanceId, `更新前备份 (${mods.length}个模组)`); } 
-    catch (e) { console.error(e); } finally { setIsCreatingSnapshot(false); }
+  useEffect(() => {
+    const unlisten = listen<SnapshotProgressEvent>('snapshot-progress', (event) => {
+      setSnapshotProgress(event.payload);
+    });
+    return () => {
+      unlisten.then(f => f());
+    };
+  }, []);
+
+  const takeSnapshot = async (trigger: string, message: string) => {
+    setSnapshotState('snapshotting');
+    setSnapshotProgress(null);
+    try { 
+      return await modService.takeSnapshot(instanceId, trigger, message); 
+    } catch (e) { 
+      console.error(e); 
+      throw e;
+    } finally { 
+      setSnapshotState('idle'); 
+      setSnapshotProgress(null);
+    }
+  };
+
+  const fetchHistory = async () => {
+    return await modService.getSnapshotHistory(instanceId);
+  };
+
+  const diffSnapshots = async (oldId: string, newId: string) => {
+    return await modService.calculateSnapshotDiff(instanceId, oldId, newId);
+  };
+
+  const doRollback = async (snapshotId: string) => {
+    setSnapshotState('rolling_back');
+    try {
+      await modService.rollbackInstance(instanceId, snapshotId);
+      await loadMods(); // reload mods since directory mapping changed
+    } catch (e) {
+      console.error(e);
+      throw e;
+    } finally {
+      setSnapshotState('idle');
+    }
   };
 
   const openModFolder = () => {
@@ -150,7 +190,9 @@ export const useModManager = (instanceId: string) => {
 
   return { 
     mods: sortedMods, // ✅ 吐出排序后的数据
-    isLoading, instanceConfig, isCreatingSnapshot, sortType, setSortType, sortOrder, setSortOrder, 
-    toggleMod, toggleMods, deleteMod, deleteMods, createSnapshot, openModFolder, loadMods
+    isLoading, instanceConfig, sortType, setSortType, sortOrder, setSortOrder,
+    snapshotState, snapshotProgress,
+    takeSnapshot, fetchHistory, diffSnapshots, doRollback, 
+    toggleMod, toggleMods, deleteMod, deleteMods, openModFolder, loadMods
   };
 };

@@ -32,6 +32,8 @@ import { OreInput } from '../../../../ui/primitives/OreInput';
 import { useLauncherStore } from '../../../../store/useLauncherStore';
 
 import { useModManager, type ModSortType } from '../../hooks/useModManager';
+import { ModSnapshotModal } from './ModSnapshotModal';
+import type { InstanceSnapshot, SnapshotDiff } from '../../logic/modService';
 import { ModDetailModal } from './mods/ModDetailModal';
 import { ModList } from './mods/ModList';
 import type { ModMeta } from '../../logic/modService';
@@ -75,7 +77,6 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
     mods,
     isLoading,
     instanceConfig,
-    isCreatingSnapshot,
     sortType,
     setSortType,
     sortOrder,
@@ -84,7 +85,12 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
     toggleMods,
     deleteMod,
     deleteMods,
-    createSnapshot,
+    takeSnapshot,
+    fetchHistory,
+    diffSnapshots,
+    doRollback,
+    snapshotState,
+    snapshotProgress,
     openModFolder,
     loadMods
   } = useModManager(instanceId);
@@ -96,9 +102,45 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   const [selectedMods, setSelectedMods] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [pendingDelete, setPendingDelete] = useState<PendingDeleteState | null>(null);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [history, setHistory] = useState<InstanceSnapshot[]>([]);
+  const [diffs, setDiffs] = useState<Record<string, SnapshotDiff>>({});
+
   const [lastDeleteFocusKey, setLastDeleteFocusKey] = useState<string | null>(null);
 
   // 根据当前模式选择焦点序列
+
+  const openHistoryModal = async () => {
+    try {
+      const h = await fetchHistory();
+      setHistory(h);
+      setIsHistoryModalOpen(true);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const loadDiff = async (oldId: string, newId: string) => {
+    try {
+      const d = await diffSnapshots(oldId, newId);
+      setDiffs(prev => ({ ...prev, [`${oldId}->${newId}`]: d }));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleCreateSnapshot = async () => {
+    try {
+      await takeSnapshot('USER_MANUAL', `手动快照 (${mods.length}个模组)`);
+      if (isHistoryModalOpen) {
+        const h = await fetchHistory();
+        setHistory(h);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const isBatchMode = selectedMods.size > 0;
   const focusOrder = isBatchMode ? BATCH_FOCUS_ORDER : NORMAL_FOCUS_ORDER;
 
@@ -327,8 +369,11 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
 
           <OreButton
             focusKey="mod-btn-history"
+            size="auto"
             variant="secondary"
+            onClick={openHistoryModal}
             onArrowPress={handleLinearArrow}
+            className="!h-10 !min-h-10"
           >
             <RefreshCw size={16} className="mr-2" />
             历史快照
@@ -337,14 +382,21 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
           <OreButton
             focusKey="mod-btn-snapshot"
             variant="primary"
-            onClick={createSnapshot}
-            disabled={isLoading || isCreatingSnapshot}
+            size="auto"
+            disabled={snapshotState !== 'idle'}
+            onClick={handleCreateSnapshot}
             onArrowPress={handleLinearArrow}
+            className="!h-10 !min-h-10"
           >
-            {isCreatingSnapshot
-              ? <Loader2 size={16} className="mr-2 animate-spin" />
-              : <HardDriveDownload size={16} className="mr-2" />}
-            创建快照
+            {snapshotState === 'snapshotting' ? (
+              <Loader2 className="mr-2 animate-spin" size={16} />
+            ) : (
+              <History size={16} className="mr-2" />
+            )}
+            {snapshotState === 'snapshotting'
+              ? (snapshotProgress ? `${snapshotProgress.phase}` : '创建中...')
+              : '创建快照'
+            }
           </OreButton>
         </div>
       </div>

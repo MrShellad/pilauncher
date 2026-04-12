@@ -9,23 +9,7 @@ pub async fn get_instance_mods<R: Runtime>(
     ModManagerService::get_mods(&app, &id).await
 }
 
-#[tauri::command]
-pub async fn create_mod_snapshot<R: Runtime>(
-    app: AppHandle<R>,
-    id: String,
-    desc: String,
-) -> Result<ModSnapshot, String> {
-    ModManagerService::create_snapshot(&app, &id, &desc)
-}
 
-#[tauri::command]
-pub async fn rollback_mod_snapshot<R: Runtime>(
-    app: AppHandle<R>,
-    id: String,
-    snapshot_id: String,
-) -> Result<(), String> {
-    ModManagerService::rollback_snapshot(&app, &id, &snapshot_id)
-}
 
 #[tauri::command]
 pub async fn update_mod_cache<R: tauri::Runtime>(

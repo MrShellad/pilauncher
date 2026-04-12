@@ -97,6 +97,62 @@ export const isProjectInstalled = (project: ModrinthProject, installedMods: ModM
   });
 };
 
+export interface ModEntry {
+  hash: string;
+  fileName: string;
+  modId?: string | null;
+  version?: string | null;
+}
+
+export interface InstanceSnapshot {
+  id: string;
+  timestamp: number;
+  trigger: string;
+  message: string;
+  mods: ModEntry[];
+}
+
+export interface SnapshotDiff {
+  added: ModEntry[];
+  removed: ModEntry[];
+  updated: { old: ModEntry; new: ModEntry }[];
+}
+
+export interface SnapshotProgressEvent {
+  current: number;
+  total: number;
+  phase: string;
+  file: string;
+}
+
+export interface ModEntry {
+  hash: string;
+  fileName: string;
+  modId?: string | null;
+  version?: string | null;
+}
+
+export interface InstanceSnapshot {
+  id: string;
+  timestamp: number;
+  trigger: string;
+  message: string;
+  mods: ModEntry[];
+}
+
+export interface SnapshotDiff {
+  added: ModEntry[];
+  removed: ModEntry[];
+  updated: { old: ModEntry; new: ModEntry }[];
+}
+
+export interface SnapshotProgressEvent {
+  current: number;
+  total: number;
+  phase: string;
+  file: string;
+}
+
 export const modService = {
   getInstanceDetail: (id: string) => 
     invoke<any>('get_instance_detail', { id }),
@@ -110,8 +166,17 @@ export const modService = {
   deleteMod: (id: string, fileName: string) => 
     invoke('delete_resource', { id, resType: 'mod', fileName }),
     
-  createSnapshot: (id: string, desc: string) => 
-    invoke('create_resource_snapshot', { id, resType: 'mod', desc }),
+  takeSnapshot: (id: string, trigger: string, message: string) => 
+    invoke<InstanceSnapshot>('take_snapshot', { instanceId: id, trigger, message }),
+
+  getSnapshotHistory: (id: string) => 
+    invoke<InstanceSnapshot[]>('get_snapshot_history', { instanceId: id }),
+
+  calculateSnapshotDiff: (id: string, oldId: string, newId: string) => 
+    invoke<SnapshotDiff>('calculate_snapshot_diff', { instanceId: id, oldId, newId }),
+
+  rollbackInstance: (id: string, snapshotId: string) => 
+    invoke<void>('rollback_instance', { instanceId: id, snapshotId }),
     
   updateModCache: (cacheKey: string, name: string, desc: string, iconUrl: string) => 
     invoke('update_mod_cache', { cacheKey, name, desc, iconUrl }),
