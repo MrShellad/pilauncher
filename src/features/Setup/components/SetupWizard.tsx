@@ -10,11 +10,13 @@ import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { DirectoryStep } from './step/DirectoryStep';
 import { JavaDownloadStep } from './step/JavaDownloadStep';
 import { SteamIntegrationStep } from './step/SteamIntegrationStep';
+import { LegalAgreementStep } from './step/LegalAgreementStep';
 
-const getDefaultFocusKey = (step: 'directory' | 'java_download' | 'steam_integration') => {
+const getDefaultFocusKey = (step: 'directory' | 'java_download' | 'steam_integration' | 'legal_agreement') => {
   if (step === 'directory') return 'setup-btn-browse';
   if (step === 'java_download') return 'setup-btn-download';
-  return 'setup-btn-steam-register';
+  if (step === 'steam_integration') return 'setup-btn-steam-register';
+  return 'setup-btn-agree';
 };
 
 const isSetupFocus = (focusKey: string | null) => {
@@ -29,7 +31,7 @@ export const SetupWizard: React.FC = () => {
     javaVersion, setJavaVersion, javaProvider, setJavaProvider,
     isRegistering, registerSuccess, registerError, isGamepadMode,
     handleSelectPath, handleConfirmDirectory, handleDownloadJava, handleSkipJava,
-    handleRegisterSteam, setGamepadModeSettings, finishSetup
+    handleRegisterSteam, setGamepadModeSettings, finishSteamIntegration, finalizeSetup
   } = useSetupWizard();
 
   const lastFocusBeforeWizardRef = useRef<string | null>(null);
@@ -140,14 +142,20 @@ export const SetupWizard: React.FC = () => {
 
               {step === 'steam_integration' && (
                 <SteamIntegrationStep
-                  onSkip={finishSetup}
+                  onSkip={finishSteamIntegration}
                   onRegister={handleRegisterSteam}
-                  onFinish={finishSetup}
+                  onFinish={finishSteamIntegration}
                   isRegistering={isRegistering}
                   registerSuccess={registerSuccess}
                   registerError={registerError}
                   isGamepadMode={isGamepadMode}
                   setGamepadModeSettings={setGamepadModeSettings}
+                />
+              )}
+
+              {step === 'legal_agreement' && (
+                <LegalAgreementStep
+                  onAgree={finalizeSetup}
                 />
               )}
 

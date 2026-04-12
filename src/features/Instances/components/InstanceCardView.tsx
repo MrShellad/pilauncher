@@ -1,14 +1,12 @@
 // src/features/Instances/components/InstanceCardView.tsx
 import React, { useRef, useEffect, useCallback } from 'react';
 import { motion, type Variants } from 'framer-motion';
-import { Play, Settings, Loader2 } from 'lucide-react';
+import { Settings, Loader2, Menu } from 'lucide-react';
 import type { InstanceItem } from '../../../hooks/pages/Instances/useInstances';
 import { useGameLaunch } from '../../../hooks/useGameLaunch';
 
-import { OreButton } from '../../../ui/primitives/OreButton';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { OreMotionTokens } from '../../../style/tokens/motion';
-import { ControlHint } from '../../../ui/components/ControlHint';
 import { useAccountStore } from '../../../store/useAccountStore';
 import { useInputMode } from '../../../ui/focus/FocusProvider';
 import { NoAccountModal } from '../../../ui/components/NoAccountModal';
@@ -23,13 +21,13 @@ interface InstanceCardViewProps {
 }
 
 // ✅ 2. 新增：无头事件监听组件
-// 它负责窃听全局的 ACTION_Y 指令，但只在当前卡片被聚焦时触发路由跳转
+// 它负责窃听全局的 MENU 指令，但只在当前卡片被聚焦时触发路由跳转
 const CardFocusHandler: React.FC<{ focused: boolean; onAction: () => void }> = ({ focused, onAction }) => {
   // 使用 Ref 避免闭包陷阱或引发不必要的重复绑定
   const actionRef = useRef(onAction);
   useEffect(() => { actionRef.current = onAction; }, [onAction]);
 
-  useInputAction('ACTION_Y', useCallback(() => {
+  useInputAction('MENU', useCallback(() => {
     if (focused) {
       actionRef.current();
     }
@@ -70,7 +68,7 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
             onClick={handlePlayClick}
             // 保留原生键盘支持，作为鼠标/纯键盘模式下的兜底
             onKeyDown={(e) => {
-              if (e.key.toLowerCase() === 'y') {
+              if (e.key.toLowerCase() === 'm' || e.key === 'ContextMenu') {
                 e.stopPropagation();
                 onClick();
               }
@@ -79,7 +77,7 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
             animate={focused ? "hover" : "rest"}
             whileHover="hover"
             className={`
-              relative flex h-[clamp(17rem,38vh,23.5rem)] min-w-[17.5rem] w-[clamp(17.5rem,20vw,24rem)] flex-col rounded-[0.25rem] cursor-pointer select-none group
+              relative flex h-[clamp(12.5rem,28vh,17rem)] min-w-[17.5rem] w-[clamp(17.5rem,20vw,24rem)] flex-col rounded-[0.25rem] cursor-pointer select-none group
               transition-all duration-200 transform-gpu
               border-[0.25rem] ${focused ? 'border-white shadow-[0_0_1.5rem_rgba(255,255,255,0.22)] z-50' : 'border-transparent shadow-[0_0.5rem_1rem_rgba(0,0,0,0.35)]'}
             `}
@@ -99,13 +97,22 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                   <div className="w-full h-full flex items-center justify-center text-xs text-gray-700 font-minecraft uppercase tracking-widest">No Cover</div>
                 )}
 
+                {isLaunching && (
+                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <Loader2 size={32} className="animate-spin text-[#3C8527] mb-2" />
+                    <span className="font-minecraft text-sm font-bold uppercase tracking-widest text-[#3C8527] drop-shadow-md">启动中...</span>
+                  </div>
+                )}
+
                 <div className="absolute top-2 right-2 z-30 flex items-center">
-                  {focused ? (
+                  {focused && !isLaunching ? (
                     <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="pointer-events-none flex items-center gap-1.5 rounded-sm border-[0.125rem] border-[#EAB308]/50 bg-black/80 px-2.5 py-1.5 shadow-xl backdrop-blur-md">
-                      <div className="flex h-[1.125rem] w-[1.125rem] items-center justify-center rounded-full bg-[#EAB308] pb-[0.0625rem] text-[0.625rem] font-black leading-none text-black shadow-[0_0_0.5rem_rgba(234,179,8,0.5)]">Y</div>
+                      <div className="flex h-[1.125rem] w-[1.125rem] items-center justify-center rounded-full bg-[#EAB308] text-[0.625rem] font-black leading-none text-black shadow-[0_0_0.5rem_rgba(234,179,8,0.5)]">
+                        <Menu size={11} strokeWidth={2.5} />
+                      </div>
                       <span className="font-minecraft text-[0.625rem] font-bold uppercase tracking-widest text-white">详情</span>
                     </motion.div>
-                  ) : (
+                  ) : !isLaunching && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onEdit(); }}
                       className="opacity-0 group-hover:opacity-100 p-2 bg-black/60 hover:bg-[#3C8527] rounded-sm border-[2px] border-transparent hover:border-black text-gray-300 hover:text-white backdrop-blur-sm transition-all duration-200 outline-none shadow-md"
@@ -115,25 +122,6 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                     </button>
                   )}
                 </div>
-              </div>
-
-              <div className="flex w-full justify-center border-b-[0.1875rem] border-black bg-[#2A2D31] p-[clamp(0.5rem,0.9vh,0.85rem)]">
-                <OreButton
-                  variant="primary"
-                  size="auto"
-                  className="!h-[clamp(2.9rem,3.8vh,4.3rem)] !w-[clamp(11.5rem,78%,17rem)] !min-w-[clamp(11.5rem,78%,17rem)] !px-[clamp(0.75rem,1.1vw,1.25rem)] !text-[length:clamp(0.95rem,0.9rem+0.35vw,1.15rem)] !tracking-[0.035em] brightness-105 transition-all duration-300"
-                  onClick={handlePlayClick}
-                  tabIndex={-1}
-                >
-                  {isLaunching ? (
-                    <Loader2 size={18} className="mr-2 animate-spin" />
-                  ) : focused ? (
-                    <ControlHint label="A" variant="face" tone="green" className="mr-2 -ml-1 scale-[0.82]" />
-                  ) : (
-                    <Play size={18} fill="currentColor" className="mr-2" />
-                  )}
-                  {isLaunching ? '启动中...' : '开始游戏'}
-                </OreButton>
               </div>
 
               <div className="flex flex-1 flex-col justify-center bg-[#2B2E33] px-[clamp(0.75rem,1vw,1rem)] py-[clamp(0.5rem,0.9vh,0.8rem)]">

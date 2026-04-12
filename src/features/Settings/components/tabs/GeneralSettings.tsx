@@ -251,13 +251,13 @@ export const GeneralSettings: React.FC = () => {
             label={t('settings.general.deviceName.label')}
             description={t('settings.general.deviceName.description')}
             control={
-              <div className="relative focus-within:z-50">
+              <div className="relative focus-within:z-50 w-[200px]">
                 <OreInput
                   focusKey="settings-device-name"
                   value={general.deviceName}
                   onChange={(event) => updateGeneralSetting('deviceName', event.target.value)}
                   placeholder={t('settings.general.deviceName.placeholder')}
-                  containerClassName="!space-y-0 w-[200px]"
+                  containerClassName="!space-y-0 w-full"
                 />
               </div>
             }
@@ -267,12 +267,12 @@ export const GeneralSettings: React.FC = () => {
             label={t('settings.general.language.label')}
             description={t('settings.general.language.description')}
             control={
-              <div className="relative focus-within:z-50">
+              <div className="relative focus-within:z-50 w-[200px]">
                 <OreDropdown
                   options={languageOptions}
                   value={general.language}
                   onChange={(value) => updateGeneralSetting('language', value)}
-                  className="w-[200px]"
+                  className="w-full"
                   focusKey="settings-language"
                 />
               </div>
@@ -303,12 +303,12 @@ export const GeneralSettings: React.FC = () => {
             label={t('settings.general.closeBehavior.label')}
             description={t('settings.general.closeBehavior.description')}
             control={
-              <div className="relative focus-within:z-50">
+              <div className="relative focus-within:z-50 w-[200px]">
                 <OreDropdown
                   options={closeBehaviorOptions}
                   value={general.closeBehavior}
                   onChange={(value) => updateGeneralSetting('closeBehavior', value as 'tray' | 'exit')}
-                  className="w-[200px]"
+                  className="w-full"
                   focusKey="settings-close-behavior"
                 />
               </div>

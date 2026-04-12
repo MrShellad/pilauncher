@@ -16,6 +16,7 @@ export interface GeneralSettings {
   deviceId: string;
   preventTouchAction: boolean;
   thirdPartyDirs?: string[];
+  lastAgreedLegalDate: string;
 }
 
 export interface AppearanceSettings {
@@ -106,6 +107,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     deviceId: '',
     preventTouchAction: true,
     thirdPartyDirs: [],
+    lastAgreedLegalDate: '',
   } as any,
   appearance: {
     backgroundImage: null,

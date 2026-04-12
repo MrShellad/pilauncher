@@ -4,12 +4,14 @@ import { invoke } from '@tauri-apps/api/core';
 import { useSettingsStore } from '../store/useSettingsStore';
 // ✅ 移除了对 setFocus 的引入
 
+export const CURRENT_EULA_DATE = '2026-04-12';
+
 export const useSetupWizard = () => {
   const [needsSetup, setNeedsSetup] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  const [step, setStep] = useState<'directory' | 'java_download' | 'steam_integration'>('directory');
+  const [step, setStep] = useState<'directory' | 'java_download' | 'steam_integration' | 'legal_agreement'>('directory');
   const [basePath, setBasePath] = useState('');
   const [showBrowser, setShowBrowser] = useState(false);
   
@@ -22,20 +24,31 @@ export const useSetupWizard = () => {
   const [isGamepadMode, setIsGamepadMode] = useState(false);
 
   const updateGeneralSetting = useSettingsStore(state => state.updateGeneralSetting);
+  const hasHydrated = useSettingsStore(state => state._hasHydrated);
 
   // 1. 初始化检查
   useEffect(() => {
+    if (!hasHydrated) return;
+
     invoke<string | null>('get_base_directory')
       .then((res) => {
-        if (!res) {
+        const { settings } = useSettingsStore.getState();
+        const eulaNeedsUpdate = settings.general.lastAgreedLegalDate !== CURRENT_EULA_DATE;
+
+        if (!res || eulaNeedsUpdate) {
           setNeedsSetup(true);
+          if (res) {
+            // 如果 basePath 已有，说明仅是因为协议没签，直接跳到协议那一步
+            setStep('legal_agreement');
+            updateGeneralSetting('basePath', res);
+          }
         } else {
           updateGeneralSetting('basePath', res);
         }
       })
       .catch(console.error)
       .finally(() => setIsChecking(false));
-  }, [updateGeneralSetting]);
+  }, [updateGeneralSetting, hasHydrated]);
 
   // ✅ 彻底删除了原本在这里的 “焦点自动分发器” useEffect 
   // 现在这个 Hook 只负责纯粹的业务逻辑和状态机！
@@ -55,10 +68,10 @@ export const useSetupWizard = () => {
           if (hasSteam) {
               setStep('steam_integration');
           } else {
-              setNeedsSetup(false);
+              setStep('legal_agreement');
           }
       } catch {
-          setNeedsSetup(false);
+          setStep('legal_agreement');
       }
   };
 
@@ -129,7 +142,12 @@ export const useSetupWizard = () => {
       // Set to gamepad mode UI if there is a setting for it
   };
 
-  const finishSetup = () => {
+  const finishSteamIntegration = () => {
+      setStep('legal_agreement');
+  };
+
+  const finalizeSetup = () => {
+      updateGeneralSetting('lastAgreedLegalDate', CURRENT_EULA_DATE);
       setNeedsSetup(false);
   };
 
@@ -139,6 +157,6 @@ export const useSetupWizard = () => {
     javaVersion, setJavaVersion, javaProvider, setJavaProvider,
     isRegistering, registerSuccess, registerError, isGamepadMode,
     handleSelectPath, handleConfirmDirectory, handleDownloadJava, handleSkipJava,
-    handleRegisterSteam, setGamepadModeSettings, finishSetup
+    handleRegisterSteam, setGamepadModeSettings, finishSteamIntegration, finalizeSetup
   };
 };
