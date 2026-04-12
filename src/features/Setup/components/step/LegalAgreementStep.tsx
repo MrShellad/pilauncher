@@ -1,5 +1,4 @@
 import React from 'react';
-import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { FileText, CheckCircle2 } from 'lucide-react';
 import { useSettingsStore } from '../../../../store/useSettingsStore';
