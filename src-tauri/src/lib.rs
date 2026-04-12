@@ -8,8 +8,68 @@ pub mod domain;
 pub mod error;
 pub mod services;
 
+#[cfg(target_os = "linux")]
+fn apply_linux_compat_env_vars() {
+    use std::fs;
+    use std::path::PathBuf;
+    use sysinfo::System;
+
+    // 获取发行版 ID（静态方法）
+    let distro = System::distribution_id().to_lowercase();
+    let is_kali = distro.contains("kali");
+
+    let mut should_disable = false;
+    let mut found_setting = false;
+
+    // 手动解析默认配置路径 (Tauri 2 默认在 ~/.config/<bundle_id>)
+    if let Some(home) = std::env::var_os("HOME") {
+        let config_dir = PathBuf::from(home)
+            .join(".config")
+            .join("com.mrshell.PiLauncher");
+        let meta_path = config_dir.join("meta.json");
+
+        if let Ok(meta_content) = fs::read_to_string(meta_path) {
+            if let Ok(meta_json) = serde_json::from_str::<serde_json::Value>(&meta_content) {
+                if let Some(base_path) = meta_json["base_path"].as_str() {
+                    let settings_path = PathBuf::from(base_path)
+                        .join("config")
+                        .join("settings.json");
+                    if let Ok(settings_content) = fs::read_to_string(settings_path) {
+                        if let Ok(settings_json) =
+                            serde_json::from_str::<serde_json::Value>(&settings_content)
+                        {
+                            // Zustand 默认持久化结构
+                            if let Some(val) =
+                                settings_json.pointer("/state/settings/general/linuxDisableDmabuf")
+                            {
+                                if let Some(b) = val.as_bool() {
+                                    should_disable = b;
+                                    found_setting = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 针对 Kali 的兜底：如果未设置过，则默认启用
+    if !found_setting && is_kali {
+        should_disable = true;
+    }
+
+    if should_disable {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        println!("[Linux Compat] 检测到渲染兼容性需求，已设置 WEBKIT_DISABLE_DMABUF_RENDERER=1");
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "linux")]
+    apply_linux_compat_env_vars();
+
     let lan_state = Arc::new(services::lan::http_api::SharedLanState::new());
 
     let mut builder = tauri::Builder::default()

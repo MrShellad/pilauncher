@@ -328,6 +328,18 @@ export const GeneralSettings: React.FC = () => {
           />
 
           <FormRow
+            label={t('settings.general.linuxDisableDmabuf.label')}
+            description={t('settings.general.linuxDisableDmabuf.description')}
+            control={
+              <OreSwitch
+                focusKey="settings-linux-disable-dmabuf"
+                checked={general.linuxDisableDmabuf}
+                onChange={(value) => updateGeneralSetting('linuxDisableDmabuf', value)}
+              />
+            }
+          />
+
+          <FormRow
             label={t('settings.general.toggleFullscreen.label')}
             description={t('settings.general.toggleFullscreen.description')}
             control={

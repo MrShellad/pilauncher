@@ -17,6 +17,7 @@ export interface GeneralSettings {
   preventTouchAction: boolean;
   thirdPartyDirs?: string[];
   lastAgreedLegalDate: string;
+  linuxDisableDmabuf: boolean;
 }
 
 export interface AppearanceSettings {
@@ -108,6 +109,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     preventTouchAction: true,
     thirdPartyDirs: [],
     lastAgreedLegalDate: '',
+    linuxDisableDmabuf: false,
   } as any,
   appearance: {
     backgroundImage: null,

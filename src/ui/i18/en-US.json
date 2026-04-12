@@ -407,6 +407,10 @@
         "label": "Exit App",
         "description": "Close PiLauncher totally. A prompt will be shown."
       },
+      "linuxDisableDmabuf": {
+        "label": "Linux Compatibility Mode (DMABUF)",
+        "description": "Disables WebKit DMABUF renderer to fix flickering/black screen on some Linux distros (e.g. Kali). **Requires manual restart**."
+      },
       "resetSettings": {
         "label": "Reset Settings",
         "description": "Restore launcher settings to default. Data won't be deleted."

@@ -407,6 +407,10 @@
         "label": "退出应用",
         "description": "关闭 PiLauncher 的当前应用进程。退出前会弹出确认提示。"
       },
+      "linuxDisableDmabuf": {
+        "label": "Linux 渲染兼容模式 (DMABUF)",
+        "description": "禁用 WebKit 的 DMABUF 渲染以修复部分 Linux 发行版（如 Kali）上的闪烁或黑屏问题。更改后需手动重启。"
+      },
       "resetSettings": {
         "label": "恢复默认设置",
         "description": "将启动器的所有设置项重置为初始状态，不会删除实例数据。"
