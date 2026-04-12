@@ -169,20 +169,16 @@ export const LegalAgreementStep: React.FC<LegalAgreementStepProps> = ({ onAgree 
       </div>
 
       <div className="flex w-full flex-col items-center space-y-3">
-        <FocusItem focusKey="setup-btn-agree" onEnter={onAgree}>
-          {({ ref, focused }) => (
-            <OreButton
-              ref={ref}
-              variant="primary"
-              size="lg"
-              className={`w-full ${focused ? 'ring-[0.1875rem] ring-white ring-offset-2 ring-offset-[#18181B] border-black' : ''}`}
-              onClick={onAgree}
-            >
-              <CheckCircle2 size={18} className="mr-2" />
-              我已阅读并完全同意
-            </OreButton>
-          )}
-        </FocusItem>
+        <OreButton
+          focusKey="setup-btn-agree"
+          variant="primary"
+          size="lg"
+          className="w-full"
+          onClick={onAgree}
+        >
+          <CheckCircle2 size={18} className="mr-2" />
+          我已阅读并完全同意
+        </OreButton>
       </div>
     </div>
   );
