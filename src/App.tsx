@@ -8,6 +8,7 @@ import { useSettingsStore } from './store/useSettingsStore';
 import { OreMotionTokens } from './style/tokens/motion';
 import { injectDesignTokens } from './style/tokens/designToken';
 import { FocusProvider } from './ui/focus/FocusProvider';
+import { OreToastContainer } from './ui/primitives/OreToast';
 import i18n from './ui/i18';
 import { TitleBar } from './ui/layout/TitleBar';
 
@@ -152,6 +153,35 @@ const App: React.FC = () => {
     void ensureSessionRefresh();
   }, [ensureSessionRefresh]);
 
+  // ✅ 启动时从本地 JSON 文件恢复上次选中的实例 (全局一次性初始化)
+  useEffect(() => {
+    // 仅在 Store 初始值为 null 时从磁盘恢复
+    const currentId = useLauncherStore.getState().selectedInstanceId;
+    if (currentId) return;
+
+    import('@tauri-apps/api/core').then(({ invoke }) => {
+      invoke<string | null>('load_selected_instance')
+        .then((id) => {
+          if (id) useLauncherStore.setState({ selectedInstanceId: id });
+        })
+        .catch(() => {});
+    });
+  }, []);
+
+  // ✅ 监听全局 Store 中的选中实例 ID 变化并保存到磁盘
+  useEffect(() => {
+    const unsub = useLauncherStore.subscribe(
+      (state) => state.selectedInstanceId,
+      (id) => {
+        if (!id) return;
+        import('@tauri-apps/api/core').then(({ invoke }) => {
+          invoke('save_selected_instance', { instanceId: id }).catch(() => {});
+        });
+      }
+    );
+    return unsub;
+  }, []);
+
   // ✅ 启动时初始化手柄 Mod 注册表（从 Modrinth/CurseForge API 拉取版本信息）
   useEffect(() => {
     initGamepadModRegistry().catch((err) => {
@@ -239,6 +269,8 @@ const App: React.FC = () => {
             onClose={() => setIsJavaEnvChangedDialogOpen(false)}
           />
         </Suspense>
+
+        <OreToastContainer />
       </div>
     </FocusProvider>
   );

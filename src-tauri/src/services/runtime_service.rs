@@ -1,5 +1,6 @@
 use crate::domain::runtime::{
-    JavaInstall, MemoryStats, ResolvedJavaRuntime, RuntimeConfig, ValidationResult,
+    JavaInstall, MemoryAllocationMode, MemoryStats, ResolvedJavaRuntime, RuntimeConfig,
+    ValidationResult,
 };
 use crate::services::config_service::JavaSettings;
 use serde_json::Value;
@@ -525,6 +526,7 @@ pub fn get_instance_runtime(instance_dir: &Path) -> Result<RuntimeConfig, String
         use_global_java: true,
         use_global_memory: true,
         java_path: "".to_string(),
+        memory_allocation_mode: MemoryAllocationMode::Auto,
         max_memory: 4096,
         min_memory: 1024,
         jvm_args: "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=50".to_string(),
@@ -579,6 +581,7 @@ mod tests {
                 ("21".to_string(), "java-21".to_string()),
             ]),
             jvm_args: String::new(),
+            memory_allocation_mode: MemoryAllocationMode::Auto,
             max_memory: 4096,
             min_memory: 1024,
         }
@@ -622,6 +625,7 @@ mod tests {
             use_global_java: false,
             use_global_memory: true,
             java_path: "instance-java".to_string(),
+            memory_allocation_mode: MemoryAllocationMode::Auto,
             max_memory: 4096,
             min_memory: 1024,
             jvm_args: String::new(),

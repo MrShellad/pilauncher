@@ -102,6 +102,7 @@ export interface ModEntry {
   fileName: string;
   modId?: string | null;
   version?: string | null;
+  isEnabled?: boolean | null;
 }
 
 export interface InstanceSnapshot {
@@ -116,34 +117,7 @@ export interface SnapshotDiff {
   added: ModEntry[];
   removed: ModEntry[];
   updated: { old: ModEntry; new: ModEntry }[];
-}
-
-export interface SnapshotProgressEvent {
-  current: number;
-  total: number;
-  phase: string;
-  file: string;
-}
-
-export interface ModEntry {
-  hash: string;
-  fileName: string;
-  modId?: string | null;
-  version?: string | null;
-}
-
-export interface InstanceSnapshot {
-  id: string;
-  timestamp: number;
-  trigger: string;
-  message: string;
-  mods: ModEntry[];
-}
-
-export interface SnapshotDiff {
-  added: ModEntry[];
-  removed: ModEntry[];
-  updated: { old: ModEntry; new: ModEntry }[];
+  stateChanged: { old: ModEntry; new: ModEntry }[];
 }
 
 export interface SnapshotProgressEvent {

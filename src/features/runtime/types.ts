@@ -1,7 +1,10 @@
+import type { MemoryAllocationMode } from '../../types/memory';
+
 export interface RuntimeConfig {
-  useGlobalJava: boolean;   // 独立的 Java 全局开关
-  useGlobalMemory: boolean; // 独立的 内存 全局开关
+  useGlobalJava: boolean;
+  useGlobalMemory: boolean;
   javaPath: string;
+  memoryAllocationMode: MemoryAllocationMode;
   maxMemory: number;
   minMemory: number;
   jvmArgs: string;

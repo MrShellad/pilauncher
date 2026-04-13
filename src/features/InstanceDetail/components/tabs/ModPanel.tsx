@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { listen, type Event } from '@tauri-apps/api/event';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
   CheckSquare,
@@ -10,7 +11,6 @@ import {
   DownloadCloud,
   FileText,
   FolderOpen,
-  HardDriveDownload,
   History,
   Loader2,
   Power,
@@ -30,6 +30,7 @@ import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreConfirmDialog } from '../../../../ui/primitives/OreConfirmDialog';
 import { OreInput } from '../../../../ui/primitives/OreInput';
 import { useLauncherStore } from '../../../../store/useLauncherStore';
+import { useToastStore } from '../../../../store/useToastStore';
 
 import { useModManager, type ModSortType } from '../../hooks/useModManager';
 import { ModSnapshotModal } from './ModSnapshotModal';
@@ -46,10 +47,10 @@ interface PendingDeleteState {
 
 // 普通模式的焦点序列（top-to-bottom，与 ModList 导航配合）
 const NORMAL_FOCUS_ORDER = [
+  'mod-btn-snapshot',
+  'mod-btn-history',
   'mod-btn-folder',
   'mod-btn-download',
-  'mod-btn-history',
-  'mod-btn-snapshot',
   'mod-btn-select-all',
   'mod-btn-sort-time',
   'mod-btn-sort-name',
@@ -60,10 +61,10 @@ const NORMAL_FOCUS_ORDER = [
 
 // 批量选择模式的焦点序列（排序按钮隐藏，搜索框移至此行）
 const BATCH_FOCUS_ORDER = [
+  'mod-btn-snapshot',
+  'mod-btn-history',
   'mod-btn-folder',
   'mod-btn-download',
-  'mod-btn-history',
-  'mod-btn-snapshot',
   'mod-btn-batch-select',
   'mod-btn-batch-enable',
   'mod-btn-batch-disable',
@@ -73,6 +74,7 @@ const BATCH_FOCUS_ORDER = [
 ];
 
 export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
+  const { t } = useTranslation();
   const {
     mods,
     isLoading,
@@ -108,7 +110,7 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
 
   const [lastDeleteFocusKey, setLastDeleteFocusKey] = useState<string | null>(null);
 
-  // 根据当前模式选择焦点序列
+  const addToast = useToastStore((s) => s.addToast);
 
   const openHistoryModal = async () => {
     try {
@@ -117,6 +119,9 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
       setIsHistoryModalOpen(true);
     } catch (e) {
       console.error(e);
+      addToast('error', t('modSnapshots.messages.historyLoadFailed', {
+        defaultValue: 'Failed to load snapshot history. Check the logs for details.'
+      }));
     }
   };
 
@@ -131,15 +136,49 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
 
   const handleCreateSnapshot = async () => {
     try {
-      await takeSnapshot('USER_MANUAL', `手动快照 (${mods.length}个模组)`);
+      const snapshot = await takeSnapshot(
+        'USER_MANUAL',
+        t('modSnapshots.messages.manualSnapshot', {
+          count: mods.length,
+          defaultValue: 'Manual Snapshot ({{count}} mods)'
+        })
+      );
+      addToast('success', t('modSnapshots.messages.createSuccess', {
+        count: snapshot.mods.length,
+        defaultValue: 'Snapshot created successfully. Recorded {{count}} mods.'
+      }));
       if (isHistoryModalOpen) {
         const h = await fetchHistory();
         setHistory(h);
       }
     } catch (e) {
       console.error(e);
+      addToast('error', t('modSnapshots.messages.createFailed', {
+        defaultValue: 'Failed to create snapshot. Check the logs for details.'
+      }));
     }
   };
+
+  const handleCloseHistoryModal = useCallback(() => {
+    setIsHistoryModalOpen(false);
+    window.setTimeout(() => focusManager.restoreFocus('tab-boundary-mods', 'mod-btn-history'), 50);
+  }, []);
+
+  const handleRollbackSnapshot = useCallback(async (snapshotId: string) => {
+    try {
+      await doRollback(snapshotId);
+      const refreshedHistory = await fetchHistory();
+      setHistory(refreshedHistory);
+      addToast('success', t('modSnapshots.messages.rollbackSuccess', {
+        defaultValue: 'Rolled back to the selected snapshot.'
+      }));
+    } catch (e) {
+      console.error(e);
+      addToast('error', t('modSnapshots.messages.rollbackFailed', {
+        defaultValue: 'Failed to roll back snapshot. Check the logs for details.'
+      }));
+    }
+  }, [addToast, doRollback, fetchHistory, t]);
 
   const isBatchMode = selectedMods.size > 0;
   const focusOrder = isBatchMode ? BATCH_FOCUS_ORDER : NORMAL_FOCUS_ORDER;
@@ -339,6 +378,40 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
 
         <div className="flex items-center gap-3">
           <OreButton
+            focusKey="mod-btn-snapshot"
+            variant="primary"
+            size="auto"
+            disabled={snapshotState !== 'idle'}
+            onClick={handleCreateSnapshot}
+            onArrowPress={handleLinearArrow}
+            className="!h-10 !min-h-10"
+          >
+            {snapshotState === 'snapshotting' ? (
+              <Loader2 className="mr-2 animate-spin" size={16} />
+            ) : (
+              <History size={16} className="mr-2" />
+            )}
+            {snapshotState === 'snapshotting'
+              ? (snapshotProgress ? `${snapshotProgress.phase}` : '创建中...')
+              : '创建快照'
+            }
+          </OreButton>
+
+          <OreButton
+            focusKey="mod-btn-history"
+            size="auto"
+            variant="secondary"
+            onClick={openHistoryModal}
+            onArrowPress={handleLinearArrow}
+            className="!h-10 !min-h-10"
+          >
+            <RefreshCw size={16} className="mr-2" />
+            历史快照
+          </OreButton>
+
+          <div className="mx-1 h-6 w-px bg-white/15" />
+
+          <OreButton
             focusKey="mod-btn-folder"
             variant="secondary"
             size="auto"
@@ -363,40 +436,6 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
           >
             <DownloadCloud size={16} className="mr-2" />
             下载 MOD
-          </OreButton>
-
-          <div className="mx-1 h-6 w-px bg-white/15" />
-
-          <OreButton
-            focusKey="mod-btn-history"
-            size="auto"
-            variant="secondary"
-            onClick={openHistoryModal}
-            onArrowPress={handleLinearArrow}
-            className="!h-10 !min-h-10"
-          >
-            <RefreshCw size={16} className="mr-2" />
-            历史快照
-          </OreButton>
-
-          <OreButton
-            focusKey="mod-btn-snapshot"
-            variant="primary"
-            size="auto"
-            disabled={snapshotState !== 'idle'}
-            onClick={handleCreateSnapshot}
-            onArrowPress={handleLinearArrow}
-            className="!h-10 !min-h-10"
-          >
-            {snapshotState === 'snapshotting' ? (
-              <Loader2 className="mr-2 animate-spin" size={16} />
-            ) : (
-              <History size={16} className="mr-2" />
-            )}
-            {snapshotState === 'snapshotting'
-              ? (snapshotProgress ? `${snapshotProgress.phase}` : '创建中...')
-              : '创建快照'
-            }
           </OreButton>
         </div>
       </div>
@@ -620,6 +659,17 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         onClose={handleCloseModal}
         onToggle={handleToggle}
         onDelete={deleteMod}
+      />
+
+      <ModSnapshotModal
+        isOpen={isHistoryModalOpen}
+        onClose={handleCloseHistoryModal}
+        history={history}
+        currentMods={mods}
+        diffs={diffs}
+        onDiffRequest={loadDiff}
+        onRollback={handleRollbackSnapshot}
+        isRollingBack={snapshotState === 'rolling_back'}
       />
 
       <OreConfirmDialog

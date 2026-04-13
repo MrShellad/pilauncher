@@ -13,7 +13,10 @@
     "selectInstanceModal": {
       "title": "选择启动实例",
       "empty": "尚未创建任何实例",
-      "emptyHint": "请前往「实例管理」页面创建或导入你的第一个游戏环境"
+      "emptyHint": "请前往「实例管理」页面创建或导入你的第一个游戏环境",
+      "searchPlaceholder": "搜索标题、Loader 或 MC 版本...",
+      "noResults": "未找到匹配的实例",
+      "resultCount": "找到 {{count}} 个实例"
     },
     "noAccount": {
       "title": "无法启动实例",
@@ -288,6 +291,88 @@
       "worldgen": "世界生成"
     }
   },
+  "modSnapshots": {
+    "title": "Mod 快照时间轴",
+    "empty": "暂无任何快照记录。",
+    "emptySelection": "请先在左侧选择一个快照版本。",
+    "loadingDiff": "正在计算与上一个快照的差异...",
+    "noChanges": "此版本相对于上一个版本没有文件层面的变更。",
+    "triggers": {
+      "userManual": "手动快照",
+      "rollback": "回退目标",
+      "rollbackGuard": "回退保护",
+      "auto": "自动快照",
+      "unknown": "未知来源"
+    },
+    "timeline": {
+      "title": "版本历史",
+      "current": "当前状态",
+      "versionLabel": "版本 #{{index}}",
+      "modCount": "{{count}} 个模组"
+    },
+    "tags": {
+      "current": "当前",
+      "history": "历史",
+      "latestState": "最新状态",
+      "initialState": "初始状态",
+      "added": "新增",
+      "removed": "移除",
+      "updated": "更新",
+      "contentUpdated": "内容更新",
+      "stateChanged": "状态变更",
+      "enabled": "已启用",
+      "disabled": "已禁用"
+    },
+    "sections": {
+      "added": "新增了 {{count}} 个模组",
+      "removed": "移除了 {{count}} 个模组",
+      "updated": "更新了 {{count}} 个模组",
+      "stateChanged": "变更了 {{count}} 个模组的启用状态"
+    },
+    "labels": {
+      "untitled": "快照状态",
+      "noMessage": "未提供备注",
+      "createdAt": "创建时间：{{value}}"
+    },
+    "summary": {
+      "compareWithPrevious": "正在对比当前快照与上一个版本的差异。",
+      "initialSnapshot": "这是当前历史中的最早快照，下面展示该版本记录下来的模组状态。"
+    },
+    "messages": {
+      "manualSnapshot": "手动快照（{{count}} 个模组）",
+      "createSuccess": "快照创建成功，已记录 {{count}} 个模组。",
+      "createFailed": "创建快照失败，请查看日志。",
+      "historyLoadFailed": "读取历史快照失败，请查看日志。",
+      "rollbackSuccess": "已回退到所选快照。",
+      "rollbackFailed": "回退快照失败，请查看日志。"
+    },
+    "actions": {
+      "rollback": "回退到此快照",
+      "rollingBack": "正在回退..."
+    },
+    "states": {
+      "enabled": "启用",
+      "disabled": "禁用"
+    },
+    "descriptions": {
+      "initialEnabled": "此模组在这个快照中首次被记录。",
+      "initialDisabled": "此模组在这个快照中首次被记录，且当前为禁用状态。",
+      "added": "该模组在选中的快照中首次出现。",
+      "removed": "该模组存在于上一个快照，但不再出现在当前快照。",
+      "updated": "该模组的文件内容发生了变化。",
+      "stateChanged": "{{from}} -> {{to}}"
+    },
+    "meta": {
+      "file": "文件：{{fileName}}",
+      "sha1": "SHA1：{{hash}}",
+      "version": "版本：{{version}}",
+      "project": "项目：{{modId}}",
+      "oldFile": "旧文件：{{fileName}}",
+      "newFile": "新文件：{{fileName}}",
+      "oldSha1": "旧 SHA1：{{hash}}",
+      "newSha1": "新 SHA1：{{hash}}"
+    }
+  },
   "saves": {
     "triggers": {
       "manual": "手动备份",
@@ -449,6 +534,40 @@
       "majorConfig": "版本化全局配置（推荐）",
       "missingAuth": "缺少Java环境",
       "memoryDesc": "默认情况下新建实例会继承这里的内存与参数配置；若实例开启了独立配置，则以实例设置为准。",
+      "memoryMode": "内存分配模式",
+      "memoryLoading": "正在读取系统物理内存...",
+      "memoryEffective": "当前预计生效",
+      "memoryTarget": "目标上限",
+      "memoryRecommended": "推荐值",
+      "memorySafeLimit": "安全值",
+      "memoryHardLimit": "硬上限",
+      "memoryAvailable": "当前可用",
+      "memoryTotal": "系统总量",
+      "memoryProfile": "GC 档位",
+      "memoryApplyRecommended": "应用推荐",
+      "memoryModes": {
+        "auto": "自动模式",
+        "manual": "手动模式",
+        "force": "强制模式"
+      },
+      "memoryModeDescriptions": {
+        "auto": "按文档规则自动计算内存分配，实时取推荐值与安全值中的较小者。",
+        "manual": "使用你指定的目标内存，但当前可用内存不足时会自动降到安全范围内。",
+        "force": "忽略安全值，尽量按你的目标分配，但仍不会突破当前系统硬上限。"
+      },
+      "memoryProfiles": {
+        "small-heap": "小堆优化",
+        "standard-g1gc": "标准 G1GC",
+        "large-heap": "大堆 Region 调整"
+      },
+      "memoryWarnings": {
+        "hardLimitTitle": "当前已触及硬上限",
+        "hardLimitBody": "你设置了 {{requested}}，但当前系统硬上限只有 {{limit}}，本次最多只会按 {{effective}} 生效。",
+        "safeLimitTitle": "当前已被安全值限制",
+        "safeLimitBody": "你设置了 {{requested}}，但为了给系统和后台进程留余量，本次会降到 {{effective}}（安全值 {{limit}}）。",
+        "forceModeBody": "强制模式会忽略安全值，但仍受当前硬上限 {{limit}} 约束。若后台占用继续上升，实际可用上限还会更低。",
+        "autoModeBody": "自动模式会按 min(推荐值 {{recommended}}, 安全值 {{safeLimit}}) 计算，本次预计使用 {{effective}}。"
+      },
       "maxMemory": "全局最大内存分配",
       "maxMemoryDesc": "动态调整游戏可用的最大 RAM。",
       "jvmArgs": "全局 JVM 附加参数",

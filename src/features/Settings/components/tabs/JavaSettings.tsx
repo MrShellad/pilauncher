@@ -35,6 +35,22 @@ export const JavaSettings: React.FC = () => {
 
   const { testingKey, dialog, closeDialog, runJavaTest } = useJavaRuntimeTestDialog();
 
+  const handleGlobalMemoryChange = (nextValue: {
+    memoryAllocationMode: typeof java.memoryAllocationMode;
+    maxMemory: number;
+    minMemory: number;
+  }) => {
+    if (java.memoryAllocationMode !== nextValue.memoryAllocationMode) {
+      updateJavaSetting('memoryAllocationMode', nextValue.memoryAllocationMode);
+    }
+    if (java.maxMemory !== nextValue.maxMemory) {
+      updateJavaSetting('maxMemory', nextValue.maxMemory);
+    }
+    if (java.minMemory !== nextValue.minMemory) {
+      updateJavaSetting('minMemory', nextValue.minMemory);
+    }
+  };
+
   const javaOptions = useMemo(
     () =>
       JAVA_VERSIONS.map((version) => ({
@@ -78,7 +94,7 @@ export const JavaSettings: React.FC = () => {
       });
     }
 
-    keys.push('java-slider-memory', 'java-btn-recommend', 'java-input-jvm');
+    keys.push('java-memory-mode', 'java-slider-memory', 'java-btn-recommend', 'java-input-jvm');
     return keys;
   }, [isDetecting, java.autoDetect, majorItems]);
 
@@ -319,11 +335,16 @@ export const JavaSettings: React.FC = () => {
         <FormRow
           label={t('settings.java.maxMemory')}
           description={t('settings.java.maxMemoryDesc')}
+          controlClassName="w-full lg:w-[36rem]"
           control={
             <MemorySlider
               onArrowPress={handleLinearArrow}
-              maxMemory={java.maxMemory}
-              onChange={(value) => updateJavaSetting('maxMemory', value)}
+              value={{
+                memoryAllocationMode: java.memoryAllocationMode,
+                maxMemory: java.maxMemory,
+                minMemory: java.minMemory,
+              }}
+              onChange={handleGlobalMemoryChange}
               disabled={false}
             />
           }
@@ -332,7 +353,7 @@ export const JavaSettings: React.FC = () => {
         <FormRow
           label={t('settings.java.jvmArgs')}
           description={t('settings.java.jvmArgsDesc')}
-          vertical={true}
+          controlClassName="w-full lg:w-[28rem]"
           control={
             <div className="w-full">
               <JVMParamsEditor

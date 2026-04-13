@@ -1,12 +1,23 @@
 use crate::domain::instance::InstanceConfig;
 use crate::domain::launcher::ResolvedLaunchConfig;
-use crate::domain::runtime::RuntimeConfig;
+use crate::domain::runtime::{MemoryAllocationMode, MemoryStats, RuntimeConfig};
 use crate::services::config_service::ConfigService;
 use crate::services::runtime_service;
 use std::path::PathBuf;
 use tauri::{AppHandle, Runtime};
 
 pub struct ConfigResolver;
+
+const MEMORY_STEP_MB: u32 = 512;
+const MIN_MEMORY_MB: u32 = 1024;
+
+#[derive(Debug, Clone, Copy)]
+struct MemoryThresholds {
+    recommended: u32,
+    safe_limit: u32,
+    total_hard_limit: u32,
+    hard_limit: u32,
+}
 
 fn split_argument_string(raw: &str) -> Vec<String> {
     let mut parts = Vec::new();
@@ -66,6 +77,75 @@ fn resolve_custom_jvm_args(global_jvm_args: &str, instance_runtime: &RuntimeConf
     custom_jvm_args
 }
 
+fn round_down_to_step(value: f64) -> u32 {
+    if !value.is_finite() || value <= 0.0 {
+        return MIN_MEMORY_MB;
+    }
+
+    ((value / MEMORY_STEP_MB as f64).floor() as u32)
+        .saturating_mul(MEMORY_STEP_MB)
+        .max(MIN_MEMORY_MB)
+}
+
+fn clamp_memory(value: u32, min: u32, max: u32) -> u32 {
+    if max < min {
+        return min;
+    }
+
+    value.max(min).min(max)
+}
+
+fn compute_memory_thresholds(stats: &MemoryStats) -> MemoryThresholds {
+    let total = (stats.total.min(u32::MAX as u64) as u32).max(MIN_MEMORY_MB);
+    let available = (stats.available.min(u32::MAX as u64) as u32).max(MIN_MEMORY_MB);
+
+    let total_hard_limit = round_down_to_step(total as f64 * 0.8);
+    let available_hard_limit = round_down_to_step(available as f64 * 0.8);
+    let hard_limit = total_hard_limit.min(available_hard_limit).max(MIN_MEMORY_MB);
+    let recommended = clamp_memory(round_down_to_step(total as f64 * 0.6), MIN_MEMORY_MB, total_hard_limit);
+    let safe_limit = clamp_memory(round_down_to_step(available as f64 * 0.7), MIN_MEMORY_MB, available_hard_limit);
+
+    MemoryThresholds {
+        recommended,
+        safe_limit,
+        total_hard_limit,
+        hard_limit,
+    }
+}
+
+fn sanitize_requested_memory(requested: u32, total_hard_limit: u32) -> u32 {
+    let requested = requested.max(MIN_MEMORY_MB);
+    clamp_memory(requested, MIN_MEMORY_MB, total_hard_limit.max(MIN_MEMORY_MB))
+}
+
+fn resolve_memory_limits(
+    mode: &MemoryAllocationMode,
+    requested_max: u32,
+    requested_min: u32,
+    thresholds: &MemoryThresholds,
+) -> (u32, u32) {
+    let requested_max = sanitize_requested_memory(requested_max, thresholds.total_hard_limit);
+
+    let max_memory = match mode {
+        MemoryAllocationMode::Auto => clamp_memory(
+            thresholds.recommended.min(thresholds.safe_limit),
+            MIN_MEMORY_MB,
+            thresholds.hard_limit,
+        ),
+        MemoryAllocationMode::Manual => clamp_memory(
+            requested_max.min(thresholds.safe_limit),
+            MIN_MEMORY_MB,
+            thresholds.hard_limit,
+        ),
+        MemoryAllocationMode::Force => {
+            clamp_memory(requested_max, MIN_MEMORY_MB, thresholds.hard_limit)
+        }
+    };
+
+    let min_memory = clamp_memory(requested_min.max(MIN_MEMORY_MB), MIN_MEMORY_MB, max_memory);
+    (min_memory, max_memory)
+}
+
 impl ConfigResolver {
     pub fn resolve<R: Runtime>(
         app: &AppHandle<R>,
@@ -88,6 +168,7 @@ impl ConfigResolver {
                     use_global_java: true,
                     use_global_memory: true,
                     java_path: "".to_string(),
+                    memory_allocation_mode: MemoryAllocationMode::Auto,
                     max_memory: 4096,
                     min_memory: 1024,
                     jvm_args: "".to_string(),
@@ -102,17 +183,33 @@ impl ConfigResolver {
         )
         .java_path;
 
-        let min_memory = if instance_runtime.use_global_memory || instance_runtime.min_memory == 0 {
-            global_java.min_memory
+        let memory_mode = if instance_runtime.use_global_memory {
+            global_java.memory_allocation_mode.clone()
         } else {
-            instance_runtime.min_memory as u32
+            instance_runtime.memory_allocation_mode.clone()
         };
 
-        let max_memory = if instance_runtime.use_global_memory || instance_runtime.max_memory == 0 {
-            global_java.max_memory
-        } else {
-            instance_runtime.max_memory as u32
-        };
+        let requested_min_memory =
+            if instance_runtime.use_global_memory || instance_runtime.min_memory == 0 {
+                global_java.min_memory
+            } else {
+                instance_runtime.min_memory as u32
+            };
+
+        let requested_max_memory =
+            if instance_runtime.use_global_memory || instance_runtime.max_memory == 0 {
+                global_java.max_memory
+            } else {
+                instance_runtime.max_memory as u32
+            };
+
+        let memory_thresholds = compute_memory_thresholds(&runtime_service::get_system_memory());
+        let (min_memory, max_memory) = resolve_memory_limits(
+            &memory_mode,
+            requested_max_memory,
+            requested_min_memory,
+            &memory_thresholds,
+        );
 
         let (global_w, global_h) = {
             let parts: Vec<&str> = global_game.resolution.split('x').collect();
@@ -160,6 +257,7 @@ mod tests {
             use_global_java: true,
             use_global_memory: true,
             java_path: String::new(),
+            memory_allocation_mode: MemoryAllocationMode::Auto,
             max_memory: 4096,
             min_memory: 1024,
             jvm_args: String::new(),
@@ -196,5 +294,59 @@ mod tests {
                 "-Dfoo=bar baz".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn auto_mode_uses_recommended_and_safe_limit_minimum() {
+        let thresholds = compute_memory_thresholds(&MemoryStats {
+            total: 16 * 1024,
+            available: 6 * 1024,
+        });
+
+        let (_, max_memory) = resolve_memory_limits(
+            &MemoryAllocationMode::Auto,
+            8192,
+            1024,
+            &thresholds,
+        );
+
+        assert_eq!(thresholds.recommended, 9728);
+        assert_eq!(thresholds.safe_limit, 4096);
+        assert_eq!(max_memory, 4096);
+    }
+
+    #[test]
+    fn manual_mode_is_capped_by_safe_limit() {
+        let thresholds = compute_memory_thresholds(&MemoryStats {
+            total: 16 * 1024,
+            available: 6 * 1024,
+        });
+
+        let (_, max_memory) = resolve_memory_limits(
+            &MemoryAllocationMode::Manual,
+            8192,
+            1024,
+            &thresholds,
+        );
+
+        assert_eq!(max_memory, 4096);
+    }
+
+    #[test]
+    fn force_mode_ignores_safe_limit_but_keeps_hard_limit() {
+        let thresholds = compute_memory_thresholds(&MemoryStats {
+            total: 16 * 1024,
+            available: 6 * 1024,
+        });
+
+        let (_, max_memory) = resolve_memory_limits(
+            &MemoryAllocationMode::Force,
+            8192,
+            1024,
+            &thresholds,
+        );
+
+        assert_eq!(thresholds.hard_limit, 4608);
+        assert_eq!(max_memory, 4608);
     }
 }

@@ -2,9 +2,9 @@ use crate::services::config_service::ConfigService;
 use crate::services::downloader::dependencies::scheduler::sha1_file;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, Runtime};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
@@ -14,6 +14,8 @@ pub struct ModEntry {
     pub file_name: String,
     pub mod_id: Option<String>,
     pub version: Option<String>,
+    #[serde(default)]
+    pub is_enabled: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -32,6 +34,7 @@ pub struct SnapshotDiff {
     pub added: Vec<ModEntry>,
     pub removed: Vec<ModEntry>,
     pub updated: Vec<ModUpdatePair>,
+    pub state_changed: Vec<ModUpdatePair>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -53,6 +56,16 @@ struct SnapshotProgressEvent {
 pub struct ModSnapshotManager;
 
 impl ModSnapshotManager {
+    fn normalized_snapshot_key(mod_entry: &ModEntry) -> String {
+        mod_entry.file_name.trim_end_matches(".disabled").to_lowercase()
+    }
+
+    fn resolved_enabled_state(mod_entry: &ModEntry) -> bool {
+        mod_entry
+            .is_enabled
+            .unwrap_or(!mod_entry.file_name.ends_with(".disabled"))
+    }
+
     pub fn get_instance_root<R: Runtime>(
         app: &AppHandle<R>,
         instance_id: &str,
@@ -165,6 +178,7 @@ impl ModSnapshotManager {
                 .unwrap_or_default()
                 .to_string_lossy()
                 .to_string();
+            let is_enabled = !file_name.ends_with(".disabled");
 
             app.emit(
                 "snapshot-progress",
@@ -210,6 +224,7 @@ impl ModSnapshotManager {
                 file_name,
                 mod_id,
                 version,
+                is_enabled: Some(is_enabled),
             });
         }
 
@@ -293,24 +308,32 @@ impl ModSnapshotManager {
 
         if let Some(old_snap) = history.iter().find(|s| s.id == old_id) {
             for m in &old_snap.mods {
-                old_mods.insert(m.file_name.clone(), m.clone());
+                old_mods.insert(Self::normalized_snapshot_key(m), m.clone());
             }
         }
 
         if let Some(new_snap) = history.iter().find(|s| s.id == new_id) {
             for m in &new_snap.mods {
-                new_mods.insert(m.file_name.clone(), m.clone());
+                new_mods.insert(Self::normalized_snapshot_key(m), m.clone());
             }
         }
 
         let mut added = Vec::new();
         let mut removed = Vec::new();
         let mut updated = Vec::new();
+        let mut state_changed = Vec::new();
 
         for (name, new_mod) in &new_mods {
             if let Some(old_mod) = old_mods.get(name) {
                 if old_mod.hash != new_mod.hash {
                     updated.push(ModUpdatePair {
+                        old: old_mod.clone(),
+                        new: new_mod.clone(),
+                    });
+                }
+
+                if Self::resolved_enabled_state(old_mod) != Self::resolved_enabled_state(new_mod) {
+                    state_changed.push(ModUpdatePair {
                         old: old_mod.clone(),
                         new: new_mod.clone(),
                     });
@@ -332,6 +355,7 @@ impl ModSnapshotManager {
             added,
             removed,
             updated,
+            state_changed,
         })
     }
 

@@ -1,5 +1,7 @@
 // /src/types/settings.ts
 
+import type { MemoryAllocationMode } from './memory';
+
 export interface GeneralSettings {
   language: string;
   autoUpdate: boolean;
@@ -36,6 +38,7 @@ export interface JavaSettings {
   autoDetect: boolean;
   javaPath: string;
   majorJavaPaths: Record<string, string>; // e.g. { "8": "...", "17": "..." }
+  memoryAllocationMode: MemoryAllocationMode;
   maxMemory: number;
   minMemory: number;
   jvmArgs: string;
@@ -133,6 +136,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
       '21': '',
       '25': ''
     },
+    memoryAllocationMode: 'auto',
     maxMemory: 4096,
     minMemory: 1024,
     jvmArgs: '-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=50'

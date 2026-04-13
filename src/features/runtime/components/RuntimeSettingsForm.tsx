@@ -22,6 +22,17 @@ export const RuntimeSettingsForm: React.FC<{
 }> = ({ mode, config, onChange, mcVersion, recommendedJavaMajor }) => {
   const isInstance = mode === 'instance';
   const handleChange = (key: keyof RuntimeConfig, value: any) => onChange({ ...config, [key]: value });
+  const handleMemoryChange = (value: {
+    memoryAllocationMode: RuntimeConfig['memoryAllocationMode'];
+    maxMemory: number;
+    minMemory: number;
+  }) =>
+    onChange({
+      ...config,
+      memoryAllocationMode: value.memoryAllocationMode,
+      maxMemory: value.maxMemory,
+      minMemory: value.minMemory,
+    });
   const { testingKey, dialog, closeDialog, runJavaTest } = useJavaRuntimeTestDialog();
 
   const recommendationText = useMemo(() => {
@@ -45,7 +56,7 @@ export const RuntimeSettingsForm: React.FC<{
     }
 
     if (!(isInstance && config.useGlobalMemory)) {
-      order.push('java-slider-memory', 'java-btn-recommend', 'java-input-jvm');
+      order.push('java-memory-mode', 'java-slider-memory', 'java-btn-recommend', 'java-input-jvm');
     }
 
     return order;
@@ -179,10 +190,15 @@ export const RuntimeSettingsForm: React.FC<{
             <FormRow
               label="最大内存分配"
               description="动态调整游戏可用 RAM，建议保留系统余量。"
+              vertical={true}
               control={
                 <MemorySlider
-                  maxMemory={config.maxMemory}
-                  onChange={(value) => handleChange('maxMemory', value)}
+                  value={{
+                    memoryAllocationMode: config.memoryAllocationMode,
+                    maxMemory: config.maxMemory,
+                    minMemory: config.minMemory,
+                  }}
+                  onChange={handleMemoryChange}
                   disabled={isInstance && config.useGlobalMemory}
                   onArrowPress={handleLinearArrow('java-slider-memory')}
                 />

@@ -1,5 +1,6 @@
 // src-tauri/src/services/config_service.rs
 use crate::error::AppResult;
+use crate::domain::runtime::MemoryAllocationMode;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
@@ -105,6 +106,8 @@ pub struct JavaSettings {
     pub java_path: String,
     pub major_java_paths: HashMap<String, String>,
     pub jvm_args: String,
+    #[serde(default)]
+    pub memory_allocation_mode: MemoryAllocationMode,
     pub max_memory: u32,
     pub min_memory: u32,
 }
@@ -116,6 +119,7 @@ impl Default for JavaSettings {
             major_java_paths: HashMap::new(),
             jvm_args: "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=50"
                 .to_string(),
+            memory_allocation_mode: MemoryAllocationMode::Auto,
             max_memory: 4096,
             min_memory: 1024,
         }

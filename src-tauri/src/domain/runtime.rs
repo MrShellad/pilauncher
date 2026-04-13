@@ -6,6 +6,15 @@ pub struct MemoryStats {
     pub available: u64,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum MemoryAllocationMode {
+    #[default]
+    Auto,
+    Manual,
+    Force,
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct JavaInstall {
     pub version: String,
@@ -24,6 +33,8 @@ pub struct RuntimeConfig {
     pub use_global_java: bool,
     pub use_global_memory: bool,
     pub java_path: String,
+    #[serde(default)]
+    pub memory_allocation_mode: MemoryAllocationMode,
     pub max_memory: u64,
     pub min_memory: u64,
     pub jvm_args: String,

@@ -1,16 +1,14 @@
 // /src/features/home/components/InstanceSelectModal.tsx
-import React, { useEffect } from 'react';
-import { OreModal } from '../../../ui/primitives/OreModal';
-import { OreInstanceCard } from '../../../ui/primitives/OreInstanceCard';
-import { useInstances } from '../../../hooks/pages/Instances/useInstances';
+import React, { useEffect, useRef, useState } from 'react';
+import { Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-// 引入空间焦点引擎组件
+import { useInstances } from '../../../hooks/pages/Instances/useInstances';
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { focusManager } from '../../../ui/focus/FocusManager';
-
-// ✅ 引入全局 Store，用于记忆选择
+import { OreInstanceCard } from '../../../ui/primitives/OreInstanceCard';
+import { OreModal } from '../../../ui/primitives/OreModal';
 import { useLauncherStore } from '../../../store/useLauncherStore';
 
 interface InstanceSelectModalProps {
@@ -23,35 +21,66 @@ interface InstanceSelectModalProps {
 export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
   isOpen,
   onClose,
-  selectedId, // 父组件传来的状态（如果存在）
+  selectedId,
   onSelect,
 }) => {
   const { instances } = useInstances();
   const { t } = useTranslation();
-  
-  // ✅ 获取全局存储的方法和记忆的 ID
-  const globalSelectedId = useLauncherStore(state => state.selectedInstanceId);
-  const setSelectedInstanceId = useLauncherStore(state => state.setSelectedInstanceId);
+  const [query, setQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+  const currentCardRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // 综合判定当前高亮的 ID：优先用父组件传的 -> 其次用全局记忆的 -> 最后默认选第一个
-  const currentSelectedId = selectedId || globalSelectedId || (instances.length > 0 ? instances[0].id : null);
+  const globalSelectedId = useLauncherStore((state) => state.selectedInstanceId);
+  const setSelectedInstanceId = useLauncherStore((state) => state.setSelectedInstanceId);
 
-  // ✅ 拦截点击事件，将选择同步到持久化 Store 中
+  const currentSelectedId = selectedId || globalSelectedId || instances[0]?.id || null;
+  const q = query.toLowerCase().trim();
+  const filtered = q
+    ? instances.filter((inst) => {
+        const name = inst.name.toLowerCase();
+        const loader = inst.loader.toLowerCase();
+        const version = inst.version.toLowerCase();
+        return name.includes(q) || loader.includes(q) || version.includes(q);
+      })
+    : instances;
+
   const handleSelect = (id: string) => {
-    setSelectedInstanceId(id); // 记忆选择，下次打开启动器依然生效
-    onSelect(id);              // 通知父组件
-    onClose();                 // 选择后自动关闭弹窗
+    setSelectedInstanceId(id);
+    onSelect(id);
+    onClose();
   };
 
   useEffect(() => {
-    if (isOpen) {
-      if (currentSelectedId) {
-        setTimeout(() => focusManager.focus(`instance-card-${currentSelectedId}`), 100);
-      }
-    } else {
+    if (!isOpen) {
       focusManager.focus('instance-button');
+      return;
     }
-  }, [isOpen, currentSelectedId, instances]);
+
+    setQuery('');
+
+    const focusTimer = setTimeout(() => {
+      searchRef.current?.focus();
+    }, 120);
+
+    const scrollTimer = setTimeout(() => {
+      if (currentCardRef.current && scrollContainerRef.current) {
+        currentCardRef.current.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+        });
+      }
+
+      if (currentSelectedId) {
+        focusManager.focus(`instance-card-${currentSelectedId}`);
+      }
+    }, 200);
+
+    return () => {
+      clearTimeout(focusTimer);
+      clearTimeout(scrollTimer);
+    };
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <OreModal
@@ -59,55 +88,126 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
       onClose={onClose}
       title={t('home.selectInstanceModal.title')}
       className="w-full max-w-4xl"
+      contentClassName="flex min-h-0 flex-col overflow-hidden p-0"
     >
-      <FocusBoundary id="instance-select-boundary" trapFocus={true} onEscape={onClose}>
-        
-        {instances.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-[#1E1E1F] bg-[#141415]/50 m-2">
-            <span className="text-ore-text-muted font-minecraft mb-2 tracking-wider">
-              {t('home.selectInstanceModal.empty')}
-            </span>
-            <span className="text-[#A0A0A0] font-minecraft text-xs">
-              {t('home.selectInstanceModal.emptyHint')}
-            </span>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-2 max-h-[60vh] overflow-y-auto no-scrollbar pb-6">
-            {instances.map((instance) => (
-              
-              <FocusItem 
-                key={instance.id} 
-                focusKey={`instance-card-${instance.id}`} 
-                onEnter={() => handleSelect(instance.id)} // ✅ 使用拦截器
-              >
-                {({ ref, focused }) => (
-                  <div 
-                    ref={ref}
-                    onClick={() => handleSelect(instance.id)} // ✅ 使用拦截器
-                    className={`
-                      rounded-sm transition-all duration-200 cursor-pointer
-                      ${focused ? 'outline outline-[4px] outline-offset-4 outline-white/80 scale-[1.02] shadow-[0_0_20px_rgba(255,255,255,0.2)] z-10' : ''}
-                    `}
+      <FocusBoundary
+        id="instance-select-boundary"
+        trapFocus={true}
+        onEscape={onClose}
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        <div
+          ref={scrollContainerRef}
+          className="min-h-0 flex-1 overflow-y-auto custom-scrollbar"
+        >
+          {instances.length === 0 ? (
+            <div className="m-4 flex h-64 flex-col items-center justify-center border-2 border-dashed border-[#1E1E1F] bg-[#141415]/50">
+              <span className="mb-2 font-minecraft tracking-wider text-ore-text-muted">
+                {t('home.selectInstanceModal.empty')}
+              </span>
+              <span className="font-minecraft text-xs text-[#A0A0A0]">
+                {t('home.selectInstanceModal.emptyHint')}
+              </span>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex h-48 flex-col items-center justify-center">
+              <span className="font-minecraft text-sm tracking-wider text-ore-text-muted">
+                {t('home.selectInstanceModal.noResults', 'No matching instances')}
+              </span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 p-4 pb-6 sm:grid-cols-2 lg:grid-cols-3">
+              {filtered.map((instance) => {
+                const isCurrent = instance.id === currentSelectedId;
+
+                return (
+                  <FocusItem
+                    key={instance.id}
+                    focusKey={`instance-card-${instance.id}`}
+                    onEnter={() => handleSelect(instance.id)}
                   >
-                    <OreInstanceCard
-                      id={instance.id}
-                      name={instance.name}
-                      mcVersion={instance.version}
-                      loaderType={instance.loader}
-                      lastPlayed={instance.lastPlayed}
-                      coverUrl={instance.coverUrl}
-                      isActive={instance.id === currentSelectedId} // ✅ 使用智能判定的 ID
-                      onClick={() => handleSelect(instance.id)} // ✅ 使用拦截器
-                      className="w-full h-64 pointer-events-none" // 卡片内部不要阻挡外层的点击
-                    />
-                  </div>
+                    {({ ref, focused }) => (
+                      <div
+                        ref={(el) => {
+                          (ref as React.MutableRefObject<HTMLDivElement | null>).current = el;
+                          if (isCurrent) {
+                            (currentCardRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+                          }
+                        }}
+                        onClick={() => handleSelect(instance.id)}
+                        className={`
+                          cursor-pointer rounded-sm transition-all duration-200
+                          ${focused ? 'z-10 scale-[1.02] outline outline-[4px] outline-offset-4 outline-white/80 shadow-[0_0_20px_rgba(255,255,255,0.2)]' : ''}
+                        `}
+                      >
+                        <OreInstanceCard
+                          id={instance.id}
+                          name={instance.name}
+                          mcVersion={instance.version}
+                          loaderType={instance.loader}
+                          lastPlayed={instance.lastPlayed}
+                          coverUrl={instance.coverUrl}
+                          isActive={isCurrent}
+                          onClick={() => handleSelect(instance.id)}
+                          className="pointer-events-none h-64 w-full"
+                        />
+                      </div>
+                    )}
+                  </FocusItem>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div
+          className="sticky bottom-0 z-10 flex-shrink-0 border-t-[3px] border-[var(--ore-border-color)] bg-[var(--ore-modal-footer-bg)] px-4 py-3"
+          style={{ boxShadow: 'var(--ore-modal-footer-shadow)' }}
+        >
+          <div className="mx-auto flex w-full max-w-2xl flex-col">
+            <div className="relative flex items-center">
+              <Search
+                size={16}
+                className="pointer-events-none absolute left-3 text-[var(--ore-text-muted)]"
+              />
+              <input
+                ref={searchRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t(
+                  'home.selectInstanceModal.searchPlaceholder',
+                  'Search title, Loader, or MC version...',
                 )}
-              </FocusItem>
+                className={`
+                  w-full rounded-sm border-2 border-[var(--ore-border-color)]
+                  bg-[var(--ore-input-bg,#0d0d0d)] py-2 pl-9 pr-4 text-sm font-minecraft tracking-wide
+                  text-[var(--ore-modal-content-text)] placeholder-[var(--ore-text-muted)]
+                  outline-none transition-colors duration-150
+                  focus:border-[var(--ore-focus-ring,#7dae4b)]
+                `}
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  className="absolute right-3 text-xs font-minecraft text-[var(--ore-text-muted)] transition-colors hover:text-white"
+                >
+                  x
+                </button>
+              )}
+            </div>
 
-            ))}
+            {q && (
+              <p className="mt-1.5 pl-1 text-xs font-minecraft text-[var(--ore-text-muted)]">
+                {t('home.selectInstanceModal.resultCount', {
+                  count: filtered.length,
+                  defaultValue: `Found ${filtered.length} instances`,
+                })}
+              </p>
+            )}
           </div>
-        )}
-
+        </div>
       </FocusBoundary>
     </OreModal>
   );

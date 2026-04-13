@@ -1,8 +1,8 @@
-// /src/store/useLauncherStore.ts
 import { create } from 'zustand';
+import { subscribeWithSelector } from 'zustand/middleware';
+
 import type { OnlineServer } from '../features/multiplayer/types';
 
-// 1. 定义全局合法的路由 Tab 类型 (在这里新增了 'new-instance')
 export type TabType =
   | 'home'
   | 'news'
@@ -15,7 +15,15 @@ export type TabType =
   | 'instance-detail'
   | 'instance-mod-download';
 
-export type DetailTabType = 'overview' | 'basic' | 'java' | 'saves' | 'mods' | 'resourcepacks' | 'shaders' | 'export';
+export type DetailTabType =
+  | 'overview'
+  | 'basic'
+  | 'java'
+  | 'saves'
+  | 'mods'
+  | 'resourcepacks'
+  | 'shaders'
+  | 'export';
 
 export type InstanceDownloadTarget = 'mod' | 'resourcepack' | 'shader';
 
@@ -35,92 +43,93 @@ export interface BackgroundData {
   overlayBlur: number;
 }
 
-// 2. 定义 Store 状态和操作方法的类型
 interface LauncherState {
-  // 全局导航/路由状态
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
+
   unreadNewsCount: number;
   setUnreadNewsCount: (count: number) => void;
 
-  // 当前选中的游戏实例状态 (用于全局启动游戏)
   currentInstance: InstanceData | null;
   setInstance: (instance: InstanceData | null) => void;
 
-  // ✅ 新增：用于在“实例列表”和“详情页”之间传递选中的实例 ID
   selectedInstanceId: string | null;
   setSelectedInstanceId: (id: string | null) => void;
 
-  // ✅ 新增：由于联机系统可能触发创建绑定实例，挂起目标服务器信标
   pendingServerBinding: OnlineServer | null;
   setPendingServerBinding: (server: OnlineServer | null) => void;
 
-  // 新增：保存详情页当前的内部 Tab
   instanceDetailTab: DetailTabType;
   setInstanceDetailTab: (tab: DetailTabType) => void;
 
   instanceDownloadTarget: InstanceDownloadTarget;
   setInstanceDownloadTarget: (target: InstanceDownloadTarget) => void;
 
-  // 背景表现状态
   background: BackgroundData;
   setBackground: (bgUpdate: Partial<BackgroundData>) => void;
 
-  // 系统底层交互动作 (Mock - 实际启动请使用 useGameLaunch 钩子)
   launchGame: () => Promise<void>;
 }
 
-// 3. 创建并导出 Zustand Store
-export const useLauncherStore = create<LauncherState>((set, get) => ({
-  // --- 导航状态 ---
-  activeTab: 'home',
-  setActiveTab: (tab) => set({ activeTab: tab }),
-  unreadNewsCount: 4,
-  setUnreadNewsCount: (count) => set({ unreadNewsCount: count }),
+const initialBackground: BackgroundData = {
+  type: 'image',
+  source: '/assets/home/wallpaer/1.webp',
+  overlayColor: '#000000',
+  overlayOpacity: 0.5,
+  overlayBlur: 4,
+};
 
-  // --- 实例状态 ---
-  currentInstance: {
-    id: '1',
-    name: 'Survival 1.20.4',
-    playTime: 124.5,
-    lastPlayed: '2026-02-23',
-  },
-  setInstance: (instance) => set({ currentInstance: instance }),
+export const useLauncherStore = create<LauncherState>()(
+  subscribeWithSelector((set, get) => ({
+    activeTab: 'home',
+    setActiveTab: (tab) => set({ activeTab: tab }),
 
-  // ✅ 新增：初始化选中实例 ID 状态及修改方法
-  selectedInstanceId: null,
-  setSelectedInstanceId: (id) => set({ selectedInstanceId: id }),
+    unreadNewsCount: 4,
+    setUnreadNewsCount: (count) => set({ unreadNewsCount: count }),
 
-  pendingServerBinding: null,
-  setPendingServerBinding: (server) => set({ pendingServerBinding: server }),
+    currentInstance: {
+      id: '1',
+      name: 'Survival 1.20.4',
+      playTime: 124.5,
+      lastPlayed: '2026-02-23',
+    },
+    setInstance: (instance) => set({ currentInstance: instance }),
 
-  instanceDetailTab: 'overview',
-  setInstanceDetailTab: (tab) => set({ instanceDetailTab: tab }),
+    selectedInstanceId: null,
+    setSelectedInstanceId: (id) => set({ selectedInstanceId: id }),
 
-  instanceDownloadTarget: 'mod',
-  setInstanceDownloadTarget: (target) => set({ instanceDownloadTarget: target }),
+    pendingServerBinding: null,
+    setPendingServerBinding: (server) => set({ pendingServerBinding: server }),
 
-  // --- 背景状态 ---
-  background: {
-    type: 'image',
-    source: '/assets/home/wallpaer/1.webp',
-    overlayColor: '#000000',
-    overlayOpacity: 0.5,
-    overlayBlur: 4,
-  },
-  setBackground: (bgUpdate) =>
-    set((state) => ({ background: { ...state.background, ...bgUpdate } })),
+    instanceDetailTab: 'overview',
+    setInstanceDetailTab: (tab) => set({ instanceDetailTab: tab }),
 
-  // --- 系统交互动作 ---
-  launchGame: async () => {
-    const { currentInstance } = get();
+    instanceDownloadTarget: 'mod',
+    setInstanceDownloadTarget: (target) => set({ instanceDownloadTarget: target }),
 
-    if (!currentInstance) {
-      console.warn("无法启动：未选择任何实例！");
-      return;
-    }
+    background: initialBackground,
+    setBackground: (bgUpdate) =>
+      set((state) => ({
+        background: {
+          ...state.background,
+          ...bgUpdate,
+        },
+      })),
 
-    console.warn("[LauncherStore] launchGame 仅仅是状态修改桩（Mock），真实的启动流程请使用由 useGameLaunch hook 提供的 launchGame 方法！");
-    console.log(`[Tauri IPC Mock] 伪启动模拟: ${currentInstance.name} (ID: ${currentInstance.id})...`);
-  }
-}));
+    launchGame: async () => {
+      const { currentInstance } = get();
+
+      if (!currentInstance) {
+        console.warn('Cannot launch game: no instance is selected.');
+        return;
+      }
+
+      console.warn(
+        '[LauncherStore] launchGame is only a mock state action. Use the useGameLaunch hook for the real launch flow.',
+      );
+      console.log(
+        `[Tauri IPC Mock] Pretend launching ${currentInstance.name} (ID: ${currentInstance.id})...`,
+      );
+    },
+  })),
+);

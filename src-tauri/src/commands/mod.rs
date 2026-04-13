@@ -42,6 +42,8 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         config_cmd::set_base_directory,
         config_cmd::rename_base_directory,
         config_cmd::migrate_base_directory,
+        config_cmd::save_selected_instance,
+        config_cmd::load_selected_instance,
         settings_cmd::get_settings,
         settings_cmd::save_settings,
         system_cmd::get_system_fonts,

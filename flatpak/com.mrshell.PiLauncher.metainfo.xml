@@ -34,10 +34,24 @@
   </categories>
 
   <releases>
-    <release version="0.1.22" date="2026-04-12">
+    <release version="0.1.24" date="2026-04-14">
       <description>
         <p xml:lang="zh_CN">正式版更新</p>
-        <p>22 version update.</p>
+        <ul xml:lang="zh_CN">
+          <li>[新功能] 支持记录上次选择的游戏实例，启动应用后自动定位。</li>
+          <li>[新功能] 重构实例选择弹窗，增加搜索过滤功能（支持标题、加载器、MC版本）。</li>
+          <li>[新功能] 针对 Steam Deck 优化了权限配置，支持读写 SD 卡及完整的 Steam 目录。</li>
+          <li>[优化] 打开实例选择弹窗时自动滚动并聚焦到当前选中的实例。</li>
+          <li>[优化] 完善了中英文翻译及相关提示信息。</li>
+        </ul>
+        <p>Official Release Update</p>
+        <ul>
+          <li>[New] Added persistence for the last selected game instance.</li>
+          <li>[New] Refactored Instance Selection Modal with real-time search and filtering (by name, loader, or version).</li>
+          <li>[New] Optimized Flatpak permissions for Steam Deck, supporting SD card access and full Steam folder read/write.</li>
+          <li>[Optimization] Improved UX in selection modal with auto-scroll and focus transitions.</li>
+          <li>[Optimization] Updated localization and various UI hints in multiple languages.</li>
+        </ul>
       </description>
     </release>
   </releases>

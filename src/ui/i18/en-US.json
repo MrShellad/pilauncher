@@ -13,7 +13,10 @@
     "selectInstanceModal": {
       "title": "Select Instance",
       "empty": "No instances created yet",
-      "emptyHint": "Go to Instance Management to create or import your first game environment"
+      "emptyHint": "Go to Instance Management to create or import your first game environment",
+      "searchPlaceholder": "Search title, Loader, or MC version...",
+      "noResults": "No matching instances found",
+      "resultCount": "Found {{count}} instances"
     },
     "noAccount": {
       "title": "Cannot Launch Instance",
@@ -288,6 +291,88 @@
       "worldgen": "World Gen"
     }
   },
+  "modSnapshots": {
+    "title": "Mod Snapshot Timeline",
+    "empty": "No snapshot records yet.",
+    "emptySelection": "Select a snapshot from the left first.",
+    "loadingDiff": "Calculating differences from the previous snapshot...",
+    "noChanges": "No file-level changes compared with the previous snapshot.",
+    "triggers": {
+      "userManual": "Manual Snapshot",
+      "rollback": "Rollback Target",
+      "rollbackGuard": "Rollback Guard",
+      "auto": "Automatic Snapshot",
+      "unknown": "Unknown Source"
+    },
+    "timeline": {
+      "title": "Version History",
+      "current": "Current State",
+      "versionLabel": "Version #{{index}}",
+      "modCount": "{{count}} mods"
+    },
+    "tags": {
+      "current": "Current",
+      "history": "History",
+      "latestState": "Latest State",
+      "initialState": "Initial State",
+      "added": "Added",
+      "removed": "Removed",
+      "updated": "Updated",
+      "contentUpdated": "Content Updated",
+      "stateChanged": "State Changed",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "sections": {
+      "added": "Added {{count}} mods",
+      "removed": "Removed {{count}} mods",
+      "updated": "Updated {{count}} mods",
+      "stateChanged": "Changed enabled state for {{count}} mods"
+    },
+    "labels": {
+      "untitled": "Snapshot State",
+      "noMessage": "No note provided",
+      "createdAt": "Created At: {{value}}"
+    },
+    "summary": {
+      "compareWithPrevious": "Comparing the selected snapshot with the previous version.",
+      "initialSnapshot": "This is the earliest snapshot in history. The list below shows the recorded mod state."
+    },
+    "messages": {
+      "manualSnapshot": "Manual Snapshot ({{count}} mods)",
+      "createSuccess": "Snapshot created successfully. Recorded {{count}} mods.",
+      "createFailed": "Failed to create snapshot. Check the logs for details.",
+      "historyLoadFailed": "Failed to load snapshot history. Check the logs for details.",
+      "rollbackSuccess": "Rolled back to the selected snapshot.",
+      "rollbackFailed": "Failed to roll back snapshot. Check the logs for details."
+    },
+    "actions": {
+      "rollback": "Rollback to This Snapshot",
+      "rollingBack": "Rolling Back..."
+    },
+    "states": {
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "descriptions": {
+      "initialEnabled": "This mod is first recorded in this snapshot.",
+      "initialDisabled": "This mod is first recorded in this snapshot and is disabled here.",
+      "added": "This mod first appears in the selected snapshot.",
+      "removed": "This mod exists in the previous snapshot but not in the selected snapshot.",
+      "updated": "The file content of this mod changed.",
+      "stateChanged": "{{from}} -> {{to}}"
+    },
+    "meta": {
+      "file": "File: {{fileName}}",
+      "sha1": "SHA1: {{hash}}",
+      "version": "Version: {{version}}",
+      "project": "Project: {{modId}}",
+      "oldFile": "Old File: {{fileName}}",
+      "newFile": "New File: {{fileName}}",
+      "oldSha1": "Old SHA1: {{hash}}",
+      "newSha1": "New SHA1: {{hash}}"
+    }
+  },
   "saves": {
     "triggers": {
       "manual": "Manual Backup",
@@ -449,6 +534,40 @@
       "majorConfig": "Version-specific Configurations (Recommended)",
       "missingAuth": "Missing Java Environment",
       "memoryDesc": "New instances inherit this global config by default unless customized.",
+      "memoryMode": "Memory Allocation Mode",
+      "memoryLoading": "Reading system memory...",
+      "memoryEffective": "Current Effective Allocation",
+      "memoryTarget": "Requested Target",
+      "memoryRecommended": "Recommended",
+      "memorySafeLimit": "Safe Limit",
+      "memoryHardLimit": "Hard Limit",
+      "memoryAvailable": "Available Now",
+      "memoryTotal": "System Total",
+      "memoryProfile": "GC Profile",
+      "memoryApplyRecommended": "Apply Recommended",
+      "memoryModes": {
+        "auto": "Auto",
+        "manual": "Manual",
+        "force": "Force"
+      },
+      "memoryModeDescriptions": {
+        "auto": "Automatically calculates RAM allocation from the documented recommendation and safety limits.",
+        "manual": "Uses your requested target, but caps it to the current safe range when memory is tight.",
+        "force": "Ignores the safety limit and tries to honor your target, while still respecting the hard system cap."
+      },
+      "memoryProfiles": {
+        "small-heap": "Small Heap",
+        "standard-g1gc": "Standard G1GC",
+        "large-heap": "Large Heap Region Tuning"
+      },
+      "memoryWarnings": {
+        "hardLimitTitle": "Hard limit reached",
+        "hardLimitBody": "You requested {{requested}}, but the current hard limit is {{limit}}, so this run can only use {{effective}}.",
+        "safeLimitTitle": "Capped by safety limit",
+        "safeLimitBody": "You requested {{requested}}, but this run will be reduced to {{effective}} to keep within the safe limit ({{limit}}).",
+        "forceModeBody": "Force mode ignores the safety limit, but it still cannot exceed the current hard limit of {{limit}}.",
+        "autoModeBody": "Auto mode uses min(recommended {{recommended}}, safe limit {{safeLimit}}), so this run is expected to use {{effective}}."
+      },
       "maxMemory": "Global Maximum RAM Allocation",
       "maxMemoryDesc": "Dynamically adjust the maximum RAM for the game.",
       "jvmArgs": "Global Extra JVM Args",

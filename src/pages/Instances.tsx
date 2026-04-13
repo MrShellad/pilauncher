@@ -239,11 +239,11 @@ const Instances: React.FC = () => {
 
       <div
         className={`
-          flex-1 overflow-y-auto pb-10 pr-0 scrollbar-none
+          min-h-0 flex-1 overflow-y-auto pb-10 pr-0 scrollbar-none
           ${
             viewMode === 'grid'
               ? 'flex flex-wrap content-start justify-center gap-4 sm:gap-5 lg:gap-6'
-              : 'flex flex-col space-y-3'
+              : 'grid grid-cols-1 content-start gap-3 auto-rows-max'
           }
         `}
       >

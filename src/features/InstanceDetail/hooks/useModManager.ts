@@ -1,7 +1,7 @@
 // /src/features/InstanceDetail/hooks/useModManager.ts
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { listen } from '@tauri-apps/api/event';
-import { modService, type ModMeta, type SnapshotProgressEvent, type InstanceSnapshot, type SnapshotDiff } from '../logic/modService';
+import { modService, type ModMeta, type SnapshotProgressEvent } from '../logic/modService';
 import { fetchModrinthVersions } from '../logic/modrinthApi';
 
 export type ModSortType = 'time' | 'name' | 'fileName';

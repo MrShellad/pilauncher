@@ -1,7 +1,7 @@
 // src-tauri/src/commands/config_cmd.rs
 use crate::services::config_service::ConfigService;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Runtime};
 use walkdir::WalkDir;
 
@@ -101,4 +101,45 @@ pub async fn migrate_base_directory<R: Runtime>(
     }
 
     Ok(())
+}
+
+/// 将当前选中的实例 ID 持久化到 base_path/config/selected_instance.json
+#[tauri::command]
+pub async fn save_selected_instance<R: Runtime>(
+    app: AppHandle<R>,
+    instance_id: String,
+) -> Result<(), String> {
+    let base_path_str = match ConfigService::get_base_path(&app) {
+        Ok(Some(p)) => p,
+        _ => return Ok(()), // 未配置基础路径时静默忽略
+    };
+    let config_dir = PathBuf::from(base_path_str).join("config");
+    if !config_dir.exists() {
+        fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
+    }
+    let file_path = config_dir.join("selected_instance.json");
+    let content = serde_json::to_string_pretty(&serde_json::json!({ "selectedInstanceId": instance_id }))
+        .map_err(|e| e.to_string())?;
+    fs::write(file_path, content).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// 从 base_path/config/selected_instance.json 读取上次选中的实例 ID
+#[tauri::command]
+pub async fn load_selected_instance<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<Option<String>, String> {
+    let base_path_str = match ConfigService::get_base_path(&app) {
+        Ok(Some(p)) => p,
+        _ => return Ok(None),
+    };
+    let file_path = PathBuf::from(base_path_str)
+        .join("config")
+        .join("selected_instance.json");
+    if !file_path.exists() {
+        return Ok(None);
+    }
+    let content = fs::read_to_string(&file_path).map_err(|e| e.to_string())?;
+    let json: serde_json::Value = serde_json::from_str(&content).unwrap_or(serde_json::json!({}));
+    Ok(json["selectedInstanceId"].as_str().map(|s| s.to_string()))
 }

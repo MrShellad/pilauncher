@@ -6,12 +6,13 @@ interface FormRowProps {
   description?: React.ReactNode;
   control: React.ReactNode;
   className?: string;
+  controlClassName?: string;
   onClick?: () => void;
   vertical?: boolean; // 强制上下换行布局
 }
 
 export const FormRow: React.FC<FormRowProps> = ({ 
-  label, description, control, className = '', onClick, vertical = false 
+  label, description, control, className = '', controlClassName = '', onClick, vertical = false 
 }) => {
   const isClickable = !!onClick;
   
@@ -64,7 +65,7 @@ export const FormRow: React.FC<FormRowProps> = ({
       </div>
 
       {/* 右侧控件 */}
-      <div className="flex-shrink-0 flex items-center justify-end min-w-[120px] lg:mt-1">
+      <div className={`flex-shrink-0 flex items-center justify-end min-w-[120px] lg:mt-1 ${controlClassName}`}>
         {control}
       </div>
     </div>

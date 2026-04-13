@@ -20,7 +20,7 @@ export const InstanceListView: React.FC<InstanceListViewProps> = ({ instance, on
   const { isLaunching, launchGame } = useGameLaunch();
 
   return (
-    <div className="relative flex flex-row w-full h-[88px] bg-[#4B4C50] border-2 border-b-[4px] border-[#1E1E1F] overflow-hidden shadow-md">
+    <div className="relative flex w-full min-h-[88px] flex-none flex-row bg-[#4B4C50] border-2 border-b-[4px] border-[#1E1E1F] overflow-hidden shadow-md">
       
       {/* ✅ 修复 3：去除 (e) */}
       <FocusItem focusKey={`list-play-${instance.id}`} onEnter={() => launchGame(instance.id)}>

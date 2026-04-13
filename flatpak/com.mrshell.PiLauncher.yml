@@ -13,7 +13,8 @@ finish-args:
   - --socket=fallback-x11
   - --device=all
   - --socket=pulseaudio
-  - --filesystem=~/.local/share/Steam/userdata
+  - --filesystem=/run/media
+  - --filesystem=~/.local/share/Steam
   - --filesystem=home
   - --filesystem=xdg-data/.minecraft
   - --filesystem=xdg-data/PiLauncher:create
