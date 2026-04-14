@@ -116,7 +116,7 @@ const News: React.FC = () => {
     () => [
       ...visibleItems.flatMap((item) => {
         const focusSegment = getNewsFocusKeySegment(item.id);
-        return [`news-official-${focusSegment}`, `news-wiki-${focusSegment}`];
+        return [`news-create-${focusSegment}`, `news-official-${focusSegment}`, `news-wiki-${focusSegment}`];
       }),
     ],
     [visibleItems]
@@ -315,8 +315,14 @@ const News: React.FC = () => {
                       wikiLabel={pageCopy.wiki}
                       officialFocusKey={`news-official-${focusSegment}`}
                       wikiFocusKey={`news-wiki-${focusSegment}`}
+                      createInstanceFocusKey={`news-create-${focusSegment}`}
                       displayIndex={index}
+                      onCreateInstance={() => {
+                        useLauncherStore.getState().setPendingNewsVersion(item.version);
+                        setActiveTab('new-instance');
+                      }}
                       onActionFocus={() => handleNearEndFocus(index)}
+                      onCreateInstanceArrowPress={(direction) => moveLinearFocus(`news-create-${focusSegment}`, direction)}
                       onOfficialArrowPress={(direction) => moveLinearFocus(`news-official-${focusSegment}`, direction)}
                       onWikiArrowPress={(direction) => moveLinearFocus(`news-wiki-${focusSegment}`, direction)}
                     />

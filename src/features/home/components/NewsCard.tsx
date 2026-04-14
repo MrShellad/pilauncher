@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, ExternalLink } from 'lucide-react';
+import { BookOpen, ExternalLink, Plus } from 'lucide-react';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import { openExternalLink } from '../../../utils/openExternalLink';
 
@@ -18,7 +18,11 @@ interface NewsCardProps {
   officialFocusKey: string;
   wikiFocusKey: string;
   displayIndex: number;
+  onCreateInstance?: () => void;
+  createInstanceLabel?: string;
+  createInstanceFocusKey?: string;
   onActionFocus?: () => void;
+  onCreateInstanceArrowPress?: (direction: string) => boolean | void;
   onOfficialArrowPress?: (direction: string) => boolean | void;
   onWikiArrowPress?: (direction: string) => boolean | void;
 }
@@ -37,7 +41,11 @@ export const NewsCard: React.FC<NewsCardProps> = ({
   officialFocusKey,
   wikiFocusKey,
   displayIndex,
+  onCreateInstance,
+  createInstanceLabel = '创建对应实例',
+  createInstanceFocusKey,
   onActionFocus,
+  onCreateInstanceArrowPress,
   onOfficialArrowPress,
   onWikiArrowPress,
 }) => {
@@ -114,34 +122,51 @@ export const NewsCard: React.FC<NewsCardProps> = ({
           {summary}
         </p>
 
-        <div className="mt-auto flex gap-3">
-          <OreButton
-            focusKey={officialFocusKey}
-            variant="secondary"
-            size="auto"
-            className="flex-1 !min-w-0 !h-11 gap-2"
-            onClick={() => void openExternalLink(officialUrl)}
-            onFocus={onActionFocus}
-            onArrowPress={onOfficialArrowPress}
-            autoScroll
-          >
-            <ExternalLink size={16} />
-            <span>{officialLabel}</span>
-          </OreButton>
+        <div className="mt-auto flex flex-col gap-3">
+          {onCreateInstance && (
+            <OreButton
+              focusKey={createInstanceFocusKey}
+              variant="primary"
+              size="auto"
+              className="w-full !h-11 gap-2 !text-white ore-text-shadow"
+              onClick={onCreateInstance}
+              onFocus={onActionFocus}
+              onArrowPress={onCreateInstanceArrowPress}
+              autoScroll
+            >
+              <Plus size={16} />
+              <span>{createInstanceLabel}</span>
+            </OreButton>
+          )}
+          <div className="flex gap-3">
+            <OreButton
+              focusKey={officialFocusKey}
+              variant="secondary"
+              size="auto"
+              className="flex-1 !min-w-0 !h-11 gap-2"
+              onClick={() => void openExternalLink(officialUrl)}
+              onFocus={onActionFocus}
+              onArrowPress={onOfficialArrowPress}
+              autoScroll
+            >
+              <ExternalLink size={16} />
+              <span>{officialLabel}</span>
+            </OreButton>
 
-          <OreButton
-            focusKey={wikiFocusKey}
-            variant="primary"
-            size="auto"
-            className="flex-1 !min-w-0 !h-11 gap-2 !text-white"
-            onClick={() => void openExternalLink(wikiUrl)}
-            onFocus={onActionFocus}
-            onArrowPress={onWikiArrowPress}
-            autoScroll
-          >
-            <BookOpen size={16} />
-            <span>{wikiLabel}</span>
-          </OreButton>
+            <OreButton
+              focusKey={wikiFocusKey}
+              variant="secondary"
+              size="auto"
+              className="flex-1 !min-w-0 !h-11 gap-2"
+              onClick={() => void openExternalLink(wikiUrl)}
+              onFocus={onActionFocus}
+              onArrowPress={onWikiArrowPress}
+              autoScroll
+            >
+              <BookOpen size={16} />
+              <span>{wikiLabel}</span>
+            </OreButton>
+          </div>
         </div>
       </div>
     </motion.article>

@@ -17,6 +17,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
 import { useAccountStore } from '../../../../store/useAccountStore';
+import { useDownloadStore } from '../../../../store/useDownloadStore';
 import { useSettingsStore } from '../../../../store/useSettingsStore';
 import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
@@ -45,9 +46,12 @@ interface PendingUpdateContext {
   region: string;
 }
 
+const APP_UPDATE_TASK_ID = 'launcher-update';
+
 export const GeneralSettings: React.FC = () => {
   const { t } = useTranslation();
   const { settings, updateGeneralSetting, resetSettings } = useSettingsStore();
+  const { addOrUpdateTask, setPopupOpen } = useDownloadStore();
   const { accounts, activeAccountId } = useAccountStore();
   const { general } = settings;
 
@@ -163,18 +167,63 @@ export const GeneralSettings: React.FC = () => {
       return;
     }
 
+    const installPayload = {
+      uuid: pendingUpdate.uuid,
+      region: pendingUpdate.region,
+      expectedVersion: pendingUpdate.version,
+    };
+    const updateTitle = `PiLauncher v${pendingUpdate.version}`;
+
     try {
       setIsInstalling(true);
-      await invoke('install_update', {
-        uuid: pendingUpdate.uuid,
-        region: pendingUpdate.region,
-        expectedVersion: pendingUpdate.version,
+      addOrUpdateTask({
+        id: APP_UPDATE_TASK_ID,
+        taskType: 'update',
+        title: updateTitle,
+        stage: 'CHECKING_UPDATE',
+        current: 0,
+        total: 0,
+        retryAction: 'install_update',
+        retryPayload: installPayload,
+        message: t('settings.general.checkUpdate.preparing', {
+          defaultValue: '正在准备启动器更新任务...'
+        })
       });
+      setPopupOpen(true);
       clearPendingUpdate();
       setIsUpdateDialogOpen(false);
+      await invoke('install_update', installPayload);
+      addOrUpdateTask({
+        id: APP_UPDATE_TASK_ID,
+        taskType: 'update',
+        title: updateTitle,
+        stage: 'DONE',
+        current: 1,
+        total: 1,
+        retryAction: 'install_update',
+        retryPayload: installPayload,
+        message: t('settings.general.checkUpdate.installFinished', {
+          defaultValue: '更新包下载完成，安装器已启动。'
+        })
+      });
       setIsInstalling(false);
     } catch (error) {
       console.error('[Updater] 应用内更新失败:', error);
+      addOrUpdateTask({
+        id: APP_UPDATE_TASK_ID,
+        taskType: 'update',
+        title: updateTitle,
+        stage: 'ERROR',
+        current: 0,
+        total: 1,
+        retryAction: 'install_update',
+        retryPayload: installPayload,
+        message: t('settings.general.checkUpdate.installFailed', {
+          defaultValue: '启动器更新失败：{{error}}',
+          error: String(error)
+        })
+      });
+      setPopupOpen(true);
       setIsInstalling(false);
     }
   };

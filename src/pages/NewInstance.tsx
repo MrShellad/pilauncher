@@ -5,6 +5,7 @@ import { Hammer, PackagePlus, FolderArchive, ArrowLeft, Zap, Server as ServerIco
 import { CustomInstanceView } from '../features/Instances/components/CustomInstanceView';
 import { ModpackView } from '../features/Instances/components/ModpackView';
 import { LocalImportView } from '../features/Instances/components/LocalImportView';
+import { useLauncherStore } from '../store/useLauncherStore';
 // 引入 Tauri 的系统浏览器调用 API
 import { open } from '@tauri-apps/plugin-shell';
 
@@ -48,7 +49,19 @@ const GamepadBtn = ({ text, color, shadow, fontSize = "13" }: { text: string, co
 );
 
 export default function NewInstance() {
-  const [view, setView] = useState<CreationView>('menu');
+  const [view, setView] = useState<CreationView>(() => {
+    // 如果从新闻卡片跳转过来，直接进入自建流程
+    const pending = useLauncherStore.getState().pendingNewsVersion;
+    return pending ? 'custom' : 'menu';
+  });
+
+  // ✅ 包装 setView：返回 menu 时清理 pendingNewsVersion，防止下次进入时误触
+  const handleSetView = (newView: CreationView) => {
+    if (newView === 'menu') {
+      useLauncherStore.getState().setPendingNewsVersion(null);
+    }
+    setView(newView);
+  };
   const [sponsors, setSponsors] = useState<SponsorItem[]>([]);
 
   useEffect(() => {
@@ -71,10 +84,15 @@ export default function NewInstance() {
   }, []);
 
   useEffect(() => {
-    if (view === 'menu') {
-      const timer = setTimeout(() => focusManager.focus('card-custom'), 100);
-      return () => clearTimeout(timer);
-    }
+    const timer = setTimeout(() => {
+      if (view === 'menu') {
+        focusManager.focus('card-custom');
+      } else {
+        // 进入子视图时，默认将焦点锁定到返回按钮
+        focusManager.focus('btn-back-menu');
+      }
+    }, 100);
+    return () => clearTimeout(timer);
   }, [view]);
 
   useEffect(() => {
@@ -82,7 +100,7 @@ export default function NewInstance() {
       if (e.key === 'Escape' && view !== 'menu') {
         const activeEl = document.activeElement as HTMLElement;
         if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) return;
-        setView('menu');
+        handleSetView('menu');
       }
     };
     window.addEventListener('keydown', handleEsc);
@@ -92,7 +110,7 @@ export default function NewInstance() {
   // ✅ 监听手柄 B 键 (CANCEL) 返回主菜单
   useInputAction('CANCEL', () => {
     if (view !== 'menu') {
-      setView('menu');
+      handleSetView('menu');
     }
   });
 
@@ -119,10 +137,10 @@ export default function NewInstance() {
           </div>
 
           <div className="flex flex-wrap justify-center items-center gap-8 xl:gap-12 flex-1">
-            <FocusItem focusKey="card-custom" onEnter={() => setView('custom')}>
+            <FocusItem focusKey="card-custom" onEnter={() => handleSetView('custom')}>
               {({ ref, focused }) => (
                 <motion.div
-                  ref={ref} onClick={() => setView('custom')}
+                  ref={ref} onClick={() => handleSetView('custom')}
                   initial="rest" animate={focused ? "hover" : "rest"} whileHover="hover"
                   variants={OreMotionTokens.bedrockCardHover as Variants}
                   className={`w-52 h-64 md:w-60 md:h-72 bg-[#2A2A2C] border-[3px] border-[#1E1E1F] flex flex-col cursor-pointer shadow-xl ${focused ? 'outline outline-[4px] outline-offset-4 outline-ore-green z-20' : ''}`}
@@ -140,10 +158,10 @@ export default function NewInstance() {
               )}
             </FocusItem>
 
-            <FocusItem focusKey="card-download" onEnter={() => setView('download')}>
+            <FocusItem focusKey="card-download" onEnter={() => handleSetView('download')}>
               {({ ref, focused }) => (
                 <motion.div
-                  ref={ref} onClick={() => setView('download')}
+                  ref={ref} onClick={() => handleSetView('download')}
                   initial="rest" animate={focused ? "hover" : "rest"} whileHover="hover"
                   variants={OreMotionTokens.bedrockCardHover as Variants}
                   className={`w-52 h-64 md:w-60 md:h-72 bg-[#2A2A2C] border-[3px] border-[#1E1E1F] flex flex-col cursor-pointer shadow-xl ${focused ? 'outline outline-[4px] outline-offset-4 outline-blue-500 z-20' : ''}`}
@@ -161,10 +179,10 @@ export default function NewInstance() {
               )}
             </FocusItem>
 
-            <FocusItem focusKey="card-import" onEnter={() => setView('import')}>
+            <FocusItem focusKey="card-import" onEnter={() => handleSetView('import')}>
               {({ ref, focused }) => (
                 <motion.div
-                  ref={ref} onClick={() => setView('import')}
+                  ref={ref} onClick={() => handleSetView('import')}
                   initial="rest" animate={focused ? "hover" : "rest"} whileHover="hover"
                   variants={OreMotionTokens.bedrockCardHover as Variants}
                   className={`w-52 h-64 md:w-60 md:h-72 bg-[#2A2A2C] border-[3px] border-[#1E1E1F] flex flex-col cursor-pointer shadow-xl ${focused ? 'outline outline-[4px] outline-offset-4 outline-orange-400 z-20' : ''}`}
@@ -266,17 +284,24 @@ export default function NewInstance() {
       {view !== 'menu' && (
         <div className="flex flex-col w-full h-full">
           <div className="h-14 bg-[#1E1E1F] border-b-2 border-[#141415] flex items-center px-4 flex-shrink-0 z-20">
-            <button 
-              onClick={() => setView('menu')} 
-              tabIndex={-1}
-              className="flex items-center transition-colors font-minecraft px-4 py-2 rounded-sm outline-none text-ore-text-muted hover:text-white hover:bg-white/5"
-            >
-              <ArrowLeft size={18} className="mr-2" />
-              返回创建菜单
-              <div className="ml-3 flex items-center text-[10px] text-ore-text-muted/60">
-                <GamepadBtn text="B" color="#EF4444" shadow="drop-shadow-[0_0_2px_rgba(239,68,68,0.5)]" fontSize="11" />
-              </div>
-            </button>
+            <FocusItem focusKey="btn-back-menu" onEnter={() => handleSetView('menu')}>
+              {({ ref, focused }) => (
+                <button 
+                  ref={ref}
+                  onClick={() => handleSetView('menu')} 
+                  className={`
+                    flex items-center transition-colors font-minecraft px-4 py-2 rounded-sm outline-none text-ore-text-muted hover:text-white hover:bg-white/5
+                    ${focused ? 'bg-white/10 text-white outline outline-2 outline-ore-focus outline-offset-2' : ''}
+                  `}
+                >
+                  <ArrowLeft size={18} className="mr-2" />
+                  返回创建菜单
+                  <div className="ml-3 flex items-center text-[10px] text-ore-text-muted/60">
+                    <GamepadBtn text="B" color="#EF4444" shadow="drop-shadow-[0_0_2px_rgba(239,68,68,0.5)]" fontSize="11" />
+                  </div>
+                </button>
+              )}
+            </FocusItem>
             
             <div className="ml-auto flex items-center pr-4">
               <span className="text-white font-minecraft text-lg font-bold">
@@ -288,7 +313,7 @@ export default function NewInstance() {
           </div>
 
           <div className="flex-1 overflow-hidden relative">
-            {view === 'custom' && <CustomInstanceView onSuccess={() => setView('menu')} />}
+            {view === 'custom' && <CustomInstanceView onSuccess={() => handleSetView('menu')} />}
             {view === 'download' && <ModpackView />}
             {view === 'import' && <LocalImportView />}
           </div>

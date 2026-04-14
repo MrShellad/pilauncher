@@ -84,6 +84,16 @@ export const useCustomInstance = () => {
     }
   }, []);
 
+  // ✅ 从新闻卡片跳转：预设 MC 版本并直接进入步骤 2（选择引导器）
+  useEffect(() => {
+    const pendingVersion = useLauncherStore.getState().pendingNewsVersion;
+    if (pendingVersion) {
+      setGameVersion(pendingVersion);
+      setStep(2);
+      useLauncherStore.getState().setPendingNewsVersion(null);
+    }
+  }, []);
+
   const handleRefreshVersions = () => fetchVersions(true);
 
   // 根据类型过滤版本

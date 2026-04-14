@@ -1,9 +1,10 @@
 import { create } from 'zustand';
+
 import { useSettingsStore } from './useSettingsStore';
 
 export interface DownloadTask {
   id: string;
-  taskType: 'instance' | 'resource';
+  taskType: 'instance' | 'resource' | 'update';
   title: string;
   status: 'downloading' | 'paused' | 'completed' | 'error';
   stage: string;
@@ -39,6 +40,9 @@ interface DownloadStore {
 const FILE_COUNT_PROGRESS_STAGES = new Set(['LIBRARIES', 'ASSETS', 'DOWNLOADING_MOD']);
 
 const PIPELINE_STAGE_MAP: Record<string, number> = {
+  CHECKING_UPDATE: 0,
+  DOWNLOADING_UPDATE: 0,
+  INSTALLING_UPDATE: 1,
   DOWNLOADING_MODPACK: 0,
   VANILLA_CORE: 0,
   LOADER_CORE: 0,
@@ -52,38 +56,81 @@ const PIPELINE_STAGE_MAP: Record<string, number> = {
   DONE: 3,
 };
 
-const formatSpeed = (bytesDiff: number, timeDiff: number, unit: string): { str: string; bytes: number } => {
+const formatSpeed = (
+  bytesDiff: number,
+  timeDiff: number,
+  unit: string,
+): { str: string; bytes: number } => {
+  if (timeDiff <= 0 || bytesDiff <= 0) {
+    return { str: '计算中...', bytes: 0 };
+  }
+
   const bytesPerSec = bytesDiff / timeDiff;
   const speedMBps = bytesPerSec / (1024 * 1024);
 
   if (unit === 'Mbps') {
     const speedMbps = speedMBps * 8;
-    const str = speedMbps > 1
-      ? `${speedMbps.toFixed(2)} Mbps`
-      : `${(speedMbps * 1000).toFixed(2)} Kbps`;
+    const str =
+      speedMbps > 1
+        ? `${speedMbps.toFixed(2)} Mbps`
+        : `${(speedMbps * 1000).toFixed(2)} Kbps`;
     return { str, bytes: bytesPerSec };
   }
 
-  const str = speedMBps > 1
-    ? `${speedMBps.toFixed(2)} MB/s`
-    : `${(bytesPerSec / 1024).toFixed(2)} KB/s`;
+  const str =
+    speedMBps > 1
+      ? `${speedMBps.toFixed(2)} MB/s`
+      : `${(bytesPerSec / 1024).toFixed(2)} KB/s`;
   return { str, bytes: bytesPerSec };
 };
 
 const formatEta = (remaining: number, speedBytesPerSec: number): string => {
   if (speedBytesPerSec <= 0 || remaining <= 0) return '';
+
   const seconds = Math.ceil(remaining / speedBytesPerSec);
+
   if (seconds > 3600) {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    return `剩余 ${h}时${m}分`;
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return `剩余 ${hours}时 ${minutes}分`;
   }
+
   if (seconds > 60) {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `剩余 ${m}分${s}秒`;
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `剩余 ${minutes}分 ${secs}秒`;
   }
+
   return `剩余 ${seconds}秒`;
+};
+
+const getStageText = (stage: string, taskType: DownloadTask['taskType']): string => {
+  const stageMap: Record<string, string> = {
+    CHECKING_UPDATE: '正在检查更新元数据',
+    DOWNLOADING_UPDATE: '正在下载启动器更新包',
+    INSTALLING_UPDATE: '正在启动安装器',
+    DOWNLOADING_MODPACK: '步骤 0/6: 获取整合包本体',
+    EXTRACTING: '步骤 1/6: 解压整合包资源',
+    VANILLA_CORE: '步骤 2/6: 安装游戏主体',
+    LOADER_CORE: '步骤 2.5/6: 安装 Loader 环境',
+    LIBRARIES: '步骤 3/6: 下载底层运行库',
+    ASSETS: '步骤 4/6: 补全原版资源',
+    DOWNLOADING_MOD:
+      taskType === 'resource'
+        ? '正在下载资源文件'
+        : '步骤 5/6: 按照队列拉取模组',
+    DOWNLOADING_RESOURCEPACK: '正在下载资源包',
+    DOWNLOADING_SHADER: '正在下载光影文件',
+    ERROR: '任务失败',
+    DONE:
+      taskType === 'resource'
+        ? '下载已完成'
+        : taskType === 'update'
+          ? '启动器更新已就绪'
+          : '实例部署已完成',
+  };
+
+  return stageMap[stage] || '处理中...';
 };
 
 export const useDownloadStore = create<DownloadStore>((set) => ({
@@ -102,13 +149,14 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
       const stage = update.stage ?? existingTask?.stage ?? '';
       const downloadSettings = useSettingsStore.getState().settings?.download;
       const unit = downloadSettings?.speedUnit || 'MB/s';
+
       let speedStr = existingTask?.speed || '计算中...';
       let speedBytes = existingTask?.speedBytes || 0;
 
       const isFileCountProgressStage = FILE_COUNT_PROGRESS_STAGES.has(stage);
       const hasExplicitSpeedSample = update.speedCurrent !== undefined;
       const canDeriveSpeedFromCurrent =
-        taskType === 'resource' || (taskType === 'instance' && !isFileCountProgressStage);
+        taskType !== 'instance' || !isFileCountProgressStage;
 
       if (
         hasExplicitSpeedSample &&
@@ -117,6 +165,7 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
       ) {
         const previousSampleAt = existingTask.lastSpeedUpdate ?? existingTask.lastUpdate;
         const timeDiff = (now - previousSampleAt) / 1000;
+
         if (timeDiff >= 0.2) {
           const bytesDiff = update.speedCurrent! - (existingTask.lastSpeedCurrent ?? 0);
           const result = formatSpeed(bytesDiff, timeDiff, unit);
@@ -130,6 +179,7 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
         update.current > existingTask.lastCurrent
       ) {
         const timeDiff = (now - existingTask.lastUpdate) / 1000;
+
         if (timeDiff >= 0.2) {
           const bytesDiff = update.current - existingTask.lastCurrent;
           const result = formatSpeed(bytesDiff, timeDiff, unit);
@@ -138,34 +188,20 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
         }
       }
 
-      const stageMap: Record<string, string> = {
-        DOWNLOADING_MODPACK: '步骤 0/6: 获取整合包本体',
-        EXTRACTING: '步骤 1/6: 解压整合包资源',
-        VANILLA_CORE: '步骤 2/6: 安装游戏主体',
-        LOADER_CORE: '步骤 2.5/6: 安装 Loader 环境',
-        LIBRARIES: '步骤 3/6: 下载底层运行库',
-        ASSETS: '步骤 4/6: 补全原版声音与材质',
-        DOWNLOADING_MOD:
-          taskType === 'resource' ? '正在下载模组文件' : '步骤 5/6: 按照队列拉取模组',
-        DOWNLOADING_RESOURCEPACK: '正在下载资源包',
-        DOWNLOADING_SHADER: '正在下载光影文件',
-        ERROR: '任务异常中止',
-        DONE: taskType === 'resource' ? '下载已完成' : '实例部署彻底完成',
-      };
-
-      const stepText = stage ? stageMap[stage] || '处理中...' : existingTask?.stepText || '';
-
       const newLogs = existingTask ? [...existingTask.logs] : [];
       if (update.message && newLogs[newLogs.length - 1] !== update.message) {
         newLogs.push(`[${new Date().toLocaleTimeString()}] ${update.message}`);
       }
 
-      const isError = stage === 'ERROR' || existingTask?.stage === 'ERROR';
-      const isDone = stage === 'DONE' || existingTask?.stage === 'DONE';
+      const isError = stage === 'ERROR';
+      const isDone = stage === 'DONE';
       const status = isDone ? 'completed' : isError ? 'error' : 'downloading';
 
-      const nextProgress =
-        typeof update.current === 'number' && typeof update.total === 'number' && update.total > 0
+      const nextProgress = isDone
+        ? 100
+        : typeof update.current === 'number' &&
+            typeof update.total === 'number' &&
+            update.total > 0
           ? Math.round((update.current / update.total) * 100)
           : existingTask?.progress || 0;
 
@@ -173,8 +209,11 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
       const totalVal = update.total ?? existingTask?.total ?? 0;
       const remaining = totalVal - currentVal;
       const etaStr = isDone || isError ? '' : formatEta(remaining, speedBytes);
-
-      const pipelineStage = isDone ? 3 : isError ? -1 : (PIPELINE_STAGE_MAP[stage] ?? existingTask?.pipelineStage ?? 0);
+      const pipelineStage = isDone
+        ? 3
+        : isError
+          ? -1
+          : PIPELINE_STAGE_MAP[stage] ?? existingTask?.pipelineStage ?? 0;
 
       const newTask: DownloadTask = {
         id: update.id,
@@ -182,10 +221,10 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
         title: update.title || existingTask?.title || update.id,
         status,
         stage,
-        stepText,
+        stepText: stage ? getStageText(stage, taskType) : existingTask?.stepText || '',
         progress: nextProgress,
-        current: update.current ?? existingTask?.current ?? 0,
-        total: update.total ?? existingTask?.total ?? 0,
+        current: currentVal,
+        total: totalVal,
         speedCurrent: update.speedCurrent ?? existingTask?.speedCurrent,
         speed: isDone || isError ? '0 KB/s' : speedStr,
         speedBytes: isDone || isError ? 0 : speedBytes,
@@ -193,7 +232,7 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
         pipelineStage,
         logs: newLogs.slice(-50),
         lastUpdate: now,
-        lastCurrent: update.current ?? existingTask?.lastCurrent ?? 0,
+        lastCurrent: currentVal,
         lastSpeedUpdate: hasExplicitSpeedSample ? now : existingTask?.lastSpeedUpdate,
         lastSpeedCurrent: hasExplicitSpeedSample
           ? update.speedCurrent
@@ -202,11 +241,9 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
         retryPayload: update.retryPayload || existingTask?.retryPayload,
       };
 
-      const isPopupOpen = !existingTask ? true : state.isPopupOpen;
-
       return {
         tasks: { ...state.tasks, [update.id]: newTask },
-        isPopupOpen,
+        isPopupOpen: !existingTask ? true : state.isPopupOpen,
       };
     }),
 
@@ -222,8 +259,10 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
     set((state) => {
       const newTasks = { ...state.tasks };
       delete newTasks[id];
+
       const newIgnored = new Set(state.ignoredTasks);
       newIgnored.add(id);
+
       return { tasks: newTasks, ignoredTasks: newIgnored };
     }),
 

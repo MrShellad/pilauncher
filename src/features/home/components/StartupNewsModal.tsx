@@ -70,7 +70,13 @@ export const StartupNewsModal: React.FC = () => {
         wikiLabel={pageCopy.wiki}
         officialFocusKey="startup-news-official"
         wikiFocusKey="startup-news-wiki"
+        createInstanceFocusKey="startup-news-create"
         displayIndex={0}
+        onCreateInstance={() => {
+          useLauncherStore.getState().setPendingNewsVersion(normalizedItem.version);
+          dismissStartupModal();
+          setActiveTab('new-instance');
+        }}
       />
     </OreModal>
   );

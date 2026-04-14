@@ -59,6 +59,9 @@ interface LauncherState {
   pendingServerBinding: OnlineServer | null;
   setPendingServerBinding: (server: OnlineServer | null) => void;
 
+  pendingNewsVersion: string | null;
+  setPendingNewsVersion: (version: string | null) => void;
+
   instanceDetailTab: DetailTabType;
   setInstanceDetailTab: (tab: DetailTabType) => void;
 
@@ -100,6 +103,9 @@ export const useLauncherStore = create<LauncherState>()(
 
     pendingServerBinding: null,
     setPendingServerBinding: (server) => set({ pendingServerBinding: server }),
+
+    pendingNewsVersion: null,
+    setPendingNewsVersion: (version) => set({ pendingNewsVersion: version }),
 
     instanceDetailTab: 'overview',
     setInstanceDetailTab: (tab) => set({ instanceDetailTab: tab }),

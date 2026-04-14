@@ -221,6 +221,20 @@ export const DownloadManager: React.FC = () => {
       });
     });
 
+    const unlistenLauncherUpdate = listen('launcher-update-progress', (event: any) => {
+      const payload = event.payload;
+      addOrUpdateTask({
+        id: payload.task_id || 'launcher-update',
+        taskType: 'update',
+        title: payload.title || (payload.version ? `PiLauncher v${payload.version}` : 'PiLauncher Update'),
+        stage: payload.stage || 'DOWNLOADING_UPDATE',
+        current: payload.current,
+        total: payload.total,
+        speedCurrent: payload.current,
+        message: payload.message ?? ''
+      });
+    });
+
     const unlistenJava = listen('java-installed-auto-set', (event: any) => {
       updateJavaSetting('javaPath', event.payload);
     });
@@ -230,6 +244,7 @@ export const DownloadManager: React.FC = () => {
       unlistenInstanceSpeed.then((fn) => fn());
       unlistenDownloadLog.then((fn) => fn());
       unlistenResource.then((fn) => fn());
+      unlistenLauncherUpdate.then((fn) => fn());
       unlistenJava.then((fn) => fn());
     };
   }, [addOrUpdateTask, updateJavaSetting]);
