@@ -292,7 +292,6 @@ export const useInputDriver = (
             else if (axis_value > AXIS_DEADZONE) currentAction = mapping.positive;
           }
           if (lastAxisActionRef.current[name] !== currentAction) {
-            console.log(`[摇杆拨动] ${name}(${code}): ${axis_value.toFixed(2)} => ${currentAction}`);
             lastAxisActionRef.current[name] = currentAction;
           }
         }
