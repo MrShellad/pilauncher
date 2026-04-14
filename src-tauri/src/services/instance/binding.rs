@@ -44,6 +44,8 @@ impl InstanceBindingService {
     }
 
     pub async fn upsert_instance(pool: &SqlitePool, config: &InstanceConfig) -> AppResult<()> {
+        let tags_json = config.tags.as_ref().map(|t| serde_json::to_string(t).unwrap_or_default());
+
         sqlx::query(
             "INSERT INTO instances (
                 id,
@@ -54,8 +56,15 @@ impl InstanceBindingService {
                 java_path,
                 min_memory,
                 max_memory,
-                icon_path
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                icon_path,
+                tags,
+                last_played_at,
+                playtime_secs,
+                jvm_args,
+                window_width,
+                window_height,
+                is_favorite
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 name = excluded.name,
                 mc_version = excluded.mc_version,
@@ -65,6 +74,13 @@ impl InstanceBindingService {
                 min_memory = excluded.min_memory,
                 max_memory = excluded.max_memory,
                 icon_path = excluded.icon_path,
+                tags = excluded.tags,
+                last_played_at = excluded.last_played_at,
+                playtime_secs = excluded.playtime_secs,
+                jvm_args = excluded.jvm_args,
+                window_width = excluded.window_width,
+                window_height = excluded.window_height,
+                is_favorite = excluded.is_favorite,
                 updated_at = CURRENT_TIMESTAMP",
         )
         .bind(&config.id)
@@ -76,6 +92,13 @@ impl InstanceBindingService {
         .bind(config.memory.min as i64)
         .bind(config.memory.max as i64)
         .bind(config.cover_image.as_deref())
+        .bind(tags_json)
+        .bind(&config.last_played)
+        .bind(config.play_time as i64)
+        .bind(config.jvm_args.as_deref())
+        .bind(config.window_width.map(|w| w as i64))
+        .bind(config.window_height.map(|h| h as i64))
+        .bind(config.is_favorite.unwrap_or(false))
         .execute(pool)
         .await?;
 

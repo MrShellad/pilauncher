@@ -40,6 +40,9 @@ impl InstanceListingService {
                             last_played: m.last_played,
                             cover_path: Self::resolve_cover(&path),
                             gamepad: m.gamepad,
+                            tags: m.tags.clone(),
+                            is_favorite: m.is_favorite,
+                            created_at: m.created_at,
                         });
                     }
                 }

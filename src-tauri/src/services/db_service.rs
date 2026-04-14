@@ -174,6 +174,13 @@ impl DbService {
                 min_memory INTEGER DEFAULT 1024,
                 max_memory INTEGER DEFAULT 4096,
                 icon_path TEXT,
+                tags TEXT,
+                last_played_at DATETIME,
+                playtime_secs INTEGER DEFAULT 0,
+                jvm_args TEXT,
+                window_width INTEGER,
+                window_height INTEGER,
+                is_favorite INTEGER DEFAULT 0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
@@ -298,6 +305,34 @@ impl DbService {
 
         for (column, statement) in transfer_alters {
             if !has_transfer_column(column) {
+                sqlx::query(statement).execute(pool).await?;
+            }
+        }
+
+        // Migrate instances table
+        let instance_rows = sqlx::query("PRAGMA table_info(instances)")
+            .fetch_all(pool)
+            .await?;
+
+        let has_instance_column = |name: &str| {
+            instance_rows.iter().any(|row| {
+                let col_name: String = sqlx::Row::get(row, "name");
+                col_name == name
+            })
+        };
+
+        let instance_alters = [
+            ("tags", "ALTER TABLE instances ADD COLUMN tags TEXT"),
+            ("last_played_at", "ALTER TABLE instances ADD COLUMN last_played_at DATETIME"),
+            ("playtime_secs", "ALTER TABLE instances ADD COLUMN playtime_secs INTEGER DEFAULT 0"),
+            ("jvm_args", "ALTER TABLE instances ADD COLUMN jvm_args TEXT"),
+            ("window_width", "ALTER TABLE instances ADD COLUMN window_width INTEGER"),
+            ("window_height", "ALTER TABLE instances ADD COLUMN window_height INTEGER"),
+            ("is_favorite", "ALTER TABLE instances ADD COLUMN is_favorite INTEGER DEFAULT 0"),
+        ];
+
+        for (column, statement) in instance_alters {
+            if !has_instance_column(column) {
                 sqlx::query(statement).execute(pool).await?;
             }
         }

@@ -62,6 +62,12 @@ pub struct InstanceConfig {
     pub third_party_path: Option<String>,
     pub server_binding: Option<ServerBinding>,
     pub auto_join_server: Option<bool>,
+    // Newly added fields
+    pub tags: Option<Vec<String>>,
+    pub jvm_args: Option<String>,
+    pub window_width: Option<u32>,
+    pub window_height: Option<u32>,
+    pub is_favorite: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -99,4 +105,7 @@ pub struct InstanceItem {
     pub last_played: String,
     pub cover_path: Option<String>,
     pub gamepad: Option<bool>,
+    pub tags: Option<Vec<String>>,
+    pub is_favorite: Option<bool>,
+    pub created_at: String,
 }

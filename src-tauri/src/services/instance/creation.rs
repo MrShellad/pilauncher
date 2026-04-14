@@ -95,6 +95,11 @@ impl InstanceCreationService {
             } else {
                 None
             },
+            tags: None,
+            jvm_args: None,
+            window_width: None,
+            window_height: None,
+            is_favorite: None,
         };
         fs::write(
             instance_root.join("instance.json"),

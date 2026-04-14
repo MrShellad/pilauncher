@@ -766,6 +766,11 @@ pub async fn import_third_party_instance<R: Runtime>(
         third_party_path: Some(path.clone()),
         server_binding: None,
         auto_join_server: None,
+        tags: None,
+        jvm_args: None,
+        window_width: None,
+        window_height: None,
+        is_favorite: None,
     };
 
     let config_content = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
@@ -1445,6 +1450,11 @@ pub async fn scan_instances_in_dir<R: Runtime>(
             third_party_path: Some(child.to_string_lossy().to_string()),
             server_binding: None,
             auto_join_server: None,
+            tags: None,
+            jvm_args: None,
+            window_width: None,
+            window_height: None,
+            is_favorite: None,
         };
 
         let config_content = match serde_json::to_string_pretty(&config) {
@@ -1824,6 +1834,11 @@ fn import_one_third_party_instance(
         third_party_path: Some(instance.path.clone()),
         server_binding: None,
         auto_join_server: None,
+        tags: None,
+        jvm_args: None,
+        window_width: None,
+        window_height: None,
+        is_favorite: None,
     };
 
     let config_content = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;

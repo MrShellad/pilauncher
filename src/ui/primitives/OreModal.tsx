@@ -2,7 +2,7 @@
 import React, { useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { doesFocusableExist } from '@noriginmedia/norigin-spatial-navigation';
+import { doesFocusableExist, getCurrentFocusKey } from '@noriginmedia/norigin-spatial-navigation';
 import { X } from 'lucide-react';
 
 import { FocusBoundary } from '../focus/FocusBoundary';
@@ -45,6 +45,26 @@ export const OreModal: React.FC<OreModalProps> = ({
   const closeFocusKey = `modal-close-${boundaryId}`;
   const modalEntryFocusKey = `modal-entry-${boundaryId}`;
   const boundaryDefaultFocusKey = defaultFocusKey || (hasTitleBar ? closeFocusKey : modalEntryFocusKey);
+
+  const previousFocusKeyRef = React.useRef<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      previousFocusKeyRef.current = getCurrentFocusKey();
+    }
+
+    return () => {
+      // 闭包中 isOpen 为 true 说明这是由于开启状态变为关闭状态，或者是被强制卸载引发的清理
+      if (isOpen && previousFocusKeyRef.current) {
+        const keyToRestore = previousFocusKeyRef.current;
+        setTimeout(() => {
+          if (doesFocusableExist(keyToRestore)) {
+            focusManager.focus(keyToRestore);
+          }
+        }, 120); // 预留时间等待弹窗动画淡出，避免焦点无法落根
+      }
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {

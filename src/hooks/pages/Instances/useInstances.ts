@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 
 import { useLauncherStore } from '../../../store/useLauncherStore';
@@ -17,6 +17,9 @@ export interface InstanceItem {
   playTime: number;
   lastPlayed: string;
   coverUrl: string;
+  tags?: string[];
+  isFavorite?: boolean;
+  createdAt: string;
 }
 
 const formatInstances = (data: any[]): InstanceItem[] =>
@@ -40,11 +43,19 @@ const formatInstances = (data: any[]): InstanceItem[] =>
       playTime: item.play_time,
       lastPlayed: item.last_played,
       coverUrl: finalCoverUrl,
+      tags: item.tags,
+      isFavorite: item.is_favorite,
+      createdAt: item.created_at,
     };
   });
 
+export type SortType = 'lastPlayed' | 'createdAt';
+
 export const useInstances = () => {
   const [instances, setInstances] = useState<InstanceItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [sortBy, setSortBy] = useState<SortType>('lastPlayed');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   const setActiveTab = useLauncherStore((state) => state.setActiveTab);
   const setSelectedInstanceId = useLauncherStore((state) => state.setSelectedInstanceId);
@@ -76,8 +87,59 @@ export const useInstances = () => {
     setActiveTab('instance-detail');
   };
 
+  const availableTags = useMemo(() => {
+    const tagsSet = new Set<string>();
+    instances.forEach((inst) => {
+      inst.tags?.forEach((tag) => tagsSet.add(tag));
+    });
+    return Array.from(tagsSet).sort();
+  }, [instances]);
+
+  const filteredInstances = useMemo(() => {
+    let result = instances;
+
+    if (searchQuery) {
+      const lowerQuery = searchQuery.toLowerCase();
+      result = result.filter(
+        (inst) =>
+          inst.name.toLowerCase().includes(lowerQuery) ||
+          inst.version.toLowerCase().includes(lowerQuery) ||
+          inst.loader.toLowerCase().includes(lowerQuery)
+      );
+    }
+
+    if (selectedTags.length > 0) {
+      result = result.filter((inst) => {
+        const instTags = inst.tags || [];
+        return selectedTags.some((tag) => instTags.includes(tag));
+      });
+    }
+
+    result = [...result].sort((a, b) => {
+      if (sortBy === 'createdAt') {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      } else {
+        const parseLastPlayed = (val: string) => {
+          if (!val || val === 'never' || val === 'Never played' || val === '') return 0;
+          return new Date(val).getTime();
+        };
+        return parseLastPlayed(b.lastPlayed) - parseLastPlayed(a.lastPlayed);
+      }
+    });
+
+    return result;
+  }, [instances, searchQuery, sortBy, selectedTags]);
+
   return {
     instances,
+    filteredInstances,
+    availableTags,
+    searchQuery,
+    setSearchQuery,
+    sortBy,
+    setSortBy,
+    selectedTags,
+    setSelectedTags,
     loadInstances,
     handleCreate,
     handleEdit,

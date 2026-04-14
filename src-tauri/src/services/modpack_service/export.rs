@@ -178,6 +178,11 @@ fn load_instance_meta(
             third_party_path: None,
             server_binding: None,
             auto_join_server: None,
+            tags: None,
+            jvm_args: None,
+            window_width: None,
+            window_height: None,
+            is_favorite: None,
         }),
     )
 }
