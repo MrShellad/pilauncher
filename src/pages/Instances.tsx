@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { getCurrentFocusKey } from '@noriginmedia/norigin-spatial-navigation';
 import {
   FolderPlus,
   LayoutGrid,
@@ -316,8 +315,7 @@ const Instances: React.FC = () => {
           isOpen={isTagModalOpen}
           onClose={() => setIsTagModalOpen(false)}
           title="标签筛选"
-          showCloseButton
-          width="min(500px, 90vw)"
+          className="w-[min(500px,90vw)]"
         >
           <div className="flex flex-col gap-4 p-2 text-white">
             <p className="text-sm text-ore-text-muted font-minecraft">选择下方的标签来筛选显示的实例列表。</p>
@@ -342,15 +340,16 @@ const Instances: React.FC = () => {
                       {({ ref, focused }) => (
                         <div ref={ref as any}>
                           <OreTag
-                            label={tag}
-                            color={isSelected ? 'green' : 'gray'}
+                            variant={isSelected ? 'primary' : 'neutral'}
                             onClick={() => {
                               setSelectedTags(prev =>
                                 prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
                               );
                             }}
                             className={`cursor-pointer transition-transform hover:scale-105 ${focused ? 'outline outline-2 outline-white scale-105 shadow-lg' : ''}`}
-                          />
+                          >
+                            {tag}
+                          </OreTag>
                         </div>
                       )}
                     </FocusItem>
