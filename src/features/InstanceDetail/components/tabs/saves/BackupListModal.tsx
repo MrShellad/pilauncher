@@ -7,6 +7,8 @@ import {
   RotateCcw,
   ShieldCheck,
   Trash2,
+  HardDrive,
+  FileDiff,
 } from 'lucide-react';
 
 import '../../../../../style/ui/primitives/BackupListModal.css';
@@ -146,6 +148,19 @@ export const BackupListModal: React.FC<BackupListModalProps> = ({
                         <span className="ore-backup-list-modal__card-title font-minecraft">
                           {backup.world.name}
                         </span>
+                        
+                        {backup.backupMode === 'differential' ? (
+                          <span className="ore-backup-list-modal__tag" style={{ borderColor: '#74c0fc', color: '#74c0fc', backgroundColor: 'rgba(116, 192, 252, 0.1)' }}>
+                            <FileDiff size={12} className="mr-1 inline-block" />
+                            差异备份
+                          </span>
+                        ) : (
+                          <span className="ore-backup-list-modal__tag" style={{ borderColor: 'var(--ore-green)', color: 'var(--ore-green)', backgroundColor: 'rgba(85,255,100,0.1)' }}>
+                            <HardDrive size={12} className="mr-1 inline-block" />
+                            完整备份
+                          </span>
+                        )}
+
                         <span className="ore-backup-list-modal__tag">
                           {formatTrigger(backup.trigger)}
                         </span>

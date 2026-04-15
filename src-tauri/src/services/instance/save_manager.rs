@@ -100,11 +100,19 @@ pub struct SaveBackupUser {
     pub tags: Vec<String>,
 }
 
+fn default_backup_mode() -> String {
+    "full".to_string()
+}
+
 #[derive(Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SaveBackupMetadata {
     pub backup_id: String,
     pub instance_id: String,
+    #[serde(default = "default_backup_mode")]
+    pub backup_mode: String,
+    #[serde(default)]
+    pub base_backup_id: Option<String>,
     pub world: SaveBackupWorld,
     pub created_at: i64,
     pub trigger: String,
@@ -289,6 +297,7 @@ impl SaveManagerService {
         stage: &str,
         processed_files: &mut u64,
         total_files: u64,
+        base_time: Option<i64>,
     ) -> Result<u64, String> {
         let file = File::create(archive_path).map_err(|e| e.to_string())?;
         let mut zip = ZipWriter::new(file);
@@ -307,6 +316,18 @@ impl SaveManagerService {
                 .into_iter()
                 .filter_map(|entry| entry.ok())
             {
+                if let Some(bt) = base_time {
+                    if entry.file_type().is_file() {
+                        if let Ok(meta) = entry.metadata() {
+                            if let Ok(modified) = meta.modified() {
+                                if Self::system_time_to_timestamp(modified) <= bt {
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                }
+
                 let path = entry.path();
                 let rel = match path.strip_prefix(root_path) {
                     Ok(rel) => rel,
@@ -642,6 +663,7 @@ impl SaveManagerService {
         folder_name: &str,
         trigger: &str,
         safe_backup: bool,
+        mode: &str,
     ) -> Result<SaveBackupMetadata, String> {
         let instance_dir = Self::get_instance_dir(app, instance_id)?;
         let game_dir = Self::get_game_dir(app, instance_id)?;
@@ -652,6 +674,22 @@ impl SaveManagerService {
 
         let instance_config = Self::get_instance_config(&instance_dir)?;
         let save_cache = Self::inspect_save_folder(instance_id, folder_name, &src_save_dir)?;
+        
+        let mut base_backup_id = None;
+        let mut base_time = None;
+        if mode == "differential" {
+            if let Ok(backups) = Self::get_backups(app, instance_id) {
+                if let Some(base) = backups.into_iter()
+                    .filter(|b| b.world.folder_name == folder_name && b.backup_mode == "full")
+                    .max_by_key(|b| b.created_at) 
+                {
+                    base_backup_id = Some(base.backup_id.clone());
+                    base_time = Some(base.created_at);
+                }
+            }
+        }
+        let actual_backup_mode = if base_backup_id.is_some() { "differential" } else { "full" }.to_string();
+
         let backup_id = Uuid::new_v4().to_string();
         let world_root_dir = Self::get_backups_dir(app)?
             .join(instance_id)
@@ -693,6 +731,7 @@ impl SaveManagerService {
                 "PACK_WORLD",
                 &mut processed_files,
                 total_files,
+                base_time,
             )?;
             let config_size = if config_file_count > 0 {
                 Self::zip_sources(
@@ -704,6 +743,7 @@ impl SaveManagerService {
                     "PACK_CONFIGS",
                     &mut processed_files,
                     total_files,
+                    base_time,
                 )?
             } else {
                 0
@@ -730,6 +770,8 @@ impl SaveManagerService {
             let meta = SaveBackupMetadata {
                 backup_id: backup_id.clone(),
                 instance_id: instance_id.to_string(),
+                backup_mode: actual_backup_mode,
+                base_backup_id,
                 world: SaveBackupWorld {
                     name: save_cache.world_name,
                     uuid: save_cache.world_uuid,
@@ -1053,8 +1095,9 @@ impl SaveManagerService {
         app: &AppHandle<R>,
         instance_id: &str,
         folder_name: &str,
+        mode: &str,
     ) -> Result<SaveBackupMetadata, String> {
-        Self::create_backup(app, instance_id, folder_name, "manual", true)
+        Self::create_backup(app, instance_id, folder_name, "manual", true, mode)
     }
 
     pub fn delete_save<R: Runtime>(
@@ -1130,8 +1173,15 @@ impl SaveManagerService {
 
         let guard_backup_id = if auto_backup_current && target_save_dir.exists() {
             Some(
-                Self::create_backup(app, instance_id, &target_folder_name, "restore_guard", true)?
-                    .backup_id,
+                Self::create_backup(
+                    app,
+                    instance_id,
+                    &target_folder_name,
+                    "restore_guard",
+                    true,
+                    "full",
+                )?
+                .backup_id,
             )
         } else {
             None
@@ -1139,6 +1189,16 @@ impl SaveManagerService {
 
         let temp_restore_dir = saves_dir.join(format!(".restore-{}", Uuid::new_v4()));
         Self::remove_dir_if_exists(&temp_restore_dir)?;
+
+        if record.meta.backup_mode == "differential" {
+            if let Some(base_id) = &record.meta.base_backup_id {
+                if let Ok(base_record) = Self::find_backup_record(app, instance_id, base_id) {
+                    if let BackupPayload::Archive(path) = &base_record.world_payload {
+                        let _ = Self::extract_archive_to(path, &temp_restore_dir);
+                    }
+                }
+            }
+        }
         match &record.world_payload {
             BackupPayload::Archive(path) => {
                 Self::extract_archive_to(path, &temp_restore_dir)?;
@@ -1157,6 +1217,16 @@ impl SaveManagerService {
             let temp_configs_root =
                 instance_dir.join(format!(".restore-configs-{}", Uuid::new_v4()));
             Self::remove_dir_if_exists(&temp_configs_root)?;
+
+            if record.meta.backup_mode == "differential" {
+                if let Some(base_id) = &record.meta.base_backup_id {
+                    if let Ok(base_record) = Self::find_backup_record(app, instance_id, base_id) {
+                        if let BackupPayload::Archive(path) = &base_record.configs_payload {
+                            let _ = Self::extract_archive_to(path, &temp_configs_root);
+                        }
+                    }
+                }
+            }
 
             match &record.configs_payload {
                 BackupPayload::Archive(path) => {

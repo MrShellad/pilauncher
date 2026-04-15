@@ -14,8 +14,9 @@ pub async fn backup_save<R: Runtime>(
     app: AppHandle<R>,
     id: String,
     folder_name: String,
+    mode: String,
 ) -> Result<SaveBackupMetadata, String> {
-    SaveManagerService::backup_save(&app, &id, &folder_name)
+    SaveManagerService::backup_save(&app, &id, &folder_name, &mode)
 }
 
 #[tauri::command]

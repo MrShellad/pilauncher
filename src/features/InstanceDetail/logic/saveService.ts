@@ -42,6 +42,8 @@ export interface SaveBackupUser {
 export interface SaveBackupMetadata {
   backupId: string;
   instanceId: string;
+  backupMode: 'full' | 'differential';
+  baseBackupId?: string;
   world: SaveBackupWorld;
   createdAt: number;
   trigger: string;
@@ -95,8 +97,8 @@ export interface SaveItem {
 export const saveService = {
   getSaves: (id: string) => invoke<SaveItem[]>('get_saves', { id }),
 
-  backupSave: (id: string, folderName: string) =>
-    invoke<SaveBackupMetadata>('backup_save', { id, folderName }),
+  backupSave: (id: string, folderName: string, mode: 'full' | 'differential' = 'full') =>
+    invoke<SaveBackupMetadata>('backup_save', { id, folderName, mode }),
 
   deleteSave: (id: string, folderName: string, directDelete: boolean) =>
     invoke('delete_save', { id, folderName, directDelete }),

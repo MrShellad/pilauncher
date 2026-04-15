@@ -53,7 +53,7 @@ export const useSaveManager = (instanceId: string) => {
     setBackupProgress(null);
   }, []);
 
-  const backupSave = async (folderName: string): Promise<SaveBackupMetadata> => {
+  const backupSave = async (folderName: string, mode: 'full' | 'differential' = 'full'): Promise<SaveBackupMetadata> => {
     setIsBackingUp(true);
     setBackupProgress({
       instanceId,
@@ -65,7 +65,7 @@ export const useSaveManager = (instanceId: string) => {
     });
 
     try {
-      const result = await saveService.backupSave(instanceId, folderName);
+      const result = await saveService.backupSave(instanceId, folderName, mode);
       await loadSavesAndBackups();
       setBackupProgress((current) =>
         current?.folderName === folderName
