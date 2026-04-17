@@ -41,7 +41,8 @@
     "targets": [
       "nsis",
       "appimage",
-      "dmg"
+      "dmg",
+      "app"
     ],
     "windows": {
       "nsis": {

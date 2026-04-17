@@ -90,6 +90,37 @@ impl ModManifestService {
         upsert_mod_manifest_entry(manifest_path, file_name, &entry)
     }
 
+    pub fn rename_entries(
+        manifest_path: &Path,
+        renames: &[(String, String)],
+    ) -> Result<(), String> {
+        if renames.is_empty() {
+            return Ok(());
+        }
+
+        let mut manifest = if manifest_path.exists() {
+            let content = std::fs::read_to_string(manifest_path).unwrap_or_default();
+            serde_json::from_str::<ModManifest>(&content).unwrap_or_default()
+        } else {
+            HashMap::new()
+        };
+
+        for (old_file_name, new_file_name) in renames {
+            let old_key = mod_manifest_key(old_file_name);
+            let new_key = mod_manifest_key(new_file_name);
+
+            if old_key == new_key {
+                continue;
+            }
+
+            if let Some(entry) = manifest.remove(&old_key) {
+                manifest.insert(new_key, entry);
+            }
+        }
+
+        write_mod_manifest(manifest_path, &manifest)
+    }
+
     pub fn manifest_cache_key(
         entry: Option<&ModManifestEntry>,
         mod_id: Option<&str>,

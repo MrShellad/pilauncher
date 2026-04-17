@@ -3,7 +3,6 @@ import { listen, type Event } from '@tauri-apps/api/event';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { useTranslation } from 'react-i18next';
 import {
-  AlertTriangle,
   CheckSquare,
   ChevronDown,
   ChevronUp,
@@ -19,37 +18,31 @@ import {
   Square,
   Trash2,
   Type,
+  Wand2,
   X
 } from 'lucide-react';
 
+import { OreConfirmDialog } from '../../../../ui/primitives/OreConfirmDialog';
+
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
-import { focusManager } from '../../../../ui/focus/FocusManager';
 import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
 import { OreButton } from '../../../../ui/primitives/OreButton';
-import { OreConfirmDialog } from '../../../../ui/primitives/OreConfirmDialog';
 import { OreInput } from '../../../../ui/primitives/OreInput';
 import { useLauncherStore } from '../../../../store/useLauncherStore';
 import { useToastStore } from '../../../../store/useToastStore';
 
 import { useModManager, type ModSortType } from '../../hooks/useModManager';
-import { ModSnapshotModal } from './ModSnapshotModal';
-import type { InstanceSnapshot, SnapshotDiff } from '../../logic/modService';
-import { ModDetailModal } from './mods/ModDetailModal';
 import { ModList } from './mods/ModList';
-import type { ModMeta } from '../../logic/modService';
-
-interface PendingDeleteState {
-  fileNames: string[];
-  title: string;
-  description: string;
-}
+import { ModPanelDialogs } from './mods/ModPanelDialogs';
+import { useModPanelDialogs } from './mods/useModPanelDialogs';
 
 // 普通模式的焦点序列（top-to-bottom，与 ModList 导航配合）
 const NORMAL_FOCUS_ORDER = [
   'mod-btn-snapshot',
   'mod-btn-history',
   'mod-btn-folder',
+  'mod-btn-cleanup',
   'mod-btn-download',
   'mod-btn-select-all',
   'mod-btn-sort-time',
@@ -94,45 +87,84 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
     snapshotState,
     snapshotProgress,
     openModFolder,
+    executeModFileCleanup,
     loadMods
   } = useModManager(instanceId);
 
   const setActiveTab = useLauncherStore((state) => state.setActiveTab);
   const setInstanceDownloadTarget = useLauncherStore((state) => state.setInstanceDownloadTarget);
 
-  const [selectedMod, setSelectedMod] = useState<ModMeta | null>(null);
   const [selectedMods, setSelectedMods] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
-  const [pendingDelete, setPendingDelete] = useState<PendingDeleteState | null>(null);
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  const [history, setHistory] = useState<InstanceSnapshot[]>([]);
-  const [diffs, setDiffs] = useState<Record<string, SnapshotDiff>>({});
-
-  const [lastDeleteFocusKey, setLastDeleteFocusKey] = useState<string | null>(null);
+  const [cleanupItems, setCleanupItems] = useState<{ originalFileName: string; suggestedFileName: string }[] | null>(null);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
 
   const addToast = useToastStore((s) => s.addToast);
 
-  const openHistoryModal = async () => {
-    try {
-      const h = await fetchHistory();
-      setHistory(h);
-      setIsHistoryModalOpen(true);
-    } catch (e) {
-      console.error(e);
-      addToast('error', t('modSnapshots.messages.historyLoadFailed', {
-        defaultValue: 'Failed to load snapshot history. Check the logs for details.'
-      }));
-    }
-  };
+  const handleAnalyzeCleanup = useCallback(() => {
+    // 匹配如 [玉 🔍] 等包含中文字符的 [] 或者 【】
+    const regex = /(?:\[[^\]]*[^\x00-\x7F][^\]]*\]|【[^】]*】)\s*/g;
+    const items: { originalFileName: string; suggestedFileName: string }[] = [];
 
-  const loadDiff = async (oldId: string, newId: string) => {
-    try {
-      const d = await diffSnapshots(oldId, newId);
-      setDiffs(prev => ({ ...prev, [`${oldId}->${newId}`]: d }));
-    } catch (e) {
-      console.error(e);
+    mods.forEach(mod => {
+      let baseName = mod.fileName;
+      let isDisabled = false;
+      if (baseName.endsWith('.disabled')) {
+        isDisabled = true;
+        baseName = baseName.replace('.disabled', '');
+      }
+
+      let newBaseName = baseName.replace(regex, '').trim();
+      newBaseName = newBaseName.replace(/^[-\s]+/, '');
+
+      if (newBaseName !== baseName && newBaseName.length > 0) {
+        const suggested = isDisabled ? `${newBaseName}.disabled` : newBaseName;
+        items.push({ originalFileName: mod.fileName, suggestedFileName: suggested });
+      }
+    });
+
+    if (items.length > 0) {
+      setCleanupItems(items);
+    } else {
+      addToast('info', t('modPanel.noModNamesToClean', { defaultValue: '没有找到包含中文或特殊标签的模组文件名。' }));
     }
-  };
+  }, [mods, addToast, t]);
+
+  const handleConfirmCleanup = useCallback(async () => {
+    if (!cleanupItems) return;
+    setIsCleaningUp(true);
+    try {
+      const res = await executeModFileCleanup(cleanupItems);
+      addToast('success', t('modPanel.cleanSuccess', { count: res.renamed.length, defaultValue: `成功清理了 ${res.renamed.length} 个文件。` }));
+    } catch (e: any) {
+      console.error(e);
+      addToast('error', t('modPanel.cleanFailed', { error: e.message || String(e), defaultValue: `清理失败: ${e.message || String(e)}` }));
+    } finally {
+      setIsCleaningUp(false);
+      setCleanupItems(null);
+    }
+  }, [cleanupItems, executeModFileCleanup, addToast, t]);
+  const handleDeletedMods = useCallback((fileNames: string[]) => {
+    setSelectedMods((prev) => {
+      if (prev.size === 0) {
+        return prev;
+      }
+
+      const next = new Set(prev);
+      fileNames.forEach((fileName) => next.delete(fileName));
+      return next;
+    });
+  }, []);
+
+  const { state: dialogState, actions: dialogActions } = useModPanelDialogs({
+    fetchHistory,
+    diffSnapshots,
+    doRollback,
+    toggleMod,
+    deleteMod,
+    deleteMods,
+    onDeleteComplete: handleDeletedMods
+  });
 
   const handleCreateSnapshot = async () => {
     try {
@@ -147,10 +179,7 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         count: snapshot.mods.length,
         defaultValue: 'Snapshot created successfully. Recorded {{count}} mods.'
       }));
-      if (isHistoryModalOpen) {
-        const h = await fetchHistory();
-        setHistory(h);
-      }
+      await dialogActions.syncHistoryAfterSnapshot();
     } catch (e) {
       console.error(e);
       addToast('error', t('modSnapshots.messages.createFailed', {
@@ -158,27 +187,6 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
       }));
     }
   };
-
-  const handleCloseHistoryModal = useCallback(() => {
-    setIsHistoryModalOpen(false);
-    window.setTimeout(() => focusManager.restoreFocus('tab-boundary-mods', 'mod-btn-history'), 50);
-  }, []);
-
-  const handleRollbackSnapshot = useCallback(async (snapshotId: string) => {
-    try {
-      await doRollback(snapshotId);
-      const refreshedHistory = await fetchHistory();
-      setHistory(refreshedHistory);
-      addToast('success', t('modSnapshots.messages.rollbackSuccess', {
-        defaultValue: 'Rolled back to the selected snapshot.'
-      }));
-    } catch (e) {
-      console.error(e);
-      addToast('error', t('modSnapshots.messages.rollbackFailed', {
-        defaultValue: 'Failed to roll back snapshot. Check the logs for details.'
-      }));
-    }
-  }, [addToast, doRollback, fetchHistory, t]);
 
   const isBatchMode = selectedMods.size > 0;
   const focusOrder = isBatchMode ? BATCH_FOCUS_ORDER : NORMAL_FOCUS_ORDER;
@@ -225,11 +233,6 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
     };
   }, [loadMods]);
 
-  const handleCloseModal = useCallback(() => {
-    setSelectedMod(null);
-    setTimeout(() => focusManager.restoreFocus('tab-boundary-mods'), 50);
-  }, []);
-
   const handleSortClick = useCallback((type: ModSortType) => {
     if (sortType === type) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -239,19 +242,6 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
     setSortType(type);
     setSortOrder(type === 'time' ? 'desc' : 'asc');
   }, [setSortOrder, setSortType, sortOrder, sortType]);
-
-  const handleToggle = useCallback((fileName: string, currentEnabled: boolean) => {
-    setSelectedMod((prev) => (
-      prev
-        ? {
-          ...prev,
-          isEnabled: !currentEnabled,
-          fileName: currentEnabled ? `${fileName}.disabled` : fileName.replace('.disabled', '')
-        }
-        : null
-    ));
-    toggleMod(fileName, currentEnabled);
-  }, [toggleMod]);
 
   const handleToggleSelection = useCallback((fileName: string) => {
     setSelectedMods((prev) => {
@@ -281,53 +271,12 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   }, [selectedMods, toggleMods]);
 
   const openDeleteConfirm = useCallback((fileNames: string[]) => {
-    if (fileNames.length === 0) return;
-
-    const currentFocusKey = getCurrentFocusKey();
-    if (currentFocusKey && currentFocusKey !== 'SN:ROOT') {
-      setLastDeleteFocusKey(currentFocusKey);
-    }
-
-    const isBatch = fileNames.length > 1;
-    setPendingDelete({
-      fileNames,
-      title: isBatch ? `删除 ${fileNames.length} 个模组` : '删除模组',
-      description: isBatch
-        ? `这会从当前实例中永久删除选中的 ${fileNames.length} 个模组文件。`
-        : `这会从当前实例中永久删除"${fileNames[0]}"。`
-    });
-  }, []);
+    dialogActions.openDeleteConfirm(fileNames);
+  }, [dialogActions]);
 
   const handleBatchDelete = useCallback(() => {
     openDeleteConfirm(Array.from(selectedMods));
   }, [openDeleteConfirm, selectedMods]);
-
-  const handleCloseDeleteConfirm = useCallback(() => {
-    setPendingDelete(null);
-    window.setTimeout(() => {
-      if (lastDeleteFocusKey && doesFocusableExist(lastDeleteFocusKey)) {
-        setFocus(lastDeleteFocusKey);
-      }
-    }, 50);
-  }, [lastDeleteFocusKey]);
-
-  const handleConfirmDelete = useCallback(() => {
-    if (!pendingDelete) return;
-
-    if (pendingDelete.fileNames.length === 1) {
-      deleteMod(pendingDelete.fileNames[0]);
-    } else {
-      deleteMods(pendingDelete.fileNames);
-    }
-
-    setSelectedMods((prev) => {
-      const next = new Set(prev);
-      pendingDelete.fileNames.forEach((fileName) => next.delete(fileName));
-      return next;
-    });
-
-    handleCloseDeleteConfirm();
-  }, [deleteMod, deleteMods, handleCloseDeleteConfirm, pendingDelete]);
 
   // 从 ModList 向上导出时，跳回上方控件区域最后一个可用项
   const handleNavigateOutUp = useCallback(() => {
@@ -373,7 +322,7 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
             <History size={18} className="mr-2 text-ore-green" />
             模组快照
           </h3>
-          <p className="mt-1 text-sm text-ore-text-muted">更新模组前先创建快照，方便快速回滚。</p>
+
         </div>
 
         <div className="flex items-center gap-3">
@@ -401,7 +350,7 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
             focusKey="mod-btn-history"
             size="auto"
             variant="secondary"
-            onClick={openHistoryModal}
+            onClick={dialogActions.openHistoryModal}
             onArrowPress={handleLinearArrow}
             className="!h-10 !min-h-10"
           >
@@ -421,6 +370,20 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
           >
             <FolderOpen size={16} className="mr-2" />
             打开文件夹
+          </OreButton>
+
+          <div className="mx-1 h-6 w-px bg-white/15" />
+
+          <OreButton
+            focusKey="mod-btn-cleanup"
+            variant="secondary"
+            size="auto"
+            onClick={handleAnalyzeCleanup}
+            onArrowPress={handleLinearArrow}
+            className="!h-10 !min-h-10"
+          >
+            <Wand2 size={16} className="mr-2" />
+            清理名称
           </OreButton>
 
           <OreButton
@@ -445,90 +408,90 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         {isBatchMode ? (
           /* 批量选择模式 */
           <div className="flex h-full w-full items-center justify-between rounded border-2 border-ore-green/30 bg-ore-green/10 px-3 animate-in fade-in slide-in-from-top-1">
-          {/* 左：已选数量 + 操作按钮 */}
-          <div className="flex items-center gap-3">
-            <FocusItem
-              focusKey="mod-btn-batch-select"
-              onEnter={handleSelectAll}
-              onArrowPress={handleLinearArrow}
-            >
-              {({ ref, focused }) => (
-                <button
-                  ref={ref as React.RefObject<HTMLButtonElement>}
-                  onClick={handleSelectAll}
-                  className={`flex h-10 cursor-pointer items-center px-2 font-minecraft text-sm text-white hover:text-ore-green hover:underline decoration-ore-green underline-offset-4 transition-all focus:outline-none ${focused ? 'bg-[#2A2A2C] ring-2 ring-white rounded scale-105' : ''}`}
-                >
-                  <CheckSquare size={16} className="mr-1.5 text-ore-green" />
-                  已选择 {selectedMods.size} 项
-                </button>
-              )}
-            </FocusItem>
-
-            <div className="mx-1 h-4 w-px bg-white/20" />
-
-            <OreButton
-              focusKey="mod-btn-batch-enable"
-              size="auto"
-              variant="secondary"
-              onClick={handleBatchEnable}
-              onArrowPress={handleLinearArrow}
-              className="!h-10 !min-h-10"
-            >
-              <Power size={14} className="mr-1.5" />
-              启用
-            </OreButton>
-
-            <OreButton
-              focusKey="mod-btn-batch-disable"
-              size="auto"
-              variant="secondary"
-              onClick={handleBatchDisable}
-              onArrowPress={handleLinearArrow}
-              className="!h-10 !min-h-10"
-            >
-              <Power size={14} className="mr-1.5 opacity-50" />
-              禁用
-            </OreButton>
-
-            <OreButton
-              focusKey="mod-btn-batch-delete"
-              size="auto"
-              variant="danger"
-              onClick={handleBatchDelete}
-              onArrowPress={handleLinearArrow}
-              className="!h-10 !min-h-10"
-            >
-              <Trash2 size={14} className="mr-1.5" />
-              删除
-            </OreButton>
-          </div>
-
-          {/* 右：搜索框 + 退出多选 */}
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
-            <div className="max-w-xs flex-1">
-              <OreInput
-                focusKey="mod-search-input"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+            {/* 左：已选数量 + 操作按钮 */}
+            <div className="flex items-center gap-3">
+              <FocusItem
+                focusKey="mod-btn-batch-select"
+                onEnter={handleSelectAll}
                 onArrowPress={handleLinearArrow}
-                placeholder={searchPlaceholder}
-                containerClassName="w-full"
-                prefixNode={<Search size={16} />}
-              />
+              >
+                {({ ref, focused }) => (
+                  <button
+                    ref={ref as React.RefObject<HTMLButtonElement>}
+                    onClick={handleSelectAll}
+                    className={`flex h-10 cursor-pointer items-center px-2 font-minecraft text-sm text-white hover:text-ore-green hover:underline decoration-ore-green underline-offset-4 transition-all focus:outline-none ${focused ? 'bg-[#2A2A2C] ring-2 ring-white rounded scale-105' : ''}`}
+                  >
+                    <CheckSquare size={16} className="mr-1.5 text-ore-green" />
+                    已选择 {selectedMods.size} 项
+                  </button>
+                )}
+              </FocusItem>
+
+              <div className="mx-1 h-4 w-px bg-white/20" />
+
+              <OreButton
+                focusKey="mod-btn-batch-enable"
+                size="auto"
+                variant="secondary"
+                onClick={handleBatchEnable}
+                onArrowPress={handleLinearArrow}
+                className="!h-10 !min-h-10"
+              >
+                <Power size={14} className="mr-1.5" />
+                启用
+              </OreButton>
+
+              <OreButton
+                focusKey="mod-btn-batch-disable"
+                size="auto"
+                variant="secondary"
+                onClick={handleBatchDisable}
+                onArrowPress={handleLinearArrow}
+                className="!h-10 !min-h-10"
+              >
+                <Power size={14} className="mr-1.5 opacity-50" />
+                禁用
+              </OreButton>
+
+              <OreButton
+                focusKey="mod-btn-batch-delete"
+                size="auto"
+                variant="danger"
+                onClick={handleBatchDelete}
+                onArrowPress={handleLinearArrow}
+                className="!h-10 !min-h-10"
+              >
+                <Trash2 size={14} className="mr-1.5" />
+                删除
+              </OreButton>
             </div>
 
-            <OreButton
-              focusKey="mod-btn-batch-exit"
-              size="auto"
-              variant="secondary"
-              onClick={() => setSelectedMods(new Set())}
-              onArrowPress={handleLinearArrow}
-              className="!h-10 !min-h-10 flex-shrink-0"
-            >
-              <X size={16} className="mr-1.5" />
-              退出多选
-            </OreButton>
-          </div>
+            {/* 右：搜索框 + 退出多选 */}
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
+              <div className="max-w-xs flex-1">
+                <OreInput
+                  focusKey="mod-search-input"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onArrowPress={handleLinearArrow}
+                  placeholder={searchPlaceholder}
+                  containerClassName="w-full"
+                  prefixNode={<Search size={16} />}
+                />
+              </div>
+
+              <OreButton
+                focusKey="mod-btn-batch-exit"
+                size="auto"
+                variant="secondary"
+                onClick={() => setSelectedMods(new Set())}
+                onArrowPress={handleLinearArrow}
+                className="!h-10 !min-h-10 flex-shrink-0"
+              >
+                <X size={16} className="mr-1.5" />
+                退出多选
+              </OreButton>
+            </div>
 
           </div>
         ) : (
@@ -647,47 +610,42 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         selectedMods={selectedMods}
         onToggleSelection={handleToggleSelection}
         onToggleMod={(fileName, enabled) => toggleMod(fileName, enabled)}
-        onSelectMod={setSelectedMod}
+        onSelectMod={dialogActions.openModDetail}
         onDeleteMod={(fileName) => openDeleteConfirm([fileName])}
         emptyMessage={searchQuery ? '没有匹配当前搜索的模组。' : '当前实例还没有模组。'}
         onNavigateOut={(direction) => direction === 'up' ? handleNavigateOutUp() : false}
       />
 
-      <ModDetailModal
-        mod={selectedMod}
+      <ModPanelDialogs
         instanceConfig={instanceConfig}
-        onClose={handleCloseModal}
-        onToggle={handleToggle}
-        onDelete={deleteMod}
-      />
-
-      <ModSnapshotModal
-        isOpen={isHistoryModalOpen}
-        onClose={handleCloseHistoryModal}
-        history={history}
-        currentMods={mods}
-        diffs={diffs}
-        onDiffRequest={loadDiff}
-        onRollback={handleRollbackSnapshot}
-        isRollingBack={snapshotState === 'rolling_back'}
+        mods={mods}
+        snapshotState={snapshotState}
+        state={dialogState}
+        actions={dialogActions}
       />
 
       <OreConfirmDialog
-        isOpen={pendingDelete !== null}
-        onClose={handleCloseDeleteConfirm}
-        onConfirm={handleConfirmDelete}
-        title={pendingDelete?.title ?? '删除模组'}
-        headline={pendingDelete?.description}
-        confirmLabel="确认删除"
+        isOpen={cleanupItems !== null}
+        onClose={() => setCleanupItems(null)}
+        onConfirm={handleConfirmCleanup}
+        title="清理模组文件名"
+        headline={t('modPanel.cleanupHeadline', { count: cleanupItems?.length, defaultValue: `检测到 ${cleanupItems?.length} 个包含中文或特殊标签的模组文件名，确定要清理它们吗？` })}
+        confirmLabel={isCleaningUp ? "清理中..." : "确认清理"}
         cancelLabel="取消"
-        confirmVariant="danger"
-        confirmFocusKey="mod-delete-confirm"
-        cancelFocusKey="mod-delete-cancel"
-        className="w-full max-w-lg"
-        dialogIcon={<AlertTriangle size={24} className="text-red-400" />}
-        confirmationNote="删除后无法通过启动器撤销。"
-        confirmationNoteTone="danger"
-      />
+        confirmVariant="primary"
+        confirmFocusKey="mod-cleanup-confirm"
+        cancelFocusKey="mod-cleanup-cancel"
+        className="w-full max-w-2xl"
+      >
+        <div className="mt-4 max-h-64 overflow-y-auto rounded bg-[#18181B] p-2 text-sm text-left text-gray-300">
+          {cleanupItems?.map((item, idx) => (
+            <div key={idx} className="mb-2 border-b border-[#2A2A2C] pb-2 last:border-0 last:pb-0">
+              <div className="text-red-400 line-through opacity-80">{item.originalFileName}</div>
+              <div className="text-ore-green">{item.suggestedFileName}</div>
+            </div>
+          ))}
+        </div>
+      </OreConfirmDialog>
     </SettingsPageLayout>
   );
 };

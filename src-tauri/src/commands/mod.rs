@@ -83,6 +83,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         instance::snapshot_cmd::rollback_instance,
         instance::mod_cmd::update_mod_cache,
         instance::mod_cmd::open_mod_folder,
+        instance::mod_cmd::execute_mod_file_cleanup,
         instance::resource_cmd::list_resources,
         instance::resource_cmd::toggle_resource,
         instance::resource_cmd::delete_resource,

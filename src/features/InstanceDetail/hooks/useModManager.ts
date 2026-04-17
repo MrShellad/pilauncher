@@ -188,11 +188,22 @@ export const useModManager = (instanceId: string) => {
     modService.openModFolder(instanceId).catch(console.error);
   };
 
+  const executeModFileCleanup = async (items: { originalFileName: string; suggestedFileName: string }[]) => {
+    try {
+      const result = await modService.executeModFileCleanup(instanceId, items);
+      await loadMods(); // reload after cleanup
+      return result;
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  };
+
   return { 
     mods: sortedMods, // ✅ 吐出排序后的数据
     isLoading, instanceConfig, sortType, setSortType, sortOrder, setSortOrder,
     snapshotState, snapshotProgress,
     takeSnapshot, fetchHistory, diffSnapshots, doRollback, 
-    toggleMod, toggleMods, deleteMod, deleteMods, openModFolder, loadMods
+    toggleMod, toggleMods, deleteMod, deleteMods, openModFolder, executeModFileCleanup, loadMods
   };
 };

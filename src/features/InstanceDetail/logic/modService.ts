@@ -156,5 +156,8 @@ export const modService = {
     invoke('update_mod_cache', { cacheKey, name, desc, iconUrl }),
 
   openModFolder: (id: string) =>  
-    invoke('open_mod_folder', { id })
+    invoke('open_mod_folder', { id }),
+
+  executeModFileCleanup: (id: string, items: { originalFileName: string; suggestedFileName: string }[]) => 
+    invoke<{ total: number; renamed: any[]; failed: any[]; manifestSyncError: string | null }>('execute_mod_file_cleanup', { id, items })
 };

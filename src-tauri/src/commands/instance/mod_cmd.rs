@@ -70,3 +70,15 @@ pub async fn open_mod_folder<R: tauri::Runtime>(
 
     Ok(())
 }
+
+#[tauri::command]
+pub async fn execute_mod_file_cleanup<R: Runtime>(
+    app: AppHandle<R>,
+    id: String,
+    items: Vec<crate::services::instance::mod_manager::ModFileNameCleanupItem>,
+) -> Result<crate::services::instance::mod_manager::ModFileNameCleanupResult, String> {
+    crate::services::instance::mod_manager::ModManagerService::execute_mod_file_cleanup(
+        &app, &id, items,
+    )
+    .await
+}

@@ -68,6 +68,44 @@ pub struct GamepadModStatus {
     pub has_cache: bool,                  // shared_mods 中是否有缓存
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ModFileNameCleanupItem {
+    pub original_file_name: String,
+    pub suggested_file_name: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ModFileNameCleanupFailure {
+    pub original_file_name: String,
+    pub suggested_file_name: String,
+    pub error: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ModFileNameCleanupResult {
+    pub total: usize,
+    pub renamed: Vec<ModFileNameCleanupItem>,
+    pub failed: Vec<ModFileNameCleanupFailure>,
+    pub manifest_sync_error: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ModFileNameCleanupProgress {
+    pub instance_id: String,
+    pub current: usize,
+    pub total: usize,
+    pub file_name: String,
+    pub target_file_name: String,
+    pub stage: String,
+    pub message: String,
+}
+
+const MOD_FILE_NAME_CLEANUP_PROGRESS_EVENT: &str = "mod-file-name-cleanup-progress";
+
 pub struct ModManagerService;
 
 impl ModManagerService {
@@ -76,6 +114,30 @@ impl ModManagerService {
             .map_err(|e| e.to_string())?
             .unwrap_or_default();
         Ok(PathBuf::from(base_path).join("instances").join(id))
+    }
+
+    fn get_game_dir<R: Runtime>(app: &AppHandle<R>, id: &str) -> Result<PathBuf, String> {
+        let instance_dir = Self::get_instance_dir(app, id)?;
+        let mut game_dir = instance_dir.clone();
+        let config_path = instance_dir.join("instance.json");
+
+        if let Ok(content) = fs::read_to_string(&config_path) {
+            if let Ok(cfg) =
+                serde_json::from_str::<crate::domain::instance::InstanceConfig>(&content)
+            {
+                if let Some(tp) = cfg.third_party_path {
+                    game_dir = PathBuf::from(tp);
+                }
+            }
+        }
+
+        Ok(game_dir)
+    }
+
+    fn get_mods_dir<R: Runtime>(app: &AppHandle<R>, id: &str) -> Result<PathBuf, String> {
+        let mods_dir = Self::get_game_dir(app, id)?.join("mods");
+        fs::create_dir_all(&mods_dir).map_err(|e| e.to_string())?;
+        Ok(mods_dir)
     }
 
     // ================= 1. 读取并解析 Mods =================
@@ -1069,6 +1131,81 @@ impl ModManagerService {
         )?;
 
         Ok(())
+    }
+
+    // ======= 批量去除文件名特殊字符 =======
+    pub async fn execute_mod_file_cleanup<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        items: Vec<ModFileNameCleanupItem>,
+    ) -> Result<ModFileNameCleanupResult, String> {
+        let instance_dir = Self::get_instance_dir(app, instance_id)?;
+        let mods_dir = Self::get_mods_dir(app, instance_id)?;
+        let manifest_path = instance_dir.join("mod_manifest.json");
+
+        let mut manifest_dict = ModManifestService::load_from_mods_dir(&mods_dir, &manifest_path).unwrap_or_default();
+        let mut manifest_dirty = false;
+
+        let mut renamed = Vec::new();
+        let mut failed = Vec::new();
+
+        for item in items {
+            let old_path = mods_dir.join(&item.original_file_name);
+            let new_path = mods_dir.join(&item.suggested_file_name);
+
+            if !old_path.exists() {
+                failed.push(ModFileNameCleanupFailure {
+                    original_file_name: item.original_file_name,
+                    suggested_file_name: item.suggested_file_name,
+                    error: "原文件不存在".to_string(),
+                });
+                continue;
+            }
+
+            if new_path.exists() {
+                failed.push(ModFileNameCleanupFailure {
+                    original_file_name: item.original_file_name,
+                    suggested_file_name: item.suggested_file_name,
+                    error: "目标文件已存在".to_string(),
+                });
+                continue;
+            }
+
+            match tokio::fs::rename(&old_path, &new_path).await {
+                Ok(_) => {
+                    renamed.push(item.clone());
+                    
+                    // 同步更新 manifest 键值
+                    let old_base = item.original_file_name.trim_end_matches(".disabled");
+                    let new_base = item.suggested_file_name.trim_end_matches(".disabled");
+                    if let Some(entry) = manifest_dict.remove(old_base) {
+                        manifest_dict.insert(new_base.to_string(), entry);
+                        manifest_dirty = true;
+                    }
+                }
+                Err(e) => {
+                    failed.push(ModFileNameCleanupFailure {
+                        original_file_name: item.original_file_name,
+                        suggested_file_name: item.suggested_file_name,
+                        error: e.to_string(),
+                    });
+                }
+            }
+        }
+
+        let mut manifest_sync_error = None;
+        if manifest_dirty {
+            if let Err(e) = crate::domain::mod_manifest::write_mod_manifest(&manifest_path, &manifest_dict) {
+                 manifest_sync_error = Some(e.to_string());
+            }
+        }
+
+        Ok(ModFileNameCleanupResult {
+            total: renamed.len() + failed.len(),
+            renamed,
+            failed,
+            manifest_sync_error,
+        })
     }
 
     // 保持你原有的快照功能不变...
