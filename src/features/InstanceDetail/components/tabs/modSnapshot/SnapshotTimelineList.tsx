@@ -3,7 +3,7 @@ import type { TFunction } from 'i18next';
 import { Pin } from 'lucide-react';
 import { OreAssetRow } from '../../../../../ui/primitives/OreAssetRow';
 import { OreTag } from '../../../../../ui/primitives/OreTag';
-import type { InstanceSnapshot } from '../../../../logic/modService';
+import type { InstanceSnapshot } from '../../../logic/modService';
 import { getVersionLabel } from './modSnapshotUtils';
 import { getTimelineFocusKey } from './useModSnapshot';
 

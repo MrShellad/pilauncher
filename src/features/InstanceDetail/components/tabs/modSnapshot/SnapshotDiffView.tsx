@@ -3,7 +3,7 @@ import type { TFunction } from 'i18next';
 import { RefreshCw } from 'lucide-react';
 import { OreAssetRow } from '../../../../../ui/primitives/OreAssetRow';
 import { OreTag } from '../../../../../ui/primitives/OreTag';
-import type { InstanceSnapshot, SnapshotDiff } from '../../../../logic/modService';
+import type { InstanceSnapshot, SnapshotDiff } from '../../../logic/modService';
 import { SnapshotAssetRow } from './SnapshotAssetRow';
 import { getDisplayFileName, resolveEnabledState } from './modSnapshotUtils';
 

@@ -94,6 +94,8 @@ export interface SaveItem {
   iconPath?: string;
 }
 
+export type SaveDetail = SaveItem;
+
 export const saveService = {
   getSaves: (id: string) => invoke<SaveItem[]>('get_saves', { id }),
 

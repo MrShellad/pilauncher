@@ -1,7 +1,7 @@
 import React from 'react';
 import type { TFunction } from 'i18next';
 import { RefreshCw } from 'lucide-react';
-import type { SnapshotDiff } from '../../../../logic/modService';
+import type { SnapshotDiff } from '../../../logic/modService';
 import { getDisplayFileName, getVersionLabel, resolveEnabledState } from './modSnapshotUtils';
 
 export interface SnapshotRollbackConfirmBodyProps {

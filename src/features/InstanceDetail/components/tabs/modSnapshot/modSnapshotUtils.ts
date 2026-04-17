@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import type { InstanceSnapshot, ModEntry, ModMeta, SnapshotDiff } from '../../../../logic/modService';
+import type { InstanceSnapshot, ModEntry, ModMeta, SnapshotDiff } from '../../../logic/modService';
 
 export type SnapshotModEntry = InstanceSnapshot['mods'][number];
 

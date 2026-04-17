@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
 import { useLinearNavigation } from '../../../../../ui/focus/useLinearNavigation';
-import type { InstanceSnapshot, ModMeta, SnapshotDiff } from '../../../../logic/modService';
+import type { InstanceSnapshot, ModMeta, SnapshotDiff } from '../../../logic/modService';
 import { computeRollbackDiff } from './modSnapshotUtils';
 
 export const TIMELINE_ROW_FOCUS_KEY_PREFIX = 'mod-snapshot-timeline';
