@@ -21,6 +21,7 @@ pub mod runtime_cmd;
 pub mod settings_cmd;
 pub mod system_cmd;
 pub mod update_cmd;
+pub mod wiki_cmd;
 
 use tauri::{Builder, Runtime};
 
@@ -168,5 +169,6 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         library_cmd::get_collection_items,
         library_cmd::save_collection_item,
         library_cmd::remove_collection_item,
+        wiki_cmd::get_wiki_url,
     ])
 }

@@ -112,9 +112,22 @@ export const useCustomInstance = () => {
     })).filter(g => g.versions.length > 0);
   }, [versionGroups, versionType]);
 
-  // 4. Wiki 跳转处理
-  const handleOpenWiki = (url: string) => {
-    if (url) window.open(url, '_blank');
+  // 4. Wiki 跳转处理：调用后端解析 URL，使用系统浏览器打开
+  const handleOpenWiki = async (versionId: string) => {
+    if (!versionId) return;
+    try {
+      const url = await invoke<string>('get_wiki_url', {
+        versionId,
+        lang: navigator.language,
+      });
+      if (url) {
+        const { open } = await import('@tauri-apps/plugin-shell');
+        await open(url);
+      }
+    } catch (err) {
+      console.warn('Wiki URL 解析失败，回退到默认英文 Wiki', err);
+      window.open(`https://minecraft.wiki/w/Java_Edition_${versionId}`, '_blank');
+    }
   };
 
   // 2. 获取 Loader 版本逻辑

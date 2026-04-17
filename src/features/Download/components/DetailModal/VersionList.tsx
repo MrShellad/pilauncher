@@ -17,7 +17,7 @@ interface VersionListProps {
   installedVersionIds: string[];
   onDownload: (version: OreProjectVersion) => void;
   visibleCount: number;
-  observerTarget: React.RefObject<HTMLDivElement | null>;
+  observerTarget: React.Ref<HTMLDivElement>;
 }
 
 export const VersionList: React.FC<VersionListProps> = ({

@@ -87,9 +87,6 @@ export default function NewInstance() {
     const timer = setTimeout(() => {
       if (view === 'menu') {
         focusManager.focus('card-custom');
-      } else {
-        // 进入子视图时，默认将焦点锁定到返回按钮
-        focusManager.focus('btn-back-menu');
       }
     }, 100);
     return () => clearTimeout(timer);
@@ -284,24 +281,19 @@ export default function NewInstance() {
       {view !== 'menu' && (
         <div className="flex flex-col w-full h-full">
           <div className="h-14 bg-[#1E1E1F] border-b-2 border-[#141415] flex items-center px-4 flex-shrink-0 z-20">
-            <FocusItem focusKey="btn-back-menu" onEnter={() => handleSetView('menu')}>
-              {({ ref, focused }) => (
-                <button 
-                  ref={ref}
-                  onClick={() => handleSetView('menu')} 
-                  className={`
-                    flex items-center transition-colors font-minecraft px-4 py-2 rounded-sm outline-none text-ore-text-muted hover:text-white hover:bg-white/5
-                    ${focused ? 'bg-white/10 text-white outline outline-2 outline-ore-focus outline-offset-2' : ''}
-                  `}
-                >
-                  <ArrowLeft size={18} className="mr-2" />
-                  返回创建菜单
-                  <div className="ml-3 flex items-center text-[10px] text-ore-text-muted/60">
-                    <GamepadBtn text="B" color="#EF4444" shadow="drop-shadow-[0_0_2px_rgba(239,68,68,0.5)]" fontSize="11" />
-                  </div>
-                </button>
-              )}
-            </FocusItem>
+            <button 
+              onClick={() => handleSetView('menu')} 
+              tabIndex={-1}
+              className={`
+                flex items-center transition-colors font-minecraft px-4 py-2 rounded-sm outline-none text-ore-text-muted hover:text-white hover:bg-white/5
+              `}
+            >
+              <ArrowLeft size={18} className="mr-2" />
+              返回创建菜单
+              <div className="ml-3 flex items-center text-[10px] text-ore-text-muted/60">
+                <GamepadBtn text="B" color="#EF4444" shadow="drop-shadow-[0_0_2px_rgba(239,68,68,0.5)]" fontSize="11" />
+              </div>
+            </button>
             
             <div className="ml-auto flex items-center pr-4">
               <span className="text-white font-minecraft text-lg font-bold">
@@ -312,7 +304,7 @@ export default function NewInstance() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-hidden relative">
+          <div className="flex-1 overflow-hidden relative pt-1">
             {view === 'custom' && <CustomInstanceView onSuccess={() => handleSetView('menu')} />}
             {view === 'download' && <ModpackView />}
             {view === 'import' && <LocalImportView />}

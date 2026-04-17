@@ -44,7 +44,20 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
   const [isScrolled, setIsScrolled] = useState(false);
   const [pendingVersion, setPendingVersion] = useState<OreProjectVersion | null>(null);
 
-  const observerTarget = useRef<HTMLDivElement>(null);
+  const observer = useRef<IntersectionObserver | null>(null);
+
+  const observerTarget = useCallback((node: HTMLDivElement | null) => {
+    if (observer.current) observer.current.disconnect();
+    if (node) {
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => prev + 15);
+        }
+      }, { threshold: 0.1 });
+      observer.current.observe(node);
+    }
+  }, []);
+
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const didAutoFocusModalRef = useRef(false);
 
@@ -59,8 +72,7 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
     loaderOptions,
     availableVersions
   } = useDownloadDetail(project, instanceConfig, source, searchMcVersion, searchLoader, activeTab);
-
-  useEffect(() => {
+  useEffect(() => {
     if (!project) return;
     setShowGallery(false);
     setIsScrolled(false);
@@ -75,14 +87,9 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
   }, [project?.id]);
 
   useEffect(() => {
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) {
-        setVisibleCount((prev) => prev + 15);
-      }
-    }, { threshold: 0.1 });
-
-    if (observerTarget.current) observer.observe(observerTarget.current);
-    return () => observer.disconnect();
+    return () => {
+      if (observer.current) observer.current.disconnect();
+    };
   }, []);
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {

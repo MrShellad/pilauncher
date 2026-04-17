@@ -11,8 +11,10 @@ import {
 import { useCustomInstance } from '../../../../hooks/pages/Instances/useCustomInstance';
 
 // ✅ 引入焦点与输入引擎
+// ✅ 引入焦点与输入引擎
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { useInputAction } from '../../../../ui/focus/InputDriver';
+import { getCurrentFocusKey } from '@noriginmedia/norigin-spatial-navigation';
 
 export type StepProps = ReturnType<typeof useCustomInstance>;
 
@@ -55,6 +57,15 @@ export const VersionSelectStep: React.FC<StepProps> = ({
   // 监听 X 键：刷新列表
   useInputAction('ACTION_X', () => {
     if (!isLoadingVersions) handleRefreshVersions();
+  });
+
+  // 监听 Start/MENU 键：查询当前聚焦的元素并打开 Wiki
+  useInputAction('MENU', () => {
+    const currentKey = getCurrentFocusKey();
+    if (currentKey && currentKey.startsWith('version-card-')) {
+      const versionId = currentKey.replace('version-card-', '');
+      handleOpenWiki(versionId);
+    }
   });
 
   return (
@@ -112,10 +123,16 @@ export const VersionSelectStep: React.FC<StepProps> = ({
           </div>
         </div>
 
-        {/* ======================= 2. 刷新按钮 (纯视觉，移除焦点) ======================= */}
+        {/* ======================= 2. 刷新与 Wiki (纯视觉，移除焦点) ======================= */}
         <div className="flex items-center gap-3">
-          {/* ✅ X 键 UI 提示 */}
+          {/* ✅ Start 键 UI 提示 */}
           <div className="flex items-center text-ore-text-muted font-minecraft text-xs select-none">
+            <GamepadBtn text="≡" color="#48494A" shadow="drop-shadow-[0_0_2px_rgba(255,255,255,0.2)]" />
+            <span className="ml-1.5 mt-0.5 tracking-wider">查看 Wiki</span>
+          </div>
+
+          {/* ✅ X 键 UI 提示 */}
+          <div className="flex items-center text-ore-text-muted font-minecraft text-xs select-none pl-2">
             <GamepadBtn text="X" color="#60A5FA" shadow="drop-shadow-[0_0_4px_rgba(96,165,250,0.5)]" />
             <span className="ml-1.5 mt-0.5 tracking-wider">刷新列表</span>
           </div>
@@ -135,14 +152,14 @@ export const VersionSelectStep: React.FC<StepProps> = ({
       </div>
 
       {/* ======================= 3. 版本列表区域 (核心操作区) ======================= */}
-      <div className="flex-1 overflow-y-auto space-y-4 pb-12 px-1 custom-scrollbar min-h-0">
+      <div className="flex-1 overflow-y-auto space-y-4 pb-12 px-1 pt-1 custom-scrollbar min-h-0">
         {isLoadingVersions ? (
           <div className="w-full h-32 flex flex-col items-center justify-center text-ore-text-muted font-minecraft animate-pulse">
             <span className="text-lg">正在更新版本清单...</span>
           </div>
         ) : filteredVersionGroups.map((g, i) => (
           <OreAccordion key={g.group_name} title={g.group_name} defaultExpanded={i === 0}>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 p-2">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 p-3">
               {g.versions.map(v => (
                 <FocusItem key={v.id} focusKey={`version-card-${v.id}`} onEnter={() => setGameVersion(v.id)}>
                   {({ ref, focused }) => (
@@ -158,25 +175,20 @@ export const VersionSelectStep: React.FC<StepProps> = ({
                       `}
                     >
                       {/* ======================= 4. 内部 Wiki 跳转按钮 ======================= */}
-                      <FocusItem focusKey={`wiki-btn-${v.id}`} onEnter={() => handleOpenWiki(v.wiki_url)}>
-                        {({ ref: wikiRef, focused: wikiFocused }) => (
-                          <button
-                            ref={wikiRef as any}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenWiki(v.wiki_url);
-                            }}
-                            tabIndex={-1}
-                            className={`
-                              absolute bottom-2 right-2 p-1 transition-all z-30 outline-none rounded-sm
-                              ${wikiFocused ? 'opacity-100 outline outline-[3px] outline-ore-focus outline-offset-1 bg-white/20 text-white drop-shadow-ore-glow' : 'opacity-0 group-hover:opacity-100 text-ore-text-muted hover:text-white'}
-                            `}
-                            title="查看 Wiki"
-                          >
-                            <ExternalLink size={14} />
-                          </button>
-                        )}
-                      </FocusItem>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenWiki(v.id);
+                        }}
+                        tabIndex={-1}
+                        className={`
+                          absolute bottom-2 right-2 p-1 transition-all z-30 outline-none rounded-sm
+                          opacity-0 group-hover:opacity-100 text-ore-text-muted hover:text-white hover:bg-white/10
+                        `}
+                        title="查看 Wiki (手柄按 Start 键)"
+                      >
+                        <ExternalLink size={14} />
+                      </button>
 
                       {gameVersion === v.id && <Check size={16} className="absolute top-2 right-2 text-ore-green" />}
                       

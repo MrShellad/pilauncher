@@ -16,3 +16,4 @@ pub mod modpack_service; // ✅ 新增 modpack 模块
 pub mod qrcode_service;
 pub mod resource_service; // ✅ 新增 resource 模块
 pub mod runtime_service; // ✅ 新增 launcher 模块
+pub mod wiki_service; // ✅ 新增 wiki URL 解析模块
