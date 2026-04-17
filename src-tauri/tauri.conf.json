@@ -37,12 +37,11 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "externalBin": [
-      "binaries/PiHub"
-    ],
+    "externalBin": [],
     "targets": [
       "nsis",
-      "appimage"
+      "appimage",
+      "dmg"
     ],
     "windows": {
       "nsis": {
