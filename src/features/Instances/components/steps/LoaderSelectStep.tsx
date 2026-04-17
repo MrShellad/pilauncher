@@ -10,12 +10,13 @@ import { useInputAction } from '../../../../ui/focus/InputDriver';
 
 import vanillaIcon from '../../../../assets/icons/tags/loaders/vanilla.svg';
 import fabricIcon from '../../../../assets/icons/tags/loaders/fabric.svg';
+import quiltIcon from '../../../../assets/icons/tags/loaders/quilt.svg';
 import forgeIcon from '../../../../assets/icons/tags/loaders/forge.svg';
 import neoforgeIcon from '../../../../assets/icons/tags/loaders/neoforge.svg';
 
 export type StepProps = ReturnType<typeof useCustomInstance>;
 
-const LOADER_TYPES = ['Vanilla', 'Fabric', 'Forge', 'NeoForge'] as const;
+const LOADER_TYPES = ['Vanilla', 'NeoForge', 'Forge', 'Fabric', 'Quilt'] as const;
 
 // 🎮 手柄按键 SVG 图标组件
 const GamepadBtn = ({ text, color, shadow, fontSize = "13" }: { text: string, color: string, shadow: string, fontSize?: string }) => (
@@ -91,6 +92,7 @@ export const LoaderSelectStep: React.FC<StepProps> = ({
                 <span className="relative flex items-center gap-1.5">
                   {t === 'Vanilla' && <img src={vanillaIcon} className="w-[14px] h-[14px] object-contain drop-shadow-md brightness-0 invert" alt="Vanilla" />}
                   {t === 'Fabric' && <img src={fabricIcon} className="w-[14px] h-[14px] object-contain drop-shadow-md brightness-0 invert" alt="Fabric" />}
+                  {t === 'Quilt' && <img src={quiltIcon} className="w-[14px] h-[14px] object-contain drop-shadow-md brightness-0 invert" alt="Quilt" />}
                   {t === 'Forge' && <img src={forgeIcon} className="w-[14px] h-[14px] object-contain drop-shadow-md brightness-0 invert" alt="Forge" />}
                   {t === 'NeoForge' && <img src={neoforgeIcon} className="w-[14px] h-[14px] object-contain drop-shadow-md brightness-0 invert" alt="NeoForge" />}
                   {t}

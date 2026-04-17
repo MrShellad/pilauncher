@@ -5,6 +5,7 @@ import { OreButton } from '../../../../../../ui/primitives/OreButton';
 import { SettingsSection } from '../../../../../../ui/layout/SettingsSection';
 import { FormRow } from '../../../../../../ui/layout/FormRow';
 import { OreConfirmDialog } from '../../../../../../ui/primitives/OreConfirmDialog';
+import { OreProgressBar } from '../../../../../../ui/primitives/OreProgressBar';
 
 import { useVerifyInstance } from '../hooks/useVerifyInstance';
 import type {
@@ -169,18 +170,11 @@ export const MaintenanceSection: React.FC<MaintenanceSectionProps> = ({
         className="w-[560px] h-[440px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)]"
       >
         {(verifyState === 'verifying' || verifyState === 'repairing') && (
-          <div className="mt-4 w-full space-y-4 px-2">
-            <div className="overflow-hidden border-2 border-[#1E1E1F] bg-[#48494A] shadow-[inset_0_-4px_#333334]">
-              <div
-                className="h-5 bg-[#3C8527] shadow-[inset_0_-4px_#1D4D13,inset_3px_3px_rgba(255,255,255,0.2),inset_-3px_-7px_rgba(255,255,255,0.1)] transition-[width] duration-300 ease-out"
-                style={{ width: `${verifyPercent}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-[0.16em] text-[#A1A3A5] drop-shadow-[0_2px_0_rgba(0,0,0,0.5)]">
-              <span>{verifyState === 'verifying' ? '正在进行整体校验...' : '正在进行运行时补全...'}</span>
-              <span className="text-white">{verifyPercent}%</span>
-            </div>
-          </div>
+          <OreProgressBar
+            className="mt-4"
+            percent={verifyPercent}
+            label={verifyState === 'verifying' ? '正在进行整体校验...' : '正在进行运行时补全...'}
+          />
         )}
 
         {verifyState === 'repair' && verifyIssues.length > 0 && (
