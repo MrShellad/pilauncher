@@ -190,7 +190,7 @@ export const OreModal: React.FC<OreModalProps> = ({
                             className={`
                               relative flex items-center justify-center p-1.5 rounded-sm transition-none outline-none cursor-pointer
                               ${focused
-                                ? 'bg-[var(--ore-btn-secondary-hover)] outline outline-[2px] outline-[var(--ore-focus-ringFallback)] outline-[var(--ore-focus-ring)] outline-offset-1 z-10 drop-shadow-[0_0_6px_var(--ore-focus-glow)] brightness-110'
+                                ? 'bg-[var(--ore-btn-secondary-hover)] outline outline-[2px] outline-[var(--ore-focus-ringFallback)] outline-offset-1 z-10 drop-shadow-[0_0_6px_var(--ore-focus-glow)] brightness-110'
                                 : 'text-gray-300 hover:text-white hover:bg-white/10'
                               }
                             `}

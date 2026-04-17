@@ -85,6 +85,8 @@ pub fn create_instance_layout(instance_root: &Path) -> Result<(), String> {
         "config",
         "saves",
         "resourcepacks",
+        "shaderpacks",
+        "datapacks",
         "screenshots",
         "piconfig",
     ];

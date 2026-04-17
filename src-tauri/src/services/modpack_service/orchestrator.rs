@@ -20,8 +20,10 @@ use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 
-use super::logic::ModpackSourceHint;
-use super::logic::{build_instance_config, safe_relative_path, sanitize_instance_id};
+use super::logic::{
+    build_instance_config, resolve_curseforge_install_target, safe_relative_path,
+    sanitize_instance_id, CurseForgeInstallTarget, ModpackSourceHint,
+};
 use super::ops::{
     create_instance_layout, detect_modpack_source, extract_overrides, open_modpack_archive,
     parse_modpack, read_pipack_manifest, read_zip_entry_to_string, resolve_base_dir,
@@ -54,6 +56,12 @@ struct CurseForgeFileInfo {
     download_url: Option<String>,
     file_length: u64,
     hashes: Vec<CurseForgeHash>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CurseForgeProjectInfo {
+    class_id: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -218,6 +226,44 @@ async fn fetch_curseforge_file_info(
         .await
         .map_err(|e| format!("CurseForge response parse failed: {}", e))?;
     Ok(payload.data)
+}
+
+async fn fetch_curseforge_project_info(
+    client: &Client,
+    api_key: &str,
+    project_id: u64,
+) -> Result<CurseForgeProjectInfo, String> {
+    let url = format!("https://api.curseforge.com/v1/mods/{}", project_id);
+    let res = client
+        .get(&url)
+        .header("x-api-key", api_key)
+        .send()
+        .await
+        .map_err(|e| format!("CurseForge project request failed: {}", e))?;
+
+    if !res.status().is_success() {
+        return Err(format!(
+            "CurseForge project request failed: {} (mod {})",
+            res.status(),
+            project_id
+        ));
+    }
+
+    let payload: CurseForgeEnvelope<CurseForgeProjectInfo> = res
+        .json()
+        .await
+        .map_err(|e| format!("CurseForge project parse failed: {}", e))?;
+    Ok(payload.data)
+}
+
+fn build_curseforge_target_path(
+    instance_root: &Path,
+    install_target: CurseForgeInstallTarget,
+    file_name: &str,
+) -> PathBuf {
+    instance_root
+        .join(install_target.folder_name())
+        .join(file_name)
 }
 
 async fn fetch_modrinth_version_info(
@@ -1047,9 +1093,11 @@ async fn download_curseforge_mods<R: Runtime>(
         let client = client.clone();
         let api_key = api_key.clone();
         async move {
-            fetch_curseforge_file_info(&client, &api_key, entry.project_id, entry.file_id)
-                .await
-                .map(|info| (entry, info))
+            let (info, project) = tokio::try_join!(
+                fetch_curseforge_file_info(&client, &api_key, entry.project_id, entry.file_id),
+                fetch_curseforge_project_info(&client, &api_key, entry.project_id)
+            )?;
+            Ok::<_, String>((entry, info, project))
         }
     });
 
@@ -1061,7 +1109,7 @@ async fn download_curseforge_mods<R: Runtime>(
     )> = Vec::new();
     let mut info_results = info_stream.buffer_unordered(info_concurrency);
     while let Some(result) = info_results.next().await {
-        let (entry, info) = result?;
+        let (entry, info, project) = result?;
         let raw_name = info.file_name;
         let file_name = Path::new(&raw_name)
             .file_name()
@@ -1080,8 +1128,9 @@ async fn download_curseforge_mods<R: Runtime>(
             .find(|h| h.algo == 1)
             .map(|h| h.value.to_lowercase());
         let expected_size = Some(info.file_length);
+        let install_target = resolve_curseforge_install_target(project.class_id);
 
-        let target_path = instance_root.join("mods").join(&file_name);
+        let target_path = build_curseforge_target_path(instance_root, install_target, &file_name);
         if target_path.exists() {
             let size_matches = expected_size
                 .map(|size| {
@@ -1110,7 +1159,9 @@ async fn download_curseforge_mods<R: Runtime>(
         }
 
         let tmp_file_name = format!("{}.tmp", file_name);
-        let temp_path = temp_root.join("mods").join(tmp_file_name);
+        let temp_path = temp_root
+            .join(install_target.folder_name())
+            .join(tmp_file_name);
 
         tasks.push(DownloadTask {
             url,
@@ -1122,16 +1173,18 @@ async fn download_curseforge_mods<R: Runtime>(
             expected_size,
         });
 
-        tracked_manifest_sources.push((
-            file_name.clone(),
-            build_manifest_source(
-                ModSourceKind::ModpackDeployment,
-                Some("curseforge".to_string()),
-                Some(entry.project_id.to_string()),
-                Some(entry.file_id.to_string()),
-            ),
-            target_path.clone(),
-        ));
+        if matches!(install_target, CurseForgeInstallTarget::Mod) {
+            tracked_manifest_sources.push((
+                file_name.clone(),
+                build_manifest_source(
+                    ModSourceKind::ModpackDeployment,
+                    Some("curseforge".to_string()),
+                    Some(entry.project_id.to_string()),
+                    Some(entry.file_id.to_string()),
+                ),
+                target_path.clone(),
+            ));
+        }
     }
 
     if !tasks.is_empty() {

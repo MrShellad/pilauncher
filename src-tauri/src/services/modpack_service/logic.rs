@@ -14,6 +14,48 @@ pub enum ModpackSourceHint {
     PiPack,
 }
 
+pub const CURSEFORGE_CLASS_MOD: u64 = 6;
+pub const CURSEFORGE_CLASS_RESOURCE_PACK: u64 = 12;
+pub const CURSEFORGE_CLASS_WORLD: u64 = 17;
+pub const CURSEFORGE_CLASS_CUSTOMIZATION: u64 = 4546;
+pub const CURSEFORGE_CLASS_SHADER: u64 = 6552;
+pub const CURSEFORGE_CLASS_DATA_PACK: u64 = 6945;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CurseForgeInstallTarget {
+    Mod,
+    ResourcePack,
+    ShaderPack,
+    DataPack,
+    World,
+}
+
+impl CurseForgeInstallTarget {
+    pub fn folder_name(self) -> &'static str {
+        match self {
+            Self::Mod => "mods",
+            Self::ResourcePack => "resourcepacks",
+            Self::ShaderPack => "shaderpacks",
+            Self::DataPack => "datapacks",
+            Self::World => "saves",
+        }
+    }
+}
+
+pub fn resolve_curseforge_install_target(class_id: Option<u64>) -> CurseForgeInstallTarget {
+    match class_id {
+        Some(CURSEFORGE_CLASS_MOD) => CurseForgeInstallTarget::Mod,
+        Some(CURSEFORGE_CLASS_RESOURCE_PACK) => CurseForgeInstallTarget::ResourcePack,
+        Some(CURSEFORGE_CLASS_SHADER) => CurseForgeInstallTarget::ShaderPack,
+        // Older packs may still reference datapacks through the legacy customization class.
+        Some(CURSEFORGE_CLASS_DATA_PACK) | Some(CURSEFORGE_CLASS_CUSTOMIZATION) => {
+            CurseForgeInstallTarget::DataPack
+        }
+        Some(CURSEFORGE_CLASS_WORLD) => CurseForgeInstallTarget::World,
+        _ => CurseForgeInstallTarget::Mod,
+    }
+}
+
 pub fn sanitize_instance_id(instance_name: &str) -> String {
     instance_name
         .replace(' ', "_")
@@ -205,7 +247,12 @@ pub fn normalize_override_dir(value: Option<&str>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{normalize_override_dir, parse_pipack_metadata};
+    use super::{
+        normalize_override_dir, parse_pipack_metadata, resolve_curseforge_install_target,
+        CurseForgeInstallTarget, CURSEFORGE_CLASS_CUSTOMIZATION, CURSEFORGE_CLASS_DATA_PACK,
+        CURSEFORGE_CLASS_MOD, CURSEFORGE_CLASS_RESOURCE_PACK, CURSEFORGE_CLASS_SHADER,
+        CURSEFORGE_CLASS_WORLD,
+    };
 
     #[test]
     fn parses_pipack_metadata() {
@@ -247,5 +294,37 @@ mod tests {
     fn normalizes_empty_override_dir() {
         assert_eq!(normalize_override_dir(Some("")), "overrides");
         assert_eq!(normalize_override_dir(Some("/custom/")), "custom");
+    }
+
+    #[test]
+    fn maps_curseforge_classes_to_expected_install_targets() {
+        assert_eq!(
+            resolve_curseforge_install_target(Some(CURSEFORGE_CLASS_RESOURCE_PACK)),
+            CurseForgeInstallTarget::ResourcePack
+        );
+        assert_eq!(
+            resolve_curseforge_install_target(Some(CURSEFORGE_CLASS_SHADER)),
+            CurseForgeInstallTarget::ShaderPack
+        );
+        assert_eq!(
+            resolve_curseforge_install_target(Some(CURSEFORGE_CLASS_DATA_PACK)),
+            CurseForgeInstallTarget::DataPack
+        );
+        assert_eq!(
+            resolve_curseforge_install_target(Some(CURSEFORGE_CLASS_CUSTOMIZATION)),
+            CurseForgeInstallTarget::DataPack
+        );
+        assert_eq!(
+            resolve_curseforge_install_target(Some(CURSEFORGE_CLASS_WORLD)),
+            CurseForgeInstallTarget::World
+        );
+        assert_eq!(
+            resolve_curseforge_install_target(Some(CURSEFORGE_CLASS_MOD)),
+            CurseForgeInstallTarget::Mod
+        );
+        assert_eq!(
+            resolve_curseforge_install_target(None),
+            CurseForgeInstallTarget::Mod
+        );
     }
 }

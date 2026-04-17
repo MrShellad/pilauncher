@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   FolderPlus,
   LayoutGrid,
@@ -27,6 +28,7 @@ import { Filter, Tags, Search } from 'lucide-react';
 import { InstanceCardView } from '../features/Instances/components/InstanceCardView';
 
 const Instances: React.FC = () => {
+  const { t } = useTranslation();
   const {
     instances,
     filteredInstances,
@@ -106,7 +108,7 @@ const Instances: React.FC = () => {
                 onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
                 className={`flex items-center justify-center h-[40px] w-[40px] rounded-sm bg-[#1E1E1F] border-2 border-ore-gray-border transition-colors focus:outline-none hover:bg-white/10 ${focused ? 'outline outline-[3px] outline-offset-[2px] outline-white z-10' : ''
                   }`}
-                title={viewMode === 'grid' ? '切换为列表视图' : '切换为网格视图'}
+                title={viewMode === 'grid' ? t('instancesPage.viewToggleList', '切换为列表视图') : t('instancesPage.viewToggleGrid', '切换为网格视图')}
                 tabIndex={-1}
               >
                 {viewMode === 'grid' ? <List size={18} className="text-white" /> : <LayoutGrid size={18} className="text-white" />}
@@ -118,7 +120,7 @@ const Instances: React.FC = () => {
             <OreInput
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="搜索实例..."
+              placeholder={t('instancesPage.searchPlaceholder', '搜索实例...')}
               prefixNode={<Search size={16} />}
               focusKey="instances-search"
               height="40px"
@@ -129,8 +131,8 @@ const Instances: React.FC = () => {
           <div className="w-[140px] flex-shrink-0">
             <OreDropdown
               options={[
-                { label: "最近游玩", value: "lastPlayed" },
-                { label: "创建时间", value: "createdAt" }
+                { label: t('instancesPage.sortOptions.lastPlayed', '最近游玩'), value: "lastPlayed" },
+                { label: t('instancesPage.sortOptions.createdAt', '创建时间'), value: "createdAt" }
               ]}
               value={sortBy}
               onChange={(v) => setSortBy(v as SortType)}
@@ -151,7 +153,7 @@ const Instances: React.FC = () => {
                   tabIndex={-1}
                 >
                   <Tags size={14} className="mr-1.5 flex-shrink-0" />
-                  <span className="font-minecraft text-sm">标签</span>
+                  <span className="font-minecraft text-sm">{t('instancesPage.tagsBtn', '标签')}</span>
                   {selectedTags.length > 0 && (
                     <span className="absolute -top-1.5 -right-1.5 bg-ore-green text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">
                       {selectedTags.length}
@@ -184,7 +186,7 @@ const Instances: React.FC = () => {
                   <span className="flex h-full min-w-[clamp(9.2rem,14.2vw,15.4rem)] items-center justify-center whitespace-nowrap px-3">
                     <Plus className="mr-[clamp(0.35rem,0.6vw,0.6rem)] h-[clamp(0.9rem,1.1vw,1.25rem)] w-[clamp(0.9rem,1.1vw,1.25rem)] flex-shrink-0" />
                     <span className="font-minecraft text-[clamp(0.9rem,0.84rem+0.4vw,1.15rem)] tracking-wider">
-                      新建实例
+                      {t('instancesPage.actionNew', '新建实例')}
                     </span>
                   </span>
                 </OreButton>
@@ -211,7 +213,7 @@ const Instances: React.FC = () => {
                   <span className="flex h-full min-w-[clamp(10.8rem,18vw,18rem)] items-center justify-center whitespace-nowrap px-3">
                     <FolderPlus className="mr-[clamp(0.35rem,0.6vw,0.6rem)] h-[clamp(0.9rem,1.1vw,1.25rem)] w-[clamp(0.9rem,1.1vw,1.25rem)] flex-shrink-0" />
                     <span className="font-minecraft text-[clamp(0.9rem,0.84rem+0.4vw,1.15rem)] tracking-wider">
-                      选择启动器库
+                      {t('instancesPage.actionFolder', '选择启动器库')}
                     </span>
                   </span>
                 </OreButton>
@@ -243,7 +245,7 @@ const Instances: React.FC = () => {
                       <RefreshCw className="mr-[clamp(0.35rem,0.6vw,0.6rem)] h-[clamp(0.9rem,1.1vw,1.25rem)] w-[clamp(0.9rem,1.1vw,1.25rem)] flex-shrink-0" />
                     )}
                     <span className="font-minecraft text-[clamp(0.9rem,0.84rem+0.4vw,1.15rem)] tracking-wider">
-                      自动探测
+                      {t('instancesPage.actionDetect', '自动探测')}
                     </span>
                   </span>
                 </OreButton>
@@ -314,14 +316,14 @@ const Instances: React.FC = () => {
         <OreModal
           isOpen={isTagModalOpen}
           onClose={() => setIsTagModalOpen(false)}
-          title="标签筛选"
+          title={t('instancesPage.tagFilterModal.title', '标签筛选')}
           className="w-[min(500px,90vw)]"
         >
           <div className="flex flex-col gap-4 p-2 text-white">
-            <p className="text-sm text-ore-text-muted font-minecraft">选择下方的标签来筛选显示的实例列表。</p>
+            <p className="text-sm text-ore-text-muted font-minecraft">{t('instancesPage.tagFilterModal.description', '选择下方的标签来筛选显示的实例列表。')}</p>
             {availableTags.length === 0 ? (
               <div className="py-8 text-center text-ore-text-muted border-2 border-dashed border-white/10 rounded">
-                目前没有任何可用的标签
+                {t('instancesPage.tagFilterModal.empty', '目前没有任何可用的标签')}
               </div>
             ) : (
               <div className="flex flex-wrap gap-2">
@@ -364,18 +366,18 @@ const Instances: React.FC = () => {
                   {({ ref, focused }) => (
                     <div ref={ref}>
                       <OreButton variant="secondary" onClick={() => setSelectedTags([])} className={focused ? 'ring-2 ring-white' : ''}>
-                        清空
-                      </OreButton>
-                    </div>
-                  )}
-                </FocusItem>
-              )}
-              <FocusItem focusKey="tag-done" onEnter={() => setIsTagModalOpen(false)}>
-                {({ ref, focused }) => (
-                  <div ref={ref}>
-                    <OreButton variant="primary" onClick={() => setIsTagModalOpen(false)} className={focused ? 'ring-2 ring-white' : ''}>
-                      完成
+                      {t('instancesPage.tagFilterModal.clear', '清空')}
                     </OreButton>
+                  </div>
+                )}
+              </FocusItem>
+            )}
+            <FocusItem focusKey="tag-done" onEnter={() => setIsTagModalOpen(false)}>
+              {({ ref, focused }) => (
+                <div ref={ref}>
+                  <OreButton variant="primary" onClick={() => setIsTagModalOpen(false)} className={focused ? 'ring-2 ring-white' : ''}>
+                    {t('instancesPage.tagFilterModal.done', '完成')}
+                  </OreButton>
                   </div>
                 )}
               </FocusItem>

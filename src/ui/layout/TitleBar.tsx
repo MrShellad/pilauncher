@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Download, Home as HomeIcon, Minus, Server, Settings, Square, X, Users } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
@@ -10,6 +11,7 @@ import { ControlHint } from '../components/ControlHint';
 import { OreConfirmDialog } from '../primitives/OreConfirmDialog';
 
 export const TitleBar: React.FC = () => {
+  const { t } = useTranslation();
   const appWindow = getCurrentWindow();
   const { activeTab, setActiveTab } = useLauncherStore();
   const closeBehavior = useSettingsStore((state) => state.settings.general.closeBehavior);
@@ -48,12 +50,12 @@ export const TitleBar: React.FC = () => {
   };
 
   const navTabs: TabItem[] = [
-    { id: 'home', label: '首页', icon: <HomeIcon size={18} /> },
-    { id: 'instances', label: '实例', icon: <Server size={18} /> },
-    { id: 'multiplayer', label: '联机', icon: <Users size={18} /> },
-    { id: 'downloads', label: '下载', icon: <Download size={18} /> },
-    // { id: 'library', label: '库', icon: <LibraryIcon size={18} /> },
-    { id: 'settings', label: '设置', icon: <Settings size={18} /> },
+    { id: 'home', label: t('nav.home', '首页'), icon: <HomeIcon size={18} /> },
+    { id: 'instances', label: t('nav.instances', '实例'), icon: <Server size={18} /> },
+    { id: 'multiplayer', label: t('nav.multiplayer', '联机'), icon: <Users size={18} /> },
+    { id: 'downloads', label: t('nav.downloads', '下载'), icon: <Download size={18} /> },
+    // { id: 'library', label: t('nav.library', '库'), icon: <LibraryIcon size={18} /> },
+    { id: 'settings', label: t('nav.settings', '设置'), icon: <Settings size={18} /> },
   ];
 
   const currentIndex = navTabs.findIndex((tab) => tab.id === activeTab);
@@ -167,11 +169,11 @@ export const TitleBar: React.FC = () => {
         isOpen={isExitConfirmOpen}
         onClose={() => setIsExitConfirmOpen(false)}
         onConfirm={handleExitConfirm}
-        title="确认退出"
-        headline="退出 PiLauncher"
-        description="当前关闭按钮行为设置为“退出应用”。确认后会直接结束当前应用进程。"
-        confirmLabel="确认退出"
-        cancelLabel="取消"
+        title={t('titlebar.exit.title', '确认退出')}
+        headline={t('titlebar.exit.headline', '退出 PiLauncher')}
+        description={t('titlebar.exit.description', '当前关闭按钮行为设置为“退出应用”。确认后会直接结束当前应用进程。')}
+        confirmLabel={t('common.confirm_exit', '确认退出')}
+        cancelLabel={t('common.cancel', '取消')}
         confirmVariant="danger"
         tone="warning"
         cancelFocusKey="titlebar-exit-cancel"

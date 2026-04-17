@@ -1,4 +1,4 @@
-use crate::services::instance::mod_manager::{ModManagerService, ModMetadata, ModSnapshot};
+use crate::services::instance::mod_manager::{ModManagerService, ModMetadata};
 use tauri::{AppHandle, Runtime};
 
 #[tauri::command]
@@ -8,8 +8,6 @@ pub async fn get_instance_mods<R: Runtime>(
 ) -> Result<Vec<ModMetadata>, String> {
     ModManagerService::get_mods(&app, &id).await
 }
-
-
 
 #[tauri::command]
 pub async fn update_mod_cache<R: tauri::Runtime>(

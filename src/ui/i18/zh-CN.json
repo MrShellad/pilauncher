@@ -782,5 +782,25 @@
       "about": "关于"
     },
     "developing": "设置模块开发中..."
+  },
+  "instancesPage": {
+    "viewToggleList": "切换为列表视图",
+    "viewToggleGrid": "切换为网格视图",
+    "searchPlaceholder": "搜索实例...",
+    "sortOptions": {
+      "lastPlayed": "最近游玩",
+      "createdAt": "创建时间"
+    },
+    "tagsBtn": "标签",
+    "actionNew": "新建实例",
+    "actionFolder": "选择启动器库",
+    "actionDetect": "自动探测",
+    "tagFilterModal": {
+      "title": "标签筛选",
+      "description": "选择下方的标签来筛选显示的实例列表。",
+      "empty": "目前没有任何可用的标签",
+      "clear": "清空",
+      "done": "完成"
+    }
   }
 }

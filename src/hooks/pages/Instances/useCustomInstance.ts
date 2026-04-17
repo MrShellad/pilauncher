@@ -33,7 +33,7 @@ export const useCustomInstance = () => {
   // --- 游戏参数 ---
   const [gameVersion, setGameVersion] = useState<string | null>(null);
   const [versionType, setVersionType] = useState<McVersionType>('release');
-  const [loaderType, setLoaderType] = useState<'Vanilla' | 'Fabric' | 'Forge' | 'NeoForge'>('Vanilla');
+  const [loaderType, setLoaderType] = useState<'Vanilla' | 'Fabric' | 'Forge' | 'NeoForge' | 'Quilt'>('Vanilla');
   const [loaderVersion, setLoaderVersion] = useState<string | null>('Vanilla');
 
   // --- 版本与加载状态 ---

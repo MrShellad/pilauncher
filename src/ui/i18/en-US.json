@@ -782,5 +782,25 @@
       "about": "About"
     },
     "developing": "Settings module under development..."
+  },
+  "instancesPage": {
+    "viewToggleList": "Switch to List View",
+    "viewToggleGrid": "Switch to Grid View",
+    "searchPlaceholder": "Search instances...",
+    "sortOptions": {
+      "lastPlayed": "Recently Played",
+      "createdAt": "Creation Time"
+    },
+    "tagsBtn": "Tags",
+    "actionNew": "New Instance",
+    "actionFolder": "Select Directory",
+    "actionDetect": "Auto Detect",
+    "tagFilterModal": {
+      "title": "Tag Filter",
+      "description": "Select tags below to filter the instance list.",
+      "empty": "No available tags currently",
+      "clear": "Clear",
+      "done": "Done"
+    }
   }
 }
