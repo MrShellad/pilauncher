@@ -33,6 +33,7 @@ const Home = lazy(() => import('./pages/Home'));
 const News = lazy(() => import('./pages/News'));
 const Instances = lazy(() => import('./pages/Instances'));
 const Multiplayer = lazy(() => import('./pages/Multiplayer'));
+const Wardrobe = lazy(() => import('./pages/Wardrobe'));
 const NewInstance = lazy(() => import('./pages/NewInstance'));
 const Settings = lazy(() => import('./pages/Settings'));
 const InstanceDetail = lazy(() => import('./pages/InstanceDetail'));
@@ -244,6 +245,7 @@ const App: React.FC = () => {
                 {activeTab === 'instance-detail' && <InstanceDetail />}
                 {activeTab === 'instance-mod-download' && <InstanceModDownloadPage />}
                 {activeTab === 'downloads' && <ResourceDownloadPage />}
+                {activeTab === 'wardrobe' && <Wardrobe />}
                 {activeTab === 'settings' && <Settings />}
               </Suspense>
             </motion.div>

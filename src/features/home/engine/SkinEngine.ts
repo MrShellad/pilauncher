@@ -18,6 +18,8 @@ import {
 
 /** 内置动画枚举（后续可扩展为商城道具动作） */
 export type AnimationPreset = 'idle' | 'walking' | 'running' | 'wave';
+export type SkinModelVariant = 'classic' | 'slim';
+export type BackEquipmentVariant = 'cape' | 'elytra';
 
 /** 引擎初始化配置 */
 export interface SkinEngineOptions {
@@ -119,6 +121,12 @@ function randomBetween(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+function toSkinViewerModel(model?: SkinModelVariant | 'auto-detect'): 'default' | 'slim' | 'auto-detect' {
+  if (model === 'slim') return 'slim';
+  if (model === 'classic') return 'default';
+  return 'auto-detect';
+}
+
 // ═══════════════════════════════════════════════════════════════
 // SkinEngine（单例）
 // ═══════════════════════════════════════════════════════════════
@@ -145,6 +153,7 @@ export class SkinEngine {
   private _disposed = false;
   private renderIntervalId: ReturnType<typeof setInterval> | null = null;
   private lastLoadedSkinKey: string | null = null;
+  private lastLoadedCapeKey: string | null = null;
   private _currentAnimationId: string = 'idle';
 
   /** 自定义动画注册表（合并内置 + 外部注入） */
@@ -388,21 +397,63 @@ export class SkinEngine {
    * @param skinKey 皮肤的唯一标识，相同 key 不会重复加载
    * @param urlOrSource 皮肤 URL 或 TextureSource
    */
-  async loadSkin(skinKey: string, urlOrSource: string): Promise<void> {
+  async loadSkin(
+    skinKey: string,
+    urlOrSource: string,
+    model?: SkinModelVariant | 'auto-detect',
+  ): Promise<void> {
     if (this._disposed || this.viewer.disposed) return;
 
     // 去重检查
     if (skinKey === this.lastLoadedSkinKey) return;
 
-    await this.viewer.loadSkin(urlOrSource);
+    await this.viewer.loadSkin(urlOrSource, { model: toSkinViewerModel(model) });
     this.lastLoadedSkinKey = skinKey;
   }
 
   /** 强制加载皮肤（跳过去重检查） */
-  async forceLoadSkin(skinKey: string, urlOrSource: string): Promise<void> {
+  async forceLoadSkin(
+    skinKey: string,
+    urlOrSource: string,
+    model?: SkinModelVariant | 'auto-detect',
+  ): Promise<void> {
     if (this._disposed || this.viewer.disposed) return;
-    await this.viewer.loadSkin(urlOrSource);
+    await this.viewer.loadSkin(urlOrSource, { model: toSkinViewerModel(model) });
     this.lastLoadedSkinKey = skinKey;
+  }
+
+  setSkinModel(model: SkinModelVariant): void {
+    if (this._disposed || this.viewer.disposed) return;
+    this.viewer.playerObject.skin.modelType = model === 'slim' ? 'slim' : 'default';
+  }
+
+  async loadCape(
+    capeKey: string,
+    urlOrSource: string,
+    backEquipment: BackEquipmentVariant = 'cape',
+  ): Promise<void> {
+    if (this._disposed || this.viewer.disposed) return;
+    if (capeKey === this.lastLoadedCapeKey) return;
+
+    await this.viewer.loadCape(urlOrSource, { backEquipment });
+    this.lastLoadedCapeKey = capeKey;
+  }
+
+  async forceLoadCape(
+    capeKey: string,
+    urlOrSource: string,
+    backEquipment: BackEquipmentVariant = 'cape',
+  ): Promise<void> {
+    if (this._disposed || this.viewer.disposed) return;
+
+    await this.viewer.loadCape(urlOrSource, { backEquipment });
+    this.lastLoadedCapeKey = capeKey;
+  }
+
+  clearCape(): void {
+    if (this._disposed || this.viewer.disposed) return;
+    this.viewer.loadCape(null);
+    this.lastLoadedCapeKey = null;
   }
 
   /** 重置为默认皮肤 */
@@ -415,6 +466,10 @@ export class SkinEngine {
   /** 获取上次加载的皮肤 key */
   get loadedSkinKey(): string | null {
     return this.lastLoadedSkinKey;
+  }
+
+  get loadedCapeKey(): string | null {
+    return this.lastLoadedCapeKey;
   }
 
   // ─── 道具系统（预留扩展） ────────────────────────────────────
@@ -450,6 +505,7 @@ export class SkinEngine {
     }
 
     this.lastLoadedSkinKey = null;
+    this.lastLoadedCapeKey = null;
     this.animationRegistry.clear();
     this.randomIdlePool = [];
 

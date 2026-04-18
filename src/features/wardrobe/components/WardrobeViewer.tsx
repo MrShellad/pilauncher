@@ -1,0 +1,19 @@
+import React from 'react';
+import { ArrowLeft } from 'lucide-react';
+import { OreButton } from '../../../ui/primitives/OreButton';
+
+export interface WardrobeViewerProps {
+  currentAccountName?: string;
+  onBack: () => void;
+  viewerContainerRef: React.Ref<HTMLDivElement>;
+}
+
+export const WardrobeViewer: React.FC<WardrobeViewerProps> = ({
+  viewerContainerRef,
+}) => {
+  return (
+    <div className="w-full h-full relative flex-1 min-h-[300px]">
+      <div ref={viewerContainerRef} className="w-full h-full absolute inset-0 cursor-grab active:cursor-grabbing" />
+    </div>
+  );
+};

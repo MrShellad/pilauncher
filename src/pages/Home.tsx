@@ -9,6 +9,7 @@ import { PlayStats } from '../features/home/components/PlayStats';
 import { HeroLogo } from '../features/home/components/HeroLogo';
 import { LaunchControls } from '../features/home/components/LaunchControls';
 import { InstanceSelectModal } from '../features/home/components/InstanceSelectModal';
+import { OreButton } from '../ui/primitives/OreButton';
 
 const SkinViewerPlaceholder = lazy(() =>
   import('../features/home/components/SkinViewerPlaceholder').then((module) => ({
@@ -55,9 +56,21 @@ const Home: React.FC = () => {
     <div className="w-full h-full relative">
       {/* ✅ 修复 3：将提取出的数据传给 PlayStats */}
       <PlayStats playTime={playTime} lastPlayed={lastPlayed} />
-      <Suspense fallback={null}>
-        <SkinViewerPlaceholder />
-      </Suspense>
+      <div className="absolute right-4 md:right-8 lg:right-12 bottom-6 w-[25vw] min-w-[180px] max-w-[320px] flex flex-col items-center gap-3 z-20">
+        <Suspense fallback={null}>
+          <SkinViewerPlaceholder className="relative w-full h-[50vh] min-h-[300px] max-h-[500px] flex items-center justify-center cursor-grab active:cursor-grabbing" />
+        </Suspense>
+        <OreButton
+          focusKey="btn-wardrobe"
+          variant="secondary"
+          size="auto"
+          className="!h-11 !w-full !min-w-0"
+          onClick={() => setActiveTab('wardrobe')}
+          autoScroll={false}
+        >
+          更衣室
+        </OreButton>
+      </div>
 
       <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
         <HeroLogo instanceId={currentId || null} />

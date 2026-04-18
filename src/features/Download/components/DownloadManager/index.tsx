@@ -11,7 +11,7 @@ import { FloatingButton } from './FloatingButton';
 import { TaskPanel } from './TaskPanel';
 
 const fallbackFocusKeysByTab: Record<string, string[]> = {
-  home: ['play-button', 'instance-button', 'settings-button', 'btn-profile', 'btn-login'],
+  home: ['play-button', 'instance-button', 'settings-button', 'btn-wardrobe', 'btn-profile', 'btn-login'],
   news: ['news-refresh-button', 'news-back-button'],
   instances: ['action-new', 'view-grid', 'view-list'],
   downloads: ['download-search-input', 'download-grid-item-0'],
@@ -34,7 +34,8 @@ const fallbackFocusKeysByTab: Record<string, string[]> = {
     'instance-mod-page-back',
     'inst-filter-search',
     'download-grid-item-0'
-  ]
+  ],
+  wardrobe: ['wardrobe-back', 'wardrobe-upload-card', 'wardrobe-section-0']
 };
 
 const globalSafeFallbackKeys = [

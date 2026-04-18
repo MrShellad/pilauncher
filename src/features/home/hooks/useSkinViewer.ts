@@ -22,6 +22,37 @@ export interface UseSkinViewerReturn {
   getEngine: () => SkinEngine | null;
 }
 
+export const loadAccountSkin = async (engine: SkinEngine, currentAccount: unknown) => {
+  const account = currentAccount as any;
+  const uuid = account?.uuid ?? '';
+  const cacheBuster = account?.skinUrl?.split('?t=')[1] || 'init';
+  const skinKey = uuid ? `${uuid}:${cacheBuster}` : 'default:steve';
+
+  if (!account) {
+    await engine.loadSkin(skinKey, DEFAULT_SKIN_URL);
+    return;
+  }
+
+  try {
+    const basePath = await invoke<string | null>('get_base_directory');
+    if (basePath) {
+      const separator = basePath.includes('\\') ? '\\' : '/';
+      const localSkinPath = `${basePath}${separator}runtime${separator}accounts${separator}${account.uuid}${separator}skin.png`;
+      const assetUrl = `${convertFileSrc(localSkinPath)}?t=${cacheBuster}`;
+      await engine.loadSkin(skinKey, assetUrl);
+      return;
+    }
+  } catch (e) {
+    console.warn('[useSkinViewer] 加载本地皮肤失败，尝试网络兜底:', e);
+  }
+
+  try {
+    await engine.loadSkin(skinKey, `https://minotar.net/skin/${account.name}.png`);
+  } catch {
+    await engine.loadSkin(skinKey, DEFAULT_SKIN_URL);
+  }
+};
+
 /**
  * 将 SkinEngine 桥接到 React 组件。
  *
@@ -111,39 +142,8 @@ export function useSkinViewer(visibleTab = 'home'): UseSkinViewerReturn {
   useEffect(() => {
     const engine = SkinEngine.current;
     if (!engine || engine.isDisposed) return;
-
-    const loadSkin = async () => {
-      const uuid = currentAccount?.uuid ?? '';
-      const cacheBuster = currentAccount?.skinUrl?.split('?t=')[1] || 'init';
-      const skinKey = uuid ? `${uuid}:${cacheBuster}` : 'default:steve';
-
-      if (!currentAccount) {
-        await engine.loadSkin(skinKey, DEFAULT_SKIN_URL);
-        return;
-      }
-
-      try {
-        const basePath = await invoke<string | null>('get_base_directory');
-        if (basePath) {
-          const separator = basePath.includes('\\') ? '\\' : '/';
-          const localSkinPath = `${basePath}${separator}runtime${separator}accounts${separator}${currentAccount.uuid}${separator}skin.png`;
-          const assetUrl = `${convertFileSrc(localSkinPath)}?t=${cacheBuster}`;
-          await engine.loadSkin(skinKey, assetUrl);
-          return;
-        }
-      } catch (e) {
-        console.warn('[useSkinViewer] 加载本地皮肤失败，尝试网络兜底:', e);
-      }
-
-      // 网络 fallback
-      try {
-        await engine.loadSkin(skinKey, `https://minotar.net/skin/${currentAccount.name}.png`);
-      } catch {
-        await engine.loadSkin(skinKey, DEFAULT_SKIN_URL);
-      }
-    };
-
-    loadSkin();
+    
+    void loadAccountSkin(engine, currentAccount);
   }, [currentAccount]);
 
   // ─── 5. 对外暴露的方法 ──────────────────────────────────────

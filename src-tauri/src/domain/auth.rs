@@ -42,14 +42,48 @@ pub struct Account {
     pub skin_url: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Skin {
     pub url: String,
+    pub id: Option<String>,
+    pub state: Option<String>,
+    pub variant: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Cape {
+    pub id: String,
+    pub url: String,
+    pub alias: Option<String>,
+    pub state: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct McProfile {
     pub id: String,
     pub name: String,
+    #[serde(default)]
     pub skins: Vec<Skin>,
+    #[serde(default)]
+    pub capes: Vec<Cape>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct WardrobeSkinAsset {
+    pub id: String,
+    pub file_name: String,
+    pub file_path: String,
+    pub variant: Option<String>,
+    pub content_hash: String,
+    pub created_at: i64,
+    pub is_active: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct WardrobeSkinLibrary {
+    pub active_hash: Option<String>,
+    #[serde(default)]
+    pub assets: Vec<WardrobeSkinAsset>,
 }

@@ -1,7 +1,9 @@
 // src-tauri/src/services/auth_service.rs
 use crate::domain::auth::{
     Account, AccountType, DeviceCodeResponse, McProfile, MicrosoftTokenResponse,
+    WardrobeSkinAsset, WardrobeSkinLibrary,
 };
+use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -104,8 +106,8 @@ pub async fn poll_and_exchange_token<R: Runtime>(
 ) -> Result<Account, String> {
     let client = get_client();
     let poll_interval = Duration::from_secs(interval);
-    let mut ms_access_token = String::new();
-    let mut ms_refresh_token = String::new();
+    let ms_access_token;
+    let ms_refresh_token;
 
     let mut attempts = 0;
     loop {
@@ -370,9 +372,506 @@ async fn get_minecraft_profile(
     }
 }
 
+fn active_skin_url(profile: &McProfile) -> Option<&str> {
+    profile
+        .skins
+        .iter()
+        .find(|skin| skin.state.as_deref() == Some("ACTIVE"))
+        .or_else(|| profile.skins.first())
+        .map(|skin| skin.url.as_str())
+}
+
+fn active_cape_url(profile: &McProfile) -> Option<&str> {
+    profile
+        .capes
+        .iter()
+        .find(|cape| cape.state.as_deref() == Some("ACTIVE"))
+        .map(|cape| cape.url.as_str())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct SkinMetadataEntry {
+    pub id: String,
+    pub url: String,
+    pub model: String,
+    pub upload_time: String,
+    pub size: u64,
+    pub hash: String,
+    pub source: String,
+    pub is_deleted: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+struct SkinMetadata {
+    #[serde(default)]
+    pub user_id: String,
+    #[serde(default)]
+    pub current_skin_id: String,
+    #[serde(default)]
+    pub skins: Vec<SkinMetadataEntry>,
+}
+
+// Removed unused unix_timestamp_millis
+
+fn account_runtime_dir<R: Runtime>(
+    app: &AppHandle<R>,
+    account_uuid: &str,
+) -> Result<PathBuf, String> {
+    let base_path_str = ConfigService::get_base_path(app)
+        .map_err(|_| "鏃犳硶璇诲彇閰嶇疆鐩綍".to_string())?
+        .ok_or_else(|| "灏氭湭閰嶇疆鍩虹鏁版嵁鐩綍".to_string())?;
+
+    Ok(PathBuf::from(base_path_str)
+        .join("runtime")
+        .join("accounts")
+        .join(account_uuid))
+}
+
+fn wardrobe_skin_assets_dir<R: Runtime>(
+    app: &AppHandle<R>,
+    account_uuid: &str,
+) -> Result<PathBuf, String> {
+    let base_path_str = ConfigService::get_base_path(app)
+        .map_err(|_| "无法读取配置目录".to_string())?
+        .ok_or_else(|| "尚未配置基础数据目录".to_string())?;
+
+    Ok(PathBuf::from(base_path_str)
+        .join("config")
+        .join("skins")
+        .join(account_uuid))
+}
+
+fn wardrobe_skin_library_path<R: Runtime>(
+    app: &AppHandle<R>,
+    account_uuid: &str,
+) -> Result<PathBuf, String> {
+    Ok(wardrobe_skin_assets_dir(app, account_uuid)?.join("metadata.json"))
+}
+
+fn active_account_skin_path<R: Runtime>(
+    app: &AppHandle<R>,
+    account_uuid: &str,
+) -> Result<PathBuf, String> {
+    Ok(account_runtime_dir(app, account_uuid)?.join("skin.png"))
+}
+
+fn hash_file(path: &Path) -> Result<String, String> {
+    let bytes = fs::read(path).map_err(|e| format!("璇诲彇鐨偆璧勪骇澶辫触: {}", e))?;
+    Ok(format!("{:x}", md5::compute(bytes)))
+}
+
+fn read_stored_skin_library(path: &Path) -> Result<SkinMetadata, String> {
+    if !path.exists() {
+        return Ok(SkinMetadata::default());
+    }
+
+    let content = fs::read_to_string(path).map_err(|e| format!("读取皮肤资产清单失败: {}", e))?;
+    serde_json::from_str(&content).map_err(|e| format!("解析皮肤资产清单失败: {}", e))
+}
+
+fn write_stored_skin_library(
+    path: &Path,
+    library: &SkinMetadata,
+) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("创建皮肤资产目录失败: {}", e))?;
+    }
+
+    let serialized = serde_json::to_string_pretty(library)
+        .map_err(|e| format!("序列化皮肤资产清单失败: {}", e))?;
+    fs::write(path, serialized).map_err(|e| format!("写入皮肤资产清单失败: {}", e))
+}
+
+fn get_active_skin_hash<R: Runtime>(
+    app: &AppHandle<R>,
+    account_uuid: &str,
+) -> Result<Option<String>, String> {
+    let skin_path = active_account_skin_path(app, account_uuid)?;
+    if !skin_path.exists() || !skin_path.is_file() {
+        return Ok(None);
+    }
+
+    hash_file(&skin_path).map(Some)
+}
+
+fn finalize_skin_library<R: Runtime>(
+    app: &AppHandle<R>,
+    account_uuid: &str,
+    mut stored: SkinMetadata,
+    persist_if_pruned: bool,
+) -> Result<WardrobeSkinLibrary, String> {
+    let assets_dir = wardrobe_skin_assets_dir(app, account_uuid)?;
+    let manifest_path = wardrobe_skin_library_path(app, account_uuid)?;
+    let original_len = stored.skins.len();
+
+    stored.skins.retain(|asset| {
+        if asset.is_deleted { return false; }
+        // Reconstruct absolute path to check existence
+        let abs_path = assets_dir.join(format!("{}.png", asset.id));
+        abs_path.exists() && abs_path.is_file()
+    });
+
+    if persist_if_pruned && stored.skins.len() != original_len {
+        write_stored_skin_library(&manifest_path, &stored)?;
+    }
+
+    // Verify current active skin logic (use offline skin hash or current_skin_id)
+    // If it's a Microsoft account, we might have an active hash.
+    // However, we can also trust `stored.current_skin_id`.
+    let active_hash = get_active_skin_hash(app, account_uuid)?;
+    
+    // Convert to the frontend's expected format `WardrobeSkinAsset`
+    // We sort the assets inversely by upload_time
+    stored.skins.sort_by(|a, b| b.upload_time.cmp(&a.upload_time));
+
+    Ok(WardrobeSkinLibrary {
+        active_hash: active_hash.clone(),
+        assets: stored
+            .skins
+            .into_iter()
+            .map(|asset| {
+                let abs_path = assets_dir.join(format!("{}.png", asset.id));
+                WardrobeSkinAsset {
+                    is_active: asset.id == stored.current_skin_id,
+                    id: asset.id.clone(),
+                    file_name: format!("{}.png", asset.id),
+                    file_path: abs_path.to_string_lossy().to_string(), // Frontend still needs absolute for convertFileSrc
+                    variant: Some(asset.model.clone()),
+                    content_hash: asset.hash.clone(),
+                    created_at: 0, 
+                }
+            })
+            .collect(),
+    })
+}
+
+async fn cache_profile_assets<R: Runtime>(
+    app: &AppHandle<R>,
+    account_uuid: &str,
+    profile: &McProfile,
+) {
+    let _ = cache_account_assets(
+        app,
+        account_uuid,
+        &profile.id,
+        active_skin_url(profile),
+        active_cape_url(profile),
+    )
+    .await;
+}
+
+fn normalize_skin_variant(variant: &str) -> Result<&'static str, String> {
+    match variant.trim().to_ascii_lowercase().as_str() {
+        "classic" | "default" => Ok("classic"),
+        "slim" => Ok("slim"),
+        _ => Err("皮肤模型只支持 classic 或 slim".to_string()),
+    }
+}
+
+fn minecraft_api_error(action: &str, status: reqwest::StatusCode, body: String) -> String {
+    let status_code = status.as_u16();
+    let hint = match status_code {
+        401 => "会话已过期，请刷新账号登录状态后重试",
+        403 => "当前账号没有权限执行此操作",
+        404 => "Minecraft 服务未找到对应资源",
+        413 => "图片文件过大",
+        415 => "仅支持 PNG 皮肤文件",
+        429 => "请求过于频繁，请稍后再试",
+        _ => "Minecraft 服务返回了错误",
+    };
+
+    if body.trim().is_empty() {
+        format!("{}失败 (HTTP {}): {}", action, status_code, hint)
+    } else {
+        format!(
+            "{}失败 (HTTP {}): {}。服务返回: {}",
+            action, status_code, hint, body
+        )
+    }
+}
+
+fn build_skin_upload_body(variant: &str, file_name: &str, file_bytes: &[u8]) -> (String, Vec<u8>) {
+    let boundary = format!("----PiLauncherWardrobe{}", Uuid::new_v4().simple());
+    let mut body = Vec::with_capacity(file_bytes.len() + 512);
+
+    body.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
+    body.extend_from_slice(b"Content-Disposition: form-data; name=\"variant\"\r\n\r\n");
+    body.extend_from_slice(variant.as_bytes());
+    body.extend_from_slice(b"\r\n");
+
+    body.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
+    body.extend_from_slice(
+        format!(
+            "Content-Disposition: form-data; name=\"file\"; filename=\"{}\"\r\n",
+            file_name.replace('"', "")
+        )
+        .as_bytes(),
+    );
+    body.extend_from_slice(b"Content-Type: image/png\r\n\r\n");
+    body.extend_from_slice(file_bytes);
+    body.extend_from_slice(b"\r\n");
+
+    body.extend_from_slice(format!("--{}--\r\n", boundary).as_bytes());
+
+    (boundary, body)
+}
+
+pub async fn get_wardrobe_profile<R: Runtime>(
+    app: &AppHandle<R>,
+    access_token: &str,
+    account_uuid: &str,
+) -> Result<McProfile, String> {
+    let client = get_client();
+    let profile = get_minecraft_profile(&client, access_token).await?;
+    cache_profile_assets(app, account_uuid, &profile).await;
+    Ok(profile)
+}
+
+pub async fn apply_wardrobe_skin<R: Runtime>(
+    app: &AppHandle<R>,
+    access_token: &str,
+    account_uuid: &str,
+    source_path: &str,
+    variant: &str,
+) -> Result<McProfile, String> {
+    let resolved_variant = normalize_skin_variant(variant)?;
+    let source = Path::new(source_path);
+
+    if !source.exists() || !source.is_file() {
+        return Err("选中的皮肤文件不存在".to_string());
+    }
+
+    let file_bytes = fs::read(source).map_err(|e| format!("读取皮肤文件失败: {}", e))?;
+    let file_name = source
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("skin.png");
+    let (boundary, body) = build_skin_upload_body(resolved_variant, file_name, &file_bytes);
+
+    let client = get_client();
+    let res = client
+        .post("https://api.minecraftservices.com/minecraft/profile/skins")
+        .bearer_auth(access_token)
+        .header(
+            reqwest::header::CONTENT_TYPE,
+            format!("multipart/form-data; boundary={}", boundary),
+        )
+        .header(reqwest::header::ACCEPT, "application/json")
+        .body(body)
+        .send()
+        .await
+        .map_err(|e| format_reqwest_error("上传 Minecraft 皮肤失败", e))?;
+
+    let status = res.status();
+    let text = res.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(minecraft_api_error("上传皮肤", status, text));
+    }
+
+    let profile = get_minecraft_profile(&client, access_token).await?;
+    cache_profile_assets(app, account_uuid, &profile).await;
+    Ok(profile)
+}
+
+pub async fn update_active_wardrobe_skin_variant<R: Runtime>(
+    app: &AppHandle<R>,
+    access_token: &str,
+    account_uuid: &str,
+    variant: &str,
+) -> Result<McProfile, String> {
+    let source = active_account_skin_path(app, account_uuid)?;
+    apply_wardrobe_skin(app, access_token, account_uuid, source.to_string_lossy().as_ref(), variant).await
+}
+
+pub async fn set_active_cape<R: Runtime>(
+    app: &AppHandle<R>,
+    access_token: &str,
+    account_uuid: &str,
+    cape_id: &str,
+) -> Result<McProfile, String> {
+    let client = get_client();
+    let res = client
+        .put("https://api.minecraftservices.com/minecraft/profile/capes/active")
+        .bearer_auth(access_token)
+        .header(reqwest::header::ACCEPT, "application/json")
+        .json(&serde_json::json!({ "capeId": cape_id }))
+        .send()
+        .await
+        .map_err(|e| format_reqwest_error("切换 Minecraft 披风失败", e))?;
+
+    let status = res.status();
+    let text = res.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(minecraft_api_error("切换披风", status, text));
+    }
+
+    let profile = get_minecraft_profile(&client, access_token).await?;
+    cache_profile_assets(app, account_uuid, &profile).await;
+    Ok(profile)
+}
+
+pub async fn clear_active_cape<R: Runtime>(
+    app: &AppHandle<R>,
+    access_token: &str,
+    account_uuid: &str,
+) -> Result<McProfile, String> {
+    let client = get_client();
+    let res = client
+        .delete("https://api.minecraftservices.com/minecraft/profile/capes/active")
+        .bearer_auth(access_token)
+        .header(reqwest::header::ACCEPT, "application/json")
+        .send()
+        .await
+        .map_err(|e| format_reqwest_error("卸下 Minecraft 披风失败", e))?;
+
+    let status = res.status();
+    let text = res.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(minecraft_api_error("卸下披风", status, text));
+    }
+
+    let profile = get_minecraft_profile(&client, access_token).await?;
+    cache_profile_assets(app, account_uuid, &profile).await;
+    Ok(profile)
+}
+
 // ==========================================
 // 辅助与资产模块
 // ==========================================
+
+pub fn get_wardrobe_skin_library<R: Runtime>(
+    app: &AppHandle<R>,
+    account_uuid: &str,
+) -> Result<WardrobeSkinLibrary, String> {
+    let manifest_path = wardrobe_skin_library_path(app, account_uuid)?;
+    let stored = read_stored_skin_library(&manifest_path)?;
+    finalize_skin_library(app, account_uuid, stored, true)
+}
+
+pub fn save_wardrobe_skin_asset<R: Runtime>(
+    app: &AppHandle<R>,
+    account_uuid: &str,
+    source_path: &str,
+    variant: &str,
+) -> Result<WardrobeSkinLibrary, String> {
+    let resolved_variant = normalize_skin_variant(variant)?.to_string();
+    let source = Path::new(source_path);
+
+    if !source.exists() || !source.is_file() {
+        return Err("选中的皮肤文件不存在".to_string());
+    }
+
+    let bytes = fs::read(source).map_err(|e| format!("读取皮肤文件失败: {}", e))?;
+    let content_hash = format!("{:x}", md5::compute(&bytes));
+    let assets_dir = wardrobe_skin_assets_dir(app, account_uuid)?;
+    let manifest_path = wardrobe_skin_library_path(app, account_uuid)?;
+
+    fs::create_dir_all(&assets_dir).map_err(|e| format!("创建皮肤资产目录失败: {}", e))?;
+
+    let mut stored = read_stored_skin_library(&manifest_path)?;
+    
+    // Assign user_id if missing
+    if stored.user_id.is_empty() {
+        stored.user_id = account_uuid.to_string();
+    }
+
+    stored
+        .skins
+        .retain(|asset| Path::new(&asset.url).exists() && Path::new(&asset.url).is_file() && !asset.is_deleted);
+
+    let mut max_id: u32 = 0;
+    for asset in &stored.skins {
+        if asset.id.starts_with("skin_") {
+            if let Ok(num) = asset.id[5..].parse::<u32>() {
+                if num > max_id {
+                    max_id = num;
+                }
+            }
+        }
+    }
+
+    // Check if hash already exists
+    if let Some(existing_asset) = stored
+        .skins
+        .iter_mut()
+        .find(|asset| asset.hash == content_hash)
+    {
+        existing_asset.model = resolved_variant;
+    } else {
+        let new_id = format!("skin_{:04}", max_id + 1);
+        let target_path = assets_dir.join(format!("{}.png", new_id));
+        fs::write(&target_path, &bytes).map_err(|e| format!("写入皮肤资产失败: {}", e))?;
+
+        let upload_time = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+        let relative_url = format!("/skins/{}/{}.png", account_uuid, new_id);
+
+        stored.skins.push(SkinMetadataEntry {
+            id: new_id,
+            url: relative_url,
+            model: resolved_variant,
+            upload_time,
+            size: bytes.len() as u64,
+            hash: content_hash,
+            source: "upload".to_string(),
+            is_deleted: false,
+        });
+    }
+
+    write_stored_skin_library(&manifest_path, &stored)?;
+    finalize_skin_library(app, account_uuid, stored, false)
+}
+
+pub fn delete_wardrobe_skin_asset<R: Runtime>(
+    app: &AppHandle<R>,
+    account_uuid: &str,
+    asset_id: &str,
+) -> Result<WardrobeSkinLibrary, String> {
+    let manifest_path = wardrobe_skin_library_path(app, account_uuid)?;
+    let mut stored = read_stored_skin_library(&manifest_path)?;
+    let _ = get_active_skin_hash(app, account_uuid)?;
+
+    let target_index = stored
+        .skins
+        .iter()
+        .position(|asset| asset.id == asset_id)
+        .ok_or_else(|| "未找到指定的皮肤资产".to_string())?;
+
+    if stored.skins[target_index].id == stored.current_skin_id {
+        return Err("当前正在使用的皮肤不能删除".to_string());
+    }
+
+    let mut removed_asset = stored.skins.remove(target_index);
+    removed_asset.is_deleted = true; // just to be conceptually sound
+
+    if Path::new(&removed_asset.url).exists() {
+        fs::remove_file(&removed_asset.url)
+            .map_err(|e| format!("物理删除皮肤文件失败: {}", e))?;
+    }
+
+    write_stored_skin_library(&manifest_path, &stored)?;
+    finalize_skin_library(app, account_uuid, stored, false)
+}
+
+pub fn set_wardrobe_skin_asset_variant<R: Runtime>(
+    app: &AppHandle<R>,
+    account_uuid: &str,
+    asset_id: &str,
+    variant: &str,
+) -> Result<WardrobeSkinLibrary, String> {
+    let resolved_variant = normalize_skin_variant(variant)?.to_string();
+    let manifest_path = wardrobe_skin_library_path(app, account_uuid)?;
+    let mut stored = read_stored_skin_library(&manifest_path)?;
+
+    let target_asset = stored
+        .skins
+        .iter_mut()
+        .find(|asset| asset.id == asset_id)
+        .ok_or_else(|| "未找到指定的皮肤资产".to_string())?;
+
+    target_asset.model = resolved_variant;
+    write_stored_skin_library(&manifest_path, &stored)?;
+    finalize_skin_library(app, account_uuid, stored, false)
+}
 
 pub async fn cache_account_assets<R: Runtime>(
     app: &AppHandle<R>,
@@ -394,17 +893,24 @@ pub async fn cache_account_assets<R: Runtime>(
     let client = get_client();
 
     if let Some(url) = skin_url {
+        // Optimization: if we already have a skin, and the URL is clearly the same, we could skip.
+        // But for HD/Refreshing logic, we follow: ALWAYS try to download first.
         if let Ok(resp) = client.get(url).send().await {
-            let ct = resp
-                .headers()
-                .get(reqwest::header::CONTENT_TYPE)
-                .and_then(|v| v.to_str().ok())
-                .unwrap_or("");
-            if ct.starts_with("image/") {
-                if let Ok(bytes) = resp.bytes().await {
-                    let _ = fs::write(target_dir.join("skin.png"), bytes);
+            if resp.status().is_success() {
+                let ct = resp
+                    .headers()
+                    .get(reqwest::header::CONTENT_TYPE)
+                    .and_then(|v| v.to_str().ok())
+                    .unwrap_or("");
+                if ct.starts_with("image/") {
+                    if let Ok(bytes) = resp.bytes().await {
+                        // Successfully fetched new remote skin (potentially HD).
+                        // Overwrite local skin.png.
+                        let _ = fs::write(target_dir.join("skin.png"), bytes);
+                    }
                 }
             }
+            // If download fails or status not success, the existing skin.png remains used (fallback).
         }
     }
 
@@ -478,6 +984,32 @@ pub fn upload_offline_skin<R: Runtime>(
     fs::copy(source, &target_path).map_err(|e| format!("复制皮肤失败: {}", e))?;
 
     Ok(target_path.to_string_lossy().to_string())
+}
+
+pub fn set_active_wardrobe_skin_offline<R: Runtime>(
+    app: &AppHandle<R>,
+    account_uuid: &str,
+    asset_id: &str,
+) -> Result<WardrobeSkinLibrary, String> {
+    let manifest_path = wardrobe_skin_library_path(app, account_uuid)?;
+    let mut stored = read_stored_skin_library(&manifest_path)?;
+
+    let assets_dir = wardrobe_skin_assets_dir(app, account_uuid)?;
+    let target_asset = stored
+        .skins
+        .iter()
+        .find(|asset| asset.id == asset_id)
+        .ok_or_else(|| "未找到指定的皮肤资产".to_string())?;
+
+    let source_path = assets_dir.join(format!("{}.png", target_asset.id));
+    
+    stored.current_skin_id = asset_id.to_string();
+    write_stored_skin_library(&manifest_path, &stored)?;
+
+    // physical copy to runtime/accounts/{uuid}/skin.png
+    upload_offline_skin(app, account_uuid, source_path.to_string_lossy().as_ref())?;
+
+    finalize_skin_library(app, account_uuid, stored, false)
 }
 
 pub async fn fetch_and_save_mojang_skin<R: Runtime>(

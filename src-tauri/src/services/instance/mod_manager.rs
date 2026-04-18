@@ -104,7 +104,8 @@ pub struct ModFileNameCleanupProgress {
     pub message: String,
 }
 
-const MOD_FILE_NAME_CLEANUP_PROGRESS_EVENT: &str = "mod-file-name-cleanup-progress";
+// Removed unused constant
+
 
 pub struct ModManagerService;
 

@@ -9,7 +9,7 @@ export const useFocusManager = (isOpen: boolean) => {
   const lastFocusBeforeOpenRef = useRef<string | null>(null);
 
   const fallbackFocusKeysByTab = useMemo<Record<string, string[]>>(() => ({
-    home: ['play-button', 'instance-button', 'settings-button', 'btn-profile', 'btn-login'],
+    home: ['play-button', 'instance-button', 'settings-button', 'btn-wardrobe', 'btn-profile', 'btn-login'],
     news: ['news-refresh-button', 'news-back-button'],
     instances: ['action-new', 'view-grid', 'view-list'],
     downloads: ['download-search-input', 'download-grid-item-0'],
@@ -35,6 +35,7 @@ export const useFocusManager = (isOpen: boolean) => {
       'inst-filter-search',
       'download-grid-item-0',
     ],
+    wardrobe: ['wardrobe-back', 'wardrobe-upload-card', 'wardrobe-section-0'],
   }), []);
 
   const restoreFocusToCurrentPage = useCallback(() => {

@@ -10,6 +10,7 @@ export type TabType =
   | 'multiplayer'
   | 'downloads'
   | 'library'
+  | 'wardrobe'
   | 'settings'
   | 'new-instance'
   | 'instance-detail'
