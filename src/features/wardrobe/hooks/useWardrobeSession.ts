@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
 import { useAccountStore, type MinecraftAccount } from '../../../store/useAccountStore';
@@ -14,12 +14,35 @@ import {
 
 export function useWardrobeSession() {
   const { updateAccount } = useAccountStore();
-  const { setProfile: setCachedProfile, getProfile: getCachedProfile } = useWardrobeStore();
+  const { 
+    setProfile: setCachedProfile, 
+    getProfile: getCachedProfile,
+    setLibrary: setCachedLibrary,
+    getLibrary: getCachedLibrary
+  } = useWardrobeStore();
 
   const [profile, setProfileState] = useState<WardrobeProfile | null>(null);
-  const [skinLibrary, setSkinLibrary] = useState<WardrobeSkinLibrary | null>(null);
+  const [skinLibrary, setSkinLibraryState] = useState<WardrobeSkinLibrary | null>(null);
+
+  const setSkinLibrary = useCallback(
+    (newLibrary: WardrobeSkinLibrary | null, accountUuid?: string) => {
+      setSkinLibraryState((prev) => {
+        // 局部更新优化：如果数据内容完全一致，则不触发重绘
+        if (JSON.stringify(prev) === JSON.stringify(newLibrary)) {
+          return prev;
+        }
+        return newLibrary;
+      });
+      
+      if (newLibrary && accountUuid) {
+        setCachedLibrary(accountUuid, newLibrary);
+      }
+    },
+    [setCachedLibrary]
+  );
 
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const isHydratingRef = useRef(false); // 核心并发锁，确保 hydrateWardrobe 引用稳定
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -110,20 +133,29 @@ export function useWardrobeSession() {
       onClearSkinMenuAsset: () => void,
       silent = false
     ) => {
-      if (isLoadingProfile) return;
+      // 使用 Ref 进行并发检查，避免 isLoadingProfile 引起函数引用变化
+      if (isHydratingRef.current) return;
 
       setError(null);
-      onClearSkinMenuAsset();
+      
+      const cachedProfile = getCachedProfile(account.uuid);
+      const cachedLibrary = getCachedLibrary(account.uuid);
 
-      if (isMicrosoftAccount(account)) {
-        const cached = getCachedProfile(account.uuid);
-        if (silent && cached) {
-          setProfile(cached);
-          onModelResolved(resolveSkinModel(findActiveSkin(cached)?.variant));
-        }
+      if (cachedProfile) {
+        setProfileState(cachedProfile);
+        onModelResolved(resolveSkinModel(findActiveSkin(cachedProfile)?.variant));
+      }
+      if (cachedLibrary) {
+        setSkinLibraryState(cachedLibrary);
+      }
 
-        setIsLoadingProfile(true);
-        try {
+      const isMicrosoft = isMicrosoftAccount(account);
+      
+      isHydratingRef.current = true;
+      setIsLoadingProfile(true);
+
+      try {
+        if (isMicrosoft) {
           const [nextProfile, nextLibrary] = await Promise.all([
             loadProfile(account),
             fetchSkinLibrary(account.uuid)
@@ -132,42 +164,34 @@ export function useWardrobeSession() {
           const nextModel = resolveSkinModel(findActiveSkin(nextProfile)?.variant);
 
           setProfile(nextProfile, account.uuid);
-          setSkinLibrary(nextLibrary);
+          setSkinLibrary(nextLibrary, account.uuid);
           onModelResolved(nextModel);
           touchAccountSkinCache(account, findActiveSkin(nextProfile)?.url);
 
-          if (!silent) {
-            setNotice('皮肤与披风资产已同步');
+          if (!silent) setNotice('资产已同步');
+        } else {
+          const nextLibrary = await fetchSkinLibrary(account.uuid);
+          setSkinLibrary(nextLibrary, account.uuid);
+          
+          const activeLocalAsset = nextLibrary.assets.find(a => a.isActive);
+          if (activeLocalAsset?.variant) {
+            onModelResolved(resolveSkinModel(activeLocalAsset.variant));
           }
-        } catch (caughtError) {
-          if (!cached) {
-            setError(String(caughtError));
-          } else {
-            console.error(caughtError);
-          }
-        } finally {
-          setIsLoadingProfile(false);
+
+          if (!silent) setNotice('本地预览已同步');
         }
-
-        return;
-      }
-
-      setProfile(null);
-      try {
-        const nextLibrary = await fetchSkinLibrary(account.uuid);
-        setSkinLibrary(nextLibrary);
-        
-        const activeLocalAsset = nextLibrary.assets.find(a => a.isActive);
-        if (activeLocalAsset && activeLocalAsset.variant) {
-          onModelResolved(resolveSkinModel(activeLocalAsset.variant));
-        }
-
-        setNotice(silent ? '离线账号可在本地管理皮肤，披风需要微软正版账号' : '本地皮肤资产已刷新');
       } catch (caughtError) {
-        setError(String(caughtError));
+        if (!cachedProfile && !cachedLibrary) {
+          setError(String(caughtError));
+        } else {
+          console.error('[Hydrate] Background sync failed:', caughtError);
+        }
+      } finally {
+        setIsLoadingProfile(false);
+        isHydratingRef.current = false;
       }
     },
-    [fetchSkinLibrary, getCachedProfile, loadProfile, setProfile, touchAccountSkinCache]
+    [fetchSkinLibrary, getCachedLibrary, getCachedProfile, loadProfile, setProfile, setSkinLibrary, touchAccountSkinCache]
   );
 
   return {

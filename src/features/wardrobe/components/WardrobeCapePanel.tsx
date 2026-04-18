@@ -1,5 +1,6 @@
 import React from 'react';
 import { FocusItem } from '../../../ui/focus/FocusItem';
+import { useInputAction } from '../../../ui/focus/InputDriver';
 import type { WardrobeProfile, WardrobeCape } from '../types';
 import { WardrobeCapeCardPreview } from './WardrobeCapeCardPreview';
 
@@ -9,7 +10,55 @@ export interface WardrobeCapePanelProps {
   profile: WardrobeProfile | null;
   activeCape: WardrobeCape | null;
   onOpenCapeMenu: (cape: WardrobeCape) => void;
+  onPreview: (cape: WardrobeCape) => void;
 }
+
+interface CapeCardItemProps {
+  cape: WardrobeCape;
+  index: number;
+  isActive: boolean;
+  onOpenCapeMenu: (cape: WardrobeCape) => void;
+  onPreview: (cape: WardrobeCape) => void;
+}
+
+const CapeCardItem = React.memo(({ cape, index, isActive, onOpenCapeMenu, onPreview }: CapeCardItemProps) => {
+  const isComponentFocusedRef = React.useRef(false);
+
+  useInputAction('ACTION_X', () => {
+    if (isComponentFocusedRef.current) {
+      onPreview(cape);
+    }
+  });
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onPreview(cape);
+  };
+
+  return (
+    <FocusItem
+      focusKey={`wardrobe-cape-${index}`}
+      onEnter={() => onOpenCapeMenu(cape)}
+    >
+      {({ ref, focused }) => {
+        isComponentFocusedRef.current = focused;
+        return (
+          <button
+            ref={ref as any}
+            type="button"
+            className={`wardrobe-cape-card ${isActive ? 'is-active' : ''} ${focused ? 'is-focused' : ''}`}
+            onClick={() => onOpenCapeMenu(cape)}
+            onContextMenu={handleContextMenu}
+          >
+            <span className="wardrobe-cape-card__art">
+              <WardrobeCapeCardPreview capeUrl={cape.url} className="w-full h-full object-contain" />
+            </span>
+          </button>
+        );
+      }}
+    </FocusItem>
+  );
+});
 
 export const WardrobeCapePanel: React.FC<WardrobeCapePanelProps> = ({
   isMicrosoft,
@@ -17,6 +66,7 @@ export const WardrobeCapePanel: React.FC<WardrobeCapePanelProps> = ({
   profile,
   activeCape,
   onOpenCapeMenu,
+  onPreview,
 }) => {
   return (
     <div className="wardrobe-panel-body">
@@ -42,30 +92,16 @@ export const WardrobeCapePanel: React.FC<WardrobeCapePanelProps> = ({
 
       {isMicrosoft && !isLoadingProfile && !!profile?.capes.length && (
         <div className="wardrobe-cape-grid">
-          {profile.capes.map((cape, index) => {
-            const isActive = activeCape?.id === cape.id;
-
-            return (
-              <FocusItem
-                key={cape.id}
-                focusKey={`wardrobe-cape-${index}`}
-                onEnter={() => onOpenCapeMenu(cape)}
-              >
-                {({ ref, focused }) => (
-                  <button
-                    ref={ref as any}
-                    type="button"
-                    className={`wardrobe-cape-card ${isActive ? 'is-active' : ''} ${focused ? 'is-focused' : ''}`}
-                    onClick={() => onOpenCapeMenu(cape)}
-                  >
-                    <span className="wardrobe-cape-card__art">
-                      <WardrobeCapeCardPreview capeUrl={cape.url} className="w-full h-full object-contain" />
-                    </span>
-                  </button>
-                )}
-              </FocusItem>
-            );
-          })}
+          {profile.capes.map((cape, index) => (
+            <CapeCardItem
+              key={cape.id}
+              cape={cape}
+              index={index}
+              isActive={activeCape?.id === cape.id}
+              onOpenCapeMenu={onOpenCapeMenu}
+              onPreview={onPreview}
+            />
+          ))}
         </div>
       )}
     </div>

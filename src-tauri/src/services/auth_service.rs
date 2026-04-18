@@ -522,6 +522,7 @@ fn sync_active_runtime_skin_into_library<R: Runtime>(
     account_uuid: &str,
     variant: Option<&str>,
     source: &str,
+    forced_asset_id: Option<&str>,
 ) -> Result<(), String> {
     let runtime_skin_path = active_account_skin_path(app, account_uuid)?;
     if !runtime_skin_path.exists() || !runtime_skin_path.is_file() {
@@ -546,7 +547,10 @@ fn sync_active_runtime_skin_into_library<R: Runtime>(
         stored.user_id = account_uuid.to_string();
     }
 
-    let active_id = if let Some(existing_asset) = stored
+    let active_id = if let Some(forced_id) = forced_asset_id {
+        // 如果明确指定了关联的资产 ID（说明是库里刚应用的），直接信任该 ID 
+        forced_id.to_string()
+    } else if let Some(existing_asset) = stored
         .skins
         .iter_mut()
         .find(|asset| !asset.is_deleted && asset.hash.eq_ignore_ascii_case(&content_hash))
@@ -556,7 +560,7 @@ fn sync_active_runtime_skin_into_library<R: Runtime>(
     } else {
         let new_id = next_skin_asset_id(&stored);
         let target_path = skin_asset_file_path(&assets_dir, &new_id);
-        fs::write(&target_path, &bytes).map_err(|e| format!("鍐欏叆鐨偆璧勪骇澶辫触: {}", e))?;
+        fs::write(&target_path, &bytes).map_err(|e| format!("写入皮肤资产失败: {}", e))?;
 
         stored.skins.push(SkinMetadataEntry {
             id: new_id.clone(),
@@ -667,6 +671,7 @@ async fn cache_profile_assets<R: Runtime>(
     app: &AppHandle<R>,
     account_uuid: &str,
     profile: &McProfile,
+    forced_skin_id: Option<&str>,
 ) {
     let _ = cache_account_assets(
         app,
@@ -684,7 +689,13 @@ async fn cache_profile_assets<R: Runtime>(
         .or_else(|| profile.skins.first())
         .and_then(|skin| skin.variant.as_deref());
 
-    let _ = sync_active_runtime_skin_into_library(app, account_uuid, active_variant, "profile");
+    let _ = sync_active_runtime_skin_into_library(
+        app,
+        account_uuid,
+        active_variant,
+        "profile",
+        forced_skin_id,
+    );
 }
 
 fn normalize_skin_variant(variant: &str) -> Result<&'static str, String> {
@@ -750,7 +761,7 @@ pub async fn get_wardrobe_profile<R: Runtime>(
 ) -> Result<McProfile, String> {
     let client = get_client();
     let profile = get_minecraft_profile(&client, access_token).await?;
-    cache_profile_assets(app, account_uuid, &profile).await;
+    cache_profile_assets(app, account_uuid, &profile, None).await;
     Ok(profile)
 }
 
@@ -795,8 +806,19 @@ pub async fn apply_wardrobe_skin<R: Runtime>(
         return Err(minecraft_api_error("上传皮肤", status, text));
     }
 
+    // 检测 source_path 是否在库路径中，如果是，则提取 ID 以防止同步时产生副本
+    let assets_dir = wardrobe_skin_assets_dir(app, account_uuid).unwrap_or_default();
+    let forced_id = if source.starts_with(&assets_dir) {
+        source
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .map(|s| s.to_string())
+    } else {
+        None
+    };
+
     let profile = get_minecraft_profile(&client, access_token).await?;
-    cache_profile_assets(app, account_uuid, &profile).await;
+    cache_profile_assets(app, account_uuid, &profile, forced_id.as_deref()).await;
     Ok(profile)
 }
 
@@ -840,7 +862,7 @@ pub async fn set_active_cape<R: Runtime>(
     }
 
     let profile = get_minecraft_profile(&client, access_token).await?;
-    cache_profile_assets(app, account_uuid, &profile).await;
+    cache_profile_assets(app, account_uuid, &profile, None).await;
     Ok(profile)
 }
 
@@ -865,7 +887,7 @@ pub async fn clear_active_cape<R: Runtime>(
     }
 
     let profile = get_minecraft_profile(&client, access_token).await?;
-    cache_profile_assets(app, account_uuid, &profile).await;
+    cache_profile_assets(app, account_uuid, &profile, None).await;
     Ok(profile)
 }
 
@@ -877,7 +899,7 @@ pub fn get_wardrobe_skin_library<R: Runtime>(
     app: &AppHandle<R>,
     account_uuid: &str,
 ) -> Result<WardrobeSkinLibrary, String> {
-    sync_active_runtime_skin_into_library(app, account_uuid, None, "sync")?;
+    sync_active_runtime_skin_into_library(app, account_uuid, None, "sync", None)?;
     let manifest_path = wardrobe_skin_library_path(app, account_uuid)?;
     let stored = read_stored_skin_library(&manifest_path)?;
     finalize_skin_library(app, account_uuid, stored, true)

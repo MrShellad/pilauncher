@@ -17,13 +17,22 @@ export const WardrobeSkinCardPreview: React.FC<WardrobeSkinCardPreviewProps> = (
   className = '',
   fullBody = false,
 }) => {
-  const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [dataUrl, setDataUrl] = useState<string | null>(() => {
+    // 初始尝试从内存缓存获取，实现瞬间显示
+    const extra = `${toViewerModel(model)}_${!!fullBody}_${fullBody ? '360x480' : '120x160'}`;
+    return ThumbnailRenderer.getMemoryCached('skin', skinUrl, extra);
+  });
 
   useEffect(() => {
     let active = true;
     if (!skinUrl) return;
 
-    ThumbnailRenderer.renderSkin(skinUrl, toViewerModel(model), fullBody ? { fullBody: true, width: 360, height: 480 } : undefined)
+    // 再次调用 renderSkin (它内部会自动处理缓存逻辑)
+    ThumbnailRenderer.renderSkin(
+      skinUrl, 
+      toViewerModel(model), 
+      fullBody ? { fullBody: true, width: 360, height: 480 } : undefined
+    )
       .then((url) => {
         if (active) setDataUrl(url);
       })

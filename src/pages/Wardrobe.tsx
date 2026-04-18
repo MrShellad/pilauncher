@@ -63,6 +63,7 @@ const Wardrobe: React.FC = () => {
 
   const {
     containerRef,
+    loadViewerState,
     syncViewerToCurrentState,
     previewSkinAsset,
   } = useWardrobeViewerControl();
@@ -113,8 +114,6 @@ const Wardrobe: React.FC = () => {
   });
 
   useEffect(() => {
-    setSkinLibrary(null);
-    setProfile(null);
     setError(null);
 
     if (!currentAccount) {
@@ -127,7 +126,8 @@ const Wardrobe: React.FC = () => {
       () => setSkinMenuAsset(null),
       true
     );
-  }, [currentAccount?.uuid, hydrateWardrobe, setError, setProfile, setSkinLibrary, setSkinMenuAsset]);
+    // 仅响应 UUID 变化，确保初始化流程的纯净性
+  }, [currentAccount?.uuid]);
 
   useEffect(() => {
     if (!currentAccount || skinMenuAsset) return;
@@ -186,6 +186,20 @@ const Wardrobe: React.FC = () => {
     [skinLibrary?.assets, skinModel]
   );
 
+  const handlePreviewSkin = useCallback(
+    (asset: SkinCardAsset) => {
+      void previewSkinAsset(asset, asset.variant ?? skinModel, activeCape?.url ?? null);
+    },
+    [activeCape?.url, previewSkinAsset, skinModel]
+  );
+
+  const handlePreviewCape = useCallback(
+    (cape: any) => {
+      void loadViewerState(currentSkinUrl, cape.url, skinModel, 'cape');
+    },
+    [currentSkinUrl, loadViewerState, skinModel]
+  );
+
   useInputAction('CANCEL', () => {
     if (skinMenuAsset) {
       closeSkinMenu();
@@ -196,12 +210,6 @@ const Wardrobe: React.FC = () => {
       return;
     }
     handleBack();
-  });
-
-  useInputAction('ACTION_X', () => {
-    if (activeSection === 'skin' && !skinMenuAsset) {
-      void handleChooseSkin();
-    }
   });
 
   useInputAction('TAB_LEFT', () => {
@@ -295,8 +303,9 @@ const Wardrobe: React.FC = () => {
                   {currentAccount && activeSection === 'skin' && (
                     <WardrobeSkinPanel
                       skinCards={skinCards}
-                      onChooseSkin={handleChooseSkin}
+                      onChooseSkin={() => void handleChooseSkin()}
                       onOpenSkinMenu={handleOpenSkinMenu}
+                      onPreview={handlePreviewSkin}
                     />
                   )}
 
@@ -307,6 +316,7 @@ const Wardrobe: React.FC = () => {
                       profile={profile}
                       activeCape={activeCape}
                       onOpenCapeMenu={handleOpenCapeMenu}
+                      onPreview={handlePreviewCape}
                     />
                   )}
                 </div>
