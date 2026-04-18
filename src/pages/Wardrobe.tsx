@@ -127,7 +127,7 @@ const Wardrobe: React.FC = () => {
       () => setSkinMenuAsset(null),
       true
     );
-  }, [currentAccount, hydrateWardrobe, setError, setProfile, setSkinLibrary, setSkinMenuAsset]);
+  }, [currentAccount?.uuid, hydrateWardrobe, setError, setProfile, setSkinLibrary, setSkinMenuAsset]);
 
   useEffect(() => {
     if (!currentAccount || skinMenuAsset) return;
@@ -254,7 +254,7 @@ const Wardrobe: React.FC = () => {
 
             <div className="block mt-[20px] mx-[20px] lg:mx-[10%] border-l-[2px] border-r-[2px] border-b-[2px] border-[#333334] border-t-[2px] border-t-[#5A5B5C] bg-[#1E1E1F]/50 flex flex-col md:flex-row mb-[20px] flex-1 min-h-0">
               <div
-                className="flex-1 md:max-w-[40%] flex flex-col border-b-[2px] md:border-b-0 md:border-r-[2px] border-[#333334] relative min-h-[300px]"
+                className="w-full md:w-[360px] lg:w-[400px] md:flex-none flex flex-col border-b-[2px] md:border-b-0 md:border-r-[2px] border-[#333334] relative min-h-[300px] aspect-[4/5] md:aspect-auto"
                 style={{
                   background: 'radial-gradient(ellipse at top, #1e3a1f 0%, #111412 80%)',
                 }}

@@ -36,7 +36,7 @@ export const WardrobeCapeMenuModal: React.FC<WardrobeCapeMenuModalProps> = ({
           </div>
 
           <div className="flex flex-col gap-2 relative z-10">
-            <h3 className="text-xl font-bold text-white mb-2">
+            <h3 className="text-xl font-bold text-white mb-2 text-center">
               {isCurrentlyActive ? '当前正在使用这件披风' : '确定要装备这件披风吗？'}
             </h3>
             

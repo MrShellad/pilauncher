@@ -80,8 +80,14 @@ export function useWardrobeSession() {
 
   const touchAccountSkinCache = useCallback(
     (account: MinecraftAccount, skinUrl?: string | null) => {
+      const nextUrl = skinUrl || account.skinUrl || account.uuid;
+      const currentUrlNoTs = account.skinUrl?.split('?t=')[0];
+
+      // 如果 URL 没变（忽略时间戳），则不更新 Store 以免引起重绘
+      if (currentUrlNoTs === nextUrl) return;
+
       updateAccount(account.uuid, {
-        skinUrl: `${skinUrl || account.skinUrl || account.uuid}?t=${Date.now()}`,
+        skinUrl: `${nextUrl}?t=${Date.now()}`,
       });
     },
     [updateAccount]
@@ -104,29 +110,25 @@ export function useWardrobeSession() {
       onClearSkinMenuAsset: () => void,
       silent = false
     ) => {
+      if (isLoadingProfile) return;
+
       setError(null);
       onClearSkinMenuAsset();
 
       if (isMicrosoftAccount(account)) {
-        const cached = silent ? getCachedProfile(account.uuid) : undefined;
-
-        if (silent) {
-          if (cached) {
-            setProfile(cached);
-            try {
-              const nextLibrary = await fetchSkinLibrary(account.uuid);
-              setSkinLibrary(nextLibrary);
-              onModelResolved(resolveSkinModel(findActiveSkin(cached)?.variant));
-            } catch (err) {
-              console.error(err);
-            }
-          }
+        const cached = getCachedProfile(account.uuid);
+        if (silent && cached) {
+          setProfile(cached);
+          onModelResolved(resolveSkinModel(findActiveSkin(cached)?.variant));
         }
 
         setIsLoadingProfile(true);
         try {
-          const nextProfile = await loadProfile(account);
-          const nextLibrary = await fetchSkinLibrary(account.uuid);
+          const [nextProfile, nextLibrary] = await Promise.all([
+            loadProfile(account),
+            fetchSkinLibrary(account.uuid)
+          ]);
+          
           const nextModel = resolveSkinModel(findActiveSkin(nextProfile)?.variant);
 
           setProfile(nextProfile, account.uuid);
