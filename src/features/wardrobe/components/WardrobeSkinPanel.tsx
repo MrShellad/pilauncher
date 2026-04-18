@@ -31,7 +31,7 @@ export const WardrobeSkinPanel: React.FC<WardrobeSkinPanelProps> = ({
               </span>
               <span className="wardrobe-skin-card__title">本地上传</span>
               <span className="wardrobe-skin-card__subtitle">
-                上传后进入资产库，不会立即应用
+                上传后进入资产库
               </span>
             </button>
           )}

@@ -24,7 +24,6 @@ import { useAccountStore } from '../store/useAccountStore';
 import { useLauncherStore } from '../store/useLauncherStore';
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { useInputAction } from '../ui/focus/InputDriver';
-import { OreButton } from '../ui/primitives/OreButton';
 import { OreToggleButton } from '../ui/primitives/OreToggleButton';
 
 import '../style/pages/Wardrobe.css';
@@ -32,7 +31,7 @@ import '../style/pages/Wardrobe.css';
 const Wardrobe: React.FC = () => {
   const setActiveTab = useLauncherStore((state) => state.setActiveTab);
   const { accounts, activeAccountId } = useAccountStore();
-  
+
   const currentAccount = useMemo(
     () => accounts.find((account) => account.uuid === activeAccountId) ?? null,
     [accounts, activeAccountId]
@@ -229,12 +228,12 @@ const Wardrobe: React.FC = () => {
               <ArrowLeft size={18} />
             </div>
           </div>
-          <div className="header_title text-[#48494A] flex flex-1 justify-center items-center font-['Minecraft_Ten'] text-[26px] leading-none h-full">
+          <div className="header_title text-[#48494A] flex flex-1 justify-center items-center font-minecraft text-[26px] leading-none h-full">
             <span>更衣室</span>
           </div>
           <div className="header_right flex items-center h-full">
             {currentAccount && (
-              <div 
+              <div
                 className={`header_item header_item_right text-[#48494A] cursor-pointer w-[42px] h-full flex items-center justify-center ${isApplying || isLoadingProfile ? 'opacity-50 pointer-events-none' : ''}`}
                 onClick={() => void handleRefresh()}
               >
@@ -249,32 +248,32 @@ const Wardrobe: React.FC = () => {
           <main className="w-full flex flex-col h-full m-auto">
             <div className="main_title flex items-center justify-center min-h-[70px] border-b-[2px] border-[#333334] shrink-0">
               <div className="main_title_area my-[10px]">
-                <span className="main_title_span font-['Minecraft_Seven'] text-[24px]">
+                <span className="main_title_span font-minecraft text-[24px]">
                   {currentAccount ? currentAccount.name : '未连接账号'}
                 </span>
               </div>
             </div>
 
             <div className="block mt-[20px] mx-[20px] lg:mx-[10%] border-l-[2px] border-r-[2px] border-b-[2px] border-[#333334] border-t-[2px] border-t-[#5A5B5C] bg-[#1E1E1F]/50 flex flex-col md:flex-row mb-[20px] flex-1 min-h-0">
-              
+
               {/* 左侧 3D 预览区 */}
-              <div 
+              <div
                 className="flex-1 md:max-w-[40%] flex flex-col border-b-[2px] md:border-b-0 md:border-r-[2px] border-[#333334] relative min-h-[300px]"
-                style={{ 
+                style={{
                   background: 'radial-gradient(ellipse at top, #1e3a1f 0%, #111412 80%)',
                 }}
               >
-                <div 
+                <div
                   className="w-full h-full flex flex-col p-4 absolute inset-0 pointer-events-none"
                   style={{
                     background: 'linear-gradient(180deg, rgba(132, 204, 22, 0.15) 0%, transparent 40%)',
                   }}
                 />
                 <div className="w-full h-full flex flex-col p-4 relative">
-                  <WardrobeViewer viewerContainerRef={containerRef} />  
+                  <WardrobeViewer viewerContainerRef={containerRef} />
                 </div>
               </div>
-              
+
               {/* 右侧 面板操作区 */}
               <div className="flex-[1.5] w-full flex flex-col p-6 bg-[#2a332c]/30 min-h-0">
                 <div className="mb-4 shrink-0">

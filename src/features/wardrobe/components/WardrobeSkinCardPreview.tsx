@@ -43,8 +43,8 @@ export const WardrobeSkinCardPreview: React.FC<WardrobeSkinCardPreviewProps> = (
       <img 
         src={dataUrl} 
         alt="Skin Preview" 
-        className={fullBody ? "w-full h-full object-contain drop-shadow-2xl" : "w-[120px] h-[160px] object-contain drop-shadow-lg"} 
-        style={fullBody ? undefined : { transform: 'translateY(10px) scale(1.05)' }} 
+        className="w-full h-full object-contain drop-shadow-2xl"
+        style={fullBody ? undefined : { transform: 'scale(1.2) translateY(5px)' }} 
       />
     </div>
   );
