@@ -267,7 +267,7 @@ export const normalizeServer = (value: unknown, index: number): OnlineServer | n
       getString(record.url)
     ),
     socials: normalizeSocials(
-      pickFirst(record.socials, record.social, record.socialGroups, record.social_groups, record.communities)
+      pickFirst(record.socials, record.social, record.socialLinks, record.socialGroups, record.social_groups, record.communities)
     ),
     description: pickFirst(getString(record.description), getString(record.summary)),
     address: (() => {

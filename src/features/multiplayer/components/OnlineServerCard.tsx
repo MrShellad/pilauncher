@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Globe, MessageSquareShare, Server } from 'lucide-react';
+import { ExternalLink, Globe, MessageCircle, MessageSquare, Server, Tv, Twitter, Youtube } from 'lucide-react';
 import type { OnlineServer, SocialLink } from '../types';
 import { copyText, openLink } from '../utils';
 import { FocusItem } from '../../../ui/focus/FocusItem';
+import { focusManager } from '../../../ui/focus/FocusManager';
 import { useInputAction } from '../../../ui/focus/InputDriver';
 import { useInputMode } from '../../../ui/focus/FocusProvider';
 
@@ -37,13 +38,24 @@ interface DrawerLink {
   label: string;
   url: string;
   isWebsite: boolean;
+  platform: string;
 }
 
 const localizeServerType = (server: OnlineServer): string => {
   const normalizedType = server.serverType?.trim().toLowerCase();
+  
   if (server.isModded || normalizedType === 'modded') {
     return 'MOD服';
   }
+  
+  if (normalizedType === 'plugin') {
+    return '插件服';
+  }
+
+  if (normalizedType === 'vanilla') {
+    return '纯净服';
+  }
+
   return server.serverType?.trim() || '社区服';
 };
 
@@ -149,6 +161,7 @@ const getDrawerLinks = (server: OnlineServer): DrawerLink[] => {
       label,
       url: href,
       isWebsite,
+      platform: lowerLabel,
     });
   };
 
@@ -180,6 +193,39 @@ const WarningIcon: React.FC<{ tone: WarningTone }> = ({ tone }) => {
       <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z" />
     </svg>
   );
+};
+
+const SocialIcon: React.FC<{ platform: string; isWebsite: boolean; size?: number; className?: string }> = ({ 
+  platform, 
+  isWebsite, 
+  size = 16, 
+  className 
+}) => {
+  if (isWebsite || platform.includes('官网') || platform.includes('网站') || platform.includes('web')) {
+    return <Globe size={size} className={className} />;
+  }
+
+  if (platform.includes('qq') || platform.includes('群') || platform.includes('协作')) {
+    return <MessageSquare size={size} className={className} />;
+  }
+
+  if (platform.includes('bilibili') || platform.includes('哔哩哔哩') || platform.includes('b站') || platform.includes('tv')) {
+    return <Tv size={size} className={className} />;
+  }
+
+  if (platform.includes('discord')) {
+    return <MessageCircle size={size} className={className} />;
+  }
+
+  if (platform.includes('youtube') || platform.includes('视频')) {
+    return <Youtube size={size} className={className} />;
+  }
+
+  if (platform.includes('twitter') || platform.includes('x')) {
+    return <Twitter size={size} className={className} />;
+  }
+
+  return <ExternalLink size={size} className={className} />;
 };
 
 export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onArrowPress, onClick }) => {
@@ -257,6 +303,12 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onAr
     }
   };
 
+  const handleCardClick = () => {
+    if (!isCardFocused) {
+      focusManager.focus(`server-card-${server.id}-play`);
+    }
+  };
+
   return (
     <article 
       ref={cardRef}
@@ -267,6 +319,7 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onAr
           setIsCardFocused(false);
         }
       }}
+      onClick={handleCardClick}
       onKeyDown={(event) => {
         if (event.key.toLowerCase() === 'y') {
           event.preventDefault();
@@ -355,11 +408,11 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onAr
                     title={link.label}
                   >
                     <span className="ore-online-server-card__link-title">
-                      {link.isWebsite ? (
-                        <Globe size={16} className="ore-online-server-card__link-icon" />
-                      ) : (
-                        <MessageSquareShare size={16} className="ore-online-server-card__link-icon" />
-                      )}
+                      <SocialIcon 
+                        platform={link.platform} 
+                        isWebsite={link.isWebsite} 
+                        className="ore-online-server-card__link-icon"
+                      />
                       {link.label}
                     </span>
                   </button>
