@@ -1,6 +1,4 @@
 import React from 'react';
-import { ArrowLeft } from 'lucide-react';
-import { OreButton } from '../../../ui/primitives/OreButton';
 
 export interface WardrobeViewerProps {
   currentAccountName?: string;

@@ -30,7 +30,7 @@ export const WardrobeSkinMenuModal: React.FC<WardrobeSkinMenuModalProps> = ({
       isOpen={!!skinMenuAsset}
       onClose={onClose}
       title={skinMenuAsset?.title || '皮肤资产'}
-      className="w-full max-w-[760px]"
+      className="w-full max-w-[820px]"
       contentClassName="p-0 overflow-hidden"
     >
       {skinMenuAsset && (

@@ -1,7 +1,7 @@
 import React from 'react';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import { OreModal } from '../../../ui/primitives/OreModal';
-import type { WardrobeCape, WardrobeProfile } from '../types';
+import type { WardrobeCape } from '../types';
 import { WardrobeCapeCardPreview } from './WardrobeCapeCardPreview';
 
 export interface WardrobeCapeMenuModalProps {

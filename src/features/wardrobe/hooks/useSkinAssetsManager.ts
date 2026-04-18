@@ -119,7 +119,7 @@ export function useSkinAssetsManager(options: UseSkinAssetsManagerOptions) {
 
       if (skinMenuAsset.isActive) {
         setPageSkinModel(nextModel);
-        
+
         try {
           if (isMicrosoft) {
             const nextProfile = await runWithSessionRefresh(currentAccount, (accountForAction) =>
@@ -173,12 +173,12 @@ export function useSkinAssetsManager(options: UseSkinAssetsManagerOptions) {
         });
 
         setSkinLibrary(nextLibrary);
-        
+
         let localPath = skinMenuAsset.filePath;
         if (!localPath.endsWith("skin.png")) {
-           // Provide standard offline skin path to cache buster
-           // But since touchAccountSkinCache probably triggers asset:// reloading, any random string triggers it.
-           localPath = `runtime/accounts/${currentAccount.uuid}/skin.png`;
+          // Provide standard offline skin path to cache buster
+          // But since touchAccountSkinCache probably triggers asset:// reloading, any random string triggers it.
+          localPath = `runtime/accounts/${currentAccount.uuid}/skin.png`;
         }
         touchAccountSkinCache(currentAccount, localPath);
       }
@@ -250,18 +250,18 @@ export function useSkinAssetsManager(options: UseSkinAssetsManagerOptions) {
       try {
         const nextProfile = shouldClear
           ? await runWithSessionRefresh(currentAccount, (accountForAction) =>
-              invoke<WardrobeProfile>('clear_active_cape', {
-                accessToken: accountForAction.accessToken,
-                accountUuid: accountForAction.uuid,
-              })
-            )
+            invoke<WardrobeProfile>('clear_active_cape', {
+              accessToken: accountForAction.accessToken,
+              accountUuid: accountForAction.uuid,
+            })
+          )
           : await runWithSessionRefresh(currentAccount, (accountForAction) =>
-              invoke<WardrobeProfile>('set_active_cape', {
-                accessToken: accountForAction.accessToken,
-                accountUuid: accountForAction.uuid,
-                capeId: capeMenuAsset.id,
-              })
-            );
+            invoke<WardrobeProfile>('set_active_cape', {
+              accessToken: accountForAction.accessToken,
+              accountUuid: accountForAction.uuid,
+              capeId: capeMenuAsset.id,
+            })
+          );
 
         setProfile(nextProfile, currentAccount.uuid);
         touchAccountSkinCache(currentAccount, findActiveSkin(nextProfile)?.url);

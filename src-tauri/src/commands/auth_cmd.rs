@@ -1,7 +1,5 @@
 // src-tauri/src/commands/auth_cmd.rs
-use crate::domain::auth::{
-    Account, DeviceCodeResponse, McProfile, WardrobeSkinLibrary,
-};
+use crate::domain::auth::{Account, DeviceCodeResponse, McProfile, WardrobeSkinLibrary};
 use crate::services::auth_service;
 
 // 核心修复 1：引入 tauri 的 AppHandle 和 Runtime
@@ -169,5 +167,6 @@ pub async fn update_active_wardrobe_skin_variant<R: Runtime>(
     account_uuid: String,
     variant: String,
 ) -> Result<McProfile, String> {
-    auth_service::update_active_wardrobe_skin_variant(&app, &access_token, &account_uuid, &variant).await
+    auth_service::update_active_wardrobe_skin_variant(&app, &access_token, &account_uuid, &variant)
+        .await
 }

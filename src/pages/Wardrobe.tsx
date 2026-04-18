@@ -67,6 +67,20 @@ const Wardrobe: React.FC = () => {
     previewSkinAsset,
   } = useWardrobeViewerControl();
 
+  const restoreViewer = useCallback(() => {
+    if (!currentAccount) {
+      return;
+    }
+
+    void syncViewerToCurrentState(
+      currentSkinUrl,
+      activeCape?.url ?? null,
+      skinModel,
+      activeSection,
+      currentAccount
+    );
+  }, [activeCape?.url, activeSection, currentAccount, currentSkinUrl, skinModel, syncViewerToCurrentState]);
+
   const {
     isApplying,
     skinMenuAsset,
@@ -95,7 +109,7 @@ const Wardrobe: React.FC = () => {
     fetchSkinLibrary,
     runWithSessionRefresh,
     touchAccountSkinCache,
-    syncViewerToCurrentState,
+    syncViewerToCurrentState: restoreViewer,
   });
 
   useEffect(() => {
@@ -153,40 +167,24 @@ const Wardrobe: React.FC = () => {
     );
   }, [currentAccount, hydrateWardrobe, isApplying, setSkinMenuAsset]);
 
-  const skinCards = useMemo<SkinCardAsset[]>(() => {
-    const cards: SkinCardAsset[] = [];
-    const hasActiveLibraryAsset = skinLibrary?.assets.some((asset) => asset.isActive) ?? false;
-
-    if (currentSkinUrl && !hasActiveLibraryAsset) {
-      cards.push({
-        id: 'profile-active',
-        kind: 'profile',
-        title: '当前皮肤',
-        subtitle: isMicrosoft ? '在线档案皮肤' : '当前正在使用',
-        skinUrl: currentSkinUrl,
-        variant: resolveSkinModel(activeSkin?.variant ?? skinModel),
-        isActive: true,
-        canDelete: false,
-      });
-    }
-
-    for (const asset of skinLibrary?.assets ?? []) {
-      const variant = resolveSkinModel(asset.variant ?? skinModel);
-      cards.push({
-        id: asset.id,
-        kind: 'library',
-        title: asset.fileName,
-        subtitle: modelLabel(variant),
-        skinUrl: toStoredAssetUrl(asset),
-        variant,
-        filePath: asset.filePath,
-        isActive: asset.isActive,
-        canDelete: !asset.isActive,
-      });
-    }
-
-    return cards;
-  }, [activeSkin?.variant, currentSkinUrl, isMicrosoft, skinLibrary?.assets, skinModel]);
+  const skinCards = useMemo<SkinCardAsset[]>(
+    () =>
+      (skinLibrary?.assets ?? []).map((asset) => {
+        const variant = resolveSkinModel(asset.variant ?? skinModel);
+        return {
+          id: asset.id,
+          kind: 'library',
+          title: asset.fileName.replace(/\.png$/i, ''),
+          subtitle: asset.isActive ? `正在使用 / ${modelLabel(variant)}` : modelLabel(variant),
+          skinUrl: toStoredAssetUrl(asset),
+          variant,
+          filePath: asset.filePath,
+          isActive: asset.isActive,
+          canDelete: !asset.isActive,
+        };
+      }),
+    [skinLibrary?.assets, skinModel]
+  );
 
   useInputAction('CANCEL', () => {
     if (skinMenuAsset) {
@@ -221,7 +219,7 @@ const Wardrobe: React.FC = () => {
 
   return (
     <FocusBoundary id="wardrobe-page" defaultFocusKey="wardrobe-back" className="w-full h-full text-white overflow-hidden flex flex-col">
-      <dispaly-area className="flex flex-col h-full w-full relative z-10 w-[100vw]">
+      <div className="flex flex-col h-full w-full relative z-10 w-[100vw]">
         <header className="flex items-center justify-between h-[40px] bg-[#E6E8EB] border-b-[4px] border-[#B1B2B5] z-10 relative px-2">
           <div className="header_left flex items-center h-full">
             <div className="header_item header_item_left text-[#48494A] cursor-pointer w-[42px] h-full flex items-center justify-center" onClick={handleBack}>
@@ -229,7 +227,7 @@ const Wardrobe: React.FC = () => {
             </div>
           </div>
           <div className="header_title text-[#48494A] flex flex-1 justify-center items-center font-minecraft text-[26px] leading-none h-full">
-            <span>更衣室</span>
+            <span>衣柜</span>
           </div>
           <div className="header_right flex items-center h-full">
             {currentAccount && (
@@ -244,19 +242,17 @@ const Wardrobe: React.FC = () => {
           </div>
         </header>
 
-        <display-body className="flex flex-1 overflow-hidden relative">
+        <div className="flex flex-1 overflow-hidden relative">
           <main className="w-full flex flex-col h-full m-auto">
             <div className="main_title flex items-center justify-center min-h-[70px] border-b-[2px] border-[#333334] shrink-0">
               <div className="main_title_area my-[10px]">
                 <span className="main_title_span font-minecraft text-[24px]">
-                  {currentAccount ? currentAccount.name : '未连接账号'}
+                  {currentAccount ? currentAccount.name : '未连接账户'}
                 </span>
               </div>
             </div>
 
             <div className="block mt-[20px] mx-[20px] lg:mx-[10%] border-l-[2px] border-r-[2px] border-b-[2px] border-[#333334] border-t-[2px] border-t-[#5A5B5C] bg-[#1E1E1F]/50 flex flex-col md:flex-row mb-[20px] flex-1 min-h-0">
-
-              {/* 左侧 3D 预览区 */}
               <div
                 className="flex-1 md:max-w-[40%] flex flex-col border-b-[2px] md:border-b-0 md:border-r-[2px] border-[#333334] relative min-h-[300px]"
                 style={{
@@ -270,11 +266,10 @@ const Wardrobe: React.FC = () => {
                   }}
                 />
                 <div className="w-full h-full flex flex-col p-4 relative">
-                  <WardrobeViewer viewerContainerRef={containerRef} />
+                  <WardrobeViewer viewerContainerRef={containerRef} onBack={handleBack} />
                 </div>
               </div>
 
-              {/* 右侧 面板操作区 */}
               <div className="flex-[1.5] w-full flex flex-col p-6 bg-[#2a332c]/30 min-h-0">
                 <div className="mb-4 shrink-0">
                   <OreToggleButton
@@ -292,7 +287,7 @@ const Wardrobe: React.FC = () => {
 
                 {!currentAccount && (
                   <div className="wardrobe-empty-state shrink-0">
-                    请先在设置中添加一个游戏账号。
+                    请先在设置中添加一个游戏账户。
                   </div>
                 )}
 
@@ -324,8 +319,8 @@ const Wardrobe: React.FC = () => {
               </div>
             </div>
           </main>
-        </display-body>
-      </dispaly-area>
+        </div>
+      </div>
 
       <WardrobeSkinMenuModal
         skinMenuAsset={skinMenuAsset}

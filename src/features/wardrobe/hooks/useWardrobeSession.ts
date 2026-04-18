@@ -108,8 +108,9 @@ export function useWardrobeSession() {
       onClearSkinMenuAsset();
 
       if (isMicrosoftAccount(account)) {
+        const cached = silent ? getCachedProfile(account.uuid) : undefined;
+
         if (silent) {
-          const cached = getCachedProfile(account.uuid);
           if (cached) {
             setProfile(cached);
             try {
@@ -117,9 +118,8 @@ export function useWardrobeSession() {
               setSkinLibrary(nextLibrary);
               onModelResolved(resolveSkinModel(findActiveSkin(cached)?.variant));
             } catch (err) {
-               console.error(err);
+              console.error(err);
             }
-            return;
           }
         }
 
@@ -138,7 +138,11 @@ export function useWardrobeSession() {
             setNotice('皮肤与披风资产已同步');
           }
         } catch (caughtError) {
-          setError(String(caughtError));
+          if (!cached) {
+            setError(String(caughtError));
+          } else {
+            console.error(caughtError);
+          }
         } finally {
           setIsLoadingProfile(false);
         }
@@ -161,7 +165,7 @@ export function useWardrobeSession() {
         setError(String(caughtError));
       }
     },
-    [fetchSkinLibrary, loadProfile, touchAccountSkinCache]
+    [fetchSkinLibrary, getCachedProfile, loadProfile, setProfile, touchAccountSkinCache]
   );
 
   return {

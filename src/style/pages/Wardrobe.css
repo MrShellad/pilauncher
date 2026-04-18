@@ -360,11 +360,11 @@
 .wardrobe-skin-menu {
   display: grid;
   grid-template-columns: minmax(220px, 0.44fr) minmax(280px, 0.56fr);
-  min-height: 420px;
+  min-height: 360px;
 }
 
 .wardrobe-skin-menu__preview {
-  padding: 24px;
+  padding: 16px;
   background:
     radial-gradient(circle at top, rgba(136, 187, 227, 0.12), transparent 42%),
     linear-gradient(180deg, rgba(25, 30, 31, 0.98), rgba(14, 17, 18, 0.98));
@@ -373,7 +373,7 @@
 
 .wardrobe-skin-menu__preview-frame {
   height: 100%;
-  min-height: 320px;
+  min-height: 280px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 36%),
@@ -387,14 +387,23 @@
 .wardrobe-skin-menu__body {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 24px;
+  gap: 16px;
+  padding: 20px;
 }
 
 .wardrobe-skin-menu__actions {
   display: flex;
-  flex-wrap: wrap;
   gap: 10px;
+}
+
+.wardrobe-skin-menu__actions > button {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.wardrobe-skin-menu__model-toggle {
+  width: 100%;
 }
 
 .wardrobe-skin-menu__note {
