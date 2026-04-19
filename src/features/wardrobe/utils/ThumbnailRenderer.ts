@@ -106,7 +106,7 @@ class ThumbnailRendererClass {
    */
   private getCacheKey(type: 'skin' | 'cape', url: string, extra: string): string {
     // 简单的 key 生成逻辑
-    return `${type}_v2_${url}_${extra}`;
+    return `${type}_v3_${url}_${extra}`;
   }
 
   /**
@@ -201,7 +201,7 @@ class ThumbnailRendererClass {
           v.zoom = 1.35;
           v.fov = 40;
           v.playerWrapper.rotation.y = Math.PI;
-          v.controls.target.set(0, 9, 0);
+          v.controls.target.set(0, 2, 0);
           v.controls.update();
           
           v.render();

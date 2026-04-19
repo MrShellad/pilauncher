@@ -226,8 +226,8 @@ const Wardrobe: React.FC = () => {
   });
 
   return (
-    <FocusBoundary id="wardrobe-page" defaultFocusKey="wardrobe-back" className="w-full h-full text-white overflow-hidden flex flex-col">
-      <div className="flex flex-col h-full w-full relative z-10 w-[100vw]">
+    <FocusBoundary id="wardrobe-page" defaultFocusKey="wardrobe-upload-card" className="w-full h-full text-white overflow-hidden flex flex-col">
+      <div className="flex flex-col h-full w-full relative z-10">
         <header className="flex items-center justify-between h-[40px] bg-[#E6E8EB] border-b-[4px] border-[#B1B2B5] z-10 relative px-2">
           <div className="header_left flex items-center h-full">
             <div className="header_item header_item_left text-[#48494A] cursor-pointer w-[42px] h-full flex items-center justify-center" onClick={handleBack}>
@@ -252,20 +252,12 @@ const Wardrobe: React.FC = () => {
 
         <div className="flex flex-1 overflow-hidden relative">
           <main className="w-full flex flex-col h-full m-auto">
-            <div className="main_title flex items-center justify-center min-h-[70px] border-b-[2px] border-[#333334] shrink-0">
-              <div className="main_title_area my-[10px]">
-                <span className="main_title_span font-minecraft text-[24px]">
-                  {currentAccount ? currentAccount.name : '未连接账户'}
-                </span>
-              </div>
-            </div>
 
-            <div className="block mt-[20px] mx-[20px] lg:mx-[10%] border-l-[2px] border-r-[2px] border-b-[2px] border-[#333334] border-t-[2px] border-t-[#5A5B5C] bg-[#1E1E1F]/50 flex flex-col md:flex-row mb-[20px] flex-1 min-h-0">
+
+            <div className=" mt-[20px] mx-[20px] lg:mx-[5%] border-l-[2px] border-r-[2px] border-b-[2px] border-[#333334] border-t-[2px] border-t-[#5A5B5C] bg-[#1E1E1F]/50 flex flex-col md:flex-row mb-[20px] flex-1 min-h-0">
               <div
                 className="w-full md:w-[360px] lg:w-[400px] md:flex-none flex flex-col border-b-[2px] md:border-b-0 md:border-r-[2px] border-[#333334] relative min-h-[300px] aspect-[4/5] md:aspect-auto"
-                style={{
-                  background: 'radial-gradient(ellipse at top, #1e3a1f 0%, #111412 80%)',
-                }}
+
               >
                 <div
                   className="w-full h-full flex flex-col p-4 absolute inset-0 pointer-events-none"
@@ -273,7 +265,7 @@ const Wardrobe: React.FC = () => {
                     background: 'linear-gradient(180deg, rgba(132, 204, 22, 0.15) 0%, transparent 40%)',
                   }}
                 />
-                <div className="w-full h-full flex flex-col p-4 relative">
+                <div className="w-full h-full flex flex-col relative">
                   <WardrobeViewer viewerContainerRef={containerRef} onBack={handleBack} />
                 </div>
               </div>

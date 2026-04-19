@@ -51,7 +51,7 @@ const SkinCardItem = React.memo(({ asset, index, onOpenSkinMenu, onPreview }: Sk
             <div className="wardrobe-skin-card__preview-wrap">
               <WardrobeSkinCardPreview skinUrl={asset.skinUrl} model={asset.variant} />
             </div>
-            <div className="wardrobe-skin-card__meta">
+            <div className="wardrobe-skin-card__meta font-minecraft">
               <span className="wardrobe-skin-card__title">{asset.title}</span>
               <span className="wardrobe-skin-card__subtitle">{asset.subtitle}</span>
             </div>
@@ -69,7 +69,7 @@ export const WardrobeSkinPanel: React.FC<WardrobeSkinPanelProps> = ({
   onPreview,
 }) => {
   return (
-    <div className="wardrobe-panel-body">
+    <div className="wardrobe-panel-body font-minecraft">
       <div className="wardrobe-skin-grid">
         <FocusItem focusKey="wardrobe-upload-card" onEnter={onChooseSkin}>
           {({ ref, focused }) => (
@@ -91,11 +91,11 @@ export const WardrobeSkinPanel: React.FC<WardrobeSkinPanelProps> = ({
         </FocusItem>
 
         {skinCards.map((asset, index) => (
-          <SkinCardItem 
-            key={asset.id} 
-            asset={asset} 
-            index={index} 
-            onOpenSkinMenu={onOpenSkinMenu} 
+          <SkinCardItem
+            key={asset.id}
+            asset={asset}
+            index={index}
+            onOpenSkinMenu={onOpenSkinMenu}
             onPreview={onPreview}
           />
         ))}

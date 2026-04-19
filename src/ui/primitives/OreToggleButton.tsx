@@ -43,9 +43,9 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
   const isAdaptiveScale = uiScale === 'adaptive';
 
   const sizeClasses = {
-    sm: 'h-10 text-xs',
-    md: 'h-11 text-sm',
-    lg: 'h-12 text-base',
+    sm: 'h-10 text-sm',
+    md: 'h-11 text-base',
+    lg: 'h-12 text-lg',
     full: 'h-full min-h-11',
   };
 

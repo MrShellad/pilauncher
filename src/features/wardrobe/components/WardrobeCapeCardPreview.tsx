@@ -35,7 +35,7 @@ export const WardrobeCapeCardPreview: React.FC<WardrobeCapeCardPreviewProps> = (
     <img 
       src={dataUrl} 
       alt="Cape Preview" 
-      className={`object-contain drop-shadow-lg ${className}`} 
+      className={`object-contain drop-shadow-[0_0_8px_rgba(0,0,0,0.3)] ${className}`} 
     />
   );
 };
