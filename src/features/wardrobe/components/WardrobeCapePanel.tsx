@@ -24,7 +24,7 @@ interface CapeCardItemProps {
 const CapeCardItem = React.memo(({ cape, index, isActive, onOpenCapeMenu, onPreview }: CapeCardItemProps) => {
   const isComponentFocusedRef = React.useRef(false);
 
-  useInputAction('ACTION_X', () => {
+  useInputAction('ACTION_Y', () => {
     if (isComponentFocusedRef.current) {
       onPreview(cape);
     }
@@ -50,6 +50,7 @@ const CapeCardItem = React.memo(({ cape, index, isActive, onOpenCapeMenu, onPrev
             onClick={() => onOpenCapeMenu(cape)}
             onContextMenu={handleContextMenu}
           >
+            {isActive && <span className="wardrobe-card-active-badge">ACTIVE</span>}
             <span className="wardrobe-cape-card__art">
               <WardrobeCapeCardPreview capeUrl={cape.url} className="w-full h-full object-contain" />
             </span>
@@ -72,8 +73,7 @@ export const WardrobeCapePanel: React.FC<WardrobeCapePanelProps> = ({
     <div className="wardrobe-panel-body">
       {!isMicrosoft && (
         <div className="wardrobe-empty-state">
-          披风切换需要使用微软正版账号登录。
-        </div>
+          鎶鍒囨崲闇€瑕佷娇鐢ㄥ井杞鐗堣处鍙风櫥褰曘€?        </div>
       )}
 
       {isMicrosoft && isLoadingProfile && (
@@ -86,8 +86,7 @@ export const WardrobeCapePanel: React.FC<WardrobeCapePanelProps> = ({
 
       {isMicrosoft && !isLoadingProfile && profile?.capes.length === 0 && (
         <div className="wardrobe-empty-state">
-          当前账号没有可用披风。
-        </div>
+          褰撳墠璐﹀彿娌℃湁鍙敤鎶銆?        </div>
       )}
 
       {isMicrosoft && !isLoadingProfile && !!profile?.capes.length && (

@@ -802,5 +802,50 @@
       "clear": "清空",
       "done": "完成"
     }
+  },
+  "wardrobe": {
+    "title": "衣柜",
+    "skinTab": "皮肤",
+    "capeTab": "披风",
+    "refresh": "刷新",
+    "emptyAccount": "请先在设置中添加一个游戏账户。",
+    "activeBadge": "已激活",
+    "uploadCard": {
+      "title": "本地上传",
+      "subtitle": "上传后进入资产库"
+    },
+    "hints": {
+      "openDialog": "打开弹窗",
+      "preview": "预览",
+      "switchTab": "切换皮肤/披风",
+      "rotate": "转动角色",
+      "refresh": "刷新"
+    },
+    "skinMenu": {
+      "titleDefault": "皮肤资产",
+      "filePrefix": "文件: ",
+      "activeSkin": "当前正在使用的皮肤。",
+      "applySkinHint": "点击应用以切换到此皮肤。",
+      "modelLabel": "模型",
+      "modelClassic": "经典",
+      "modelClassicDesc": "标准手臂宽度。",
+      "modelSlim": "纤细",
+      "modelSlimDesc": "纤细手臂宽度。",
+      "noteLabel": "备注",
+      "notePlaceholder": "为这件皮肤命名",
+      "noteDescription": "设置后，此备注将替换卡片标题。",
+      "applyAction": "应用皮肤",
+      "deleteAction": "删除皮肤",
+      "onlineProfileNote": "这是在线激活的档案皮肤。仅可预览和切换模型。",
+      "activeLibraryNote": "当前激活的存档皮肤无法删除。"
+    },
+    "capeMenu": {
+      "titleDefault": "披风资产",
+      "activeCape": "当前正在使用这件披风",
+      "applyCapeHint": "确定要装备这件披风吗？",
+      "unequipAction": "卸下当前披风",
+      "applyAction": "装备披风",
+      "cancelAction": "取消"
+    }
   }
 }

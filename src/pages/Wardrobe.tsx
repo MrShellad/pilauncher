@@ -1,4 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { doesFocusableExist, getCurrentFocusKey } from '@noriginmedia/norigin-spatial-navigation';
 import { RefreshCw, ArrowLeft } from 'lucide-react';
 
 import type { SkinCardAsset, WardrobeSkinModel, WardrobeTab } from '../features/wardrobe/types';
@@ -22,13 +24,19 @@ import { WardrobeCapeMenuModal } from '../features/wardrobe/components/WardrobeC
 
 import { useAccountStore } from '../store/useAccountStore';
 import { useLauncherStore } from '../store/useLauncherStore';
+import { ControlHint } from '../ui/components/ControlHint';
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
+import { focusManager } from '../ui/focus/FocusManager';
 import { useInputAction } from '../ui/focus/InputDriver';
 import { OreToggleButton } from '../ui/primitives/OreToggleButton';
 
 import '../style/pages/Wardrobe.css';
 
+const SKIN_NOTE_STORAGE_PREFIX = 'wardrobe:skin-notes:';
+const MAX_SKIN_NOTE_LENGTH = 28;
+
 const Wardrobe: React.FC = () => {
+  const { t } = useTranslation();
   const setActiveTab = useLauncherStore((state) => state.setActiveTab);
   const { accounts, activeAccountId } = useAccountStore();
 
@@ -39,6 +47,8 @@ const Wardrobe: React.FC = () => {
 
   const [activeSection, setActiveSection] = useState<WardrobeTab>('skin');
   const [skinModel, setSkinModel] = useState<WardrobeSkinModel>('classic');
+  const [skinNotes, setSkinNotes] = useState<Record<string, string>>({});
+  const isNotesLoadedRef = useRef(false);
 
   const {
     profile,
@@ -67,6 +77,64 @@ const Wardrobe: React.FC = () => {
     syncViewerToCurrentState,
     previewSkinAsset,
   } = useWardrobeViewerControl();
+
+  const skinNoteStorageKey = useMemo(
+    () => (currentAccount ? `${SKIN_NOTE_STORAGE_PREFIX}${currentAccount.uuid}` : null),
+    [currentAccount?.uuid]
+  );
+
+  useEffect(() => {
+    isNotesLoadedRef.current = false;
+
+    if (!skinNoteStorageKey) {
+      setSkinNotes({});
+      isNotesLoadedRef.current = true;
+      return;
+    }
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      const raw = window.localStorage.getItem(skinNoteStorageKey);
+      if (!raw) {
+        setSkinNotes({});
+        isNotesLoadedRef.current = true;
+        return;
+      }
+
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      const normalized = Object.entries(parsed).reduce<Record<string, string>>((acc, [assetId, noteValue]) => {
+        if (typeof noteValue !== 'string') return acc;
+        const note = noteValue.slice(0, MAX_SKIN_NOTE_LENGTH);
+        if (!note.trim()) return acc;
+        acc[assetId] = note;
+        return acc;
+      }, {});
+      setSkinNotes(normalized);
+    } catch {
+      setSkinNotes({});
+    } finally {
+      isNotesLoadedRef.current = true;
+    }
+  }, [skinNoteStorageKey]);
+
+  useEffect(() => {
+    if (!skinNoteStorageKey || !isNotesLoadedRef.current || typeof window === 'undefined') {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      try {
+        window.localStorage.setItem(skinNoteStorageKey, JSON.stringify(skinNotes));
+      } catch {
+        // Keep in-memory notes when local storage is unavailable.
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [skinNoteStorageKey, skinNotes]);
 
   const restoreViewer = useCallback(() => {
     if (!currentAccount) {
@@ -126,7 +194,6 @@ const Wardrobe: React.FC = () => {
       () => setSkinMenuAsset(null),
       true
     );
-    // 仅响应 UUID 变化，确保初始化流程的纯净性
   }, [currentAccount?.uuid]);
 
   useEffect(() => {
@@ -167,15 +234,43 @@ const Wardrobe: React.FC = () => {
     );
   }, [currentAccount, hydrateWardrobe, isApplying, setSkinMenuAsset]);
 
+  const handleChangeSkinNote = useCallback((assetId: string, note: string) => {
+    const normalizedNote = note.slice(0, MAX_SKIN_NOTE_LENGTH);
+    setSkinNotes((previous) => {
+      const trimmedNote = normalizedNote.trim();
+
+      if (!trimmedNote) {
+        if (!(assetId in previous)) {
+          return previous;
+        }
+        const { [assetId]: _, ...rest } = previous;
+        return rest;
+      }
+
+      if (previous[assetId] === normalizedNote) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        [assetId]: normalizedNote,
+      };
+    });
+  }, []);
+
   const skinCards = useMemo<SkinCardAsset[]>(
     () =>
       (skinLibrary?.assets ?? []).map((asset) => {
         const variant = resolveSkinModel(asset.variant ?? skinModel);
+        const originalTitle = asset.fileName.replace(/\.png$/i, '');
+        const note = (skinNotes[asset.id] ?? asset.note ?? '').trim();
         return {
           id: asset.id,
           kind: 'library',
-          title: asset.fileName.replace(/\.png$/i, ''),
-          subtitle: asset.isActive ? `正在使用 / ${modelLabel(variant)}` : modelLabel(variant),
+          title: note || originalTitle,
+          originalTitle,
+          note: note || undefined,
+          subtitle: modelLabel(variant),
           skinUrl: toStoredAssetUrl(asset),
           variant,
           filePath: asset.filePath,
@@ -183,7 +278,7 @@ const Wardrobe: React.FC = () => {
           canDelete: !asset.isActive,
         };
       }),
-    [skinLibrary?.assets, skinModel]
+    [skinLibrary?.assets, skinModel, skinNotes]
   );
 
   const handlePreviewSkin = useCallback(
@@ -199,6 +294,62 @@ const Wardrobe: React.FC = () => {
     },
     [currentSkinUrl, loadViewerState, skinModel]
   );
+
+  const resolveWardrobeFocusKey = useCallback(() => {
+    const sectionCandidates =
+      activeSection === 'cape'
+        ? ['wardrobe-cape-0', 'wardrobe-section-1', 'wardrobe-section-0', 'wardrobe-upload-card', 'wardrobe-skin-0']
+        : ['wardrobe-upload-card', 'wardrobe-skin-0', 'wardrobe-section-0', 'wardrobe-section-1', 'wardrobe-cape-0'];
+
+    return sectionCandidates.find((focusKey) => doesFocusableExist(focusKey)) ?? null;
+  }, [activeSection]);
+
+  useEffect(() => {
+    if (skinMenuAsset || capeMenuAsset) {
+      return;
+    }
+
+    let attempts = 0;
+    let timer: ReturnType<typeof window.setTimeout> | undefined;
+
+    const ensureWardrobeFocus = () => {
+      const currentFocusKey = getCurrentFocusKey();
+      if (currentFocusKey && doesFocusableExist(currentFocusKey)) {
+        return;
+      }
+
+      const targetKey = resolveWardrobeFocusKey();
+      if (targetKey) {
+        timer = window.setTimeout(() => {
+          if (doesFocusableExist(targetKey)) {
+            focusManager.focus(targetKey);
+          }
+        }, 0);
+        return;
+      }
+
+      attempts += 1;
+      if (attempts < 12) {
+        timer = window.setTimeout(ensureWardrobeFocus, 60);
+      }
+    };
+
+    timer = window.setTimeout(ensureWardrobeFocus, 30);
+
+    return () => {
+      if (timer !== undefined) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [
+    activeSection,
+    capeMenuAsset,
+    currentAccount?.uuid,
+    profile?.capes.length,
+    resolveWardrobeFocusKey,
+    skinCards.length,
+    skinMenuAsset,
+  ]);
 
   useInputAction('CANCEL', () => {
     if (skinMenuAsset) {
@@ -224,6 +375,11 @@ const Wardrobe: React.FC = () => {
   useInputAction('PAGE_RIGHT', () => {
     if (!skinMenuAsset) setActiveSection('cape');
   });
+  useInputAction('ACTION_X', () => {
+    if (skinMenuAsset || capeMenuAsset) return;
+    if (!currentAccount || isApplying) return;
+    void handleRefresh();
+  });
 
   return (
     <FocusBoundary id="wardrobe-page" defaultFocusKey="wardrobe-upload-card" className="w-full h-full text-white overflow-hidden flex flex-col">
@@ -235,7 +391,7 @@ const Wardrobe: React.FC = () => {
             </div>
           </div>
           <div className="header_title text-[#48494A] flex flex-1 justify-center items-center font-minecraft text-[26px] leading-none h-full">
-            <span>衣柜</span>
+            <span>{t('wardrobe.title')}</span>
           </div>
           <div className="header_right flex items-center h-full">
             {currentAccount && (
@@ -268,14 +424,41 @@ const Wardrobe: React.FC = () => {
                 <div className="w-full h-full flex flex-col relative">
                   <WardrobeViewer viewerContainerRef={containerRef} onBack={handleBack} />
                 </div>
+                <div className="wardrobe-viewer-hints pointer-events-none" aria-hidden="true">
+                  <div className="wardrobe-viewer-hints__list">
+                    <div className="wardrobe-viewer-hints__item">
+                      <ControlHint label="A" variant="face" tone="green" className="wardrobe-viewer-hints__hint" />
+                      <span>{t('wardrobe.hints.openDialog')}</span>
+                    </div>
+                    <div className="wardrobe-viewer-hints__item">
+                      <ControlHint label="Y" variant="face" tone="yellow" className="wardrobe-viewer-hints__hint" />
+                      <span>{t('wardrobe.hints.preview')}</span>
+                    </div>
+                    <div className="wardrobe-viewer-hints__item">
+                      <span className="wardrobe-viewer-hints__combo">
+                        <ControlHint label="LT" variant="trigger" tone="neutral" className="wardrobe-viewer-hints__hint" />
+                        <ControlHint label="RT" variant="trigger" tone="neutral" className="wardrobe-viewer-hints__hint" />
+                      </span>
+                      <span>{t('wardrobe.hints.switchTab')}</span>
+                    </div>
+                    <div className="wardrobe-viewer-hints__item">
+                      <ControlHint label="RS" variant="keyboard" tone="dark" className="wardrobe-viewer-hints__hint" />
+                      <span>{t('wardrobe.hints.rotate')}</span>
+                    </div>
+                    <div className="wardrobe-viewer-hints__item">
+                      <ControlHint label="X" variant="face" tone="blue" className="wardrobe-viewer-hints__hint" />
+                      <span>{t('wardrobe.hints.refresh')}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="flex-[1.5] w-full flex flex-col p-6 bg-[#2a332c]/30 min-h-0">
                 <div className="mb-4 shrink-0">
                   <OreToggleButton
                     options={[
-                      { label: '皮肤', value: 'skin' },
-                      { label: '披风', value: 'cape' },
+                      { label: t('wardrobe.skinTab'), value: 'skin' },
+                      { label: t('wardrobe.capeTab'), value: 'cape' },
                     ]}
                     value={activeSection}
                     onChange={(value) => setActiveSection(value as WardrobeTab)}
@@ -287,7 +470,7 @@ const Wardrobe: React.FC = () => {
 
                 {!currentAccount && (
                   <div className="wardrobe-empty-state shrink-0">
-                    请先在设置中添加一个游戏账户。
+                    {t('wardrobe.emptyAccount')}
                   </div>
                 )}
 
@@ -327,9 +510,14 @@ const Wardrobe: React.FC = () => {
       <WardrobeSkinMenuModal
         skinMenuAsset={skinMenuAsset}
         skinMenuModel={skinMenuModel}
+        skinNote={skinMenuAsset ? skinNotes[skinMenuAsset.id] ?? skinMenuAsset.note ?? '' : ''}
         isApplying={isApplying}
         onClose={closeSkinMenu}
         onChangeModel={handleChangeSkinMenuModel}
+        onChangeNote={(nextNote) => {
+          if (!skinMenuAsset || skinMenuAsset.kind !== 'library') return;
+          handleChangeSkinNote(skinMenuAsset.id, nextNote);
+        }}
         onApply={handleApplySkinAsset}
         onDelete={handleDeleteSkinAsset}
       />
@@ -346,3 +534,5 @@ const Wardrobe: React.FC = () => {
 };
 
 export default Wardrobe;
+
+

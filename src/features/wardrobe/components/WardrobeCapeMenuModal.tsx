@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import { OreModal } from '../../../ui/primitives/OreModal';
 import type { WardrobeCape } from '../types';
@@ -19,13 +20,14 @@ export const WardrobeCapeMenuModal: React.FC<WardrobeCapeMenuModalProps> = ({
   onClose,
   onApply,
 }) => {
+  const { t } = useTranslation();
   const isCurrentlyActive = activeCape?.id === capeMenuAsset?.id;
 
   return (
     <OreModal
       isOpen={!!capeMenuAsset}
       onClose={onClose}
-      title="披风资产"
+      title={t('wardrobe.capeMenu.titleDefault')}
       className="w-full max-w-[500px]"
       contentClassName="p-6"
     >
@@ -37,7 +39,7 @@ export const WardrobeCapeMenuModal: React.FC<WardrobeCapeMenuModalProps> = ({
 
           <div className="flex flex-col gap-2 relative z-10">
             <h3 className="text-xl font-bold text-white mb-2 text-center">
-              {isCurrentlyActive ? '当前正在使用这件披风' : '确定要装备这件披风吗？'}
+              {isCurrentlyActive ? t('wardrobe.capeMenu.activeCape') : t('wardrobe.capeMenu.applyCapeHint')}
             </h3>
             
             <div className="flex gap-4">
@@ -48,7 +50,7 @@ export const WardrobeCapeMenuModal: React.FC<WardrobeCapeMenuModalProps> = ({
                 disabled={isApplying}
                 className="flex-1"
               >
-                {isCurrentlyActive ? '卸下当前披风' : '装备披风'}
+                {isCurrentlyActive ? t('wardrobe.capeMenu.unequipAction') : t('wardrobe.capeMenu.applyAction')}
               </OreButton>
               <OreButton
                 focusKey="wardrobe-cape-menu-cancel"
@@ -57,7 +59,7 @@ export const WardrobeCapeMenuModal: React.FC<WardrobeCapeMenuModalProps> = ({
                 disabled={isApplying}
                 className="flex-1"
               >
-                取消
+                {t('wardrobe.capeMenu.cancelAction')}
               </OreButton>
             </div>
           </div>

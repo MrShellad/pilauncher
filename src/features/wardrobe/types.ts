@@ -27,6 +27,7 @@ export interface WardrobeStoredSkinAsset {
   fileName: string;
   filePath: string;
   variant?: string | null;
+  note?: string | null;
   contentHash: string;
   createdAt: number;
   isActive: boolean;
@@ -41,6 +42,8 @@ export interface SkinCardAsset {
   id: string;
   kind: 'profile' | 'library';
   title: string;
+  originalTitle?: string;
+  note?: string;
   subtitle: string;
   skinUrl: string;
   variant: WardrobeSkinModel;

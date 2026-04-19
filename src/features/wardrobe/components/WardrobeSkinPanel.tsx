@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ImagePlus } from 'lucide-react';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { useInputAction } from '../../../ui/focus/InputDriver';
@@ -20,9 +21,10 @@ interface SkinCardItemProps {
 }
 
 const SkinCardItem = React.memo(({ asset, index, onOpenSkinMenu, onPreview }: SkinCardItemProps) => {
+  const { t } = useTranslation();
   const isComponentFocusedRef = React.useRef(false);
 
-  useInputAction('ACTION_X', () => {
+  useInputAction('ACTION_Y', () => {
     if (isComponentFocusedRef.current) {
       onPreview(asset);
     }
@@ -49,6 +51,7 @@ const SkinCardItem = React.memo(({ asset, index, onOpenSkinMenu, onPreview }: Sk
             onContextMenu={handleContextMenu}
           >
             <div className="wardrobe-skin-card__preview-wrap">
+              {asset.isActive && <span className="wardrobe-card-active-badge">{t('wardrobe.activeBadge')}</span>}
               <WardrobeSkinCardPreview skinUrl={asset.skinUrl} model={asset.variant} />
             </div>
             <div className="wardrobe-skin-card__meta font-minecraft">
@@ -68,6 +71,7 @@ export const WardrobeSkinPanel: React.FC<WardrobeSkinPanelProps> = ({
   onOpenSkinMenu,
   onPreview,
 }) => {
+  const { t } = useTranslation();
   return (
     <div className="wardrobe-panel-body font-minecraft">
       <div className="wardrobe-skin-grid">
@@ -82,9 +86,9 @@ export const WardrobeSkinPanel: React.FC<WardrobeSkinPanelProps> = ({
               <span className="wardrobe-upload-card__icon">
                 <ImagePlus size={34} />
               </span>
-              <span className="wardrobe-skin-card__title">本地上传</span>
+              <span className="wardrobe-skin-card__title">{t('wardrobe.uploadCard.title')}</span>
               <span className="wardrobe-skin-card__subtitle">
-                上传后进入资产库
+                {t('wardrobe.uploadCard.subtitle')}
               </span>
             </button>
           )}

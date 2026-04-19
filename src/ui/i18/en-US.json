@@ -802,5 +802,50 @@
       "clear": "Clear",
       "done": "Done"
     }
+  },
+  "wardrobe": {
+    "title": "Wardrobe",
+    "skinTab": "Skin",
+    "capeTab": "Cape",
+    "refresh": "Refresh",
+    "emptyAccount": "Please add a game account in settings first.",
+    "activeBadge": "ACTIVE",
+    "uploadCard": {
+      "title": "Local Upload",
+      "subtitle": "Enter library after upload"
+    },
+    "hints": {
+      "openDialog": "Open Dialog",
+      "preview": "Preview",
+      "switchTab": "Switch Skin/Cape",
+      "rotate": "Rotate Character",
+      "refresh": "Refresh"
+    },
+    "skinMenu": {
+      "titleDefault": "Skin Asset",
+      "filePrefix": "File: ",
+      "activeSkin": "Current active skin.",
+      "applySkinHint": "Apply to switch to this skin.",
+      "modelLabel": "Model",
+      "modelClassic": "Classic",
+      "modelClassicDesc": "Standard arm width.",
+      "modelSlim": "Slim",
+      "modelSlimDesc": "Slim arm width.",
+      "noteLabel": "Note",
+      "notePlaceholder": "Name this skin card",
+      "noteDescription": "When set, this note replaces the card title.",
+      "applyAction": "Apply skin",
+      "deleteAction": "Delete skin",
+      "onlineProfileNote": "This is the online active profile skin. It can be previewed and model-switched only.",
+      "activeLibraryNote": "Active library skin cannot be deleted."
+    },
+    "capeMenu": {
+      "titleDefault": "Cape Asset",
+      "activeCape": "Current active cape",
+      "applyCapeHint": "Are you sure you want to equip this cape?",
+      "unequipAction": "Unequip current cape",
+      "applyAction": "Equip cape",
+      "cancelAction": "Cancel"
+    }
   }
 }
