@@ -130,7 +130,6 @@ export function useWardrobeSession() {
     async (
       account: MinecraftAccount,
       onModelResolved: (model: ReturnType<typeof resolveSkinModel>) => void,
-      onClearSkinMenuAsset: () => void,
       silent = false
     ) => {
       // 使用 Ref 进行并发检查，避免 isLoadingProfile 引起函数引用变化

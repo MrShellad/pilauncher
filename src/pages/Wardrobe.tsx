@@ -191,7 +191,6 @@ const Wardrobe: React.FC = () => {
     void hydrateWardrobe(
       currentAccount,
       (resolvedModel) => setSkinModel(resolvedModel),
-      () => setSkinMenuAsset(null),
       true
     );
   }, [currentAccount?.uuid]);
@@ -229,7 +228,6 @@ const Wardrobe: React.FC = () => {
     await hydrateWardrobe(
       currentAccount,
       (resolvedModel) => setSkinModel(resolvedModel),
-      () => setSkinMenuAsset(null),
       false
     );
   }, [currentAccount, hydrateWardrobe, isApplying, setSkinMenuAsset]);
