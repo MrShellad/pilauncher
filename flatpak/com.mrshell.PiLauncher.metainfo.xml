@@ -34,25 +34,23 @@
   </categories>
 
   <releases>
-    <release version="0.1.26" date="2026-04-18">
+    <release version="0.1.27" date="2026-04-19">
       <description>
-        <p xml:lang="zh_CN">功能增强与体验优化</p>
+        <p xml:lang="zh_CN">「皮肤中心」功能增强与 Linux 体验优化</p>
         <ul xml:lang="zh_CN">
-          <li>[新功能] 实现基于 CAS 的 Mod 快照与回滚系统，支持查看详细的文件变更差异。</li>
-          <li>[新功能] 新增服务器绑定功能，支持在实例详情中关联特定服务器并设置自动加入。</li>
-          <li>[新功能] 新增「联机中心」页面，整合社区服务器目录与认证直连入口。</li>
-          <li>[优化] 深度优化第三方实例导入兼容性，修复了多级版本继承链的加载逻辑。</li>
-          <li>[优化] 重构实例详情面板，将基础信息、自定义链接及维护操作等模块化解耦。</li>
-          <li>[优化] 增强全局焦点捕获与导航记忆机制，大幅提升手柄操作的交互连贯性。</li>
+          <li>[新功能] 完善「皮肤中心」国际化支持，实现中英双语即时切换。</li>
+          <li>[新功能] 新增皮肤备注功能，支持为不同皮肤存储个性化说明并持久化保存。</li>
+          <li>[优化] 提升「皮肤中心」视觉交互，添加“使用中”金色标记，并优化卡片色彩表现。</li>
+          <li>[修复] 解决 Linux 平台下 UI 列表滚动可能出现的闪烁同步问题。</li>
+          <li>[修复] 修正 Linux 构建工作流配置，补充缺失的 libudev 系统库依赖。</li>
         </ul>
-        <p>Feature Enhancements and UX Optimizations</p>
+        <p>Wardrobe Enhancements and Linux UX Optimizations</p>
         <ul>
-          <li>[New] Implemented CAS-based Mod Snapshot and Rollback system with detailed file diffing.</li>
-          <li>[New] Added Server Binding feature, allowing instances to be linked to specific servers with auto-join support.</li>
-          <li>[New] Introduced Multiplayer hub for community server discovery and direct connections.</li>
-          <li>[Optimization] Improved compatibility for third-party instance imports with recursive version loading.</li>
-          <li>[Optimization] Refactored Instance Detail panel into modular components for better maintainability.</li>
-          <li>[Optimization] Enhanced global focus management and navigation persistence for a smoother gamepad experience.</li>
+          <li>[New] Full i18n support for the Wardrobe feature with localized UI strings.</li>
+          <li>[New] Added skin remarks/notes support with persistent local storage.</li>
+          <li>[Optimization] Enhanced Wardrobe UI with "In Use" status badges and refined card vibrancy.</li>
+          <li>[Fix] Resolved UI flickering issues during list scrolling on Linux systems.</li>
+          <li>[Fix] Fixed Linux build failures by adding the libudev-dev system dependency.</li>
         </ul>
       </description>
     </release>
