@@ -1,6 +1,6 @@
 // src-tauri/src/commands/auth_cmd.rs
 use crate::domain::auth::{Account, DeviceCodeResponse, McProfile, WardrobeSkinLibrary};
-use crate::services::auth_service;
+use crate::services::auth as auth_service;
 
 // 核心修复 1：引入 tauri 的 AppHandle 和 Runtime
 use tauri::{AppHandle, Runtime};
@@ -69,7 +69,7 @@ pub async fn get_or_fetch_account_avatar<R: tauri::Runtime>(
     uuid: String,
     username: String,
 ) -> Result<String, String> {
-    crate::services::auth_service::get_or_fetch_account_avatar(&app, &uuid, &username)
+    crate::services::auth::get_or_fetch_account_avatar(&app, &uuid, &username)
         .await
         .map(|p| p.to_string_lossy().to_string())
 }

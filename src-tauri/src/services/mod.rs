@@ -1,5 +1,5 @@
 pub mod animation_service; // ✅ 新增 animation 模块
-pub mod auth_service;
+pub mod auth; // 解耦后的认证模块 (原 auth_service.rs)
 pub mod config_service; // ✅ 新增 config 模块
 pub mod db_service;
 pub mod deployment_cancel;
