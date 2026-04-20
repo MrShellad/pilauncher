@@ -705,10 +705,10 @@ async fn download_pipack_mods<R: Runtime>(
     let concurrency = if dl_settings.concurrency > 0 {
         dl_settings.concurrency
     } else {
-        16
+        8
     };
     let retry_count = dl_settings.retry_count;
-    let verify_hash = true;
+    let verify_hash = dl_settings.verify_after_download;
     let speed_limit_bytes_per_sec = ConfigService::download_speed_limit_bytes_per_sec(&dl_settings);
 
     let client = Client::builder()
@@ -817,7 +817,7 @@ async fn download_pipack_mods<R: Runtime>(
             speed_limit_bytes_per_sec,
             retry_count,
             verify_hash,
-            Duration::from_secs(dl_settings.timeout.max(1)),
+            Duration::from_secs(dl_settings.timeout.max(1).saturating_mul(2).max(30)),
             cancel,
         )
         .await
@@ -872,7 +872,7 @@ async fn download_modrinth_mods<R: Runtime>(
     let concurrency = if dl_settings.concurrency > 0 {
         dl_settings.concurrency
     } else {
-        16
+        8
     };
     let retry_count = dl_settings.retry_count;
     let verify_hash = dl_settings.verify_after_download;
@@ -1008,7 +1008,7 @@ async fn download_modrinth_mods<R: Runtime>(
             speed_limit_bytes_per_sec,
             retry_count,
             verify_hash,
-            Duration::from_secs(dl_settings.timeout.max(1)),
+            Duration::from_secs(dl_settings.timeout.max(1).saturating_mul(2).max(30)),
             cancel,
         )
         .await
@@ -1056,7 +1056,7 @@ async fn download_curseforge_mods<R: Runtime>(
     let concurrency = if dl_settings.concurrency > 0 {
         dl_settings.concurrency
     } else {
-        16
+        8
     };
     let retry_count = dl_settings.retry_count;
     let verify_hash = dl_settings.verify_after_download;
@@ -1198,7 +1198,7 @@ async fn download_curseforge_mods<R: Runtime>(
             speed_limit_bytes_per_sec,
             retry_count,
             verify_hash,
-            Duration::from_secs(dl_settings.timeout.max(1)),
+            Duration::from_secs(dl_settings.timeout.max(1).saturating_mul(2).max(30)),
             cancel,
         )
         .await

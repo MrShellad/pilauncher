@@ -2,7 +2,6 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
-use std::time::Duration;
 
 use reqwest::Client;
 use serde_json::Value;
@@ -125,7 +124,7 @@ async fn download_libraries_inner<R: Runtime>(
     let concurrency = if dl_settings.concurrency > 0 {
         dl_settings.concurrency
     } else {
-        16
+        8
     };
     let retry_count = dl_settings.retry_count;
     let verify_hash = force_verify_hash || dl_settings.verify_after_download;
@@ -273,7 +272,7 @@ async fn download_libraries_inner<R: Runtime>(
         speed_limit_bytes_per_sec,
         retry_count,
         verify_hash,
-        Duration::from_secs(dl_settings.timeout.max(1)),
+        ConfigService::stall_timeout(&dl_settings),
         cancel,
     )
     .await

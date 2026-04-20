@@ -16,7 +16,7 @@ use crate::services::downloader::transfer::{download_file, DownloadRateLimiter, 
 
 use super::progress::{emit_download_progress, emit_download_speed, DownloadStage};
 
-const RETRY_DELAY_MS: u64 = 1200;
+const RETRY_BASE_DELAY_MS: u64 = 1200;
 const PROGRESS_EMIT_INTERVAL_MS: u64 = 100;
 const HASH_READ_BUFFER_SIZE: usize = 64 * 1024;
 
@@ -165,7 +165,7 @@ pub async fn run_downloads<R: Runtime>(
                         return;
                     }
 
-                    let _ = tokio::fs::remove_file(&tmp_path).await;
+                    // Don't delete temp file before retry — transfer.rs resumes from it
 
                     let on_bytes: Arc<dyn Fn(u64) + Send + Sync> = {
                         let downloaded_bytes = Arc::clone(&downloaded_bytes);
@@ -249,7 +249,9 @@ pub async fn run_downloads<R: Runtime>(
                                             true,
                                         )
                                         .await;
-                                        tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS))
+                                        tokio::time::sleep(Duration::from_millis(
+                                            RETRY_BASE_DELAY_MS * (1u64 << attempt.min(5)),
+                                        ))
                                             .await;
                                         continue;
                                     }
@@ -291,7 +293,7 @@ pub async fn run_downloads<R: Runtime>(
                                             )
                                             .await;
                                             tokio::time::sleep(Duration::from_millis(
-                                                RETRY_DELAY_MS,
+                                                RETRY_BASE_DELAY_MS * (1u64 << attempt.min(5)),
                                             ))
                                             .await;
                                             continue;
@@ -331,7 +333,9 @@ pub async fn run_downloads<R: Runtime>(
                                         true,
                                     )
                                     .await;
-                                    tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS))
+                                    tokio::time::sleep(Duration::from_millis(
+                                        RETRY_BASE_DELAY_MS * (1u64 << attempt.min(5)),
+                                    ))
                                         .await;
                                     continue;
                                 }
@@ -366,7 +370,10 @@ pub async fn run_downloads<R: Runtime>(
                                     true,
                                 )
                                 .await;
-                                tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
+                                tokio::time::sleep(Duration::from_millis(
+                                    RETRY_BASE_DELAY_MS * (1u64 << attempt.min(5)),
+                                ))
+                                .await;
                                 continue;
                             }
                             break;

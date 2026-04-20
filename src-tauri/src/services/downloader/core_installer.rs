@@ -102,7 +102,7 @@ pub async fn install_vanilla_core<R: Runtime>(
     let dl_settings = ConfigService::get_download_settings(app);
     let client = build_download_client(&dl_settings)?;
     let max_attempts = dl_settings.retry_count.max(1);
-    let stall_timeout = Duration::from_secs(dl_settings.timeout.max(1));
+    let stall_timeout = ConfigService::stall_timeout(&dl_settings);
     let runtime_dir = global_mc_root.join("runtime");
     let manifest_cache_path = runtime_dir.join("version_manifest_v2.json");
     let _ = fs::create_dir_all(&runtime_dir);
@@ -335,7 +335,7 @@ pub async fn install_vanilla_core<R: Runtime>(
             Err(err) => {
                 last_error = Some(err.to_string());
                 if attempt < max_attempts {
-                    tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
+                    tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS * (1u64 << attempt.min(5)))).await;
                 }
                 continue;
             }
@@ -347,7 +347,7 @@ pub async fn install_vanilla_core<R: Runtime>(
                 last_error = Some(format!("sha1 mismatch (expected {}, got {})", exp, actual));
                 let _ = fs::remove_file(&temp_jar_path);
                 if attempt < max_attempts {
-                    tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
+                    tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS * (1u64 << attempt.min(5)))).await;
                 }
                 continue;
             }
@@ -361,7 +361,7 @@ pub async fn install_vanilla_core<R: Runtime>(
             last_error = Some(format!("rename failed: {}", e));
             let _ = fs::remove_file(&temp_jar_path);
             if attempt < max_attempts {
-                tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
+                tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS * (1u64 << attempt.min(5)))).await;
             }
             continue;
         }

@@ -30,7 +30,9 @@ pub struct DownloadSettings {
     pub retry_count: u32,
     pub timeout: u64,
     pub verify_after_download: bool,
-    // ✅ 新增：各路下载源路由配置
+    #[serde(default)]
+    pub auto_check_latency: bool,
+    // 各路下载源路由配置
     pub vanilla_source: String,
     pub vanilla_source_url: String,
     pub fabric_source: String,
@@ -73,7 +75,7 @@ impl Default for DownloadSettings {
     fn default() -> Self {
         Self {
             minecraft_meta_source: "bangbang93".to_string(),
-            concurrency: 16,
+            concurrency: 8,
             chunked_download_enabled: true,
             chunked_download_threads: 4,
             chunked_download_min_size_mb: 32,
@@ -85,6 +87,7 @@ impl Default for DownloadSettings {
             retry_count: 3,
             timeout: 15,
             verify_after_download: true,
+            auto_check_latency: false,
             vanilla_source: "bmclapi".to_string(),
             vanilla_source_url: "https://bmclapi2.bangbang93.com".to_string(),
             fabric_source: "official".to_string(),
@@ -157,6 +160,13 @@ impl ConfigService {
             .chunked_download_min_size_mb
             .max(1)
             .saturating_mul(1024 * 1024)
+    }
+
+    /// Stall timeout for data transfer: 2x the connect timeout to tolerate
+    /// slow or jittery connections without prematurely aborting large downloads.
+    pub fn stall_timeout(dl_settings: &DownloadSettings) -> std::time::Duration {
+        let base = dl_settings.timeout.max(1);
+        std::time::Duration::from_secs(base.saturating_mul(2).max(30))
     }
 
     fn get_meta_path<R: Runtime>(app: &AppHandle<R>) -> AppResult<PathBuf> {

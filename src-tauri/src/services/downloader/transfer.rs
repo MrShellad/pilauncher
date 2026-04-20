@@ -132,25 +132,76 @@ async fn download_single_stream(
     if let Some(parent) = temp_path.parent() {
         tokio::fs::create_dir_all(parent).await?;
     }
-    let _ = tokio::fs::remove_file(temp_path).await;
 
-    let mut response = client
-        .get(url)
-        .header(ACCEPT_ENCODING, "identity")
-        .send()
-        .await?;
+    // ── Resume support: detect existing partial download ──
+    let existing_len = match tokio::fs::metadata(temp_path).await {
+        Ok(meta) => meta.len(),
+        Err(_) => 0,
+    };
 
-    if !response.status().is_success() {
+    let mut request = client.get(url).header(ACCEPT_ENCODING, "identity");
+    if existing_len > 0 {
+        request = request.header(RANGE, format!("bytes={}-", existing_len));
+    }
+
+    let mut response = request.send().await?;
+    let status = response.status().as_u16();
+
+    // Determine resume offset based on server response
+    let resume_offset = if existing_len > 0 && status == 206 {
+        // Server accepted Range request — append to existing file
+        existing_len
+    } else if status == 200 {
+        // Server ignored Range or no partial file — start fresh
+        let _ = tokio::fs::remove_file(temp_path).await;
+        0
+    } else if status == 416 {
+        // Range Not Satisfiable — file might be complete already or invalid
+        let _ = tokio::fs::remove_file(temp_path).await;
+        // Retry without Range header
+        response = client
+            .get(url)
+            .header(ACCEPT_ENCODING, "identity")
+            .send()
+            .await?;
+        if !response.status().is_success() {
+            return Err(AppError::Generic(format!(
+                "HTTP {} from {}",
+                response.status(),
+                url
+            )));
+        }
+        0
+    } else if !response.status().is_success() {
         return Err(AppError::Generic(format!(
             "HTTP {} from {}",
             response.status(),
             url
         )));
-    }
+    } else {
+        0
+    };
 
-    let total_size = response.content_length().unwrap_or(0);
-    let mut file = tokio::fs::File::create(temp_path).await?;
-    let mut downloaded: u64 = 0;
+    let total_size = if resume_offset > 0 {
+        // For resumed downloads, total = already_downloaded + remaining content_length
+        response
+            .content_length()
+            .map(|cl| cl + resume_offset)
+            .unwrap_or(0)
+    } else {
+        response.content_length().unwrap_or(0)
+    };
+
+    let mut file = if resume_offset > 0 {
+        tokio::fs::OpenOptions::new()
+            .append(true)
+            .open(temp_path)
+            .await?
+    } else {
+        tokio::fs::File::create(temp_path).await?
+    };
+
+    let mut downloaded: u64 = resume_offset;
 
     loop {
         if is_cancelled(cancel) {
@@ -173,14 +224,15 @@ async fn download_single_stream(
             }
             Ok(Ok(None)) => break,
             Ok(Err(e)) => {
-                let _ = tokio::fs::remove_file(temp_path).await;
+                // Keep partial file for resume on next attempt
                 return Err(AppError::Network(e));
             }
             Err(_) => {
-                let _ = tokio::fs::remove_file(temp_path).await;
+                // Keep partial file for resume on next attempt
                 return Err(AppError::Generic(format!(
-                    "download stalled for {}s",
-                    stall_timeout.as_secs()
+                    "download stalled for {}s (downloaded {}B so far)",
+                    stall_timeout.as_secs(),
+                    downloaded
                 )));
             }
         }
@@ -397,7 +449,7 @@ pub async fn download_file(
                 Ok(outcome) => return Ok(outcome),
                 Err(err) => {
                     let _ = err;
-                    let _ = tokio::fs::remove_file(temp_path).await;
+                    // Don't remove temp_path here — single_stream may resume it
                 }
             }
         }
@@ -416,7 +468,7 @@ pub async fn download_file(
             Ok(outcome) => return Ok(outcome),
             Err(err) => {
                 last_error = Some(err.to_string());
-                let _ = tokio::fs::remove_file(temp_path).await;
+                // Keep temp file for potential resume on next URL or retry
             }
         }
     }
