@@ -18,6 +18,7 @@ import { useDownloadStore, type DownloadTask } from '../../../../store/useDownlo
 import { ControlHint } from '../../../../ui/components/ControlHint';
 import { useInputAction } from '../../../../ui/focus/InputDriver';
 import { OreButton } from '../../../../ui/primitives/OreButton';
+import { OreProgressBar } from '../../../../ui/primitives/OreProgressBar';
 
 const INSTANCE_PIPELINE = [
   { label: '下载', key: 0 },
@@ -46,7 +47,7 @@ const PipelineIndicator = ({
   currentStage: number;
   isError: boolean;
 }) => (
-  <div className="flex items-center gap-[0.25rem]">
+  <div className="flex items-center gap-[0.375rem]">
     {stages.map((stage, index) => {
       const isActive = stage.key === currentStage;
       const isCompleted = currentStage > stage.key;
@@ -67,20 +68,20 @@ const PipelineIndicator = ({
       }
 
       return (
-        <div key={stage.key} className="flex items-center gap-[0.25rem]">
+        <div key={stage.key} className="flex items-center gap-[0.375rem]">
           <div className="flex items-center gap-[0.25rem]">
             <div
-              className={`h-[0.375rem] w-[0.375rem] rounded-full transition-all duration-300 ${dotClass}`}
+              className={`h-[0.5rem] w-[0.5rem] rounded-full transition-all duration-300 ${dotClass}`}
             />
             <span
-              className={`font-minecraft text-[0.625rem] uppercase tracking-[0.08em] transition-colors duration-300 ${textClass}`}
+              className={`font-minecraft text-[0.75rem] uppercase tracking-[0.08em] transition-colors duration-300 ${textClass}`}
             >
               {stage.label}
             </span>
           </div>
           {showConnector && (
             <div
-              className={`h-[1px] w-[0.75rem] transition-colors duration-300 ${
+              className={`h-[1.5px] w-[1rem] transition-colors duration-300 ${
                 isCompleted ? 'bg-ore-green/40' : 'bg-[#58585A]/60'
               }`}
             />
@@ -123,11 +124,11 @@ const renderLogLine = (log: string, index: number) => {
 
 const ProgressSummary = ({ task }: { task: DownloadTask }) => {
   if (task.status === 'completed') {
-    return <span className="font-minecraft text-[0.6875rem] text-ore-green">已完成</span>;
+    return <span className="font-minecraft text-[0.75rem] font-bold text-ore-green">已完成</span>;
   }
 
   if (task.status === 'error') {
-    return <span className="font-minecraft text-[0.6875rem] text-red-400">失败</span>;
+    return <span className="font-minecraft text-[0.75rem] font-bold text-red-400">失败</span>;
   }
 
   const parts: string[] = [];
@@ -136,7 +137,7 @@ const ProgressSummary = ({ task }: { task: DownloadTask }) => {
   if (task.eta) parts.push(task.eta);
 
   return (
-    <span className="font-mono text-[0.625rem] tabular-nums text-[var(--ore-downloadDetail-mutedText)]">
+    <span className="font-mono text-[0.75rem] font-bold tabular-nums text-[var(--ore-downloadDetail-mutedText)]">
       {parts.join(' | ')}
     </span>
   );
@@ -173,13 +174,6 @@ export const TaskItem = ({
   };
 
   const pipeline = isUpdate ? UPDATE_PIPELINE : isResource ? RESOURCE_PIPELINE : INSTANCE_PIPELINE;
-  const progressBarClass = isError
-    ? 'bg-red-500'
-    : isDone
-      ? isResource
-        ? 'bg-blue-400'
-        : 'bg-ore-green'
-      : 'bg-white';
 
   const statusLabel = isError ? '失败' : isDone ? '完成' : '进行中';
   const statusColorClass = isError
@@ -207,7 +201,7 @@ export const TaskItem = ({
 
   return (
     <div
-      className={`group relative flex flex-col border bg-[#141415] p-[0.875rem] transition-colors ${
+      className={`group relative flex flex-col border bg-[#141415] p-[clamp(0.75rem,1.5vw,0.875rem)] transition-colors ${
         isError ? 'border-red-500/50 bg-[#1A1A1B]' : 'border-[var(--ore-downloadDetail-divider)] bg-[#1A1A1B]'
       }`}
       style={{ boxShadow: 'var(--ore-downloadDetail-sectionShadow)' }}
@@ -215,20 +209,20 @@ export const TaskItem = ({
       <div className="mb-[0.5rem] flex items-center justify-between gap-[0.5rem]">
         <div className="flex min-w-0 flex-1 items-center gap-[0.375rem]">
           {isError ? (
-            <AlertTriangle className="h-[0.875rem] w-[0.875rem] shrink-0 text-red-500" />
+            <AlertTriangle className="h-[1.125rem] w-[1.125rem] shrink-0 text-red-500" />
           ) : isUpdate ? (
-            <RefreshCw className={`h-[0.875rem] w-[0.875rem] shrink-0 ${isDone ? 'text-ore-green' : 'text-ore-text-muted'}`} />
+            <RefreshCw className={`h-[1.125rem] w-[1.125rem] shrink-0 ${isDone ? 'text-ore-green' : 'text-ore-text-muted'}`} />
           ) : isResource ? (
-            <FileDown className={`h-[0.875rem] w-[0.875rem] shrink-0 ${isDone ? 'text-blue-400' : 'text-ore-text-muted'}`} />
+            <FileDown className={`h-[1.125rem] w-[1.125rem] shrink-0 ${isDone ? 'text-blue-400' : 'text-ore-text-muted'}`} />
           ) : (
-            <Box className={`h-[0.875rem] w-[0.875rem] shrink-0 ${isDone ? 'text-ore-green' : 'text-ore-text-muted'}`} />
+            <Box className={`h-[1.125rem] w-[1.125rem] shrink-0 ${isDone ? 'text-ore-green' : 'text-ore-text-muted'}`} />
           )}
 
-          <span className={`truncate font-minecraft text-[clamp(0.6875rem,1.1vw,0.875rem)] ${isError ? 'text-red-400' : 'text-white'}`}>
+          <span className={`truncate font-minecraft text-[clamp(0.8125rem,1.25vw,0.9375rem)] ${isError ? 'text-red-400' : 'text-white'}`}>
             {task.title}
           </span>
 
-          <span className={`shrink-0 rounded-[0.125rem] border px-[0.375rem] py-[0.0625rem] font-minecraft text-[0.5625rem] uppercase tracking-[0.06em] ${statusColorClass}`}>
+          <span className={`shrink-0 rounded-[0.125rem] border px-[0.375rem] py-[0.125rem] font-minecraft text-[0.75rem] uppercase tracking-[0.06em] ${statusColorClass}`}>
             {statusLabel}
           </span>
         </div>
@@ -238,30 +232,24 @@ export const TaskItem = ({
         </div>
       </div>
 
-      <div className="mb-[0.5rem] flex items-center gap-[0.5rem]">
-        <div className="h-[0.3125rem] flex-1 overflow-hidden rounded-[0.125rem] bg-[var(--ore-color-background-surface-sunken)]">
-          <motion.div
-            className={`h-full ${progressBarClass}`}
-            initial={{ width: 0 }}
-            animate={{ width: `${task.progress}%` }}
-            transition={{ ease: 'linear', duration: 0.5 }}
-          />
-        </div>
-        <span className={`shrink-0 font-mono text-[0.625rem] tabular-nums ${isError ? 'text-red-400' : 'text-[var(--ore-downloadDetail-mutedText)]'}`}>
-          {task.progress}%
-        </span>
+      <div className="mb-[0.5rem]">
+        <OreProgressBar
+          percent={task.progress}
+          label={<ProgressSummary task={task} />}
+          className="!px-0 !space-y-[0.25rem]"
+        />
       </div>
 
       <div className="mb-[0.375rem]">
         <PipelineIndicator stages={pipeline} currentStage={task.pipelineStage} isError={isError} />
       </div>
 
-      <div className="mb-[0.5rem] text-[0.625rem] text-[var(--ore-downloadDetail-mutedText)]">
+      <div className="mb-[0.5rem] text-[0.75rem] text-[var(--ore-downloadDetail-mutedText)]">
         <span className={isError ? 'text-red-400/80' : ''}>{task.stepText}</span>
       </div>
 
       {latestLog && !showLogs && (
-        <div className="mb-[0.375rem] truncate font-mono text-[0.5625rem] leading-[1.4] text-[#6D6D6E]">
+        <div className="mb-[0.375rem] truncate font-mono text-[0.6875rem] leading-[1.4] text-[#6D6D6E]">
           {latestLog}
         </div>
       )}
@@ -274,15 +262,15 @@ export const TaskItem = ({
             size="auto"
             autoScroll={false}
             onClick={() => setShowLogs(!showLogs)}
-            className="!min-w-0 !h-[clamp(1.75rem,2.5vw,2.25rem)] !px-[0.5rem]"
+            className="!min-w-0 !h-[clamp(2.25rem,3vw,2.5rem)] !px-[0.625rem]"
           >
             <div className="flex items-center gap-[0.25rem] text-[0.75rem] text-ore-text-muted transition-colors hover:text-white">
-              <ControlHint label="Y" variant="face" tone="yellow" className="scale-[0.7] origin-center" />
-              <span className="text-[0.625rem]">日志</span>
+              <ControlHint label="Y" variant="face" tone="yellow" className="scale-[0.75] origin-center" />
+              <span className="text-[0.75rem]">日志</span>
               {showLogs ? (
-                <ChevronUp className="h-[0.625rem] w-[0.625rem]" />
+                <ChevronUp className="h-[0.75rem] w-[0.75rem]" />
               ) : (
-                <ChevronDown className="h-[0.625rem] w-[0.625rem]" />
+                <ChevronDown className="h-[0.75rem] w-[0.75rem]" />
               )}
             </div>
           </OreButton>
@@ -300,9 +288,9 @@ export const TaskItem = ({
                 invoke('cancel_instance_deployment', { instanceId: task.id }).catch(console.error);
                 useDownloadStore.getState().cancelTask(task.id);
               }}
-              className="!min-w-0 !h-[clamp(1.75rem,2.5vw,2.25rem)] !px-[0.625rem]"
+              className="!min-w-0 !h-[clamp(2.25rem,3vw,2.5rem)] !px-[0.75rem]"
             >
-              <Trash2 className="h-[0.875rem] w-[0.875rem]" />
+              <Trash2 className="h-[1rem] w-[1rem]" />
             </OreButton>
           ) : isDone || isError ? (
             <>
@@ -313,10 +301,10 @@ export const TaskItem = ({
                   size="auto"
                   autoScroll={false}
                   onClick={handleRetry}
-                  className="!min-w-0 !h-[clamp(1.75rem,2.5vw,2.25rem)] !px-[0.625rem] border-[#4CAF50] bg-ore-green text-[0.75rem] text-black hover:bg-ore-green-hover"
+                  className="!min-w-0 !h-[clamp(2.25rem,3vw,2.5rem)] !px-[0.75rem] border-[#4CAF50] bg-ore-green text-[0.8125rem] text-black hover:bg-ore-green-hover"
                 >
                   <div className="flex items-center gap-[0.25rem] font-bold">
-                    <RotateCcw className="h-[0.875rem] w-[0.875rem]" />
+                    <RotateCcw className="h-[1rem] w-[1rem]" />
                     <span>重试</span>
                   </div>
                 </OreButton>
@@ -334,14 +322,14 @@ export const TaskItem = ({
                     setActiveTab('instances');
                   }
                 }}
-                className="!min-w-0 !h-[clamp(1.75rem,2.5vw,2.25rem)] !px-[0.625rem] text-[0.75rem]"
+                className="!min-w-0 !h-[clamp(2.25rem,3vw,2.5rem)] !px-[0.75rem] text-[0.8125rem]"
                 style={isResource ? { backgroundColor: '#3b82f6', borderColor: '#2563eb' } : {}}
               >
                 <div className="flex items-center gap-[0.25rem]">
                   {isError ? (
-                    <Trash2 className="h-[0.875rem] w-[0.875rem]" />
+                    <Trash2 className="h-[1rem] w-[1rem]" />
                   ) : (
-                    <CheckCircle className="h-[0.875rem] w-[0.875rem]" />
+                    <CheckCircle className="h-[1rem] w-[1rem]" />
                   )}
                   <span>{isError ? '清除' : task.taskType === 'instance' ? '前往配置' : '关闭'}</span>
                 </div>
@@ -357,7 +345,7 @@ export const TaskItem = ({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="custom-scrollbar mt-[0.5rem] max-h-[9rem] overflow-y-auto rounded-[0.1875rem] border border-[#2A2A2C] bg-[#141415] p-[0.375rem] font-mono text-[0.625rem] leading-[1.45]"
+            className="custom-scrollbar mt-[0.5rem] max-h-[12rem] overflow-y-auto rounded-[0.1875rem] border border-[#2A2A2C] bg-[#141415] p-[0.5rem] font-mono text-[0.75rem] leading-[1.5]"
           >
             {task.logs.map((log, index) => renderLogLine(log, index))}
           </motion.div>
