@@ -34,6 +34,26 @@
   </categories>
 
   <releases>
+    <release version="0.1.28" date="2026-04-21">
+      <description>
+        <p xml:lang="zh_CN">新增下载管理面板与多人游戏支持</p>
+        <ul xml:lang="zh_CN">
+          <li>[新功能] 实现下载任务管理面板，支持单个任务进度的实时追踪与管理。</li>
+          <li>[新功能] 全新多人游戏服务器列表，支持数据标准化展示与交互。</li>
+          <li>[新功能] 新增启动自动检查更新功能，并支持上次运行实例的自动恢复。</li>
+          <li>[优化] 重构并模块化下载服务，为整合包安装提供更稳定的编排逻辑。</li>
+          <li>[重构] 深度解耦身份验证逻辑，提升登录及皮肤管理的稳定性。</li>
+        </ul>
+        <p>Download Management and Multiplayer Support</p>
+        <ul>
+          <li>[New] Implemented a download task management panel with real-time tracking and control for individual tasks.</li>
+          <li>[New] Added a multiplayer server list with normalized data display and interactive components.</li>
+          <li>[New] Introduced automatic startup update checking and persistent restoration of the last used instance.</li>
+          <li>[Optimization] Refactored download services into a modular architecture for more robust modpack installation management.</li>
+          <li>[Refactor] Decoupled authentication logic into specialized services to improve reliability for Microsoft, Xbox, and Minecraft logins.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.27" date="2026-04-19">
       <description>
         <p xml:lang="zh_CN">「皮肤中心」功能增强与 Linux 体验优化</p>
