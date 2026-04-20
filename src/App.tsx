@@ -70,6 +70,11 @@ const JavaEnvironmentChangedDialog = lazy(() =>
     default: module.JavaEnvironmentChangedDialog,
   })),
 );
+const StartupUpdateChecker = lazy(() =>
+  import('./features/Settings/components/StartupUpdateChecker').then((module) => ({
+    default: module.StartupUpdateChecker,
+  })),
+);
 
 import { usePiHubSession } from './features/multiplayer/hooks/usePiHubSession';
 
@@ -258,6 +263,7 @@ const App: React.FC = () => {
           <DownloadManager />
           <JavaGuard />
           <SetupWizard />
+          <StartupUpdateChecker />
 
         {/* Always-mounted event listener — feeds logs into the store */}
         <GameLogService />

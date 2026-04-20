@@ -1,5 +1,5 @@
 // src/features/Settings/components/tabs/GeneralSettings.tsx
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
@@ -16,9 +16,8 @@ import {
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
-import { useAccountStore } from '../../../../store/useAccountStore';
-import { useDownloadStore } from '../../../../store/useDownloadStore';
 import { useSettingsStore } from '../../../../store/useSettingsStore';
+import { useAppUpdater } from '../../../../hooks/useAppUpdater';
 import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { SettingsSection } from '../../../../ui/layout/SettingsSection';
@@ -28,62 +27,23 @@ import { OreConfirmDialog } from '../../../../ui/primitives/OreConfirmDialog';
 import { OreDropdown } from '../../../../ui/primitives/OreDropdown';
 import { OreInput } from '../../../../ui/primitives/OreInput';
 import { OreSwitch } from '../../../../ui/primitives/OreSwitch';
-import { UpdateDialog, type UpdateInfo } from '../modals/UpdateDialog';
 
-type CheckStatus = 'idle' | 'checking' | 'up-to-date' | 'error';
 
-interface RustUpdateInfo {
-  available: boolean;
-  version: string;
-  body: string;
-  url: string;
-  signature: string;
-}
-
-interface PendingUpdateContext {
-  version: string;
-  uuid: string;
-  region: string;
-}
-
-const APP_UPDATE_TASK_ID = 'launcher-update';
 
 export const GeneralSettings: React.FC = () => {
   const { t } = useTranslation();
   const { settings, updateGeneralSetting, resetSettings } = useSettingsStore();
-  const { addOrUpdateTask, setPopupOpen } = useDownloadStore();
-  const { accounts, activeAccountId } = useAccountStore();
+  const { checkStatus, checkForUpdate } = useAppUpdater();
   const { general } = settings;
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isFullscreenTransitioning, setIsFullscreenTransitioning] = useState(false);
   const fullscreenCooldownRef = useRef<number | null>(null);
 
-  const [checkStatus, setCheckStatus] = useState<CheckStatus>('idle');
-  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
-  const [pendingUpdate, setPendingUpdate] = useState<PendingUpdateContext | null>(null);
-  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
-  const [isInstalling, setIsInstalling] = useState(false);
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
 
-  const currentAccount = useMemo(
-    () => accounts.find((account) => account.uuid === activeAccountId) ?? null,
-    [accounts, activeAccountId]
-  );
 
-  const updateRequest = useMemo(
-    () => ({
-      uuid: currentAccount?.uuid || general.deviceId || 'anonymous',
-      region: 'CN',
-    }),
-    [currentAccount?.uuid, general.deviceId]
-  );
-
-  const clearPendingUpdate = useCallback(() => {
-    setPendingUpdate(null);
-    setUpdateInfo(null);
-  }, []);
 
   useEffect(() => {
     const appWindow = getCurrentWindow();
@@ -100,10 +60,9 @@ export const GeneralSettings: React.FC = () => {
         window.clearTimeout(fullscreenCooldownRef.current);
       }
 
-      clearPendingUpdate();
       void unlistenResize.then((dispose) => dispose());
     };
-  }, [clearPendingUpdate]);
+  }, []);
 
   const toggleFullscreen = async () => {
     if (isFullscreenTransitioning) return;
@@ -123,114 +82,6 @@ export const GeneralSettings: React.FC = () => {
         fullscreenCooldownRef.current = null;
       }, 420);
     }
-  };
-
-  const handleCheckUpdate = async () => {
-    if (checkStatus === 'checking') return;
-
-    setCheckStatus('checking');
-    clearPendingUpdate();
-
-    try {
-      const update = await invoke<RustUpdateInfo>('check_update', updateRequest);
-
-      if (update.available) {
-        if (!update.url || !update.signature) {
-          throw new Error('Current platform updater manifest is missing url/signature');
-        }
-
-        setPendingUpdate({
-          version: update.version,
-          uuid: updateRequest.uuid,
-          region: updateRequest.region,
-        });
-        setUpdateInfo({
-          version: update.version,
-          body: update.body,
-        });
-        setIsUpdateDialogOpen(true);
-        setCheckStatus('idle');
-      } else {
-        setCheckStatus('up-to-date');
-        window.setTimeout(() => setCheckStatus('idle'), 3000);
-      }
-    } catch (error) {
-      console.error('[Updater] 检查更新失败:', error);
-      setCheckStatus('error');
-      window.setTimeout(() => setCheckStatus('idle'), 4000);
-    }
-  };
-
-  const handleInstallUpdate = async () => {
-    if (!pendingUpdate) {
-      console.warn('[Updater] 没有可安装的更新对象');
-      return;
-    }
-
-    const installPayload = {
-      uuid: pendingUpdate.uuid,
-      region: pendingUpdate.region,
-      expectedVersion: pendingUpdate.version,
-    };
-    const updateTitle = `PiLauncher v${pendingUpdate.version}`;
-
-    try {
-      setIsInstalling(true);
-      addOrUpdateTask({
-        id: APP_UPDATE_TASK_ID,
-        taskType: 'update',
-        title: updateTitle,
-        stage: 'CHECKING_UPDATE',
-        current: 0,
-        total: 0,
-        retryAction: 'install_update',
-        retryPayload: installPayload,
-        message: t('settings.general.checkUpdate.preparing', {
-          defaultValue: '正在准备启动器更新任务...'
-        })
-      });
-      setPopupOpen(true);
-      clearPendingUpdate();
-      setIsUpdateDialogOpen(false);
-      await invoke('install_update', installPayload);
-      addOrUpdateTask({
-        id: APP_UPDATE_TASK_ID,
-        taskType: 'update',
-        title: updateTitle,
-        stage: 'DONE',
-        current: 1,
-        total: 1,
-        retryAction: 'install_update',
-        retryPayload: installPayload,
-        message: t('settings.general.checkUpdate.installFinished', {
-          defaultValue: '更新包下载完成，安装器已启动。'
-        })
-      });
-      setIsInstalling(false);
-    } catch (error) {
-      console.error('[Updater] 应用内更新失败:', error);
-      addOrUpdateTask({
-        id: APP_UPDATE_TASK_ID,
-        taskType: 'update',
-        title: updateTitle,
-        stage: 'ERROR',
-        current: 0,
-        total: 1,
-        retryAction: 'install_update',
-        retryPayload: installPayload,
-        message: t('settings.general.checkUpdate.installFailed', {
-          defaultValue: '启动器更新失败：{{error}}',
-          error: String(error)
-        })
-      });
-      setPopupOpen(true);
-      setIsInstalling(false);
-    }
-  };
-
-  const handleCloseUpdateDialog = () => {
-    setIsUpdateDialogOpen(false);
-    clearPendingUpdate();
   };
 
   const handleExitApp = async () => {
@@ -284,7 +135,7 @@ export const GeneralSettings: React.FC = () => {
         );
       default:
         return (
-          <OreButton focusKey="settings-btn-check-update" className="w-[200px] justify-center whitespace-nowrap" onClick={handleCheckUpdate}>
+          <OreButton focusKey="settings-btn-check-update" className="w-[200px] justify-center whitespace-nowrap" onClick={checkForUpdate}>
             <RefreshCw size={14} className="mr-1.5" />
             {t('settings.general.checkUpdate.check')}
           </OreButton>
@@ -444,13 +295,7 @@ export const GeneralSettings: React.FC = () => {
         </SettingsSection>
       </SettingsPageLayout>
 
-      <UpdateDialog
-        isOpen={isUpdateDialogOpen}
-        onClose={handleCloseUpdateDialog}
-        updateInfo={updateInfo}
-        isInstalling={isInstalling}
-        onConfirm={handleInstallUpdate}
-      />
+
 
       <OreConfirmDialog
         isOpen={isExitConfirmOpen}
