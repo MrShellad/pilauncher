@@ -28,8 +28,29 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
 
   const inputMode = useInputMode();
   const [selectedServer, setSelectedServer] = React.useState<OnlineServer | null>(null);
+  const [expandedServerId, setExpandedServerId] = React.useState<string | null>(null);
 
   const hasServers = !isLoading && !error && servers.length > 0;
+
+  // Sort servers: higher sortId first, then newer createdAt first for ties
+  const sortedServers = React.useMemo(() => {
+    return [...servers].sort((a, b) => {
+      if (a.sortId !== b.sortId) {
+        return b.sortId - a.sortId;
+      }
+      // Tie-break by createdAt descending (newer first)
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (Number.isNaN(aTime) || Number.isNaN(bTime)) {
+        return 0;
+      }
+      return bTime - aTime;
+    });
+  }, [servers]);
+
+  const handleToggleExpand = React.useCallback((serverId: string) => {
+    setExpandedServerId((current) => (current === serverId ? null : serverId));
+  }, []);
 
   const handleRefresh = React.useCallback(() => {
     if (!isLoading) {
@@ -48,8 +69,8 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
   useInputAction('ACTION_X', handleControllerRefresh);
 
   const serverFocusKeys = React.useMemo(
-    () => servers.flatMap((s) => [`server-card-${s.id}-play`, `server-card-${s.id}-copy`]),
-    [servers]
+    () => sortedServers.flatMap((s) => [`server-card-${s.id}-play`, `server-card-${s.id}-copy`]),
+    [sortedServers]
   );
   const serverFocusOrder = [...serverFocusKeys];
   const defaultFocusKey = serverFocusKeys.length > 0 ? serverFocusKeys[0] : undefined;
@@ -114,12 +135,14 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
         {hasServers && (
           <div className="ore-multiplayer-stack ore-multiplayer-stack--server-directory">
             <div className="ore-online-server-grid">
-              {servers.map((server) => (
+              {sortedServers.map((server) => (
                 <OnlineServerCard
                   key={server.id}
                   server={server}
                   onArrowPress={handleLinearArrow}
                   onClick={(currentServer) => setSelectedServer(currentServer)}
+                  isExpanded={expandedServerId === server.id}
+                  onToggleExpand={() => handleToggleExpand(server.id)}
                 />
               ))}
             </div>

@@ -25,6 +25,8 @@ interface OnlineServerCardProps {
   server: OnlineServer;
   onArrowPress: (direction: string) => boolean | void;
   onClick?: (server: OnlineServer) => void;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
 }
 
 type WarningTone = 'version' | 'age' | 'paid';
@@ -228,8 +230,7 @@ const SocialIcon: React.FC<{ platform: string; isWebsite: boolean; size?: number
   return <ExternalLink size={size} className={className} />;
 };
 
-export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onArrowPress, onClick }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onArrowPress, onClick, isExpanded, onToggleExpand }) => {
   const [copyState, setCopyState] = useState<'idle' | 'success' | 'error'>('idle');
   const [liveStatus, setLiveStatus] = useState<LiveStatus | null>(null);
   const cardRef = useRef<HTMLElement>(null);
@@ -282,7 +283,7 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onAr
     '这是一个经过精选收录的社区服务器，展开后可查看详细介绍与外部入口。';
 
   const handleToggleDrawer = () => {
-    setIsExpanded((current) => !current);
+    onToggleExpand();
   };
 
   const [isCardFocused, setIsCardFocused] = useState(false);
@@ -303,9 +304,30 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onAr
     }
   };
 
-  const handleCardClick = () => {
+  const handleCardClick = (e: React.MouseEvent<HTMLElement>) => {
+    const target = e.target as HTMLElement;
+    const fromInteractive = !!target.closest('button, a, [role="button"]');
+
     if (!isCardFocused) {
       focusManager.focus(`server-card-${server.id}-play`);
+    }
+
+    // Scroll this card to the horizontal center of the scroll container
+    if (cardRef.current) {
+      const scrollContainer = cardRef.current.closest('.ore-multiplayer-scroll--directory');
+      if (scrollContainer) {
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const cardRect = cardRef.current.getBoundingClientRect();
+        const cardCenter = cardRect.left + cardRect.width / 2;
+        const containerCenter = containerRect.left + containerRect.width / 2;
+        const offset = cardCenter - containerCenter;
+        scrollContainer.scrollBy({ left: offset, behavior: 'smooth' });
+      }
+    }
+
+    // Only auto-expand from non-interactive areas (buttons handle their own toggle)
+    if (!fromInteractive && !isExpanded) {
+      onToggleExpand();
     }
   };
 

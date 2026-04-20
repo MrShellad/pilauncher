@@ -286,6 +286,18 @@ export const normalizeServer = (value: unknown, index: number): OnlineServer | n
     elements: Array.isArray(record.elements) ? record.elements.map(normalizeFeatureTag).filter((v): v is import('./types').FeatureTag => Boolean(v)) : undefined,
     community: Array.isArray(record.community) ? record.community.map(normalizeFeatureTag).filter((v): v is import('./types').FeatureTag => Boolean(v)) : undefined,
     tags: Array.isArray(record.tags) ? record.tags.map(getString).filter((v): v is string => Boolean(v)) : undefined,
+    sortId: pickFirst(
+      getNumber(record.sortId),
+      getNumber(record.sort_id),
+      getNumber(record.sort),
+      getNumber(record.priority)
+    ) ?? 0,
+    createdAt: pickFirst(
+      getString(record.createdAt),
+      getString(record.created_at),
+      getString(record.publishedAt),
+      getString(record.published_at)
+    ),
   };
 };
 

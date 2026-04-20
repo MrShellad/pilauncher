@@ -1424,12 +1424,6 @@
   font-family: var(--ore-typography-family-heading, var(--ore-font-heading, "Minecraft Ten", sans-serif));
   font-size: 2rem;
   text-overflow: ellipsis;
-  text-shadow:
-    0.125rem 0.125rem 0 #1e1e1f,
-    -0.0625rem -0.0625rem 0 #1e1e1f,
-    0.0625rem -0.0625rem 0 #1e1e1f,
-    -0.0625rem 0.0625rem 0 #1e1e1f,
-    0 0.25rem 0.9375rem rgba(0, 0, 0, 0.8);
   line-height: 1;
   white-space: nowrap;
 }

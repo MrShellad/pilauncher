@@ -39,6 +39,8 @@ export interface OnlineServer {
   elements?: FeatureTag[];
   community?: FeatureTag[];
   tags?: string[];
+  sortId: number;
+  createdAt?: string;
 }
 
 export interface ServerBindableInstance {
