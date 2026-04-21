@@ -348,30 +348,8 @@ impl ModManagerService {
                             entry.icon_rel_path = extracted_icon_rel_path.clone();
                             meta.manifest_entry = Some(entry);
 
-                            let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
                             let db_icon_val = extracted_icon_rel_path.or_else(|| meta.network_icon_url.clone());
-                            if let Some(ref cache_key) = meta.cache_key {
-                                let _ = sqlx::query::<sqlx::Sqlite>(
-                                    r#"
-                                    INSERT INTO global_mod_cache (cache_key, name, description, icon_url, updated_at)
-                                    VALUES (?, ?, ?, ?, ?)
-                                    ON CONFLICT(cache_key) DO UPDATE SET
-                                        name = excluded.name,
-                                        description = excluded.description,
-                                        icon_url = excluded.icon_url,
-                                        updated_at = excluded.updated_at
-                                    "#
-                                )
-                                .bind(cache_key)
-                                .bind(meta.name.clone())
-                                .bind(meta.description.clone())
-                                .bind(db_icon_val)
-                                .bind(now)
-                                .execute(&pool_clone)
-                                .await;
-                            }
-
-                            (base_name, meta)
+                            (base_name, meta, db_icon_val)
                         }));
                     }
                 }
@@ -379,15 +357,46 @@ impl ModManagerService {
         }
 
         let mut manifest_dirty = false;
+        let mut cache_updates = Vec::new();
         let results = futures::future::join_all(tasks).await;
 
         for res in results {
-            if let Ok((base_name, meta)) = res {
+            if let Ok((base_name, meta, db_icon_val)) = res {
                 if let Some(ref entry) = meta.manifest_entry {
                     manifest_dict.insert(base_name, entry.clone());
                     manifest_dirty = true;
                 }
+                if let Some(cache_key) = meta.cache_key.clone() {
+                    cache_updates.push((cache_key, meta.name.clone(), meta.description.clone(), db_icon_val));
+                }
                 mods.push(meta);
+            }
+        }
+
+        if !cache_updates.is_empty() {
+            let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
+            if let Ok(mut tx) = pool.begin().await {
+                for (cache_key, name, description, icon_val) in cache_updates {
+                    let _ = sqlx::query::<sqlx::Sqlite>(
+                        r#"
+                        INSERT INTO global_mod_cache (cache_key, name, description, icon_url, updated_at)
+                        VALUES (?, ?, ?, ?, ?)
+                        ON CONFLICT(cache_key) DO UPDATE SET
+                            name = excluded.name,
+                            description = excluded.description,
+                            icon_url = excluded.icon_url,
+                            updated_at = excluded.updated_at
+                        "#
+                    )
+                    .bind(cache_key)
+                    .bind(name)
+                    .bind(description)
+                    .bind(icon_val)
+                    .bind(now)
+                    .execute(&mut *tx)
+                    .await;
+                }
+                let _ = tx.commit().await;
             }
         }
 

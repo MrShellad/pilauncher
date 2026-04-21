@@ -12,6 +12,7 @@ import { ResourceCard } from './ResourceCard';
 interface ResourceGridProps {
   results: ModrinthProject[];
   installedMods: ModMeta[];
+  installedModIndex?: any;
   isLoading: boolean;
   isLoadingMore?: boolean;
   hasMore: boolean;
@@ -25,6 +26,7 @@ interface ResourceGridProps {
 export const ResourceGrid: React.FC<ResourceGridProps> = ({
   results,
   installedMods,
+  installedModIndex,
   isLoading,
   isLoadingMore = false,
   hasMore,
@@ -73,7 +75,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
                   key={`${project.id}-${index}`}
                   project={project}
                   index={index}
-                  isInstalled={checkIsInstalled(project, installedMods)}
+                  isInstalled={checkIsInstalled(project, installedModIndex || installedMods)}
                   hasMore={hasMore}
                   canLoadMore={canLoadMore}
                   onLoadMore={triggerLoadMore}

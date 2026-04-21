@@ -59,6 +59,201 @@ const getIconPriority = (
   return 'low';
 };
 
+
+const ModRowItem = React.memo((props: {
+  mod: ModMeta;
+  modIndex: number;
+  iconSnapshot?: ModIconSnapshot;
+  focusedRowFileName: string | null;
+  operationRowFileName: string | null;
+  requiresRowOperation: boolean;
+  isSelected: boolean;
+  inputMode: string;
+  rowFocusKey: string;
+  setFocusedRowFileName: (fileName: string) => void;
+  enterRowOperation: (fileName: string) => void;
+  handleRowArrow: (direction: string) => boolean;
+  focusRow: (fileName: string) => void;
+  setOperationRowFileName: (fileName: string | null) => void;
+  onSelectMod: (mod: ModMeta) => void;
+  handleActionArrow: (fileName: string, action: RowAction, direction: string) => boolean;
+  preventLockedAction: (fileName: string, e?: any) => boolean;
+  onToggleMod: (fileName: string, enabled: boolean) => void;
+  onToggleSelection: (fileName: string) => void;
+  onDeleteMod: (fileName: string) => void;
+  getActionFocusKey: (fileName: string, action: RowAction) => string;
+}) => {
+  const {
+    mod, iconSnapshot, focusedRowFileName, operationRowFileName, requiresRowOperation,
+    isSelected, inputMode, rowFocusKey, setFocusedRowFileName, enterRowOperation, handleRowArrow,
+    focusRow, setOperationRowFileName, onSelectMod, handleActionArrow, preventLockedAction,
+    onToggleMod, onToggleSelection, onDeleteMod, getActionFocusKey
+  } = props;
+
+  const displayName = mod.name || mod.networkInfo?.title || mod.fileName;
+  const displayDesc = mod.description || mod.networkInfo?.description || '暂无描述';
+
+  const iconUrl = iconSnapshot?.src || null;
+  const isIconLoading = iconSnapshot?.status === 'loading' || (!!mod.isFetchingNetwork && !iconUrl);
+
+  const isRowInOperationMode = operationRowFileName === mod.fileName;
+  const isActionLocked = requiresRowOperation && !isRowInOperationMode;
+  const isEnabled = !!mod.isEnabled;
+
+  const formattedSize = mod.fileSize ? `${(mod.fileSize / 1024 / 1024).toFixed(1)} MB` : '未知大小';
+
+  return (
+    <FocusItem
+      key={mod.fileName}
+      focusKey={rowFocusKey}
+      onFocus={() => setFocusedRowFileName(mod.fileName)}
+      onEnter={() => enterRowOperation(mod.fileName)}
+      onArrowPress={handleRowArrow}
+    >
+      {({ ref, focused, hasFocusedChild }) => {
+        const isPrimaryRow = focusedRowFileName === mod.fileName;
+
+        return (
+          <div ref={ref as React.RefObject<HTMLDivElement>}>
+            <OreAssetRow
+              focusable={false}
+              focused={focused}
+              hasFocusedChild={hasFocusedChild}
+              inactive={!isEnabled}
+              selected={isSelected}
+              operationActive={isRowInOperationMode}
+              onClick={() => {
+                setFocusedRowFileName(mod.fileName);
+                if (inputMode !== 'mouse') {
+                  focusRow(mod.fileName);
+                  return;
+                }
+                setOperationRowFileName(null);
+                onSelectMod(mod);
+              }}
+              leading={(
+                <div className="relative h-full w-full">
+                  {iconUrl ? (
+                    <img src={iconUrl} alt="icon" className="h-full w-full object-cover" />
+                  ) : (
+                    <div
+                      className={`flex h-full w-full items-center justify-center ${
+                        isIconLoading
+                          ? 'animate-pulse bg-[radial-gradient(circle_at_top,rgba(62,180,137,0.3),rgba(0,0,0,0.12)_58%)]'
+                          : 'bg-[linear-gradient(135deg,rgba(255,255,255,0.14),rgba(0,0,0,0.08))]'
+                      }`}
+                    >
+                      {isIconLoading ? (
+                        <Loader2 size={16} className="animate-spin text-ore-green" />
+                      ) : (
+                        <Blocks size={28} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />
+                      )}
+                    </div>
+                  )}
+                  {isIconLoading && !iconUrl && (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[3px] bg-gradient-to-r from-transparent via-ore-green to-transparent opacity-80" />
+                  )}
+                </div>
+              )}
+              title={displayName}
+              titleClassName={isPrimaryRow ? 'brightness-100' : ''}
+              badges={(
+                <>
+                  {mod.version && (
+                    <span
+                      className="flex-shrink-0 border-[2px] px-2 py-0.5 font-mono text-[10px] text-[#D0D1D4]"
+                      style={{
+                        backgroundColor: 'var(--ore-downloadDetail-base)',
+                        borderColor: 'var(--ore-downloadDetail-divider)'
+                      }}
+                    >
+                      v{mod.version}
+                    </span>
+                  )}
+                  {mod.isCheckingUpdate && (
+                    <span className="ml-2 flex items-center text-[10px] text-[#6B4F00]">
+                      <Loader2 size={12} className="mr-1 animate-spin" />
+                      检查更新中...
+                    </span>
+                  )}
+                  {mod.hasUpdate && (
+                    <span
+                      title={`Available update: ${mod.updateVersionName}`}
+                      className="ml-2 flex items-center border-[2px] bg-[#24563C] px-2 py-0.5 text-[10px] text-white"
+                      style={{ borderColor: 'var(--ore-downloadDetail-divider)' }}
+                    >
+                      <ArrowUpCircle size={12} className="mr-1" />
+                      可更新
+                    </span>
+                  )}
+                </>
+              )}
+              description={displayDesc}
+              metaItems={[`文件名：${mod.fileName}    大小：${formattedSize}`]}
+              trailingClassName={`grid grid-cols-[58px_40px_40px] items-center gap-2 ${isActionLocked ? 'opacity-90' : 'opacity-100'}`}
+              trailing={(
+                <>
+                  <div className="flex h-10 w-[58px] items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                    <OreSwitch
+                      focusKey={getActionFocusKey(mod.fileName, 'toggle')}
+                      checked={isEnabled}
+                      onArrowPress={(direction) => handleActionArrow(mod.fileName, 'toggle', direction)}
+                      onChange={() => {
+                        if (preventLockedAction(mod.fileName)) return;
+                        onToggleMod(mod.fileName, isEnabled);
+                      }}
+                    />
+                  </div>
+                  <OreButton
+                    focusKey={getActionFocusKey(mod.fileName, 'select')}
+                    variant={isSelected ? 'primary' : 'secondary'}
+                    size="auto"
+                    onArrowPress={(direction) => handleActionArrow(mod.fileName, 'select', direction)}
+                    onClick={(e) => {
+                      if (preventLockedAction(mod.fileName, e)) return;
+                      e.stopPropagation();
+                      onToggleSelection(mod.fileName);
+                    }}
+                    className={`!h-10 !min-h-10 !min-w-10 !w-10 !px-0 ${isSelected ? 'text-white' : ''}`}
+                  >
+                    {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+                  </OreButton>
+                  <OreButton
+                    focusKey={getActionFocusKey(mod.fileName, 'delete')}
+                    variant="danger"
+                    size="auto"
+                    onArrowPress={(direction) => handleActionArrow(mod.fileName, 'delete', direction)}
+                    onClick={(e) => {
+                      if (preventLockedAction(mod.fileName, e)) return;
+                      e.stopPropagation();
+                      onDeleteMod(mod.fileName);
+                    }}
+                    className="!h-10 !min-h-10 !min-w-10 !w-10 !px-0"
+                  >
+                    <Trash2 size={16} />
+                  </OreButton>
+                </>
+              )}
+            />
+          </div>
+        );
+      }}
+    </FocusItem>
+  );
+}, (prev, next) => {
+  return prev.mod.fileName === next.mod.fileName &&
+         prev.iconSnapshot === next.iconSnapshot &&
+         prev.focusedRowFileName === next.focusedRowFileName &&
+         prev.operationRowFileName === next.operationRowFileName &&
+         prev.requiresRowOperation === next.requiresRowOperation &&
+         prev.isSelected === next.isSelected &&
+         prev.inputMode === next.inputMode &&
+         prev.mod.isEnabled === next.mod.isEnabled &&
+         prev.mod.isCheckingUpdate === next.mod.isCheckingUpdate &&
+         prev.mod.hasUpdate === next.mod.hasUpdate &&
+         prev.mod.isFetchingNetwork === next.mod.isFetchingNetwork;
+});
+
 export const ModList: React.FC<ModListProps> = ({
   mods,
   isLoading,
@@ -540,158 +735,33 @@ export const ModList: React.FC<ModListProps> = ({
 
         {mods.map((mod, modIndex) => {
           if (modIndex >= visibleCount) return null;
-          const displayName = mod.name || mod.networkInfo?.title || mod.fileName;
-          const displayDesc = mod.description || mod.networkInfo?.description || '暂无描述';
-
-          const iconSnapshot = iconSnapshots[mod.fileName];
-          const iconUrl = iconSnapshot?.src || null;
-          const isIconLoading = iconSnapshot?.status === 'loading' || (!!mod.isFetchingNetwork && !iconUrl);
-
           const rowFocusKey = rowFocusKeyByFileName.get(mod.fileName) ?? `mod-row-${toFocusSlug(mod.fileName)}`;
-          const isRowInOperationMode = operationRowFileName === mod.fileName;
-          const isActionLocked = requiresRowOperation && !isRowInOperationMode;
-          const isSelected = selectedMods.has(mod.fileName);
-          const isEnabled = !!mod.isEnabled;
-
-          const formattedSize = mod.fileSize ? `${(mod.fileSize / 1024 / 1024).toFixed(1)} MB` : '未知大小';
 
           return (
-            <FocusItem
+            <ModRowItem
               key={mod.fileName}
-              focusKey={rowFocusKey}
-              onFocus={() => setFocusedRowFileName(mod.fileName)}
-              onEnter={() => enterRowOperation(mod.fileName)}
-              onArrowPress={handleRowArrow}
-            >
-              {({ ref, focused, hasFocusedChild }) => {
-                const isPrimaryRow = focusedRowFileName === mod.fileName;
-
-                return (
-                  <div ref={ref as React.RefObject<HTMLDivElement>}>
-                    <OreAssetRow
-                      focusable={false}
-                      focused={focused}
-                      hasFocusedChild={hasFocusedChild}
-                      inactive={!isEnabled}
-                      selected={isSelected}
-                      operationActive={isRowInOperationMode}
-                      onClick={() => {
-                        setFocusedRowFileName(mod.fileName);
-                        if (inputMode !== 'mouse') {
-                          focusRow(mod.fileName);
-                          return;
-                        }
-                        setOperationRowFileName(null);
-                        onSelectMod(mod);
-                      }}
-                      leading={(
-                        <div className="relative h-full w-full">
-                          {iconUrl ? (
-                            <img src={iconUrl} alt="icon" className="h-full w-full object-cover" />
-                          ) : (
-                            <div
-                              className={`flex h-full w-full items-center justify-center ${
-                                isIconLoading
-                                  ? 'animate-pulse bg-[radial-gradient(circle_at_top,rgba(62,180,137,0.3),rgba(0,0,0,0.12)_58%)]'
-                                  : 'bg-[linear-gradient(135deg,rgba(255,255,255,0.14),rgba(0,0,0,0.08))]'
-                              }`}
-                            >
-                              {isIconLoading ? (
-                                <Loader2 size={16} className="animate-spin text-ore-green" />
-                              ) : (
-                                <Blocks size={28} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />
-                              )}
-                            </div>
-                          )}
-                          {isIconLoading && !iconUrl && (
-                            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[3px] bg-gradient-to-r from-transparent via-ore-green to-transparent opacity-80" />
-                          )}
-                        </div>
-                      )}
-                      title={displayName}
-                      titleClassName={isPrimaryRow ? 'brightness-100' : ''}
-                      badges={(
-                        <>
-                          {mod.version && (
-                            <span
-                              className="flex-shrink-0 border-[2px] px-2 py-0.5 font-mono text-[10px] text-[#D0D1D4]"
-                              style={{
-                                backgroundColor: 'var(--ore-downloadDetail-base)',
-                                borderColor: 'var(--ore-downloadDetail-divider)'
-                              }}
-                            >
-                              v{mod.version}
-                            </span>
-                          )}
-                          {mod.isCheckingUpdate && (
-                            <span className="ml-2 flex items-center text-[10px] text-[#6B4F00]">
-                              <Loader2 size={12} className="mr-1 animate-spin" />
-                              检查更新中...
-                            </span>
-                          )}
-                          {mod.hasUpdate && (
-                            <span
-                              title={`Available update: ${mod.updateVersionName}`}
-                              className="ml-2 flex items-center border-[2px] bg-[#24563C] px-2 py-0.5 text-[10px] text-white"
-                              style={{ borderColor: 'var(--ore-downloadDetail-divider)' }}
-                            >
-                              <ArrowUpCircle size={12} className="mr-1" />
-                              可更新
-                            </span>
-                          )}
-                        </>
-                      )}
-                      description={displayDesc}
-                      metaItems={[`文件名：${mod.fileName}    大小：${formattedSize}`]}
-                      trailingClassName={`grid grid-cols-[58px_40px_40px] items-center gap-2 ${isActionLocked ? 'opacity-90' : 'opacity-100'}`}
-                      trailing={(
-                        <>
-                          <div className="flex h-10 w-[58px] items-center justify-center" onClick={(e) => e.stopPropagation()}>
-                            <OreSwitch
-                              focusKey={getActionFocusKey(mod.fileName, 'toggle')}
-                              checked={isEnabled}
-                              onArrowPress={(direction) => handleActionArrow(mod.fileName, 'toggle', direction)}
-                              onChange={() => {
-                                if (preventLockedAction(mod.fileName)) return;
-                                onToggleMod(mod.fileName, isEnabled);
-                              }}
-                            />
-                          </div>
-                          <OreButton
-                            focusKey={getActionFocusKey(mod.fileName, 'select')}
-                            variant={isSelected ? 'primary' : 'secondary'}
-                            size="auto"
-                            onArrowPress={(direction) => handleActionArrow(mod.fileName, 'select', direction)}
-                            onClick={(e) => {
-                              if (preventLockedAction(mod.fileName, e)) return;
-                              e.stopPropagation();
-                              onToggleSelection(mod.fileName);
-                            }}
-                            className={`!h-10 !min-h-10 !min-w-10 !w-10 !px-0 ${isSelected ? 'text-white' : ''}`}
-                          >
-                            {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
-                          </OreButton>
-                          <OreButton
-                            focusKey={getActionFocusKey(mod.fileName, 'delete')}
-                            variant="danger"
-                            size="auto"
-                            onArrowPress={(direction) => handleActionArrow(mod.fileName, 'delete', direction)}
-                            onClick={(e) => {
-                              if (preventLockedAction(mod.fileName, e)) return;
-                              e.stopPropagation();
-                              onDeleteMod(mod.fileName);
-                            }}
-                            className="!h-10 !min-h-10 !min-w-10 !w-10 !px-0"
-                          >
-                            <Trash2 size={16} />
-                          </OreButton>
-                        </>
-                      )}
-                    />
-                  </div>
-                );
-              }}
-            </FocusItem>
+              mod={mod}
+              modIndex={modIndex}
+              iconSnapshot={iconSnapshots[mod.fileName]}
+              focusedRowFileName={focusedRowFileName}
+              operationRowFileName={operationRowFileName}
+              requiresRowOperation={requiresRowOperation}
+              isSelected={selectedMods.has(mod.fileName)}
+              inputMode={inputMode}
+              rowFocusKey={rowFocusKey}
+              setFocusedRowFileName={setFocusedRowFileName}
+              enterRowOperation={enterRowOperation}
+              handleRowArrow={handleRowArrow}
+              focusRow={focusRow}
+              setOperationRowFileName={setOperationRowFileName}
+              onSelectMod={onSelectMod}
+              handleActionArrow={handleActionArrow}
+              preventLockedAction={preventLockedAction}
+              onToggleMod={onToggleMod}
+              onToggleSelection={onToggleSelection}
+              onDeleteMod={onDeleteMod}
+              getActionFocusKey={getActionFocusKey}
+            />
           );
         })}
 

@@ -76,25 +76,46 @@ export const getInstalledVersionIds = (mods: ModMeta[]): string[] => {
   return [...ids];
 };
 
-export const isProjectInstalled = (project: ModrinthProject, installedMods: ModMeta[]): boolean => {
-  const projectIds = new Set(
-    [normalizeInstalledKey(project.id), normalizeInstalledKey(project.project_id)].filter(Boolean)
-  );
-  const projectSlug = normalizeInstalledKey(project.slug).toLowerCase();
+export class InstalledModIndex {
+  public projectIds: Set<string> = new Set();
+  public fileNames: string[] = [];
 
-  return installedMods.some((mod) => {
-    const installedIds = [
-      normalizeInstalledKey(mod.modId),
-      normalizeInstalledKey(mod.manifestEntry?.source.projectId),
-    ].filter(Boolean);
-
-    if (installedIds.some((id) => projectIds.has(id))) {
-      return true;
+  constructor(mods: ModMeta[]) {
+    for (const mod of mods) {
+      if (mod.modId) this.projectIds.add(normalizeInstalledKey(mod.modId));
+      if (mod.manifestEntry?.source.projectId) {
+        this.projectIds.add(normalizeInstalledKey(mod.manifestEntry.source.projectId));
+      }
+      this.fileNames.push(normalizeInstalledKey(mod.fileName).toLowerCase());
     }
+  }
 
-    const fileName = normalizeInstalledKey(mod.fileName).toLowerCase();
-    return !!projectSlug && fileName.includes(projectSlug);
-  });
+  public isInstalled(project: ModrinthProject): boolean {
+    const pId1 = normalizeInstalledKey(project.id);
+    const pId2 = normalizeInstalledKey(project.project_id);
+    
+    if (pId1 && this.projectIds.has(pId1)) return true;
+    if (pId2 && this.projectIds.has(pId2)) return true;
+
+    const projectSlug = normalizeInstalledKey(project.slug).toLowerCase();
+    if (!projectSlug) return false;
+    
+    for (const fileName of this.fileNames) {
+      if (fileName.includes(projectSlug)) return true;
+    }
+    
+    return false;
+  }
+}
+
+export const isProjectInstalled = (
+  project: ModrinthProject, 
+  installedMods: ModMeta[] | InstalledModIndex
+): boolean => {
+  if (installedMods instanceof InstalledModIndex) {
+    return installedMods.isInstalled(project);
+  }
+  return new InstalledModIndex(installedMods).isInstalled(project);
 };
 
 export interface ModEntry {

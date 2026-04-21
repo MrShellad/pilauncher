@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Blocks, Image as ImageIcon, Loader2, Package, type LucideIcon } from 'lucide-react';
@@ -47,6 +47,7 @@ const ResourceDownloadPage: React.FC = () => {
     isLoadingMore,
     isEnvLoaded,
     installedMods,
+    installedModIndex,
     refreshInstalledMods,
     instanceConfig,
     mcVersionOptions,
@@ -62,6 +63,14 @@ const ResourceDownloadPage: React.FC = () => {
   const didInitialFocusRef = React.useRef(false);
   const pendingDepIdsRef = React.useRef<Set<string>>(new Set());
   const installedVersionIds = useMemo(() => getInstalledVersionIds(installedMods), [installedMods]);
+
+  const handleSelectProject = useCallback((project: ModrinthProject) => {
+    const currentFocus = getCurrentFocusKey();
+    if (currentFocus && currentFocus !== 'SN:ROOT') {
+      lastFocusBeforeModalRef.current = currentFocus;
+    }
+    setSelectedProject(project);
+  }, []);
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -231,18 +240,13 @@ const ResourceDownloadPage: React.FC = () => {
       <ResourceGrid
         results={results}
         installedMods={installedMods}
+        installedModIndex={installedModIndex}
         isLoading={isLoading && results.length === 0}
         isLoadingMore={isLoadingMore}
         hasMore={hasMore}
         categoryOptions={categoryOptions}
         onLoadMore={loadMore}
-        onSelectProject={(project) => {
-          const currentFocus = getCurrentFocusKey();
-          if (currentFocus && currentFocus !== 'SN:ROOT') {
-            lastFocusBeforeModalRef.current = currentFocus;
-          }
-          setSelectedProject(project);
-        }}
+        onSelectProject={handleSelectProject}
       />
 
       <DownloadDetailModal

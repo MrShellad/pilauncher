@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
 import mcvData from '../../../assets/download/mcv.json';
 import { searchModrinth, type ModrinthProject } from '../../InstanceDetail/logic/modrinthApi';
-import { modService, type ModMeta } from '../../InstanceDetail/logic/modService';
+import { modService, InstalledModIndex, type ModMeta } from '../../InstanceDetail/logic/modService';
 import {
   getBundledDownloadCategoryOptions,
   getSharedDownloadCategoryOptions
@@ -379,6 +379,8 @@ export const useResourceDownload = (
     void executeSearch(nextOffset, true);
   }, [executeSearch, hasMore, isLoading, isLoadingMore, offset, results.length]);
 
+  const installedModIndex = useMemo(() => new InstalledModIndex(installedMods), [installedMods]);
+
   return {
     activeTab,
     setActiveTab,
@@ -403,6 +405,7 @@ export const useResourceDownload = (
     instanceConfig,
     isEnvLoaded,
     installedMods,
+    installedModIndex,
     refreshInstalledMods,
     mcVersionOptions,
     categoryOptions,

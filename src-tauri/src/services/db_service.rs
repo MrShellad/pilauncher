@@ -27,6 +27,14 @@ impl DbService {
             .await
             .map_err(|e| e.to_string())?;
 
+        // Enable WAL mode & Normal Sync for better concurrent performance
+        let _ = sqlx::query("PRAGMA journal_mode=WAL;")
+            .execute(&pool)
+            .await;
+        let _ = sqlx::query("PRAGMA synchronous=NORMAL;")
+            .execute(&pool)
+            .await;
+
         Self::create_tables(&pool)
             .await
             .map_err(|e| e.to_string())?;
