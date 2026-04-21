@@ -95,7 +95,7 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
 
   return (
     <>
-      <div className="flex flex-col items-center justify-center space-y-[clamp(20px,2vw,40px)] w-[clamp(280px,25vw,600px)]">
+      <div className="flex flex-col items-center justify-center space-y-[clamp(20px,2vw,40px)] w-[clamp(280px,25vw,600px)] pointer-events-auto">
 
         {/* 1. Play 主按钮 */}
         <FocusItem focusKey="play-button" onEnter={handlePlayClick} autoScroll={false}>

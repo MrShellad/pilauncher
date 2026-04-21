@@ -76,7 +76,7 @@ const Home: React.FC = () => {
         <HeroLogo instanceId={currentId || null} />
       </div>
 
-      <div className="absolute bottom-[13vh] left-1/2 -translate-x-1/2 w-full flex justify-center z-20">
+      <div className="absolute bottom-[13vh] left-1/2 -translate-x-1/2 w-full flex justify-center z-20 pointer-events-none">
         <LaunchControls 
           instanceId={currentId} 
           instanceName={currentInstanceName}

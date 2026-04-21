@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
-import { Blocks, Image as ImageIcon, Package, type LucideIcon } from 'lucide-react';
+import { Blocks, Image as ImageIcon, Loader2, Package, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { DownloadDetailModal } from '../features/Download/components/DownloadDetailModal';
@@ -196,7 +196,8 @@ const ResourceDownloadPage: React.FC = () => {
 
   if (!isEnvLoaded) {
     return (
-      <div className="flex h-full items-center justify-center text-white font-minecraft">
+      <div className="flex h-full flex-col items-center justify-center gap-3 text-white font-minecraft">
+        <Loader2 size={44} className="animate-spin text-ore-green" />
         {t('download.status.loadingEnv', { defaultValue: 'Loading environment...' })}
       </div>
     );

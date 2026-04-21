@@ -275,7 +275,7 @@ const Wardrobe: React.FC = () => {
           isActive: asset.isActive,
           canDelete: !asset.isActive,
         };
-      }),
+      }).sort((a, b) => (a.isActive === b.isActive ? 0 : a.isActive ? -1 : 1)),
     [skinLibrary?.assets, skinModel, skinNotes]
   );
 
@@ -408,7 +408,7 @@ const Wardrobe: React.FC = () => {
           <main className="w-full flex flex-col h-full m-auto">
 
 
-            <div className=" mt-[20px] mx-[20px] lg:mx-[5%] border-l-[2px] border-r-[2px] border-b-[2px] border-[#333334] border-t-[2px] border-t-[#5A5B5C] bg-[#1E1E1F]/50 flex flex-col md:flex-row mb-[20px] flex-1 min-h-0">
+            <div className=" mt-[12px] mx-[20px] lg:mx-[5%] border-l-[2px] border-r-[2px] border-b-[2px] border-[#333334] border-t-[2px] border-t-[#5A5B5C] bg-[#1E1E1F]/50 flex flex-col md:flex-row mb-[12px] flex-1 min-h-0">
               <div
                 className="w-full md:w-[360px] lg:w-[400px] md:flex-none flex flex-col border-b-[2px] md:border-b-0 md:border-r-[2px] border-[#333334] relative min-h-[300px] aspect-[4/5] md:aspect-auto"
 
@@ -451,8 +451,8 @@ const Wardrobe: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex-[1.5] w-full flex flex-col p-6 bg-[#2a332c]/30 min-h-0">
-                <div className="mb-4 shrink-0">
+              <div className="flex-[1.5] w-full flex flex-col p-4 bg-[#2a332c]/30 min-h-0">
+                <div className="mb-3 shrink-0">
                   <OreToggleButton
                     options={[
                       { label: t('wardrobe.skinTab'), value: 'skin' },
@@ -472,7 +472,7 @@ const Wardrobe: React.FC = () => {
                   </div>
                 )}
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar primary_custom_scrollbar pr-2 min-h-0">
+                <div className="flex-1 overflow-y-auto scrollbar-hide min-h-0">
                   {currentAccount && activeSection === 'skin' && (
                     <WardrobeSkinPanel
                       skinCards={skinCards}

@@ -91,7 +91,13 @@ export const WardrobeCapePanel: React.FC<WardrobeCapePanelProps> = ({
 
       {isMicrosoft && !isLoadingProfile && !!profile?.capes.length && (
         <div className="wardrobe-cape-grid">
-          {profile.capes.map((cape, index) => (
+          {[...profile.capes]
+            .sort((a, b) => {
+              const aActive = activeCape?.id === a.id;
+              const bActive = activeCape?.id === b.id;
+              return aActive === bActive ? 0 : aActive ? -1 : 1;
+            })
+            .map((cape, index) => (
             <CapeCardItem
               key={cape.id}
               cape={cape}

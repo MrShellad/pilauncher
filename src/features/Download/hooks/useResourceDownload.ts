@@ -103,7 +103,7 @@ export const useResourceDownload = (
   const [mcVersionOptions, setMcVersionOptions] = useState<FilterOption[]>(getDefaultVersions);
   const [categoryOptions, setCategoryOptions] = useState<FilterOption[]>(() => getBundledDownloadCategoryOptions('mod'));
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(!isCacheValid);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const isFirstMount = useRef(true);
