@@ -64,9 +64,10 @@ export const WardrobeSkinMenuModal: React.FC<WardrobeSkinMenuModalProps> = ({
 
           <div className="wardrobe-skin-menu__body">
             <div className="wardrobe-skin-menu__header">
-              <h3>{modalTitle}</h3>
               {skinMenuAsset.originalTitle && skinMenuAsset.originalTitle !== modalTitle && (
-                <p className="wardrobe-skin-menu__source-name">{t('wardrobe.skinMenu.filePrefix')}{skinMenuAsset.originalTitle}</p>
+                <div className="wardrobe-skin-menu__source-name">
+                  {t('wardrobe.skinMenu.filePrefix')}{skinMenuAsset.originalTitle}
+                </div>
               )}
               <p>{skinMenuAsset.isActive ? t('wardrobe.skinMenu.activeSkin') : t('wardrobe.skinMenu.applySkinHint')}</p>
             </div>

@@ -479,8 +479,8 @@
 
 .wardrobe-skin-menu {
   display: grid;
-  grid-template-columns: minmax(220px, 0.44fr) minmax(280px, 0.56fr);
-  min-height: 360px;
+  grid-template-columns: 1fr 1.5fr;
+  min-height: 380px;
 }
 
 .wardrobe-skin-menu__preview {
@@ -507,15 +507,40 @@
 .wardrobe-skin-menu__body {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 20px;
+  gap: 20px;
+  padding: 24px;
+}
+
+.wardrobe-skin-menu__header {
+  margin-bottom: 4px;
+}
+
+.wardrobe-skin-menu__header h3 {
+  display: none; /* Modal header already shows this */
+}
+
+.wardrobe-skin-menu__header p {
+  margin: 4px 0 0;
+  color: #c3cec8;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Unify label styles for toggle and input */
+.wardrobe-skin-menu__body label,
+.wardrobe-skin-menu__body .font-minecraft.font-bold.text-white.ore-text-shadow {
+  font-size: 15px !important;
+  letter-spacing: 0.02em;
+  margin-bottom: 8px !important;
 }
 
 .wardrobe-skin-menu__source-name {
-  margin: 0;
+  margin: 0 0 4px;
   color: #efda9e;
-  font-size: 12px;
-  line-height: 1.35;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
 }
 
 .wardrobe-skin-menu__actions {
