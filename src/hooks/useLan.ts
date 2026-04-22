@@ -10,22 +10,22 @@ export interface DiscoveredDevice {
 }
 
 export interface TrustedDevice {
-  device_id: string;
-  device_name: string;
-  user_uuid: string;
+  deviceId: string;
+  deviceName: string;
+  userUuid: string;
   username: string;
-  public_key_b64: string;
-  trusted_at: number;
-  trust_level: string;
+  publicKeyB64: string;
+  trustedAt: number;
+  trustLevel: string;
 }
 
 export interface IncomingTrustRequest {
-  device_id: string;
-  device_name: string;
-  user_uuid: string;
+  deviceId: string;
+  deviceName: string;
+  userUuid: string;
   username: string;
-  public_key: string;
-  request_kind?: string;
+  publicKey: string;
+  requestKind?: string;
 }
 
 export interface OnlineDeviceCheck {
@@ -81,23 +81,35 @@ const dedupeDiscoveredDevices = (list: DiscoveredDevice[]) => {
 
   for (const device of list) {
     const normalizedId = normalizeDeviceId(device.device_id);
-    const key = normalizedId || `${device.ip}:${device.port}`;
-    const existing = map.get(key);
+    const ipPortKey = `${device.ip}:${device.port}`;
+    const bestKey = normalizedId || ipPortKey;
+
+    let existing = map.get(bestKey);
+    let oldKey = '';
+
+    if (!existing && normalizedId && map.has(ipPortKey)) {
+      existing = map.get(ipPortKey);
+      oldKey = ipPortKey;
+    }
 
     if (!existing) {
-      map.set(key, device);
+      map.set(bestKey, device);
       continue;
     }
 
     const existingHasId = !!normalizeDeviceId(existing.device_id);
     const incomingHasId = !!normalizedId;
+
     if (!existingHasId && incomingHasId) {
-      map.set(key, device);
+      if (oldKey) {
+        map.delete(oldKey);
+      }
+      map.set(bestKey, device);
       continue;
     }
 
     if (!existing.device_name && device.device_name) {
-      map.set(key, device);
+      map.set(bestKey, device);
     }
   }
 
@@ -194,13 +206,13 @@ export const useLan = () => {
 
       try {
         await invoke('resolve_trust_request', {
-          deviceId: incomingRequest.device_id,
+          deviceId: incomingRequest.deviceId,
           accept,
-          deviceName: incomingRequest.device_name,
-          userUuid: incomingRequest.user_uuid,
+          deviceName: incomingRequest.deviceName,
+          userUuid: incomingRequest.userUuid,
           username: incomingRequest.username || '',
-          publicKey: incomingRequest.public_key,
-          requestKind: incomingRequest.request_kind || 'friend',
+          publicKey: incomingRequest.publicKey,
+          requestKind: incomingRequest.requestKind || 'friend',
         });
         if (accept) {
           await Promise.all([fetchTrusted(), fetchFriends()]);
@@ -217,11 +229,11 @@ export const useLan = () => {
   const trustDevice = useCallback(
     async (device: TrustedDevice) => {
       await invoke('trust_device', {
-        deviceId: device.device_id,
-        deviceName: device.device_name,
-        userUuid: device.user_uuid,
+        deviceId: device.deviceId,
+        deviceName: device.deviceName,
+        userUuid: device.userUuid,
         username: device.username || '',
-        publicKeyB64: device.public_key_b64,
+        publicKeyB64: device.publicKeyB64,
       });
       await Promise.all([fetchTrusted(), fetchFriends()]);
     },

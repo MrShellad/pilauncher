@@ -33,7 +33,6 @@ interface PiStyleConfig {
 
 export const PlayStats: React.FC<PlayStatsProps> = ({ instanceId, playTime, lastPlayed }) => {
   const { t } = useTranslation();
-  const selectedInstanceId = useLauncherStore(state => state.selectedInstanceId);
   const setActiveTab = useLauncherStore(state => state.setActiveTab);
   const unreadNewsCount = useNewsStore(state => state.unreadCount);
   const [piConfig, setPiConfig] = useState<PiStyleConfig | null>(null);

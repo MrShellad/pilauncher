@@ -152,9 +152,9 @@ async fn request_trust(
             .clone();
 
         return Ok(Json(TrustRequest {
-            device_id: my_identity.device_id,
-            device_name: my_identity.device_name,
-            user_uuid: my_identity.user_uuid,
+            device_id: if !current_info.device_id.trim().is_empty() { current_info.device_id.clone() } else { my_identity.device_id },
+            device_name: if !current_info.device_name.trim().is_empty() { current_info.device_name.clone() } else { my_identity.device_name },
+            user_uuid: if !current_info.user_uuid.trim().is_empty() { current_info.user_uuid.clone() } else { my_identity.user_uuid },
             public_key: my_identity.public_key_b64,
             username: (!current_info.username.trim().is_empty()).then(|| current_info.username),
             request_kind: Some(request_kind),

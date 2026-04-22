@@ -17,16 +17,16 @@ import { FocusItem } from '../../../../ui/focus/FocusItem';
 import defaultAvatarSvg from '../../../../assets/icons/user.svg';
 
 export interface DeviceInitInfo {
-  device_id: string;
-  device_name: string;
+  deviceId: string;
+  deviceName: string;
   username: string;
-  user_uuid: string;
-  is_premium: boolean;
-  is_donor: boolean;
-  launcher_version: string;
-  instance_name?: string;
-  instance_id?: string;
-  bg_url: string;
+  userUuid: string;
+  isPremium: boolean;
+  isDonor: boolean;
+  launcherVersion: string;
+  instanceName?: string;
+  instanceId?: string;
+  bgUrl: string;
 }
 
 interface LanDeviceItemProps {
@@ -65,7 +65,7 @@ export const LanDeviceItem: React.FC<LanDeviceItemProps> = ({
 
   useEffect(() => {
     let cancelled = false;
-    const userUuid = richInfo?.user_uuid || relationship?.user_uuid;
+    const userUuid = richInfo?.userUuid || relationship?.userUuid;
 
     if (!userUuid) {
       setAvatarSrc(null);
@@ -116,21 +116,21 @@ export const LanDeviceItem: React.FC<LanDeviceItemProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [device.ip, device.port, relationship?.user_uuid, richInfo?.user_uuid, username]);
+  }, [device.ip, device.port, relationship?.userUuid, richInfo?.userUuid, username]);
 
   const frameColor =
-    hasRichProfile && richInfo?.is_donor
+    hasRichProfile && richInfo?.isDonor
       ? 'border-purple-500'
-      : hasRichProfile && richInfo?.is_premium
+      : hasRichProfile && richInfo?.isPremium
         ? 'border-[#EAB308]'
         : hasRichProfile
           ? 'border-gray-500'
           : 'border-[#313233]';
 
   const nameColor =
-    hasRichProfile && richInfo?.is_donor
+    hasRichProfile && richInfo?.isDonor
       ? 'text-purple-400'
-      : hasRichProfile && richInfo?.is_premium
+      : hasRichProfile && richInfo?.isPremium
         ? 'text-[#FBBF24]'
         : hasRichProfile
           ? 'text-gray-200'
@@ -212,10 +212,10 @@ export const LanDeviceItem: React.FC<LanDeviceItemProps> = ({
                   设备: {device.device_name} ({device.ip})
                 </span>
 
-                {canSeeInstance && richInfo?.instance_name && (
+                {canSeeInstance && richInfo?.instanceName && (
                   <>
                     <span className="opacity-50">|</span>
-                    <span className="truncate text-ore-green">当前实例: {richInfo.instance_name}</span>
+                    <span className="truncate text-ore-green">当前实例: {richInfo.instanceName}</span>
                   </>
                 )}
               </span>

@@ -49,7 +49,7 @@ axum = { version = "0.8.8", features = ["ws"] }
 tower-http = { version = "0.6.8", features = ["cors"] }
 
 ed25519-dalek = { version = "2.1", features = ["rand_core"] }
-rand_core = { version = "0.9.5", features = ["std"] }
+rand_core = { version = "0.6.4", features = ["std"] }
 rand = "0.9.0"
 local-ip-address = "0.6.10"
 qrcodegen = "1.8"

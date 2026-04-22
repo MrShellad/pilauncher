@@ -6,6 +6,10 @@ use std::{
 const CLIENT_ID_KEY: &str = "MICROSOFT_CLIENT_ID";
 const CURSEFORGE_KEY: &str = "CURSEFORGE_API_KEY";
 const VITE_CURSEFORGE_KEY: &str = "VITE_CURSEFORGE_API_KEY";
+const DONORS_API_URL_KEY: &str = "DONORS_API_URL";
+const VITE_DONORS_API_URL_KEY: &str = "VITE_DONORS_API_URL";
+const DONORS_API_KEY_KEY: &str = "DONORS_API_KEY";
+const VITE_DONORS_API_KEY_KEY: &str = "VITE_DONORS_API_KEY";
 
 fn main() {
     let manifest_dir =
@@ -19,6 +23,8 @@ fn main() {
     println!("cargo:rerun-if-env-changed={CLIENT_ID_KEY}");
     println!("cargo:rerun-if-env-changed={CURSEFORGE_KEY}");
     println!("cargo:rerun-if-env-changed={VITE_CURSEFORGE_KEY}");
+    println!("cargo:rerun-if-env-changed={DONORS_API_URL_KEY}");
+    println!("cargo:rerun-if-env-changed={DONORS_API_KEY_KEY}");
 
     let client_id = env::var(CLIENT_ID_KEY)
         .ok()
@@ -44,6 +50,26 @@ fn main() {
         println!("cargo:rustc-env={CURSEFORGE_KEY}={key}");
         // also provide the Vite-prefixed name for any code paths expecting it
         println!("cargo:rustc-env={VITE_CURSEFORGE_KEY}={key}");
+    }
+
+    // Optional: Donors API URL
+    if let Some(url) = env::var(DONORS_API_URL_KEY)
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| read_env_value(&root_env_path, DONORS_API_URL_KEY))
+        .or_else(|| read_env_value(&root_env_path, VITE_DONORS_API_URL_KEY))
+    {
+        println!("cargo:rustc-env={DONORS_API_URL_KEY}={url}");
+    }
+
+    // Optional: Donors API key
+    if let Some(key) = env::var(DONORS_API_KEY_KEY)
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| read_env_value(&root_env_path, DONORS_API_KEY_KEY))
+        .or_else(|| read_env_value(&root_env_path, VITE_DONORS_API_KEY_KEY))
+    {
+        println!("cargo:rustc-env={DONORS_API_KEY_KEY}={key}");
     }
 
     tauri_build::build()

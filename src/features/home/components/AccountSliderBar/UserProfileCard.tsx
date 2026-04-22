@@ -261,13 +261,13 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
             )}
 
             {trusted.map((device) => {
-              const onlineInfo = onlineDeviceMap.get(normalizeDeviceId(device.device_id)) ?? null;
+              const onlineInfo = onlineDeviceMap.get(normalizeDeviceId(device.deviceId)) ?? null;
               const isOnline = onlineInfo !== null;
 
               return (
                 <FocusItem
-                  key={device.device_id}
-                  focusKey={`trusted-${device.device_id}`}
+                  key={device.deviceId}
+                  focusKey={`trusted-${device.deviceId}`}
                   onEnter={() => isOnline && onSelectTrustedDevice(onlineInfo)}
                 >
                   {({ ref, focused }) => (
@@ -283,9 +283,9 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
                           isOnline ? 'cursor-pointer' : 'cursor-not-allowed'
                         }`}
                       >
-                        {renderDeviceIcon(device.device_name)}
+                        {renderDeviceIcon(device.deviceName)}
                         <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm text-gray-200">{device.device_name}</div>
+                          <div className="truncate text-sm text-gray-200">{device.deviceName}</div>
                           {device.username && (
                             <div className="truncate text-[10px] text-gray-500">{device.username}</div>
                           )}
@@ -303,7 +303,7 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
                         <button
                           onClick={(event) => {
                             event.stopPropagation();
-                            onRemoveTrust(device.device_id);
+                            onRemoveTrust(device.deviceId);
                           }}
                           className="rounded-sm p-1 text-gray-500 transition-colors hover:bg-red-500/20 hover:text-red-400"
                           title="取消信任，保留好友"

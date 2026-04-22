@@ -37,13 +37,13 @@ export const LanRadar: React.FC<LanRadarProps> = ({
 
   const selfDeviceId = normalizeDeviceId(settings.general.deviceId);
   const trustedDeviceIds = useMemo(
-    () => new Set(trusted.map((item) => normalizeDeviceId(item.device_id))),
+    () => new Set(trusted.map((item) => normalizeDeviceId(item.deviceId))),
     [trusted],
   );
   const friendMap = useMemo(() => {
     const map = new Map<string, TrustedDevice>();
     friends.forEach((item) => {
-      map.set(normalizeDeviceId(item.device_id), item);
+      map.set(normalizeDeviceId(item.deviceId), item);
     });
     return map;
   }, [friends]);
@@ -101,11 +101,11 @@ export const LanRadar: React.FC<LanRadarProps> = ({
               const previousData = previous[key];
               if (
                 previousData &&
-                previousData.user_uuid === data.user_uuid &&
+                previousData.userUuid === data.userUuid &&
                 previousData.username === data.username &&
-                previousData.instance_id === data.instance_id &&
-                previousData.instance_name === data.instance_name &&
-                previousData.device_name === data.device_name
+                previousData.instanceId === data.instanceId &&
+                previousData.instanceName === data.instanceName &&
+                previousData.deviceName === data.deviceName
               ) {
                 return previous;
               }
@@ -145,10 +145,10 @@ export const LanRadar: React.FC<LanRadarProps> = ({
       const bKey = getDeviceKey(b);
       const aRich = richInfos[aKey];
       const bRich = richInfos[bKey];
-      const aId = normalizeDeviceId(a.device_id);
-      const bId = normalizeDeviceId(b.device_id);
-      const aIsOwn = aRich ? accounts.some((item) => item.uuid === aRich.user_uuid) : false;
-      const bIsOwn = bRich ? accounts.some((item) => item.uuid === bRich.user_uuid) : false;
+      const aId = normalizeDeviceId(aRich?.deviceId || a.device_id);
+      const bId = normalizeDeviceId(bRich?.deviceId || b.device_id);
+      const aIsOwn = aRich ? accounts.some((item) => item.uuid === aRich.userUuid) : false;
+      const bIsOwn = bRich ? accounts.some((item) => item.uuid === bRich.userUuid) : false;
       const aIsFriend = friendMap.has(aId);
       const bIsFriend = friendMap.has(bId);
 
@@ -204,10 +204,10 @@ export const LanRadar: React.FC<LanRadarProps> = ({
         {sortedDevices.map((device) => {
           const key = getDeviceKey(device);
           const richInfo = richInfos[key];
-          const deviceId = normalizeDeviceId(device.device_id);
+          const deviceId = normalizeDeviceId(richInfo?.deviceId || device.device_id);
           const relationship = friendMap.get(deviceId);
           const isOwnAccount = richInfo
-            ? accounts.some((item) => item.uuid === richInfo.user_uuid)
+            ? accounts.some((item) => item.uuid === richInfo.userUuid)
             : false;
 
           return (

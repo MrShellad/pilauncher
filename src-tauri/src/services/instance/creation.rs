@@ -31,7 +31,17 @@ impl InstanceCreationService {
         let base_dir = PathBuf::from(base_path_str);
 
         let instance_id = sanitize_filename(&payload.folder_name);
-        let instance_root = base_dir.join("instances").join(&instance_id);
+        let instances_dir = base_dir.join("instances");
+        let final_instance_root = instances_dir.join(&instance_id);
+        let tmp_instance_root = instances_dir.join(".tmp").join(&instance_id);
+
+        if final_instance_root.exists() {
+            return Err(AppError::Generic(format!("Instance {} already exists", instance_id)));
+        }
+
+        if tmp_instance_root.exists() {
+            let _ = fs::remove_dir_all(&tmp_instance_root);
+        }
 
         let sub_dirs = [
             "mods",
@@ -42,11 +52,11 @@ impl InstanceCreationService {
             "piconfig",
         ];
         for dir in sub_dirs {
-            fs::create_dir_all(instance_root.join(dir))?;
+            fs::create_dir_all(tmp_instance_root.join(dir))?;
         }
 
         let mut saved_cover_path = None;
-        let piconfig_dir = instance_root.join("piconfig");
+        let piconfig_dir = tmp_instance_root.join("piconfig");
         if let Some(cover_path_str) = &payload.cover_image {
             let cover_path = Path::new(cover_path_str);
             if cover_path.exists() {
@@ -102,29 +112,9 @@ impl InstanceCreationService {
             is_favorite: None,
         };
         fs::write(
-            instance_root.join("instance.json"),
+            tmp_instance_root.join("instance.json"),
             serde_json::to_string_pretty(&config)?,
         )?;
-
-        let db = app.state::<AppDatabase>();
-        InstanceBindingService::upsert_instance(&db.pool, &config).await?;
-
-        if let Some(binding) = &payload.server_binding {
-            let canonical_binding = InstanceBindingService::replace_binding_for_instance(
-                &db.pool,
-                &instance_id,
-                binding,
-                true,
-            )
-            .await?;
-            let mut persisted_config = config;
-            persisted_config.server_binding = Some(canonical_binding);
-            persisted_config.auto_join_server = Some(true);
-            fs::write(
-                instance_root.join("instance.json"),
-                serde_json::to_string_pretty(&persisted_config)?,
-            )?;
-        }
 
         let global_mc_root = base_dir.join("runtime");
         fs::create_dir_all(global_mc_root.join("assets"))?;
@@ -160,22 +150,66 @@ impl InstanceCreationService {
             .unwrap_or(true);
 
         let result =
-            Self::run_deployment(app, &instance_id, &payload, &global_mc_root, &cancel).await;
+            Self::run_deployment(app, &instance_id, &payload, &global_mc_root, &tmp_instance_root, &cancel).await;
 
         deployment_cancel::unregister(&instance_id);
 
         match &result {
-            Err(AppError::Cancelled) => {
+            Ok(_) => {
+                if let Err(e) = fs::rename(&tmp_instance_root, &final_instance_root) {
+                    let _ = app.emit(
+                        "instance-deployment-progress",
+                        DownloadProgressEvent {
+                            instance_id: instance_id.clone(),
+                            stage: "ERROR".to_string(),
+                            file_name: "".to_string(),
+                            current: 0,
+                            total: 100,
+                            message: format!("Failed to finalize instance: {}", e),
+                        },
+                    );
+                    if tmp_instance_root.exists() {
+                        let _ = fs::remove_dir_all(&tmp_instance_root);
+                    }
+                    return Err(AppError::Generic(format!("Failed to rename tmp instance dir: {}", e)));
+                }
+
+                let db = app.state::<AppDatabase>();
+                let mut persisted_config = config;
+
+                if let Some(binding) = &payload.server_binding {
+                    if let Ok(canonical_binding) = InstanceBindingService::replace_binding_for_instance(
+                        &db.pool,
+                        &instance_id,
+                        binding,
+                        true,
+                    ).await {
+                        persisted_config.server_binding = Some(canonical_binding);
+                        persisted_config.auto_join_server = Some(true);
+                        let _ = fs::write(
+                            final_instance_root.join("instance.json"),
+                            serde_json::to_string_pretty(&persisted_config).unwrap_or_default(),
+                        );
+                    } else {
+                        eprintln!("[Deployment] Failed to bind server, continuing anyway");
+                    }
+                }
+
+                if let Err(e) = InstanceBindingService::upsert_instance(&db.pool, &persisted_config).await {
+                    eprintln!("[Deployment] Failed to upsert instance into db: {}", e);
+                }
+            }
+            Err(e) => {
                 eprintln!(
-                    "[Deployment] Instance {} deployment cancelled by user, cleaning up...",
+                    "[Deployment] Instance {} deployment failed, cleaning up...",
                     instance_id
                 );
 
-                if instance_root.exists() {
-                    let _ = fs::remove_dir_all(&instance_root);
+                if tmp_instance_root.exists() {
+                    let _ = fs::remove_dir_all(&tmp_instance_root);
                     eprintln!(
-                        "[Deployment] Removed instance directory: {:?}",
-                        instance_root
+                        "[Deployment] Removed temporary instance directory: {:?}",
+                        tmp_instance_root
                     );
                 }
 
@@ -199,15 +233,12 @@ impl InstanceCreationService {
                     }
                 }
 
-                let db = app.state::<AppDatabase>();
-                if let Err(error) =
-                    InstanceBindingService::delete_instance_records(&db.pool, &instance_id).await
-                {
-                    eprintln!(
-                        "[Deployment] Failed to remove database records for cancelled instance {}: {}",
-                        instance_id, error
-                    );
-                }
+                let is_cancelled = matches!(e, AppError::Cancelled);
+                let message = if is_cancelled {
+                    "Deployment cancelled by user. Cleanup finished.".to_string()
+                } else {
+                    format!("Deployment failed: {}", e)
+                };
 
                 let _ = app.emit(
                     "instance-deployment-progress",
@@ -217,24 +248,10 @@ impl InstanceCreationService {
                         file_name: "".to_string(),
                         current: 0,
                         total: 100,
-                        message: "Deployment cancelled by user. Cleanup finished.".to_string(),
+                        message,
                     },
                 );
             }
-            Err(e) => {
-                let _ = app.emit(
-                    "instance-deployment-progress",
-                    DownloadProgressEvent {
-                        instance_id: instance_id.clone(),
-                        stage: "ERROR".to_string(),
-                        file_name: "".to_string(),
-                        current: 0,
-                        total: 100,
-                        message: format!("Deployment failed: {}", e),
-                    },
-                );
-            }
-            _ => {}
         }
 
         result
@@ -245,6 +262,7 @@ impl InstanceCreationService {
         instance_id: &str,
         payload: &CreateInstancePayload,
         global_mc_root: &PathBuf,
+        instance_root: &PathBuf,
         cancel: &std::sync::Arc<std::sync::atomic::AtomicBool>,
     ) -> AppResult<()> {
         let _ = app.emit(
@@ -315,15 +333,10 @@ impl InstanceCreationService {
             .await?;
         }
 
-        let instance_root = global_mc_root
-            .parent()
-            .unwrap()
-            .join("instances")
-            .join(instance_id);
         if let Err(e) = crate::services::instance::manifest_builder::build_and_save_manifest(
             payload,
             global_mc_root,
-            &instance_root,
+            instance_root,
         ) {
             eprintln!("[Deployment] Failed to generate instance manifest: {}", e);
         }

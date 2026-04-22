@@ -116,6 +116,38 @@ pub async fn run_network_test() -> Result<NetworkTestReport, String> {
     Ok(final_report)
 }
 
+#[tauri::command]
+pub async fn fetch_donors() -> Result<serde_json::Value, String> {
+    let url = option_env!("DONORS_API_URL")
+        .unwrap_or("https://pil.nav4ai.net/api/donors/supporters");
+    let api_key = option_env!("DONORS_API_KEY")
+        .ok_or_else(|| "Donors API key not configured at build time".to_string())?;
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    let res = client
+        .get(url)
+        .header("x-api-key", api_key)
+        .header("Authorization", format!("Bearer {}", api_key))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch donors: {}", e))?;
+
+    if !res.status().is_success() {
+        return Err(format!("Server returned status: {}", res.status()));
+    }
+
+    let data = res
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|e| format!("Failed to parse donor data: {}", e))?;
+
+    Ok(data)
+}
+
 async fn test_domain(domain: &str) -> DomainTestResult {
     let start = Instant::now();
     let mut result = DomainTestResult {

@@ -167,7 +167,7 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
     }
     return (
       friends.find(
-        (item) => normalizeDeviceId(item.device_id) === normalizeDeviceId(transferTarget.device_id),
+        (item) => normalizeDeviceId(item.deviceId) === normalizeDeviceId(transferTarget.device_id),
       ) || null
     );
   }, [friends, transferTarget]);
@@ -266,16 +266,16 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
     if (currentAccount && settings.general.deviceId) {
       void invoke('update_lan_device_info', {
         info: {
-          device_id: settings.general.deviceId,
-          device_name: settings.general.deviceName,
+          deviceId: settings.general.deviceId,
+          deviceName: settings.general.deviceName,
           username: currentAccount.name,
-          user_uuid: currentAccount.uuid,
-          is_premium: isPremium,
-          is_donor: false,
-          launcher_version: '1.0.0',
-          instance_name: null,
-          instance_id: null,
-          bg_url: '/device/bg',
+          userUuid: currentAccount.uuid,
+          isPremium: isPremium,
+          isDonor: false,
+          launcherVersion: '1.0.0',
+          instanceName: null,
+          instanceId: null,
+          bgUrl: '/device/bg',
         },
         localBgPath: '',
       }).catch(console.error);
@@ -415,7 +415,7 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
         targetId: selectedInstance,
         saveName: transferType === 'save' ? selectedSave : null,
         remoteDeviceId: transferTarget.device_id,
-        remoteDeviceName: selectedFriend?.device_name || transferTarget.device_name,
+        remoteDeviceName: selectedFriend?.deviceName || transferTarget.device_name,
         remoteUsername: selectedFriend?.username || '',
       });
     } catch (error) {
@@ -453,7 +453,7 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
               exit={{ x: '-100%', opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               onAnimationComplete={() => setFocus('account-sidebar-boundary')}
-              className="absolute left-0 top-0 bottom-0 flex w-full flex-col border-r-2 border-[#2A2A2C] bg-[#18181B] shadow-2xl md:w-[70vw] lg:w-[55vw] xl:w-[960px]"
+              className="absolute left-0 top-0 bottom-0 flex w-full flex-col border-r-2 border-[#2A2A2C] bg-[#18181B] shadow-2xl md:w-[85vw] lg:w-[75vw] xl:w-[1000px]"
             >
               <div className="custom-scrollbar flex h-full flex-col overflow-y-auto p-6">
                 <div className="mb-6 flex flex-1 flex-col gap-6 sm:flex-row">
@@ -504,7 +504,7 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
                                 <span>{selectedFriend?.username || transferTarget.device_name}</span>
                                 <span>{selectedTargetOnline ? '在线' : '离线'}</span>
                                 <span>{transferTarget.ip}</span>
-                                {selectedFriend?.trust_level === 'trusted' && (
+                                {selectedFriend?.trustLevel === 'trusted' && (
                                   <span className="rounded-sm border border-emerald-500/30 bg-emerald-500/15 px-1.5 py-0.5 text-[10px] text-emerald-300">
                                     已信任
                                   </span>
@@ -551,7 +551,7 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
                                   className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}
                                 >
                                   <div
-                                    className={`max-w-[78%] rounded-2xl border px-4 py-3 ${
+                                    className={`max-w-[85%] rounded-2xl border px-4 py-3 ${
                                       isOutgoing
                                         ? 'border-blue-500/25 bg-blue-500/10 text-white'
                                         : 'border-white/10 bg-white/5 text-gray-100'
@@ -766,12 +766,12 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
       <OreModal
         isOpen={!!incomingRequest}
         onClose={() => resolveTrustRequest(false)}
-        title={incomingRequest?.request_kind === 'trusted' ? '收到信任请求' : '收到好友请求'}
+        title={incomingRequest?.requestKind === 'trusted' ? '收到信任请求' : '收到好友请求'}
         closeOnOutsideClick={false}
       >
         <div className="flex flex-col items-center p-6">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border-2 border-blue-500/50 bg-blue-500/20">
-            {incomingRequest?.request_kind === 'trusted' ? (
+            {incomingRequest?.requestKind === 'trusted' ? (
               <ShieldCheck size={28} className="text-blue-400" />
             ) : (
               <UserPlus size={28} className="text-blue-400" />
@@ -779,12 +779,12 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
           </div>
 
           <p className="mb-2 text-center text-lg text-white font-minecraft">
-            {incomingRequest?.device_name}
-            {incomingRequest?.request_kind === 'trusted' ? ' 请求将你设为信任设备' : ' 请求添加你为好友'}
+            {incomingRequest?.deviceName}
+            {incomingRequest?.requestKind === 'trusted' ? ' 请求将你设为信任设备' : ' 请求添加你为好友'}
           </p>
 
           <p className="mb-8 max-w-xs text-center text-xs leading-relaxed text-gray-400">
-            {incomingRequest?.request_kind === 'trusted'
+            {incomingRequest?.requestKind === 'trusted'
               ? '接受后，对方设备会直接获得实例和存档投送权限。'
               : '接受后只建立好友关系，不会自动开放实例和存档投送，仍需手动提升为信任设备。'}
           </p>
@@ -794,7 +794,7 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
               拒绝
             </OreButton>
             <OreButton className="flex-1 !h-12" variant="primary" onClick={() => resolveTrustRequest(true)}>
-              {incomingRequest?.request_kind === 'trusted' ? '接受并信任' : '接受并加为好友'}
+              {incomingRequest?.requestKind === 'trusted' ? '接受并信任' : '接受并加为好友'}
             </OreButton>
           </div>
         </div>

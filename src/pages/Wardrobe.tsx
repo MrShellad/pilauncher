@@ -264,7 +264,7 @@ const Wardrobe: React.FC = () => {
         const note = (skinNotes[asset.id] ?? asset.note ?? '').trim();
         return {
           id: asset.id,
-          kind: 'library',
+          kind: 'library' as const,
           title: note || originalTitle,
           originalTitle,
           note: note || undefined,

@@ -108,9 +108,9 @@ pub async fn send_trust_request<R: Runtime>(
     let request_kind = normalize_request_kind(request_kind.as_deref());
 
     let req_payload = TrustRequest {
-        device_id: my_identity.device_id.clone(),
-        device_name: my_identity.device_name.clone(),
-        user_uuid: my_identity.user_uuid.clone(),
+        device_id: if !current_info.device_id.trim().is_empty() { current_info.device_id.clone() } else { my_identity.device_id.clone() },
+        device_name: if !current_info.device_name.trim().is_empty() { current_info.device_name.clone() } else { my_identity.device_name.clone() },
+        user_uuid: if !current_info.user_uuid.trim().is_empty() { current_info.user_uuid.clone() } else { my_identity.user_uuid.clone() },
         public_key: my_identity.public_key_b64.clone(),
         username: (!current_info.username.trim().is_empty()).then(|| current_info.username.clone()),
         request_kind: Some(request_kind.to_string()),
@@ -218,9 +218,9 @@ pub async fn resolve_trust_request<R: Runtime>(
         let my_identity = TrustStore::get_or_create_identity(&config_dir);
         let current_info = state.current_device_info.lock().unwrap().clone();
         Some(TrustRequest {
-            device_id: my_identity.device_id,
-            device_name: my_identity.device_name,
-            user_uuid: my_identity.user_uuid,
+            device_id: if !current_info.device_id.trim().is_empty() { current_info.device_id.clone() } else { my_identity.device_id },
+            device_name: if !current_info.device_name.trim().is_empty() { current_info.device_name.clone() } else { my_identity.device_name },
+            user_uuid: if !current_info.user_uuid.trim().is_empty() { current_info.user_uuid.clone() } else { my_identity.user_uuid },
             public_key: my_identity.public_key_b64,
             username: (!current_info.username.trim().is_empty()).then(|| current_info.username),
             request_kind: Some(normalized_kind.to_string()),

@@ -38,12 +38,51 @@ impl TrustStore {
             }
         }
 
+        let identity_file = config_dir.join("lan_identity.json");
+        let mut private_key_b64 = String::new();
+        let mut public_key_b64 = String::new();
+
+        if let Ok(data) = fs::read_to_string(&identity_file) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&data) {
+                if let Some(priv_b64) = json.get("private_key_b64").and_then(|v| v.as_str()) {
+                    private_key_b64 = priv_b64.to_string();
+                }
+                if let Some(pub_b64) = json.get("public_key_b64").and_then(|v| v.as_str()) {
+                    public_key_b64 = pub_b64.to_string();
+                }
+            }
+        }
+
+        if private_key_b64.is_empty() || public_key_b64.is_empty() {
+            use ed25519_dalek::SigningKey;
+            use base64::{engine::general_purpose, Engine as _};
+            use rand_core::OsRng;
+
+            let mut csprng = OsRng;
+            let signing_key = SigningKey::generate(&mut csprng);
+            let private_bytes = signing_key.to_bytes();
+            let public_bytes = signing_key.verifying_key().to_bytes();
+            
+            private_key_b64 = general_purpose::STANDARD.encode(private_bytes);
+            public_key_b64 = general_purpose::STANDARD.encode(public_bytes);
+
+            let identity_json = serde_json::json!({
+                "private_key_b64": private_key_b64,
+                "public_key_b64": public_key_b64
+            });
+
+            if let Some(parent) = identity_file.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            let _ = fs::write(&identity_file, serde_json::to_string_pretty(&identity_json).unwrap_or_default());
+        }
+
         DeviceIdentity {
             device_id,
             device_name,
             user_uuid,
-            private_key_b64: String::new(),
-            public_key_b64: String::new(),
+            private_key_b64,
+            public_key_b64,
         }
     }
 
