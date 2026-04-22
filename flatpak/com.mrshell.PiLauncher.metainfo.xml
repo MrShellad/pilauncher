@@ -34,46 +34,31 @@
   </categories>
 
   <releases>
-    <release version="0.1.28" date="2026-04-21">
+    <release version="0.1.29" date="2026-04-23">
       <description>
-        <p xml:lang="zh_CN">新增下载管理面板与多人游戏支持</p>
+        <p xml:lang="zh_CN">局域网同步功能上线与实例部署稳定性优化</p>
         <ul xml:lang="zh_CN">
-          <li>[新功能] 实现下载任务管理面板，支持单个任务进度的实时追踪与管理。</li>
-          <li>[新功能] 全新多人游戏服务器列表，支持数据标准化展示与交互。</li>
-          <li>[新功能] 新增启动自动检查更新功能，并支持上次运行实例的自动恢复。</li>
-          <li>[优化] 重构并模块化下载服务，为整合包安装提供更稳定的编排逻辑。</li>
-          <li>[重构] 深度解耦身份验证逻辑，提升登录及皮肤管理的稳定性。</li>
+          <li>[新功能] 实现局域网设备自动发现、配对与信任管理服务，支持跨设备实例与存档投送。</li>
+          <li>[新功能] 新增后台游戏时长统计服务，支持多设备间游玩数据实时同步。</li>
+          <li>[新功能] 重构资源中心，实现 Mod 库深度搜索、依赖自动解析与一键安装功能。</li>
+          <li>[新功能] 全新「衣柜」皮肤预览模态框，支持 3D 渲染与更细致的皮肤自定义。</li>
+          <li>[优化] 引入“原子化部署”流程，彻底解决部署异常时产生幽灵文件夹及数据库残留的问题。</li>
+          <li>[优化] 深度重构身份验证架构，采用六层解耦设计，显著提升微软及 Xbox 登录稳定性。</li>
+          <li>[优化] 优化全局侧边栏布局与下载管理器 UI，大幅提升手柄操作下的信息密度与易用性。</li>
         </ul>
-        <p>Download Management and Multiplayer Support</p>
+        <p>LAN Sync Support and Deployment Stability Improvements</p>
         <ul>
-          <li>[New] Implemented a download task management panel with real-time tracking and control for individual tasks.</li>
-          <li>[New] Added a multiplayer server list with normalized data display and interactive components.</li>
-          <li>[New] Introduced automatic startup update checking and persistent restoration of the last used instance.</li>
-          <li>[Optimization] Refactored download services into a modular architecture for more robust modpack installation management.</li>
-          <li>[Refactor] Decoupled authentication logic into specialized services to improve reliability for Microsoft, Xbox, and Minecraft logins.</li>
+          <li>[New] Implemented LAN device discovery, pairing, and trust management for seamless cross-device instance and save transfers.</li>
+          <li>[New] Added background playtime tracking with real-time cross-device data synchronization.</li>
+          <li>[New] Refactored Resource Center with integrated project search, dependency resolution, and one-click mod installation.</li>
+          <li>[New] Introduced a new Wardrobe preview modal featuring 3D skin rendering and detailed customization.</li>
+          <li>[Optimization] Implemented Atomic Deployment workflow to ensure zero-residue cleanup on installation failures.</li>
+          <li>[Optimization] Architecturally refactored authentication logic using a decoupled six-layer design for enhanced stability.</li>
+          <li>[Optimization] Refined sidebar layout and download manager UI for improved information density and controller usability.</li>
         </ul>
       </description>
     </release>
-    <release version="0.1.27" date="2026-04-19">
-      <description>
-        <p xml:lang="zh_CN">「皮肤中心」功能增强与 Linux 体验优化</p>
-        <ul xml:lang="zh_CN">
-          <li>[新功能] 完善「皮肤中心」国际化支持，实现中英双语即时切换。</li>
-          <li>[新功能] 新增皮肤备注功能，支持为不同皮肤存储个性化说明并持久化保存。</li>
-          <li>[优化] 提升「皮肤中心」视觉交互，添加“使用中”金色标记，并优化卡片色彩表现。</li>
-          <li>[修复] 解决 Linux 平台下 UI 列表滚动可能出现的闪烁同步问题。</li>
-          <li>[修复] 修正 Linux 构建工作流配置，补充缺失的 libudev 系统库依赖。</li>
-        </ul>
-        <p>Wardrobe Enhancements and Linux UX Optimizations</p>
-        <ul>
-          <li>[New] Full i18n support for the Wardrobe feature with localized UI strings.</li>
-          <li>[New] Added skin remarks/notes support with persistent local storage.</li>
-          <li>[Optimization] Enhanced Wardrobe UI with "In Use" status badges and refined card vibrancy.</li>
-          <li>[Fix] Resolved UI flickering issues during list scrolling on Linux systems.</li>
-          <li>[Fix] Fixed Linux build failures by adding the libudev-dev system dependency.</li>
-        </ul>
-      </description>
-    </release>
+  
   </releases>
 
   <content_rating type="oars-1.1" />
