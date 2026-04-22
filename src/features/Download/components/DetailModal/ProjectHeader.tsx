@@ -1,9 +1,11 @@
 import React from 'react';
-import { Blocks, Clock3, Download, Heart, Monitor, Server } from 'lucide-react';
+import { Blocks, Clock3, Download, ExternalLink, Heart, Monitor, Server } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import type { ModrinthProject, OreProjectDetail } from '../../../InstanceDetail/logic/modrinthApi';
 import { formatDate, formatNumber } from '../../../../utils/formatters';
+import { CurseforgeIcon, ModrinthIcon } from '../Icons';
+import { openExternalLink } from '../../../../utils/openExternalLink';
 
 interface ProjectHeaderProps {
   project: ModrinthProject;
@@ -45,6 +47,13 @@ const renderEnvChip = (
 export const ProjectHeader: React.FC<ProjectHeaderProps> = ({ project, details }) => {
   const { t } = useTranslation();
   const author = project.author || details?.author || t('download.meta.unknownAuthor', { defaultValue: 'Unknown' });
+
+  const handleOpenWeb = () => {
+    const url = project.source === 'curseforge'
+      ? `https://www.curseforge.com/projects/${project.id}`
+      : `https://modrinth.com/project/${project.slug || project.id}`;
+    openExternalLink(url);
+  };
 
   return (
     <div
@@ -88,6 +97,27 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({ project, details }
             {formatDate(details?.updated_at || project.date_modified)}
           </span>
         </div>
+      </div>
+
+      <div className="flex shrink-0 flex-col items-end justify-center ml-2">
+        <button
+          onClick={handleOpenWeb}
+          className="flex h-8 items-center gap-1.5 border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] px-2.5 shadow-[inset_0_-2px_0_rgba(0,0,0,0.2)] transition-colors hover:bg-[var(--ore-downloadDetail-rowBg)] active:translate-y-[1px] active:shadow-none"
+          title={t('download.openInBrowser', { defaultValue: 'Open in Browser' })}
+        >
+          {project.source === 'curseforge' ? (
+            <>
+              <CurseforgeIcon className="text-[14px] text-[#F16436]" />
+              <span className="font-minecraft text-[10px] uppercase tracking-[0.1em] text-white">CurseForge</span>
+            </>
+          ) : (
+            <>
+              <ModrinthIcon className="text-[14px] text-[#1BD96A]" />
+              <span className="font-minecraft text-[10px] uppercase tracking-[0.1em] text-white">Modrinth</span>
+            </>
+          )}
+          <ExternalLink size={12} className="ml-0.5 text-[var(--ore-downloadDetail-hintText)]" />
+        </button>
       </div>
     </div>
   );

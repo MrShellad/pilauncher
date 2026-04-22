@@ -101,8 +101,11 @@ pub fn run() {
                 services::db_service::DbService::init_db(&db_config_dir).await
             }).expect("数据库初始化崩溃！请检查文件读写权限！");
 
-            app.manage(services::db_service::AppDatabase { pool });
+            app.manage(services::db_service::AppDatabase { pool: pool.clone() });
             // ==========================================
+
+            // 启动游戏时长背景任务（心跳定时存盘、自动同步、启动时恢复异常中断的会话）
+            services::playtime::PlaytimeService::spawn_background_tasks(app.handle().clone(), pool.clone());
 
             // 🌟 核心修改：为不同的后台线程单独克隆 AppHandle
             let handle_for_lan = app.handle().clone();

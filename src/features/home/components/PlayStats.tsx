@@ -8,6 +8,7 @@ import { OreButton } from '../../../ui/primitives/OreButton';
 import { useLauncherStore } from '../../../store/useLauncherStore';
 import { useNewsStore } from '../../../store/useNewsStore';
 import { openExternalLink } from '../../../utils/openExternalLink';
+import { formatPlayTime, formatRelativeTime } from '../../../utils/formatters';
 
 import { useAccountStore } from '../../../store/useAccountStore';
 import { useMicrosoftAuth } from '../../Settings/hooks/useMicrosoftAuth';
@@ -19,17 +20,18 @@ import { LanTrustModal } from '../../lan/LanTrustModal';
 import defaultAvatar from '../../../assets/home/account/128.png';
 
 interface PlayStatsProps {
+  instanceId: string;
   playTime: number;
   lastPlayed: string;
 }
 
 interface PiStyleConfig {
-  buttonStyle?: React.CSSProperties; 
+  buttonStyle?: React.CSSProperties;
   wiki?: { url: string; label?: string };
   socials?: Array<{ type: string; url: string; label?: string }>;
 }
 
-export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) => {
+export const PlayStats: React.FC<PlayStatsProps> = ({ instanceId, playTime, lastPlayed }) => {
   const { t } = useTranslation();
   const selectedInstanceId = useLauncherStore(state => state.selectedInstanceId);
   const setActiveTab = useLauncherStore(state => state.setActiveTab);
@@ -61,15 +63,15 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
     if (currentAccount) {
       const fetchAvatar = async () => {
         try {
-          const localPath = await invoke<string>('get_or_fetch_account_avatar', { 
+          const localPath = await invoke<string>('get_or_fetch_account_avatar', {
             uuid: currentAccount.uuid,
-            username: currentAccount.name 
+            username: currentAccount.name
           });
-          
+
           // ✅ 核心修复：使用与 3D 皮肤同源的稳定时间戳，杜绝切页重载
           const cacheBuster = currentAccount.skinUrl?.split('?t=')[1] || 'init';
           setAvatarSrc(`${convertFileSrc(localPath)}?t=${cacheBuster}`);
-          
+
         } catch (e) {
           setAvatarSrc(defaultAvatar);
         }
@@ -81,14 +83,14 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
   // ... (PiConfig 相关的 useEffect 更新为动态获取)
   useEffect(() => {
     const fetchPiConfig = async () => {
-      if (!selectedInstanceId) return;
+      if (!instanceId) return;
       try {
-        const detail = await invoke<any>('get_instance_detail', { id: selectedInstanceId });
+        const detail = await invoke<any>('get_instance_detail', { id: instanceId });
         const customBtns = detail.custom_buttons || [];
-        
+
         if (customBtns.length === 0) {
-           setPiConfig(null);
-           return;
+          setPiConfig(null);
+          return;
         }
 
         const wikiBtn = customBtns.find((b: any) => b.type === 'wiki');
@@ -103,7 +105,7 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
       }
     };
     fetchPiConfig();
-  }, [selectedInstanceId]);
+  }, [instanceId]);
 
   const renderSocialIcon = (type: string) => {
     const IconComp = getButtonIcon(type);
@@ -116,7 +118,7 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
   return (
     <>
       <div className="absolute left-8 bottom-12 flex flex-col space-y-6 z-30">
-        
+
         <div className="flex flex-col space-y-3 mb-2">
           {piConfig?.wiki && (() => {
             const WikiIcon = getButtonIcon('wiki');
@@ -168,23 +170,37 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ playTime, lastPlayed }) =>
           ) : (
             <OreButton focusKey="btn-profile" variant="secondary" size="auto" className="!h-12 !px-3 !justify-start" style={piConfig?.buttonStyle} onClick={() => setIsSidebarOpen(true)} autoScroll={false}>
               {/* ✅ 彻底采用本地图片作为 onerror 断网兜底 */}
-              <img 
-                src={avatarSrc || defaultAvatar} 
+              <img
+                src={avatarSrc || defaultAvatar}
                 onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultAvatar; }}
-                alt="Profile" 
+                alt="Profile"
                 className={`w-7 h-7 mr-3 border border-black/20 shadow-sm transition-opacity duration-300 ${avatarSrc ? 'opacity-100' : 'opacity-30'}`}
-                style={{ imageRendering: 'pixelated' }} 
+                style={{ imageRendering: 'pixelated' }}
               />
               <span className="text-lg tracking-widest leading-none mt-0.5">{t('home.profile')}</span>
             </OreButton>
           )}
         </div>
 
-        <div className="flex flex-col space-y-1 mt-4">
+        <div 
+          key={instanceId}
+          className="flex flex-col space-y-1 mt-4"
+        >
           <span className="text-ore-text-muted text-xs font-bold uppercase tracking-wider">{t('home.playTime')}</span>
-          <span className="text-xl font-minecraft text-white drop-shadow-md">{playTime} {t('home.playTimeUnit')}</span>
+          <span 
+            key={playTime}
+            className="text-xl font-minecraft text-white drop-shadow-md"
+          >
+            {formatPlayTime(playTime, t)}
+          </span>
+          
           <span className="text-ore-text-muted text-xs font-bold uppercase tracking-wider mt-3">{t('home.lastPlayed')}</span>
-          <span className="text-base font-minecraft text-white drop-shadow-md">{lastPlayed}</span>
+          <span 
+            key={lastPlayed}
+            className="text-base font-minecraft text-white drop-shadow-md"
+          >
+            {lastPlayed ? formatRelativeTime(lastPlayed, t) : t('home.neverPlayed', { defaultValue: '从未进行游戏' })}
+          </span>
         </div>
       </div>
 

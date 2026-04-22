@@ -5,13 +5,14 @@ pub mod resolver;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use tauri::{AppHandle, Emitter, Runtime};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
 use crate::domain::instance::InstanceConfig;
 use crate::domain::launcher::{Account, LoaderType};
 use crate::error::{AppError, AppResult};
+use crate::services::playtime::PlaytimeService;
 
 use auth::AuthService;
 use builder::{LaunchCommandBuilder, LaunchPreparationError};
@@ -288,6 +289,12 @@ Module Path Entries: {}\n\
                 .store(pid, std::sync::atomic::Ordering::SeqCst);
         }
 
+        // 🌟 记录游戏时长：启动会话
+        let pool = app.state::<crate::services::db_service::AppDatabase>().pool.clone();
+        if let Err(e) = PlaytimeService::start_session(app, &pool, instance_id, &instance_cfg.name).await {
+            eprintln!("[Playtime] Failed to start session: {}", e);
+        }
+
         let stdout = child.stdout.take().unwrap();
         let stderr = child.stderr.take().unwrap();
 
@@ -331,6 +338,12 @@ Module Path Entries: {}\n\
                 format!("等待游戏进程时发生错误: {}", error),
             )
         })?;
+
+        // 🌟 记录游戏时长：结束会话并持久化
+        let pool = app.state::<crate::services::db_service::AppDatabase>().pool.clone();
+        if let Err(e) = PlaytimeService::finish_session(app, &pool, instance_id).await {
+            eprintln!("[Playtime] Failed to finish session: {}", e);
+        }
 
         let exit_msg = format!("游戏进程已退出，状态: {}", status);
         println!("{}", exit_msg);

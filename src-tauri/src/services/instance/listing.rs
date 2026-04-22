@@ -1,6 +1,8 @@
 // src-tauri/src/services/instance/listing.rs
 use crate::domain::instance::{InstanceConfig, InstanceItem};
 use crate::error::AppResult;
+use crate::services::playtime::PlaytimeService;
+use sqlx::SqlitePool;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Runtime};
@@ -9,7 +11,10 @@ pub struct InstanceListingService;
 
 impl InstanceListingService {
     /// 获取全部实例
-    pub fn get_all<R: Runtime>(app: &AppHandle<R>) -> AppResult<Vec<InstanceItem>> {
+    pub async fn get_all<R: Runtime>(
+        app: &AppHandle<R>,
+        pool: &SqlitePool,
+    ) -> AppResult<Vec<InstanceItem>> {
         let base_path_str = crate::services::config_service::ConfigService::get_base_path(app)?
             .ok_or_else(|| {
                 std::io::Error::new(std::io::ErrorKind::NotFound, "尚未配置基础数据目录")
@@ -31,13 +36,23 @@ impl InstanceListingService {
                 let manifest_path = path.join("instance.json");
                 if let Ok(content) = fs::read_to_string(manifest_path) {
                     if let Ok(m) = serde_json::from_str::<InstanceConfig>(&content) {
+                        let playtime = PlaytimeService::get_overview(app, pool, Some(&id))
+                            .await
+                            .ok()
+                            .and_then(|overview| overview.instance);
+
                         list.push(InstanceItem {
                             id,
                             name: m.name,
                             version: m.mc_version,
                             loader: m.loader.r#type,
-                            play_time: m.play_time,
-                            last_played: m.last_played,
+                            play_time: playtime
+                                .as_ref()
+                                .map(|item| item.total_secs as f64)
+                                .unwrap_or(m.play_time),
+                            last_played: playtime
+                                .and_then(|item| item.last_played_at)
+                                .unwrap_or(m.last_played),
                             cover_path: Self::resolve_cover(&path),
                             gamepad: m.gamepad,
                             tags: m.tags.clone(),
@@ -52,13 +67,14 @@ impl InstanceListingService {
     }
 
     /// 获取与指定游戏版本和引导器兼容的实例
-    pub fn get_compatible<R: Runtime>(
+    pub async fn get_compatible<R: Runtime>(
         app: &AppHandle<R>,
+        pool: &SqlitePool,
         game_versions: Vec<String>,
         loaders: Vec<String>,
         ignore_loader: bool,
     ) -> AppResult<Vec<InstanceItem>> {
-        let all_instances = Self::get_all(app)?;
+        let all_instances = Self::get_all(app, pool).await?;
 
         let filtered = all_instances
             .into_iter()

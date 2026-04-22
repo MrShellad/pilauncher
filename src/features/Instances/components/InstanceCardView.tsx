@@ -10,6 +10,8 @@ import { OreMotionTokens } from '../../../style/tokens/motion';
 import { useAccountStore } from '../../../store/useAccountStore';
 import { useInputMode } from '../../../ui/focus/FocusProvider';
 import { NoAccountModal } from '../../../ui/components/NoAccountModal';
+import { useTranslation } from 'react-i18next';
+import { formatPlayTime } from '../../../utils/formatters';
 
 // ✅ 1. 引入你的超级输入驱动
 import { useInputAction } from '../../../ui/focus/InputDriver';
@@ -40,6 +42,7 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
   const { isLaunching, launchGame } = useGameLaunch();
   const [showNoAccountModal, setShowNoAccountModal] = React.useState(false);
   const inputMode = useInputMode();
+  const { t } = useTranslation();
 
   const handlePlayClick = (e?: React.MouseEvent | React.KeyboardEvent) => {
     if (e) e.stopPropagation();
@@ -149,7 +152,7 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                   {instance.playTime > 0 && (
                     <>
                       <span className="opacity-30">|</span>
-                      <span>{(instance.playTime / 60).toFixed(1)}H</span>
+                      <span>{formatPlayTime(instance.playTime, t)}</span>
                     </>
                   )}
                 </div>

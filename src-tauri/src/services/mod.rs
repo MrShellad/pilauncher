@@ -13,6 +13,7 @@ pub mod library_service;
 pub mod loader_service; // ✅ 新增 loader 模块
 pub mod minecraft_service; // ✅ 新增 minecraft 模块
 pub mod modpack_service; // ✅ 新增 modpack 模块
+pub mod playtime;
 pub mod qrcode_service;
 pub mod resource_service; // ✅ 新增 resource 模块
 pub mod runtime_service; // ✅ 新增 launcher 模块

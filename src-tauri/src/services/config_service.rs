@@ -71,6 +71,14 @@ fn default_chunked_download_min_size_mb() -> u64 {
     32
 }
 
+fn default_playtime_auto_sync() -> bool {
+    true
+}
+
+fn default_playtime_remote_path() -> String {
+    "PiLauncher/playtime".to_string()
+}
+
 impl Default for DownloadSettings {
     fn default() -> Self {
         Self {
@@ -98,6 +106,36 @@ impl Default for DownloadSettings {
             neoforge_source_url: "https://bmclapi2.bangbang93.com/neoforge".to_string(),
             quilt_source: default_quilt_source(),
             quilt_source_url: default_quilt_source_url(),
+        }
+    }
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaytimeSyncSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_playtime_auto_sync")]
+    pub auto_sync: bool,
+    #[serde(default)]
+    pub webdav_url: String,
+    #[serde(default)]
+    pub username: String,
+    #[serde(default)]
+    pub password: String,
+    #[serde(default = "default_playtime_remote_path")]
+    pub remote_path: String,
+}
+
+impl Default for PlaytimeSyncSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            auto_sync: default_playtime_auto_sync(),
+            webdav_url: String::new(),
+            username: String::new(),
+            password: String::new(),
+            remote_path: default_playtime_remote_path(),
         }
     }
 }
@@ -266,6 +304,18 @@ impl ConfigService {
             }
         }
         JavaSettings::default()
+    }
+
+    pub fn get_playtime_sync_settings<R: Runtime>(app: &AppHandle<R>) -> PlaytimeSyncSettings {
+        if let Some(json) = Self::get_settings_json(app) {
+            if let Some(val) = json.pointer("/state/settings/playtimeSync") {
+                if let Ok(s) = serde_json::from_value(val.clone()) {
+                    return s;
+                }
+            }
+        }
+
+        PlaytimeSyncSettings::default()
     }
 
     pub fn get_game_settings<R: Runtime>(app: &AppHandle<R>) -> GameSettings {

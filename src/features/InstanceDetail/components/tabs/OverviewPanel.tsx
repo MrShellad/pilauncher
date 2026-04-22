@@ -14,6 +14,8 @@ import { useAccountStore } from '../../../../store/useAccountStore';
 import { useInputMode } from '../../../../ui/focus/FocusProvider';
 import { NoAccountModal } from '../../../../ui/components/NoAccountModal';
 import defaultCoverUrl from '../../../../assets/instances/default-3.png';
+import { useTranslation } from 'react-i18next';
+import { formatPlayTime, formatRelativeTime } from '../../../../utils/formatters';
 
 interface OverviewPanelProps {
   data: InstanceDetailData;
@@ -38,6 +40,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
 
   const { isLaunching, launchGame } = useGameLaunch();
   const inputMode = useInputMode();
+  const { t } = useTranslation();
 
   const fallbackImages = [defaultCoverUrl];
   const imagesToShow = data.screenshots && data.screenshots.length > 0 ? data.screenshots : fallbackImages;
@@ -206,15 +209,15 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
             {data.name}
           </h1>
           <div className="flex items-center gap-4 mt-1">
-            {data.playTime && (
+            {data.playTime > 0 && (
               <div className="flex items-center gap-1 text-ore-text-muted text-xs font-minecraft">
                 <Clock size={12} />
-                <span>{data.playTime}</span>
+                <span>{formatPlayTime(data.playTime, t)}</span>
               </div>
             )}
             <div className="flex items-center gap-1 text-ore-text-muted text-xs font-minecraft">
               <Calendar size={12} />
-              <span>{data.lastPlayed || '从未游玩'}</span>
+              <span>{data.lastPlayed ? formatRelativeTime(data.lastPlayed, t) : t('home.neverPlayed', { defaultValue: '从未游玩' })}</span>
             </div>
           </div>
         </div>

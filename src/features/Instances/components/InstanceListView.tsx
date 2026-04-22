@@ -9,6 +9,8 @@ import { useGameLaunch } from '../../../hooks/useGameLaunch';
 
 // ✅ 引入空间焦点引擎
 import { FocusItem } from '../../../ui/focus/FocusItem';
+import { useTranslation } from 'react-i18next';
+import { formatPlayTime, formatRelativeTime } from '../../../utils/formatters';
 
 interface InstanceListViewProps {
   instance: InstanceItem;
@@ -18,6 +20,7 @@ interface InstanceListViewProps {
 
 export const InstanceListView: React.FC<InstanceListViewProps> = ({ instance, onClick, onEdit }) => {
   const { isLaunching, launchGame } = useGameLaunch();
+  const { t } = useTranslation();
 
   return (
     <div className="relative flex w-full min-h-[88px] flex-none flex-row bg-[#4B4C50] border-2 border-b-[4px] border-[#1E1E1F] overflow-hidden shadow-md">
@@ -66,8 +69,8 @@ export const InstanceListView: React.FC<InstanceListViewProps> = ({ instance, on
             <div className="absolute top-0 left-0 w-full h-[1px] bg-white/10 pointer-events-none" />
             <span className="text-white font-minecraft text-xl truncate drop-shadow-md">{instance.name}</span>
             <div className="flex items-center text-[#A0A0A0] font-minecraft text-xs mt-1.5 space-x-2 truncate">
-              <span>{instance.lastPlayed}</span>
-              {instance.playTime > 0 && <><span className="opacity-40">|</span><span>{(instance.playTime / 60).toFixed(1)}h</span></>}
+              <span>{instance.lastPlayed ? formatRelativeTime(instance.lastPlayed, t) : t('home.neverPlayed', { defaultValue: '从未进行游戏' })}</span>
+              {instance.playTime > 0 && <><span className="opacity-40">|</span><span>{formatPlayTime(instance.playTime, t)}</span></>}
             </div>
           </div>
         )}

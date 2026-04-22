@@ -52,7 +52,8 @@ const formatInstances = (data: any[]): InstanceItem[] =>
 export type SortType = 'lastPlayed' | 'createdAt';
 
 export const useInstances = () => {
-  const [instances, setInstances] = useState<InstanceItem[]>([]);
+  const instances = useLauncherStore((state) => state.instances as InstanceItem[]);
+  const setInstancesStore = useLauncherStore((state) => state.setInstances);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<SortType>('lastPlayed');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -63,11 +64,11 @@ export const useInstances = () => {
   const loadInstances = useCallback(async () => {
     try {
       const data = await invoke<any[]>('get_all_instances');
-      setInstances(formatInstances(data));
+      setInstancesStore(formatInstances(data));
     } catch (error) {
       console.error('加载实例列表失败:', error);
     }
-  }, []);
+  }, [setInstancesStore]);
 
   useEffect(() => {
     void loadInstances();

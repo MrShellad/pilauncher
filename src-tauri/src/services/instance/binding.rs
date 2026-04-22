@@ -1,6 +1,7 @@
 use crate::domain::instance::{InstanceBindingState, InstanceConfig, ServerBinding};
 use crate::error::AppResult;
 use crate::services::config_service::ConfigService;
+use crate::services::playtime::PlaytimeService;
 use sqlx::{Row, SqlitePool};
 use std::collections::HashMap;
 use std::fs;
@@ -60,11 +61,12 @@ impl InstanceBindingService {
                 tags,
                 last_played_at,
                 playtime_secs,
+                pending_delta,
                 jvm_args,
                 window_width,
                 window_height,
                 is_favorite
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 name = excluded.name,
                 mc_version = excluded.mc_version,
@@ -75,8 +77,18 @@ impl InstanceBindingService {
                 max_memory = excluded.max_memory,
                 icon_path = excluded.icon_path,
                 tags = excluded.tags,
-                last_played_at = excluded.last_played_at,
-                playtime_secs = excluded.playtime_secs,
+                last_played_at = CASE
+                    WHEN (instances.last_played_at IS NULL OR trim(instances.last_played_at) = '')
+                         AND excluded.last_played_at IS NOT NULL
+                    THEN excluded.last_played_at
+                    ELSE instances.last_played_at
+                END,
+                playtime_secs = CASE
+                    WHEN COALESCE(instances.playtime_secs, 0) = 0 AND excluded.playtime_secs > 0
+                    THEN excluded.playtime_secs
+                    ELSE instances.playtime_secs
+                END,
+                pending_delta = COALESCE(instances.pending_delta, 0),
                 jvm_args = excluded.jvm_args,
                 window_width = excluded.window_width,
                 window_height = excluded.window_height,
@@ -93,8 +105,9 @@ impl InstanceBindingService {
         .bind(config.memory.max as i64)
         .bind(config.cover_image.as_deref())
         .bind(tags_json)
-        .bind(&config.last_played)
-        .bind(config.play_time as i64)
+        .bind(PlaytimeService::normalize_last_played(Some(&config.last_played)))
+        .bind(config.play_time.max(0.0).round() as i64)
+        .bind(0i64)
         .bind(config.jvm_args.as_deref())
         .bind(config.window_width.map(|w| w as i64))
         .bind(config.window_height.map(|h| h as i64))

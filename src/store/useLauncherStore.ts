@@ -54,6 +54,9 @@ interface LauncherState {
   currentInstance: InstanceData | null;
   setInstance: (instance: InstanceData | null) => void;
 
+  instances: any[];
+  setInstances: (instances: any[]) => void;
+
   selectedInstanceId: string | null;
   setSelectedInstanceId: (id: string | null) => void;
 
@@ -98,6 +101,9 @@ export const useLauncherStore = create<LauncherState>()(
       lastPlayed: '2026-02-23',
     },
     setInstance: (instance) => set({ currentInstance: instance }),
+
+    instances: [],
+    setInstances: (instances) => set({ instances }),
 
     selectedInstanceId: null,
     setSelectedInstanceId: (id) => set({ selectedInstanceId: id }),
