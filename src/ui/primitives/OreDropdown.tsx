@@ -213,9 +213,10 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
     const triggerRect = triggerRef.current.getBoundingClientRect();
     const panelHeight = panelRef.current.offsetHeight;
     const panelWidth = panelRef.current.offsetWidth || PANEL_WIDTH_FALLBACK;
-    const availableBelow = window.innerHeight - triggerRect.top;
-    const availableAbove = triggerRect.bottom;
-    setPlacement(panelHeight > availableBelow && availableAbove > availableBelow ? 'top' : 'bottom');
+    const availableBelow = window.innerHeight - triggerRect.bottom;
+    const availableAbove = triggerRect.top;
+    const isSpaceShort = availableBelow < 160;
+    setPlacement((panelHeight > availableBelow || isSpaceShort) && availableAbove > availableBelow ? 'top' : 'bottom');
     setAlignRight(triggerRect.left + panelWidth > window.innerWidth && triggerRect.right - panelWidth >= 0);
   }, [filteredOptions.length, isOpen, options.length, searchTerm, searchable]);
 

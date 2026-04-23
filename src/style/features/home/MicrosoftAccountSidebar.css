@@ -1,0 +1,260 @@
+@tailwind components;
+
+@layer components {
+  .ore-ms-sidebar-overlay {
+    background-color: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(4px);
+  }
+
+  .ore-ms-sidebar-shell {
+    border-right: 2px solid #1e1e1f;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 20%),
+      linear-gradient(180deg, #4b4c4e 0%, #3d3e40 11%, #2f3032 100%);
+    box-shadow:
+      inset 2px 0 rgba(255, 255, 255, 0.16),
+      inset 0 -4px rgba(0, 0, 0, 0.35),
+      0 22px 52px rgba(0, 0, 0, 0.58);
+    color: #e6e8eb;
+  }
+
+  .ore-ms-sidebar-scroll {
+    background: linear-gradient(180deg, rgba(17, 17, 18, 0.22), rgba(17, 17, 18, 0) 34%);
+  }
+
+  .ore-ms-transfer-column {
+    min-height: 0;
+  }
+
+  .ore-ms-transfer-panel {
+    border-color: #1e1e1f;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 24%),
+      #313233;
+    box-shadow: inset 0 2px rgba(255, 255, 255, 0.14), inset 0 -4px rgba(0, 0, 0, 0.34);
+  }
+
+  .ore-ms-transfer-header {
+    border-bottom-color: #1e1e1f;
+    background-color: #48494a;
+    box-shadow: inset 0 2px rgba(255, 255, 255, 0.14), inset 0 -3px rgba(0, 0, 0, 0.28);
+  }
+
+  .ore-ms-transfer-title {
+    color: #ffffff;
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+  }
+
+  .ore-ms-transfer-meta {
+    color: #d0d1d4;
+  }
+
+  .ore-ms-back-btn {
+    @apply rounded-sm;
+    display: inline-flex;
+    height: 32px;
+    width: 32px;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #1e1e1f;
+    background: #d0d1d4;
+    color: #111112;
+    transition: none;
+    box-shadow:
+      inset 0 -4px #58585a,
+      inset 2px 2px rgba(255, 255, 255, 0.6),
+      inset -2px -6px rgba(255, 255, 255, 0.35);
+  }
+
+  .ore-ms-back-btn:hover {
+    background: #b1b2b5;
+  }
+
+  .ore-ms-back-btn:active {
+    transform: translateY(2px);
+    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.5), inset -2px -3px rgba(255, 255, 255, 0.22);
+  }
+
+  .ore-ms-back-btn.is-focused {
+    outline: 2px solid var(--ore-focus-ringFallback);
+    outline: 2px solid var(--ore-focus-ring);
+    outline-offset: 2px;
+    filter: brightness(1.08);
+  }
+
+  .ore-ms-transfer-timeline {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0) 30%),
+      repeating-linear-gradient(
+        0deg,
+        rgba(255, 255, 255, 0.03),
+        rgba(255, 255, 255, 0.03) 1px,
+        transparent 1px,
+        transparent 14px
+      ),
+      #2c2d2e;
+  }
+
+  .ore-ms-empty-state {
+    border: 2px dashed #6d6d6e;
+    background: rgba(30, 30, 31, 0.58);
+    color: #b1b2b5;
+  }
+
+  .ore-ms-transfer-bubble {
+    border-color: #1e1e1f;
+    box-shadow: inset 0 2px rgba(255, 255, 255, 0.08), inset 0 -3px rgba(0, 0, 0, 0.34);
+  }
+
+  .ore-ms-transfer-bubble-outgoing {
+    background:
+      linear-gradient(180deg, rgba(166, 196, 255, 0.42), rgba(140, 179, 255, 0.2) 32%),
+      #2e6be5;
+  }
+
+  .ore-ms-transfer-bubble-incoming {
+    background: #48494a;
+  }
+
+  .ore-ms-inline-progress > div:first-child {
+    border-color: #1e1e1f;
+    background: #58585a;
+    box-shadow: inset 0 -4px #333334;
+  }
+
+  .ore-ms-inline-progress > div:last-child {
+    color: #d0d1d4 !important;
+  }
+
+  .ore-ms-transfer-footer {
+    border-top-color: #1e1e1f;
+    background: #3f4042;
+    box-shadow: inset 0 2px rgba(255, 255, 255, 0.12), inset 0 -3px rgba(0, 0, 0, 0.3);
+  }
+
+  .ore-ms-transfer-footer label {
+    color: #e6e8eb;
+    letter-spacing: 0.04em;
+    font-family: 'Minecraft Five Bold', 'Minecraft Seven', sans-serif;
+  }
+
+  .ore-ms-transfer-type-btn {
+    @apply flex-1 rounded-sm border px-3 py-2 text-sm font-minecraft;
+    border-color: #1e1e1f;
+    background: #d0d1d4;
+    color: #111112;
+    transition: none;
+    box-shadow:
+      inset 0 -4px #58585a,
+      inset 2px 2px rgba(255, 255, 255, 0.6),
+      inset -2px -6px rgba(255, 255, 255, 0.35);
+  }
+
+  .ore-ms-transfer-type-btn:hover {
+    background: #b1b2b5;
+  }
+
+  .ore-ms-transfer-type-btn:active {
+    transform: translateY(2px);
+    box-shadow: inset 2px 2px rgba(255, 255, 255, 0.48), inset -2px -3px rgba(255, 255, 255, 0.2);
+  }
+
+  .ore-ms-transfer-type-btn.is-active-instance {
+    background: #8cb3ff;
+    color: #111112;
+    box-shadow:
+      inset 0 -4px #4863a3,
+      inset 2px 2px rgba(255, 255, 255, 0.45),
+      inset -2px -6px rgba(255, 255, 255, 0.22);
+  }
+
+  .ore-ms-transfer-type-btn.is-active-save {
+    background: #6cc349;
+    color: #111112;
+    box-shadow:
+      inset 0 -4px #2f7d1c,
+      inset 2px 2px rgba(255, 255, 255, 0.32),
+      inset -2px -6px rgba(255, 255, 255, 0.16);
+  }
+
+  .ore-ms-transfer-type-btn.is-focused {
+    outline: 2px solid var(--ore-focus-ringFallback);
+    outline: 2px solid var(--ore-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .ore-ms-dropdown {
+    min-height: 40px;
+  }
+
+  .ore-ms-dropdown .ore-dropdown-trigger {
+    background: #e6e8eb;
+    border-color: #1e1e1f;
+    color: #111112;
+    box-shadow:
+      inset 0 -4px #58585a,
+      inset 3px 3px rgba(255, 255, 255, 0.65),
+      inset -3px -7px rgba(255, 255, 255, 0.45);
+  }
+
+  .ore-ms-dropdown .ore-dropdown-trigger:hover:not(:disabled):not(.is-open) {
+    background: #d0d1d4;
+    box-shadow:
+      inset 0 -4px #58585a,
+      inset 3px 3px rgba(255, 255, 255, 0.78),
+      inset -3px -7px rgba(255, 255, 255, 0.56);
+  }
+
+  .ore-ms-dropdown .ore-dropdown-trigger.is-open {
+    background: #d0d1d4;
+  }
+
+  .ore-ms-dropdown .ore-dropdown-trigger__prefix,
+  .ore-ms-dropdown .ore-dropdown-trigger__label,
+  .ore-ms-dropdown .ore-dropdown-trigger__arrow {
+    color: #111112;
+  }
+
+  .ore-ms-dropdown .ore-dropdown-trigger__label {
+    font-family: 'NotoSans Bold', sans-serif;
+  }
+
+  .ore-ms-dropdown .ore-dropdown-trigger__label.is-placeholder,
+  .ore-ms-dropdown .ore-dropdown-trigger__arrow.is-placeholder,
+  .ore-ms-dropdown .ore-dropdown-trigger__arrow.is-disabled {
+    color: #48494a;
+  }
+
+  .ore-ms-dropdown .ore-dropdown-panel {
+    box-shadow:
+      inset 2px 0 #8c8d90,
+      inset -2px 0 #8c8d90,
+      inset 0 2px #8c8d90,
+      inset 0 -2px #8c8d90,
+      0 18px 44px rgba(0, 0, 0, 0.75);
+  }
+
+  .ore-ms-active-progress {
+    border-color: #1e1e1f;
+    background: rgba(17, 17, 18, 0.34);
+    box-shadow: inset 0 2px rgba(255, 255, 255, 0.09);
+  }
+
+  .ore-ms-transfer-tip {
+    color: #d0d1d4;
+    line-height: 1.5;
+  }
+
+  .ore-ms-placeholder {
+    border-color: #58585a;
+    border-style: dashed;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 26%),
+      #2c2d2e;
+    box-shadow: inset 0 2px rgba(255, 255, 255, 0.08), inset 0 -3px rgba(0, 0, 0, 0.3);
+  }
+
+  .ore-ms-placeholder-content {
+    color: #d0d1d4;
+  }
+}

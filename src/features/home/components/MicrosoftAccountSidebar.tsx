@@ -17,8 +17,11 @@ import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { useInputAction } from '../../../ui/focus/InputDriver';
 import { OreButton } from '../../../ui/primitives/OreButton';
+import { OreDropdown } from '../../../ui/primitives/OreDropdown';
 import { OreModal } from '../../../ui/primitives/OreModal';
+import { OreProgressBar } from '../../../ui/primitives/OreProgressBar';
 import defaultAvatar from '../../../assets/home/account/128.png';
+import '../../../style/features/home/MicrosoftAccountSidebar.css';
 import { LanRadar } from './AccountSliderBar/LanRadar';
 import { UserProfileCard } from './AccountSliderBar/UserProfileCard';
 
@@ -104,6 +107,9 @@ const getProgressPercent = (progress?: TransferProgressEvent | null) => {
   return 0;
 };
 
+const transferDropdownClassName =
+  'w-full ore-ms-dropdown';
+
 const upsertRecord = (list: TransferRecord[], record: TransferRecord) => {
   const next = list.filter((item) => item.transferId !== record.transferId);
   next.push(record);
@@ -184,6 +190,12 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
     }
     return entries[entries.length - 1];
   }, [progressMap, transferTarget]);
+
+  const instanceOptions = useMemo(
+    () => instances.map((instance) => ({ label: instance.name, value: instance.id })),
+    [instances],
+  );
+  const saveOptions = useMemo(() => saves.map((save) => ({ label: save, value: save })), [saves]);
 
   const handleCycleAccount = () => {
     if (accounts.length <= 1) {
@@ -443,7 +455,7 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 cursor-pointer bg-black/60 backdrop-blur-sm"
+              className="ore-ms-sidebar-overlay absolute inset-0 cursor-pointer"
               onClick={handleClose}
             />
 
@@ -453,9 +465,9 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
               exit={{ x: '-100%', opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               onAnimationComplete={() => setFocus('account-sidebar-boundary')}
-              className="absolute left-0 top-0 bottom-0 flex w-full flex-col border-r-2 border-[#2A2A2C] bg-[#18181B] shadow-2xl md:w-[85vw] lg:w-[75vw] xl:w-[1000px]"
+              className="ore-ms-sidebar-shell absolute left-0 top-0 bottom-0 flex w-full flex-col md:w-[85vw] lg:w-[75vw] xl:w-[1000px]"
             >
-              <div className="custom-scrollbar flex h-full flex-col overflow-y-auto p-6">
+              <div className="custom-scrollbar ore-ms-sidebar-scroll flex h-full flex-col overflow-y-auto p-6">
                 <div className="mb-6 flex flex-1 flex-col gap-6 sm:flex-row">
                   <div className="flex w-full flex-shrink-0 flex-col gap-6 sm:w-[320px]">
                     <UserProfileCard
@@ -484,7 +496,7 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
                     />
                   </div>
 
-                  <div className="hidden min-w-0 flex-1 flex-col sm:flex">
+                  <div className="ore-ms-transfer-column hidden min-w-0 flex-1 flex-col sm:flex">
                     <AnimatePresence mode="wait">
                       {transferTarget ? (
                         <motion.div
@@ -492,15 +504,15 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
-                          className="flex h-full flex-col overflow-hidden rounded-sm border-[2px] border-[#313233] bg-[#1E1E1F]"
+                          className="ore-ms-transfer-panel flex h-full flex-col rounded-sm border-[2px]"
                         >
-                          <div className="flex items-center justify-between border-b-2 border-[#2A2A2C] bg-[#141415] p-4">
+                          <div className="ore-ms-transfer-header flex items-center justify-between border-b-2 p-4 rounded-t-[inherit]">
                             <div>
-                              <h3 className="flex items-center text-base font-bold text-white font-minecraft">
+                              <h3 className="ore-ms-transfer-title flex items-center text-base font-bold font-minecraft">
                                 <Send size={16} className="mr-2 text-blue-400" />
                                 隔空投送会话
                               </h3>
-                              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                              <div className="ore-ms-transfer-meta mt-1 flex flex-wrap items-center gap-2 text-xs">
                                 <span>{selectedFriend?.username || transferTarget.device_name}</span>
                                 <span>{selectedTargetOnline ? '在线' : '离线'}</span>
                                 <span>{transferTarget.ip}</span>
@@ -517,9 +529,7 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
                                 <button
                                   ref={ref as any}
                                   onClick={() => setTransferTarget(null)}
-                                  className={`rounded-sm p-1.5 text-gray-400 transition-colors hover:bg-white/10 ${
-                                    focused ? 'ring-2 ring-white' : ''
-                                  }`}
+                                  className={`ore-ms-back-btn ${focused ? 'is-focused' : ''}`}
                                 >
                                   <ArrowLeft size={18} />
                                 </button>
@@ -529,10 +539,10 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
 
                           <div
                             ref={timelineRef}
-                            className="custom-scrollbar flex-1 space-y-4 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.12),_transparent_40%)] p-4"
+                            className="custom-scrollbar ore-ms-transfer-timeline flex-1 space-y-4 overflow-y-auto p-4"
                           >
                             {transferHistory.length === 0 && (
-                              <div className="flex h-full items-center justify-center rounded-sm border border-dashed border-white/10 bg-black/20 p-6 text-center text-sm text-gray-500">
+                              <div className="ore-ms-empty-state flex h-full items-center justify-center rounded-sm p-6 text-center text-sm">
                                 暂无和这台设备的投送记录。发送一个实例或存档后，这里会按聊天时间线展示状态。
                               </div>
                             )}
@@ -551,14 +561,14 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
                                   className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}
                                 >
                                   <div
-                                    className={`max-w-[85%] rounded-2xl border px-4 py-3 ${
+                                    className={`ore-ms-transfer-bubble max-w-[85%] rounded-2xl border px-4 py-3 ${
                                       isOutgoing
-                                        ? 'border-blue-500/25 bg-blue-500/10 text-white'
-                                        : 'border-white/10 bg-white/5 text-gray-100'
+                                        ? 'ore-ms-transfer-bubble-outgoing text-white'
+                                        : 'ore-ms-transfer-bubble-incoming text-gray-100'
                                     }`}
                                   >
                                     <div className="mb-2 flex items-center justify-between gap-3">
-                                      <span className="text-[11px] text-gray-400">
+                                      <span className="text-[11px] text-[#D0D1D4]">
                                         {actor}
                                         {isOutgoing ? ' 在 ' : ' 于 '}
                                         {formatTimestamp(record.createdAt)}
@@ -576,22 +586,15 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
 
                                     {progress && (
                                       <div className="mt-3">
-                                        <div className="mb-1 flex items-center justify-between text-[11px] text-gray-400">
-                                          <span>{progress.message}</span>
-                                          <span>{percent}%</span>
-                                        </div>
-                                        <div className="h-2 overflow-hidden rounded-full bg-white/10">
-                                          <div
-                                            className={`h-full transition-all ${
-                                              progress.status === 'failed'
-                                                ? 'bg-red-400'
-                                                : progress.status === 'rejected'
-                                                  ? 'bg-amber-300'
-                                                  : 'bg-blue-400'
-                                            }`}
-                                            style={{ width: `${percent}%` }}
-                                          />
-                                        </div>
+                                        <OreProgressBar
+                                          percent={percent}
+                                          label={
+                                            <span className="truncate normal-case tracking-normal text-gray-300">
+                                              {progress.message}
+                                            </span>
+                                          }
+                                          className="ore-ms-inline-progress !space-y-1 !px-0 [&>div:last-child]:!text-[11px] [&>div:last-child]:!font-medium [&>div:last-child]:!tracking-normal [&>div:last-child]:!normal-case"
+                                        />
                                       </div>
                                     )}
 
@@ -606,18 +609,16 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
                             })}
                           </div>
 
-                          <div className="border-t-2 border-[#2A2A2C] bg-[#141415] p-4">
+                          <div className="ore-ms-transfer-footer border-t-2 p-4 rounded-b-[inherit]">
                             <div className="mb-3 flex gap-2">
                               <FocusItem focusKey="btn-transfer-type-instance">
                                 {({ ref, focused }) => (
                                   <button
                                     ref={ref as any}
                                     onClick={() => setTransferType('instance')}
-                                    className={`flex-1 rounded-sm border px-3 py-2 text-sm font-minecraft transition-colors ${
-                                      transferType === 'instance'
-                                        ? 'border-blue-500/30 bg-blue-500/10 text-blue-300'
-                                        : 'border-white/10 bg-white/5 text-gray-400'
-                                    } ${focused ? 'ring-2 ring-white' : ''}`}
+                                    className={`ore-ms-transfer-type-btn ${
+                                      transferType === 'instance' ? 'is-active-instance' : ''
+                                    } ${focused ? 'is-focused' : ''}`}
                                   >
                                     发送实例
                                   </button>
@@ -629,11 +630,9 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
                                   <button
                                     ref={ref as any}
                                     onClick={() => setTransferType('save')}
-                                    className={`flex-1 rounded-sm border px-3 py-2 text-sm font-minecraft transition-colors ${
-                                      transferType === 'save'
-                                        ? 'border-green-500/30 bg-green-500/10 text-green-300'
-                                        : 'border-white/10 bg-white/5 text-gray-400'
-                                    } ${focused ? 'ring-2 ring-white' : ''}`}
+                                    className={`ore-ms-transfer-type-btn ${
+                                      transferType === 'save' ? 'is-active-save' : ''
+                                    } ${focused ? 'is-focused' : ''}`}
                                   >
                                     发送存档
                                   </button>
@@ -644,74 +643,47 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
                             <div className="grid gap-3 md:grid-cols-2">
                               <div>
                                 <label className="mb-2 block text-xs text-gray-400">选择实例</label>
-                                <FocusItem focusKey="select-transfer-inst">
-                                  {({ ref, focused }) => (
-                                    <select
-                                      ref={ref as any}
-                                      className={`w-full rounded-sm border-2 border-[#2A2A2C] bg-[#101011] p-2 text-white outline-none ${
-                                        focused ? 'ring-2 ring-blue-500' : ''
-                                      }`}
-                                      value={selectedInstance}
-                                      onChange={(event) => setSelectedInstance(event.target.value)}
-                                    >
-                                      <option value="" disabled>
-                                        -- 请选择实例 --
-                                      </option>
-                                      {instances.map((instance) => (
-                                        <option key={instance.id} value={instance.id}>
-                                          {instance.name}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  )}
-                                </FocusItem>
+                                <OreDropdown
+                                  focusKey="select-transfer-inst"
+                                  options={instanceOptions}
+                                  value={selectedInstance}
+                                  onChange={setSelectedInstance}
+                                  disabled={instanceOptions.length === 0}
+                                  className={transferDropdownClassName}
+                                />
                               </div>
 
                               {transferType === 'save' && (
                                 <div>
                                   <label className="mb-2 block text-xs text-gray-400">选择存档</label>
-                                  <FocusItem focusKey="select-transfer-save">
-                                    {({ ref, focused }) => (
-                                      <select
-                                        ref={ref as any}
-                                        className={`w-full rounded-sm border-2 border-[#2A2A2C] bg-[#101011] p-2 text-white outline-none ${
-                                          focused ? 'ring-2 ring-green-500' : ''
-                                        }`}
-                                        value={selectedSave}
-                                        onChange={(event) => setSelectedSave(event.target.value)}
-                                      >
-                                        <option value="" disabled>
-                                          -- 请选择存档 --
-                                        </option>
-                                        {saves.map((save) => (
-                                          <option key={save} value={save}>
-                                            {save}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    )}
-                                  </FocusItem>
+                                  <OreDropdown
+                                    focusKey="select-transfer-save"
+                                    options={saveOptions}
+                                    value={selectedSave}
+                                    onChange={setSelectedSave}
+                                    disabled={saveOptions.length === 0}
+                                    className={transferDropdownClassName}
+                                  />
                                 </div>
                               )}
                             </div>
 
                             {activeProgress && (
-                              <div className="mt-3 rounded-sm border border-white/10 bg-white/5 p-3">
-                                <div className="mb-1 flex items-center justify-between text-xs text-gray-300">
-                                  <span>{activeProgress.message}</span>
-                                  <span>{getProgressPercent(activeProgress)}%</span>
-                                </div>
-                                <div className="h-2 overflow-hidden rounded-full bg-black/30">
-                                  <div
-                                    className="h-full bg-blue-400 transition-all"
-                                    style={{ width: `${getProgressPercent(activeProgress)}%` }}
-                                  />
-                                </div>
+                              <div className="ore-ms-active-progress mt-3 rounded-sm border p-3">
+                                <OreProgressBar
+                                  percent={getProgressPercent(activeProgress)}
+                                  label={
+                                    <span className="truncate normal-case tracking-normal text-gray-300">
+                                      {activeProgress.message}
+                                    </span>
+                                  }
+                                  className="ore-ms-inline-progress !space-y-1 !px-0 [&>div:last-child]:!text-xs [&>div:last-child]:!font-medium [&>div:last-child]:!tracking-normal [&>div:last-child]:!normal-case"
+                                />
                               </div>
                             )}
 
                             <div className="mt-4 flex items-center gap-3">
-                              <div className="flex-1 text-xs text-gray-500">
+                              <div className="ore-ms-transfer-tip flex-1 text-xs">
                                 {selectedTargetOnline
                                   ? '接收端在线，可以直接开始打包并投送。'
                                   : '设备当前离线，无法发起投送。'}
@@ -743,9 +715,9 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
-                          className="flex h-full flex-col items-center justify-center rounded-sm border-[2px] border-dashed border-[#313233] bg-[#1E1E1F]/50"
+                          className="ore-ms-placeholder flex h-full flex-col items-center justify-center rounded-sm border-[2px]"
                         >
-                          <div className="flex max-w-[320px] flex-col items-center text-center text-gray-500 font-minecraft">
+                          <div className="ore-ms-placeholder-content flex max-w-[320px] flex-col items-center text-center font-minecraft">
                             <span className="mb-4 text-4xl opacity-50">⌁</span>
                             <p className="mb-2 text-lg text-gray-300">隔空投送时间线</p>
                             <p className="text-xs leading-relaxed opacity-70">
