@@ -460,7 +460,11 @@
       },
       "language": {
         "label": "Launcher Language",
-        "description": "Change the display language. Fully applied after restart."
+        "description": "Change the display language. Fully applied after restart.",
+        "options": {
+          "zhCN": "简体中文",
+          "enUS": "English"
+        }
       },
       "checkUpdate": {
         "label": "Check for Updates",
@@ -476,7 +480,11 @@
       },
       "closeBehavior": {
         "label": "Close Button Behavior",
-        "description": "Action when clicking the 'X' button."
+        "description": "Action when clicking the 'X' button.",
+        "options": {
+          "tray": "Minimize to Tray",
+          "exit": "Exit Application"
+        }
       },
       "preventTouchAction": {
         "label": "Prevent Touch Action",
@@ -645,7 +653,9 @@
       "fontFamily": "Global Font",
       "fontFamilyDesc": "Main font for launcher. Fallbacks to Minecraft font if not supported.",
       "maskGradient": "Enable Bottom Gradient",
-      "maskGradientDesc": "Add a black gradient at bottom to improve text/nav readability."
+      "maskGradientDesc": "Add a black gradient at bottom to improve text/nav readability.",
+      "customColor": "Custom Color",
+      "defaultFont": "Default (Minecraft)"
     },
     "game": {
       "sections": {
@@ -661,7 +671,32 @@
       "showLog": "Game Log Panel",
       "showLogDesc": "Expand console with logs during startup until loading is finished.",
       "visibility": "Visibility during Game Runtime",
-      "visibilityDesc": "Action after Minecraft instance is successfully launched."
+      "visibilityDesc": "Action after Minecraft instance is successfully launched.",
+      "resolutions": {
+        "standard": "854x480",
+        "hd": "1280x720",
+        "laptop": "1366x768",
+        "widescreen": "1600x900",
+        "fhd": "1080p",
+        "qhd": "2K",
+        "uhd": "4K",
+        "native": "Native",
+        "nativeDesc": "Automatically detected physical monitor resolution"
+      },
+      "visibilityOptions": {
+        "keep": {
+          "label": "Keep Window Open",
+          "desc": "Launcher stays as is, convenient for logs or management."
+        },
+        "minimize": {
+          "label": "Auto-Minimize to Tray",
+          "desc": "Hide UI to save resources, auto-restore after game exit."
+        },
+        "close": {
+          "label": "Close Launcher Directly",
+          "desc": "Maximize performance, but requires manual restart later."
+        }
+      }
     },
     "download": {
       "sections": {
@@ -757,7 +792,21 @@
       "noThirdParty": "No external instances found",
       "thirdPartyList": "Linked Third-Party Folders",
       "thirdPartyListDesc1": "Scanned during startup. Removal doesn't delete local data.",
-      "thirdPartyListDesc2": "These external folders are managed by PiLauncher too."
+      "thirdPartyListDesc2": "These external folders are managed by PiLauncher too.",
+      "removedCountSuccess": "Unlinked and cleaned {{count}} related imported instance data.",
+      "success": "Success",
+      "failed": "Removal failed: {{error}}",
+      "error": "Error",
+      "migrateConfirm": "Would you like to move all game data (instances, configs, etc.) from the current directory to the new one?\n\nSelect [Yes] to move all data.\nSelect [No] to only copy the basic configuration file (settings.json), keeping old data.",
+      "migrateTitle": "Data Migration Confirmation",
+      "migrateSuccess": "Data directory migration successful! To ensure normal game operation, PiLauncher will exit. Please restart the launcher.",
+      "migrateSuccessTitle": "Migration Successful",
+      "migrateError": "Error during directory modification: {{error}}",
+      "migrateErrorTitle": "Migration Failed",
+      "renameSuccess": "Rename successful! To ensure everything is normal, the launcher will exit. Please restart.",
+      "renameError": "Rename failed: {{error}}",
+      "renameSuccessTitle": "Success",
+      "renameErrorTitle": "Error"
     },
     "about": {
       "sections": {
@@ -769,7 +818,22 @@
       "scanOrA": "Scan or press A",
       "thanks": "Thanks to all our sponsors",
       "thanksDesc": "Because of your support, PiLauncher can continue to improve. You can sponsor us via AfDian above.",
-      "emptySeat": "Awaiting..."
+      "emptySeat": "Awaiting...",
+      "links": {
+        "github": {
+          "title": "Project GitHub",
+          "desc": "Open source, PRs and Issues welcome"
+        },
+        "bilibili": {
+          "title": "Author Bilibili",
+          "desc": "Follow the author for development updates"
+        },
+        "afdian": {
+          "title": "AfDian",
+          "desc": "Sponsor development and support maintenance"
+        }
+      },
+      "anonymous": "Anonymous"
     },
     "tabs": {
       "general": "General",

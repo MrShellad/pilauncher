@@ -35,21 +35,23 @@ export const TaskPanel = ({ isOpen, onClose, taskList, setActiveTab, removeTask 
               className="shrink-0 border-b-[0.125rem] border-[var(--ore-border-color)] bg-[var(--ore-modal-header-bg)] px-[1rem] py-[0.75rem]"
               style={{ boxShadow: 'var(--ore-modal-header-shadow)' }}
             >
-              <div className="flex min-w-0 items-center gap-[0.5rem]">
-                <Download className="h-[1.125rem] w-[1.125rem] shrink-0 text-[var(--ore-btn-primary-bg)]" />
-                <h3 className="truncate font-minecraft text-[clamp(1rem,1.5vw,1.125rem)] text-[var(--ore-modal-header-text)] ore-text-shadow">
-                  下载任务管理
-                </h3>
-              </div>
+              <div className="flex items-center justify-between gap-[0.75rem]">
+                <div className="flex min-w-0 items-center gap-[0.5rem]">
+                  <Download className="h-[1.125rem] w-[1.125rem] shrink-0 text-[var(--ore-btn-primary-bg)]" />
+                  <h3 className="truncate font-minecraft text-[clamp(1rem,1.5vw,1.125rem)] text-[var(--ore-modal-header-text)] ore-text-shadow">
+                    下载任务管理
+                  </h3>
+                </div>
 
-              <div className="mt-[0.5rem] flex flex-wrap items-center gap-[0.5rem] text-[clamp(0.75rem,1vw,0.8125rem)] font-minecraft uppercase tracking-[0.12em] text-[var(--ore-color-text-secondary-default)]">
-                <span
-                  className="inline-flex items-center border-[0.125rem] border-[var(--ore-border-color)] bg-[var(--ore-color-background-success-default)] px-[0.5rem] py-[0.1875rem] text-[var(--ore-color-text-onLight-default)]"
-                  style={{ boxShadow: 'var(--ore-shadow-success-default)' }}
-                >
-                  {activeTasksCount} 进行中
-                </span>
-                <span>{taskList.length} 个任务</span>
+                <div className="flex shrink-0 items-center gap-[0.5rem] text-[clamp(0.75rem,1vw,0.8125rem)] font-minecraft uppercase tracking-[0.12em] text-[var(--ore-color-text-secondary-default)]">
+                  <span
+                    className="inline-flex items-center border-[0.125rem] border-[var(--ore-border-color)] bg-[var(--ore-color-background-success-default)] px-[0.5rem] py-[0.1875rem] text-[var(--ore-color-text-onLight-default)]"
+                    style={{ boxShadow: 'var(--ore-shadow-success-default)' }}
+                  >
+                    {activeTasksCount} 进行中
+                  </span>
+                  <span>{taskList.length} 个任务</span>
+                </div>
               </div>
             </div>
 

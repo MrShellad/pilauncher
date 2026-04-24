@@ -91,22 +91,22 @@ export const AboutSettings: React.FC = () => {
   const links = [
     {
       id: 'github',
-      title: '项目 GitHub',
-      desc: '开源地址，欢迎提交 PR 与 Issue',
+      title: t('settings.about.links.github.title'),
+      desc: t('settings.about.links.github.desc'),
       url: 'https://github.com/MrShellad/pilauncher',
       icon: <Github size={20} className="text-white" />
     },
     {
       id: 'bilibili',
-      title: '作者 Bilibili',
-      desc: '关注作者，获取最新开发动态',
+      title: t('settings.about.links.bilibili.title'),
+      desc: t('settings.about.links.bilibili.desc'),
       url: 'https://space.bilibili.com/6221851',
       icon: <Tv size={20} className="text-[#00AEEC]" />
     },
     {
       id: 'afdian',
-      title: '爱发电',
-      desc: '赞助开发，支持本项目持续维护',
+      title: t('settings.about.links.afdian.title'),
+      desc: t('settings.about.links.afdian.desc'),
       url: 'https://ifdian.net/u/f60602b4004811eea0bf52540025c377',
       icon: <Zap size={20} className="text-[#946ce6]" />
     }
@@ -116,7 +116,7 @@ export const AboutSettings: React.FC = () => {
     const amount = donor.amount || donor.totalAmount || 0;
     setSelectedDonor({
       mcUuid: donor.mcUuid,
-      mcName: donor.mcName || 'Anonymous',
+      mcName: donor.mcName || t('settings.about.anonymous'),
       amount,
     });
     setShowSkinModal(true);
@@ -268,7 +268,7 @@ export const AboutSettings: React.FC = () => {
                             "
                             style={{ color: tierColor }}
                           >
-                            {donor.mcName || 'Anonymous'}
+                            {donor.mcName || t('settings.about.anonymous')}
                           </div>
                         </div>
                       );

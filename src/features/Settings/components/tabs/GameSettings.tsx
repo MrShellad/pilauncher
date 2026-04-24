@@ -17,13 +17,13 @@ import { useSettingsStore } from '../../../../store/useSettingsStore';
 import { DEFAULT_SETTINGS } from '../../../../types/settings';
 
 const STANDARD_RESOLUTIONS = [
-  { w: 854, h: 480, value: '854x480', label: '默认', desc: '854x480 (经典窗口比例)' },
-  { w: 1280, h: 720, value: '1280x720', label: '720p', desc: '1280x720 (HD 高清)' },
-  { w: 1366, h: 768, value: '1366x768', label: '768p', desc: '1366x768 (常见笔记本)' },
-  { w: 1600, h: 900, value: '1600x900', label: '900p', desc: '1600x900 (宽屏)' },
-  { w: 1920, h: 1080, value: '1920x1080', label: '1080p', desc: '1920x1080 (FHD 全高清)' },
-  { w: 2560, h: 1440, value: '2560x1440', label: '2K', desc: '2560x1440 (QHD 超清)' },
-  { w: 3840, h: 2160, value: '3840x2160', label: '4K', desc: '3840x2160 (UHD 超高清)' },
+  { w: 854, h: 480, value: '854x480', labelKey: 'settings.game.resolutions.standard' },
+  { w: 1280, h: 720, value: '1280x720', labelKey: 'settings.game.resolutions.hd' },
+  { w: 1366, h: 768, value: '1366x768', labelKey: 'settings.game.resolutions.laptop' },
+  { w: 1600, h: 900, value: '1600x900', labelKey: 'settings.game.resolutions.widescreen' },
+  { w: 1920, h: 1080, value: '1920x1080', labelKey: 'settings.game.resolutions.fhd' },
+  { w: 2560, h: 1440, value: '2560x1440', labelKey: 'settings.game.resolutions.qhd' },
+  { w: 3840, h: 2160, value: '3840x2160', labelKey: 'settings.game.resolutions.uhd' },
 ];
 
 export const GameSettings: React.FC = () => {
@@ -43,20 +43,20 @@ export const GameSettings: React.FC = () => {
     let options: ToggleOption[] = STANDARD_RESOLUTIONS.filter(
       r => !maxRes || (r.w <= maxRes.w && r.h <= maxRes.h)
     ).map(r => ({
-      label: <span className="font-minecraft text-sm tracking-wider">{r.label}</span>,
+      label: <span className="font-minecraft text-sm tracking-wider">{t(r.labelKey!)}</span>,
       value: r.value,
-      description: r.desc
+      description: t(r.labelKey!)
     }));
 
     if (maxRes && !STANDARD_RESOLUTIONS.find(r => r.w === maxRes.w && r.h === maxRes.h)) {
       options.push({
-        label: <span className="font-minecraft text-sm tracking-wider">原生</span>,
+        label: <span className="font-minecraft text-sm tracking-wider">{t('settings.game.resolutions.native')}</span>,
         value: `${maxRes.w}x${maxRes.h}`,
-        description: `${maxRes.w}x${maxRes.h} (自动检测的显示器物理分辨率)`
+        description: t('settings.game.resolutions.nativeDesc')
       });
     }
     return options;
-  }, [maxRes]);
+  }, [maxRes, t]);
 
   // ✅ 核心修复 1：使用 Index (idx) 而不是 Value 来生成焦点链
   const focusOrder = useMemo(() => {
@@ -158,9 +158,9 @@ export const GameSettings: React.FC = () => {
             <div className="w-full mt-2">
               <div className="flex flex-col space-y-2 max-w-md">
                 {[
-                  { value: 'keep', label: '保持窗口打开', desc: '启动器维持原样，方便你查看日志或管理其他实例。' },
-                  { value: 'minimize', label: '自动最小化到托盘', desc: '隐藏主界面释放系统资源，游戏结束后自动恢复。' },
-                  { value: 'close', label: '直接退出启动器', desc: '最大化节省性能，但游戏结束后需要重新打开启动器。' }
+                  { value: 'keep', label: t('settings.game.visibilityOptions.keep.label'), desc: t('settings.game.visibilityOptions.keep.desc') },
+                  { value: 'minimize', label: t('settings.game.visibilityOptions.minimize.label'), desc: t('settings.game.visibilityOptions.minimize.desc') },
+                  { value: 'close', label: t('settings.game.visibilityOptions.close.label'), desc: t('settings.game.visibilityOptions.close.desc') }
                 ].map((opt) => (
                   <FocusItem
                     key={opt.value}

@@ -27,11 +27,11 @@ export const useMicrosoftAuth = () => {
     try {
       const info = await invoke<DeviceCodeInfo>('request_microsoft_device_code');
       setDeviceCodeInfo(info);
-      setIsLoading(false); 
-      
+      setIsLoading(false);
+
       setLoginStatusMsg("正在后台静默等待授权与换牌 (不要关闭弹窗)...");
       const rawAccount = await invoke<any>('poll_and_exchange_microsoft_token', {
-        deviceCode: info.device_code, 
+        deviceCode: info.device_code,
         interval: info.interval
       });
 
@@ -50,7 +50,7 @@ export const useMicrosoftAuth = () => {
       };
 
       addAccount(accountData);
-      setIsLoginModalOpen(false); 
+      setIsLoginModalOpen(false);
     } catch (err: any) {
       setLoginStatusMsg(`登录失败: ${err}`);
     }

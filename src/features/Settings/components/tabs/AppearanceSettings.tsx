@@ -81,10 +81,10 @@ export const AppearanceSettings: React.FC = () => {
   }, [appearance.backgroundImage]);
 
   const fontOptions = useMemo(() => {
-    const base = [{ label: '默认 (Minecraft)', value: 'Minecraft' }];
+    const base = [{ label: t('settings.appearance.defaultFont'), value: 'Minecraft' }];
     const sysOpts = systemFonts.map((font) => ({ label: font, value: font }));
     return [...base, ...sysOpts];
-  }, [systemFonts]);
+  }, [systemFonts, t]);
 
   const focusOrder = useMemo(() => {
     const keys: string[] = [];
@@ -313,7 +313,7 @@ export const AppearanceSettings: React.FC = () => {
                         ? 'z-10 scale-125 border-white text-white ring-2 ring-white ring-offset-2 ring-offset-[#1E1E1F]'
                         : ''
                     }`}
-                    title="自定义颜色"
+                    title={t('settings.appearance.customColor')}
                   >
                     <input
                       id="custom-color-input"

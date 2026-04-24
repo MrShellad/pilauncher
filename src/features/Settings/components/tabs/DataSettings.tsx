@@ -58,9 +58,9 @@ export const DataSettings: React.FC = () => {
       const removedCount = await invoke<number>('remove_imported_instances', { dirPath: dirToRemove });
       const updatedDirs = thirdPartyDirs.filter(d => d !== dirToRemove);
       updateGeneralSetting('thirdPartyDirs', updatedDirs);
-      await message(`已取消关联并清理了 ${removedCount} 个相关的导入实例数据。`, { title: "操作成功", kind: "info" });
+      await message(t('settings.data.removedCountSuccess', { count: removedCount }), { title: t('settings.data.success'), kind: "info" });
     } catch (e) {
-      await message(`移除失败: ${e}`, { title: "错误", kind: 'error' });
+      await message(t('settings.data.failed', { error: e }), { title: t('settings.data.error'), kind: 'error' });
     }
   };
 
@@ -83,15 +83,15 @@ export const DataSettings: React.FC = () => {
 
       if (!selectedPath || selectedPath === basePath) return;
 
-      const wantsMove = await ask("是否将当前目录下的所有游戏数据（实例、配置等）完整移动到新目录？\n\n选择【是】将移动所有数据\n选择【否】仅复制基本配置文件(settings.json)，旧数据予以保留", { title: "数据迁移确认", kind: 'info' });
+      const wantsMove = await ask(t('settings.data.migrateConfirm'), { title: t('settings.data.migrateTitle'), kind: 'info' });
 
       await invoke('migrate_base_directory', { newPath: selectedPath, moveData: wantsMove });
       updateGeneralSetting('basePath', selectedPath);
 
-      await message("数据目录迁移成功！为了确保游戏运行正常，PiLauncher 将退出，请重新启动启动器。", { title: "迁移成功", kind: 'info' });
+      await message(t('settings.data.migrateSuccess'), { title: t('settings.data.migrateSuccessTitle'), kind: 'info' });
       await exit(0);
     } catch (e) {
-      await message(`目录修改过程中出错: ${e}`, { title: "迁移失败", kind: 'error' });
+      await message(t('settings.data.migrateError', { error: e }), { title: t('settings.data.migrateErrorTitle'), kind: 'error' });
     }
   };
 
@@ -112,10 +112,10 @@ export const DataSettings: React.FC = () => {
     }
     try {
       await invoke('rename_base_directory', { newName });
-      await message("重命名成功！为了确保一切正常，启动器将退出，请重新启动。", { title: "成功", kind: 'info' });
+      await message(t('settings.data.renameSuccess'), { title: t('settings.data.renameSuccessTitle'), kind: 'info' });
       await exit(0);
     } catch (e) {
-      await message(`重命名失败: ${e}`, { title: "错误", kind: 'error' });
+      await message(t('settings.data.renameError', { error: e }), { title: t('settings.data.renameErrorTitle'), kind: 'error' });
     }
   };
 
@@ -140,17 +140,17 @@ export const DataSettings: React.FC = () => {
         isOpen={!!removeDirTarget}
         onClose={() => setRemoveDirTarget(null)}
         onConfirm={handleRemoveDir}
-        title="移除确认"
-        headline="确定要移除此关联目录吗？"
+        title={t('settings.data.removeConfirmTitle')}
+        headline={t('settings.data.removeConfirmHeadline')}
         description={
           <div className="space-y-2">
             <p className="font-mono text-xs bg-black/30 px-3 py-2 rounded break-all">{removeDirTarget}</p>
-            <p>此操作将取消与该外部目录的关联，并同步清理 PiLauncher 内对应的实例缓存数据。</p>
-            <p className="text-ore-text-muted text-xs">原始目录内的文件和存档不会受到任何影响。</p>
+            <p>{t('settings.data.removeConfirmDesc1')}</p>
+            <p className="text-ore-text-muted text-xs">{t('settings.data.removeConfirmDesc2')}</p>
           </div>
         }
-        confirmLabel="确认移除"
-        cancelLabel="取消"
+        confirmLabel={t('settings.data.btnRemove')}
+        cancelLabel={t('settings.data.btnCancel')}
         confirmVariant="danger"
         tone="warning"
       />
@@ -159,7 +159,7 @@ export const DataSettings: React.FC = () => {
       <OreModal
         isOpen={cleanLogsPhase !== 'idle'}
         onClose={closeCleanLogsDialog}
-        title="清理日志"
+        title={t('settings.data.cleanLogsTitle')}
         hideCloseButton={cleanLogsPhase === 'cleaning'}
         closeOnOutsideClick={cleanLogsPhase !== 'cleaning'}
         className="w-[440px]"
@@ -167,12 +167,12 @@ export const DataSettings: React.FC = () => {
           <div className="flex flex-row gap-3 justify-end">
             {cleanLogsPhase === 'confirm' && (
               <>
-                <OreButton variant="secondary" onClick={closeCleanLogsDialog} focusKey="clean-logs-cancel" className="min-w-[110px] justify-center whitespace-nowrap">取消</OreButton>
-                <OreButton variant="danger" onClick={handleCleanLogs} focusKey="clean-logs-confirm" className="min-w-[110px] justify-center whitespace-nowrap">确认清理</OreButton>
+                <OreButton variant="secondary" onClick={closeCleanLogsDialog} focusKey="clean-logs-cancel" className="min-w-[110px] justify-center whitespace-nowrap">{t('settings.data.btnCancel')}</OreButton>
+                <OreButton variant="danger" onClick={handleCleanLogs} focusKey="clean-logs-confirm" className="min-w-[110px] justify-center whitespace-nowrap">{t('settings.data.btnConfirmClean')}</OreButton>
               </>
             )}
             {cleanLogsPhase !== 'confirm' && cleanLogsPhase !== 'cleaning' && (
-              <OreButton variant="primary" onClick={closeCleanLogsDialog} focusKey="clean-logs-done" className="min-w-[110px] justify-center whitespace-nowrap">完成</OreButton>
+              <OreButton variant="primary" onClick={closeCleanLogsDialog} focusKey="clean-logs-done" className="min-w-[110px] justify-center whitespace-nowrap">{t('settings.data.btnDone')}</OreButton>
             )}
           </div>
         }
@@ -186,8 +186,8 @@ export const DataSettings: React.FC = () => {
                 transition={{ duration: 0.18 }}
                 className="absolute inset-0 flex flex-col justify-center gap-3"
               >
-                <p className="text-ore-text">此操作将删除 <span className="font-mono text-xs bg-black/30 px-1.5 py-0.5 rounded">logs/</span> 目录下的所有日志文件，包括游戏启动日志和诊断记录。</p>
-                <p className="text-ore-text-muted text-xs">清理后不可撤销，建议先导出所需诊断包。当前路径: {basePath ? basePath + '/logs' : '尚未配置'}</p>
+                <p className="text-ore-text">{t('settings.data.cleanLogsConfirmTitle')}</p>
+                <p className="text-ore-text-muted text-xs">{t('settings.data.cleanLogsConfirmDesc', { path: basePath ? basePath + '/logs' : t('settings.java.selector.placeholder') })}</p>
               </motion.div>
             )}
             {cleanLogsPhase === 'cleaning' && (
@@ -200,7 +200,7 @@ export const DataSettings: React.FC = () => {
                 <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
                   <Loader2 size={36} className="text-ore-green" />
                 </motion.div>
-                <p className="text-ore-text-muted text-sm">清理中，请稍候...</p>
+                <p className="text-ore-text-muted text-sm">{t('settings.data.cleaning')}</p>
               </motion.div>
             )}
             {cleanLogsPhase === 'done' && (
@@ -211,8 +211,8 @@ export const DataSettings: React.FC = () => {
                 className="absolute inset-0 flex flex-col items-center justify-center gap-2"
               >
                 <CheckCircle2 size={36} className="text-ore-green" />
-                <p className="text-ore-text font-bold">清理完成</p>
-                <p className="text-ore-text-muted text-sm">已成功清理 <span className="text-white font-bold">{cleanLogsCount}</span> 个日志条目</p>
+                <p className="text-ore-text font-bold">{t('settings.data.cleanSuccess')}</p>
+                <p className="text-ore-text-muted text-sm">{t('settings.data.cleanSuccessDesc', { count: cleanLogsCount })}</p>
               </motion.div>
             )}
             {cleanLogsPhase === 'error' && (
@@ -223,7 +223,7 @@ export const DataSettings: React.FC = () => {
                 className="absolute inset-0 flex flex-col items-center justify-center gap-2"
               >
                 <AlertCircle size={36} className="text-red-400" />
-                <p className="text-ore-text font-bold">清理失败</p>
+                <p className="text-ore-text font-bold">{t('settings.data.cleanFailed')}</p>
                 <p className="text-ore-text-muted text-xs break-all text-center">{cleanLogsError}</p>
               </motion.div>
             )}
@@ -244,23 +244,23 @@ export const DataSettings: React.FC = () => {
       <OreModal
         isOpen={renameOpen}
         onClose={closeRenameModal}
-        title="重命名目录"
+        title={t('settings.data.renameModalTitle')}
         defaultFocusKey="settings-rename-input"
         actions={
           <div className="flex flex-row gap-3 justify-end">
-            <OreButton variant="secondary" onClick={closeRenameModal} focusKey="settings-rename-cancel" onArrowPress={handleRenameArrow} className="min-w-[110px] justify-center whitespace-nowrap">取消</OreButton>
-            <OreButton variant="primary" onClick={submitRename} focusKey="settings-rename-submit" onArrowPress={handleRenameArrow} className="min-w-[110px] justify-center whitespace-nowrap">确认重命名</OreButton>
+            <OreButton variant="secondary" onClick={closeRenameModal} focusKey="settings-rename-cancel" onArrowPress={handleRenameArrow} className="min-w-[110px] justify-center whitespace-nowrap">{t('settings.data.btnCancel')}</OreButton>
+            <OreButton variant="primary" onClick={submitRename} focusKey="settings-rename-submit" onArrowPress={handleRenameArrow} className="min-w-[110px] justify-center whitespace-nowrap">{t('settings.data.btnConfirmRename')}</OreButton>
           </div>
         }
       >
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-ore-text-muted">修改成功后启动器会自动退出以应用新名称。</p>
+          <p className="text-sm text-ore-text-muted">{t('settings.data.renameModalDesc')}</p>
           <OreInput
             focusKey="settings-rename-input"
             onArrowPress={handleRenameArrow}
             value={newName}
             onChange={e => setNewName(e.target.value)}
-            placeholder="新文件夹名字..."
+            placeholder={t('settings.data.renameModalPlaceholder')}
           />
         </div>
       </OreModal>
@@ -268,11 +268,11 @@ export const DataSettings: React.FC = () => {
       <SettingsSection title={t('settings.data.sections.core')} icon={<Database size={18} />}>
         <FormRow
           label={t('settings.data.coreLocation')}
-          description={`当前位置: ${basePath || "尚未配置"}\n将游戏实例、日志、启动器配置等核心数据完整迁移至新的目录。`}
+          description={t('settings.data.currentLoc', { path: basePath || t('settings.java.selector.placeholder') })}
           vertical={false}
           control={
             <OreButton variant="secondary" onClick={() => setBrowserOpen(true)} focusKey="settings-data-modify-dir" onArrowPress={handleLinearArrow} className="w-[200px] justify-center whitespace-nowrap">
-              <LogOut size={16} className="mr-1.5" /> 修改目录并迁移
+              <LogOut size={16} className="mr-1.5" /> {t('settings.data.btnModify')}
             </OreButton>
           }
         />
@@ -282,7 +282,7 @@ export const DataSettings: React.FC = () => {
           vertical={false}
           control={
             <OreButton variant="secondary" onClick={openRenameModal} focusKey="settings-data-rename-dir" onArrowPress={handleLinearArrow} className="w-[200px] justify-center whitespace-nowrap">
-              <Edit2 size={16} className="mr-1.5" /> 重命名文件夹
+              <Edit2 size={16} className="mr-1.5" /> {t('settings.data.btnRename')}
             </OreButton>
           }
         />
@@ -298,7 +298,7 @@ export const DataSettings: React.FC = () => {
               onArrowPress={handleLinearArrow}
               className="w-[200px] justify-center whitespace-nowrap"
             >
-              <FileX size={16} className="mr-1.5" /> 清理日志
+              <FileX size={16} className="mr-1.5" /> {t('settings.data.btnCleanLogs')}
             </OreButton>
           }
         />
@@ -308,11 +308,11 @@ export const DataSettings: React.FC = () => {
         {thirdPartyDirs.length === 0 ? (
           <FormRow
             label={t('settings.data.thirdPartyList')}
-            description="这些文件夹内的实例会在启动器启动时被自动扫描。移除关联不会删除本地文件和数据。"
+            description={t('settings.data.thirdPartyListDesc1')}
             vertical={false}
             control={
               <div className="text-[length:var(--ore-typography-size-sm)] font-minecraft text-[color:var(--ore-color-text-muted-default)] px-[var(--ore-spacing-base)] py-[var(--ore-spacing-sm)] border-2 border-dashed border-[color:var(--ore-color-border-neutral-default)]">
-                暂无导入的外部目录
+                {t('settings.data.noThirdParty')}
               </div>
             }
           />
@@ -328,7 +328,7 @@ export const DataSettings: React.FC = () => {
                   </span>
                 </div>
               }
-              description={idx === 0 ? "这些外部文件夹内的游戏实例同样会被 PiLauncher 加载。点击移除仅取消关联，不会损伤本地文件。" : undefined}
+              description={idx === 0 ? t('settings.data.thirdPartyListDesc2') : undefined}
               vertical={false}
               control={
                 <OreButton
@@ -340,7 +340,7 @@ export const DataSettings: React.FC = () => {
                   className="w-[200px] justify-center whitespace-nowrap"
                 >
                   <Trash2 size={14} className="mr-1.5" />
-                  移除关联
+                  {t('settings.data.btnRemove')}
                 </OreButton>
               }
             />

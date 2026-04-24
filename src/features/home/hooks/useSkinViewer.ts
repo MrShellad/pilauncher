@@ -62,7 +62,7 @@ export function useSkinViewer(visibleTab = 'home'): UseSkinViewerReturn {
   const containerRef = useRef<HTMLDivElement>(null!);
 
   // ─── Store 订阅 ──────────────────────────────────────────────
-  const { accounts, activeAccountId } = useAccountStore();
+  const { accounts, activeAccountId, isHydrated } = useAccountStore();
   const currentAccount = accounts.find(acc => acc.uuid === activeAccountId);
 
   const activeTab = useLauncherStore(state => state.activeTab);
@@ -141,10 +141,10 @@ export function useSkinViewer(visibleTab = 'home'): UseSkinViewerReturn {
   // ─── 4. 账号变化 → 加载皮肤（去重） ─────────────────────────
   useEffect(() => {
     const engine = SkinEngine.current;
-    if (!engine || engine.isDisposed) return;
+    if (!engine || engine.isDisposed || !isHydrated) return;
     
     void loadAccountSkin(engine, currentAccount);
-  }, [currentAccount]);
+  }, [currentAccount, isHydrated]);
 
   // ─── 5. 对外暴露的方法 ──────────────────────────────────────
   const playAnimation = useCallback((id: AnimationPreset | string) => {

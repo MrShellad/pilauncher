@@ -17,6 +17,7 @@ export interface DownloadTask {
   eta: string;
   pipelineStage: number;
   logs: string[];
+  startedAt: number;
   lastUpdate: number;
   lastCurrent: number;
   speedCurrent?: number;
@@ -84,24 +85,22 @@ const formatSpeed = (
   return { str, bytes: bytesPerSec };
 };
 
-const formatEta = (remaining: number, speedBytesPerSec: number): string => {
-  if (speedBytesPerSec <= 0 || remaining <= 0) return '';
+const formatElapsed = (elapsedSeconds: number): string => {
+  const seconds = Math.max(0, elapsedSeconds);
 
-  const seconds = Math.ceil(remaining / speedBytesPerSec);
-
-  if (seconds > 3600) {
+  if (seconds >= 3600) {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    return `剩余 ${hours}时 ${minutes}分`;
+    return `已耗时 ${hours}小时 ${minutes}分`;
   }
 
-  if (seconds > 60) {
+  if (seconds >= 60) {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `剩余 ${minutes}分 ${secs}秒`;
+    return `已耗时 ${minutes}分 ${secs}秒`;
   }
 
-  return `剩余 ${seconds}秒`;
+  return `已耗时 ${seconds}秒`;
 };
 
 const getStageText = (stage: string, taskType: DownloadTask['taskType']): string => {
@@ -132,6 +131,8 @@ const getStageText = (stage: string, taskType: DownloadTask['taskType']): string
 
   return stageMap[stage] || '处理中...';
 };
+
+const clampProgress = (progress: number) => Math.max(0, Math.min(100, progress));
 
 export const useDownloadStore = create<DownloadStore>((set) => ({
   tasks: {},
@@ -196,19 +197,18 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
       const isError = stage === 'ERROR';
       const isDone = stage === 'DONE';
       const status = isDone ? 'completed' : isError ? 'error' : 'downloading';
+      const currentVal = update.current ?? update.speedCurrent ?? existingTask?.current ?? 0;
+      const totalVal = update.total ?? existingTask?.total ?? 0;
 
       const nextProgress = isDone
         ? 100
-        : typeof update.current === 'number' &&
-            typeof update.total === 'number' &&
-            update.total > 0
-          ? Math.round((update.current / update.total) * 100)
+        : totalVal > 0
+          ? clampProgress(Math.round((currentVal / totalVal) * 100))
           : existingTask?.progress || 0;
 
-      const currentVal = update.current ?? existingTask?.current ?? 0;
-      const totalVal = update.total ?? existingTask?.total ?? 0;
-      const remaining = totalVal - currentVal;
-      const etaStr = isDone || isError ? '' : formatEta(remaining, speedBytes);
+      const startedAt = existingTask?.startedAt ?? now;
+      const elapsedSeconds = Math.floor((now - startedAt) / 1000);
+      const etaStr = isError ? '' : formatElapsed(elapsedSeconds);
       const pipelineStage = isDone
         ? 3
         : isError
@@ -231,6 +231,7 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
         eta: etaStr,
         pipelineStage,
         logs: newLogs.slice(-50),
+        startedAt,
         lastUpdate: now,
         lastCurrent: currentVal,
         lastSpeedUpdate: hasExplicitSpeedSample ? now : existingTask?.lastSpeedUpdate,

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import {
   AlertTriangle,
@@ -37,6 +37,16 @@ const UPDATE_PIPELINE = [
   { label: '安装', key: 1 },
   { label: '完成', key: 3 },
 ];
+
+const LOG_CONTAINER_TRANSITION = {
+  duration: 0.22,
+  ease: [0.32, 0.72, 0, 1] as const,
+};
+
+const LOG_PANEL_VARIANTS = {
+  open: { maxHeight: '12rem', opacity: 1, marginTop: '0.5rem' },
+  collapsed: { maxHeight: 0, opacity: 0, marginTop: 0 },
+};
 
 const PipelineIndicator = ({
   stages,
@@ -132,8 +142,7 @@ const ProgressSummary = ({ task }: { task: DownloadTask }) => {
   }
 
   const parts: string[] = [];
-  if (task.total > 0) parts.push(`${task.current} / ${task.total}`);
-  if (task.speed && task.speed !== '计算中...') parts.push(task.speed);
+  if (task.speed) parts.push(task.speed);
   if (task.eta) parts.push(task.eta);
 
   return (
@@ -186,7 +195,7 @@ export const TaskItem = ({
     useDownloadStore.getState().addOrUpdateTask({
       id: task.id,
       stage: isUpdate ? 'CHECKING_UPDATE' : task.stage,
-                      message: '正在准备重试...',
+      message: '正在准备重试...',
     });
 
     invoke(task.retryAction!, { ...task.retryPayload }).catch((error) => {
@@ -200,7 +209,9 @@ export const TaskItem = ({
   };
 
   return (
-    <div
+    <motion.div
+      layout
+      transition={{ layout: LOG_CONTAINER_TRANSITION }}
       className={`group relative flex flex-col border bg-[#141415] p-[clamp(0.75rem,1.5vw,0.875rem)] transition-colors ${
         isError ? 'border-red-500/50 bg-[#1A1A1B]' : 'border-[var(--ore-downloadDetail-divider)] bg-[#1A1A1B]'
       }`}
@@ -248,10 +259,21 @@ export const TaskItem = ({
         <span className={isError ? 'text-red-400/80' : ''}>{task.stepText}</span>
       </div>
 
-      {latestLog && !showLogs && (
-        <div className="mb-[0.375rem] truncate font-mono text-[0.6875rem] leading-[1.4] text-[#6D6D6E]">
-          {latestLog}
-        </div>
+      {latestLog && (
+        <motion.div
+          initial={false}
+          animate={
+            showLogs
+              ? { opacity: 0, maxHeight: 0, marginBottom: 0 }
+              : { opacity: 1, maxHeight: '2rem', marginBottom: '0.375rem' }
+          }
+          transition={LOG_CONTAINER_TRANSITION}
+          className="overflow-hidden"
+        >
+          <div className="truncate font-mono text-[0.6875rem] leading-[1.4] text-[#6D6D6E]">
+            {latestLog}
+          </div>
+        </motion.div>
       )}
 
       <div className="flex items-center justify-between">
@@ -339,18 +361,17 @@ export const TaskItem = ({
         </div>
       </div>
 
-      <AnimatePresence>
-        {showLogs && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="custom-scrollbar mt-[0.5rem] max-h-[12rem] overflow-y-auto rounded-[0.1875rem] border border-[#2A2A2C] bg-[#141415] p-[0.5rem] font-mono text-[0.75rem] leading-[1.5]"
-          >
-            {task.logs.map((log, index) => renderLogLine(log, index))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+      <motion.div
+        initial={false}
+        animate={showLogs ? 'open' : 'collapsed'}
+        variants={LOG_PANEL_VARIANTS}
+        transition={LOG_CONTAINER_TRANSITION}
+        className="overflow-hidden"
+      >
+        <div className="custom-scrollbar max-h-[12rem] overflow-y-auto rounded-[0.1875rem] border border-[#2A2A2C] bg-[#141415] p-[0.5rem] font-mono text-[0.75rem] leading-[1.5]">
+          {task.logs.map((log, index) => renderLogLine(log, index))}
+        </div>
+      </motion.div>
+    </motion.div>
   );
 };

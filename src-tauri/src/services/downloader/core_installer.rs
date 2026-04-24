@@ -6,12 +6,13 @@ use crate::services::downloader::dependencies::scheduler::sha1_file;
 use crate::services::downloader::transfer::{download_file, DownloadRateLimiter, DownloadTuning};
 use std::fs;
 use std::path::Path;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Runtime};
 
 const RETRY_DELAY_MS: u64 = 1200;
+const VANILLA_SPEED_EMIT_INTERVAL_MS: u128 = 100;
 
 fn build_download_client(dl_settings: &DownloadSettings) -> AppResult<reqwest::Client> {
     let mut builder = reqwest::Client::builder()
@@ -263,6 +264,7 @@ pub async fn install_vanilla_core<R: Runtime>(
                 "Missing client URL in version JSON",
             )
         })?;
+    let expected_total_bytes = parsed_json["downloads"]["client"]["size"].as_u64().unwrap_or(0);
 
     let mirror_jar_url = if dl_settings.vanilla_source == "official" {
         jar_url.to_string()
@@ -318,6 +320,48 @@ pub async fn install_vanilla_core<R: Runtime>(
         );
 
         let _ = tokio::fs::remove_file(&temp_jar_path).await;
+        let downloaded_bytes = Arc::new(AtomicU64::new(0));
+        let last_speed_emit = Arc::new(std::sync::Mutex::new(
+            Instant::now() - Duration::from_millis(VANILLA_SPEED_EMIT_INTERVAL_MS as u64),
+        ));
+        let file_name = format!("{}.jar", version_id);
+        let on_bytes: Arc<dyn Fn(u64) + Send + Sync> = {
+            let app = app.clone();
+            let instance_id = instance_id.to_string();
+            let file_name = file_name.clone();
+            let downloaded_bytes = Arc::clone(&downloaded_bytes);
+            let last_speed_emit = Arc::clone(&last_speed_emit);
+            let expected_total_bytes = expected_total_bytes;
+
+            Arc::new(move |bytes| {
+                let current = downloaded_bytes.fetch_add(bytes, Ordering::Relaxed) + bytes;
+                let should_emit = {
+                    let now = Instant::now();
+                    let mut last = last_speed_emit.lock().unwrap();
+                    if now.duration_since(*last).as_millis() >= VANILLA_SPEED_EMIT_INTERVAL_MS {
+                        *last = now;
+                        true
+                    } else {
+                        false
+                    }
+                };
+
+                if should_emit {
+                    let total = expected_total_bytes.max(current).max(1);
+                    let _ = app.emit(
+                        "instance-deployment-speed",
+                        DownloadProgressEvent {
+                            instance_id: instance_id.clone(),
+                            stage: "VANILLA_CORE".to_string(),
+                            file_name: file_name.clone(),
+                            current,
+                            total,
+                            message: String::new(),
+                        },
+                    );
+                }
+            })
+        };
 
         let download_result = match download_file(
             &client,
@@ -327,7 +371,7 @@ pub async fn install_vanilla_core<R: Runtime>(
             stall_timeout,
             cancel,
             rate_limiter.clone(),
-            None,
+            Some(on_bytes),
         )
         .await
         {

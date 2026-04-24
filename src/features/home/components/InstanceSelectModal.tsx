@@ -10,6 +10,7 @@ import { focusManager } from '../../../ui/focus/FocusManager';
 import { OreInstanceCard } from '../../../ui/primitives/OreInstanceCard';
 import { OreModal } from '../../../ui/primitives/OreModal';
 import { useLauncherStore } from '../../../store/useLauncherStore';
+import { formatRelativeTime } from '../../../utils/formatters';
 
 interface InstanceSelectModalProps {
   isOpen: boolean;
@@ -36,6 +37,21 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
 
   const currentSelectedId = selectedId || globalSelectedId || instances[0]?.id || null;
   const q = query.toLowerCase().trim();
+  const formatLastPlayed = (lastPlayed: string | undefined) => {
+    const normalized = lastPlayed?.trim();
+
+    if (!normalized || normalized.toLowerCase() === 'never') {
+      return t('home.neverPlayed', { defaultValue: '从未进行游戏' });
+    }
+
+    const parsed = new Date(normalized);
+    if (Number.isNaN(parsed.getTime())) {
+      return t('home.neverPlayed', { defaultValue: '从未进行游戏' });
+    }
+
+    return formatRelativeTime(normalized, t);
+  };
+
   const filtered = q
     ? instances.filter((inst) => {
         const name = inst.name.toLowerCase();
@@ -145,7 +161,7 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
                           name={instance.name}
                           mcVersion={instance.version}
                           loaderType={instance.loader}
-                          lastPlayed={instance.lastPlayed}
+                          lastPlayed={formatLastPlayed(instance.lastPlayed)}
                           coverUrl={instance.coverUrl}
                           isActive={isCurrent}
                           onClick={() => handleSelect(instance.id)}

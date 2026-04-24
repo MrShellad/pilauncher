@@ -19,6 +19,8 @@ export interface MinecraftAccount {
 interface AccountStore {
   accounts: MinecraftAccount[];
   activeAccountId: string | null;
+  isHydrated: boolean;
+  setHydrated: (state: boolean) => void;
   addAccount: (account: MinecraftAccount) => void;
   updateAccount: (oldUuid: string, updates: Partial<MinecraftAccount>) => void; // ✅ 新增修改方法
   removeAccount: (uuid: string) => void;
@@ -30,6 +32,8 @@ export const useAccountStore = create<AccountStore>()(
     (set) => ({
       accounts: [],
       activeAccountId: null,
+      isHydrated: false,
+      setHydrated: (state) => set({ isHydrated: state }),
       
       addAccount: (account) => set((state) => {
         const exists = state.accounts.some(a => a.uuid === account.uuid);
@@ -67,6 +71,11 @@ export const useAccountStore = create<AccountStore>()(
 
       setActiveAccount: (uuid) => set({ activeAccountId: uuid }),
     }),
-    { name: 'pilauncher-accounts' }
+    { 
+      name: 'pilauncher-accounts',
+      onRehydrateStorage: () => (state) => {
+        state?.setHydrated(true);
+      }
+    }
   )
 );
