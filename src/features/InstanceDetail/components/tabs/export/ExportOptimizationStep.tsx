@@ -16,6 +16,20 @@ export const ExportOptimizationStep: React.FC<ExportOptimizationStepProps> = ({
 }) => {
   const { t } = useTranslation();
 
+  const handleFormatSelect = (format: ExportData['format']) => {
+    if (format === 'pipack') {
+      onChange({ format, manifestMode: true });
+      return;
+    }
+
+    if (format === 'zip') {
+      onChange({ format, manifestMode: false });
+      return;
+    }
+
+    onChange({ format });
+  };
+
   const formats: {
     id: ExportData['format'];
     label: string;
@@ -65,8 +79,15 @@ export const ExportOptimizationStep: React.FC<ExportOptimizationStepProps> = ({
     },
   ];
 
-  const manifestLocked = data.format === 'pipack';
-  const manifestChecked = manifestLocked ? true : data.manifestMode;
+  const manifestLocked = data.format === 'pipack' || data.format === 'zip';
+  const manifestChecked =
+    data.format === 'pipack' ? true : data.format === 'zip' ? false : data.manifestMode;
+  const manifestDescriptionKey =
+    data.format === 'zip'
+      ? 'instanceExport.optimization.manifest.zipLocked'
+      : data.format === 'pipack'
+        ? 'instanceExport.optimization.manifest.pipackLocked'
+        : 'instanceExport.optimization.manifest.fallback';
 
   return (
     <div className="flex flex-col space-y-4 sm:space-y-5 2xl:space-y-6">
@@ -75,7 +96,7 @@ export const ExportOptimizationStep: React.FC<ExportOptimizationStepProps> = ({
           <button
             key={formatItem.id}
             type="button"
-            onClick={() => onChange({ format: formatItem.id })}
+            onClick={() => handleFormatSelect(formatItem.id)}
             className={`flex h-[6.25rem] w-full select-none flex-col items-center justify-center gap-2 rounded-sm border-2 px-3 py-3 text-center transition-[background-color,box-shadow] sm:h-[6.75rem] sm:gap-2.5 sm:px-4 sm:py-[0.875rem] xl:h-[7.125rem] xl:px-[1.25rem] xl:py-[1rem] 2xl:h-[7.5rem] 2xl:gap-3 2xl:px-[1.375rem] 2xl:py-[1.125rem] ${
               data.format === formatItem.id
                 ? 'border-[#18181B] bg-[#3C8527] shadow-[inset_0_-0.25rem_#1D4D13,inset_0.1875rem_0.1875rem_rgba(255,255,255,0.2),inset_-0.1875rem_-0.4375rem_rgba(255,255,255,0.1)]'
@@ -137,10 +158,12 @@ export const ExportOptimizationStep: React.FC<ExportOptimizationStepProps> = ({
                 })}
               </p>
               {manifestLocked && (
-                <p className="text-[#FFE866]">
-                  {t('instanceExport.optimization.manifest.pipackLocked', {
+                <p className={data.format === 'zip' ? 'text-[#D0D1D4]' : 'text-[#FFE866]'}>
+                  {t(manifestDescriptionKey, {
                     defaultValue:
-                      'PiPack always writes `pi_manifest.json` and only bundles mods that cannot be restored from their source platform.',
+                      data.format === 'zip'
+                        ? 'Standard ZIP does not write a platform manifest and always bundles the selected files.'
+                        : 'PiPack always writes `pi_manifest.json` and only bundles mods that cannot be restored from their source platform.',
                   })}
                 </p>
               )}

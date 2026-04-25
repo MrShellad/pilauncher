@@ -8,3 +8,4 @@ pub mod mod_manifest_service;
 pub mod resource_manager;
 pub mod save_manager;
 pub mod mod_snapshot_manager;
+pub mod verify_service;

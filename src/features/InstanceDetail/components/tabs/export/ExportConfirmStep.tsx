@@ -89,6 +89,8 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
 
   const fileExtension =
     data.format === 'pipack' ? 'pipack' : data.format === 'mrpack' ? 'mrpack' : 'zip';
+  const effectiveManifestMode =
+    data.format === 'pipack' ? true : data.format === 'zip' ? false : data.manifestMode;
   const outputFileName = `${data.name}-${data.version}.${fileExtension}`;
   const percent =
     progress && progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
@@ -104,6 +106,15 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
     ),
   ].filter(Boolean);
 
+  const manifestSummaryValue =
+    data.format === 'pipack'
+      ? 'PiPack 强制启用'
+      : data.format === 'zip'
+        ? '标准 ZIP 不使用 Manifest'
+        : effectiveManifestMode
+          ? '已启用'
+          : '未启用';
+
   const summaryItems = [
     { label: '整合包名称', value: data.name || '未填写' },
     { label: '版本号', value: data.version || '未填写' },
@@ -111,7 +122,7 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
     { label: '导出格式', value: formatLabels[data.format], accent: 'text-[#3C8527]' },
     {
       label: 'Manifest 模式',
-      value: data.format === 'pipack' ? 'PiPack 强制启用' : data.manifestMode ? '已启用' : '未启用',
+      value: manifestSummaryValue,
     },
     { label: 'Hero Logo', value: data.heroLogo ? '已设置' : '未设置' },
     {
@@ -139,7 +150,7 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
           author: data.author,
           description: data.description,
           format: data.format,
-          manifestMode: data.manifestMode,
+          manifestMode: effectiveManifestMode,
           includeMods: data.includeMods,
           includeConfigs: data.includeConfigs,
           includeResourcePacks: data.includeResourcePacks,

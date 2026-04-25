@@ -103,6 +103,16 @@ pub struct RawModManifestEntry {
     pub project_id: Option<String>,
     #[serde(default, alias = "file_id")]
     pub file_id: Option<String>,
+    #[serde(default)]
+    pub mod_id: Option<String>,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub version: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub icon_rel_path: Option<String>,
 }
 
 pub type RawModManifest = HashMap<String, RawModManifestEntry>;
@@ -212,9 +222,15 @@ pub fn upsert_mod_manifest_entry(
         serde_json::Map::new()
     };
 
+    let key = mod_manifest_key(file_name);
+    let mut merged_entry = entry.clone();
+    if let Some(existing_value) = manifest.get(&key) {
+        merge_cached_metadata_from_value(&mut merged_entry, existing_value);
+    }
+
     manifest.insert(
-        mod_manifest_key(file_name),
-        serde_json::to_value(entry).map_err(|e| e.to_string())?,
+        key,
+        serde_json::to_value(merged_entry).map_err(|e| e.to_string())?,
     );
 
     if let Some(parent) = manifest_path.parent() {
@@ -259,12 +275,180 @@ pub fn normalize_manifest_entry(
         }
     };
 
-    let hash = match raw {
+    let hash = match raw.as_ref() {
         Some(entry) if entry.hash.is_some() && entry.file_state.as_ref() == Some(&file_state) => {
-            entry.hash.unwrap()
+            entry.hash.clone().unwrap()
         }
         _ => compute_file_hash(path)?,
     };
 
-    Ok(build_manifest_entry(source, hash, file_state))
+    let mut entry = build_manifest_entry(source, hash, file_state);
+    copy_cached_metadata_from_raw(raw.as_ref(), &mut entry);
+    Ok(entry)
+}
+
+fn copy_cached_metadata_from_raw(raw: Option<&RawModManifestEntry>, entry: &mut ModManifestEntry) {
+    let Some(raw) = raw else {
+        return;
+    };
+
+    entry.mod_id = raw.mod_id.clone();
+    entry.name = raw.name.clone();
+    entry.version = raw.version.clone();
+    entry.description = raw.description.clone();
+    entry.icon_rel_path = raw.icon_rel_path.clone();
+}
+
+fn merge_cached_metadata(target: &mut ModManifestEntry, source: &ModManifestEntry) {
+    if target.mod_id.is_none() {
+        target.mod_id = source.mod_id.clone();
+    }
+    if target.name.is_none() {
+        target.name = source.name.clone();
+    }
+    if target.version.is_none() {
+        target.version = source.version.clone();
+    }
+    if target.description.is_none() {
+        target.description = source.description.clone();
+    }
+    if target.icon_rel_path.is_none() {
+        target.icon_rel_path = source.icon_rel_path.clone();
+    }
+}
+
+fn merge_cached_metadata_from_value(target: &mut ModManifestEntry, value: &serde_json::Value) {
+    if let Ok(existing) = serde_json::from_value::<ModManifestEntry>(value.clone()) {
+        merge_cached_metadata(target, &existing);
+        return;
+    }
+
+    if let Ok(raw) = serde_json::from_value::<RawModManifestEntry>(value.clone()) {
+        let mut existing = build_manifest_entry(
+            raw.source.clone().unwrap_or_else(|| {
+                build_manifest_source(
+                    ModSourceKind::Unknown,
+                    raw.platform.clone(),
+                    raw.project_id.clone(),
+                    raw.file_id.clone(),
+                )
+            }),
+            raw.hash
+                .clone()
+                .unwrap_or_else(|| ModFileHash::sha1("".to_string())),
+            raw.file_state.clone().unwrap_or_default(),
+        );
+        copy_cached_metadata_from_raw(Some(&raw), &mut existing);
+        merge_cached_metadata(target, &existing);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn create_temp_dir(label: &str) -> std::path::PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("pilauncher-{}-{}", label, unique));
+        fs::create_dir_all(&dir).expect("create temp dir");
+        dir
+    }
+
+    #[test]
+    fn normalize_manifest_entry_preserves_cached_metadata() {
+        let dir = create_temp_dir("mod-manifest-normalize");
+        let file_path = dir.join("example.jar");
+        fs::write(&file_path, b"demo").expect("write mod file");
+
+        let file_state = build_file_state(&file_path).expect("file state");
+        let raw = RawModManifestEntry {
+            source: Some(build_manifest_source(
+                ModSourceKind::LauncherDownload,
+                Some("modrinth".to_string()),
+                Some("project-1".to_string()),
+                Some("version-1".to_string()),
+            )),
+            hash: Some(compute_file_hash(&file_path).expect("hash")),
+            file_state: Some(file_state.clone()),
+            mod_id: Some("demo_mod".to_string()),
+            name: Some("Demo Mod".to_string()),
+            version: Some("1.0.0".to_string()),
+            description: Some("Cached description".to_string()),
+            icon_rel_path: Some("icons/demo.png".to_string()),
+            ..Default::default()
+        };
+
+        let normalized = normalize_manifest_entry(
+            Some(raw),
+            &file_path,
+            file_state,
+            ModSourceKind::ExternalImport,
+        )
+        .expect("normalize manifest");
+
+        assert_eq!(normalized.mod_id.as_deref(), Some("demo_mod"));
+        assert_eq!(normalized.name.as_deref(), Some("Demo Mod"));
+        assert_eq!(normalized.version.as_deref(), Some("1.0.0"));
+        assert_eq!(
+            normalized.description.as_deref(),
+            Some("Cached description")
+        );
+        assert_eq!(normalized.icon_rel_path.as_deref(), Some("icons/demo.png"));
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn upsert_mod_manifest_entry_preserves_existing_cached_metadata() {
+        let dir = create_temp_dir("mod-manifest-upsert");
+        let manifest_path = dir.join("mod_manifest.json");
+
+        let mut existing_manifest = ModManifest::new();
+        let mut existing_entry = build_manifest_entry(
+            build_manifest_source(
+                ModSourceKind::ExternalImport,
+                Some("curseforge".to_string()),
+                Some("123".to_string()),
+                Some("456".to_string()),
+            ),
+            ModFileHash::sha1("existing".to_string()),
+            ModFileState::default(),
+        );
+        existing_entry.mod_id = Some("demo_mod".to_string());
+        existing_entry.name = Some("Demo Mod".to_string());
+        existing_entry.version = Some("1.0.0".to_string());
+        existing_entry.description = Some("Keep me".to_string());
+        existing_entry.icon_rel_path = Some("icons/demo.png".to_string());
+        existing_manifest.insert("demo.jar".to_string(), existing_entry);
+        write_mod_manifest(&manifest_path, &existing_manifest).expect("write manifest");
+
+        let updated_entry = build_manifest_entry(
+            build_manifest_source(
+                ModSourceKind::LauncherDownload,
+                Some("modrinth".to_string()),
+                Some("proj-2".to_string()),
+                Some("ver-2".to_string()),
+            ),
+            ModFileHash::sha1("updated".to_string()),
+            ModFileState::default(),
+        );
+        upsert_mod_manifest_entry(&manifest_path, "demo.jar", &updated_entry).expect("upsert");
+
+        let content = fs::read_to_string(&manifest_path).expect("read manifest");
+        let manifest = serde_json::from_str::<ModManifest>(&content).expect("parse manifest");
+        let entry = manifest.get("demo.jar").expect("entry");
+
+        assert_eq!(entry.source.platform.as_deref(), Some("modrinth"));
+        assert_eq!(entry.mod_id.as_deref(), Some("demo_mod"));
+        assert_eq!(entry.name.as_deref(), Some("Demo Mod"));
+        assert_eq!(entry.version.as_deref(), Some("1.0.0"));
+        assert_eq!(entry.description.as_deref(), Some("Keep me"));
+        assert_eq!(entry.icon_rel_path.as_deref(), Some("icons/demo.png"));
+
+        let _ = fs::remove_dir_all(dir);
+    }
 }

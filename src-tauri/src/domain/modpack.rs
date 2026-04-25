@@ -81,3 +81,91 @@ pub struct PiPackModEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bundled_path: Option<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MissingRuntime {
+    pub instance_id: String,
+    pub mc_version: String,
+    pub loader_type: String,
+    pub loader_version: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ImportResult {
+    pub added: usize,
+    pub missing: Vec<MissingRuntime>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct VerifyInstanceRuntimeResult {
+    pub instance_id: String,
+    pub needs_repair: bool,
+    pub issues: Vec<String>,
+    pub repair: Option<MissingRuntime>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ThirdPartyImportInstance {
+    pub id: String,
+    pub name: String,
+    pub path: String,
+    pub version_json_path: String,
+    pub mc_version: String,
+    pub loader_type: String,
+    pub loader_version: String,
+    pub status: String,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ThirdPartyImportSource {
+    pub source_path: String,
+    pub root_path: String,
+    pub versions_path: String,
+    pub source_kind: String,
+    pub source_label: String,
+    pub launcher_hint: String,
+    pub has_assets: bool,
+    pub has_libraries: bool,
+    pub instance_count: usize,
+    pub importable_count: usize,
+    pub already_imported_count: usize,
+    pub conflict_count: usize,
+    pub instances: Vec<ThirdPartyImportInstance>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ThirdPartyImportFailure {
+    pub instance_id: String,
+    pub path: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ThirdPartyImportResult {
+    pub source_path: String,
+    pub root_path: String,
+    pub source_kind: String,
+    pub added: usize,
+    pub skipped: usize,
+    pub failed: usize,
+    pub missing: Vec<MissingRuntime>,
+    pub imported_instances: Vec<ThirdPartyImportInstance>,
+    pub skipped_instances: Vec<ThirdPartyImportInstance>,
+    pub failed_instances: Vec<ThirdPartyImportFailure>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ThirdPartyImportProgressEvent {
+    pub source_path: String,
+    pub phase: String,
+    pub level: String,
+    pub current: u64,
+    pub total: u64,
+    pub message: String,
+    pub instance_id: Option<String>,
+}

@@ -7,9 +7,10 @@ use crate::domain::modpack::{
 use crate::services::config_service::ConfigService;
 use crate::services::instance::mod_manifest_service::ModManifestService;
 use chrono::Utc;
+use reqwest::Client;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -60,6 +61,60 @@ struct PlannedArchiveFile {
     relative_path: PathBuf,
 }
 
+#[derive(Default)]
+struct ExportArtifacts {
+    pipack_manifest: Option<PiPackManifest>,
+    skipped_files: HashSet<String>,
+    curseforge_files: Vec<CurseForgeManifestFileReference>,
+    mrpack_files: Vec<MrpackManifestFile>,
+}
+
+struct ExportableModFile {
+    file_name: String,
+    path: PathBuf,
+    relative_path_str: String,
+    manifest_entry: ModManifestEntry,
+}
+
+#[derive(Serialize)]
+struct CurseForgeManifestFileReference {
+    #[serde(rename = "projectID")]
+    project_id: u64,
+    #[serde(rename = "fileID")]
+    file_id: u64,
+    required: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MrpackManifestFile {
+    path: String,
+    hashes: MrpackManifestHashes,
+    downloads: Vec<String>,
+    file_size: u64,
+}
+
+#[derive(Serialize)]
+struct MrpackManifestHashes {
+    sha1: String,
+    sha512: String,
+}
+
+#[derive(Deserialize)]
+struct ModrinthExportVersion {
+    project_id: String,
+    files: Vec<ModrinthExportFile>,
+}
+
+#[derive(Deserialize)]
+struct ModrinthExportFile {
+    url: String,
+    filename: String,
+    hashes: HashMap<String, String>,
+    size: Option<u64>,
+    primary: Option<bool>,
+}
+
 pub async fn execute_export<R: Runtime>(
     app: &AppHandle<R>,
     config: ExportConfig,
@@ -88,13 +143,12 @@ pub async fn execute_export<R: Runtime>(
         },
     );
 
-    let (pipack_manifest, pipack_skip_mods) =
-        prepare_pipack_manifest(&instance_dir, &instance_meta, &config)?;
+    let artifacts = prepare_export_artifacts(app, &instance_dir, &instance_meta, &config).await?;
     let files_to_pack = collect_files_to_pack(
         &instance_dir,
         &config,
         overrides_prefix.as_deref(),
-        &pipack_skip_mods,
+        &artifacts.skipped_files,
     )?;
 
     let output_file = File::create(&config.output_path).map_err(|e| e.to_string())?;
@@ -124,7 +178,7 @@ pub async fn execute_export<R: Runtime>(
         );
     }
 
-    write_export_manifest(&mut zip, options, &config, &instance_meta, pipack_manifest)?;
+    write_export_manifest(&mut zip, options, &config, &instance_meta, artifacts)?;
 
     zip.finish().map_err(|e| e.to_string())?;
 
@@ -193,6 +247,44 @@ fn resolve_overrides_prefix(format: &str) -> Option<String> {
         "curseforge" | "mrpack" | "pipack" => Some(format!("{}/", PIPACK_OVERRIDES_DIR)),
         _ => Some(format!("{}/", PIPACK_OVERRIDES_DIR)),
     }
+}
+
+async fn prepare_export_artifacts<R: Runtime>(
+    app: &AppHandle<R>,
+    instance_dir: &Path,
+    instance_meta: &InstanceConfig,
+    config: &ExportConfig,
+) -> Result<ExportArtifacts, String> {
+    let mut artifacts = ExportArtifacts::default();
+
+    if config.format == "pipack" {
+        let (pipack_manifest, skipped_files) =
+            prepare_pipack_manifest(instance_dir, instance_meta, config)?;
+        artifacts.pipack_manifest = pipack_manifest;
+        artifacts.skipped_files = skipped_files;
+        return Ok(artifacts);
+    }
+
+    if !config.include_mods || !config.manifest_mode {
+        return Ok(artifacts);
+    }
+
+    let exportable_mods = load_exportable_mod_files(instance_dir)?;
+    match config.format.as_str() {
+        "curseforge" => {
+            let (files, skipped_files) = build_curseforge_manifest_files(&exportable_mods);
+            artifacts.curseforge_files = files;
+            artifacts.skipped_files = skipped_files;
+        }
+        "mrpack" => {
+            let (files, skipped_files) = build_mrpack_manifest_files(app, &exportable_mods).await?;
+            artifacts.mrpack_files = files;
+            artifacts.skipped_files = skipped_files;
+        }
+        _ => {}
+    }
+
+    Ok(artifacts)
 }
 
 fn prepare_pipack_manifest(
@@ -289,11 +381,251 @@ fn prepare_pipack_manifest(
     Ok((Some(manifest), skip_mods))
 }
 
+fn load_exportable_mod_files(instance_dir: &Path) -> Result<Vec<ExportableModFile>, String> {
+    let mods_dir = instance_dir.join("mods");
+    let manifest_path = instance_dir.join("mod_manifest.json");
+    let manifest_entries = ModManifestService::sync_from_mods_dir(&mods_dir, &manifest_path)?;
+    let mut files = Vec::new();
+
+    if !mods_dir.exists() {
+        return Ok(files);
+    }
+
+    for entry in fs::read_dir(&mods_dir).map_err(|e| e.to_string())? {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(_) => continue,
+        };
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+
+        let file_name = entry.file_name().to_string_lossy().to_string();
+        if !is_mod_archive(&file_name) {
+            continue;
+        }
+
+        let key = mod_manifest_key(&file_name);
+        let Some(manifest_entry) = manifest_entries.get(&key).cloned() else {
+            continue;
+        };
+
+        let relative_path = PathBuf::from("mods").join(&file_name);
+        let relative_path_str = normalize_zip_path(&relative_path);
+        files.push(ExportableModFile {
+            file_name,
+            path,
+            relative_path_str,
+            manifest_entry,
+        });
+    }
+
+    Ok(files)
+}
+
+fn build_curseforge_manifest_files(
+    exportable_mods: &[ExportableModFile],
+) -> (Vec<CurseForgeManifestFileReference>, HashSet<String>) {
+    let mut files = Vec::new();
+    let mut skipped_files = HashSet::new();
+    let mut referenced_projects = HashSet::new();
+
+    for item in exportable_mods {
+        if item.file_name.ends_with(".disabled") {
+            continue;
+        }
+
+        let source = &item.manifest_entry.source;
+        if !source
+            .platform
+            .as_deref()
+            .is_some_and(|platform| platform.eq_ignore_ascii_case("curseforge"))
+        {
+            continue;
+        }
+
+        let Some(project_id) = source
+            .project_id
+            .as_deref()
+            .and_then(|value| value.trim().parse::<u64>().ok())
+        else {
+            continue;
+        };
+        let Some(file_id) = source
+            .file_id
+            .as_deref()
+            .and_then(|value| value.trim().parse::<u64>().ok())
+        else {
+            continue;
+        };
+
+        if !referenced_projects.insert(project_id) {
+            continue;
+        }
+
+        files.push(CurseForgeManifestFileReference {
+            project_id,
+            file_id,
+            required: true,
+        });
+        skipped_files.insert(item.relative_path_str.clone());
+    }
+
+    (files, skipped_files)
+}
+
+async fn build_mrpack_manifest_files<R: Runtime>(
+    app: &AppHandle<R>,
+    exportable_mods: &[ExportableModFile],
+) -> Result<(Vec<MrpackManifestFile>, HashSet<String>), String> {
+    let client = build_export_http_client(app)?;
+    let mut files = Vec::new();
+    let mut skipped_files = HashSet::new();
+
+    for item in exportable_mods {
+        let Some(manifest_file) = build_mrpack_manifest_file(&client, item).await? else {
+            continue;
+        };
+        files.push(manifest_file);
+        skipped_files.insert(item.relative_path_str.clone());
+    }
+
+    Ok((files, skipped_files))
+}
+
+fn build_export_http_client<R: Runtime>(app: &AppHandle<R>) -> Result<Client, String> {
+    let settings = ConfigService::get_download_settings(app);
+    let mut builder = Client::builder()
+        .user_agent("PiLauncher/1.0 (Export)")
+        .connect_timeout(std::time::Duration::from_secs(settings.timeout.max(1)));
+
+    if settings.proxy_type != "none" {
+        let host = settings.proxy_host.trim();
+        let port = settings.proxy_port.trim();
+        if !host.is_empty() && !port.is_empty() {
+            let scheme = match settings.proxy_type.as_str() {
+                "http" => "http",
+                "https" => "https",
+                "socks5" => "socks5h",
+                _ => "http",
+            };
+            let proxy_url = format!("{}://{}:{}", scheme, host, port);
+            builder = builder.proxy(reqwest::Proxy::all(&proxy_url).map_err(|e| e.to_string())?);
+        }
+    }
+
+    builder.build().map_err(|e| e.to_string())
+}
+
+async fn build_mrpack_manifest_file(
+    client: &Client,
+    item: &ExportableModFile,
+) -> Result<Option<MrpackManifestFile>, String> {
+    let source = &item.manifest_entry.source;
+    if !source
+        .platform
+        .as_deref()
+        .is_some_and(|platform| platform.eq_ignore_ascii_case("modrinth"))
+    {
+        return Ok(None);
+    }
+
+    let Some(project_id) = source.project_id.as_deref().map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(None);
+    };
+    let Some(version_id) = source.file_id.as_deref().map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(None);
+    };
+
+    let version = fetch_modrinth_export_version(client, version_id).await?;
+    if version.project_id != project_id {
+        return Ok(None);
+    }
+
+    let Some(remote_file) = select_modrinth_export_file(&version, item) else {
+        return Ok(None);
+    };
+    let Some(remote_sha1) = remote_file.hashes.get("sha1").cloned() else {
+        return Ok(None);
+    };
+    let Some(remote_sha512) = remote_file.hashes.get("sha512").cloned() else {
+        return Ok(None);
+    };
+
+    if !item
+        .manifest_entry
+        .hash
+        .value
+        .eq_ignore_ascii_case(&remote_sha1)
+    {
+        return Ok(None);
+    }
+
+    Ok(Some(MrpackManifestFile {
+        path: item.relative_path_str.clone(),
+        hashes: MrpackManifestHashes {
+            sha1: remote_sha1,
+            sha512: remote_sha512,
+        },
+        downloads: vec![remote_file.url.clone()],
+        file_size: remote_file
+            .size
+            .or_else(|| item.manifest_entry.file_state.as_ref().map(|state| state.size))
+            .unwrap_or_else(|| fs::metadata(&item.path).map(|metadata| metadata.len()).unwrap_or(0)),
+    }))
+}
+
+async fn fetch_modrinth_export_version(
+    client: &Client,
+    version_id: &str,
+) -> Result<ModrinthExportVersion, String> {
+    let url = format!("https://api.modrinth.com/v2/version/{}", version_id);
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Modrinth request failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "Modrinth request failed: {} (version {})",
+            response.status(),
+            version_id
+        ));
+    }
+
+    response
+        .json()
+        .await
+        .map_err(|e| format!("Modrinth response parse failed: {}", e))
+}
+
+fn select_modrinth_export_file<'a>(
+    version: &'a ModrinthExportVersion,
+    item: &ExportableModFile,
+) -> Option<&'a ModrinthExportFile> {
+    let expected_hash = item.manifest_entry.hash.value.to_ascii_lowercase();
+    let normalized_name = item.file_name.trim_end_matches(".disabled");
+
+    version
+        .files
+        .iter()
+        .find(|file| {
+            file.hashes
+                .get("sha1")
+                .is_some_and(|value| value.eq_ignore_ascii_case(&expected_hash))
+        })
+        .or_else(|| version.files.iter().find(|file| file.filename == normalized_name))
+        .or_else(|| version.files.iter().find(|file| file.primary.unwrap_or(false)))
+        .or_else(|| version.files.first())
+}
+
 fn collect_files_to_pack(
     instance_dir: &Path,
     config: &ExportConfig,
     overrides_prefix: Option<&str>,
-    pipack_skip_mods: &HashSet<String>,
+    skipped_files: &HashSet<String>,
 ) -> Result<Vec<PlannedArchiveFile>, String> {
     let mut folders_to_include = Vec::new();
     if config.include_mods {
@@ -335,7 +667,7 @@ fn collect_files_to_pack(
                 .to_path_buf();
             let relative_path_str = normalize_zip_path(&relative_path);
 
-            if config.format == "pipack" && pipack_skip_mods.contains(&relative_path_str) {
+            if skipped_files.contains(&relative_path_str) {
                 continue;
             }
 
@@ -361,7 +693,7 @@ fn write_export_manifest(
     options: SimpleFileOptions,
     config: &ExportConfig,
     instance_meta: &InstanceConfig,
-    pipack_manifest: Option<PiPackManifest>,
+    artifacts: ExportArtifacts,
 ) -> Result<(), String> {
     match config.format.as_str() {
         "curseforge" => {
@@ -380,7 +712,7 @@ fn write_export_manifest(
                 "name": config.name,
                 "version": config.version,
                 "author": config.author,
-                "files": [],
+                "files": artifacts.curseforge_files,
                 "overrides": PIPACK_OVERRIDES_DIR
             });
             let manifest_str =
@@ -407,7 +739,7 @@ fn write_export_manifest(
                 "name": config.name,
                 "summary": config.description,
                 "dependencies": dependencies,
-                "files": []
+                "files": artifacts.mrpack_files
             });
             let index_str =
                 serde_json::to_string_pretty(&modrinth_index).map_err(|e| e.to_string())?;
@@ -417,7 +749,9 @@ fn write_export_manifest(
                 .map_err(|e| e.to_string())?;
         }
         "pipack" => {
-            let manifest = pipack_manifest.ok_or_else(|| "PiPack manifest missing".to_string())?;
+            let manifest = artifacts
+                .pipack_manifest
+                .ok_or_else(|| "PiPack manifest missing".to_string())?;
             let manifest_str =
                 serde_json::to_string_pretty(&manifest).map_err(|e| e.to_string())?;
             zip.start_file(PIPACK_MANIFEST_FILE, options)

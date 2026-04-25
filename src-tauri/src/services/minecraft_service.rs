@@ -1,10 +1,13 @@
 // src-tauri/src/services/minecraft_service.rs
 use crate::domain::minecraft::{McVersion, RemoteVersionManifest, VersionGroup};
+use crate::domain::modpack::MissingRuntime;
 use crate::error::AppResult;
 use crate::services::config_service::ConfigService;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::BTreeMap;
+use std::env;
+use std::path::Path;
 use std::time::Duration;
 use tauri::{AppHandle, Runtime};
 use tokio::sync::RwLock;
@@ -310,5 +313,302 @@ impl McMetadataService {
         let mut cache = VERSION_CACHE.write().await;
         *cache = Some((manifest_url, result.clone()));
         Ok(result)
+    }
+}
+
+pub fn get_mc_os() -> &'static str {
+    match env::consts::OS {
+        "windows" => "windows",
+        "macos" => "osx",
+        "linux" => "linux",
+        _ => env::consts::OS,
+    }
+}
+
+pub fn get_mc_arch() -> &'static str {
+    match env::consts::ARCH {
+        "x86_64" => "64",
+        "x86" => "32",
+        "aarch64" => "arm64",
+        _ => env::consts::ARCH,
+    }
+}
+
+pub fn evaluate_library_rules(rules: Option<&Vec<serde_json::Value>>) -> bool {
+    let Some(rules) = rules else {
+        return true;
+    };
+
+    let current_os = get_mc_os();
+    let mut is_allowed = false;
+
+    for rule in rules {
+        let action = rule["action"].as_str().unwrap_or("disallow");
+        let os_match = match rule.get("os") {
+            Some(os_obj) => os_obj["name"].as_str().unwrap_or("") == current_os,
+            None => true,
+        };
+
+        if os_match {
+            is_allowed = action == "allow";
+        }
+    }
+
+    is_allowed
+}
+
+pub fn legacy_library_download_path(name: &str, classifier: Option<&str>) -> Option<String> {
+    let parts: Vec<&str> = name.split(':').collect();
+    if parts.len() < 3 {
+        return None;
+    }
+
+    let group = parts[0].replace('.', "/");
+    let artifact = parts[1];
+    let version = parts[2];
+
+    Some(match classifier {
+        Some(classifier) => format!(
+            "{}/{}/{}/{}-{}-{}.jar",
+            group, artifact, version, artifact, version, classifier
+        ),
+        None => format!(
+            "{}/{}/{}/{}-{}.jar",
+            group, artifact, version, artifact, version
+        ),
+    })
+}
+
+pub fn resolve_loader_folder(
+    loader_type: &str,
+    mc_version: &str,
+    loader_version: &str,
+) -> Option<String> {
+    if loader_version.trim().is_empty() || loader_type.eq_ignore_ascii_case("vanilla") {
+        return None;
+    }
+
+    match loader_type.to_lowercase().as_str() {
+        "fabric" => Some(format!("fabric-loader-{}-{}", loader_version, mc_version)),
+        "forge" => Some(format!("{}-forge-{}", mc_version, loader_version)),
+        "neoforge" => Some(format!("neoforge-{}", loader_version)),
+        "quilt" => Some(format!("quilt-loader-{}-{}", loader_version, mc_version)),
+        _ => None,
+    }
+}
+
+pub fn parse_third_party_json(
+    dir_name: &str,
+    json: &serde_json::Value,
+) -> (String, String, String) {
+    let mut mc_version = dir_name.to_string();
+    let mut loader_type = "vanilla".to_string();
+    let mut loader_version = String::new();
+
+    if let Some(inherits) = json.get("inheritsFrom").and_then(|value| value.as_str()) {
+        mc_version = inherits.to_string();
+    }
+
+    if let Some(args) = json
+        .get("arguments")
+        .and_then(|value| value.get("game"))
+        .and_then(|value| value.as_array())
+    {
+        let mut iter = args.iter();
+        while let Some(arg) = iter.next() {
+            if let Some(arg_str) = arg.as_str() {
+                if arg_str == "--fml.mcVersion" {
+                    if let Some(value) = iter.next().and_then(|next| next.as_str()) {
+                        mc_version = value.to_string();
+                    }
+                } else if arg_str == "--fml.forgeVersion" {
+                    if let Some(value) = iter.next().and_then(|next| next.as_str()) {
+                        loader_type = "forge".to_string();
+                        loader_version = value.to_string();
+                    }
+                } else if arg_str == "--fml.neoForgeVersion" {
+                    if let Some(value) = iter.next().and_then(|next| next.as_str()) {
+                        loader_type = "neoforge".to_string();
+                        loader_version = value.to_string();
+                    }
+                }
+            }
+        }
+    }
+
+    if loader_type == "vanilla" || loader_version.is_empty() || mc_version == dir_name {
+        if let Some(libraries) = json.get("libraries").and_then(|value| value.as_array()) {
+            for library in libraries {
+                if let Some(name) = library.get("name").and_then(|value| value.as_str()) {
+                    if name.starts_with("net.fabricmc:fabric-loader:") {
+                        loader_type = "fabric".to_string();
+                        if let Some(version) = name.split(':').nth(2) {
+                            loader_version = version.to_string();
+                        }
+                    } else if name.starts_with("org.quiltmc:quilt-loader:") {
+                        loader_type = "quilt".to_string();
+                        if let Some(version) = name.split(':').nth(2) {
+                            loader_version = version.to_string();
+                        }
+                    } else if name.starts_with("net.neoforged:neoforge:") {
+                        loader_type = "neoforge".to_string();
+                        if let Some(version) = name.split(':').nth(2) {
+                            loader_version = version.to_string();
+                        }
+                    } else if name.starts_with("net.minecraftforge:forge:") {
+                        loader_type = "forge".to_string();
+                        if let Some(version) = name.split(':').nth(2) {
+                            let version = version.to_string();
+                            if version.contains('-') {
+                                loader_version =
+                                    version.split('-').nth(1).unwrap_or(&version).to_string();
+                            } else {
+                                loader_version = version;
+                            }
+                        }
+                    }
+
+                    if mc_version == dir_name || mc_version.is_empty() {
+                        if name.starts_with("net.fabricmc:intermediary:")
+                            || name.starts_with("org.quiltmc:hashed:")
+                        {
+                            if let Some(version) = name.split(':').nth(2) {
+                                mc_version = version.to_string();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if loader_type == "vanilla" && loader_version.is_empty() {
+        let id_lower = dir_name.to_lowercase();
+        if id_lower.contains("neoforge") {
+            loader_type = "neoforge".to_string();
+            let parts: Vec<&str> = dir_name.split("neoforge-").collect();
+            if parts.len() >= 2 {
+                loader_version = parts[1].to_string();
+            }
+        } else if id_lower.contains("forge") {
+            loader_type = "forge".to_string();
+            let parts: Vec<&str> = dir_name.split("-forge-").collect();
+            if parts.len() == 2 {
+                loader_version = parts[1].to_string();
+            }
+        } else if id_lower.contains("fabric") {
+            loader_type = "fabric".to_string();
+            let parts: Vec<&str> = dir_name.split('-').collect();
+            if parts.len() >= 3 && parts[0] == "fabric" && parts[1] == "loader" {
+                loader_version = parts[2].to_string();
+            } else if parts.len() >= 2 && parts[1].contains("Fabric ") {
+                loader_version = parts[1].replace("Fabric ", "");
+            }
+        } else if id_lower.contains("quilt") {
+            loader_type = "quilt".to_string();
+            let parts: Vec<&str> = dir_name.split('-').collect();
+            if parts.len() >= 3 {
+                loader_version = parts[2].to_string();
+            }
+        }
+    }
+
+    (mc_version, loader_type, loader_version)
+}
+
+pub fn detect_missing_runtime(
+    runtime_dir: &Path,
+    instance_id: &str,
+    mc_version: &str,
+    loader_type: &str,
+    loader_version: &str,
+) -> Option<MissingRuntime> {
+    let core_dir = runtime_dir.join("versions").join(mc_version);
+    let core_json = core_dir.join(format!("{}.json", mc_version));
+    let core_jar = core_dir.join(format!("{}.jar", mc_version));
+
+    let mut is_missing = !core_json.exists() || !core_jar.exists();
+
+    if let Some(loader_folder) = resolve_loader_folder(loader_type, mc_version, loader_version) {
+        let loader_json = runtime_dir
+            .join("versions")
+            .join(&loader_folder)
+            .join(format!("{}.json", loader_folder));
+        if !loader_json.exists() {
+            is_missing = true;
+        }
+    }
+
+    if !is_missing {
+        return None;
+    }
+
+    Some(MissingRuntime {
+        instance_id: instance_id.to_string(),
+        mc_version: mc_version.to_string(),
+        loader_type: loader_type.to_string(),
+        loader_version: loader_version.to_string(),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_third_party_json;
+    use serde_json::json;
+
+    #[test]
+    fn parses_forge_third_party_json() {
+        let json_data = json!({
+            "arguments": {
+                "game": [
+                    "--fml.mcVersion", "1.20.1",
+                    "--fml.forgeVersion", "47.4.18"
+                ]
+            }
+        });
+        let (mc, loader, version) = parse_third_party_json("1.20.1-Forge_47.4.18", &json_data);
+        assert_eq!(mc, "1.20.1");
+        assert_eq!(loader, "forge");
+        assert_eq!(version, "47.4.18");
+    }
+
+    #[test]
+    fn parses_neoforge_third_party_json() {
+        let json_data = json!({
+            "arguments": {
+                "game": [
+                    "--fml.mcVersion", "1.21.1",
+                    "--fml.neoForgeVersion", "21.1.113"
+                ]
+            }
+        });
+        let (mc, loader, version) =
+            parse_third_party_json("Cobblemon Modpack [NeoForge]", &json_data);
+        assert_eq!(mc, "1.21.1");
+        assert_eq!(loader, "neoforge");
+        assert_eq!(version, "21.1.113");
+    }
+
+    #[test]
+    fn parses_fabric_third_party_json() {
+        let json_data = json!({
+            "libraries": [
+                { "name": "net.fabricmc:fabric-loader:0.18.4" },
+                { "name": "net.fabricmc:intermediary:1.20.1" }
+            ]
+        });
+        let (mc, loader, version) = parse_third_party_json("1.20.1-Fabric 0.18.4", &json_data);
+        assert_eq!(mc, "1.20.1");
+        assert_eq!(loader, "fabric");
+        assert_eq!(version, "0.18.4");
+    }
+
+    #[test]
+    fn falls_back_to_directory_name_for_third_party_json() {
+        let json_data = json!({});
+        let (mc, loader, version) = parse_third_party_json("1.19.2-forge-43.2.0", &json_data);
+        assert_eq!(mc, "1.19.2-forge-43.2.0");
+        assert_eq!(loader, "forge");
+        assert_eq!(version, "43.2.0");
     }
 }

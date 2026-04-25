@@ -6,6 +6,7 @@ pub mod deployment_cancel;
 pub mod downloader; // ✅ 新增 downloader 模块
 pub mod file_write_lock; // 按路径串行化写入，避免并发写同一文件
 pub mod gamepad_service;
+pub mod import_service;
 pub mod instance; // ✅ 新增 instance 模块
 pub mod lan;
 pub mod launcher; // ✅ 新增 launcher 模块

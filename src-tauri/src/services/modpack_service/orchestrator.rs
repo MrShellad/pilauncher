@@ -1,13 +1,14 @@
 use crate::domain::event::DownloadProgressEvent;
 use crate::domain::mod_manifest::{
     build_file_state, build_manifest_entry, build_manifest_source, compute_file_hash,
-    mod_manifest_key, write_mod_manifest, ModManifest, ModSourceKind,
+    mod_manifest_key, upsert_mod_manifest_entry, ModManifestEntry, ModSourceKind,
 };
 use crate::services::config_service::ConfigService;
 use crate::services::deployment_cancel::is_cancelled;
 use crate::services::downloader::dependencies::{
     run_downloads, sha1_file, DownloadStage, DownloadTask,
 };
+use crate::services::instance::mod_manifest_service::ModManifestService;
 use futures::stream::{iter, StreamExt};
 use reqwest::Client;
 use serde::Deserialize;
@@ -91,6 +92,61 @@ fn should_track_mod_manifest(path: &Path) -> bool {
         .map(|ext| ext.eq_ignore_ascii_case("jar"))
         .unwrap_or(false)
         && path.starts_with(Path::new("mods"))
+}
+
+fn extract_modrinth_source_ids(url: &str) -> Option<(String, String)> {
+    let sanitized = url
+        .split_once('#')
+        .map(|(value, _)| value)
+        .unwrap_or(url)
+        .split_once('?')
+        .map(|(value, _)| value)
+        .unwrap_or(url);
+    let parts: Vec<&str> = sanitized
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .collect();
+    let data_index = parts
+        .iter()
+        .position(|segment| segment.eq_ignore_ascii_case("data"))?;
+    let project_id = parts.get(data_index + 1)?;
+    let versions_index = parts
+        .iter()
+        .enumerate()
+        .skip(data_index + 2)
+        .find_map(|(index, segment)| segment.eq_ignore_ascii_case("versions").then_some(index))?;
+    let version_id = parts.get(versions_index + 1)?;
+
+    Some(((*project_id).to_string(), (*version_id).to_string()))
+}
+
+fn build_pipack_manifest_entry(
+    manifest_entry: &crate::domain::modpack::PiPackModEntry,
+    hash: crate::domain::mod_manifest::ModFileHash,
+    file_state: crate::domain::mod_manifest::ModFileState,
+) -> ModManifestEntry {
+    let mut entry = build_manifest_entry(manifest_entry.source.clone(), hash, file_state);
+    entry.mod_id = manifest_entry.mod_id.clone();
+    entry.name = manifest_entry.name.clone();
+    entry.version = manifest_entry.version.clone();
+    entry.description = manifest_entry.description.clone();
+    entry
+}
+
+fn finalize_imported_mod_manifest(
+    instance_root: &Path,
+    manifest_entries: Vec<(String, ModManifestEntry)>,
+) -> Result<(), String> {
+    let mods_dir = instance_root.join("mods");
+    std::fs::create_dir_all(&mods_dir).map_err(|e| e.to_string())?;
+
+    let manifest_path = instance_root.join("mod_manifest.json");
+    for (file_name, entry) in manifest_entries {
+        upsert_mod_manifest_entry(&manifest_path, &file_name, &entry)?;
+    }
+
+    ModManifestService::sync_from_mods_dir(&mods_dir, &manifest_path)?;
+    Ok(())
 }
 
 fn resolve_curseforge_api_key() -> Option<String> {
@@ -698,7 +754,7 @@ async fn download_pipack_mods<R: Runtime>(
 ) -> Result<(), String> {
     let manifest = read_pipack_manifest(zip_path)?;
     if manifest.mods.is_empty() {
-        return Ok(());
+        return finalize_imported_mod_manifest(instance_root, Vec::new());
     }
 
     let dl_settings = ConfigService::get_download_settings(app);
@@ -752,7 +808,7 @@ async fn download_pipack_mods<R: Runtime>(
     };
 
     let mut tasks: Vec<DownloadTask> = Vec::new();
-    let mut manifest_data = ModManifest::new();
+    let mut manifest_entries: Vec<(String, ModManifestEntry)> = Vec::new();
 
     for entry in &manifest.mods {
         if is_cancelled(cancel) {
@@ -766,10 +822,10 @@ async fn download_pipack_mods<R: Runtime>(
         if target_path.exists() && file_matches_hash(&target_path, &entry.hash).await? {
             let file_state = build_file_state(&target_path)?;
             let hash = compute_file_hash(&target_path)?;
-            manifest_data.insert(
+            manifest_entries.push((
                 mod_manifest_key(&entry.file_name),
-                build_manifest_entry(entry.source.clone(), hash, file_state),
-            );
+                build_pipack_manifest_entry(entry, hash, file_state),
+            ));
             continue;
         }
 
@@ -791,10 +847,10 @@ async fn download_pipack_mods<R: Runtime>(
                 {
                     let file_state = build_file_state(&target_path)?;
                     let hash = compute_file_hash(&target_path)?;
-                    manifest_data.insert(
+                    manifest_entries.push((
                         mod_manifest_key(&entry.file_name),
-                        build_manifest_entry(entry.source.clone(), hash, file_state),
-                    );
+                        build_pipack_manifest_entry(entry, hash, file_state),
+                    ));
                     continue;
                 }
 
@@ -834,19 +890,13 @@ async fn download_pipack_mods<R: Runtime>(
 
         let file_state = build_file_state(&target_path)?;
         let hash = compute_file_hash(&target_path)?;
-        manifest_data.insert(
+        manifest_entries.push((
             mod_manifest_key(&entry.file_name),
-            build_manifest_entry(entry.source.clone(), hash, file_state),
-        );
+            build_pipack_manifest_entry(entry, hash, file_state),
+        ));
     }
 
-    if !manifest_data.is_empty() {
-        let manifest_path = instance_root.join("mod_manifest.json");
-        let _ = std::fs::create_dir_all(instance_root.join("mods"));
-        write_mod_manifest(&manifest_path, &manifest_data)?;
-    }
-
-    Ok(())
+    finalize_imported_mod_manifest(instance_root, manifest_entries)
 }
 
 async fn download_modrinth_mods<R: Runtime>(
@@ -933,20 +983,17 @@ async fn download_modrinth_mods<R: Runtime>(
 
         let target_path = instance_root.join(&relative_path);
         if should_track_mod_manifest(&relative_path) {
-            let parts: Vec<&str> = url.split('/').collect();
-            if let Some(pos) = parts.iter().position(|&x| x == "data") {
-                if parts.len() > pos + 3 && parts[pos + 2] == "versions" {
-                    tracked_manifest_sources.push((
-                        file_name.clone(),
-                        build_manifest_source(
-                            ModSourceKind::ModpackDeployment,
-                            Some("modrinth".to_string()),
-                            Some(parts[pos + 1].to_string()),
-                            Some(parts[pos + 3].to_string()),
-                        ),
-                        target_path.clone(),
-                    ));
-                }
+            if let Some((project_id, version_id)) = extract_modrinth_source_ids(url) {
+                tracked_manifest_sources.push((
+                    file_name.clone(),
+                    build_manifest_source(
+                        ModSourceKind::ModpackDeployment,
+                        Some("modrinth".to_string()),
+                        Some(project_id),
+                        Some(version_id),
+                    ),
+                    target_path.clone(),
+                ));
             }
         }
         let expected_sha1 = file
@@ -1015,23 +1062,17 @@ async fn download_modrinth_mods<R: Runtime>(
         .map_err(|e| e.to_string())?;
     }
 
-    let mut manifest_data = ModManifest::new();
+    let mut manifest_entries = Vec::new();
     for (file_name, source, target_path) in tracked_manifest_sources {
         if let (Ok(file_state), Ok(hash)) = (
             build_file_state(&target_path),
             compute_file_hash(&target_path),
         ) {
-            manifest_data.insert(file_name, build_manifest_entry(source, hash, file_state));
+            manifest_entries.push((file_name, build_manifest_entry(source, hash, file_state)));
         }
     }
 
-    if !manifest_data.is_empty() {
-        let manifest_path = instance_root.join("mod_manifest.json");
-        let _ = std::fs::create_dir_all(instance_root.join("mods"));
-        let _ = crate::domain::mod_manifest::write_mod_manifest(&manifest_path, &manifest_data);
-    }
-
-    Ok(())
+    finalize_imported_mod_manifest(instance_root, manifest_entries)
 }
 
 async fn download_curseforge_mods<R: Runtime>(
@@ -1085,7 +1126,7 @@ async fn download_curseforge_mods<R: Runtime>(
         .collect();
 
     if entries.is_empty() {
-        return Ok(());
+        return finalize_imported_mod_manifest(instance_root, Vec::new());
     }
 
     let info_concurrency = std::cmp::max(1, std::cmp::min(concurrency, 8));
@@ -1131,6 +1172,19 @@ async fn download_curseforge_mods<R: Runtime>(
         let install_target = resolve_curseforge_install_target(project.class_id);
 
         let target_path = build_curseforge_target_path(instance_root, install_target, &file_name);
+        if matches!(install_target, CurseForgeInstallTarget::Mod) {
+            tracked_manifest_sources.push((
+                file_name.clone(),
+                build_manifest_source(
+                    ModSourceKind::ModpackDeployment,
+                    Some("curseforge".to_string()),
+                    Some(entry.project_id.to_string()),
+                    Some(entry.file_id.to_string()),
+                ),
+                target_path.clone(),
+            ));
+        }
+
         if target_path.exists() {
             let size_matches = expected_size
                 .map(|size| {
@@ -1172,19 +1226,6 @@ async fn download_curseforge_mods<R: Runtime>(
             expected_sha1: if verify_hash { expected_sha1 } else { None },
             expected_size,
         });
-
-        if matches!(install_target, CurseForgeInstallTarget::Mod) {
-            tracked_manifest_sources.push((
-                file_name.clone(),
-                build_manifest_source(
-                    ModSourceKind::ModpackDeployment,
-                    Some("curseforge".to_string()),
-                    Some(entry.project_id.to_string()),
-                    Some(entry.file_id.to_string()),
-                ),
-                target_path.clone(),
-            ));
-        }
     }
 
     if !tasks.is_empty() {
@@ -1205,21 +1246,15 @@ async fn download_curseforge_mods<R: Runtime>(
         .map_err(|e| e.to_string())?;
     }
 
-    let mut manifest_data = ModManifest::new();
+    let mut manifest_entries = Vec::new();
     for (file_name, source, target_path) in tracked_manifest_sources {
         if let (Ok(file_state), Ok(hash)) = (
             build_file_state(&target_path),
             compute_file_hash(&target_path),
         ) {
-            manifest_data.insert(file_name, build_manifest_entry(source, hash, file_state));
+            manifest_entries.push((file_name, build_manifest_entry(source, hash, file_state)));
         }
     }
 
-    if !manifest_data.is_empty() {
-        let manifest_path = instance_root.join("mod_manifest.json");
-        let _ = std::fs::create_dir_all(instance_root.join("mods"));
-        let _ = crate::domain::mod_manifest::write_mod_manifest(&manifest_path, &manifest_data);
-    }
-
-    Ok(())
+    finalize_imported_mod_manifest(instance_root, manifest_entries)
 }
