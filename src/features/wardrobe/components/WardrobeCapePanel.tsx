@@ -37,7 +37,7 @@ const CapeCardItem = React.memo(({ cape, index, isActive, onOpenCapeMenu, onPrev
 
   return (
     <FocusItem
-      focusKey={`wardrobe-cape-${index}`}
+      focusKey={`wardrobe-cape-${cape.id}`}
       onEnter={() => onOpenCapeMenu(cape)}
     >
       {({ ref, focused }) => {

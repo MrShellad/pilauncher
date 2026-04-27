@@ -22,6 +22,44 @@ export interface UseSkinViewerReturn {
   getEngine: () => SkinEngine | null;
 }
 
+export const detectSkinModel = (url: string): Promise<'classic' | 'slim'> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      if (img.width !== 64 || img.height !== 64) {
+        resolve('classic');
+        return;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve('classic');
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+
+      // 检测 slim 透明列：
+      // 右臂区域中 x=54,55 并且 y=20~31 的列
+      // 对于 classic (4px 宽)，这些像素有颜色。
+      // 对于 slim (3px 宽)，全透明。
+      const imgData = ctx.getImageData(54, 20, 2, 12);
+      let isSlim = true;
+      for (let i = 3; i < imgData.data.length; i += 4) {
+        if (imgData.data[i] !== 0) { // 不是全透明
+          isSlim = false;
+          break;
+        }
+      }
+      resolve(isSlim ? 'slim' : 'classic');
+    };
+    img.onerror = () => resolve('classic');
+    img.src = url;
+  });
+};
+
 export const loadAccountSkin = async (engine: SkinEngine, currentAccount: unknown) => {
   const account = currentAccount as any;
   const uuid = account?.uuid ?? '';
@@ -29,8 +67,14 @@ export const loadAccountSkin = async (engine: SkinEngine, currentAccount: unknow
   const skinKey = uuid ? `${uuid}:${cacheBuster}` : 'default:steve';
 
   if (!account) {
-    await engine.loadSkin(skinKey, DEFAULT_SKIN_URL);
+    await engine.loadSkin(skinKey, DEFAULT_SKIN_URL, 'classic');
     return;
+  }
+
+  // 优先级 1：读 metadata (有 Mojang profile 时：metadata.model == "slim" → slim, else → classic)
+  let metadataModel: 'classic' | 'slim' | null = null;
+  if (account.metadata && account.metadata.model) {
+    metadataModel = account.metadata.model === 'slim' ? 'slim' : 'classic';
   }
 
   try {
@@ -39,7 +83,11 @@ export const loadAccountSkin = async (engine: SkinEngine, currentAccount: unknow
       const separator = basePath.includes('\\') ? '\\' : '/';
       const localSkinPath = `${basePath}${separator}runtime${separator}accounts${separator}${account.uuid}${separator}skin.png`;
       const assetUrl = `${convertFileSrc(localSkinPath)}?t=${cacheBuster}`;
-      await engine.loadSkin(skinKey, assetUrl);
+      
+      // 优先级 2：本地 PNG 检测 (没有 profile 时：检测 slim 透明列)
+      const modelToLoad = metadataModel || await detectSkinModel(assetUrl);
+
+      await engine.loadSkin(skinKey, assetUrl, modelToLoad);
       return;
     }
   } catch (e) {
@@ -47,9 +95,11 @@ export const loadAccountSkin = async (engine: SkinEngine, currentAccount: unknow
   }
 
   try {
-    await engine.loadSkin(skinKey, `https://minotar.net/skin/${account.name}.png`);
+    const netUrl = `https://minotar.net/skin/${account.name}.png`;
+    const modelToLoad = metadataModel || await detectSkinModel(netUrl);
+    await engine.loadSkin(skinKey, netUrl, modelToLoad);
   } catch {
-    await engine.loadSkin(skinKey, DEFAULT_SKIN_URL);
+    await engine.loadSkin(skinKey, DEFAULT_SKIN_URL, 'classic');
   }
 };
 

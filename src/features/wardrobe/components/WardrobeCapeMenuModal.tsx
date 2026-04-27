@@ -28,6 +28,8 @@ export const WardrobeCapeMenuModal: React.FC<WardrobeCapeMenuModalProps> = ({
       isOpen={!!capeMenuAsset}
       onClose={onClose}
       title={t('wardrobe.capeMenu.titleDefault')}
+      hideCloseButton
+      defaultFocusKey="wardrobe-cape-menu-apply"
       className="w-full max-w-[500px]"
       contentClassName="p-6"
     >

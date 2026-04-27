@@ -37,7 +37,7 @@ const SkinCardItem = React.memo(({ asset, index, onOpenSkinMenu, onPreview }: Sk
 
   return (
     <FocusItem
-      focusKey={`wardrobe-skin-${index}`}
+      focusKey={`wardrobe-skin-${asset.id}`}
       onEnter={() => onOpenSkinMenu(asset)}
     >
       {({ ref, focused }) => {

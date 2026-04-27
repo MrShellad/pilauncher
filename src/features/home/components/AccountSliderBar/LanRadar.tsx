@@ -174,7 +174,7 @@ export const LanRadar: React.FC<LanRadarProps> = ({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between pl-1 text-xs font-bold uppercase tracking-wider text-gray-400">
+      <div className="ore-ms-radar-header flex items-center justify-between pl-1 text-xs font-bold uppercase tracking-wider">
         <div className="flex items-center">
           <Users size={14} className="mr-2" />
           局域网雷达 ({candidateDevices.length})
@@ -189,13 +189,13 @@ export const LanRadar: React.FC<LanRadarProps> = ({
 
       <div className="flex flex-col gap-2">
         {candidateDevices.length === 0 && !isScanning && (
-          <div className="border-2 border-dashed border-[#313233] p-4 text-center text-sm text-gray-500">
+          <div className="ore-ms-radar-empty p-4 text-center text-sm">
             附近没有待处理的好友或设备。
           </div>
         )}
 
         {candidateDevices.length === 0 && isScanning && (
-          <div className="flex items-center justify-center gap-2 border-2 border-dashed border-[#313233] p-4 text-center text-sm text-gray-500">
+          <div className="ore-ms-radar-empty flex items-center justify-center gap-2 p-4 text-center text-sm">
             <Loader2 size={14} className="animate-spin text-ore-green" />
             正在扫描局域网中的设备...
           </div>

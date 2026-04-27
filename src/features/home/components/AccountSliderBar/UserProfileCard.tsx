@@ -20,6 +20,7 @@ import type {
   TrustedDevice,
 } from '../../../../hooks/useLan';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
+import { useInputAction } from '../../../../ui/focus/InputDriver';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreModal } from '../../../../ui/primitives/OreModal';
 
@@ -60,6 +61,14 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
   const [isRejecting, setIsRejecting] = useState(false);
   const [instances, setInstances] = useState<{ id: string; name: string }[]>([]);
   const [progress, setProgress] = useState<TransferProgressEvent | null>(null);
+  const [focusedDeviceId, setFocusedDeviceId] = useState<string | null>(null);
+  const [deviceToRemove, setDeviceToRemove] = useState<string | null>(null);
+
+  useInputAction('MENU', () => {
+    if (focusedDeviceId) {
+      setDeviceToRemove(focusedDeviceId);
+    }
+  });
 
   useEffect(() => {
     const unlistenReceive = listen<IncomingTransferNotice>('transfer_received', async (event) => {
@@ -188,19 +197,18 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
 
   return (
     <>
-      <div className="flex flex-col overflow-hidden rounded-sm border-[2px] border-[#313233] bg-[#1E1E1F] shadow-xl">
-        <div className="relative h-28 w-full overflow-hidden bg-[#111112]">
+      <div className="ore-ms-profile-card flex flex-col overflow-hidden rounded-sm border-[2px] shadow-xl">
+        <div className="ore-ms-profile-banner relative h-28 w-full overflow-hidden">
           {avatarSrc ? (
             <img src={avatarSrc} className="h-full w-full object-cover opacity-60 mix-blend-screen blur-sm" />
           ) : (
             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent" />
           )}
-          <div className="absolute inset-0 flex items-end bg-gradient-to-t from-[#1E1E1F] to-transparent p-4">
+          <div className="ore-ms-profile-banner-overlay absolute inset-0 flex items-end p-4">
             <div className="flex items-center gap-3">
               <div
-                className={`h-14 w-14 flex-shrink-0 overflow-hidden rounded-sm border-[2px] bg-black/80 shadow-lg ${
-                  isPremium ? 'border-[#EAB308]' : 'border-[#313233]'
-                }`}
+                className={`ore-ms-profile-avatar-box h-14 w-14 flex-shrink-0 overflow-hidden rounded-sm ${isPremium ? 'is-premium' : ''
+                  }`}
               >
                 <img
                   src={avatarSrc || 'https://cravatar.cn/avatars/8667ba71b85a4004af54457a9734eed7?size=64&overlay=true'}
@@ -215,7 +223,7 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
                 <span className="mt-0.5 flex items-center text-[10px] text-gray-300">
                   {hasPremiumAnywhere ? (
                     <span className="mr-1.5 rounded-sm border border-[#EAB308]/30 bg-[#EAB308]/20 px-1.5 py-0.5 text-[#FBBF24]">
-                      Premium 尊享
+                      正版用户
                     </span>
                   ) : (
                     <span className="mr-1.5 rounded-sm border border-white/10 bg-white/10 px-1.5 py-0.5 text-gray-300">
@@ -228,7 +236,7 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-t-2 border-[#2A2A2C] bg-[#1A1A1B] p-3">
+        <div className="ore-ms-profile-action-bar flex items-center justify-between p-3">
           <span className="text-xs font-minecraft text-gray-400">当前活动身份</span>
           {accountsCount > 1 && (
             <OreButton variant="secondary" size="sm" onClick={onCycleAccount} className="!h-auto !px-2 !py-1 text-[10px]">
@@ -237,8 +245,8 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
           )}
         </div>
 
-        <div className="flex flex-col bg-[#141415] p-3">
-          <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-gray-500">
+        <div className="ore-ms-profile-list-container flex flex-col p-3">
+          <div className="ore-ms-radar-header mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider">
             <span>信任设备 ({trusted.length})</span>
             <button
               type="button"
@@ -251,9 +259,11 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
             </button>
           </div>
 
-          <div className="mb-2 rounded-sm border border-sky-500/20 bg-sky-500/10 px-2 py-1.5 text-[11px] leading-relaxed text-sky-100">
-            好友关系不会自动等于信任。只有这里的信任设备才允许投送实例和存档。
-          </div>
+          {trusted.length === 0 && (
+            <div className="mb-2 rounded-sm border border-sky-500/20 bg-sky-500/10 px-2 py-1.5 text-[11px] leading-relaxed text-sky-100">
+              好友关系不会自动等于信任。只有这里的信任设备才允许投送实例和存档。
+            </div>
+          )}
 
           <div className="custom-scrollbar flex max-h-[180px] flex-col gap-1.5 overflow-y-auto pr-1">
             {trusted.length === 0 && (
@@ -269,50 +279,57 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
                   key={device.deviceId}
                   focusKey={`trusted-${device.deviceId}`}
                   onEnter={() => isOnline && onSelectTrustedDevice(onlineInfo)}
+                  onFocus={() => setFocusedDeviceId(device.deviceId)}
                 >
-                  {({ ref, focused }) => (
-                    <div
-                      className={`flex items-center justify-between rounded-sm border bg-white/5 p-2 text-left transition-all ${
-                        isOnline ? 'border-white/10' : 'border-transparent opacity-50'
-                      } ${focused && isOnline ? 'bg-white/10 ring-2 ring-white' : ''}`}
-                    >
-                      <button
-                        ref={ref as any}
-                        onClick={() => isOnline && onSelectTrustedDevice(onlineInfo)}
-                        className={`flex flex-1 items-center gap-2.5 pr-2 outline-none ${
-                          isOnline ? 'cursor-pointer' : 'cursor-not-allowed'
-                        }`}
+                  {({ ref, focused }) => {
+                    if (!focused && focusedDeviceId === device.deviceId) {
+                      // Small delay to prevent flickering when unmounting/remounting FocusItems
+                      setTimeout(() => {
+                        setFocusedDeviceId((prev) => prev === device.deviceId ? null : prev);
+                      }, 0);
+                    }
+                    return (
+                      <div
+                        className={`ore-ms-trusted-item flex items-center justify-between rounded-sm p-2 text-left transition-none ${isOnline ? 'is-online' : 'opacity-50'
+                          } ${focused && isOnline ? 'is-focused' : ''}`}
                       >
-                        {renderDeviceIcon(device.deviceName)}
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm text-gray-200">{device.deviceName}</div>
-                          {device.username && (
-                            <div className="truncate text-[10px] text-gray-500">{device.username}</div>
-                          )}
-                        </div>
-                      </button>
-                      <div className="flex flex-shrink-0 items-center gap-2">
-                        {isOnline ? (
-                          <span className="flex items-center rounded-sm border border-ore-green/20 bg-ore-green/10 px-1.5 py-0.5 text-[10px] text-ore-green">
-                            <span className="mr-1 h-1.5 w-1.5 animate-pulse rounded-full bg-ore-green" />
-                            在线
-                          </span>
-                        ) : (
-                          <span className="text-[10px] text-gray-500">离线</span>
-                        )}
                         <button
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onRemoveTrust(device.deviceId);
-                          }}
-                          className="rounded-sm p-1 text-gray-500 transition-colors hover:bg-red-500/20 hover:text-red-400"
-                          title="取消信任，保留好友"
+                          ref={ref as any}
+                          onClick={() => isOnline && onSelectTrustedDevice(onlineInfo)}
+                          className={`flex flex-1 items-center gap-2.5 pr-2 outline-none ${isOnline ? 'cursor-pointer' : 'cursor-not-allowed'
+                            }`}
                         >
-                          <Trash2 size={12} />
+                          {renderDeviceIcon(device.deviceName)}
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm text-gray-200">{device.deviceName}</div>
+                            {device.username && (
+                              <div className="truncate text-[10px] text-gray-500">{device.username}</div>
+                            )}
+                          </div>
                         </button>
+                        <div className="flex flex-shrink-0 items-center gap-2">
+                          {isOnline ? (
+                            <span className="flex items-center rounded-sm border border-ore-green/20 bg-ore-green/10 px-1.5 py-0.5 text-[10px] text-ore-green">
+                              <span className="mr-1 h-1.5 w-1.5 animate-pulse rounded-full bg-ore-green" />
+                              在线
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-gray-500">离线</span>
+                          )}
+                          <button
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setDeviceToRemove(device.deviceId);
+                            }}
+                            className="rounded-sm p-1 text-gray-500 transition-colors hover:bg-red-500/20 hover:text-red-400"
+                            title="取消信任，保留好友"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  }}
                 </FocusItem>
               );
             })}
@@ -354,13 +371,12 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-white/10">
                   <div
-                    className={`h-full transition-all ${
-                      progress.status === 'failed'
+                    className={`h-full transition-all ${progress.status === 'failed'
                         ? 'bg-red-400'
                         : progress.status === 'rejected'
                           ? 'bg-amber-300'
                           : 'bg-blue-400'
-                    }`}
+                      }`}
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
@@ -374,9 +390,8 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
                   {({ ref, focused }) => (
                     <select
                       ref={ref as any}
-                      className={`w-full rounded-sm border-2 border-[#2A2A2C] bg-[#141415] p-2 text-white outline-none transition-all ${
-                        focused ? 'ring-2 ring-white' : ''
-                      }`}
+                      className={`w-full rounded-sm border-2 border-[#2A2A2C] bg-[#141415] p-2 text-white outline-none transition-all ${focused ? 'ring-2 ring-white' : ''
+                        }`}
                       value={receiveTargetInstance}
                       onChange={(event) => setReceiveTargetInstance(event.target.value)}
                     >
@@ -416,6 +431,41 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
             </div>
           </div>
         )}
+      </OreModal>
+
+      <OreModal
+        isOpen={!!deviceToRemove}
+        onClose={() => setDeviceToRemove(null)}
+        title="取消信任设备"
+      >
+        <div className="flex flex-col items-center p-6">
+          <div className="mb-4 rounded-full bg-red-500/10 p-4">
+            <Trash2 size={40} className="text-red-400" />
+          </div>
+          <p className="mb-2 text-center text-white font-minecraft">
+            确定要取消信任该设备吗？
+          </p>
+          <p className="mb-8 max-w-xs text-center text-xs leading-relaxed text-gray-400">
+            取消信任后，该设备将无法向你发起实例和存档投送，但你们仍会保持好友关系。
+          </p>
+          <div className="flex w-full gap-4">
+            <OreButton className="flex-1 !h-12" variant="secondary" onClick={() => setDeviceToRemove(null)}>
+              取消
+            </OreButton>
+            <OreButton
+              className="flex-1 !h-12"
+              variant="danger"
+              onClick={() => {
+                if (deviceToRemove) {
+                  onRemoveTrust(deviceToRemove);
+                  setDeviceToRemove(null);
+                }
+              }}
+            >
+              确定取消
+            </OreButton>
+          </div>
+        </div>
       </OreModal>
     </>
   );
