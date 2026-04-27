@@ -15,12 +15,11 @@ export interface WardrobeSkinPanelProps {
 
 interface SkinCardItemProps {
   asset: SkinCardAsset;
-  index: number;
   onOpenSkinMenu: (asset: SkinCardAsset) => void;
   onPreview: (asset: SkinCardAsset) => void;
 }
 
-const SkinCardItem = React.memo(({ asset, index, onOpenSkinMenu, onPreview }: SkinCardItemProps) => {
+const SkinCardItem = React.memo(({ asset, onOpenSkinMenu, onPreview }: SkinCardItemProps) => {
   const { t } = useTranslation();
   const isComponentFocusedRef = React.useRef(false);
 
@@ -94,11 +93,10 @@ export const WardrobeSkinPanel: React.FC<WardrobeSkinPanelProps> = ({
           )}
         </FocusItem>
 
-        {skinCards.map((asset, index) => (
+        {skinCards.map((asset) => (
           <SkinCardItem
             key={asset.id}
             asset={asset}
-            index={index}
             onOpenSkinMenu={onOpenSkinMenu}
             onPreview={onPreview}
           />

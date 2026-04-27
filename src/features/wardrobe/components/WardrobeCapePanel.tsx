@@ -15,13 +15,12 @@ export interface WardrobeCapePanelProps {
 
 interface CapeCardItemProps {
   cape: WardrobeCape;
-  index: number;
   isActive: boolean;
   onOpenCapeMenu: (cape: WardrobeCape) => void;
   onPreview: (cape: WardrobeCape) => void;
 }
 
-const CapeCardItem = React.memo(({ cape, index, isActive, onOpenCapeMenu, onPreview }: CapeCardItemProps) => {
+const CapeCardItem = React.memo(({ cape, isActive, onOpenCapeMenu, onPreview }: CapeCardItemProps) => {
   const isComponentFocusedRef = React.useRef(false);
 
   useInputAction('ACTION_Y', () => {
@@ -97,11 +96,10 @@ export const WardrobeCapePanel: React.FC<WardrobeCapePanelProps> = ({
               const bActive = activeCape?.id === b.id;
               return aActive === bActive ? 0 : aActive ? -1 : 1;
             })
-            .map((cape, index) => (
+            .map((cape) => (
             <CapeCardItem
               key={cape.id}
               cape={cape}
-              index={index}
               isActive={activeCape?.id === cape.id}
               onOpenCapeMenu={onOpenCapeMenu}
               onPreview={onPreview}
