@@ -218,6 +218,22 @@ impl DbService {
                 ON instance_servers(instance_id, sort_order);
             CREATE INDEX IF NOT EXISTS idx_servers_address
                 ON servers(address, port);
+
+            CREATE TABLE IF NOT EXISTS logshare_history (
+                uuid TEXT PRIMARY KEY,
+                log_id TEXT NOT NULL,
+                log_type TEXT NOT NULL,
+                url TEXT NOT NULL,
+                raw_url TEXT,
+                token TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                expires_at INTEGER NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_logshare_history_log_id
+                ON logshare_history(log_id);
+            CREATE INDEX IF NOT EXISTS idx_logshare_history_expires_at
+                ON logshare_history(expires_at);
             ",
         )
         .execute(pool)

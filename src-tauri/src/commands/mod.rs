@@ -12,6 +12,7 @@ pub mod lan_cmd;
 pub mod launcher_cmd;
 pub mod library_cmd; // 新增 library_cmd 模块
 pub mod loader_cmd;
+pub mod logshare_cmd;
 pub mod minecraft_cmd;
 pub mod modpack_cmd; // 新增 modpack_cmd 模块
 pub mod network_cmd;
@@ -139,6 +140,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         fs_cmd::list_valid_dirs,
         fs_cmd::create_valid_dir,
         fs_cmd::get_parent_dir,
+        fs_cmd::open_path_in_file_manager,
         auth_cmd::refresh_microsoft_token,
         auth_cmd::get_or_fetch_account_avatar,
         auth_cmd::get_wardrobe_profile,
@@ -183,5 +185,12 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         library_cmd::save_collection_item,
         library_cmd::remove_collection_item,
         wiki_cmd::get_wiki_url,
+        logshare_cmd::share_minecraft_log,
+        logshare_cmd::analyse_minecraft_log,
+        logshare_cmd::get_logshare_insights,
+        logshare_cmd::get_logshare_ai_analysis,
+        logshare_cmd::get_logshare_raw,
+        logshare_cmd::get_logshare_history,
+        logshare_cmd::delete_logshare_history,
     ])
 }

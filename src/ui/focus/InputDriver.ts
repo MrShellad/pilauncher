@@ -1,6 +1,7 @@
 // /src/ui/focus/InputDriver.ts
 import { useEffect, useRef } from 'react';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { useGameLogStore } from '../../store/useGameLogStore';
 
 export type InputAction =
   | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT'
@@ -139,21 +140,28 @@ export const useInputDriver = (
   useEffect(() => {
     const loop = (now: number) => {
       const currentGamepadActions = new Set<InputAction>();
+      const { gameState } = useGameLogStore.getState();
 
-      // 1. 处理按钮：支持混合索引
-      nativeButtonsRef.current.forEach((id) => {
-        const action = (bindings.gamepad.buttons as any)[id];
-        if (action) currentGamepadActions.add(action);
-      });
+      if (gameState === 'running' || gameState === 'launching') {
+        nativeButtonsRef.current.clear();
+        nativeAxesRef.current = {};
+        lastAxisActionRef.current = {};
+      } else {
+        // 1. 处理按钮：支持混合索引
+        nativeButtonsRef.current.forEach((id) => {
+          const action = (bindings.gamepad.buttons as any)[id];
+          if (action) currentGamepadActions.add(action);
+        });
 
-      // 2. 处理摇杆：支持混合索引
-      Object.entries(bindings.gamepad.axes).forEach(([id, mapping]) => {
-        const value = nativeAxesRef.current[id] ?? 0;
-        if (value < -AXIS_DEADZONE) currentGamepadActions.add(mapping.negative);
-        else if (value > AXIS_DEADZONE) currentGamepadActions.add(mapping.positive);
-      });
+        // 2. 处理摇杆：支持混合索引
+        Object.entries(bindings.gamepad.axes).forEach(([id, mapping]) => {
+          const value = nativeAxesRef.current[id] ?? 0;
+          if (value < -AXIS_DEADZONE) currentGamepadActions.add(mapping.negative);
+          else if (value > AXIS_DEADZONE) currentGamepadActions.add(mapping.positive);
+        });
 
-      currentGamepadActions.forEach(action => triggerAction(action, 'controller', now, bindings));
+        currentGamepadActions.forEach(action => triggerAction(action, 'controller', now, bindings));
+      }
 
       // 键盘处理逻辑
       const currentKeyboardActions = new Set<InputAction>();

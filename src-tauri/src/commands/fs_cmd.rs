@@ -1,6 +1,6 @@
 // src-tauri/src/commands/fs_cmd.rs
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(serde::Serialize)]
 pub struct DirNode {
@@ -99,4 +99,41 @@ pub async fn get_parent_dir(path: String) -> Result<Option<String>, String> {
     } else {
         Ok(None)
     }
+}
+
+#[tauri::command]
+pub async fn open_path_in_file_manager(path: String) -> Result<(), String> {
+    let input = PathBuf::from(path);
+    let target = if input.is_file() {
+        input
+            .parent()
+            .map(Path::to_path_buf)
+            .ok_or_else(|| "无法解析文件所在目录".to_string())?
+    } else {
+        input
+    };
+
+    if !target.exists() || !target.is_dir() {
+        return Err("目录不存在或无法访问".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    std::process::Command::new("explorer")
+        .arg(&target)
+        .spawn()
+        .map_err(|e| format!("打开目录失败: {}", e))?;
+
+    #[cfg(target_os = "macos")]
+    std::process::Command::new("open")
+        .arg(&target)
+        .spawn()
+        .map_err(|e| format!("打开目录失败: {}", e))?;
+
+    #[cfg(target_os = "linux")]
+    std::process::Command::new("xdg-open")
+        .arg(&target)
+        .spawn()
+        .map_err(|e| format!("打开目录失败: {}", e))?;
+
+    Ok(())
 }

@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, Loader2, AlertTriangle, Bug, Activity, Check, FileText, Share2, ChevronRight, Power, Copy, FolderOpen } from 'lucide-react';
-import { open as openExternal } from '@tauri-apps/plugin-shell';
+import { Terminal, Loader2, AlertTriangle, Bug, Activity, Check, Share2, ChevronRight, Power, Copy, FolderOpen } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import { OreConfirmDialog } from '../../../ui/primitives/OreConfirmDialog';
 
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
@@ -14,8 +14,10 @@ import { OreButton } from '../../../ui/primitives/OreButton';
 import { useFocusManager } from '../hooks/useFocusManager';
 import { useGameProcessService } from '../hooks/useGameProcessService';
 import { useExportService } from '../hooks/useExportService';
+import { useLogShare } from '../hooks/useLogShare';
 import { TelemetryPanel } from './TelemetryPanel';
 import { LogView } from './LogView';
+import { LogShareDialog } from './LogShareDialog';
 
 // Note: useLogService has been moved to <GameLogService /> (always mounted in App.tsx).
 // This component only handles UI; focus restoration is done via the isOpen watcher below.
@@ -27,6 +29,9 @@ export const GameLogSidebar: React.FC = () => {
   const [exportedZipPath, setExportedZipPath] = useState<string | null>(null);
   const [showExportError, setShowExportError] = useState<string | null>(null);
   const [showKillConfirm, setShowKillConfirm] = useState(false);
+  const [isLogShareOpen, setIsLogShareOpen] = useState(false);
+  const [sanitizeBeforeShare, setSanitizeBeforeShare] = useState(true);
+  const [includeAiAnalysis, setIncludeAiAnalysis] = useState(false);
 
   const { restoreFocusToCurrentPage } = useFocusManager(isOpen);
   const { killCurrentGame } = useGameProcessService();
@@ -45,28 +50,52 @@ export const GameLogSidebar: React.FC = () => {
     prevIsOpenRef.current = isOpen;
   }, [isOpen, restoreFocusToCurrentPage]);
 
-  const { isExporting, copiedAll, handleCopyAll, handleExportTxt, handleShareZip } = useExportService({
+  const { isExporting, copiedAll, handleCopyAll, handleShareZip } = useExportService({
     currentInstanceId,
     logs
   });
+  const {
+    isSharing,
+    report: shareReport,
+    error: shareError,
+    copiedShareUrl,
+    shareLogs,
+    copyShareUrl,
+    openShareUrl,
+    resetShare
+  } = useLogShare();
 
   const onGenerateDiag = async () => {
     try {
       const path = await handleShareZip();
       setExportedZipPath(path);
-    } catch (e: any) {
-      setShowExportError(e.toString());
+    } catch (e: unknown) {
+      setShowExportError(e instanceof Error ? e.message : String(e));
     }
   };
 
   const handleOpenZipFolder = useCallback(() => {
     if (exportedZipPath) {
-      const dirIndex = Math.max(exportedZipPath.lastIndexOf('\\'), exportedZipPath.lastIndexOf('/'));
-      const dir = dirIndex > -1 ? exportedZipPath.substring(0, dirIndex) : exportedZipPath;
-      openExternal(dir).catch(console.error);
-      setExportedZipPath(null);
+      invoke('open_path_in_file_manager', { path: exportedZipPath })
+        .then(() => setExportedZipPath(null))
+        .catch((error) => setShowExportError(String(error)));
     }
   }, [exportedZipPath]);
+
+  const handleOpenLogShare = useCallback(() => {
+    resetShare();
+    setIncludeAiAnalysis(gameState === 'crashed');
+    setIsLogShareOpen(true);
+  }, [gameState, resetShare]);
+
+  const handleShareLogs = useCallback(() => {
+    void shareLogs(logs, {
+      sanitize: sanitizeBeforeShare,
+      includeInsights: true,
+      includeAiAnalysis,
+      logType: gameState === 'crashed' ? 'crash' : 'game'
+    });
+  }, [gameState, includeAiAnalysis, logs, sanitizeBeforeShare, shareLogs]);
 
   const onConfirmKill = () => {
     killCurrentGame();
@@ -93,7 +122,7 @@ export const GameLogSidebar: React.FC = () => {
           <motion.div
             initial={{ x: '100%', opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: '100%', opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 h-full w-[680px] bg-[#141415] border-l-[3px] border-[#1E1E1F] shadow-2xl z-[90] flex flex-col font-minecraft"
+            className="fixed top-0 right-0 h-full w-[820px] bg-[#141415] border-l-[3px] border-[#1E1E1F] shadow-2xl z-[90] flex flex-col font-minecraft"
           >
             <FocusBoundary id="game-log-sidebar" trapFocus={isOpen} onEscape={closeSidebarAndRestoreFocus} className="flex flex-col h-full outline-none">
 
@@ -111,7 +140,7 @@ export const GameLogSidebar: React.FC = () => {
               <FocusItem focusKey="log-btn-telemetry" onEnter={() => setShowTelemetry(!showTelemetry)}>
                 {({ ref, focused }) => (
                   <button
-                    ref={ref as any}
+                    ref={ref as React.Ref<HTMLButtonElement>}
                     onClick={() => setShowTelemetry(!showTelemetry)}
                     className={`flex items-center outline-none text-xs px-2 py-1.5 rounded-sm transition-colors ${showTelemetry ? 'bg-white/10 text-white' : 'text-ore-text-muted hover:text-white hover:bg-white/5'} ${focused ? 'ring-2 ring-white scale-105 bg-white/10' : ''}`}
                   >
@@ -177,8 +206,15 @@ export const GameLogSidebar: React.FC = () => {
                   </OreButton>
                 )}
 
-                <OreButton focusKey="log-btn-export" variant="secondary" size="sm" onClick={handleExportTxt}>
-                  <FileText size={14} className="mr-1" /> 导出 TXT
+                <OreButton
+                  focusKey="log-btn-share-online"
+                  variant={gameState === 'crashed' ? 'primary' : 'secondary'}
+                  size="sm"
+                  disabled={logs.length === 0 || isSharing}
+                  onClick={handleOpenLogShare}
+                >
+                  {isSharing ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Share2 size={14} className="mr-1" />}
+                  {isSharing ? '上传中...' : '上传日志'}
                 </OreButton>
 
                 <OreButton
@@ -216,6 +252,25 @@ export const GameLogSidebar: React.FC = () => {
         </motion.div>
       )}
       </AnimatePresence>
+
+      <LogShareDialog
+        isOpen={isLogShareOpen}
+        logCount={logs.length}
+        report={shareReport}
+        error={shareError}
+        isSharing={isSharing}
+        sanitize={sanitizeBeforeShare}
+        includeAiAnalysis={includeAiAnalysis}
+        copiedShareUrl={copiedShareUrl}
+        onSanitizeChange={setSanitizeBeforeShare}
+        onIncludeAiAnalysisChange={setIncludeAiAnalysis}
+        onShare={handleShareLogs}
+        onCopyUrl={() => {
+          void copyShareUrl();
+        }}
+        onOpenUrl={openShareUrl}
+        onClose={() => setIsLogShareOpen(false)}
+      />
 
       <OreConfirmDialog
         isOpen={!!exportedZipPath}

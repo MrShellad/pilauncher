@@ -12,6 +12,8 @@ pub mod lan;
 pub mod launcher; // ✅ 新增 launcher 模块
 pub mod library_service;
 pub mod loader_service; // ✅ 新增 loader 模块
+pub mod logshare_history_service;
+pub mod logshare_service;
 pub mod minecraft_service; // ✅ 新增 minecraft 模块
 pub mod modpack_service; // ✅ 新增 modpack 模块
 pub mod playtime;
