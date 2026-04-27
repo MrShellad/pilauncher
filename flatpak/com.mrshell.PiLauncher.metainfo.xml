@@ -34,30 +34,23 @@
   </categories>
 
   <releases>
-    <release version="0.1.29" date="2026-04-23">
+    <release version="0.1.30" date="2026-04-28">
       <description>
-        <p xml:lang="zh_CN">局域网同步功能上线与实例部署稳定性优化</p>
+        <p xml:lang="zh_CN">集成日志分享服务与手柄操作体验优化</p>
         <ul xml:lang="zh_CN">
-          <li>[新功能] 实现局域网设备自动发现、配对与信任管理服务，支持跨设备实例与存档投送。</li>
-          <li>[新功能] 新增后台游戏时长统计服务，支持多设备间游玩数据实时同步。</li>
-          <li>[新功能] 重构资源中心，实现 Mod 库深度搜索、依赖自动解析与一键安装功能。</li>
-          <li>[新功能] 全新「衣柜」皮肤预览模态框，支持 3D 渲染与更细致的皮肤自定义。</li>
-          <li>[优化] 引入“原子化部署”流程，彻底解决部署异常时产生幽灵文件夹及数据库残留的问题。</li>
-          <li>[优化] 深度重构身份验证架构，采用六层解耦设计，显著提升微软及 Xbox 登录稳定性。</li>
-          <li>[优化] 优化全局侧边栏布局与下载管理器 UI，大幅提升手柄操作下的信息密度与易用性。</li>
+          <li>[新功能] 集成 LogShare.CN 日志分享服务，支持一键上传游戏日志并获取 AI 智能诊断建议。</li>
+          <li>[优化] 改进手柄监听逻辑，现在游戏启动后会自动暂停启动器的手柄响应，避免后台误触。</li>
+          <li>[优化] 优化数据设置页面的底层架构，提升了远端日志管理和路径迁移的稳定性。</li>
         </ul>
-        <p>LAN Sync Support and Deployment Stability Improvements</p>
+        <p>Log Sharing Integration and Controller Experience Refinement</p>
         <ul>
-          <li>[New] Implemented LAN device discovery, pairing, and trust management for seamless cross-device instance and save transfers.</li>
-          <li>[New] Added background playtime tracking with real-time cross-device data synchronization.</li>
-          <li>[New] Refactored Resource Center with integrated project search, dependency resolution, and one-click mod installation.</li>
-          <li>[New] Introduced a new Wardrobe preview modal featuring 3D skin rendering and detailed customization.</li>
-          <li>[Optimization] Implemented Atomic Deployment workflow to ensure zero-residue cleanup on installation failures.</li>
-          <li>[Optimization] Architecturally refactored authentication logic using a decoupled six-layer design for enhanced stability.</li>
-          <li>[Optimization] Refined sidebar layout and download manager UI for improved information density and controller usability.</li>
+          <li>[New] Integrated LogShare.CN service for easy log uploads and AI-powered diagnostic reports.</li>
+          <li>[Optimization] Improved controller driver to automatically pause input handling when a game is running to prevent background interference.</li>
+          <li>[Optimization] Refactored data settings and logging service layer for better stability and maintainability.</li>
         </ul>
       </description>
     </release>
+
   
   </releases>
 
