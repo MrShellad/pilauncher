@@ -561,7 +561,7 @@
       "memoryModeDescriptions": {
         "auto": "Automatically calculates RAM allocation from the documented recommendation and safety limits.",
         "manual": "Uses your requested target, but caps it to the current safe range when memory is tight.",
-        "force": "Ignores the safety limit and tries to honor your target, while still respecting the hard system cap."
+        "force": "Ignores the safety limit and tries to honor your target. It can exceed the current available-memory hard limit, but still stays within device memory."
       },
       "memoryProfiles": {
         "small-heap": "Small Heap",
@@ -573,13 +573,15 @@
         "hardLimitBody": "You requested {{requested}}, but the current hard limit is {{limit}}, so this run can only use {{effective}}.",
         "safeLimitTitle": "Capped by safety limit",
         "safeLimitBody": "You requested {{requested}}, but this run will be reduced to {{effective}} to keep within the safe limit ({{limit}}).",
-        "forceModeBody": "Force mode ignores the safety limit, but it still cannot exceed the current hard limit of {{limit}}.",
+        "forceModeBody": "Force mode ignores the safety limit and can exceed the current available-memory hard limit of {{limit}}. Make sure the system still has enough headroom.",
+        "manualModeBody": "Manual mode prioritizes your requested {{requested}} and is currently expected to use {{effective}}. It will fall back to the safe range if available memory is tight.",
         "autoModeBody": "Auto mode uses min(recommended {{recommended}}, safe limit {{safeLimit}}), so this run is expected to use {{effective}}."
       },
       "maxMemory": "Global Maximum RAM Allocation",
       "maxMemoryDesc": "Dynamically adjust the maximum RAM for the game.",
       "jvmArgs": "Global Extra JVM Args",
       "jvmArgsDesc": "Advanced level. Applies to instances that inherit settings.",
+      "jvmArgsResetDefault": "Reset Default",
       "versions": {
         "8": "Java 8 (For MC 1.7 - 1.16)",
         "16": "Java 16 (For MC 1.17)",

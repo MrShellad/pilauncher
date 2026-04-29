@@ -3,6 +3,8 @@ import type { MemoryAllocationMode, SystemMemoryStats } from '../../../types/mem
 export const MEMORY_STEP_MB = 512;
 export const MIN_MEMORY_MB = 1024;
 export const DEFAULT_MIN_MEMORY_MB = 1024;
+export const MAX_INITIAL_MEMORY_MB = 8192;
+const INITIAL_MEMORY_RATIO = 0.45;
 
 export type MemoryPressureLevel = 'normal' | 'warning' | 'danger';
 export type MemoryJvmProfile = 'small-heap' | 'standard-g1gc' | 'large-heap';
@@ -56,6 +58,14 @@ const clamp = (value: number, min: number, max: number) => {
   return Math.min(max, Math.max(min, value));
 };
 
+export const resolveInitialMemory = (maxMemoryMb: number) => {
+  return clamp(
+    roundDownToStep(maxMemoryMb * INITIAL_MEMORY_RATIO),
+    MIN_MEMORY_MB,
+    Math.min(maxMemoryMb, MAX_INITIAL_MEMORY_MB),
+  );
+};
+
 export const getJvmProfileForMemory = (memoryMb: number): MemoryJvmProfile => {
   if (memoryMb < 4096) {
     return 'small-heap';
@@ -87,24 +97,19 @@ export const resolveMemoryAllocationPlan = (
     MIN_MEMORY_MB,
     totalHardLimit,
   );
-  const requestedMinMemory = clamp(
-    roundDownToStep(input.requestedMinMemory || DEFAULT_MIN_MEMORY_MB),
-    MIN_MEMORY_MB,
-    requestedMaxMemory,
-  );
+  const requestedMinMemory = resolveInitialMemory(requestedMaxMemory);
 
   const effectiveMaxMemory =
     input.mode === 'auto'
       ? clamp(Math.min(recommended, safeLimit), MIN_MEMORY_MB, hardLimit)
       : input.mode === 'force'
-        ? clamp(requestedMaxMemory, MIN_MEMORY_MB, hardLimit)
+        ? requestedMaxMemory
         : clamp(Math.min(requestedMaxMemory, safeLimit), MIN_MEMORY_MB, hardLimit);
 
-  const effectiveMinMemory = clamp(requestedMinMemory, MIN_MEMORY_MB, effectiveMaxMemory);
+  const effectiveMinMemory = resolveInitialMemory(effectiveMaxMemory);
   const safeLimited =
     input.mode === 'manual' && requestedMaxMemory > safeLimit && safeLimit <= hardLimit;
-  const hardLimited =
-    (input.mode === 'manual' || input.mode === 'force') && requestedMaxMemory > hardLimit;
+  const hardLimited = input.mode === 'manual' && requestedMaxMemory > hardLimit;
 
   const pressureLevel: MemoryPressureLevel = hardLimited
     ? 'danger'

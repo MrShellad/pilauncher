@@ -1,16 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
 import { invoke } from '@tauri-apps/api/core';
 import { Gauge, Loader2, ShieldAlert, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { OreMotionTokens } from '../../../style/tokens/motion';
 import type { MemoryAllocationMode, SystemMemoryStats } from '../../../types/memory';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import { OreDropdown } from '../../../ui/primitives/OreDropdown';
 import { OreSlider } from '../../../ui/primitives/OreSlider';
 import {
   MIN_MEMORY_MB,
+  resolveInitialMemory,
   resolveMemoryAllocationPlan,
 } from '../logic/memoryAllocation';
 
@@ -34,9 +33,12 @@ const buildNextValue = (
   updates: Partial<MemorySliderValue>,
 ): MemorySliderValue => {
   const next = { ...current, ...updates };
+  const maxMemory = Math.max(next.maxMemory || MIN_MEMORY_MB, MIN_MEMORY_MB);
+
   return {
     ...next,
-    minMemory: Math.min(Math.max(next.minMemory || MIN_MEMORY_MB, MIN_MEMORY_MB), next.maxMemory),
+    maxMemory,
+    minMemory: resolveInitialMemory(maxMemory),
   };
 };
 
@@ -115,6 +117,67 @@ export const MemorySlider: React.FC<MemorySliderProps> = ({
   const isAutoMode = value.memoryAllocationMode === 'auto';
   const modeIsForce = value.memoryAllocationMode === 'force';
   const targetMemory = isAutoMode ? plan.effectiveMaxMemory : plan.requestedMaxMemory;
+  const warningState = plan.hardLimited
+    ? {
+        border: 'border-red-500',
+        background: 'bg-[#2a1717]',
+        text: 'text-red-400',
+        titleText: 'text-red-300',
+        title: t('settings.java.memoryWarnings.hardLimitTitle'),
+        body: t('settings.java.memoryWarnings.hardLimitBody', {
+          requested: formatMemoryGb(plan.requestedMaxMemory),
+          effective: formatMemoryGb(plan.effectiveMaxMemory),
+          limit: formatMemoryGb(plan.hardLimit),
+        }),
+      }
+    : plan.safeLimited
+      ? {
+          border: 'border-yellow-500',
+          background: 'bg-yellow-500/10',
+          text: 'text-yellow-300',
+          titleText: 'text-yellow-200',
+          title: t('settings.java.memoryWarnings.safeLimitTitle'),
+          body: t('settings.java.memoryWarnings.safeLimitBody', {
+            requested: formatMemoryGb(plan.requestedMaxMemory),
+            effective: formatMemoryGb(plan.effectiveMaxMemory),
+            limit: formatMemoryGb(plan.safeLimit),
+          }),
+        }
+      : modeIsForce
+        ? {
+            border: 'border-orange-500',
+            background: 'bg-orange-500/10',
+            text: 'text-orange-200',
+            titleText: 'text-orange-200',
+            title: null,
+            body: t('settings.java.memoryWarnings.forceModeBody', {
+              limit: formatMemoryGb(plan.hardLimit),
+            }),
+          }
+        : isAutoMode
+          ? {
+              border: 'border-ore-green',
+              background: 'bg-ore-green/10',
+              text: 'text-ore-green',
+              titleText: 'text-ore-green',
+              title: null,
+              body: t('settings.java.memoryWarnings.autoModeBody', {
+                recommended: formatMemoryGb(plan.recommended),
+                safeLimit: formatMemoryGb(plan.safeLimit),
+                effective: formatMemoryGb(plan.effectiveMaxMemory),
+              }),
+            }
+          : {
+              border: 'border-white/15',
+              background: 'bg-white/5',
+              text: 'text-ore-text-muted',
+              titleText: 'text-ore-text-muted',
+              title: null,
+              body: t('settings.java.memoryWarnings.manualModeBody', {
+                requested: formatMemoryGb(plan.requestedMaxMemory),
+                effective: formatMemoryGb(plan.effectiveMaxMemory),
+              }),
+            };
   const statusColor =
     plan.pressureLevel === 'danger'
       ? 'text-red-400'
@@ -136,8 +199,16 @@ export const MemorySlider: React.FC<MemorySliderProps> = ({
 
   return (
     <div className="flex w-full max-w-[36rem] flex-col gap-4">
-      <div className="grid gap-3 md:grid-cols-[13rem_minmax(0,1fr)] md:items-start">
-        <div className="w-full [&>button]:w-full [&>div]:w-full">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start">
+        <div className="min-w-0 flex-1 rounded-sm border border-white/8 bg-black/30 px-3 py-2">
+          <div className="mb-1 flex items-center gap-2 text-sm font-minecraft text-white">
+            <Gauge size={14} className="text-ore-green" />
+            {t('settings.java.memoryMode')}
+          </div>
+          <p className="text-xs leading-relaxed text-ore-text-muted">{modeDescription}</p>
+        </div>
+
+        <div className="w-full shrink-0 md:w-[13rem] md:self-start [&>button]:w-full [&>div]:w-full">
           <OreDropdown
             focusKey="java-memory-mode"
             onArrowPress={onArrowPress}
@@ -152,14 +223,6 @@ export const MemorySlider: React.FC<MemorySliderProps> = ({
             }
             disabled={disabled}
           />
-        </div>
-
-        <div className="rounded-sm border border-white/8 bg-black/30 px-3 py-2">
-          <div className="mb-1 flex items-center gap-2 text-sm font-minecraft text-white">
-            <Gauge size={14} className="text-ore-green" />
-            {t('settings.java.memoryMode')}
-          </div>
-          <p className="text-xs leading-relaxed text-ore-text-muted">{modeDescription}</p>
         </div>
       </div>
 
@@ -239,79 +302,22 @@ export const MemorySlider: React.FC<MemorySliderProps> = ({
         </OreButton>
       </div>
 
-      <AnimatePresence mode="wait">
-        {!disabled && plan.hardLimited ? (
-          <motion.div
-            key="hard-limit"
-            initial={OreMotionTokens.collapseInitial}
-            animate={OreMotionTokens.collapseAnimate}
-            exit={OreMotionTokens.collapseExit}
-            className="rounded-sm border-l-2 border-red-500 bg-[#2a1717] p-3 text-xs leading-relaxed text-red-400 shadow-sm"
-          >
-            <div className="mb-1 flex items-center gap-2 font-minecraft text-sm text-red-300">
-              <ShieldAlert size={14} />
-              {t('settings.java.memoryWarnings.hardLimitTitle')}
-            </div>
-            <p className="font-minecraft">
-              {t('settings.java.memoryWarnings.hardLimitBody', {
-                requested: formatMemoryGb(plan.requestedMaxMemory),
-                effective: formatMemoryGb(plan.effectiveMaxMemory),
-                limit: formatMemoryGb(plan.hardLimit),
-              })}
-            </p>
-          </motion.div>
-        ) : !disabled && plan.safeLimited ? (
-          <motion.div
-            key="safe-limit"
-            initial={OreMotionTokens.collapseInitial}
-            animate={OreMotionTokens.collapseAnimate}
-            exit={OreMotionTokens.collapseExit}
-            className="rounded-sm border-l-2 border-yellow-500 bg-yellow-500/10 p-3 text-xs leading-relaxed text-yellow-300 shadow-sm"
-          >
-            <div className="mb-1 flex items-center gap-2 font-minecraft text-sm text-yellow-200">
-              <ShieldAlert size={14} />
-              {t('settings.java.memoryWarnings.safeLimitTitle')}
-            </div>
-            <p className="font-minecraft">
-              {t('settings.java.memoryWarnings.safeLimitBody', {
-                requested: formatMemoryGb(plan.requestedMaxMemory),
-                effective: formatMemoryGb(plan.effectiveMaxMemory),
-                limit: formatMemoryGb(plan.safeLimit),
-              })}
-            </p>
-          </motion.div>
-        ) : !disabled && modeIsForce ? (
-          <motion.div
-            key="force-mode"
-            initial={OreMotionTokens.collapseInitial}
-            animate={OreMotionTokens.collapseAnimate}
-            exit={OreMotionTokens.collapseExit}
-            className="rounded-sm border-l-2 border-orange-500 bg-orange-500/10 p-3 text-xs leading-relaxed text-orange-200 shadow-sm"
-          >
-            <p className="font-minecraft">
-              {t('settings.java.memoryWarnings.forceModeBody', {
-                limit: formatMemoryGb(plan.hardLimit),
-              })}
-            </p>
-          </motion.div>
-        ) : !disabled && isAutoMode ? (
-          <motion.div
-            key="auto-mode"
-            initial={OreMotionTokens.collapseInitial}
-            animate={OreMotionTokens.collapseAnimate}
-            exit={OreMotionTokens.collapseExit}
-            className="rounded-sm border-l-2 border-ore-green bg-ore-green/10 p-3 text-xs leading-relaxed text-ore-green shadow-sm"
-          >
-            <p className="font-minecraft">
-              {t('settings.java.memoryWarnings.autoModeBody', {
-                recommended: formatMemoryGb(plan.recommended),
-                safeLimit: formatMemoryGb(plan.safeLimit),
-                effective: formatMemoryGb(plan.effectiveMaxMemory),
-              })}
-            </p>
-          </motion.div>
+      <div
+        className={`flex h-24 flex-col justify-center overflow-hidden rounded-sm border-l-2 p-3 text-xs leading-relaxed shadow-sm ${warningState.border} ${warningState.background} ${warningState.text}`}
+      >
+        {warningState.title ? (
+          <div className={`mb-1 flex items-center gap-2 font-minecraft text-sm ${warningState.titleText}`}>
+            <ShieldAlert size={14} />
+            {warningState.title}
+          </div>
+        ) : modeIsForce ? (
+          <div className={`mb-1 flex items-center gap-2 font-minecraft text-sm ${warningState.titleText}`}>
+            <ShieldAlert size={14} />
+            {t('settings.java.memoryModes.force')}
+          </div>
         ) : null}
-      </AnimatePresence>
+        <p className="font-minecraft">{warningState.body}</p>
+      </div>
     </div>
   );
 };

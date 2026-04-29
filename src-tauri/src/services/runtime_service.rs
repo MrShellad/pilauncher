@@ -529,7 +529,7 @@ pub fn get_instance_runtime(instance_dir: &Path) -> Result<RuntimeConfig, String
         memory_allocation_mode: MemoryAllocationMode::Auto,
         max_memory: 4096,
         min_memory: 1024,
-        jvm_args: "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=50".to_string(),
+        jvm_args: "-XX:+UseZGC -XX:+ZGenerational -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=150 -XX:G1NewSizePercent=30 -XX:G1ReservePercent=20".to_string(),
     };
 
     if !file_path.exists() {

@@ -561,7 +561,7 @@
       "memoryModeDescriptions": {
         "auto": "按文档规则自动计算内存分配，实时取推荐值与安全值中的较小者。",
         "manual": "使用你指定的目标内存，但当前可用内存不足时会自动降到安全范围内。",
-        "force": "忽略安全值，尽量按你的目标分配，但仍不会突破当前系统硬上限。"
+        "force": "忽略安全值，尽量按你的目标分配；可突破当前可用内存硬上限，但仍受设备总内存限制。"
       },
       "memoryProfiles": {
         "small-heap": "小堆优化",
@@ -573,13 +573,15 @@
         "hardLimitBody": "你设置了 {{requested}}，但当前系统硬上限只有 {{limit}}，本次最多只会按 {{effective}} 生效。",
         "safeLimitTitle": "当前已被安全值限制",
         "safeLimitBody": "你设置了 {{requested}}，但为了给系统和后台进程留余量，本次会降到 {{effective}}（安全值 {{limit}}）。",
-        "forceModeBody": "强制模式会忽略安全值，但仍受当前硬上限 {{limit}} 约束。若后台占用继续上升，实际可用上限还会更低。",
+        "forceModeBody": "强制模式会忽略安全值，并允许突破当前可用内存硬上限 {{limit}}。请确保系统仍有足够余量。",
+        "manualModeBody": "手动模式会优先使用你设置的 {{requested}}，当前预计生效 {{effective}}；可用内存不足时会自动降到安全范围内。",
         "autoModeBody": "自动模式会按 min(推荐值 {{recommended}}, 安全值 {{safeLimit}}) 计算，本次预计使用 {{effective}}。"
       },
       "maxMemory": "全局最大内存分配",
       "maxMemoryDesc": "动态调整游戏可用的最大 RAM。",
       "jvmArgs": "全局 JVM 附加参数",
       "jvmArgsDesc": "高级选项。会应用到继承全局设置的实例。",
+      "jvmArgsResetDefault": "恢复默认",
       "versions": {
         "8": "Java 8（适用于 MC 1.7 - 1.16）",
         "16": "Java 16（适用于 MC 1.17）",

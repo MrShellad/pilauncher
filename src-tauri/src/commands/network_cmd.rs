@@ -228,7 +228,9 @@ pub async fn proxy_fetch(
     body: Option<String>,
 ) -> Result<serde_json::Value, String> {
     // Basic security: only allow CurseForge and Modrinth APIs
-    if !url.starts_with("https://api.curseforge.com/") && !url.starts_with("https://api.modrinth.com/") {
+    if !url.starts_with("https://api.curseforge.com/")
+        && !url.starts_with("https://api.modrinth.com/")
+    {
         return Err("Only CurseForge and Modrinth APIs are allowed through proxy".to_string());
     }
 
@@ -253,9 +255,12 @@ pub async fn proxy_fetch(
     }
 
     let res = request.send().await.map_err(|e| e.to_string())?;
-    
+
     if !res.status().is_success() {
-        return Err(format!("Proxy request failed with status: {}", res.status()));
+        return Err(format!(
+            "Proxy request failed with status: {}",
+            res.status()
+        ));
     }
 
     let json = res.json().await.map_err(|e| e.to_string())?;

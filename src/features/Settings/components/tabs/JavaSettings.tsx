@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Coffee, Cpu, Download, Loader2, TestTube2 } from 'lucide-react';
+import { Coffee, Cpu, Download, Loader2, RotateCcw, TestTube2 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 
 import downloadSource from '../../../../assets/config/downloadsource.json';
+import { DEFAULT_SETTINGS } from '../../../../types/settings';
 import { useSettingsStore } from '../../../../store/useSettingsStore';
 import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
 import { FormRow } from '../../../../ui/layout/FormRow';
@@ -94,7 +95,7 @@ export const JavaSettings: React.FC = () => {
       });
     }
 
-    keys.push('java-memory-mode', 'java-slider-memory', 'java-btn-recommend', 'java-input-jvm');
+    keys.push('java-memory-mode', 'java-slider-memory', 'java-btn-recommend', 'java-input-jvm', 'java-btn-reset-jvm');
     return keys;
   }, [isDetecting, java.autoDetect, majorItems]);
 
@@ -353,15 +354,29 @@ export const JavaSettings: React.FC = () => {
         <FormRow
           label={t('settings.java.jvmArgs')}
           description={t('settings.java.jvmArgsDesc')}
-          controlClassName="w-full lg:w-[28rem]"
+          vertical
           control={
-            <div className="w-full">
-              <JVMParamsEditor
+            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="min-w-0 w-full flex-1">
+                <JVMParamsEditor
+                  onArrowPress={handleLinearArrow}
+                  value={java.jvmArgs}
+                  onChange={(value) => updateJavaSetting('jvmArgs', value)}
+                  disabled={false}
+                />
+              </div>
+              <OreButton
+                focusKey="java-btn-reset-jvm"
                 onArrowPress={handleLinearArrow}
-                value={java.jvmArgs}
-                onChange={(value) => updateJavaSetting('jvmArgs', value)}
-                disabled={false}
-              />
+                size="auto"
+                variant="secondary"
+                onClick={() => updateJavaSetting('jvmArgs', DEFAULT_SETTINGS.java.jvmArgs)}
+                disabled={java.jvmArgs === DEFAULT_SETTINGS.java.jvmArgs}
+                className="shrink-0 !min-w-[7.5rem] !h-10 !px-4 !justify-center gap-1 whitespace-nowrap"
+              >
+                <RotateCcw size={15} className="mr-1.5" />
+                {t('settings.java.jvmArgsResetDefault')}
+              </OreButton>
             </div>
           }
         />

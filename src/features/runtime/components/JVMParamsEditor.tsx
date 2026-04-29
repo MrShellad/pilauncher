@@ -11,13 +11,13 @@ interface JVMParamsEditorProps {
 
 export const JVMParamsEditor: React.FC<JVMParamsEditorProps> = ({ value, onChange, disabled, onArrowPress }) => {
   return (
-    <div className="w-full max-w-md">
+    <div className="w-full">
       <OreInput
         focusKey="java-input-jvm" // ✅ 补充焦点ID
         onArrowPress={onArrowPress}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=50"
+        placeholder="-XX:+UseZGC -XX:+ZGenerational -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=150 -XX:G1NewSizePercent=30 -XX:G1ReservePercent=20"
         disabled={disabled}
       />
     </div>
