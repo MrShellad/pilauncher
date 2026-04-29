@@ -49,6 +49,24 @@
   </categories>
 
   <releases>
+    <release version="0.1.31" date="2026-04-29">
+      <description>
+        <p xml:lang="zh_CN">模组列表交互升级与下载性能优化</p>
+        <ul xml:lang="zh_CN">
+          <li>[界面] 重构模组列表布局，解决了滚动条冲突与留白问题，并引入了分组标题吸顶冻结功能。</li>
+          <li>[修复] 修复了 CurseForge 模组检查更新失败的缺陷，提升了元数据同步稳定性。</li>
+          <li>[优化] 提升下载并发数至 8 个，并优化了大文件分块下载逻辑，下载速度显著提升。</li>
+          <li>[适配] 针对 Steam Deck 等掌机设备完成了性能评估并引入了初步的渲染开销优化。</li>
+        </ul>
+        <p>Mod List Experience Upgrade and Download Optimization</p>
+        <ul>
+          <li>[UI] Overhauled the mod list layout to fix scrollbar conflicts and added sticky group headers for better navigation.</li>
+          <li>[Fix] Resolved CurseForge API connection issues, ensuring reliable mod update checks and metadata sync.</li>
+          <li>[Optimization] Increased download concurrency to 8 and tuned chunking parameters for much faster downloads.</li>
+          <li>[Performance] Implemented initial rendering optimizations for Steam Deck and low-power handheld devices.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.30" date="2026-04-28">
       <description>
         <p xml:lang="zh_CN">集成日志分享服务与手柄操作体验优化</p>
