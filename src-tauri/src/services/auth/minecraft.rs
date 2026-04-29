@@ -4,11 +4,11 @@
 // 负责：MC Token 交换、Profile 获取、皮肤上传、披风切换、头像获取、Mojang 皮肤获取。
 
 use crate::domain::auth::McProfile;
+use base64::{engine::general_purpose, Engine as _};
 use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Runtime};
 use uuid::Uuid;
-use base64::{engine::general_purpose, Engine as _};
 
 use super::http::{format_reqwest_error, get_client};
 use super::paths;
@@ -296,8 +296,7 @@ pub async fn get_or_fetch_account_avatar<R: Runtime>(
     let target_dir = paths::account_runtime_dir(app, uuid)?;
 
     if !target_dir.exists() {
-        std::fs::create_dir_all(&target_dir)
-            .map_err(|e| format!("创建账号资源目录失败: {}", e))?;
+        std::fs::create_dir_all(&target_dir).map_err(|e| format!("创建账号资源目录失败: {}", e))?;
     }
 
     let avatar_path = target_dir.join("avatar.png");

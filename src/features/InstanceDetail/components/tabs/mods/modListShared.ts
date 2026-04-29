@@ -21,9 +21,9 @@ export const DEFAULT_MOD_LIST_EXIT_FOCUS_KEY = 'mod-btn-history';
 export const MOD_LIST_HEADER_CLASSES = {
   button: 'h-9 min-h-9',
   iconButton: 'h-9 min-h-9 w-9 min-w-9',
-  oreButton: '!h-9 !min-h-9 !min-w-0 !px-3 text-xs',
-  segmentGroup: 'relative z-10 flex h-9 shrink-0 overflow-hidden border border-white/[0.08] bg-black/20',
-  segmentButton: 'flex h-full items-center px-3 font-minecraft text-xs outline-none transition-colors'
+  oreButton: '!h-9 !min-h-9 !min-w-0 !px-3 text-[1.0625rem]',
+  segmentGroup: 'relative z-10 flex h-9 shrink-0 overflow-hidden rounded-[6px] border border-[#313A4D] bg-[#232937]',
+  segmentButton: 'flex h-full items-center px-3 text-[1.0625rem] outline-none transition-colors'
 } as const;
 
 export const MOD_LIST_TABLE_GRID_CLASS =

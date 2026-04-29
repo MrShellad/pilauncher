@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 
 import { OreConfirmDialog } from '../../../../ui/primitives/OreConfirmDialog';
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
@@ -12,16 +12,27 @@ import { useModPanelFocusNavigation } from './mods/useModPanelFocusNavigation';
 export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   const controller = useModPanelController(instanceId);
   const focusNavigation = useModPanelFocusNavigation(controller.state.isBatchMode);
+  const [isTopBarCollapsed, setIsTopBarCollapsed] = useState(false);
+
+  const handleTopBarCollapseChange = useCallback((collapsed: boolean) => {
+    setIsTopBarCollapsed((current) => (current === collapsed ? current : collapsed));
+  }, []);
 
   return (
-    <SettingsPageLayout width="wide" className="[&_.ore-settings-page-layout__content]:gap-2">
+    <SettingsPageLayout
+      width="wide"
+      scrollable={false}
+      className="[&_.ore-settings-page-layout__content]:gap-2"
+    >
       <ModPanelTopBar
         {...controller.topBar}
+        isCollapsed={isTopBarCollapsed}
         onArrowPress={focusNavigation.handleTopBarArrow}
       />
 
       <ModList
         {...controller.list}
+        onTopBarCollapseChange={handleTopBarCollapseChange}
         onHeaderArrowPress={focusNavigation.handleTopBarArrow}
         onNavigateOut={focusNavigation.handleListNavigateOut}
       />
@@ -77,7 +88,7 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         cancelFocusKey="mod-upgrade-snapshot-cancel"
         isConfirming={controller.upgradeSnapshotDialog.isCreatingSnapshot}
         closeOnOutsideClick={!controller.upgradeSnapshotDialog.isCreatingSnapshot}
-        className="w-full max-w-xl"
+        className="w-full max-w-2xl"
         confirmationNote="这个提示只会在本实例本次进入页面后的第一次升级时出现。"
         confirmationNoteTone="info"
         tertiaryAction={{

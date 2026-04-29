@@ -181,7 +181,9 @@ fn scan_third_party_source(
                 "importable"
             };
 
-            result.instances.push(to_import_instance(&candidate, status));
+            result
+                .instances
+                .push(to_import_instance(&candidate, status));
         }
     }
 
@@ -237,8 +239,11 @@ pub(crate) fn register_candidate_instance(
 
     fs::write(dest_dir.join("instance.json"), &config_content)
         .map_err(|error| error.to_string())?;
-    fs::write(PathBuf::from(&candidate.path).join("instance.json"), &config_content)
-        .map_err(|error| error.to_string())?;
+    fs::write(
+        PathBuf::from(&candidate.path).join("instance.json"),
+        &config_content,
+    )
+    .map_err(|error| error.to_string())?;
 
     Ok(())
 }
@@ -507,7 +512,11 @@ pub async fn import_launcher_source<R: Runtime>(
         app,
         &source_path,
         "DONE",
-        if result.failed > 0 { "warning" } else { "success" },
+        if result.failed > 0 {
+            "warning"
+        } else {
+            "success"
+        },
         total,
         total,
         format!(

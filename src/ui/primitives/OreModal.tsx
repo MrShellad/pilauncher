@@ -213,7 +213,7 @@ export const OreModal: React.FC<OreModalProps> = ({
 
               {actions && (
                 <div
-                  className="flex-shrink-0 flex items-center justify-end space-x-4 px-6 py-4 bg-[var(--ore-modal-footer-bg)] border-t-[3px] border-[var(--ore-border-color)] relative z-20"
+                  className="flex-shrink-0 flex flex-wrap items-center justify-end gap-3 px-6 py-4 bg-[var(--ore-modal-footer-bg)] border-t-[3px] border-[var(--ore-border-color)] relative z-20"
                   style={{ boxShadow: 'var(--ore-modal-footer-shadow)' }}
                 >
                   {actions}

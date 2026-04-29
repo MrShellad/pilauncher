@@ -290,8 +290,13 @@ Module Path Entries: {}\n\
         }
 
         // 🌟 记录游戏时长：启动会话
-        let pool = app.state::<crate::services::db_service::AppDatabase>().pool.clone();
-        if let Err(e) = PlaytimeService::start_session(app, &pool, instance_id, &instance_cfg.name).await {
+        let pool = app
+            .state::<crate::services::db_service::AppDatabase>()
+            .pool
+            .clone();
+        if let Err(e) =
+            PlaytimeService::start_session(app, &pool, instance_id, &instance_cfg.name).await
+        {
             eprintln!("[Playtime] Failed to start session: {}", e);
         }
 
@@ -340,7 +345,10 @@ Module Path Entries: {}\n\
         })?;
 
         // 🌟 记录游戏时长：结束会话并持久化
-        let pool = app.state::<crate::services::db_service::AppDatabase>().pool.clone();
+        let pool = app
+            .state::<crate::services::db_service::AppDatabase>()
+            .pool
+            .clone();
         if let Err(e) = PlaytimeService::finish_session(app, &pool, instance_id).await {
             eprintln!("[Playtime] Failed to finish session: {}", e);
         }

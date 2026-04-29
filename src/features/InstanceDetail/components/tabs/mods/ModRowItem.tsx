@@ -80,7 +80,7 @@ const ModRowItemComponent: React.FC<ModRowItemProps> = ({
             leading={
               (
                 <div 
-                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[0.125rem] transition-colors cursor-pointer ${isSelected ? 'bg-[#5C8DBF]' : 'bg-[#2A2A2C] border border-[#444]'}`}
+                  className={`flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-[0.125rem] transition-colors ${isSelected ? 'border border-[#57D38C] bg-[#57D38C]' : 'border border-[#313A4D] bg-[#232937] hover:bg-[#2B3447]'}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onToggleSelection(mod.fileName);

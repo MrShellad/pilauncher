@@ -5,7 +5,17 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use tauri::command;
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Runtime, State};
+
+use crate::services::deferred_startup::DeferredStartupState;
+
+#[tauri::command]
+pub async fn start_deferred_services(
+    deferred_startup: State<'_, DeferredStartupState>,
+) -> Result<(), String> {
+    deferred_startup.start();
+    Ok(())
+}
 #[command]
 pub async fn get_system_fonts() -> Result<Vec<String>, String> {
     // 由于读取字体可能较慢，建议放在异步线程中执行

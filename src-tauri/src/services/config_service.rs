@@ -1,6 +1,6 @@
 // src-tauri/src/services/config_service.rs
-use crate::error::AppResult;
 use crate::domain::runtime::MemoryAllocationMode;
+use crate::error::AppResult;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;

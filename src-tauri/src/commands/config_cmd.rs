@@ -118,8 +118,9 @@ pub async fn save_selected_instance<R: Runtime>(
         fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
     }
     let file_path = config_dir.join("selected_instance.json");
-    let content = serde_json::to_string_pretty(&serde_json::json!({ "selectedInstanceId": instance_id }))
-        .map_err(|e| e.to_string())?;
+    let content =
+        serde_json::to_string_pretty(&serde_json::json!({ "selectedInstanceId": instance_id }))
+            .map_err(|e| e.to_string())?;
     fs::write(file_path, content).map_err(|e| e.to_string())?;
     Ok(())
 }

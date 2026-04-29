@@ -488,10 +488,9 @@ impl LaunchCommandBuilder {
         launch_jar_id: &str,
         allow_minecraft_fallback: bool,
     ) -> Option<PathBuf> {
-        Self::resolve_existing_path(&self.core_jar_candidates(
-            launch_jar_id,
-            allow_minecraft_fallback,
-        ))
+        Self::resolve_existing_path(
+            &self.core_jar_candidates(launch_jar_id, allow_minecraft_fallback),
+        )
     }
 
     fn build_classpath(
@@ -515,12 +514,7 @@ impl LaunchCommandBuilder {
                 if let Some(path) = self.resolve_library_path(&dl_path) {
                     Self::push_unique_entry(&mut cp, &mut seen, path);
                 } else if let Some(path) = self.library_path_candidates(&dl_path).first() {
-                    Self::push_missing_entry(
-                        &mut missing,
-                        &mut missing_seen,
-                        "缺失库文件",
-                        path,
-                    );
+                    Self::push_missing_entry(&mut missing, &mut missing_seen, "缺失库文件", path);
                 }
             }
         }
@@ -532,12 +526,7 @@ impl LaunchCommandBuilder {
                 .core_jar_candidates(launch_jar_id, allow_minecraft_fallback)
                 .first()
             {
-                Self::push_missing_entry(
-                    &mut missing,
-                    &mut missing_seen,
-                    "缺失游戏主文件",
-                    path,
-                );
+                Self::push_missing_entry(&mut missing, &mut missing_seen, "缺失游戏主文件", path);
             }
         }
 
@@ -646,8 +635,8 @@ impl LaunchCommandBuilder {
             &natives_dir,
         );
 
-        let final_classpath_entries = self
-            .filter_module_path_entries(preliminary_classpath_entries, &preliminary_jvm_args);
+        let final_classpath_entries =
+            self.filter_module_path_entries(preliminary_classpath_entries, &preliminary_jvm_args);
         let classpath_string = final_classpath_entries.join(Self::classpath_separator());
         let resolved_jvm_args =
             self.resolve_jvm_args(&raw, &launch_version_id, &classpath_string, &natives_dir);
@@ -656,13 +645,16 @@ impl LaunchCommandBuilder {
 
         let mut final_args = Vec::new();
         final_args.push("-XX:+IgnoreUnrecognizedVMOptions".to_string());
-        
+
         let version_parts: Vec<&str> = self.mc_version.split('.').collect();
-        let minor_version: u32 = version_parts.get(1).and_then(|v| v.parse().ok()).unwrap_or(0);
+        let minor_version: u32 = version_parts
+            .get(1)
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0);
         if minor_version >= 20 {
             final_args.push("--enable-native-access=ALL-UNNAMED".to_string());
         }
-        
+
         final_args.push(format!("-Xms{}M", self.config.min_memory));
         final_args.push(format!("-Xmx{}M", self.config.max_memory));
         final_args.extend(self.config.custom_jvm_args.clone());
@@ -1003,8 +995,9 @@ mod tests {
             .find_map(|pair| (pair[0] == "-cp").then(|| pair[1].clone()))
             .expect("classpath should exist");
 
-        assert!(normalize_for_assert(&classpath)
-            .contains("org/lwjgl/lwjgl/lwjgl/2.9.4-nightly-20150209/lwjgl-2.9.4-nightly-20150209.jar"));
+        assert!(normalize_for_assert(&classpath).contains(
+            "org/lwjgl/lwjgl/lwjgl/2.9.4-nightly-20150209/lwjgl-2.9.4-nightly-20150209.jar"
+        ));
 
         let _ = fs::remove_dir_all(root);
     }

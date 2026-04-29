@@ -6,15 +6,13 @@
 
 mod http;
 pub mod microsoft;
-pub mod xbox;
 pub mod minecraft;
+pub mod offline;
 pub mod paths;
 pub mod wardrobe;
-pub mod offline;
+pub mod xbox;
 
-use crate::domain::auth::{
-    Account, AccountType, McProfile,
-};
+use crate::domain::auth::{Account, AccountType, McProfile};
 use std::path::Path;
 use tauri::{AppHandle, Runtime};
 
@@ -57,8 +55,7 @@ pub async fn refresh_microsoft_token<R: Runtime>(
     app: &AppHandle<R>,
     refresh_token: &str,
 ) -> Result<Account, String> {
-    let (ms_access_token, new_refresh_token) =
-        microsoft::refresh_token(refresh_token).await?;
+    let (ms_access_token, new_refresh_token) = microsoft::refresh_token(refresh_token).await?;
 
     let (xsts_token, uhs) = xbox::authenticate(&ms_access_token).await?;
     let mc_token = minecraft::auth_minecraft(&xsts_token, &uhs).await?;
@@ -105,8 +102,7 @@ pub async fn apply_wardrobe_skin<R: Runtime>(
         return Err("选中的皮肤文件不存在".to_string());
     }
 
-    let file_bytes =
-        std::fs::read(source).map_err(|e| format!("读取皮肤文件失败: {}", e))?;
+    let file_bytes = std::fs::read(source).map_err(|e| format!("读取皮肤文件失败: {}", e))?;
     let file_name = source
         .file_name()
         .and_then(|name| name.to_str())
@@ -177,19 +173,19 @@ pub async fn clear_active_cape<R: Runtime>(
 // Re-export: 衣柜皮肤库操作（直接委托）
 // ==========================================
 
+pub use wardrobe::delete_wardrobe_skin_asset;
 pub use wardrobe::get_wardrobe_skin_library;
 pub use wardrobe::save_wardrobe_skin_asset;
-pub use wardrobe::delete_wardrobe_skin_asset;
-pub use wardrobe::set_wardrobe_skin_asset_variant;
 pub use wardrobe::set_active_wardrobe_skin_offline;
+pub use wardrobe::set_wardrobe_skin_asset_variant;
 
 // ==========================================
 // Re-export: 离线账号与资产工具（直接委托）
 // ==========================================
 
+pub use minecraft::cache_account_assets;
+pub use minecraft::fetch_and_save_mojang_skin;
+pub use minecraft::get_or_fetch_account_avatar;
+pub use offline::delete_offline_account_dir;
 pub use offline::generate_offline_uuid;
 pub use offline::upload_offline_skin;
-pub use offline::delete_offline_account_dir;
-pub use minecraft::cache_account_assets;
-pub use minecraft::get_or_fetch_account_avatar;
-pub use minecraft::fetch_and_save_mojang_skin;

@@ -32,7 +32,11 @@ impl LaunchPreparationError {
         match self {
             Self::MissingDependencies(details) => {
                 let mut lines = vec!["[Launcher ERROR] 库文件不完整，请重新下载".to_string()];
-                lines.extend(details.iter().map(|detail| format!("[Launcher ERROR] {}", detail)));
+                lines.extend(
+                    details
+                        .iter()
+                        .map(|detail| format!("[Launcher ERROR] {}", detail)),
+                );
                 lines
             }
             Self::BuildFailed(message) => vec![format!("[Launcher ERROR] {}", message)],

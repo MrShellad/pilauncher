@@ -2,6 +2,7 @@ pub mod animation_service; // ✅ 新增 animation 模块
 pub mod auth; // 解耦后的认证模块 (原 auth_service.rs)
 pub mod config_service; // ✅ 新增 config 模块
 pub mod db_service;
+pub mod deferred_startup;
 pub mod deployment_cancel;
 pub mod downloader; // ✅ 新增 downloader 模块
 pub mod file_write_lock; // 按路径串行化写入，避免并发写同一文件

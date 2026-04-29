@@ -101,9 +101,19 @@ fn compute_memory_thresholds(stats: &MemoryStats) -> MemoryThresholds {
 
     let total_hard_limit = round_down_to_step(total as f64 * 0.8);
     let available_hard_limit = round_down_to_step(available as f64 * 0.8);
-    let hard_limit = total_hard_limit.min(available_hard_limit).max(MIN_MEMORY_MB);
-    let recommended = clamp_memory(round_down_to_step(total as f64 * 0.6), MIN_MEMORY_MB, total_hard_limit);
-    let safe_limit = clamp_memory(round_down_to_step(available as f64 * 0.7), MIN_MEMORY_MB, available_hard_limit);
+    let hard_limit = total_hard_limit
+        .min(available_hard_limit)
+        .max(MIN_MEMORY_MB);
+    let recommended = clamp_memory(
+        round_down_to_step(total as f64 * 0.6),
+        MIN_MEMORY_MB,
+        total_hard_limit,
+    );
+    let safe_limit = clamp_memory(
+        round_down_to_step(available as f64 * 0.7),
+        MIN_MEMORY_MB,
+        available_hard_limit,
+    );
 
     MemoryThresholds {
         recommended,
@@ -115,7 +125,11 @@ fn compute_memory_thresholds(stats: &MemoryStats) -> MemoryThresholds {
 
 fn sanitize_requested_memory(requested: u32, total_hard_limit: u32) -> u32 {
     let requested = requested.max(MIN_MEMORY_MB);
-    clamp_memory(requested, MIN_MEMORY_MB, total_hard_limit.max(MIN_MEMORY_MB))
+    clamp_memory(
+        requested,
+        MIN_MEMORY_MB,
+        total_hard_limit.max(MIN_MEMORY_MB),
+    )
 }
 
 fn resolve_memory_limits(
@@ -303,12 +317,8 @@ mod tests {
             available: 6 * 1024,
         });
 
-        let (_, max_memory) = resolve_memory_limits(
-            &MemoryAllocationMode::Auto,
-            8192,
-            1024,
-            &thresholds,
-        );
+        let (_, max_memory) =
+            resolve_memory_limits(&MemoryAllocationMode::Auto, 8192, 1024, &thresholds);
 
         assert_eq!(thresholds.recommended, 9728);
         assert_eq!(thresholds.safe_limit, 4096);
@@ -322,12 +332,8 @@ mod tests {
             available: 6 * 1024,
         });
 
-        let (_, max_memory) = resolve_memory_limits(
-            &MemoryAllocationMode::Manual,
-            8192,
-            1024,
-            &thresholds,
-        );
+        let (_, max_memory) =
+            resolve_memory_limits(&MemoryAllocationMode::Manual, 8192, 1024, &thresholds);
 
         assert_eq!(max_memory, 4096);
     }
@@ -339,12 +345,8 @@ mod tests {
             available: 6 * 1024,
         });
 
-        let (_, max_memory) = resolve_memory_limits(
-            &MemoryAllocationMode::Force,
-            8192,
-            1024,
-            &thresholds,
-        );
+        let (_, max_memory) =
+            resolve_memory_limits(&MemoryAllocationMode::Force, 8192, 1024, &thresholds);
 
         assert_eq!(thresholds.hard_limit, 4608);
         assert_eq!(max_memory, 4608);

@@ -674,21 +674,27 @@ impl SaveManagerService {
 
         let instance_config = Self::get_instance_config(&instance_dir)?;
         let save_cache = Self::inspect_save_folder(instance_id, folder_name, &src_save_dir)?;
-        
+
         let mut base_backup_id = None;
         let mut base_time = None;
         if mode == "differential" {
             if let Ok(backups) = Self::get_backups(app, instance_id) {
-                if let Some(base) = backups.into_iter()
+                if let Some(base) = backups
+                    .into_iter()
                     .filter(|b| b.world.folder_name == folder_name && b.backup_mode == "full")
-                    .max_by_key(|b| b.created_at) 
+                    .max_by_key(|b| b.created_at)
                 {
                     base_backup_id = Some(base.backup_id.clone());
                     base_time = Some(base.created_at);
                 }
             }
         }
-        let actual_backup_mode = if base_backup_id.is_some() { "differential" } else { "full" }.to_string();
+        let actual_backup_mode = if base_backup_id.is_some() {
+            "differential"
+        } else {
+            "full"
+        }
+        .to_string();
 
         let backup_id = Uuid::new_v4().to_string();
         let world_root_dir = Self::get_backups_dir(app)?

@@ -38,6 +38,8 @@ const ResourceDownloadPage = lazy(() => import('./pages/ResourceDownloadPage'));
 const InstanceModDownloadPage = lazy(() => import('./pages/InstanceModDownloadPage'));
 const LibraryPage = lazy(() => import('./pages/LibraryPage'));
 
+let deferredServicesRequested = false;
+
 const PageLoader = () => (
   <div className="absolute inset-0 flex items-center justify-center">
     <span className="animate-pulse font-minecraft text-ore-text-muted">Loading...</span>
@@ -62,6 +64,37 @@ const MultiplayerGuard: React.FC<{ activeTab: string }> = ({ activeTab }) => {
     >
       <Suspense fallback={<PageLoader />}>
         <Multiplayer />
+      </Suspense>
+    </div>
+  );
+};
+
+const InstanceDetailGuard: React.FC<{ activeTab: string }> = ({ activeTab }) => {
+  const isActive = activeTab === 'instance-detail';
+  const shouldKeepMounted = isActive || activeTab === 'instance-mod-download';
+
+  if (!shouldKeepMounted) return null;
+
+  return (
+    <div
+      className={`absolute inset-0 ${isActive ? 'flex' : 'hidden'}`}
+      style={{ zIndex: isActive ? 10 : -1 }}
+      aria-hidden={!isActive}
+    >
+      <Suspense fallback={<PageLoader />}>
+        <InstanceDetail />
+      </Suspense>
+    </div>
+  );
+};
+
+const InstanceModDownloadGuard: React.FC<{ activeTab: string }> = ({ activeTab }) => {
+  if (activeTab !== 'instance-mod-download') return null;
+
+  return (
+    <div className="absolute inset-0 z-20 flex">
+      <Suspense fallback={<PageLoader />}>
+        <InstanceModDownloadPage />
       </Suspense>
     </div>
   );
@@ -112,6 +145,36 @@ const App: React.FC = () => {
   useEffect(() => {
     void ensureSessionRefresh();
   }, [ensureSessionRefresh]);
+
+  useEffect(() => {
+    if (deferredServicesRequested) return;
+
+    let cancelled = false;
+    let secondFrame = 0;
+    let timeoutId = 0;
+
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        timeoutId = window.setTimeout(() => {
+          if (cancelled || deferredServicesRequested) return;
+          deferredServicesRequested = true;
+
+          import('@tauri-apps/api/core').then(({ invoke }) => {
+            invoke('start_deferred_services').catch((err) => {
+              console.warn('[App] Deferred background services failed to start:', err);
+            });
+          });
+        }, 0);
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(firstFrame);
+      if (secondFrame) cancelAnimationFrame(secondFrame);
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
+  }, []);
 
   // ✅ 启动时从本地 JSON 文件恢复上次选中的实例 (全局一次性初始化)
   useEffect(() => {
@@ -184,7 +247,7 @@ const App: React.FC = () => {
 
         <main className="relative flex flex-1">
           <AnimatePresence mode="wait">
-            {activeTab !== 'multiplayer' && (
+            {!['multiplayer', 'instance-detail', 'instance-mod-download'].includes(activeTab) && (
               <motion.div
                 key={activeTab}
                 initial={OreMotionTokens.pageInitial}
@@ -201,8 +264,6 @@ const App: React.FC = () => {
                     {activeTab === 'library' && <LibraryPage />}
 
                     {activeTab === 'new-instance' && <NewInstance />}
-                    {activeTab === 'instance-detail' && <InstanceDetail />}
-                    {activeTab === 'instance-mod-download' && <InstanceModDownloadPage />}
                     {activeTab === 'downloads' && <ResourceDownloadPage />}
                     {activeTab === 'wardrobe' && <Wardrobe />}
                     {activeTab === 'settings' && <Settings />}
@@ -211,6 +272,8 @@ const App: React.FC = () => {
               </motion.div>
             )}
           </AnimatePresence>
+          <InstanceDetailGuard activeTab={activeTab} />
+          <InstanceModDownloadGuard activeTab={activeTab} />
           <MultiplayerGuard activeTab={activeTab} />
         </main>
 

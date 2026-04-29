@@ -11,7 +11,7 @@ export const ModListEmptyState: React.FC<ModListEmptyStateProps> = ({ variant, e
     return (
       <div className="flex justify-center px-4 py-12">
         <div
-          className="flex items-center gap-3 border-[0.125rem] px-4 py-3 font-minecraft text-sm text-[var(--ore-downloadDetail-labelText)]"
+          className="flex items-center gap-3 border-[0.125rem] px-4 py-3 text-[1.0625rem] text-[var(--ore-downloadDetail-labelText)]"
           style={{
             backgroundColor: 'var(--ore-downloadDetail-surface)',
             borderColor: 'var(--ore-downloadDetail-divider)',
@@ -46,8 +46,8 @@ export const ModListEmptyState: React.FC<ModListEmptyStateProps> = ({ variant, e
           >
             <Blocks size={22} />
           </div>
-          <h3 className="font-minecraft text-base text-white">模组列表为空</h3>
-          <p className="mt-2 text-sm text-[var(--ore-downloadDetail-labelText)]">{emptyMessage}</p>
+          <h3 className="text-[1.0625rem] font-semibold text-white">模组列表为空</h3>
+          <p className="mt-2 text-[1.0625rem] text-[var(--ore-downloadDetail-labelText)]">{emptyMessage}</p>
         </div>
       </div>
     );
@@ -58,8 +58,8 @@ export const ModListEmptyState: React.FC<ModListEmptyStateProps> = ({ variant, e
       <div className="flex h-12 w-12 items-center justify-center border border-white/10 bg-white/[0.04] text-[#B8BBC2]">
         <Filter size={22} />
       </div>
-      <div className="font-minecraft text-base text-white">没有匹配当前过滤器的模组</div>
-      <div className="max-w-xl text-sm leading-relaxed text-[#A5A7AD]">
+      <div className="text-[1.0625rem] font-semibold text-white">没有匹配当前过滤器的模组</div>
+      <div className="max-w-xl text-[1.0625rem] leading-relaxed text-[#A5A7AD]">
         切换到“全部”或调整上方搜索关键词后再查看。
       </div>
     </div>

@@ -30,10 +30,7 @@ impl WikiService {
             Ok(r) => r,
             Err(_) => {
                 // JSON 解析失败时回退到英文 Wiki 默认格式
-                return format!(
-                    "https://minecraft.wiki/w/Java_Edition_{}",
-                    version_id
-                );
+                return format!("https://minecraft.wiki/w/Java_Edition_{}", version_id);
             }
         };
 
@@ -44,10 +41,7 @@ impl WikiService {
             Some(r) => r,
             None => {
                 // 未找到匹配的语言规则，回退到英文
-                return format!(
-                    "https://minecraft.wiki/w/Java_Edition_{}",
-                    version_id
-                );
+                return format!("https://minecraft.wiki/w/Java_Edition_{}", version_id);
             }
         };
 
@@ -91,7 +85,10 @@ mod tests {
     #[test]
     fn test_snapshot_zh() {
         let url = WikiService::resolve_wiki_url("26.1-snapshot-1", "zh-CN");
-        assert_eq!(url, "https://zh.minecraft.wiki/w/Java%E7%89%8826.1-snapshot-1");
+        assert_eq!(
+            url,
+            "https://zh.minecraft.wiki/w/Java%E7%89%8826.1-snapshot-1"
+        );
     }
 
     #[test]
@@ -103,7 +100,10 @@ mod tests {
     #[test]
     fn test_snapshot_ja() {
         let url = WikiService::resolve_wiki_url("26.1-snapshot-1", "ja");
-        assert_eq!(url, "https://ja.minecraft.wiki/w/Java_Edition_26.1_Snapshot_1");
+        assert_eq!(
+            url,
+            "https://ja.minecraft.wiki/w/Java_Edition_26.1_Snapshot_1"
+        );
     }
 
     #[test]
@@ -115,13 +115,19 @@ mod tests {
     #[test]
     fn test_rc_en() {
         let url = WikiService::resolve_wiki_url("26.1.2-rc-1", "en-US");
-        assert_eq!(url, "https://minecraft.wiki/w/Java_Edition_26.1.2_Release_Candidate_1");
+        assert_eq!(
+            url,
+            "https://minecraft.wiki/w/Java_Edition_26.1.2_Release_Candidate_1"
+        );
     }
 
     #[test]
     fn test_rc_ja() {
         let url = WikiService::resolve_wiki_url("26.1.2-rc-1", "ja");
-        assert_eq!(url, "https://ja.minecraft.wiki/w/Java_Edition_26.1.2_Release_Candidate_1");
+        assert_eq!(
+            url,
+            "https://ja.minecraft.wiki/w/Java_Edition_26.1.2_Release_Candidate_1"
+        );
     }
 
     #[test]
@@ -133,12 +139,18 @@ mod tests {
     #[test]
     fn test_pre_en() {
         let url = WikiService::resolve_wiki_url("26.1-pre-3", "en-US");
-        assert_eq!(url, "https://minecraft.wiki/w/Java_Edition_26.1_Pre-Release_3");
+        assert_eq!(
+            url,
+            "https://minecraft.wiki/w/Java_Edition_26.1_Pre-Release_3"
+        );
     }
 
     #[test]
     fn test_pre_ja() {
         let url = WikiService::resolve_wiki_url("26.1-pre-3", "ja");
-        assert_eq!(url, "https://ja.minecraft.wiki/w/Java_Edition_26.1_Pre-Release_3");
+        assert_eq!(
+            url,
+            "https://ja.minecraft.wiki/w/Java_Edition_26.1_Pre-Release_3"
+        );
     }
 }

@@ -57,7 +57,10 @@ pub struct ModSnapshotManager;
 
 impl ModSnapshotManager {
     fn normalized_snapshot_key(mod_entry: &ModEntry) -> String {
-        mod_entry.file_name.trim_end_matches(".disabled").to_lowercase()
+        mod_entry
+            .file_name
+            .trim_end_matches(".disabled")
+            .to_lowercase()
     }
 
     fn resolved_enabled_state(mod_entry: &ModEntry) -> bool {
@@ -145,7 +148,7 @@ impl ModSnapshotManager {
     ) -> Result<InstanceSnapshot, String> {
         let mods_dir = Self::get_game_mods_dir(&app, &instance_id)?;
         let shared_dir = Self::get_shared_mods_dir(&app)?;
-        
+
         // Scan current items
         let mut target_files: Vec<PathBuf> = Vec::new();
         if let Ok(entries) = fs::read_dir(&mods_dir) {
@@ -194,7 +197,7 @@ impl ModSnapshotManager {
             // Calculate Hash
             let hash = sha1_file(path).await.map_err(|e| e.to_string())?;
             let safe_hash = encode_safe_hash(&hash);
-            
+
             // Check cross-instance cache
             let cached_path = shared_dir.join(format!("{}.jar", safe_hash));
             if !cached_path.exists() {
@@ -210,7 +213,7 @@ impl ModSnapshotManager {
             let temp_ext = format!("{}.tmp_old", file_name);
             let temp_path = mods_dir.join(&temp_ext);
             fs::rename(path, &temp_path).ok();
-            
+
             if let Err(_) = fs::hard_link(&cached_path, path) {
                 // fallback to copy if hard link not supported between folders (cross-drive)
                 fs::copy(&cached_path, path).map_err(|e| format!("链接文件失败: {}", e))?;
@@ -243,7 +246,7 @@ impl ModSnapshotManager {
             .join("piconfig")
             .join("snapshots")
             .join("mods");
-            
+
         fs::create_dir_all(&snapshots_dir).map_err(|e| e.to_string())?;
 
         let json_path = snapshots_dir.join(format!("{}.json", id));
@@ -302,7 +305,7 @@ impl ModSnapshotManager {
         new_id: &str,
     ) -> Result<SnapshotDiff, String> {
         let history = Self::get_snapshot_history(app, instance_id)?;
-        
+
         let mut old_mods: HashMap<String, ModEntry> = HashMap::new();
         let mut new_mods: HashMap<String, ModEntry> = HashMap::new();
 
@@ -349,8 +352,6 @@ impl ModSnapshotManager {
             }
         }
 
-
-
         Ok(SnapshotDiff {
             added,
             removed,
@@ -387,7 +388,10 @@ impl ModSnapshotManager {
 
             if !cached_path.exists() {
                 // If the cache somehow got corrupted/deleted
-                return Err(format!("快照已损坏, 找不回依赖文件: {}", mod_entry.file_name));
+                return Err(format!(
+                    "快照已损坏, 找不回依赖文件: {}",
+                    mod_entry.file_name
+                ));
             }
 
             if let Err(_) = fs::hard_link(&cached_path, &target_path) {
@@ -399,7 +403,7 @@ impl ModSnapshotManager {
         // Atomic swap
         let backup_cur_dir = parent_dir.join(".mods_backup_broken");
         fs::rename(&mods_dir, &backup_cur_dir).ok();
-        
+
         match fs::rename(&temp_mods_dir, &mods_dir) {
             Ok(_) => {
                 fs::remove_dir_all(&backup_cur_dir).ok();

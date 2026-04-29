@@ -40,10 +40,7 @@ pub async fn request_device_code() -> Result<DeviceCodeResponse, String> {
 
 /// 轮询微软授权端点，等待用户完成设备授权后获取 MS Access Token
 /// 返回 (ms_access_token, ms_refresh_token)
-pub async fn poll_for_token(
-    device_code: &str,
-    interval: u64,
-) -> Result<(String, String), String> {
+pub async fn poll_for_token(device_code: &str, interval: u64) -> Result<(String, String), String> {
     let client = get_client();
     let poll_interval = Duration::from_secs(interval);
 

@@ -54,15 +54,15 @@ impl TrustStore {
         }
 
         if private_key_b64.is_empty() || public_key_b64.is_empty() {
-            use ed25519_dalek::SigningKey;
             use base64::{engine::general_purpose, Engine as _};
+            use ed25519_dalek::SigningKey;
             use rand_core::OsRng;
 
             let mut csprng = OsRng;
             let signing_key = SigningKey::generate(&mut csprng);
             let private_bytes = signing_key.to_bytes();
             let public_bytes = signing_key.verifying_key().to_bytes();
-            
+
             private_key_b64 = general_purpose::STANDARD.encode(private_bytes);
             public_key_b64 = general_purpose::STANDARD.encode(public_bytes);
 
@@ -74,7 +74,10 @@ impl TrustStore {
             if let Some(parent) = identity_file.parent() {
                 let _ = fs::create_dir_all(parent);
             }
-            let _ = fs::write(&identity_file, serde_json::to_string_pretty(&identity_json).unwrap_or_default());
+            let _ = fs::write(
+                &identity_file,
+                serde_json::to_string_pretty(&identity_json).unwrap_or_default(),
+            );
         }
 
         DeviceIdentity {

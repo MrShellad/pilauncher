@@ -6,9 +6,9 @@ import { useLinearNavigation } from '../../../../../ui/focus/useLinearNavigation
 const NORMAL_FOCUS_ORDER = [
   'mod-btn-snapshot',
   'mod-btn-history',
-  'mod-btn-check-updates',
   'mod-btn-folder',
   'mod-btn-cleanup',
+  'mod-btn-check-updates',
   'mod-btn-download',
   'mod-search-input',
   'mod-search-clear',
@@ -17,9 +17,9 @@ const NORMAL_FOCUS_ORDER = [
 const BATCH_FOCUS_ORDER = [
   'mod-btn-snapshot',
   'mod-btn-history',
-  'mod-btn-check-updates',
   'mod-btn-folder',
   'mod-btn-cleanup',
+  'mod-btn-check-updates',
   'mod-btn-download',
   'mod-search-input',
   'mod-search-clear',

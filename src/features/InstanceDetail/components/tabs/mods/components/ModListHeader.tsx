@@ -59,6 +59,11 @@ const getFilterIcon = (filter: ModQuickFilter) => {
   return <Filter size={13} />;
 };
 
+const LIST_CONTROL_TEXT_STYLE: React.CSSProperties = {
+  fontFamily: 'inherit',
+  fontSize: '1.0625rem'
+};
+
 export const ModListHeader: React.FC<ModListHeaderProps> = ({
   stats,
   isBatchMode,
@@ -78,19 +83,19 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
   onViewModeChange
 }) => {
   return (
-    <div className="mx-2 mb-1.5 border border-white/[0.08] bg-[#151517] px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+    <div className="mx-2 mb-1.5 border border-[#2A3140] bg-[#161A22] px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="font-minecraft text-sm text-white">ModList</span>
-          <span className="font-mono text-xs text-[#9EA1A8]">
+          <span className="text-[1.125rem] font-semibold text-[#F3F6FC]">ModList</span>
+          <span className="rounded-[6px] border border-[#313A4D] bg-[#232937] px-2 py-0.5 text-[1.0625rem] font-semibold text-[#C7D2E6]">
             {stats.visible} / {stats.total}
           </span>
         </div>
 
-        <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 text-[1.0625rem]">
           <span className="text-[#8C8D90]">启用 {stats.enabled}</span>
           <span className="text-[#8C8D90]">禁用 {stats.disabled}</span>
-          <span className={stats.updates > 0 ? 'text-[#F0C86B]' : 'text-[#8C8D90]'}>
+          <span className={stats.updates > 0 ? 'text-[#57D38C]' : 'text-[#8C8D90]'}>
             更新 {stats.updates}
           </span>
         </div>
@@ -104,8 +109,9 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
             onChange={(event) => onSearchQueryChange(event.target.value)}
             onArrowPress={onHeaderArrowPress}
             placeholder={searchPlaceholder}
-            height="40px"
+            height="44px"
             containerClassName="min-w-0 flex-1"
+            style={LIST_CONTROL_TEXT_STYLE}
             prefixNode={<Search size={16} />}
           />
 
@@ -117,6 +123,7 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
               onClick={onClearSearch}
               onArrowPress={onHeaderArrowPress}
               className={`${MOD_LIST_HEADER_CLASSES.oreButton} !min-w-10 !px-2`}
+              style={LIST_CONTROL_TEXT_STYLE}
               title="清空搜索"
             >
               <X size={15} />
@@ -135,10 +142,10 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
                 tabIndex={-1}
                 title={`${option.label}视图`}
                 onClick={() => onViewModeChange(option.id)}
-                className={`inline-flex h-full min-w-16 items-center justify-center gap-1.5 px-3 text-xs transition-colors ${
+                className={`inline-flex h-full min-w-16 items-center justify-center gap-1.5 px-3 text-[1.0625rem] transition-colors ${
                   isActive
-                    ? 'bg-[#D0D1D4] text-[#111111]'
-                    : 'text-[#9EA1A8] hover:bg-white/[0.06] hover:text-white'
+                    ? 'bg-[#262D3D] text-[#DCE3F1]'
+                    : 'text-[#8B93A7] hover:bg-[#222734] hover:text-[#DCE3F1]'
                 }`}
               >
                 {option.icon}
@@ -160,15 +167,15 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
                 type="button"
                 tabIndex={-1}
                 onClick={() => onQuickFilterChange(option.id)}
-                className={`inline-flex min-h-10 items-center gap-1.5 border px-3 text-xs transition-colors ${
+                className={`inline-flex min-h-10 items-center gap-1.5 border px-3 text-[1.0625rem] transition-colors ${
                   isActive
-                    ? 'border-[#6CC349]/70 bg-[#1D4D13]/60 text-white'
-                    : 'border-white/[0.08] bg-white/[0.03] text-[#A5A7AD] hover:border-white/20 hover:bg-white/[0.06] hover:text-white'
+                    ? 'border-[#7AA2FF] bg-[#17345F] text-[#F3F6FC] shadow-[inset_0_0_0_1px_rgba(122,162,255,0.28)]'
+                    : 'border-[#2A3140] bg-[#171B23] text-[#8B93A7] hover:border-[#313A4D] hover:bg-[#232937] hover:text-[#DCE3F1]'
                 }`}
               >
                 {getFilterIcon(option.id)}
                 <span>{option.label}</span>
-                <span className="font-mono text-[0.625rem] opacity-70">{option.count}</span>
+                <span className="text-[1.0625rem] font-semibold opacity-70">{option.count}</span>
               </button>
             );
           })}
@@ -183,6 +190,7 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
               onClick={onBatchEnable}
               onArrowPress={onHeaderArrowPress}
               className={MOD_LIST_HEADER_CLASSES.oreButton}
+              style={LIST_CONTROL_TEXT_STYLE}
             >
               <Power size={14} className="mr-1.5" />
               启用
@@ -195,6 +203,7 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
               onClick={onBatchDisable}
               onArrowPress={onHeaderArrowPress}
               className={MOD_LIST_HEADER_CLASSES.oreButton}
+              style={LIST_CONTROL_TEXT_STYLE}
             >
               <Power size={14} className="mr-1.5 opacity-50" />
               禁用
@@ -207,6 +216,7 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
               onClick={onBatchDelete}
               onArrowPress={onHeaderArrowPress}
               className={MOD_LIST_HEADER_CLASSES.oreButton}
+              style={LIST_CONTROL_TEXT_STYLE}
             >
               <Trash2 size={14} className="mr-1.5" />
               删除
@@ -219,6 +229,7 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
               onClick={onExitBatchMode}
               onArrowPress={onHeaderArrowPress}
               className={`${MOD_LIST_HEADER_CLASSES.oreButton} shrink-0`}
+              style={LIST_CONTROL_TEXT_STYLE}
             >
               <X size={15} className="mr-1.5" />
               退出多选

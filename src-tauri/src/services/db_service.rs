@@ -28,9 +28,7 @@ impl DbService {
             .map_err(|e| e.to_string())?;
 
         // Enable WAL mode & Normal Sync for better concurrent performance
-        let _ = sqlx::query("PRAGMA journal_mode=WAL;")
-            .execute(&pool)
-            .await;
+        let _ = sqlx::query("PRAGMA journal_mode=WAL;").execute(&pool).await;
         let _ = sqlx::query("PRAGMA synchronous=NORMAL;")
             .execute(&pool)
             .await;
@@ -348,13 +346,31 @@ impl DbService {
 
         let instance_alters = [
             ("tags", "ALTER TABLE instances ADD COLUMN tags TEXT"),
-            ("last_played_at", "ALTER TABLE instances ADD COLUMN last_played_at DATETIME"),
-            ("playtime_secs", "ALTER TABLE instances ADD COLUMN playtime_secs INTEGER DEFAULT 0"),
-            ("pending_delta", "ALTER TABLE instances ADD COLUMN pending_delta INTEGER DEFAULT 0"),
+            (
+                "last_played_at",
+                "ALTER TABLE instances ADD COLUMN last_played_at DATETIME",
+            ),
+            (
+                "playtime_secs",
+                "ALTER TABLE instances ADD COLUMN playtime_secs INTEGER DEFAULT 0",
+            ),
+            (
+                "pending_delta",
+                "ALTER TABLE instances ADD COLUMN pending_delta INTEGER DEFAULT 0",
+            ),
             ("jvm_args", "ALTER TABLE instances ADD COLUMN jvm_args TEXT"),
-            ("window_width", "ALTER TABLE instances ADD COLUMN window_width INTEGER"),
-            ("window_height", "ALTER TABLE instances ADD COLUMN window_height INTEGER"),
-            ("is_favorite", "ALTER TABLE instances ADD COLUMN is_favorite INTEGER DEFAULT 0"),
+            (
+                "window_width",
+                "ALTER TABLE instances ADD COLUMN window_width INTEGER",
+            ),
+            (
+                "window_height",
+                "ALTER TABLE instances ADD COLUMN window_height INTEGER",
+            ),
+            (
+                "is_favorite",
+                "ALTER TABLE instances ADD COLUMN is_favorite INTEGER DEFAULT 0",
+            ),
         ];
 
         for (column, statement) in instance_alters {

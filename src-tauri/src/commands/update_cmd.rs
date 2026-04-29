@@ -209,8 +209,8 @@ pub async fn install_update<R: Runtime>(
     if let Err(error) = update
         .download_and_install(
             move |chunk_length, content_length| {
-                let current =
-                    progress_bytes.fetch_add(chunk_length as u64, Ordering::Relaxed) + chunk_length as u64;
+                let current = progress_bytes.fetch_add(chunk_length as u64, Ordering::Relaxed)
+                    + chunk_length as u64;
                 let total = content_length.unwrap_or(current);
                 emit_update_progress(
                     &progress_app,

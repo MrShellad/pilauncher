@@ -119,7 +119,10 @@ impl PlaytimeService {
     pub fn spawn_background_tasks<R: Runtime + 'static>(app: AppHandle<R>, pool: SqlitePool) {
         tauri::async_runtime::spawn(async move {
             if let Err(error) = Self::recover_stale_sessions(&app, &pool).await {
-                eprintln!("[Playtime] Failed to recover stale sessions on startup: {}", error);
+                eprintln!(
+                    "[Playtime] Failed to recover stale sessions on startup: {}",
+                    error
+                );
             }
 
             if let Err(error) = Self::sync_with_remote_if_enabled(&app, &pool).await {
@@ -318,7 +321,10 @@ impl PlaytimeService {
         }
 
         let instance = instance_id.map(|selected_id| {
-            let local = local_stats.iter().find(|item| item.id == selected_id).cloned();
+            let local = local_stats
+                .iter()
+                .find(|item| item.id == selected_id)
+                .cloned();
             let remote_sources = remote_by_instance.remove(selected_id).unwrap_or_default();
             let local_secs = local.as_ref().map(|item| item.playtime_secs).unwrap_or(0);
             let other_device_secs: i64 = remote_sources.iter().map(|item| item.playtime_secs).sum();
@@ -349,7 +355,9 @@ impl PlaytimeService {
                 other_device_secs,
                 last_played_at: Self::latest_timestamp(
                     local.as_ref().and_then(|item| item.last_played_at.clone()),
-                    sources.iter().filter_map(|item| item.last_played_at.clone()),
+                    sources
+                        .iter()
+                        .filter_map(|item| item.last_played_at.clone()),
                 ),
                 sources,
             }
@@ -625,15 +633,22 @@ impl PlaytimeService {
         };
 
         let local_snapshot_path = stats_dir.join(format!("{}.json", identity.device_id));
-        fs::write(&local_snapshot_path, serde_json::to_string_pretty(&snapshot)?)?;
+        fs::write(
+            &local_snapshot_path,
+            serde_json::to_string_pretty(&snapshot)?,
+        )?;
 
         let mut manifest = Self::read_local_devices_manifest(app)
             .await
             .unwrap_or_else(|_| DevicesManifest::default());
 
-        manifest.devices.retain(|device| device.id != identity.device_id);
+        manifest
+            .devices
+            .retain(|device| device.id != identity.device_id);
         manifest.devices.push(snapshot.device.clone());
-        manifest.devices.sort_by(|left, right| left.name.cmp(&right.name));
+        manifest
+            .devices
+            .sort_by(|left, right| left.name.cmp(&right.name));
 
         let manifest_path = Self::devices_manifest_path(app)?;
         fs::write(manifest_path, serde_json::to_string_pretty(&manifest)?)?;
@@ -661,7 +676,9 @@ impl PlaytimeService {
             .collect())
     }
 
-    async fn read_cached_snapshots<R: Runtime>(app: &AppHandle<R>) -> AppResult<Vec<DeviceSnapshot>> {
+    async fn read_cached_snapshots<R: Runtime>(
+        app: &AppHandle<R>,
+    ) -> AppResult<Vec<DeviceSnapshot>> {
         let stats_dir = match Self::stats_dir(app) {
             Ok(path) => path,
             Err(_) => return Ok(Vec::new()),
@@ -776,7 +793,9 @@ impl PlaytimeService {
         )
         .await?;
 
-        remote_manifest.devices.retain(|device| device.id != identity.device_id);
+        remote_manifest
+            .devices
+            .retain(|device| device.id != identity.device_id);
         remote_manifest.devices.push(DeviceEntry {
             id: identity.device_id,
             name: identity.device_name,
@@ -806,9 +825,10 @@ impl PlaytimeService {
         settings: &PlaytimeSyncSettings,
         remote_path: &str,
     ) -> AppResult<Option<T>> {
-        let response = Self::authorized_request(client, settings, reqwest::Method::GET, remote_path)
-            .send()
-            .await?;
+        let response =
+            Self::authorized_request(client, settings, reqwest::Method::GET, remote_path)
+                .send()
+                .await?;
 
         if response.status() == reqwest::StatusCode::NOT_FOUND {
             return Ok(None);
@@ -830,11 +850,12 @@ impl PlaytimeService {
         remote_path: &str,
         body: &str,
     ) -> AppResult<()> {
-        let response = Self::authorized_request(client, settings, reqwest::Method::PUT, remote_path)
-            .header(reqwest::header::CONTENT_TYPE, "application/json")
-            .body(body.to_string())
-            .send()
-            .await?;
+        let response =
+            Self::authorized_request(client, settings, reqwest::Method::PUT, remote_path)
+                .header(reqwest::header::CONTENT_TYPE, "application/json")
+                .body(body.to_string())
+                .send()
+                .await?;
 
         if !response.status().is_success() {
             return Err(AppError::Generic(format!(
@@ -903,10 +924,7 @@ impl PlaytimeService {
         Ok(())
     }
 
-    async fn remove_checkpoint<R: Runtime>(
-        app: &AppHandle<R>,
-        instance_id: &str,
-    ) -> AppResult<()> {
+    async fn remove_checkpoint<R: Runtime>(app: &AppHandle<R>, instance_id: &str) -> AppResult<()> {
         let path = Self::checkpoint_path(app, instance_id)?;
         if path.exists() {
             fs::remove_file(path)?;
@@ -1050,10 +1068,7 @@ impl PlaytimeService {
         best
     }
 
-    fn ensure_nested_object<'a>(
-        value: &'a mut Value,
-        keys: &[&str],
-    ) -> &'a mut Map<String, Value> {
+    fn ensure_nested_object<'a>(value: &'a mut Value, keys: &[&str]) -> &'a mut Map<String, Value> {
         let mut current = value;
         for key in keys {
             if !current.is_object() {
@@ -1076,7 +1091,9 @@ impl PlaytimeService {
     fn settings_path<R: Runtime>(app: &AppHandle<R>) -> AppResult<PathBuf> {
         let base_path = ConfigService::get_base_path(app)?
             .ok_or_else(|| AppError::Generic("Base path is not configured".to_string()))?;
-        Ok(PathBuf::from(base_path).join("config").join("settings.json"))
+        Ok(PathBuf::from(base_path)
+            .join("config")
+            .join("settings.json"))
     }
 
     fn playtime_root<R: Runtime>(app: &AppHandle<R>) -> AppResult<PathBuf> {

@@ -118,8 +118,8 @@ pub async fn run_network_test() -> Result<NetworkTestReport, String> {
 
 #[tauri::command]
 pub async fn fetch_donors() -> Result<serde_json::Value, String> {
-    let url = option_env!("DONORS_API_URL")
-        .unwrap_or("https://pil.nav4ai.net/api/donors/supporters");
+    let url =
+        option_env!("DONORS_API_URL").unwrap_or("https://pil.nav4ai.net/api/donors/supporters");
     let api_key = option_env!("DONORS_API_KEY")
         .ok_or_else(|| "Donors API key not configured at build time".to_string())?;
 
@@ -218,4 +218,46 @@ async fn test_domain(domain: &str) -> DomainTestResult {
     }
 
     result
+}
+
+#[tauri::command]
+pub async fn proxy_fetch(
+    url: String,
+    method: String,
+    headers: std::collections::HashMap<String, String>,
+    body: Option<String>,
+) -> Result<serde_json::Value, String> {
+    // Basic security: only allow CurseForge and Modrinth APIs
+    if !url.starts_with("https://api.curseforge.com/") && !url.starts_with("https://api.modrinth.com/") {
+        return Err("Only CurseForge and Modrinth APIs are allowed through proxy".to_string());
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(15))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let mut request = match method.to_uppercase().as_str() {
+        "POST" => client.post(&url),
+        "PUT" => client.put(&url),
+        "DELETE" => client.delete(&url),
+        _ => client.get(&url),
+    };
+
+    for (key, value) in headers {
+        request = request.header(key, value);
+    }
+
+    if let Some(b) = body {
+        request = request.body(b);
+    }
+
+    let res = request.send().await.map_err(|e| e.to_string())?;
+    
+    if !res.status().is_success() {
+        return Err(format!("Proxy request failed with status: {}", res.status()));
+    }
+
+    let json = res.json().await.map_err(|e| e.to_string())?;
+    Ok(json)
 }

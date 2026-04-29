@@ -204,7 +204,9 @@ mod tests {
 
         match builder(runtime_root, game_dir).extract_natives() {
             Err(LaunchPreparationError::MissingDependencies(details)) => {
-                assert!(details.iter().any(|detail| detail.contains("native-lib-1.0.0")));
+                assert!(details
+                    .iter()
+                    .any(|detail| detail.contains("native-lib-1.0.0")));
             }
             other => panic!("expected missing native dependency error, got {:?}", other),
         }

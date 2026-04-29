@@ -72,10 +72,11 @@ export const searchModrinth = async (params: SearchParams): Promise<{ hits: Modr
 
   url.searchParams.append('facets', JSON.stringify(facets));
 
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error('Modrinth 搜索失败');
-  
-  const data = await res.json();
+  const data = await invoke<{ hits: any[], total_hits: number }>('proxy_fetch', {
+    url: url.toString(),
+    method: 'GET',
+    headers: { Accept: 'application/json' }
+  });
 
   data.hits = data.hits.map((hit: any) => ({
     ...hit,
@@ -188,7 +189,8 @@ export const matchModrinthVersionsByHashes = async (
 ): Promise<Record<string, OreProjectVersion>> => {
   if (hashes.length === 0) return {};
 
-  const response = await fetch('https://api.modrinth.com/v2/version_files', {
+  const payload = await invoke<Record<string, ModrinthRawVersion>>('proxy_fetch', {
+    url: 'https://api.modrinth.com/v2/version_files',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -196,12 +198,6 @@ export const matchModrinthVersionsByHashes = async (
     },
     body: JSON.stringify({ hashes, algorithm })
   });
-
-  if (!response.ok) {
-    throw new Error(`Modrinth hash match failed: ${response.status}`);
-  }
-
-  const payload = (await response.json()) as Record<string, ModrinthRawVersion>;
   const mapped: Record<string, OreProjectVersion> = {};
 
   Object.entries(payload).forEach(([hash, version]) => {

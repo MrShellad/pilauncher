@@ -7,8 +7,8 @@ use crate::domain::modpack::{
 use crate::services::config_service::ConfigService;
 use crate::services::instance::mod_manifest_service::ModManifestService;
 use chrono::Utc;
-use reqwest::Client;
 use regex::Regex;
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
@@ -531,10 +531,20 @@ async fn build_mrpack_manifest_file(
         return Ok(None);
     }
 
-    let Some(project_id) = source.project_id.as_deref().map(str::trim).filter(|value| !value.is_empty()) else {
+    let Some(project_id) = source
+        .project_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
         return Ok(None);
     };
-    let Some(version_id) = source.file_id.as_deref().map(str::trim).filter(|value| !value.is_empty()) else {
+    let Some(version_id) = source
+        .file_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
         return Ok(None);
     };
 
@@ -571,8 +581,17 @@ async fn build_mrpack_manifest_file(
         downloads: vec![remote_file.url.clone()],
         file_size: remote_file
             .size
-            .or_else(|| item.manifest_entry.file_state.as_ref().map(|state| state.size))
-            .unwrap_or_else(|| fs::metadata(&item.path).map(|metadata| metadata.len()).unwrap_or(0)),
+            .or_else(|| {
+                item.manifest_entry
+                    .file_state
+                    .as_ref()
+                    .map(|state| state.size)
+            })
+            .unwrap_or_else(|| {
+                fs::metadata(&item.path)
+                    .map(|metadata| metadata.len())
+                    .unwrap_or(0)
+            }),
     }))
 }
 
@@ -616,8 +635,18 @@ fn select_modrinth_export_file<'a>(
                 .get("sha1")
                 .is_some_and(|value| value.eq_ignore_ascii_case(&expected_hash))
         })
-        .or_else(|| version.files.iter().find(|file| file.filename == normalized_name))
-        .or_else(|| version.files.iter().find(|file| file.primary.unwrap_or(false)))
+        .or_else(|| {
+            version
+                .files
+                .iter()
+                .find(|file| file.filename == normalized_name)
+        })
+        .or_else(|| {
+            version
+                .files
+                .iter()
+                .find(|file| file.primary.unwrap_or(false))
+        })
         .or_else(|| version.files.first())
 }
 

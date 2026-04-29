@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import type { DropdownOption } from '../../../ui/primitives/OreDropdown';
 import type {
   ModrinthProject as OreProjectSummary,
@@ -377,21 +378,23 @@ const curseForgeFetch = async <T>(
     }
   });
 
-  const response = await fetch(url.toString(), {
-    ...init,
-    headers: {
-      Accept: 'application/json',
-      'x-api-key': CURSEFORGE_API_KEY,
-      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(init?.headers || {})
-    }
-  });
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'x-api-key': CURSEFORGE_API_KEY,
+    ...(init?.headers as Record<string, string> || {})
+  };
 
-  if (!response.ok) {
-    throw new Error(`CurseForge request failed: ${response.status}`);
+  if (init?.body) {
+    headers['Content-Type'] = 'application/json';
   }
 
-  const payload = (await response.json()) as CurseForgeEnvelope<T>;
+  const payload = await invoke<CurseForgeEnvelope<T>>('proxy_fetch', {
+    url: url.toString(),
+    method: init?.method || 'GET',
+    headers,
+    body: init?.body ? String(init.body) : undefined
+  });
+
   return payload.data;
 };
 

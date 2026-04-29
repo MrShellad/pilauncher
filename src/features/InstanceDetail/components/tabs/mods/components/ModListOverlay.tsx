@@ -20,7 +20,7 @@ export const ModListOverlay: React.FC<ModListOverlayProps> = ({ visible }) => {
       }}
     >
       <RefreshCw size={14} className="mr-2 animate-spin text-ore-green" />
-      <span className="font-minecraft text-xs text-[var(--ore-downloadDetail-labelText)]">正在同步模组...</span>
+      <span className="text-[1.0625rem] text-[var(--ore-downloadDetail-labelText)]">正在同步模组...</span>
     </div>
   );
 };

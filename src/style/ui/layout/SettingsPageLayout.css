@@ -47,6 +47,25 @@
   padding-bottom: clamp(2.5rem, 5vh, 4rem);
 }
 
+/* ── No-scroll variant: inner components own scrolling ── */
+.ore-settings-page-layout--no-scroll {
+  display: flex;
+  flex-direction: column;
+}
+
+.ore-settings-page-layout--no-scroll .ore-settings-page-layout__inner {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.ore-settings-page-layout--no-scroll .ore-settings-page-layout__content {
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 0;
+}
+
 .ore-settings-scale-adaptive .ore-settings-page-layout__inner {
   zoom: var(--ore-settings-scale);
 }

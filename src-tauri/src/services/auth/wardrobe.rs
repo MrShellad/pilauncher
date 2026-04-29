@@ -130,8 +130,7 @@ fn sync_active_runtime_skin_into_library<R: Runtime>(
 
     let assets_dir = paths::wardrobe_skin_assets_dir(app, account_uuid)?;
     let manifest_path = paths::wardrobe_skin_library_path(app, account_uuid)?;
-    let bytes =
-        fs::read(&runtime_skin_path).map_err(|e| format!("读取当前皮肤失败: {}", e))?;
+    let bytes = fs::read(&runtime_skin_path).map_err(|e| format!("读取当前皮肤失败: {}", e))?;
     let content_hash = format!("{:x}", md5::compute(&bytes));
     let resolved_variant = variant
         .map(normalize_skin_variant)
@@ -216,9 +215,11 @@ fn finalize_skin_library<R: Runtime>(
             stored.current_skin_id = active_id.clone();
             should_persist = true;
         }
-        None
-            if !stored.current_skin_id.is_empty()
-                && !stored.skins.iter().any(|asset| asset.id == stored.current_skin_id) =>
+        None if !stored.current_skin_id.is_empty()
+            && !stored
+                .skins
+                .iter()
+                .any(|asset| asset.id == stored.current_skin_id) =>
         {
             stored.current_skin_id.clear();
             should_persist = true;
@@ -341,9 +342,9 @@ pub fn save_wardrobe_skin_asset<R: Runtime>(
         stored.user_id = account_uuid.to_string();
     }
 
-    stored
-        .skins
-        .retain(|asset| !asset.is_deleted && paths::skin_asset_file_path(&assets_dir, &asset.id).is_file());
+    stored.skins.retain(|asset| {
+        !asset.is_deleted && paths::skin_asset_file_path(&assets_dir, &asset.id).is_file()
+    });
 
     // Check if hash already exists
     if let Some(existing_asset) = stored

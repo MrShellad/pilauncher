@@ -264,7 +264,9 @@ pub async fn install_vanilla_core<R: Runtime>(
                 "Missing client URL in version JSON",
             )
         })?;
-    let expected_total_bytes = parsed_json["downloads"]["client"]["size"].as_u64().unwrap_or(0);
+    let expected_total_bytes = parsed_json["downloads"]["client"]["size"]
+        .as_u64()
+        .unwrap_or(0);
 
     let mirror_jar_url = if dl_settings.vanilla_source == "official" {
         jar_url.to_string()
@@ -379,7 +381,10 @@ pub async fn install_vanilla_core<R: Runtime>(
             Err(err) => {
                 last_error = Some(err.to_string());
                 if attempt < max_attempts {
-                    tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS * (1u64 << attempt.min(5)))).await;
+                    tokio::time::sleep(Duration::from_millis(
+                        RETRY_DELAY_MS * (1u64 << attempt.min(5)),
+                    ))
+                    .await;
                 }
                 continue;
             }
@@ -391,7 +396,10 @@ pub async fn install_vanilla_core<R: Runtime>(
                 last_error = Some(format!("sha1 mismatch (expected {}, got {})", exp, actual));
                 let _ = fs::remove_file(&temp_jar_path);
                 if attempt < max_attempts {
-                    tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS * (1u64 << attempt.min(5)))).await;
+                    tokio::time::sleep(Duration::from_millis(
+                        RETRY_DELAY_MS * (1u64 << attempt.min(5)),
+                    ))
+                    .await;
                 }
                 continue;
             }
@@ -405,7 +413,10 @@ pub async fn install_vanilla_core<R: Runtime>(
             last_error = Some(format!("rename failed: {}", e));
             let _ = fs::remove_file(&temp_jar_path);
             if attempt < max_attempts {
-                tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS * (1u64 << attempt.min(5)))).await;
+                tokio::time::sleep(Duration::from_millis(
+                    RETRY_DELAY_MS * (1u64 << attempt.min(5)),
+                ))
+                .await;
             }
             continue;
         }

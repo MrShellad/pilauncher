@@ -2,9 +2,7 @@ use crate::domain::event::DownloadProgressEvent;
 use crate::domain::instance::ServerBinding;
 use crate::services::config_service::{ConfigService, DownloadSettings};
 use crate::services::deployment_cancel;
-use crate::services::downloader::transfer::{
-    download_file, DownloadRateLimiter, DownloadTuning,
-};
+use crate::services::downloader::transfer::{download_file, DownloadRateLimiter, DownloadTuning};
 use reqwest::Client;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
@@ -30,7 +28,8 @@ fn build_modpack_download_client(dl_settings: &DownloadSettings) -> Result<Clien
                 _ => "http",
             };
             let proxy_url = format!("{}://{}:{}", scheme, host, port);
-            builder = builder.proxy(reqwest::Proxy::all(&proxy_url).map_err(|error| error.to_string())?);
+            builder =
+                builder.proxy(reqwest::Proxy::all(&proxy_url).map_err(|error| error.to_string())?);
         }
     }
 
@@ -63,8 +62,7 @@ pub fn start_import<R: Runtime>(
     tauri::async_runtime::spawn(async move {
         let instance_id = sanitize_instance_id(&instance_name);
         let cancel = deployment_cancel::register(&instance_id);
-        let result =
-            execute_import(&app, &zip_path, &instance_name, &cancel, server_binding).await;
+        let result = execute_import(&app, &zip_path, &instance_name, &cancel, server_binding).await;
         deployment_cancel::unregister(&instance_id);
 
         if let Err(error) = result {

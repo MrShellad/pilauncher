@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 
 import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary';
@@ -46,6 +46,7 @@ export interface ModListProps {
   onExitBatchMode: () => void;
   emptyMessage?: string;
   onNavigateOut?: (direction: 'up' | 'down') => boolean;
+  onTopBarCollapseChange?: (collapsed: boolean) => void;
 }
 
 export const ModList: React.FC<ModListProps> = ({
@@ -73,7 +74,8 @@ export const ModList: React.FC<ModListProps> = ({
   onBatchDelete,
   onExitBatchMode,
   emptyMessage = '当前没有可用模组。',
-  onNavigateOut
+  onNavigateOut,
+  onTopBarCollapseChange
 }) => {
   const controller = useModListController({
     mods,
@@ -88,12 +90,26 @@ export const ModList: React.FC<ModListProps> = ({
     onNavigateOut
   });
 
-  if (controller.state.showInitialLoading) {
-    return <ModListEmptyState variant="loading" />;
-  }
+  useEffect(() => {
+    if (
+      controller.state.showInitialLoading ||
+      controller.state.showEmptyState ||
+      controller.state.showFilteredEmptyState
+    ) {
+      onTopBarCollapseChange?.(false);
+    }
+  }, [
+    controller.state.showEmptyState,
+    controller.state.showFilteredEmptyState,
+    controller.state.showInitialLoading,
+    onTopBarCollapseChange
+  ]);
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div
+      className="relative flex min-h-0 flex-1 flex-col overflow-hidden text-[1.0625rem]"
+      style={{ fontFamily: 'var(--ore-global-font, "Minecraft"), "NotoSans Bold", "Noto Sans SC", sans-serif' }}
+    >
       <ModListOverlay visible={controller.state.showSyncingOverlay} />
 
       <ModListHeader
@@ -129,8 +145,7 @@ export const ModList: React.FC<ModListProps> = ({
         trapFocus={controller.focus.trapFocus}
         onEscape={controller.focus.handleCancelHierarchy}
         defaultFocusKey={controller.focus.defaultFocusKey}
-        className="relative min-h-[18rem] overflow-hidden px-2 pb-1"
-        style={{ height: 'clamp(24rem, calc(100vh - 16rem), 56rem)' }}
+        className="relative pt-[2px] min-h-[18rem] flex-1 overflow-hidden px-2 pb-1"
       >
         <FocusItem focusKey={LIST_GUARD_TOP} onFocus={() => controller.focus.restoreSafeFocus('first')}>
           {({ ref }) => (
@@ -181,20 +196,30 @@ export const ModList: React.FC<ModListProps> = ({
           )}
         </FocusItem>
 
-        {controller.state.showEmptyState ? (
+        {controller.state.showInitialLoading ? (
+          <ModListEmptyState variant="loading" />
+        ) : controller.state.showEmptyState ? (
           <ModListEmptyState variant="empty" emptyMessage={emptyMessage} />
         ) : controller.state.showFilteredEmptyState ? (
           <ModListEmptyState variant="filtered" />
         ) : (
           <Virtuoso
-            className="h-full custom-scrollbar"
+            className="h-full custom-scrollbar mod-list-scrollport"
             style={{
               height: '100%',
-              overflowY: 'overlay' as React.CSSProperties['overflowY']
+              overflowY: 'auto',
+              overscrollBehaviorY: 'contain',
+              scrollbarGutter: 'stable'
             }}
             data={controller.state.renderEntries}
             increaseViewportBy={{ top: 200, bottom: 400 }}
-            rangeChanged={controller.controls.onRangeChanged}
+            atTopThreshold={0}
+            atTopStateChange={(atTop) => {
+              onTopBarCollapseChange?.(!atTop);
+            }}
+            rangeChanged={(range) => {
+              controller.controls.onRangeChanged(range);
+            }}
             computeItemKey={(_index, entry) => (
               entry.type === 'group' ? `group-${entry.group.id}` : entry.mod.fileName
             )}
@@ -209,7 +234,7 @@ export const ModList: React.FC<ModListProps> = ({
                     {({ ref, focused }) => (
                       <div
                         ref={ref as React.RefObject<HTMLDivElement>}
-                        className={index > 0 ? 'pt-0.5' : undefined}
+                        className={`sticky top-0 bottom-0 z-30 bg-[#111318] ${index > 0 ? 'pt-0.5' : ''}`}
                       >
                         <ModListGroupHeader
                           group={entry.group}

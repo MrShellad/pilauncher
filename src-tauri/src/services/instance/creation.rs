@@ -36,7 +36,10 @@ impl InstanceCreationService {
         let tmp_instance_root = instances_dir.join(".tmp").join(&instance_id);
 
         if final_instance_root.exists() {
-            return Err(AppError::Generic(format!("Instance {} already exists", instance_id)));
+            return Err(AppError::Generic(format!(
+                "Instance {} already exists",
+                instance_id
+            )));
         }
 
         if tmp_instance_root.exists() {
@@ -149,8 +152,15 @@ impl InstanceCreationService {
             .map(|p| p.exists())
             .unwrap_or(true);
 
-        let result =
-            Self::run_deployment(app, &instance_id, &payload, &global_mc_root, &tmp_instance_root, &cancel).await;
+        let result = Self::run_deployment(
+            app,
+            &instance_id,
+            &payload,
+            &global_mc_root,
+            &tmp_instance_root,
+            &cancel,
+        )
+        .await;
 
         deployment_cancel::unregister(&instance_id);
 
@@ -171,19 +181,25 @@ impl InstanceCreationService {
                     if tmp_instance_root.exists() {
                         let _ = fs::remove_dir_all(&tmp_instance_root);
                     }
-                    return Err(AppError::Generic(format!("Failed to rename tmp instance dir: {}", e)));
+                    return Err(AppError::Generic(format!(
+                        "Failed to rename tmp instance dir: {}",
+                        e
+                    )));
                 }
 
                 let db = app.state::<AppDatabase>();
                 let mut persisted_config = config;
 
                 if let Some(binding) = &payload.server_binding {
-                    if let Ok(canonical_binding) = InstanceBindingService::replace_binding_for_instance(
-                        &db.pool,
-                        &instance_id,
-                        binding,
-                        true,
-                    ).await {
+                    if let Ok(canonical_binding) =
+                        InstanceBindingService::replace_binding_for_instance(
+                            &db.pool,
+                            &instance_id,
+                            binding,
+                            true,
+                        )
+                        .await
+                    {
                         persisted_config.server_binding = Some(canonical_binding);
                         persisted_config.auto_join_server = Some(true);
                         let _ = fs::write(
@@ -195,7 +211,9 @@ impl InstanceCreationService {
                     }
                 }
 
-                if let Err(e) = InstanceBindingService::upsert_instance(&db.pool, &persisted_config).await {
+                if let Err(e) =
+                    InstanceBindingService::upsert_instance(&db.pool, &persisted_config).await
+                {
                     eprintln!("[Deployment] Failed to upsert instance into db: {}", e);
                 }
             }

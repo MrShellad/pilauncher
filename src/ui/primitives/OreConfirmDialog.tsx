@@ -144,7 +144,7 @@ export const OreConfirmDialog: React.FC<OreConfirmDialogProps> = ({
               variant="secondary"
               onClick={onClose}
               onArrowPress={(direction) => handleActionArrow(cancelFocusKey, direction)}
-              className="flex-1"
+              className="min-w-[10rem] flex-1"
             >
               {cancelLabel}
             </OreButton>
@@ -155,7 +155,7 @@ export const OreConfirmDialog: React.FC<OreConfirmDialogProps> = ({
               variant={tertiaryAction.variant ?? 'ghost'}
               onClick={tertiaryAction.onClick}
               onArrowPress={(direction) => handleActionArrow(tertiaryFocusKey, direction)}
-              className="flex-1"
+              className="min-w-[10rem] flex-1"
               disabled={tertiaryAction.disabled}
             >
               {tertiaryAction.icon}
@@ -167,7 +167,7 @@ export const OreConfirmDialog: React.FC<OreConfirmDialogProps> = ({
             variant={confirmVariant}
             onClick={onConfirm}
             onArrowPress={(direction) => handleActionArrow(confirmFocusKey, direction)}
-            className="flex-1"
+            className="min-w-[11.5rem] flex-1"
             disabled={isConfirming}
           >
             {isConfirming

@@ -26,3 +26,26 @@ html, body {
   background: #7a7a7a;
 }
 
+.mod-list-scrollport {
+  scrollbar-gutter: stable;
+  padding-right: 2px;
+}
+
+.mod-list-scrollport::-webkit-scrollbar {
+  width: 10px;
+}
+
+.mod-list-scrollport::-webkit-scrollbar-track {
+  background: rgba(22, 26, 34, 0.75);
+}
+
+.mod-list-scrollport::-webkit-scrollbar-thumb {
+  background: #313A4D;
+  border: 2px solid rgba(22, 26, 34, 0.95);
+  border-radius: 999px;
+}
+
+.mod-list-scrollport::-webkit-scrollbar-thumb:hover {
+  background: #4A5872;
+}
+

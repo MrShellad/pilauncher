@@ -45,7 +45,10 @@ impl InstanceBindingService {
     }
 
     pub async fn upsert_instance(pool: &SqlitePool, config: &InstanceConfig) -> AppResult<()> {
-        let tags_json = config.tags.as_ref().map(|t| serde_json::to_string(t).unwrap_or_default());
+        let tags_json = config
+            .tags
+            .as_ref()
+            .map(|t| serde_json::to_string(t).unwrap_or_default());
 
         sqlx::query(
             "INSERT INTO instances (
@@ -105,7 +108,9 @@ impl InstanceBindingService {
         .bind(config.memory.max as i64)
         .bind(config.cover_image.as_deref())
         .bind(tags_json)
-        .bind(PlaytimeService::normalize_last_played(Some(&config.last_played)))
+        .bind(PlaytimeService::normalize_last_played(Some(
+            &config.last_played,
+        )))
         .bind(config.play_time.max(0.0).round() as i64)
         .bind(0i64)
         .bind(config.jvm_args.as_deref())

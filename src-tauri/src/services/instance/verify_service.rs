@@ -105,7 +105,9 @@ fn collect_manifest_library_targets(
                         if seen_paths.insert(key) {
                             targets.push((
                                 path,
-                                classifier["sha1"].as_str().map(|value| value.to_lowercase()),
+                                classifier["sha1"]
+                                    .as_str()
+                                    .map(|value| value.to_lowercase()),
                                 format!("{} ({})", library_name, classifier_key),
                             ));
                         }
@@ -117,7 +119,11 @@ fn collect_manifest_library_targets(
                         let path = runtime_dir.join("libraries").join(&download_path);
                         let key = path.to_string_lossy().to_string();
                         if seen_paths.insert(key) {
-                            targets.push((path, None, format!("{} ({})", library_name, classifier_key)));
+                            targets.push((
+                                path,
+                                None,
+                                format!("{} ({})", library_name, classifier_key),
+                            ));
                         }
                     }
                 }
@@ -169,7 +175,9 @@ fn collect_asset_targets(
     if seen_paths.insert(index_key) {
         targets.push((
             index_path.clone(),
-            asset_index["sha1"].as_str().map(|value| value.to_lowercase()),
+            asset_index["sha1"]
+                .as_str()
+                .map(|value| value.to_lowercase()),
             format!("assets-index-{}", index_id),
         ));
     }
@@ -221,7 +229,11 @@ fn collect_asset_targets(
     for (name, object) in objects {
         let hash = object["hash"].as_str().unwrap_or("").trim().to_lowercase();
         if hash.len() < 2 {
-            push_verify_issue(issues, samples, format!("Invalid asset hash entry: {}", name));
+            push_verify_issue(
+                issues,
+                samples,
+                format!("Invalid asset hash entry: {}", name),
+            );
             continue;
         }
 
@@ -251,13 +263,7 @@ pub async fn verify_instance_runtime<R: Runtime>(
     app: &AppHandle<R>,
     instance_id: &str,
 ) -> Result<VerifyInstanceRuntimeResult, String> {
-    emit_verify_progress(
-        app,
-        instance_id,
-        0,
-        1,
-        "Preparing runtime verification...",
-    );
+    emit_verify_progress(app, instance_id, 0, 1, "Preparing runtime verification...");
 
     let base_path = ConfigService::get_base_path(app)
         .map_err(|error| error.to_string())?
@@ -276,7 +282,8 @@ pub async fn verify_instance_runtime<R: Runtime>(
         ));
     }
 
-    let config_content = fs::read_to_string(&instance_json_path).map_err(|error| error.to_string())?;
+    let config_content =
+        fs::read_to_string(&instance_json_path).map_err(|error| error.to_string())?;
     let config: InstanceConfig =
         serde_json::from_str(&config_content).map_err(|error| error.to_string())?;
 
@@ -399,7 +406,13 @@ pub async fn verify_instance_runtime<R: Runtime>(
     let total = targets.len().max(1) as u64;
     for (index, (target_path, expected_sha1, label)) in targets.iter().enumerate() {
         let current = index as u64 + 1;
-        emit_verify_progress(app, instance_id, current, total, format!("Verifying {}", label));
+        emit_verify_progress(
+            app,
+            instance_id,
+            current,
+            total,
+            format!("Verifying {}", label),
+        );
 
         if !target_path.exists() {
             push_verify_issue(

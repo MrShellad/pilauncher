@@ -107,7 +107,6 @@ pub struct ModFileNameCleanupProgress {
 
 // Removed unused constant
 
-
 pub struct ModManagerService;
 
 impl ModManagerService {
@@ -273,9 +272,8 @@ impl ModManagerService {
                                 .as_ref()
                                 .map(|rel| shared_mods_dir.join(rel).to_string_lossy().to_string());
 
-                            let cache_key = crate::domain::mod_manifest::mod_manifest_key(
-                                &file_name,
-                            );
+                            let cache_key =
+                                crate::domain::mod_manifest::mod_manifest_key(&file_name);
                             let mut meta = ModMetadata {
                                 file_name: file_name.clone(),
                                 mod_id: entry.mod_id.clone(),
@@ -284,7 +282,8 @@ impl ModManagerService {
                                 description: entry.description.clone(),
                                 icon_absolute_path,
                                 network_icon_url: None, // 如果需要可以保存到此，但不再重点使用
-                                curseforge_fingerprint: Self::compute_curseforge_fingerprint(&path).ok(),
+                                curseforge_fingerprint: Self::compute_curseforge_fingerprint(&path)
+                                    .ok(),
                                 file_size: current_file_state.size,
                                 is_enabled,
                                 modified_at: current_file_state.modified_at,
@@ -458,14 +457,22 @@ impl ModManagerService {
                     manifest_dirty = true;
                 }
                 if let Some(cache_key) = meta.cache_key.clone() {
-                    cache_updates.push((cache_key, meta.name.clone(), meta.description.clone(), db_icon_val));
+                    cache_updates.push((
+                        cache_key,
+                        meta.name.clone(),
+                        meta.description.clone(),
+                        db_icon_val,
+                    ));
                 }
                 mods.push(meta);
             }
         }
 
         if !cache_updates.is_empty() {
-            let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64;
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() as i64;
             if let Ok(mut tx) = pool.begin().await {
                 for (cache_key, name, description, icon_val) in cache_updates {
                     let _ = sqlx::query::<sqlx::Sqlite>(
@@ -1245,7 +1252,8 @@ impl ModManagerService {
         let mods_dir = Self::get_mods_dir(app, instance_id)?;
         let manifest_path = instance_dir.join("mod_manifest.json");
 
-        let mut manifest_dict = ModManifestService::load_from_mods_dir(&mods_dir, &manifest_path).unwrap_or_default();
+        let mut manifest_dict =
+            ModManifestService::load_from_mods_dir(&mods_dir, &manifest_path).unwrap_or_default();
         let mut manifest_dirty = false;
 
         let mut renamed = Vec::new();
@@ -1276,7 +1284,7 @@ impl ModManagerService {
             match tokio::fs::rename(&old_path, &new_path).await {
                 Ok(_) => {
                     renamed.push(item.clone());
-                    
+
                     // 同步更新 manifest 键值
                     let old_base = item.original_file_name.trim_end_matches(".disabled");
                     let new_base = item.suggested_file_name.trim_end_matches(".disabled");
@@ -1297,8 +1305,10 @@ impl ModManagerService {
 
         let mut manifest_sync_error = None;
         if manifest_dirty {
-            if let Err(e) = crate::domain::mod_manifest::write_mod_manifest(&manifest_path, &manifest_dict) {
-                 manifest_sync_error = Some(e.to_string());
+            if let Err(e) =
+                crate::domain::mod_manifest::write_mod_manifest(&manifest_path, &manifest_dict)
+            {
+                manifest_sync_error = Some(e.to_string());
             }
         }
 
