@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
-import { Image as ImageIcon, Sparkles, Type } from 'lucide-react';
+import { Image as ImageIcon, Sparkles, Type, Crown } from 'lucide-react';
 
 import { useAccountStore } from '../../../../store/useAccountStore';
 import { useSettingsStore } from '../../../../store/useSettingsStore';
@@ -26,6 +26,45 @@ export const AppearanceSettings: React.FC = () => {
   const hasMicrosoftAccount = useAccountStore((state) =>
     state.accounts.some((account) => account.type?.toLowerCase() === 'microsoft'),
   );
+
+  const { accounts, activeAccountId } = useAccountStore();
+  const currentAccount = useMemo(() => accounts.find(a => a.uuid === activeAccountId), [accounts, activeAccountId]);
+  const [isDonor, setIsDonor] = useState(false);
+
+  useEffect(() => {
+    invoke('fetch_donors')
+      .then((data) => {
+        if (Array.isArray(data) && currentAccount) {
+          const found = data.some((d: any) => d.mcUuid === currentAccount.uuid || d.mcName === currentAccount.name);
+          setIsDonor(found);
+        }
+      })
+      .catch(console.error);
+  }, [currentAccount]);
+
+  const handleSelectCustomLogo = async () => {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif'] }],
+      });
+      if (selected && typeof selected === 'string') {
+        const newPath = await invoke<string>('import_background_image', { sourcePath: selected });
+        if (appearance.customLogo) {
+          try { await invoke('delete_background_image', { path: appearance.customLogo }); } catch (err) {}
+        }
+        updateAppearanceSetting('customLogo', newPath);
+      }
+    } catch (err) { console.error('图片选择失败:', err); }
+  };
+
+  const handleRemoveCustomLogo = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (appearance.customLogo) {
+      try { await invoke('delete_background_image', { path: appearance.customLogo }); } catch (err) {}
+    }
+    updateAppearanceSetting('customLogo', null);
+  };
 
   const [systemFonts, setSystemFonts] = useState<string[]>([]);
   const [isLoadingFonts, setIsLoadingFonts] = useState(true);
@@ -357,6 +396,36 @@ export const AppearanceSettings: React.FC = () => {
           }
         />
       </SettingsSection>
+
+      
+      {isDonor && (
+        <SettingsSection title="自定义 Logo (赞助者专属)" icon={<Crown size={18} className="text-[#FFD700]" />}>
+          <div className="p-6">
+            <div className="group relative flex h-32 w-full flex-col items-center justify-center overflow-hidden border-2 border-dashed border-ore-gray-border bg-[#141415] transition-colors">
+              {appearance.customLogo ? (
+                <>
+                  <img
+                    src={convertFileSrc(appearance.customLogo)}
+                    alt="Custom Logo"
+                    className="h-full w-full object-contain p-4 transition-all"
+                  />
+                  <div className="absolute inset-0 z-10 flex items-center justify-center gap-4 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                    <OreButton variant="secondary" size="sm" onClick={handleSelectCustomLogo}>更换 Logo</OreButton>
+                    <OreButton variant="danger" size="sm" onClick={handleRemoveCustomLogo}>移除 Logo</OreButton>
+                  </div>
+                </>
+              ) : (
+                <div onClick={handleSelectCustomLogo} className="flex h-full w-full cursor-pointer flex-col items-center justify-center outline-none transition-all hover:border-ore-green hover:bg-white/5">
+                  <div className="flex flex-col items-center opacity-60 transition-opacity group-hover:opacity-100">
+                    <ImageIcon size={32} className="mb-2" />
+                    <span className="font-minecraft text-sm">选择自定义 Logo</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </SettingsSection>
+      )}
 
       <SettingsSection title={t('settings.appearance.sections.typography')} icon={<Sparkles size={18} />}>
         <FormRow

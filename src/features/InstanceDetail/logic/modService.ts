@@ -27,6 +27,7 @@ export interface ModMeta {
   description?: string;
   iconAbsolutePath?: string;
   networkIconUrl?: string; 
+  curseforgeFingerprint?: number;
   fileSize: number;
   isEnabled: boolean; 
   modifiedAt: number;
@@ -37,10 +38,25 @@ export interface ModMeta {
   hasUpdate?: boolean;
   updateVersionName?: string;
   updateFileId?: string;
+  updateFileName?: string;
   updateDownloadUrl?: string;
   isCheckingUpdate?: boolean;
+  isUpdatingMod?: boolean;
   cacheKey?: string;
 }
+
+export const resolveInstanceGameVersion = (config: any): string => {
+  return config?.game_version || config?.gameVersion || config?.mcVersion || '';
+};
+
+export const resolveInstanceLoader = (config: any): string => {
+  const rawLoader = config?.loader;
+  const loader = typeof rawLoader === 'string'
+    ? rawLoader
+    : rawLoader?.type || config?.loaderType || config?.loader_type || '';
+
+  return loader && loader.toLowerCase() !== 'vanilla' ? loader.toLowerCase() : '';
+};
 
 const normalizeInstalledKey = (value?: string | null) => String(value || '').trim();
 
@@ -175,6 +191,19 @@ export const modService = {
     
   updateModCache: (cacheKey: string, name: string, desc: string, iconUrl: string) => 
     invoke('update_mod_cache', { cacheKey, name, desc, iconUrl }),
+
+  updateModManifest: (
+    instanceId: string,
+    fileName: string,
+    sourceKind: string,
+    platform: string,
+    projectId: string,
+    fileId: string
+  ) =>
+    invoke('update_mod_manifest', { instanceId, fileName, sourceKind, platform, projectId, fileId }),
+
+  downloadResource: (url: string, fileName: string, instanceId: string, subFolder: string) =>
+    invoke('download_resource', { url, fileName, instanceId, subFolder }),
 
   openModFolder: (id: string) =>  
     invoke('open_mod_folder', { id }),

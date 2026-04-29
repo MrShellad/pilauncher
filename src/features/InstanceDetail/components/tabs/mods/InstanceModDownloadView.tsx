@@ -90,7 +90,7 @@ const MissingDependenciesModal: React.FC<{
       isOpen={isOpen}
       onClose={onClose}
       title="检查前置依赖"
-      className="w-full max-w-lg border-[2px] border-[#313233] bg-[#18181B]"
+      className="w-full max-w-lg border-[0.125rem] border-[#313233] bg-[#18181B]"
       contentClassName="flex flex-col overflow-hidden p-0"
     >
       <div className="border-b border-white/5 bg-black/40 p-5 text-sm text-gray-300">
@@ -516,7 +516,7 @@ export const InstanceModDownloadView: React.FC<{
         {isHintVisible && (
           <div className="pointer-events-none absolute right-4 top-4 z-50 flex items-center gap-2 rounded-sm border border-white/10 bg-black/60 px-3 py-2 text-xs font-minecraft tracking-wider text-gray-200 shadow-lg backdrop-blur">
             <GamepadBtn text="Y" color="#FACC15" />
-            <span className="mt-[1px]">{yHintText}</span>
+            <span className="mt-[0.0625rem]">{yHintText}</span>
           </div>
         )}
 

@@ -51,11 +51,7 @@ export const StartupNewsModal: React.FC = () => {
         </>
       }
     >
-      <div className="mb-4 font-minecraft text-sm leading-6 text-ore-text-muted">
-        {locale === 'zh'
-          ? '启动器检测到新的 Minecraft 更新日志。你可以先快速查看这张卡片，或直接进入新闻页。'
-          : 'PiLauncher detected a newly published Minecraft update log. Review the card below or open the full news page.'}
-      </div>
+
 
       <NewsCard
         date={normalizedItem.date}

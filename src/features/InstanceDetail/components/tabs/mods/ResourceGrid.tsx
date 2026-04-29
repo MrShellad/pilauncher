@@ -175,9 +175,9 @@ const ResourceCard = React.memo(({
               project: project.title
             })}
             className={`
-              group relative flex min-h-[12.5rem] w-full overflow-hidden border-[2px] border-[#1E1E1F] text-left outline-none transition-none
+              group relative flex min-h-[12.5rem] w-full overflow-hidden border-[0.125rem] border-[#1E1E1F] text-left outline-none transition-none
               ${focused
-                ? 'z-20 bg-[#E6E8EB] brightness-[1.02] outline outline-[3px] outline-offset-[1px] outline-white drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]'
+                ? 'z-20 bg-[#E6E8EB] brightness-[1.02] outline outline-[0.1875rem] outline-offset-[0.0625rem] outline-white drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]'
                 : 'bg-[#D0D1D4] hover:bg-[#E6E8EB]'}
             `}
             style={{
@@ -188,12 +188,12 @@ const ResourceCard = React.memo(({
             }}
           >
             <div className={`absolute inset-y-0 left-0 w-1.5 ${isInstalled ? 'bg-[#6CC349]' : 'bg-[#48494A]'}`} />
-            <div className="absolute inset-x-0 top-0 h-[4px] bg-white/25" />
+            <div className="absolute inset-x-0 top-0 h-[0.25rem] bg-white/25" />
 
             <div className="flex w-full gap-[0.875rem] p-[0.9375rem] pr-[1rem]">
               <div className="flex w-[6rem] shrink-0 flex-col gap-[0.625rem]">
                 <div className="flex min-h-[8rem] flex-col justify-between">
-                  <div className="relative flex h-[6rem] w-[6rem] items-center justify-center overflow-hidden border-[2px] border-[#1E1E1F] bg-[#48494A] shadow-[inset_0_-4px_0_#313233,inset_2px_2px_0_rgba(255,255,255,0.15)]">
+                  <div className="relative flex h-[6rem] w-[6rem] items-center justify-center overflow-hidden border-[0.125rem] border-[#1E1E1F] bg-[#48494A] shadow-[inset_0_-4px_0_#313233,inset_2px_2px_0_rgba(255,255,255,0.15)]">
                     {project.icon_url ? (
                       <img src={project.icon_url} alt="" loading="lazy" className="h-full w-full object-cover" />
                     ) : (
@@ -209,7 +209,7 @@ const ResourceCard = React.memo(({
                       return (
                         <div
                           key={loader.raw}
-                          className="flex h-[1.75rem] w-[1.75rem] shrink-0 items-center justify-center overflow-hidden border-[2px] border-[#262729] bg-[#D7CF9A] shadow-[inset_0_-2px_0_#9F955C]"
+                          className="flex h-[1.75rem] w-[1.75rem] shrink-0 items-center justify-center overflow-hidden border-[0.125rem] border-[#262729] bg-[#D7CF9A] shadow-[inset_0_-2px_0_#9F955C]"
                           title={t(`download.tags.loader.${normalizedLoader}`, {
                             defaultValue: prettifyDownloadTagLabel(loader.display)
                           })}
@@ -227,7 +227,7 @@ const ResourceCard = React.memo(({
                   </div>
                 </div>
 
-                <div className="flex min-h-[3.125rem] flex-col items-center justify-center overflow-hidden border-[2px] border-[#34363A] bg-[#8A8D93] px-[0.375rem] py-[0.375rem] shadow-[inset_0_2px_0_rgba(255,255,255,0.16)]">
+                <div className="flex min-h-[3.125rem] flex-col items-center justify-center overflow-hidden border-[0.125rem] border-[#34363A] bg-[#8A8D93] px-[0.375rem] py-[0.375rem] shadow-[inset_0_2px_0_rgba(255,255,255,0.16)]">
                   <div className="font-minecraft text-[0.625rem] uppercase leading-none tracking-[0.18em] text-[#2B2D30]">
                     {t('download.meta.author', { defaultValue: 'Author' })}
                   </div>
@@ -248,19 +248,19 @@ const ResourceCard = React.memo(({
                       {(isInstalled || supportsClient || supportsServer) && (
                         <div className="flex shrink-0 items-center gap-[0.375rem] pt-[0.125rem]">
                           {isInstalled && (
-                            <div className="inline-flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#6CC349] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-black shadow-[inset_0_-2px_0_#3C8527] sm:text-[0.625rem]">
+                            <div className="inline-flex items-center gap-1 border-[0.125rem] border-[#1E1E1F] bg-[#6CC349] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-black shadow-[inset_0_-2px_0_#3C8527] sm:text-[0.625rem]">
                               <CheckCircle2 className="h-[0.6875rem] w-[0.6875rem]" />
                               {t('download.status.installed', { defaultValue: 'Installed' })}
                             </div>
                           )}
                           {supportsClient && (
-                            <div className="inline-flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#313233] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.12)] sm:text-[0.625rem]">
+                            <div className="inline-flex items-center gap-1 border-[0.125rem] border-[#1E1E1F] bg-[#313233] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.12)] sm:text-[0.625rem]">
                               <Monitor className="h-[0.6875rem] w-[0.6875rem]" />
                               {t('download.env.client', { defaultValue: 'Client' })}
                             </div>
                           )}
                           {supportsServer && (
-                            <div className="inline-flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#313233] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.12)] sm:text-[0.625rem]">
+                            <div className="inline-flex items-center gap-1 border-[0.125rem] border-[#1E1E1F] bg-[#313233] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.12)] sm:text-[0.625rem]">
                               <Server className="h-[0.6875rem] w-[0.6875rem]" />
                               {t('download.env.server', { defaultValue: 'Server' })}
                             </div>
@@ -278,7 +278,7 @@ const ResourceCard = React.memo(({
                     {features.map((feature) => (
                       <span
                         key={`${feature.raw}-${feature.display}`}
-                        className="inline-flex items-center gap-[0.3125rem] whitespace-nowrap border-[2px] border-[#262729] bg-[#90A6D6] px-[0.5625rem] py-[0.25rem] text-[0.75rem] font-minecraft uppercase tracking-[0.14em] text-black shadow-[inset_0_-2px_0_#61749C]"
+                        className="inline-flex items-center gap-[0.3125rem] whitespace-nowrap border-[0.125rem] border-[#262729] bg-[#90A6D6] px-[0.5625rem] py-[0.25rem] text-[0.75rem] font-minecraft uppercase tracking-[0.14em] text-black shadow-[inset_0_-2px_0_#61749C]"
                       >
                         <Tags className="h-[0.75rem] w-[0.75rem]" />
                         {getLocalizedDownloadTagLabel({
@@ -293,7 +293,7 @@ const ResourceCard = React.memo(({
                   </div>
                 </div>
 
-                <div className="flex min-h-[3.125rem] shrink-0 items-center justify-between gap-[0.625rem] overflow-hidden border-[2px] border-[#34363A] bg-[#8A8D93] px-[0.75rem] py-[0.5rem] shadow-[inset_0_2px_0_rgba(255,255,255,0.16)]">
+                <div className="flex min-h-[3.125rem] shrink-0 items-center justify-between gap-[0.625rem] overflow-hidden border-[0.125rem] border-[#34363A] bg-[#8A8D93] px-[0.75rem] py-[0.5rem] shadow-[inset_0_2px_0_rgba(255,255,255,0.16)]">
                   <div className="flex flex-wrap items-center gap-x-[0.875rem] gap-y-[0.25rem] text-[0.8125rem] font-minecraft uppercase tracking-[0.08em] text-[#161719]">
                     <span className="flex items-center gap-[0.375rem]">
                       <Download className="h-[0.8125rem] w-[0.8125rem]" />

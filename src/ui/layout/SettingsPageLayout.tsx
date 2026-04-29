@@ -7,6 +7,7 @@ interface SettingsPageLayoutProps {
   children: React.ReactNode;
   className?: string;
   adaptiveScale?: boolean;
+  width?: 'default' | 'wide' | 'full';
 }
 
 export const SettingsPageLayout: React.FC<SettingsPageLayoutProps> = ({
@@ -14,11 +15,14 @@ export const SettingsPageLayout: React.FC<SettingsPageLayoutProps> = ({
   subtitle,
   children,
   className = '',
-  adaptiveScale = false
+  adaptiveScale = false,
+  width = 'default'
 }) => {
+  const widthClass = width === 'default' ? '' : `ore-settings-page-layout--${width}`;
+
   return (
     <div
-      className={`ore-settings-page-layout w-full h-full overflow-y-auto custom-scrollbar ${
+      className={`ore-settings-page-layout ${widthClass} w-full h-full overflow-y-auto custom-scrollbar ${
         adaptiveScale ? 'ore-settings-scale-adaptive' : ''
       } ${className}`}
     >

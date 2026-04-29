@@ -6,13 +6,10 @@ import { useLinearNavigation } from '../../../../../ui/focus/useLinearNavigation
 const NORMAL_FOCUS_ORDER = [
   'mod-btn-snapshot',
   'mod-btn-history',
+  'mod-btn-check-updates',
   'mod-btn-folder',
   'mod-btn-cleanup',
   'mod-btn-download',
-  'mod-btn-select-all',
-  'mod-btn-sort-time',
-  'mod-btn-sort-name',
-  'mod-btn-sort-filename',
   'mod-search-input',
   'mod-search-clear',
 ];
@@ -20,13 +17,15 @@ const NORMAL_FOCUS_ORDER = [
 const BATCH_FOCUS_ORDER = [
   'mod-btn-snapshot',
   'mod-btn-history',
+  'mod-btn-check-updates',
   'mod-btn-folder',
+  'mod-btn-cleanup',
   'mod-btn-download',
-  'mod-btn-batch-select',
+  'mod-search-input',
+  'mod-search-clear',
   'mod-btn-batch-enable',
   'mod-btn-batch-disable',
   'mod-btn-batch-delete',
-  'mod-search-input',
   'mod-btn-batch-exit',
 ];
 

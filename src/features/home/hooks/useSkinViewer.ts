@@ -5,7 +5,7 @@
 // 不包含任何 UI / 样式逻辑。
 // ════════════════════════════════════════════════════════════════
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { useAccountStore } from '../../../store/useAccountStore';
 import { useLauncherStore } from '../../../store/useLauncherStore';
@@ -20,6 +20,8 @@ export interface UseSkinViewerReturn {
   playAnimation: (id: AnimationPreset | string) => void;
   /** 获取引擎实例（高级用途） */
   getEngine: () => SkinEngine | null;
+  /** 皮肤是否已加载完毕 */
+  isSkinLoaded: boolean;
 }
 
 export const detectSkinModel = (url: string): Promise<'classic' | 'slim'> => {
@@ -110,6 +112,7 @@ export const loadAccountSkin = async (engine: SkinEngine, currentAccount: unknow
  */
 export function useSkinViewer(visibleTab = 'home'): UseSkinViewerReturn {
   const containerRef = useRef<HTMLDivElement>(null!);
+  const [isSkinLoaded, setIsSkinLoaded] = useState(false);
 
   // ─── Store 订阅 ──────────────────────────────────────────────
   const { accounts, activeAccountId, isHydrated } = useAccountStore();
@@ -120,7 +123,8 @@ export function useSkinViewer(visibleTab = 'home'): UseSkinViewerReturn {
 
   // ─── 1. 挂载 / 卸载 canvas ───────────────────────────────────
   useEffect(() => {
-    const engine = SkinEngine.getOrCreate();
+    const engine = SkinEngine.getOrCreate({ enableRandomIdle: false });
+    engine.playAnimation('wave');
     const container = containerRef.current;
     if (!container) return;
 
@@ -193,7 +197,10 @@ export function useSkinViewer(visibleTab = 'home'): UseSkinViewerReturn {
     const engine = SkinEngine.current;
     if (!engine || engine.isDisposed || !isHydrated) return;
     
-    void loadAccountSkin(engine, currentAccount);
+    setIsSkinLoaded(false);
+    void loadAccountSkin(engine, currentAccount).then(() => {
+      setIsSkinLoaded(true);
+    });
   }, [currentAccount, isHydrated]);
 
   // ─── 5. 对外暴露的方法 ──────────────────────────────────────
@@ -205,5 +212,5 @@ export function useSkinViewer(visibleTab = 'home'): UseSkinViewerReturn {
     return SkinEngine.current;
   }, []);
 
-  return { containerRef, playAnimation, getEngine };
+  return { containerRef, playAnimation, getEngine, isSkinLoaded };
 }

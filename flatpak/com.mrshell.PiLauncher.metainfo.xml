@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
   <id>com.mrshell.PiLauncher</id>
-  
+  <icon type="remote">https://mrshellad.github.io/PiLauncher-Flatpak/icon.png</icon>
   <name>PiLauncher</name>
   
   <summary>Minecraft Launcher for Gamepad</summary>
@@ -27,6 +27,21 @@
     </ul>
   </description>
 
+  <screenshots>
+    <screenshot type="default">
+      <image>https://mrshellad.github.io/PiLauncher-Flatpak/screenshots/01.webp</image>
+      <caption>Home</caption>
+    </screenshot>
+    <screenshot type="default">
+      <image>https://mrshellad.github.io/PiLauncher-Flatpak/screenshots/02.webp</image>
+      <caption>Download</caption>
+    </screenshot>
+    <screenshot type="default">
+      <image>https://mrshellad.github.io/PiLauncher-Flatpak/screenshots/03.webp</image>
+      <caption>Setting</caption>
+    </screenshot>
+  </screenshots>
+
   <launchable type="desktop-id">com.mrshell.PiLauncher.desktop</launchable>
 
   <categories>
@@ -50,9 +65,20 @@
         </ul>
       </description>
     </release>
-
-  
   </releases>
 
   <content_rating type="oars-1.1" />
+
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+    <control>touch</control>
+    <control>gamepad</control>
+  </supports>
+
+  <url type="vcs-browser">https://github.com/MrShellad/pilauncher</url>
+  <url type="homepage">https://pil.nav4ai.net</url>
+
+
+
 </component>

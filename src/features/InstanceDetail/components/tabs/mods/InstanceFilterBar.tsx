@@ -76,7 +76,7 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
     {
       label: (
         <div className="flex w-full items-center justify-center font-minecraft tracking-wider">
-          <ModrinthIcon className={`mr-1.5 text-[18px] ${source === 'modrinth' ? 'text-white' : 'text-ore-green'}`} />
+          <ModrinthIcon className={`mr-1.5 text-[1.125rem] ${source === 'modrinth' ? 'text-white' : 'text-ore-green'}`} />
           Modrinth
         </div>
       ),
@@ -85,7 +85,7 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
     {
       label: (
         <div className="flex w-full items-center justify-center font-minecraft tracking-wider">
-          <CurseforgeIcon className={`mr-1.5 text-[18px] ${source === 'curseforge' ? 'text-white' : 'text-[#F16436]'}`} />
+          <CurseforgeIcon className={`mr-1.5 text-[1.125rem] ${source === 'curseforge' ? 'text-white' : 'text-[#F16436]'}`} />
           CurseForge
         </div>
       ),
@@ -154,9 +154,9 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
             {showBackButton && (
               <button
                 onClick={onBack}
-                className="flex h-[44px] cursor-pointer items-center justify-center rounded-sm border border-white/5 bg-black/30 px-4 font-minecraft tracking-wider text-gray-400 transition-colors hover:bg-black/50 hover:text-white active:scale-95"
+                className="flex h-[2.75rem] cursor-pointer items-center justify-center rounded-sm border border-white/5 bg-black/30 px-4 font-minecraft tracking-wider text-gray-400 transition-colors hover:bg-black/50 hover:text-white active:scale-95"
               >
-                <div className="mr-2 flex h-[18px] w-[18px] items-center justify-center rounded-full border-b-[2px] border-red-800 bg-red-600 pb-[1px] font-sans text-[10px] font-bold text-white shadow-sm">
+                <div className="mr-2 flex h-[1.125rem] w-[1.125rem] items-center justify-center rounded-full border-b-[0.125rem] border-red-800 bg-red-600 pb-[0.0625rem] font-sans text-[0.625rem] font-bold text-white shadow-sm">
                   B
                 </div>
                 返回
@@ -188,7 +188,7 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
 
         {/* ROW 2: FILTERS & SEARCH */}
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative w-[240px] shrink-0 focus-within:z-50">
+          <div className="relative w-[15rem] shrink-0 focus-within:z-50">
             <FocusItem
               focusKey="inst-filter-source"
               onArrowPress={handleArrow('inst-filter-source')}
@@ -197,7 +197,7 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
               {({ ref, focused }) => (
                 <div
                   ref={ref as React.RefObject<HTMLDivElement>}
-                  className={`h-[44px] w-full rounded-sm transition-all ${focused ? 'z-50 scale-[1.02] brightness-110 shadow-lg ring-[2px] ring-white' : ''}`}
+                  className={`h-[2.75rem] w-full rounded-sm transition-all ${focused ? 'z-50 scale-[1.02] brightness-110 shadow-lg ring-[0.125rem] ring-white' : ''}`}
                 >
                   <OreToggleButton options={sourceOptions} value={source} onChange={setSource} className="!m-0 h-full" />
                 </div>
@@ -205,29 +205,29 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
             </FocusItem>
           </div>
 
-          <div className="relative min-w-[120px] max-w-[160px] flex-1 focus-within:z-50">
+          <div className="relative min-w-[7.5rem] max-w-[10rem] flex-1 focus-within:z-50">
             <OreDropdown
               focusKey="inst-filter-category"
               onArrowPress={handleArrow('inst-filter-category')}
               options={categoryOptions}
               value={category || categoryOptions[0].value}
               onChange={setCategory}
-              className="!h-[44px] w-full"
+              className="!h-[2.75rem] w-full"
             />
           </div>
 
-          <div className="relative min-w-[120px] max-w-[160px] flex-1 focus-within:z-50">
+          <div className="relative min-w-[7.5rem] max-w-[10rem] flex-1 focus-within:z-50">
             <OreDropdown
               focusKey="inst-filter-sort"
               onArrowPress={handleArrow('inst-filter-sort')}
               options={sortOptions}
               value={sort || sortOptions[0].value}
               onChange={setSort}
-              className="!h-[44px] w-full"
+              className="!h-[2.75rem] w-full"
             />
           </div>
 
-          <div className="relative min-w-[180px] flex-1 focus-within:z-50">
+          <div className="relative min-w-[11.25rem] flex-1 focus-within:z-50">
             <OreInput
               focusKey="inst-filter-search"
               width="100%"
@@ -244,32 +244,32 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
                     : '搜索适配当前实例的模组...'
               }
               prefixNode={<Search size={16} />}
-              containerClassName="!space-y-0 !h-[44px] w-full"
+              containerClassName="!space-y-0 !h-[2.75rem] w-full"
             />
           </div>
 
-          <div className="relative w-[100px] shrink-0 focus-within:z-50">
+          <div className="relative w-[6.25rem] shrink-0 focus-within:z-50">
             <OreButton
               focusKey="inst-filter-btn-search"
               onArrowPress={handleArrow('inst-filter-btn-search')}
               variant="primary"
               size="auto"
               onClick={onSearch}
-              className="!h-[44px] w-full font-bold tracking-wider text-black"
+              className="!h-[2.75rem] w-full font-bold tracking-wider text-black"
             >
               <Search size={16} className="mr-1.5" />
               搜索
             </OreButton>
           </div>
 
-          <div className="relative w-[90px] shrink-0 focus-within:z-50">
+          <div className="relative w-[5.625rem] shrink-0 focus-within:z-50">
             <OreButton
               focusKey="inst-filter-btn-reset"
               onArrowPress={handleArrow('inst-filter-btn-reset')}
               variant="secondary"
               size="auto"
               onClick={onReset}
-              className="!h-[44px] w-full text-black"
+              className="!h-[2.75rem] w-full text-black"
             >
               <RotateCcw size={16} className="mr-1.5" />
               重置

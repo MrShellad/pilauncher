@@ -24,6 +24,26 @@ export interface ModrinthProject {
   gallery_urls?: string[];
 }
 
+const toModrinthProject = (detail: OreProjectDetail): ModrinthProject => ({
+  id: detail.id,
+  project_id: detail.id,
+  slug: detail.id,
+  title: detail.title,
+  description: detail.description,
+  icon_url: detail.icon_url || '',
+  author: detail.author,
+  downloads: detail.downloads,
+  date_modified: detail.updated_at,
+  client_side: detail.client_side,
+  server_side: detail.server_side,
+  follows: detail.followers,
+  loaders: detail.loaders,
+  categories: detail.loaders,
+  display_categories: detail.loaders,
+  source: 'modrinth',
+  gallery_urls: detail.gallery_urls
+});
+
 export interface SearchParams {
   query: string;
   version?: string;
@@ -94,6 +114,7 @@ export interface OreProjectDependency {
 
 export interface OreProjectVersion {
   id: string;
+  project_id?: string;
   name: string;
   version_number: string;
   date_published: string;
@@ -104,6 +125,24 @@ export interface OreProjectVersion {
   dependencies?: OreProjectDependency[]; // ✅ 注入依赖字段
 }
 
+interface ModrinthRawVersionFile {
+  url: string;
+  filename: string;
+  primary: boolean;
+}
+
+interface ModrinthRawVersion {
+  id: string;
+  project_id: string;
+  name: string;
+  version_number: string;
+  date_published: string;
+  loaders: string[];
+  game_versions: string[];
+  files: ModrinthRawVersionFile[];
+  dependencies?: OreProjectDependency[];
+}
+
 // ==========================================
 // 3. 调用 Rust 后端
 // ==========================================
@@ -112,12 +151,67 @@ export const getProjectDetails = async (projectId: string): Promise<OreProjectDe
   return await invoke<OreProjectDetail>('get_ore_project_detail', { projectId });
 };
 
+export const fetchModrinthProjectById = async (projectId: string): Promise<ModrinthProject> => {
+  const detail = await getProjectDetails(projectId);
+  return toModrinthProject(detail);
+};
+
 export const fetchModrinthVersions = async (projectId: string, gameVersion?: string, loader?: string): Promise<OreProjectVersion[]> => {
   return await invoke<OreProjectVersion[]>('get_ore_project_versions', { 
     projectId, 
     gameVersion: gameVersion || null, 
     loader: loader || null 
   });
+};
+
+const mapModrinthRawVersion = (version: ModrinthRawVersion): OreProjectVersion | null => {
+  const primaryFile = version.files.find((file) => file.primary) || version.files[0];
+  if (!primaryFile) return null;
+
+  return {
+    id: version.id,
+    project_id: version.project_id,
+    name: version.name,
+    version_number: version.version_number,
+    date_published: version.date_published,
+    loaders: version.loaders,
+    game_versions: version.game_versions,
+    file_name: primaryFile.filename,
+    download_url: primaryFile.url,
+    dependencies: version.dependencies
+  };
+};
+
+export const matchModrinthVersionsByHashes = async (
+  hashes: string[],
+  algorithm: 'sha1' | 'sha512' = 'sha1'
+): Promise<Record<string, OreProjectVersion>> => {
+  if (hashes.length === 0) return {};
+
+  const response = await fetch('https://api.modrinth.com/v2/version_files', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json'
+    },
+    body: JSON.stringify({ hashes, algorithm })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Modrinth hash match failed: ${response.status}`);
+  }
+
+  const payload = (await response.json()) as Record<string, ModrinthRawVersion>;
+  const mapped: Record<string, OreProjectVersion> = {};
+
+  Object.entries(payload).forEach(([hash, version]) => {
+    const cleanVersion = mapModrinthRawVersion(version);
+    if (cleanVersion) {
+      mapped[hash] = cleanVersion;
+    }
+  });
+
+  return mapped;
 };
 
 export const fetchModrinthInfo = async (query: string): Promise<ModrinthProject | null> => {

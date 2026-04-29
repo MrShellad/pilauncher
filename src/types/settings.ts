@@ -32,6 +32,7 @@ export interface AppearanceSettings {
   maskOpacity: number;
   maskGradient: boolean;
   fontFamily: string;
+  customLogo: string | null;
 }
 
 export interface JavaSettings {
@@ -124,6 +125,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     maskOpacity: 60,
     maskGradient: true,
     fontFamily: 'Minecraft',
+    customLogo: null,
   },
   java: {
     autoDetect: true,

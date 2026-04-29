@@ -6,16 +6,19 @@ import { useLinearNavigation } from '../../../../../ui/focus/useLinearNavigation
 import type { ModMeta } from '../../../logic/modService';
 import {
   DEFAULT_MOD_LIST_EXIT_FOCUS_KEY,
+  getModGroupHeaderFocusKey,
   getModRowActionFocusKey,
   getModRowFocusKey,
   LIST_ENTRY_FOCUS_KEY,
   ROW_ACTIONS,
+  type ModListRenderEntry,
   type RowAction,
   type SafeFocusFallback
 } from './modListShared';
 
 interface UseModListFocusOptions {
   mods: ModMeta[];
+  renderEntries: ModListRenderEntry[];
   inputMode: string;
   onNavigateOut?: (direction: 'up' | 'down') => boolean;
   onSelectMod: (mod: ModMeta) => void;
@@ -25,6 +28,7 @@ interface UseModListFocusOptions {
 
 export const useModListFocus = ({
   mods,
+  renderEntries,
   inputMode,
   onNavigateOut,
   onSelectMod,
@@ -39,9 +43,23 @@ export const useModListFocus = ({
     return new Map(mods.map((mod) => [mod.fileName, getModRowFocusKey(mod.fileName)]));
   }, [mods]);
 
+  const groupFocusKeys = useMemo(() => {
+    return new Set(
+      renderEntries
+        .filter((entry) => entry.type === 'group')
+        .map((entry) => getModGroupHeaderFocusKey(entry.group.id))
+    );
+  }, [renderEntries]);
+
   const rowFocusOrder = useMemo(() => {
-    return mods.map((mod) => rowFocusKeyByFileName.get(mod.fileName) ?? getModRowFocusKey(mod.fileName));
-  }, [mods, rowFocusKeyByFileName]);
+    return renderEntries.map((entry) => {
+      if (entry.type === 'group') {
+        return getModGroupHeaderFocusKey(entry.group.id);
+      }
+
+      return rowFocusKeyByFileName.get(entry.mod.fileName) ?? getModRowFocusKey(entry.mod.fileName);
+    });
+  }, [renderEntries, rowFocusKeyByFileName]);
 
   const getAvailableRowFocusOrder = useCallback(() => {
     return rowFocusOrder.filter((focusKey) => focusKey && doesFocusableExist(focusKey));
@@ -82,7 +100,11 @@ export const useModListFocus = ({
 
   const getSafeFocusKey = useCallback((fallback: SafeFocusFallback = 'current') => {
     const currentFocusKey = getCurrentFocusKey();
-    if (currentFocusKey && focusKeyToFileName.has(currentFocusKey) && doesFocusableExist(currentFocusKey)) {
+    if (
+      currentFocusKey &&
+      (focusKeyToFileName.has(currentFocusKey) || groupFocusKeys.has(currentFocusKey)) &&
+      doesFocusableExist(currentFocusKey)
+    ) {
       return currentFocusKey;
     }
 
@@ -112,7 +134,7 @@ export const useModListFocus = ({
     }
 
     return availableRowFocusOrder[0] ?? null;
-  }, [focusKeyToFileName, focusedRowFileName, getAvailableRowFocusOrder, operationRowFileName, rowFocusKeyByFileName]);
+  }, [focusKeyToFileName, focusedRowFileName, getAvailableRowFocusOrder, groupFocusKeys, operationRowFileName, rowFocusKeyByFileName]);
 
   const restoreSafeFocus = useCallback((fallback: SafeFocusFallback = 'current') => {
     const targetFocusKey = getSafeFocusKey(fallback);
@@ -178,6 +200,15 @@ export const useModListFocus = ({
       return false;
     }
 
+    if (groupFocusKeys.has(currentFocusKey)) {
+      if (doesFocusableExist(exitFocusKey)) {
+        setFocus(exitFocusKey);
+        return true;
+      }
+
+      return true;
+    }
+
     const focusedFileName = focusKeyToFileName.get(currentFocusKey);
     if (!focusedFileName) {
       return false;
@@ -200,7 +231,7 @@ export const useModListFocus = ({
     }
 
     return true;
-  }, [exitFocusKey, exitRowOperation, focusKeyToFileName, focusRow, operationRowFileName, rowFocusKeyByFileName]);
+  }, [exitFocusKey, exitRowOperation, focusKeyToFileName, focusRow, groupFocusKeys, operationRowFileName, rowFocusKeyByFileName]);
 
   useEffect(() => {
     if (mods.length === 0) {
@@ -370,6 +401,7 @@ export const useModListFocus = ({
     handleActionArrow,
     preventLockedAction,
     getRowFocusKey,
+    getGroupHeaderFocusKey: getModGroupHeaderFocusKey,
     getActionFocusKey: getModRowActionFocusKey
   };
 };

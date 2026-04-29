@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
+import { useSettingsStore } from '../../../store/useSettingsStore';
+import { useAccountStore } from '../../../store/useAccountStore';
 import { OreMotionTokens } from '../../../style/tokens/motion';
 
 // 启动器默认 logo（静态资源，构建时打包进 bundle）
@@ -18,10 +20,47 @@ interface HeroLogoProps {
   instanceId?: string | null;
 }
 
+let globalDonorsCache: any[] | null = null;
+let globalDonorsPromise: Promise<any[]> | null = null;
+
 export const HeroLogo: React.FC<HeroLogoProps> = ({ instanceId }) => {
   // customLogoSrc: 来自实例 instance.json 的自定义 logo 绝对路径（经过 convertFileSrc 处理）
   // undefined = 尚未加载完毕，null = 确认无自定义 logo，string = 已解析的 src
   const [customLogoSrc, setCustomLogoSrc] = useState<string | null | undefined>(undefined);
+
+  const { settings } = useSettingsStore();
+  const { accounts, activeAccountId } = useAccountStore();
+  const currentAccount = accounts.find((a) => a.uuid === activeAccountId);
+  const [isDonor, setIsDonor] = useState(() => {
+    if (globalDonorsCache && currentAccount) {
+      return globalDonorsCache.some((d: any) => d.mcUuid === currentAccount.uuid || d.mcName === currentAccount.name);
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (globalDonorsCache) {
+      setIsDonor(currentAccount ? globalDonorsCache.some((d: any) => d.mcUuid === currentAccount.uuid || d.mcName === currentAccount.name) : false);
+      return;
+    }
+
+    if (!globalDonorsPromise) {
+      globalDonorsPromise = invoke('fetch_donors').then((data) => {
+        globalDonorsCache = Array.isArray(data) ? data : [];
+        return globalDonorsCache;
+      }).catch(() => {
+        globalDonorsPromise = null;
+        return [];
+      });
+    }
+
+    globalDonorsPromise.then((data) => {
+      if (currentAccount) {
+        setIsDonor(data.some((d: any) => d.mcUuid === currentAccount.uuid || d.mcName === currentAccount.name));
+      }
+    });
+  }, [currentAccount]);
+
 
   useEffect(() => {
     if (!instanceId) {
@@ -50,7 +89,10 @@ export const HeroLogo: React.FC<HeroLogoProps> = ({ instanceId }) => {
   }, [instanceId]);
 
   // 最终展示的图片：优先使用实例自定义 logo，其次使用内置默认 logo
-  const displaySrc = customLogoSrc ?? defaultLogo;
+  
+  const globalLogo = isDonor && settings.appearance.customLogo ? convertFileSrc(settings.appearance.customLogo) : defaultLogo;
+  const displaySrc = customLogoSrc ?? globalLogo;
+
 
   // 当 instanceId 存在但尚未加载完毕时，渲染一个占位空元素避免闪烁
   const isLoading = instanceId && customLogoSrc === undefined;

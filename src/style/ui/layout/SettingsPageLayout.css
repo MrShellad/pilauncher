@@ -16,6 +16,16 @@
   max-width: var(--ore-settings-max-width);
 }
 
+.ore-settings-page-layout--wide {
+  --ore-settings-padding-x: clamp(0.875rem, 1.5vw, 1.5rem);
+  --ore-settings-max-width: 96rem;
+}
+
+.ore-settings-page-layout--full {
+  --ore-settings-padding-x: clamp(0.75rem, 1.25vw, 1.25rem);
+  --ore-settings-max-width: none;
+}
+
 .ore-settings-page-layout__header {
   margin-bottom: var(--ore-settings-header-gap);
 }
@@ -60,6 +70,16 @@
     --ore-settings-header-gap: 1.75rem;
     --ore-settings-section-gap: 1.75rem;
   }
+
+  .ore-settings-page-layout--wide {
+    --ore-settings-padding-x: clamp(0.875rem, 1.5vw, 1.5rem);
+    --ore-settings-max-width: 96rem;
+  }
+
+  .ore-settings-page-layout--full {
+    --ore-settings-padding-x: clamp(0.75rem, 1.25vw, 1.25rem);
+    --ore-settings-max-width: none;
+  }
 }
 
 @media (min-width: 120rem) {
@@ -71,6 +91,10 @@
     --ore-settings-header-gap: 2rem;
     --ore-settings-section-gap: 2rem;
   }
+
+  .ore-settings-page-layout--wide {
+    --ore-settings-max-width: 100rem;
+  }
 }
 
 @media (min-width: 160rem) {
@@ -81,5 +105,9 @@
     --ore-settings-scale: 1.2;
     --ore-settings-header-gap: 2.25rem;
     --ore-settings-section-gap: 2.25rem;
+  }
+
+  .ore-settings-page-layout--wide {
+    --ore-settings-max-width: 108rem;
   }
 }

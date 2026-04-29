@@ -1,5 +1,5 @@
 import { listen } from '@tauri-apps/api/event';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useLauncherStore } from '../../../../../store/useLauncherStore';
@@ -17,6 +17,8 @@ import {
   toggleSelectedModFile,
   type ModFileCleanupItem
 } from '../../../logic/modPanelService';
+import type { ModMeta } from '../../../logic/modService';
+import type { OreProjectVersion } from '../../../logic/modrinthApi';
 import { useModPanelDialogs } from './useModPanelDialogs';
 
 export const useModPanelController = (instanceId: string) => {
@@ -41,7 +43,10 @@ export const useModPanelController = (instanceId: string) => {
     snapshotProgress,
     openModFolder,
     executeModFileCleanup,
-    loadMods
+    loadMods,
+    checkModUpdates,
+    upgradeMod,
+    installModVersion
   } = useModManager(instanceId);
 
   const setActiveTab = useLauncherStore((state) => state.setActiveTab);
@@ -52,6 +57,17 @@ export const useModPanelController = (instanceId: string) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [cleanupItems, setCleanupItems] = useState<ModFileCleanupItem[] | null>(null);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [pendingUpgradeMod, setPendingUpgradeMod] = useState<ModMeta | null>(null);
+  const [pendingUpgradeVersion, setPendingUpgradeVersion] = useState<OreProjectVersion | null>(null);
+  const [isPreparingUpgradeSnapshot, setIsPreparingUpgradeSnapshot] = useState(false);
+  const upgradeSnapshotPromptHandledRef = useRef(false);
+
+  useEffect(() => {
+    upgradeSnapshotPromptHandledRef.current = false;
+    setPendingUpgradeMod(null);
+    setPendingUpgradeVersion(null);
+    setIsPreparingUpgradeSnapshot(false);
+  }, [instanceId]);
 
   const handleDeletedMods = useCallback((fileNames: string[]) => {
     setSelectedMods((current) => pruneDeletedModSelections(current, fileNames));
@@ -174,6 +190,100 @@ export const useModPanelController = (instanceId: string) => {
     setActiveTab('instance-mod-download');
   }, [setActiveTab, setInstanceDownloadTarget]);
 
+  const handleCheckModUpdates = useCallback(() => {
+    void checkModUpdates();
+  }, [checkModUpdates]);
+
+  const executeUpgradeMod = useCallback(async (mod: ModMeta, version?: OreProjectVersion | null) => {
+    try {
+      if (version) {
+        await installModVersion(mod, version);
+      } else {
+        await upgradeMod(mod);
+      }
+      addToast('success', t('modPanel.upgradeSuccess', {
+        name: mod.name || mod.fileName,
+        defaultValue: `已安装 ${mod.name || mod.fileName}。`
+      }));
+    } catch (error) {
+      console.error(error);
+      const message = error instanceof Error ? error.message : String(error);
+      addToast('error', t('modPanel.upgradeFailed', {
+        error: message,
+        defaultValue: `升级失败: ${message}`
+      }));
+    }
+  }, [addToast, installModVersion, t, upgradeMod]);
+
+  const handleUpgradeMod = useCallback((mod: ModMeta, version?: OreProjectVersion) => {
+    if ((!version && !mod.hasUpdate) || mod.isUpdatingMod) {
+      return;
+    }
+
+    if (!upgradeSnapshotPromptHandledRef.current) {
+      setPendingUpgradeMod(mod);
+      setPendingUpgradeVersion(version || null);
+      return;
+    }
+
+    void executeUpgradeMod(mod, version || null);
+  }, [executeUpgradeMod]);
+
+  const closeUpgradeSnapshotPrompt = useCallback(() => {
+    if (isPreparingUpgradeSnapshot) {
+      return;
+    }
+
+    setPendingUpgradeMod(null);
+    setPendingUpgradeVersion(null);
+  }, [isPreparingUpgradeSnapshot]);
+
+  const confirmUpgradeWithSnapshot = useCallback(async () => {
+    if (!pendingUpgradeMod) {
+      return;
+    }
+
+    setIsPreparingUpgradeSnapshot(true);
+
+    try {
+      await takeSnapshot(
+        'MOD_UPDATE',
+        t('modPanel.beforeUpgradeSnapshotMessage', {
+          name: pendingUpgradeMod.name || pendingUpgradeMod.fileName,
+          defaultValue: `升级 ${pendingUpgradeMod.name || pendingUpgradeMod.fileName} 前的快照`
+        })
+      );
+      upgradeSnapshotPromptHandledRef.current = true;
+      const modToUpgrade = pendingUpgradeMod;
+      const versionToInstall = pendingUpgradeVersion;
+      setPendingUpgradeMod(null);
+      setPendingUpgradeVersion(null);
+      await executeUpgradeMod(modToUpgrade, versionToInstall);
+    } catch (error) {
+      console.error(error);
+      const message = error instanceof Error ? error.message : String(error);
+      addToast('error', t('modPanel.beforeUpgradeSnapshotFailed', {
+        error: message,
+        defaultValue: `创建升级前快照失败: ${message}`
+      }));
+    } finally {
+      setIsPreparingUpgradeSnapshot(false);
+    }
+  }, [addToast, executeUpgradeMod, pendingUpgradeMod, pendingUpgradeVersion, t, takeSnapshot]);
+
+  const skipUpgradeSnapshot = useCallback(() => {
+    if (!pendingUpgradeMod || isPreparingUpgradeSnapshot) {
+      return;
+    }
+
+    upgradeSnapshotPromptHandledRef.current = true;
+    const modToUpgrade = pendingUpgradeMod;
+    const versionToInstall = pendingUpgradeVersion;
+    setPendingUpgradeMod(null);
+    setPendingUpgradeVersion(null);
+    void executeUpgradeMod(modToUpgrade, versionToInstall);
+  }, [executeUpgradeMod, isPreparingUpgradeSnapshot, pendingUpgradeMod, pendingUpgradeVersion]);
+
   const handleSearchQueryChange = useCallback((value: string) => {
     setSearchQuery(value);
   }, []);
@@ -189,7 +299,7 @@ export const useModPanelController = (instanceId: string) => {
     }
 
     setSortType(type);
-    setSortOrder(type === 'time' ? 'desc' : 'asc');
+    setSortOrder(type === 'time' || type === 'update' ? 'desc' : 'asc');
   }, [setSortOrder, setSortType, sortOrder, sortType]);
 
   const handleToggleSelection = useCallback((fileName: string) => {
@@ -246,6 +356,7 @@ export const useModPanelController = (instanceId: string) => {
 
   const isBatchMode = selectedMods.size > 0;
   const isAllSelected = areAllModFilesSelected(mods, selectedMods);
+  const isCheckingModUpdates = mods.some((mod) => mod.isCheckingUpdate);
   const searchPlaceholder = `搜索 ${mods.length} 个项目...`;
   const emptyMessage = searchQuery
     ? '没有匹配当前搜索的模组。'
@@ -265,38 +376,43 @@ export const useModPanelController = (instanceId: string) => {
       state: dialogState,
       actions: dialogActions
     },
+    modActions: {
+      onInstallVersion: handleUpgradeMod
+    },
     topBar: {
+      snapshotState,
+      snapshotProgressPhase: snapshotProgress?.phase ?? null,
+      isCheckingModUpdates,
+      onCreateSnapshot: handleCreateSnapshot,
+      onOpenHistory: openHistoryModal,
+      onOpenModFolder: openModFolder,
+      onAnalyzeCleanup: handleAnalyzeCleanup,
+      onCheckModUpdates: handleCheckModUpdates,
+      onOpenDownload: handleOpenDownload
+    },
+    list: {
+      mods,
+      isLoading,
+      selectedMods,
       isBatchMode,
-      selectedCount: selectedMods.size,
       isAllSelected,
       searchQuery,
       searchPlaceholder,
       sortType,
       sortOrder,
-      snapshotState,
-      snapshotProgressPhase: snapshotProgress?.phase ?? null,
-      onCreateSnapshot: handleCreateSnapshot,
-      onOpenHistory: openHistoryModal,
-      onOpenModFolder: openModFolder,
-      onAnalyzeCleanup: handleAnalyzeCleanup,
-      onOpenDownload: handleOpenDownload,
       onSearchQueryChange: handleSearchQueryChange,
       onClearSearch: clearSearchQuery,
       onSelectAll: handleSelectAll,
       onSortClick: handleSortClick,
+      onToggleSelection: handleToggleSelection,
+      onToggleMod: handleToggleMod,
+      onUpgradeMod: handleUpgradeMod,
+      onSelectMod: openModDetail,
+      onDeleteMod: handleDeleteMod,
       onBatchEnable: handleBatchEnable,
       onBatchDisable: handleBatchDisable,
       onBatchDelete: handleBatchDelete,
-      onExitBatchMode: exitBatchMode
-    },
-    list: {
-      mods: filteredMods,
-      isLoading,
-      selectedMods,
-      onToggleSelection: handleToggleSelection,
-      onToggleMod: handleToggleMod,
-      onSelectMod: openModDetail,
-      onDeleteMod: handleDeleteMod,
+      onExitBatchMode: exitBatchMode,
       emptyMessage
     },
     cleanupDialog: {
@@ -312,6 +428,14 @@ export const useModPanelController = (instanceId: string) => {
       }),
       confirmLabel: isCleaningUp ? '清理中...' : '确认清理',
       cancelLabel: '取消'
+    },
+    upgradeSnapshotDialog: {
+      isOpen: pendingUpgradeMod !== null,
+      mod: pendingUpgradeMod,
+      isCreatingSnapshot: isPreparingUpgradeSnapshot,
+      onClose: closeUpgradeSnapshotPrompt,
+      onConfirm: confirmUpgradeWithSnapshot,
+      onSkip: skipUpgradeSnapshot
     }
   };
 };

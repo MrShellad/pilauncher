@@ -77,6 +77,7 @@ interface CurseForgeDependency {
 
 interface CurseForgeFile {
   id: number;
+  modId?: number;
   displayName: string;
   fileName: string;
   fileDate: string;
@@ -84,6 +85,17 @@ interface CurseForgeFile {
   gameVersions: string[];
   sortableGameVersions?: CurseForgeSortableGameVersion[];
   dependencies?: CurseForgeDependency[];
+}
+
+interface CurseForgeFingerprintMatch {
+  id: number;
+  file: CurseForgeFile & {
+    modId: number;
+  };
+}
+
+interface CurseForgeFingerprintResult {
+  exactMatches?: CurseForgeFingerprintMatch[];
 }
 
 interface CurseForgeMod {
@@ -349,7 +361,11 @@ const mapProjectVersion = (file: CurseForgeFile): OreProjectVersion | null => {
   };
 };
 
-const curseForgeFetch = async <T>(path: string, params?: Record<string, string | number | undefined>) => {
+const curseForgeFetch = async <T>(
+  path: string,
+  params?: Record<string, string | number | undefined>,
+  init?: RequestInit
+) => {
   if (!hasApiKey()) {
     throw new Error('CurseForge API key is missing. Set VITE_CURSEFORGE_API_KEY before using CurseForge.');
   }
@@ -362,9 +378,12 @@ const curseForgeFetch = async <T>(path: string, params?: Record<string, string |
   });
 
   const response = await fetch(url.toString(), {
+    ...init,
     headers: {
       Accept: 'application/json',
-      'x-api-key': CURSEFORGE_API_KEY
+      'x-api-key': CURSEFORGE_API_KEY,
+      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(init?.headers || {})
     }
   });
 
@@ -422,6 +441,30 @@ export const fetchCurseForgeVersions = async (
     .map(mapProjectVersion)
     .filter((item): item is OreProjectVersion => !!item)
     .sort((a, b) => new Date(b.date_published).getTime() - new Date(a.date_published).getTime());
+};
+
+export const matchCurseForgeFingerprints = async (
+  fingerprints: number[]
+): Promise<Record<number, OreProjectVersion & { project_id: string }>> => {
+  if (fingerprints.length === 0) return {};
+
+  const data = await curseForgeFetch<CurseForgeFingerprintResult>('/fingerprints/432', undefined, {
+    method: 'POST',
+    body: JSON.stringify({ fingerprints })
+  });
+  const mapped: Record<number, OreProjectVersion & { project_id: string }> = {};
+
+  (data.exactMatches || []).forEach((match) => {
+    const version = mapProjectVersion(match.file);
+    if (!version) return;
+
+    mapped[match.id] = {
+      ...version,
+      project_id: String(match.file.modId)
+    };
+  });
+
+  return mapped;
 };
 
 const mapVersionLabel = (item: Record<string, unknown>) => {

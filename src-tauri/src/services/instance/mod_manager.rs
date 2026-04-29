@@ -22,6 +22,7 @@ pub struct ModMetadata {
     pub description: Option<String>,
     pub icon_absolute_path: Option<String>, // JAR包内提取的物理图标
     pub network_icon_url: Option<String>,   // 网络缓存的图标 URL
+    pub curseforge_fingerprint: Option<u32>,
     pub file_size: u64,
     pub is_enabled: bool, // 修复报错：状态字段
     pub modified_at: u64, // 新增：记录文件修改时间的时间戳
@@ -141,6 +142,66 @@ impl ModManagerService {
         Ok(mods_dir)
     }
 
+    fn compute_curseforge_fingerprint(path: &Path) -> Result<u32, String> {
+        let bytes = fs::read(path).map_err(|e| e.to_string())?;
+        let filtered: Vec<u8> = bytes
+            .into_iter()
+            .filter(|byte| !matches!(byte, b'\t' | b'\n' | b'\r' | b' '))
+            .collect();
+
+        Ok(Self::murmur_hash2(&filtered, 1))
+    }
+
+    fn murmur_hash2(data: &[u8], seed: u32) -> u32 {
+        const M: u32 = 0x5bd1e995;
+        const R: u32 = 24;
+
+        let len = data.len() as u32;
+        let mut hash = seed ^ len;
+        let mut index = 0usize;
+
+        while index + 4 <= data.len() {
+            let mut k = u32::from_le_bytes([
+                data[index],
+                data[index + 1],
+                data[index + 2],
+                data[index + 3],
+            ]);
+
+            k = k.wrapping_mul(M);
+            k ^= k >> R;
+            k = k.wrapping_mul(M);
+
+            hash = hash.wrapping_mul(M);
+            hash ^= k;
+            index += 4;
+        }
+
+        match data.len() - index {
+            3 => {
+                hash ^= (data[index + 2] as u32) << 16;
+                hash ^= (data[index + 1] as u32) << 8;
+                hash ^= data[index] as u32;
+                hash = hash.wrapping_mul(M);
+            }
+            2 => {
+                hash ^= (data[index + 1] as u32) << 8;
+                hash ^= data[index] as u32;
+                hash = hash.wrapping_mul(M);
+            }
+            1 => {
+                hash ^= data[index] as u32;
+                hash = hash.wrapping_mul(M);
+            }
+            _ => {}
+        }
+
+        hash ^= hash >> 13;
+        hash = hash.wrapping_mul(M);
+        hash ^= hash >> 15;
+        hash
+    }
+
     // ================= 1. 读取并解析 Mods =================
     pub async fn get_mods<R: Runtime>(
         app: &AppHandle<R>,
@@ -212,7 +273,10 @@ impl ModManagerService {
                                 .as_ref()
                                 .map(|rel| shared_mods_dir.join(rel).to_string_lossy().to_string());
 
-                            let meta = ModMetadata {
+                            let cache_key = crate::domain::mod_manifest::mod_manifest_key(
+                                &file_name,
+                            );
+                            let mut meta = ModMetadata {
                                 file_name: file_name.clone(),
                                 mod_id: entry.mod_id.clone(),
                                 name: entry.name.clone(),
@@ -220,14 +284,41 @@ impl ModManagerService {
                                 description: entry.description.clone(),
                                 icon_absolute_path,
                                 network_icon_url: None, // 如果需要可以保存到此，但不再重点使用
+                                curseforge_fingerprint: Self::compute_curseforge_fingerprint(&path).ok(),
                                 file_size: current_file_state.size,
                                 is_enabled,
                                 modified_at: current_file_state.modified_at,
-                                cache_key: Some(crate::domain::mod_manifest::mod_manifest_key(
-                                    &file_name,
-                                )),
+                                cache_key: Some(cache_key.clone()),
                                 manifest_entry: Some(entry),
                             };
+
+                            if let Ok(Some(row)) = sqlx::query_as::<_, ModCacheInfo>(
+                                "SELECT name, description, icon_url FROM global_mod_cache WHERE cache_key = ?"
+                            )
+                            .bind(&cache_key)
+                            .fetch_optional(&pool)
+                            .await {
+                                if meta.name.is_none() {
+                                    meta.name = row.name;
+                                }
+                                if meta.description.is_none() {
+                                    meta.description = row.description;
+                                }
+                                if meta.icon_absolute_path.is_none() {
+                                    if let Some(icon_url) = row.icon_url {
+                                        if icon_url.starts_with("http") {
+                                            meta.network_icon_url = Some(icon_url);
+                                        } else if !icon_url.is_empty() {
+                                            let abs_path = shared_mods_dir.join(icon_url);
+                                            if abs_path.exists() {
+                                                meta.icon_absolute_path = Some(
+                                                    abs_path.to_string_lossy().replace('\\', "/"),
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             mods.push(meta);
                             continue;
                         }
@@ -587,6 +678,7 @@ impl ModManagerService {
             description: None,
             icon_absolute_path: None,
             network_icon_url: None,
+            curseforge_fingerprint: Self::compute_curseforge_fingerprint(jar_path).ok(),
             file_size,
             is_enabled: true,
             modified_at,

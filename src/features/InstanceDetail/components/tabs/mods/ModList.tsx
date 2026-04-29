@@ -1,8 +1,9 @@
 import React from 'react';
-import { Blocks, Loader2, RefreshCw } from 'lucide-react';
+import { Virtuoso } from 'react-virtuoso';
 
 import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../../ui/focus/FocusItem';
+import { type ModSortOrder, type ModSortType } from '../../../hooks/useModManager';
 import type { ModMeta } from '../../../logic/modService';
 import {
   LIST_ENTRY_FOCUS_KEY,
@@ -11,6 +12,11 @@ import {
   LIST_GUARD_RIGHT,
   LIST_GUARD_TOP
 } from './modListShared';
+import { ModListEmptyState } from './components/ModListEmptyState';
+import { ModListGridHeader } from './components/ModListGridHeader';
+import { ModListGroupHeader } from './components/ModListGroupHeader';
+import { ModListHeader } from './components/ModListHeader';
+import { ModListOverlay } from './components/ModListOverlay';
 import { ModRowItem } from './ModRowItem';
 import { useModListController } from './useModListController';
 
@@ -20,8 +26,24 @@ export interface ModListProps {
   selectedMods: Set<string>;
   onToggleSelection: (fileName: string) => void;
   onToggleMod: (fileName: string, currentEnabled: boolean) => void;
+  onUpgradeMod: (mod: ModMeta) => void;
   onSelectMod: (mod: ModMeta) => void;
   onDeleteMod: (fileName: string) => void;
+  isBatchMode: boolean;
+  isAllSelected: boolean;
+  searchQuery: string;
+  searchPlaceholder: string;
+  sortType: ModSortType;
+  sortOrder: ModSortOrder;
+  onHeaderArrowPress: (direction: string) => boolean;
+  onSearchQueryChange: (value: string) => void;
+  onClearSearch: () => void;
+  onSelectAll: () => void;
+  onSortClick: (type: ModSortType) => void;
+  onBatchEnable: () => void;
+  onBatchDisable: () => void;
+  onBatchDelete: () => void;
+  onExitBatchMode: () => void;
   emptyMessage?: string;
   onNavigateOut?: (direction: 'up' | 'down') => boolean;
 }
@@ -32,96 +54,89 @@ export const ModList: React.FC<ModListProps> = ({
   selectedMods,
   onToggleSelection,
   onToggleMod,
+  onUpgradeMod,
   onSelectMod,
   onDeleteMod,
+  isBatchMode,
+  isAllSelected,
+  searchQuery,
+  searchPlaceholder,
+  sortType,
+  sortOrder,
+  onHeaderArrowPress,
+  onSearchQueryChange,
+  onClearSearch,
+  onSelectAll,
+  onSortClick,
+  onBatchEnable,
+  onBatchDisable,
+  onBatchDelete,
+  onExitBatchMode,
   emptyMessage = '当前没有可用模组。',
   onNavigateOut
 }) => {
   const controller = useModListController({
     mods,
+    searchQuery,
     isLoading,
     selectedMods,
     onToggleSelection,
     onToggleMod,
+    onUpgradeMod,
     onSelectMod,
     onDeleteMod,
     onNavigateOut
   });
 
   if (controller.state.showInitialLoading) {
-    return (
-      <div className="flex justify-center px-4 py-12">
-        <div
-          className="flex items-center gap-3 border-[2px] px-4 py-3 font-minecraft text-sm text-[var(--ore-downloadDetail-labelText)]"
-          style={{
-            backgroundColor: 'var(--ore-downloadDetail-surface)',
-            borderColor: 'var(--ore-downloadDetail-divider)',
-            boxShadow: 'var(--ore-downloadDetail-sectionShadow)'
-          }}
-        >
-          <Loader2 size={18} className="animate-spin text-ore-green" />
-          正在加载模组...
-        </div>
-      </div>
-    );
-  }
-
-  if (controller.state.showEmptyState) {
-    return (
-      <div className="flex flex-1 items-center justify-center px-6 py-12">
-        <div
-          className="w-full max-w-xl rounded-sm border-[2px] px-6 py-10 text-center"
-          style={{
-            backgroundColor: 'var(--ore-downloadDetail-surface)',
-            borderColor: 'var(--ore-downloadDetail-divider)',
-            boxShadow: 'var(--ore-downloadDetail-sectionShadow)'
-          }}
-        >
-          <div
-            className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-sm border-[2px] text-[var(--ore-downloadDetail-labelText)]"
-            style={{
-              backgroundColor: 'var(--ore-downloadDetail-base)',
-              borderColor: 'var(--ore-downloadDetail-divider)',
-              boxShadow: 'var(--ore-downloadDetail-sectionInset)'
-            }}
-          >
-            <Blocks size={22} />
-          </div>
-          <h3 className="font-minecraft text-base text-white">模组列表为空</h3>
-          <p className="mt-2 text-sm text-[var(--ore-downloadDetail-labelText)]">{emptyMessage}</p>
-        </div>
-      </div>
-    );
+    return <ModListEmptyState variant="loading" />;
   }
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col">
-      {controller.state.showSyncingOverlay && (
-        <div
-          className="absolute top-0 right-6 z-50 flex items-center rounded-b-md border-x-[2px] border-b-[2px] px-3 py-1.5 shadow-lg"
-          style={{
-            backgroundColor: 'var(--ore-downloadDetail-surface)',
-            borderColor: 'var(--ore-downloadDetail-divider)',
-            boxShadow: 'var(--ore-downloadDetail-sectionShadow)'
-          }}
-        >
-          <RefreshCw size={14} className="mr-2 animate-spin text-ore-green" />
-          <span className="text-xs font-minecraft text-[var(--ore-downloadDetail-labelText)]">正在同步模组...</span>
-        </div>
-      )}
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+      <ModListOverlay visible={controller.state.showSyncingOverlay} />
+
+      <ModListHeader
+        stats={controller.state.stats}
+        isBatchMode={isBatchMode}
+        searchQuery={searchQuery}
+        searchPlaceholder={searchPlaceholder}
+        quickFilter={controller.state.quickFilter}
+        filterOptions={controller.state.filterOptions}
+        viewMode={controller.state.viewMode}
+        onHeaderArrowPress={onHeaderArrowPress}
+        onSearchQueryChange={onSearchQueryChange}
+        onClearSearch={onClearSearch}
+        onBatchEnable={onBatchEnable}
+        onBatchDisable={onBatchDisable}
+        onBatchDelete={onBatchDelete}
+        onExitBatchMode={onExitBatchMode}
+        onQuickFilterChange={controller.controls.onQuickFilterChange}
+        onViewModeChange={controller.controls.onViewModeChange}
+      />
+
+      <ModListGridHeader
+        isAllSelected={isAllSelected}
+        selectedCount={selectedMods.size}
+        sortType={sortType}
+        sortOrder={sortOrder}
+        onSelectAll={onSelectAll}
+        onSortClick={onSortClick}
+      />
 
       <FocusBoundary
         id="mod-list-grid"
         trapFocus={controller.focus.trapFocus}
         onEscape={controller.focus.handleCancelHierarchy}
         defaultFocusKey={controller.focus.defaultFocusKey}
-        className="flex min-h-0 flex-1 flex-col space-y-1.5 overflow-y-auto custom-scrollbar px-2 pb-4"
+        className="relative min-h-[18rem] overflow-hidden px-2 pb-1"
+        style={{ height: 'clamp(24rem, calc(100vh - 16rem), 56rem)' }}
       >
         <FocusItem focusKey={LIST_GUARD_TOP} onFocus={() => controller.focus.restoreSafeFocus('first')}>
           {({ ref }) => (
             <div
               ref={ref as React.RefObject<HTMLDivElement>}
-              className="pointer-events-none absolute top-0 left-0 h-px w-full opacity-0"
+              className="pointer-events-none absolute left-0 top-0 h-px w-full opacity-0"
               tabIndex={-1}
             />
           )}
@@ -141,7 +156,7 @@ export const ModList: React.FC<ModListProps> = ({
           {({ ref }) => (
             <div
               ref={ref as React.RefObject<HTMLDivElement>}
-              className="pointer-events-none absolute top-0 left-0 h-full w-px opacity-0"
+              className="pointer-events-none absolute left-0 top-0 h-full w-px opacity-0"
               tabIndex={-1}
             />
           )}
@@ -151,7 +166,7 @@ export const ModList: React.FC<ModListProps> = ({
           {({ ref }) => (
             <div
               ref={ref as React.RefObject<HTMLDivElement>}
-              className="pointer-events-none absolute top-0 right-0 h-full w-px opacity-0"
+              className="pointer-events-none absolute right-0 top-0 h-full w-px opacity-0"
               tabIndex={-1}
             />
           )}
@@ -166,21 +181,55 @@ export const ModList: React.FC<ModListProps> = ({
           )}
         </FocusItem>
 
-        {controller.state.visibleMods.map((mod) => (
-          <ModRowItem
-            key={mod.fileName}
-            {...controller.getRowProps(mod)}
-          />
-        ))}
+        {controller.state.showEmptyState ? (
+          <ModListEmptyState variant="empty" emptyMessage={emptyMessage} />
+        ) : controller.state.showFilteredEmptyState ? (
+          <ModListEmptyState variant="filtered" />
+        ) : (
+          <Virtuoso
+            className="h-full custom-scrollbar"
+            style={{
+              height: '100%',
+              overflowY: 'overlay' as React.CSSProperties['overflowY']
+            }}
+            data={controller.state.renderEntries}
+            increaseViewportBy={{ top: 200, bottom: 400 }}
+            rangeChanged={controller.controls.onRangeChanged}
+            computeItemKey={(_index, entry) => (
+              entry.type === 'group' ? `group-${entry.group.id}` : entry.mod.fileName
+            )}
+            itemContent={(index, entry) => {
+              if (entry.type === 'group') {
+                return (
+                  <FocusItem
+                    focusKey={controller.focus.getGroupHeaderFocusKey(entry.group.id)}
+                    onEnter={() => controller.controls.onToggleGroup(entry.group.id)}
+                    onArrowPress={controller.focus.handleRowArrow}
+                  >
+                    {({ ref, focused }) => (
+                      <div
+                        ref={ref as React.RefObject<HTMLDivElement>}
+                        className={index > 0 ? 'pt-0.5' : undefined}
+                      >
+                        <ModListGroupHeader
+                          group={entry.group}
+                          collapsed={entry.collapsed}
+                          focused={focused}
+                          onToggle={controller.controls.onToggleGroup}
+                        />
+                      </div>
+                    )}
+                  </FocusItem>
+                );
+              }
 
-        {controller.incremental.hasMore && (
-          <div
-            ref={controller.incremental.sentinelRef}
-            className="flex items-center justify-center gap-2 py-4 text-xs font-minecraft"
-            style={{ color: 'var(--ore-downloadDetail-labelText)' }}
-          >
-            已显示 {Math.min(controller.incremental.visibleCount, mods.length)} / {mods.length}，滚动加载更多...
-          </div>
+              return (
+                <ModRowItem
+                  {...controller.getRowProps(entry.mod, entry.rowIndex)}
+                />
+              );
+            }}
+          />
         )}
       </FocusBoundary>
     </div>
