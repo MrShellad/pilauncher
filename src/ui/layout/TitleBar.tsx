@@ -58,7 +58,18 @@ export const TitleBar: React.FC = () => {
     { id: 'settings', label: t('nav.settings', '设置'), icon: <Settings size={18} /> },
   ];
 
-  const currentIndex = navTabs.findIndex((tab) => tab.id === activeTab);
+  // 子页面 → 父级导航 Tab 映射，进入子页面时父 Tab 保持高亮
+  const subPageParentMap: Record<string, string> = {
+    'instance-detail': 'instances',
+    'instance-mod-download': 'instances',
+    'new-instance': 'instances',
+    'wardrobe': 'home',
+    'news': 'home',
+    'library': 'home',
+  };
+
+  const visibleActiveTab = subPageParentMap[activeTab] || activeTab;
+  const currentIndex = navTabs.findIndex((tab) => tab.id === visibleActiveTab);
 
   const handleSwitchTab = (direction: -1 | 1) => {
     const activeEl = document.activeElement;
@@ -115,7 +126,7 @@ export const TitleBar: React.FC = () => {
 
           <OreSegmentedControl
             tabs={navTabs}
-            activeTab={activeTab}
+            activeTab={visibleActiveTab}
             onChange={(id) => setActiveTab(id as any)}
           />
 

@@ -468,7 +468,7 @@
       },
       "checkUpdate": {
         "label": "检查更新",
-        "description": "通过 Tauri 应用内更新检查新版本，并在应用内直接下载与安装。",
+        "description": "通过 PiLauncher 应用内更新检查新版本，并在应用内直接下载与安装。",
         "checking": "检查中...",
         "upToDate": "已是最新版本",
         "error": "检查失败",
