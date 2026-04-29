@@ -8,7 +8,6 @@ import { useTranslation } from 'react-i18next';
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { useInputAction } from '../ui/focus/InputDriver';
 
-import '../style/pages/Multiplayer.css';
 
 const Multiplayer: React.FC = () => {
   const { t } = useTranslation();

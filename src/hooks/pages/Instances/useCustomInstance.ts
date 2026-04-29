@@ -2,22 +2,13 @@ import { useState, useEffect, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useLauncherStore } from '../../../store/useLauncherStore';
 import { useDownloadStore } from '../../../store/useDownloadStore';
-
-export type McVersionType = 'release' | 'snapshot' | 'rc' | 'pre' | 'special';
-export interface McVersion {
-  id: string;
-  type: string;
-  release_time: string;
-  wiki_url: string;
-}
-
-export interface VersionGroup {
-  group_name: string;
-  versions: McVersion[];
-}
-
-const sortLoaderVersionsDesc = (versions: string[]) =>
-  [...versions].sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' }));
+import {
+  filterVersionGroups,
+  sortLoaderVersionsDesc,
+  type LoaderType,
+  type McVersionType,
+  type VersionGroup,
+} from '../../../features/Instances/logic/environmentSelection';
 
 export const useCustomInstance = () => {
   const [step, setStep] = useState<number>(1);
@@ -33,7 +24,7 @@ export const useCustomInstance = () => {
   // --- 游戏参数 ---
   const [gameVersion, setGameVersion] = useState<string | null>(null);
   const [versionType, setVersionType] = useState<McVersionType>('release');
-  const [loaderType, setLoaderType] = useState<'Vanilla' | 'Fabric' | 'Forge' | 'NeoForge' | 'Quilt'>('Vanilla');
+  const [loaderType, setLoaderType] = useState<LoaderType>('Vanilla');
   const [loaderVersion, setLoaderVersion] = useState<string | null>('Vanilla');
 
   // --- 版本与加载状态 ---
@@ -98,18 +89,7 @@ export const useCustomInstance = () => {
 
   // 根据类型过滤版本
   const filteredVersionGroups = useMemo(() => {
-    return versionGroups.map(g => ({
-      ...g,
-      versions: g.versions.filter(v => {
-        if (versionType === 'rc') return v.id.includes('-rc');
-        if (versionType === 'pre') return v.id.includes('-pre');
-        if (versionType === 'release') return v.type === 'release';
-        if (versionType === 'snapshot') {
-          return v.type === 'snapshot' && !v.id.includes('-rc') && !v.id.includes('-pre');
-        }
-        return v.type === 'special' || (v.type !== 'release' && v.type !== 'snapshot');
-      })
-    })).filter(g => g.versions.length > 0);
+    return filterVersionGroups(versionGroups, versionType);
   }, [versionGroups, versionType]);
 
   // 4. Wiki 跳转处理：调用后端解析 URL，使用系统浏览器打开

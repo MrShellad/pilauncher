@@ -6,6 +6,7 @@ import { SettingsPageLayout } from '../../../../../ui/layout/SettingsPageLayout'
 import { FocusItem } from '../../../../../ui/focus/FocusItem';
 
 import { BasicInfoSection } from './components/BasicInfoSection';
+import { EnvironmentSection, type InstanceEnvironmentUpdate } from './components/EnvironmentSection';
 import { CustomLinksSection } from './components/CustomLinksSection';
 import { ServerBindingSection } from './components/ServerBindingSection';
 import { MaintenanceSection } from './components/MaintenanceSection';
@@ -24,6 +25,7 @@ interface BasicPanelProps {
   isInitializing: boolean;
   onUpdateName: (newName: string) => Promise<void>;
   onUpdateCover: () => Promise<void>;
+  onUpdateEnvironment: (update: InstanceEnvironmentUpdate) => Promise<void>;
   onUpdateCustomButtons: (buttons: CustomButton[]) => Promise<void>;
   onUpdateServerBinding: (binding: ServerBindingInfo | null) => Promise<void>;
   onUpdateAutoJoinServer: (autoJoin: boolean) => Promise<void>;
@@ -37,6 +39,7 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
   isInitializing,
   onUpdateName,
   onUpdateCover,
+  onUpdateEnvironment,
   onUpdateCustomButtons,
   onUpdateServerBinding,
   onUpdateAutoJoinServer,
@@ -88,6 +91,17 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
           isInitializing={isInitializing}
           onUpdateName={onUpdateName}
           onUpdateCover={onUpdateCover}
+          onSuccess={triggerSuccess}
+          isGlobalSaving={isSaving}
+          setIsGlobalSaving={setIsSaving}
+        />
+
+        <EnvironmentSection
+          currentGameVersion={data.version}
+          currentLoaderType={data.loader}
+          currentLoaderVersion={data.loaderVersion}
+          isInitializing={isInitializing}
+          onUpdateEnvironment={onUpdateEnvironment}
           onSuccess={triggerSuccess}
           isGlobalSaving={isSaving}
           setIsGlobalSaving={setIsSaving}

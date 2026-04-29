@@ -5,7 +5,6 @@ import type { ModrinthProject, OreProjectVersion } from '../../InstanceDetail/lo
 import { useDownloadDetail } from '../hooks/useDownloadDetail';
 import type { DownloadInstanceConfig, DownloadSource } from '../hooks/useResourceDownload';
 import { OreModal } from '../../../ui/primitives/OreModal';
-import '../../../style/ui/primitives/DownloadDetailModal.css';
 
 import { InstanceSelectModal } from './DetailModal/InstanceSelectModal';
 import { ModpackCreateModal } from './DetailModal/ModpackCreateModal';

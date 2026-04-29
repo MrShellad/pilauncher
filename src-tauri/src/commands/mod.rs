@@ -75,6 +75,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         instance::action_cmd::check_gamepad_mod_status,
         instance::action_cmd::install_remote_mod,
         instance::action_cmd::update_instance_custom_buttons,
+        instance::action_cmd::update_instance_environment,
         instance::action_cmd::update_instance_server_binding,
         instance::action_cmd::update_instance_auto_join_server,
         instance::mod_cmd::get_instance_mods,

@@ -5,6 +5,7 @@ import { OreAccordion } from '../../../../ui/primitives/OreAccordion';
 import { OreMotionTokens } from '../../../../style/tokens/motion';
 import { ArrowRight, ChevronLeft } from 'lucide-react';
 import { useCustomInstance } from '../../../../hooks/pages/Instances/useCustomInstance';
+import { LOADER_TYPES as SHARED_LOADER_TYPES } from '../../logic/environmentSelection';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { useInputAction } from '../../../../ui/focus/InputDriver';
 
@@ -16,7 +17,7 @@ import neoforgeIcon from '../../../../assets/icons/tags/loaders/neoforge.svg';
 
 export type StepProps = ReturnType<typeof useCustomInstance>;
 
-const LOADER_TYPES = ['Vanilla', 'NeoForge', 'Forge', 'Fabric', 'Quilt'] as const;
+const LOADER_TYPES = SHARED_LOADER_TYPES;
 
 // 🎮 手柄按键 SVG 图标组件
 const GamepadBtn = ({ text, color, shadow, fontSize = "13" }: { text: string, color: string, shadow: string, fontSize?: string }) => (

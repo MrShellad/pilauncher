@@ -21,7 +21,6 @@ import { OreDropdown } from '../../../ui/primitives/OreDropdown';
 import { OreModal } from '../../../ui/primitives/OreModal';
 import { OreProgressBar } from '../../../ui/primitives/OreProgressBar';
 import defaultAvatar from '../../../assets/home/account/128.png';
-import '../../../style/features/home/MicrosoftAccountSidebar.css';
 import { LanRadar } from './AccountSliderBar/LanRadar';
 import { UserProfileCard } from './AccountSliderBar/UserProfileCard';
 

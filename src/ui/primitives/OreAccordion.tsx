@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
-import '../../style/index.css';
 
 // ✅ 引入空间导航焦点组件
 import { FocusItem } from '../focus/FocusItem';

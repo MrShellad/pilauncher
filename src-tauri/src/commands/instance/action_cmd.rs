@@ -1,7 +1,10 @@
-use crate::domain::instance::{CustomButtonConfig, InstanceBindingState, ServerBinding};
+use crate::domain::instance::{
+    CustomButtonConfig, InstanceBindingState, ServerBinding, UpdateInstanceEnvironmentPayload,
+};
 use crate::services::db_service::AppDatabase;
 use crate::services::instance::action::InstanceActionService;
 use crate::services::instance::binding::InstanceBindingService;
+use crate::services::instance::environment::InstanceEnvironmentService;
 use tauri::{AppHandle, Runtime, State};
 
 #[tauri::command]
@@ -109,6 +112,17 @@ pub async fn update_instance_custom_buttons<R: Runtime>(
     custom_buttons: Vec<CustomButtonConfig>,
 ) -> Result<(), String> {
     InstanceActionService::update_custom_buttons(&app, &id, custom_buttons)
+}
+
+#[tauri::command]
+pub async fn update_instance_environment<R: Runtime>(
+    app: AppHandle<R>,
+    db: State<'_, AppDatabase>,
+    payload: UpdateInstanceEnvironmentPayload,
+) -> Result<(), String> {
+    InstanceEnvironmentService::update(&app, &db, payload)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

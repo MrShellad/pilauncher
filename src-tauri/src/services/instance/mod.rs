@@ -1,6 +1,7 @@
 pub mod action;
 pub mod binding;
 pub mod creation;
+pub mod environment;
 pub mod listing;
 pub mod manifest_builder;
 pub mod mod_manager;

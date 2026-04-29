@@ -37,6 +37,14 @@ pub struct CreateInstancePayload {
     pub server_binding: Option<ServerBinding>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UpdateInstanceEnvironmentPayload {
+    pub instance_id: String,
+    pub game_version: String,
+    pub loader_type: String,
+    pub loader_version: Option<String>,
+}
+
 // --- 本地 instance.json 存储模型 ---
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InstanceConfig {

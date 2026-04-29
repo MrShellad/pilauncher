@@ -14,7 +14,6 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import '../../../../../style/ui/primitives/SaveRestoreModal.css';
 import { ControlHint } from '../../../../../ui/components/ControlHint';
 import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../../ui/focus/FocusItem';

@@ -54,6 +54,7 @@ const InstanceDetail: React.FC = () => {
     handleOpenFolder,
     handleUpdateName,
     handleUpdateCover,
+    handleUpdateEnvironment,
     handleUpdateHeroLogo,
     handleUpdateCustomButtons,
     handleUpdateServerBinding,
@@ -237,6 +238,7 @@ const InstanceDetail: React.FC = () => {
                 isInitializing={isInitializing}
                 onUpdateName={handleUpdateName}
                 onUpdateCover={handleUpdateCover}
+                onUpdateEnvironment={handleUpdateEnvironment}
                 onUpdateCustomButtons={handleUpdateCustomButtons}
                 onUpdateServerBinding={handleUpdateServerBinding}
                 onUpdateAutoJoinServer={handleUpdateAutoJoinServer}

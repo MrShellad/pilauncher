@@ -30,7 +30,6 @@ import { focusManager } from '../ui/focus/FocusManager';
 import { useInputAction } from '../ui/focus/InputDriver';
 import { OreToggleButton } from '../ui/primitives/OreToggleButton';
 
-import '../style/pages/Wardrobe.css';
 
 const SKIN_NOTE_STORAGE_PREFIX = 'wardrobe:skin-notes:';
 const MAX_SKIN_NOTE_LENGTH = 28;
@@ -532,5 +531,4 @@ const Wardrobe: React.FC = () => {
 };
 
 export default Wardrobe;
-
 

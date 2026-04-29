@@ -11,7 +11,6 @@ import {
   FileDiff,
 } from 'lucide-react';
 
-import '../../../../../style/ui/primitives/BackupListModal.css';
 import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary';
 import { useLinearNavigation } from '../../../../../ui/focus/useLinearNavigation';
 import { OreButton } from '../../../../../ui/primitives/OreButton';

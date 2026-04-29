@@ -9,6 +9,7 @@ import {
   PartyPopper, RotateCw, ExternalLink, Timer 
 } from 'lucide-react';
 import { useCustomInstance } from '../../../../hooks/pages/Instances/useCustomInstance';
+import { VERSION_TYPES as SHARED_VERSION_TYPES } from '../../logic/environmentSelection';
 
 // ✅ 引入焦点与输入引擎
 // ✅ 引入焦点与输入引擎
@@ -19,7 +20,7 @@ import { getCurrentFocusKey } from '@noriginmedia/norigin-spatial-navigation';
 export type StepProps = ReturnType<typeof useCustomInstance>;
 
 // 统一提取版本类型，方便循环切换
-const VERSION_TYPES = ['release', 'snapshot', 'rc', 'pre', 'special'] as const;
+const VERSION_TYPES = SHARED_VERSION_TYPES;
 
 // 🎮 手柄按键 SVG 图标组件
 const GamepadBtn = ({ text, color, shadow, fontSize = "13" }: { text: string, color: string, shadow: string, fontSize?: string }) => (

@@ -5,31 +5,28 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useLauncherStore } from './store/useLauncherStore';
 import { useNewsStore } from './store/useNewsStore';
 import { useSettingsStore } from './store/useSettingsStore';
+import { usePiHubSession } from './features/multiplayer/hooks/usePiHubSession';
 import { OreMotionTokens } from './style/tokens/motion';
 import { injectDesignTokens } from './style/tokens/designToken';
 import { FocusProvider } from './ui/focus/FocusProvider';
 import { OreToastContainer } from './ui/primitives/OreToast';
 import i18n from './ui/i18';
 import { TitleBar } from './ui/layout/TitleBar';
-
-import './style/global.css';
-import './style/ui/core.css';
-import './style/ui/primitives/OreButton.css';
-import './style/ui/primitives/OreSegmentedControl.css';
-import './style/ui/primitives/OreInstanceCard.css';
-import './style/ui/primitives/OreCard.css';
-import './style/ui/primitives/OreInput.css';
-import './style/ui/primitives/OreAccordion.css';
-import './style/ui/primitives/OreSwitch.css';
-import './style/ui/primitives/OreSlider.css';
-import './style/ui/primitives/OreDropdown.css';
-import './style/ui/primitives/OreToggleButton.css';
-import './style/ui/layout/SettingsPageLayout.css';
-import './style/ui/primitives/AccountCard.css';
-import './style/index.css';
 import './ui/i18';
 
-const Home = lazy(() => import('./pages/Home'));
+import Home from './pages/Home';
+import { OreBackground } from './ui/layout/OreBackground';
+import { DownloadManager } from './features/Download/components/DownloadManager';
+import { GameLogService } from './features/GameLog/components/GameLogService';
+import { GameLogSidebar } from './features/GameLog/components/GameLogSidebar';
+import { LaunchingAnimation } from './features/GameLog/components/LaunchingAnimation';
+import { StartupNewsModal } from './features/home/components/StartupNewsModal';
+import { GamepadModPrompt } from './features/Instances/components/GamepadModPrompt';
+import { SetupWizard } from './features/Setup/components/SetupWizard';
+import { JavaGuard } from './features/runtime/components/JavaGuard';
+import { JavaEnvironmentChangedDialog } from './features/runtime/components/JavaEnvironmentChangedDialog';
+import { StartupUpdateChecker } from './features/Settings/components/StartupUpdateChecker';
+
 const News = lazy(() => import('./pages/News'));
 const Instances = lazy(() => import('./pages/Instances'));
 const Multiplayer = lazy(() => import('./pages/Multiplayer'));
@@ -40,53 +37,10 @@ const InstanceDetail = lazy(() => import('./pages/InstanceDetail'));
 const ResourceDownloadPage = lazy(() => import('./pages/ResourceDownloadPage'));
 const InstanceModDownloadPage = lazy(() => import('./pages/InstanceModDownloadPage'));
 const LibraryPage = lazy(() => import('./pages/LibraryPage'));
-const OreBackground = lazy(() => import('./ui/layout/OreBackground').then((module) => ({ default: module.OreBackground })));
-const DownloadManager = lazy(() =>
-  import('./features/Download/components/DownloadManager/index').then((module) => ({ default: module.DownloadManager })),
-);
-const GameLogService = lazy(() =>
-  import('./features/GameLog/components/GameLogService').then((module) => ({ default: module.GameLogService })),
-);
-const GameLogSidebar = lazy(() =>
-  import('./features/GameLog/components/GameLogSidebar').then((module) => ({ default: module.GameLogSidebar })),
-);
-const LaunchingAnimation = lazy(() =>
-  import('./features/GameLog/components/LaunchingAnimation').then((module) => ({ default: module.LaunchingAnimation })),
-);
-const StartupNewsModal = lazy(() =>
-  import('./features/home/components/StartupNewsModal').then((module) => ({ default: module.StartupNewsModal })),
-);
-const GamepadModPrompt = lazy(() =>
-  import('./features/Instances/components/GamepadModPrompt').then((module) => ({ default: module.GamepadModPrompt })),
-);
-const SetupWizard = lazy(() =>
-  import('./features/Setup/components/SetupWizard').then((module) => ({ default: module.SetupWizard })),
-);
-const JavaGuard = lazy(() =>
-  import('./features/runtime/components/JavaGuard').then((module) => ({ default: module.JavaGuard })),
-);
-const JavaEnvironmentChangedDialog = lazy(() =>
-  import('./features/runtime/components/JavaEnvironmentChangedDialog').then((module) => ({
-    default: module.JavaEnvironmentChangedDialog,
-  })),
-);
-const StartupUpdateChecker = lazy(() =>
-  import('./features/Settings/components/StartupUpdateChecker').then((module) => ({
-    default: module.StartupUpdateChecker,
-  })),
-);
-
-import { usePiHubSession } from './features/multiplayer/hooks/usePiHubSession';
 
 const PageLoader = () => (
   <div className="absolute inset-0 flex items-center justify-center">
     <span className="animate-pulse font-minecraft text-ore-text-muted">Loading...</span>
-  </div>
-);
-
-const BackgroundLoader = () => (
-  <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-    <div className="absolute inset-0 bg-[#18181B]" />
   </div>
 );
 
@@ -225,58 +179,57 @@ const App: React.FC = () => {
   return (
     <FocusProvider>
       <div className="relative flex h-screen w-screen flex-col overflow-hidden text-ore-text">
-        <Suspense fallback={<BackgroundLoader />}>
-          <OreBackground />
-        </Suspense>
+        <OreBackground />
         <TitleBar />
 
         <main className="relative flex flex-1">
           <AnimatePresence mode="wait">
             {activeTab !== 'multiplayer' && (
               <motion.div
-              key={activeTab}
-              initial={OreMotionTokens.pageInitial}
-              animate={OreMotionTokens.pageAnimate}
-              exit={OreMotionTokens.pageExit}
-              className="absolute inset-0 flex"
-            >
-              <Suspense fallback={<PageLoader />}>
-                {activeTab === 'home' && <Home />}
-                {activeTab === 'news' && <News />}
-                {activeTab === 'instances' && <Instances />}
-                {activeTab === 'library' && <LibraryPage />}
+                key={activeTab}
+                initial={OreMotionTokens.pageInitial}
+                animate={OreMotionTokens.pageAnimate}
+                exit={OreMotionTokens.pageExit}
+                className="absolute inset-0 flex"
+              >
+                {activeTab === 'home' ? (
+                  <Home />
+                ) : (
+                  <Suspense fallback={<PageLoader />}>
+                    {activeTab === 'news' && <News />}
+                    {activeTab === 'instances' && <Instances />}
+                    {activeTab === 'library' && <LibraryPage />}
 
-                {activeTab === 'new-instance' && <NewInstance />}
-                {activeTab === 'instance-detail' && <InstanceDetail />}
-                {activeTab === 'instance-mod-download' && <InstanceModDownloadPage />}
-                {activeTab === 'downloads' && <ResourceDownloadPage />}
-                {activeTab === 'wardrobe' && <Wardrobe />}
-                {activeTab === 'settings' && <Settings />}
-              </Suspense>
-            </motion.div>
+                    {activeTab === 'new-instance' && <NewInstance />}
+                    {activeTab === 'instance-detail' && <InstanceDetail />}
+                    {activeTab === 'instance-mod-download' && <InstanceModDownloadPage />}
+                    {activeTab === 'downloads' && <ResourceDownloadPage />}
+                    {activeTab === 'wardrobe' && <Wardrobe />}
+                    {activeTab === 'settings' && <Settings />}
+                  </Suspense>
+                )}
+              </motion.div>
             )}
           </AnimatePresence>
           <MultiplayerGuard activeTab={activeTab} />
         </main>
 
-        <Suspense fallback={null}>
-          <DownloadManager />
-          <JavaGuard />
-          <SetupWizard />
-          <StartupUpdateChecker />
+        <DownloadManager />
+        <JavaGuard />
+        <SetupWizard />
+        <StartupUpdateChecker />
 
         {/* Always-mounted event listener — feeds logs into the store */}
         <GameLogService />
         {/* Game log UI: sidebar when enabled, progress animation when disabled */}
         {showGameLog ? <GameLogSidebar /> : <LaunchingAnimation />}
 
-          <StartupNewsModal />
-          <GamepadModPrompt />
-          <JavaEnvironmentChangedDialog
-            isOpen={isJavaEnvChangedDialogOpen}
-            onClose={() => setIsJavaEnvChangedDialogOpen(false)}
-          />
-        </Suspense>
+        <StartupNewsModal />
+        <GamepadModPrompt />
+        <JavaEnvironmentChangedDialog
+          isOpen={isJavaEnvChangedDialogOpen}
+          onClose={() => setIsJavaEnvChangedDialogOpen(false)}
+        />
 
         <OreToastContainer />
       </div>

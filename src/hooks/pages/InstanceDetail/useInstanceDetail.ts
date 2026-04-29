@@ -35,6 +35,7 @@ export interface InstanceDetailData {
   screenshots: string[];
   version?: string;
   loader?: string;
+  loaderVersion?: string;
   playTime?: string;
   lastPlayed?: string;
   customButtons?: CustomButton[];
@@ -69,8 +70,9 @@ interface RawInstanceDetail {
   gameVersion?: string;
   mcVersion?: string;
   loader_type?: string;
+  loader_version?: string;
   loaderType?: string;
-  loader?: { type?: string };
+  loader?: { type?: string; version?: string };
   playTime?: string | number;
   play_time?: string | number;
   lastPlayed?: string;
@@ -128,6 +130,7 @@ export const useInstanceDetail = (instanceId: string) => {
           screenshots,
           version: realData.game_version || realData.gameVersion || realData.mcVersion || '',
           loader: realData.loader?.type || realData.loader_type || realData.loaderType || 'Vanilla',
+          loaderVersion: realData.loader?.version || realData.loader_version || '',
           playTime,
           lastPlayed: realData.lastPlayed || realData.last_played || '',
           customButtons: realData.custom_buttons || [],
@@ -194,6 +197,76 @@ export const useInstanceDetail = (instanceId: string) => {
     }
 
     throw new Error('USER_CANCELED');
+  };
+
+  const handleUpdateEnvironment = async (update: {
+    gameVersion: string;
+    loaderType: string;
+    loaderVersion: string;
+  }) => {
+    const targetLoaderVersion = update.loaderType === 'Vanilla' ? '' : update.loaderVersion;
+
+    useDownloadStore.getState().addOrUpdateTask({
+      id: instanceId,
+      taskType: 'instance',
+      title: data?.name || instanceId,
+      stage: 'VANILLA_CORE',
+      current: 0,
+      total: 100,
+      message: `正在准备 Minecraft ${update.gameVersion} 环境...`,
+      retryAction: 'update_instance_environment',
+      retryPayload: {
+        payload: {
+          instance_id: instanceId,
+          game_version: update.gameVersion,
+          loader_type: update.loaderType,
+          loader_version: targetLoaderVersion,
+        },
+      },
+    });
+    useDownloadStore.getState().setPopupOpen(true);
+
+    try {
+      await invoke('update_instance_environment', {
+        payload: {
+          instance_id: instanceId,
+          game_version: update.gameVersion,
+          loader_type: update.loaderType,
+          loader_version: targetLoaderVersion,
+        },
+      });
+    } catch (error) {
+      useDownloadStore.getState().addOrUpdateTask({
+        id: instanceId,
+        taskType: 'instance',
+        title: data?.name || instanceId,
+        stage: 'ERROR',
+        current: 0,
+        total: 100,
+        message: `实例环境更新失败: ${String(error)}`,
+        retryAction: 'update_instance_environment',
+        retryPayload: {
+          payload: {
+            instance_id: instanceId,
+            game_version: update.gameVersion,
+            loader_type: update.loaderType,
+            loader_version: targetLoaderVersion,
+          },
+        },
+      });
+      throw error;
+    }
+
+    setData((prev) =>
+      prev
+        ? {
+            ...prev,
+            version: update.gameVersion,
+            loader: update.loaderType,
+            loaderVersion: targetLoaderVersion,
+          }
+        : null
+    );
   };
 
   const handleUpdateHeroLogo = async () => {
@@ -290,6 +363,7 @@ export const useInstanceDetail = (instanceId: string) => {
     handleOpenFolder,
     handleUpdateName,
     handleUpdateCover,
+    handleUpdateEnvironment,
     handleUpdateHeroLogo,
     handleUpdateCustomButtons,
     handleUpdateServerBinding,
