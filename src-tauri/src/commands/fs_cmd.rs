@@ -1,4 +1,5 @@
 // src-tauri/src/commands/fs_cmd.rs
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -7,11 +8,64 @@ pub struct DirNode {
     pub name: String,
     pub path: String,
     pub is_drive: bool,
+    pub is_file: bool,
+    pub extension: Option<String>,
+}
+
+fn user_home_dir() -> Option<PathBuf> {
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(profile) = std::env::var("USERPROFILE") {
+            return Some(PathBuf::from(profile));
+        }
+
+        let drive = std::env::var("HOMEDRIVE").ok();
+        let path = std::env::var("HOMEPATH").ok();
+        if let (Some(drive), Some(path)) = (drive, path) {
+            return Some(PathBuf::from(format!("{}{}", drive, path)));
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        if let Ok(home) = std::env::var("HOME") {
+            return Some(PathBuf::from(home));
+        }
+    }
+
+    None
+}
+
+fn push_quick_dir(nodes: &mut Vec<DirNode>, name: &str, path: PathBuf) {
+    if !path.exists() || !path.is_dir() {
+        return;
+    }
+
+    let path_string = path.to_string_lossy().to_string();
+    if nodes.iter().any(|node| node.path == path_string) {
+        return;
+    }
+
+    nodes.push(DirNode {
+        name: name.to_string(),
+        path: path_string,
+        is_drive: false,
+        is_file: false,
+        extension: None,
+    });
 }
 
 #[tauri::command]
 pub async fn get_drives() -> Result<Vec<DirNode>, String> {
     let mut drives = Vec::new();
+
+    if let Some(home) = user_home_dir() {
+        push_quick_dir(&mut drives, "Home", home.clone());
+        push_quick_dir(&mut drives, "Downloads", home.join("Downloads"));
+        push_quick_dir(&mut drives, "Desktop", home.join("Desktop"));
+        push_quick_dir(&mut drives, "Documents", home.join("Documents"));
+    }
+
     #[cfg(target_os = "windows")]
     {
         for b in b'A'..=b'Z' {
@@ -21,6 +75,8 @@ pub async fn get_drives() -> Result<Vec<DirNode>, String> {
                     name: format!("本地磁盘 ({}:)", b as char),
                     path: drive,
                     is_drive: true,
+                    is_file: false,
+                    extension: None,
                 });
             }
         }
@@ -31,6 +87,8 @@ pub async fn get_drives() -> Result<Vec<DirNode>, String> {
             name: "根目录 (/)".to_string(),
             path: "/".to_string(),
             is_drive: true,
+            is_file: false,
+            extension: None,
         });
         // ✅ 核心兼容：为 macOS 和 Linux 加入用户主目录的快速入口
         if let Ok(home) = std::env::var("HOME") {
@@ -38,9 +96,13 @@ pub async fn get_drives() -> Result<Vec<DirNode>, String> {
                 name: "用户目录 (~)".to_string(),
                 path: home,
                 is_drive: true,
+                is_file: false,
+                extension: None,
             });
         }
     }
+    let mut seen_paths = HashSet::new();
+    drives.retain(|node| seen_paths.insert(node.path.clone()));
     Ok(drives)
 }
 
@@ -63,6 +125,8 @@ pub async fn list_valid_dirs(path: String) -> Result<Vec<DirNode>, String> {
                             name,
                             path: entry.path().to_string_lossy().to_string(),
                             is_drive: false,
+                            is_file: false,
+                            extension: None,
                         });
                     }
                 }
@@ -71,6 +135,63 @@ pub async fn list_valid_dirs(path: String) -> Result<Vec<DirNode>, String> {
     }
     dirs.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     Ok(dirs)
+}
+
+#[tauri::command]
+pub async fn list_directory_entries(
+    path: String,
+    include_files: bool,
+) -> Result<Vec<DirNode>, String> {
+    let mut nodes = Vec::new();
+    let path_obj = Path::new(&path);
+
+    if !path_obj.exists() || !path_obj.is_dir() {
+        return Err("路径不存在或拒绝访问".into());
+    }
+
+    if let Ok(entries) = fs::read_dir(path_obj) {
+        for entry in entries.filter_map(Result::ok) {
+            let Ok(file_type) = entry.file_type() else {
+                continue;
+            };
+
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !name.is_ascii() {
+                continue;
+            }
+
+            if file_type.is_dir() {
+                nodes.push(DirNode {
+                    name,
+                    path: entry.path().to_string_lossy().to_string(),
+                    is_drive: false,
+                    is_file: false,
+                    extension: None,
+                });
+            } else if include_files && file_type.is_file() {
+                let extension = entry
+                    .path()
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .map(|ext| ext.to_ascii_lowercase());
+
+                nodes.push(DirNode {
+                    name,
+                    path: entry.path().to_string_lossy().to_string(),
+                    is_drive: false,
+                    is_file: true,
+                    extension,
+                });
+            }
+        }
+    }
+
+    nodes.sort_by(|a, b| {
+        a.is_file
+            .cmp(&b.is_file)
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+    Ok(nodes)
 }
 
 #[tauri::command]

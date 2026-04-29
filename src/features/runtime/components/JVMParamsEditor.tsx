@@ -17,7 +17,7 @@ export const JVMParamsEditor: React.FC<JVMParamsEditorProps> = ({ value, onChang
         onArrowPress={onArrowPress}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="-XX:+UseZGC -XX:+ZGenerational -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=150 -XX:G1NewSizePercent=30 -XX:G1ReservePercent=20"
+        placeholder="-XX:+UseZGC -XX:+UnlockExperimentalVMOptions -XX:+ZGenerational -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=150 -XX:G1NewSizePercent=30 -XX:G1ReservePercent=20"
         disabled={disabled}
       />
     </div>

@@ -869,6 +869,102 @@
       "done": "Done"
     }
   },
+  "directoryBrowser": {
+    "title": {
+      "directory": "Select directory",
+      "fileOrDirectory": "Select file or directory",
+      "modpackArchive": "Select modpack archive"
+    },
+    "actions": {
+      "newFolder": "New folder",
+      "cancel": "Cancel",
+      "select": "Select",
+      "open": "Open",
+      "selectCurrentDirectory": "Select current directory"
+    },
+    "menu": {
+      "currentDirectory": "Current directory",
+      "sort": "Sort"
+    },
+    "sort": {
+      "foldersFirst": "Folders first",
+      "filesFirst": "Files first"
+    },
+    "status": {
+      "loading": "Loading..."
+    },
+    "roots": {
+      "thisPc": "This PC"
+    },
+    "fileCategories": {
+      "file": "File",
+      "minecraft": "Minecraft",
+      "archives": "Archives",
+      "images": "Images",
+      "configs": "Configs",
+      "executables": "Executables",
+      "documents": "Documents"
+    },
+    "empty": {
+      "noMatchingItems": "No matching items",
+      "noSubdirectories": "No subdirectories"
+    },
+    "hints": {
+      "openConfirm": "Open / Confirm",
+      "cancel": "Cancel",
+      "upForward": "Up / Forward",
+      "actions": "Actions",
+      "listFooter": "List / Footer",
+      "keyboard": "Enter opens, Esc cancels",
+      "doubleClick": "Double click"
+    }
+  },
+  "localImport": {
+    "step1": {
+      "title": "Import local modpack",
+      "reading": "Reading metadata...",
+      "supportPrefix": "Supports",
+      "separator": ",",
+      "supportSuffix": "archives.",
+      "autoPrepare": "Metadata and runtime requirements will be prepared automatically."
+    },
+    "step2": {
+      "parsed": "Parsed: {{name}}"
+    },
+    "meta": {
+      "source": "Source",
+      "author": "Author",
+      "pack": "Pack",
+      "gameVersion": "Game Version",
+      "loader": "Loader"
+    },
+    "fields": {
+      "instanceName": "Instance Name",
+      "installPath": "Install Path"
+    },
+    "warning": {
+      "requiresPrefix": "The pack requires",
+      "with": "with",
+      "autoRestore": "Missing runtimes and referenced mods will be restored automatically during import."
+    },
+    "actions": {
+      "selectArchive": "Select archive",
+      "change": "Change",
+      "cancel": "Cancel",
+      "startImport": "Start import",
+      "importing": "Importing..."
+    },
+    "status": {
+      "loadingInstancesDir": "Loading instances directory...",
+      "baseDirMissing": "Base directory is not configured.",
+      "defaultDirReadFailed": "Unable to read default directory."
+    },
+    "errors": {
+      "unsupportedArchive": "Please select a supported archive: .zip, .mrpack, or .pipack.",
+      "parseFailed": "Failed to parse archive: {{error}}",
+      "importFailed": "Import failed: {{error}}"
+    }
+  },
   "wardrobe": {
     "title": "Wardrobe",
     "skinTab": "Skin",

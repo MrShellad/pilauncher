@@ -869,6 +869,102 @@
       "done": "完成"
     }
   },
+  "directoryBrowser": {
+    "title": {
+      "directory": "选择目录",
+      "fileOrDirectory": "选择文件或目录",
+      "modpackArchive": "选择整合包文件"
+    },
+    "actions": {
+      "newFolder": "新建文件夹",
+      "cancel": "取消",
+      "select": "选择",
+      "open": "打开",
+      "selectCurrentDirectory": "选择当前目录"
+    },
+    "menu": {
+      "currentDirectory": "当前目录",
+      "sort": "排序"
+    },
+    "sort": {
+      "foldersFirst": "文件夹优先",
+      "filesFirst": "文件优先"
+    },
+    "status": {
+      "loading": "正在读取..."
+    },
+    "roots": {
+      "thisPc": "此电脑"
+    },
+    "fileCategories": {
+      "file": "文件",
+      "minecraft": "Minecraft",
+      "archives": "压缩包",
+      "images": "图片",
+      "configs": "配置",
+      "executables": "可执行文件",
+      "documents": "文档"
+    },
+    "empty": {
+      "noMatchingItems": "没有匹配项目",
+      "noSubdirectories": "没有子目录"
+    },
+    "hints": {
+      "openConfirm": "打开 / 确认",
+      "cancel": "取消",
+      "upForward": "上级 / 前进",
+      "actions": "菜单",
+      "listFooter": "列表 / 底部",
+      "keyboard": "Enter 打开，Esc 取消",
+      "doubleClick": "双击打开"
+    }
+  },
+  "localImport": {
+    "step1": {
+      "title": "导入本地整合包",
+      "reading": "正在读取元数据...",
+      "supportPrefix": "支持",
+      "separator": "、",
+      "supportSuffix": "格式。",
+      "autoPrepare": "启动器会自动解析元数据并准备运行环境。"
+    },
+    "step2": {
+      "parsed": "已解析：{{name}}"
+    },
+    "meta": {
+      "source": "来源",
+      "author": "作者",
+      "pack": "整合包",
+      "gameVersion": "游戏版本",
+      "loader": "加载器"
+    },
+    "fields": {
+      "instanceName": "实例名称",
+      "installPath": "安装路径"
+    },
+    "warning": {
+      "requiresPrefix": "该整合包需要",
+      "with": "搭配",
+      "autoRestore": "缺失的运行时和引用 Mod 会在导入时自动恢复。"
+    },
+    "actions": {
+      "selectArchive": "选择整合包文件",
+      "change": "更改",
+      "cancel": "取消",
+      "startImport": "开始导入",
+      "importing": "正在导入..."
+    },
+    "status": {
+      "loadingInstancesDir": "正在读取实例目录...",
+      "baseDirMissing": "尚未配置基础目录。",
+      "defaultDirReadFailed": "无法读取默认目录。"
+    },
+    "errors": {
+      "unsupportedArchive": "请选择支持的整合包文件：.zip、.mrpack 或 .pipack。",
+      "parseFailed": "解析整合包失败：{{error}}",
+      "importFailed": "导入失败：{{error}}"
+    }
+  },
   "wardrobe": {
     "title": "衣柜",
     "skinTab": "皮肤",

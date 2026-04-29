@@ -73,12 +73,30 @@ fn parse_java_major_version(value: &str) -> Option<u32> {
     value.trim().parse::<u32>().ok()
 }
 
-fn adapt_gc_args_for_java_major(mut args: Vec<String>, java_major: &str) -> Vec<String> {
-    let Some(major) = parse_java_major_version(java_major) else {
+fn ensure_generational_zgc_unlock(mut args: Vec<String>) -> Vec<String> {
+    let Some(z_generational_index) = args.iter().position(|arg| arg == "-XX:+ZGenerational") else {
         return args;
     };
+
+    if !args
+        .iter()
+        .any(|arg| arg == "-XX:+UnlockExperimentalVMOptions")
+    {
+        args.insert(
+            z_generational_index,
+            "-XX:+UnlockExperimentalVMOptions".to_string(),
+        );
+    }
+
+    args
+}
+
+fn adapt_gc_args_for_java_major(mut args: Vec<String>, java_major: &str) -> Vec<String> {
+    let Some(major) = parse_java_major_version(java_major) else {
+        return ensure_generational_zgc_unlock(args);
+    };
     if major >= 21 {
-        return args;
+        return ensure_generational_zgc_unlock(args);
     }
 
     if major >= 17 {
@@ -407,8 +425,27 @@ mod tests {
             ),
             vec![
                 "-XX:+UseZGC".to_string(),
+                "-XX:+UnlockExperimentalVMOptions".to_string(),
                 "-XX:+ZGenerational".to_string(),
                 "-XX:+ParallelRefProcEnabled".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn generational_zgc_does_not_duplicate_existing_unlock_arg() {
+        let instance_runtime = runtime_config();
+
+        assert_eq!(
+            resolve_custom_jvm_args(
+                "-XX:+UseZGC -XX:+UnlockExperimentalVMOptions -XX:+ZGenerational",
+                &instance_runtime,
+                "21",
+            ),
+            vec![
+                "-XX:+UseZGC".to_string(),
+                "-XX:+UnlockExperimentalVMOptions".to_string(),
+                "-XX:+ZGenerational".to_string(),
             ]
         );
     }

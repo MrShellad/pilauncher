@@ -141,7 +141,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     memoryAllocationMode: 'auto',
     maxMemory: 4096,
     minMemory: 1024,
-    jvmArgs: '-XX:+UseZGC -XX:+ZGenerational -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=150 -XX:G1NewSizePercent=30 -XX:G1ReservePercent=20'
+    jvmArgs: '-XX:+UseZGC -XX:+UnlockExperimentalVMOptions -XX:+ZGenerational -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=150 -XX:G1NewSizePercent=30 -XX:G1ReservePercent=20'
   },
   game: {
     windowTitle: 'Minecraft',

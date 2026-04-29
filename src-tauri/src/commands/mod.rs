@@ -139,6 +139,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         modpack_cmd::export_modpack,
         java_cmd::download_java_env,
         fs_cmd::get_drives,
+        fs_cmd::list_directory_entries,
         fs_cmd::list_valid_dirs,
         fs_cmd::create_valid_dir,
         fs_cmd::get_parent_dir,
