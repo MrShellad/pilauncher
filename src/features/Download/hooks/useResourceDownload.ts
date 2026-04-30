@@ -67,6 +67,20 @@ const FALLBACK_MC_VERSIONS: string[] = Array.isArray(mcvData)
 
 let globalCache: DownloadCache | null = null;
 
+const INITIAL_INSTALLED_SCAN_DELAY_MS = 120;
+const METADATA_LOAD_DELAY_MS = 180;
+const INITIAL_SEARCH_DELAY_MS = 40;
+const RESOURCE_REFRESH_DELAY_MS = 700;
+const RESOURCE_DONE_DEDUPE_MS = 2000;
+
+interface ResourceDownloadProgressPayload {
+  task_id?: string;
+  file_name?: string;
+  stage?: string;
+  current?: number;
+  total?: number;
+}
+
 const getDefaultVersions = (): FilterOption[] => FALLBACK_MC_VERSIONS.map((version) => ({ label: version, value: version }));
 
 export const resolveInstanceGameVersion = (config: DownloadInstanceConfig | null | undefined) =>
@@ -75,6 +89,22 @@ export const resolveInstanceGameVersion = (config: DownloadInstanceConfig | null
 export const resolveInstanceLoaderType = (config: DownloadInstanceConfig | null | undefined) => {
   const raw = String(config?.loader_type || config?.loaderType || config?.loader?.type || '').toLowerCase();
   return raw === 'vanilla' ? '' : raw;
+};
+
+const getResourceProgressKey = (payload: ResourceDownloadProgressPayload | null | undefined) =>
+  String(payload?.task_id || payload?.file_name || '').trim();
+
+const isCompletedResourceDownload = (payload: ResourceDownloadProgressPayload | null | undefined) => {
+  const key = getResourceProgressKey(payload);
+  if (!key || key === 'java_download') return false;
+
+  return payload?.stage === 'DONE'
+    || (
+      typeof payload?.current === 'number'
+      && typeof payload?.total === 'number'
+      && payload.total > 0
+      && payload.current >= payload.total
+    );
 };
 
 export const useResourceDownload = (
@@ -131,18 +161,39 @@ export const useResourceDownload = (
   }, [instanceId]);
 
   useEffect(() => {
+    let cancelled = false;
+    let installedScanTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleInstalledScan = () => {
+      if (!instanceId) return;
+
+      installedScanTimer = setTimeout(async () => {
+        try {
+          const mods = await modService.getMods(instanceId);
+          if (!cancelled) setInstalledMods(mods || []);
+        } catch {
+          if (!cancelled) setInstalledMods([]);
+        }
+      }, INITIAL_INSTALLED_SCAN_DELAY_MS);
+    };
+
     const initEnv = async () => {
       if (!instanceId) {
+        setInstalledMods([]);
         setIsEnvLoaded(true);
         return;
       }
 
-      await refreshInstalledMods();
-
-      if (isCacheValid) return;
+      if (isCacheValid) {
+        setIsEnvLoaded(true);
+        scheduleInstalledScan();
+        return;
+      }
 
       try {
         const config = await invoke<DownloadInstanceConfig>('get_instance_detail', { id: instanceId });
+        if (cancelled) return;
+
         const safeConfig = config || {};
         setInstanceConfig(safeConfig);
 
@@ -151,47 +202,82 @@ export const useResourceDownload = (
       } catch (error) {
         console.error('获取实例环境失败:', error);
       } finally {
-        setIsEnvLoaded(true);
+        if (!cancelled) {
+          setIsEnvLoaded(true);
+          scheduleInstalledScan();
+        }
       }
     };
 
     void initEnv();
-  }, [instanceId, isCacheValid, refreshInstalledMods]);
+
+    return () => {
+      cancelled = true;
+      if (installedScanTimer) clearTimeout(installedScanTimer);
+    };
+  }, [instanceId, isCacheValid]);
 
   useEffect(() => {
     if (!instanceId) return;
 
+    let disposed = false;
     let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    let isRefreshing = false;
+    let refreshAgain = false;
+    let lastDoneKey = '';
+    let lastDoneAt = 0;
 
-    const unlistenPromise = listen<{
-      stage?: string;
-      current?: number;
-      total?: number;
-    }>('resource-download-progress', (event) => {
-      const payload = event.payload;
-      const isDone = payload?.stage === 'DONE'
-        || (
-          typeof payload?.current === 'number'
-          && typeof payload?.total === 'number'
-          && payload.total > 0
-          && payload.current >= payload.total
-        );
+    const runRefresh = async () => {
+      if (disposed) return;
 
-      if (!isDone) return;
+      if (isRefreshing) {
+        refreshAgain = true;
+        return;
+      }
 
+      isRefreshing = true;
+      try {
+        await refreshInstalledMods();
+      } finally {
+        isRefreshing = false;
+        if (refreshAgain && !disposed) {
+          refreshAgain = false;
+          scheduleRefresh();
+        }
+      }
+    };
+
+    const scheduleRefresh = () => {
       if (refreshTimer) clearTimeout(refreshTimer);
       refreshTimer = setTimeout(() => {
-        void refreshInstalledMods();
-      }, 150);
+        refreshTimer = null;
+        void runRefresh();
+      }, RESOURCE_REFRESH_DELAY_MS);
+    };
+
+    const unlistenPromise = listen<ResourceDownloadProgressPayload>('resource-download-progress', (event) => {
+      const payload = event.payload;
+      if (!isCompletedResourceDownload(payload)) return;
+
+      const doneKey = getResourceProgressKey(payload);
+      const now = Date.now();
+      if (doneKey === lastDoneKey && now - lastDoneAt < RESOURCE_DONE_DEDUPE_MS) return;
+
+      lastDoneKey = doneKey;
+      lastDoneAt = now;
+      scheduleRefresh();
     });
 
     return () => {
+      disposed = true;
       if (refreshTimer) clearTimeout(refreshTimer);
-      unlistenPromise.then((unlisten) => unlisten());
+      void unlistenPromise.then((unlisten) => unlisten());
     };
   }, [instanceId, refreshInstalledMods]);
 
   useEffect(() => {
+    if (!isEnvLoaded) return;
+
     let cancelled = false;
 
     const loadMetadata = async () => {
@@ -234,12 +320,15 @@ export const useResourceDownload = (
       setCategoryOptions(categories);
     };
 
-    void loadMetadata();
+    const metadataTimer = setTimeout(() => {
+      void loadMetadata();
+    }, METADATA_LOAD_DELAY_MS);
 
     return () => {
       cancelled = true;
+      clearTimeout(metadataTimer);
     };
-  }, [activeTab, source]);
+  }, [activeTab, isEnvLoaded, source]);
 
   useEffect(() => {
     if (!lockInstanceEnvironment || !instanceConfig) return;
@@ -324,7 +413,11 @@ export const useResourceDownload = (
     }
 
     setOffset(0);
-    void executeSearch(0, false);
+    const searchTimer = setTimeout(() => {
+      void executeSearch(0, false);
+    }, INITIAL_SEARCH_DELAY_MS);
+
+    return () => clearTimeout(searchTimer);
   }, [activeTab, executeSearch, isCacheValid, isEnvLoaded, source]);
 
   useEffect(() => {

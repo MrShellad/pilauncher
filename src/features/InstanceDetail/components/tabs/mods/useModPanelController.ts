@@ -21,6 +21,33 @@ import type { ModMeta } from '../../../logic/modService';
 import type { OreProjectVersion } from '../../../logic/modrinthApi';
 import { useModPanelDialogs } from './useModPanelDialogs';
 
+const RESOURCE_REFRESH_DELAY_MS = 700;
+const RESOURCE_DONE_DEDUPE_MS = 2000;
+
+interface ResourceDownloadProgressPayload {
+  task_id?: string;
+  file_name?: string;
+  stage?: string;
+  current?: number;
+  total?: number;
+}
+
+const getResourceProgressKey = (payload: ResourceDownloadProgressPayload | null | undefined) =>
+  String(payload?.task_id || payload?.file_name || '').trim();
+
+const isCompletedResourceDownload = (payload: ResourceDownloadProgressPayload | null | undefined) => {
+  const key = getResourceProgressKey(payload);
+  if (!key || key === 'java_download') return false;
+
+  return payload?.stage === 'DONE'
+    || (
+      typeof payload?.current === 'number'
+      && typeof payload?.total === 'number'
+      && payload.total > 0
+      && payload.current >= payload.total
+    );
+};
+
 export const useModPanelController = (instanceId: string) => {
   const { t } = useTranslation();
   const {
@@ -95,20 +122,59 @@ export const useModPanelController = (instanceId: string) => {
   } = dialogActions;
 
   useEffect(() => {
-    const unlistenPromise = listen<{ current: number; total: number }>(
+    let disposed = false;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    let isRefreshing = false;
+    let refreshAgain = false;
+    let lastDoneKey = '';
+    let lastDoneAt = 0;
+
+    const runRefresh = async () => {
+      if (disposed) return;
+
+      if (isRefreshing) {
+        refreshAgain = true;
+        return;
+      }
+
+      isRefreshing = true;
+      try {
+        await loadMods();
+      } finally {
+        isRefreshing = false;
+        if (refreshAgain && !disposed) {
+          refreshAgain = false;
+          scheduleRefresh();
+        }
+      }
+    };
+
+    const scheduleRefresh = () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        refreshTimer = null;
+        void runRefresh();
+      }, RESOURCE_REFRESH_DELAY_MS);
+    };
+
+    const unlistenPromise = listen<ResourceDownloadProgressPayload>(
       'resource-download-progress',
       ({ payload }) => {
-        if (!payload || payload.total <= 0 || payload.current < payload.total) {
-          return;
-        }
+        if (!isCompletedResourceDownload(payload)) return;
 
-        window.setTimeout(() => {
-          void loadMods();
-        }, 500);
+        const doneKey = getResourceProgressKey(payload);
+        const now = Date.now();
+        if (doneKey === lastDoneKey && now - lastDoneAt < RESOURCE_DONE_DEDUPE_MS) return;
+
+        lastDoneKey = doneKey;
+        lastDoneAt = now;
+        scheduleRefresh();
       }
     );
 
     return () => {
+      disposed = true;
+      if (refreshTimer) clearTimeout(refreshTimer);
       void unlistenPromise.then((unlisten) => unlisten());
     };
   }, [loadMods]);

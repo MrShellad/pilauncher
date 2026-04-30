@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Blocks, CheckCircle2, Clock3, Download, Heart, Loader2, Monitor, Server, Tags } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { VirtuosoGrid } from 'react-virtuoso';
 import fabricIcon from '../../../../../assets/icons/tags/loaders/fabric.svg';
 import forgeIcon from '../../../../../assets/icons/tags/loaders/forge.svg';
 import neoforgeIcon from '../../../../../assets/icons/tags/loaders/neoforge.svg';
@@ -11,12 +12,17 @@ import liteloaderIcon from '../../../../../assets/icons/tags/loaders/liteloader.
 import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../../ui/focus/FocusItem';
 import { ControlHint } from '../../../../../ui/components/ControlHint';
-import { isProjectInstalled, type ModMeta } from '../../../logic/modService';
+import { InstalledModIndex, type ModMeta } from '../../../logic/modService';
 import type { ModrinthProject } from '../../../logic/modrinthApi';
 import {
   getLocalizedDownloadTagLabel,
   prettifyDownloadTagLabel
 } from '../../../../Download/logic/downloadTagLabels';
+import {
+  buildProjectViewModel,
+  formatNumber,
+  type ProjectViewModel
+} from '../../../../Download/logic/projectViewModel';
 import { useDownloadStore } from '../../../../../store/useDownloadStore';
 
 interface ResourceGridProps {
@@ -36,6 +42,7 @@ interface ResourceGridProps {
 
 interface ResourceCardProps {
   project: ModrinthProject;
+  viewModel: ProjectViewModel;
   index: number;
   isInstalled: boolean;
   hasMore: boolean;
@@ -45,20 +52,23 @@ interface ResourceCardProps {
   isNearBottom: boolean;
 }
 
+interface ResourceGridItem {
+  project: ModrinthProject;
+  viewModel: ProjectViewModel;
+  isInstalled: boolean;
+}
+
+interface ResourceGridContext {
+  hasMore: boolean;
+  isLoadingMore: boolean;
+}
+
 const TOP_ROW_KEYS = [
   'inst-filter-search',
   'inst-filter-btn-search',
   'inst-filter-btn-reset'
 ] as const;
 
-const KNOWN_LOADERS = ['fabric', 'forge', 'neoforge', 'quilt', 'liteloader'];
-const LOADER_PRIORITY: Record<string, number> = {
-  neoforge: 0,
-  fabric: 1,
-  forge: 2,
-  quilt: 3,
-  liteloader: 4
-};
 const LOADER_ICON_MAP: Record<string, string> = {
   fabric: fabricIcon,
   forge: forgeIcon,
@@ -67,12 +77,20 @@ const LOADER_ICON_MAP: Record<string, string> = {
   liteloader: liteloaderIcon
 };
 
-const formatNumber = (value?: number) => {
-  if (!value) return '0';
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return value.toString();
+const ResourceGridFooter: React.FC<{ context?: ResourceGridContext }> = ({ context }) => {
+  if (!context?.hasMore) return null;
+
+  return (
+    <div className="col-span-full flex h-16 items-center justify-center">
+      <Loader2
+        size={24}
+        className={`text-ore-green opacity-60 ${context.isLoadingMore ? 'animate-spin' : ''}`}
+      />
+    </div>
+  );
 };
+
+const RESOURCE_GRID_COMPONENTS = { Footer: ResourceGridFooter };
 
 const prettifyLoader = (loader: string) => {
   if (!loader) return 'Vanilla';
@@ -82,6 +100,7 @@ const prettifyLoader = (loader: string) => {
 
 const ResourceCard = React.memo(({
   project,
+  viewModel,
   index,
   isInstalled,
   hasMore,
@@ -92,33 +111,7 @@ const ResourceCard = React.memo(({
 }: ResourceCardProps) => {
   const { t, i18n } = useTranslation();
   const cardRef = useRef<HTMLButtonElement | null>(null);
-  const rawProject = project as ModrinthProject & { display_categories?: string[]; followers?: number };
-
-  const categoryItems = (rawProject.categories || []).map((raw, idx) => ({
-    raw,
-    display: rawProject.display_categories?.[idx] || raw
-  }));
-
-  const loaderItems = [
-    ...categoryItems.filter((item) => KNOWN_LOADERS.includes(item.raw.toLowerCase())),
-    ...((rawProject.loaders || [])
-      .filter((raw) => KNOWN_LOADERS.includes(raw.toLowerCase()))
-      .map((raw) => ({ raw, display: raw })))
-  ];
-
-  const loaders = Array.from(
-    new Map(loaderItems.map((item) => [item.raw.toLowerCase(), item])).values()
-  )
-    .sort((a, b) => {
-      const aPriority = LOADER_PRIORITY[a.raw.toLowerCase()] ?? Number.MAX_SAFE_INTEGER;
-      const bPriority = LOADER_PRIORITY[b.raw.toLowerCase()] ?? Number.MAX_SAFE_INTEGER;
-      return aPriority - bPriority;
-    })
-    .slice(0, 3);
-  const features = categoryItems.filter((item) => !KNOWN_LOADERS.includes(item.raw.toLowerCase())).slice(0, 3);
-  const followerCount = rawProject.followers || rawProject.follows || 0;
-  const supportsClient = project.client_side !== 'unsupported' && !!project.client_side;
-  const supportsServer = project.server_side !== 'unsupported' && !!project.server_side;
+  const { features, followerCount, loaders, supportsClient, supportsServer } = viewModel;
   const focusKey = `download-grid-item-${index}`;
 
   const timeAgo = (dateStr?: string) => {
@@ -177,14 +170,14 @@ const ResourceCard = React.memo(({
             className={`
               group relative flex min-h-[12.5rem] w-full overflow-hidden border-[0.125rem] border-[#1E1E1F] text-left outline-none transition-none
               ${focused
-                ? 'z-20 bg-[#E6E8EB] brightness-[1.02] outline outline-[0.1875rem] outline-offset-[0.0625rem] outline-white drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]'
+                ? 'z-20 bg-[#E6E8EB] brightness-[1.02] outline outline-[0.1875rem] outline-offset-[0.0625rem] outline-white'
                 : 'bg-[#D0D1D4] hover:bg-[#E6E8EB]'}
             `}
             style={{
               contain: 'layout paint',
               boxShadow: isInstalled
-                ? 'inset 0 -4px #1D4D13, inset 2px 2px rgba(255,255,255,0.7), inset -2px -6px rgba(255,255,255,0.3)'
-                : 'inset 0 -4px #58585A, inset 2px 2px rgba(255,255,255,0.7), inset -2px -6px rgba(255,255,255,0.38)'
+                ? 'inset 0 -4px #1D4D13, 0 0 8px rgba(0,0,0,0.12)'
+                : 'inset 0 -4px #58585A, 0 0 8px rgba(0,0,0,0.10)'
             }}
           >
             <div className={`absolute inset-y-0 left-0 w-1.5 ${isInstalled ? 'bg-[#6CC349]' : 'bg-[#48494A]'}`} />
@@ -341,8 +334,8 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   scrollContainerId,
   onScrollTopChange
 }) => {
-  const observerTargetRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLElement | null>(null);
+  const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
   const loadMoreLockRef = useRef(false);
   const latestRef = useRef({
     hasMore,
@@ -374,47 +367,32 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
     latestRef.current.onLoadMore();
   }, [canLoadMore]);
 
-  useEffect(() => {
-    const scrollHost = scrollContainerRef.current;
-    const target = observerTargetRef.current;
-    if (!scrollHost || !target) return;
-    if (isLoading || isLoadingMore) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          triggerLoadMore();
-        }
-      },
-      { root: scrollHost, rootMargin: '100px', threshold: 0.1 }
-    );
-
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, [triggerLoadMore, results.length, isLoading, isLoadingMore]);
-
   const tasks = useDownloadStore((state) => state.tasks);
 
-  const isSessionInstalled = useCallback(
-    (project: ModrinthProject) => {
-      const slugLower = (project.slug || '').toLowerCase();
-      if (!slugLower) return false;
-      return Object.values(tasks).some((task) => {
-        if (task.status !== 'completed' && task.stage !== 'DONE') return false;
-        if (task.taskType !== 'resource') return false;
-        const targetStr = (task.id || task.title || '').toLowerCase();
-        return targetStr.includes(slugLower);
-      });
-    },
+  const installedModIndex = useMemo(() => new InstalledModIndex(installedMods), [installedMods]);
+
+  const completedResourceTaskTargets = useMemo(
+    () => Object.values(tasks)
+      .filter((task) =>
+        task.taskType === 'resource' &&
+        (task.status === 'completed' || task.stage === 'DONE')
+      )
+      .map((task) => (task.id || task.title || '').toLowerCase())
+      .filter(Boolean),
     [tasks]
   );
 
-  const isInstalled = useCallback(
-    (project: ModrinthProject) =>
-      isSessionInstalled(project) ||
-      isProjectInstalled(project, installedMods),
-    [installedMods, isSessionInstalled]
-  );
+  const resourceItems = useMemo(() => results.map((project) => {
+    const slugLower = (project.slug || '').toLowerCase();
+    const isSessionInstalled = Boolean(slugLower) &&
+      completedResourceTaskTargets.some((target) => target.includes(slugLower));
+
+    return {
+      project,
+      viewModel: buildProjectViewModel(project),
+      isInstalled: isSessionInstalled || installedModIndex.isInstalled(project)
+    };
+  }), [completedResourceTaskTargets, installedModIndex, results]);
 
   const emptyLoading = isLoading && results.length === 0;
   const emptyStateText = resourceTab === 'shader'
@@ -429,7 +407,10 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   return (
     <div
       id={scrollContainerId}
-      ref={scrollContainerRef}
+      ref={(node) => {
+        scrollContainerRef.current = node;
+        setScrollElement(node);
+      }}
       className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain scroll-smooth custom-scrollbar"
       onScroll={(e) => {
         const el = e.currentTarget;
@@ -455,27 +436,29 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-[0.875rem] pb-[1.5rem] lg:grid-cols-2 2xl:grid-cols-3">
-              {results.map((project, index) => (
+            <VirtuosoGrid<ResourceGridItem, ResourceGridContext>
+              data={resourceItems}
+              context={{ hasMore, isLoadingMore }}
+              customScrollParent={scrollElement ?? undefined}
+              computeItemKey={(index, item) => `${item.project.id}-${index}`}
+              listClassName="grid grid-cols-1 gap-[0.875rem] pb-[1.5rem] lg:grid-cols-2 2xl:grid-cols-3"
+              components={RESOURCE_GRID_COMPONENTS}
+              increaseViewportBy={{ top: 240, bottom: 520 }}
+              endReached={triggerLoadMore}
+              itemContent={(index, { project, viewModel, isInstalled }) => (
                 <ResourceCard
-                  key={`${project.id}-${index}`}
                   project={project}
+                  viewModel={viewModel}
                   index={index}
-                  isInstalled={isInstalled(project)}
+                  isInstalled={isInstalled}
                   hasMore={hasMore}
                   canLoadMore={canLoadMore}
                   onLoadMore={triggerLoadMore}
                   onSelectProject={onSelectProject}
                   isNearBottom={index >= results.length - 6}
                 />
-              ))}
-
-              {results.length > 0 && hasMore && (
-                <div ref={observerTargetRef} className="col-span-full flex h-16 items-center justify-center">
-                  <Loader2 size={24} className={`text-ore-green opacity-60 ${isLoadingMore ? 'animate-spin' : ''}`} />
-                </div>
               )}
-            </div>
+            />
           )}
         </div>
       </FocusBoundary>

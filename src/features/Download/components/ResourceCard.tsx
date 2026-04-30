@@ -17,8 +17,8 @@ import {
   getLocalizedDownloadTagLabel
 } from '../logic/downloadTagLabels';
 import {
-  buildProjectViewModel,
-  formatNumber
+  formatNumber,
+  type ProjectViewModel
 } from '../logic/projectViewModel';
 
 const FILTER_FALLBACK_TARGETS = [
@@ -38,6 +38,7 @@ const LOADER_ICON_MAP: Record<string, string> = {
 
 export interface ResourceCardProps {
   project: ModrinthProject;
+  viewModel: ProjectViewModel;
   index: number;
   isInstalled: boolean;
   hasMore: boolean;
@@ -70,6 +71,7 @@ function useTimeAgo() {
 
 export const ResourceCard = React.memo(({
   project,
+  viewModel,
   index,
   isInstalled,
   hasMore,
@@ -83,8 +85,7 @@ export const ResourceCard = React.memo(({
   const timeAgo = useTimeAgo();
   const cardRef = useRef<HTMLButtonElement | null>(null);
 
-  const vm = buildProjectViewModel(project);
-  const { features, followerCount, loaders, supportsClient, supportsServer } = vm;
+  const { features, followerCount, loaders, supportsClient, supportsServer } = viewModel;
 
   const focusKey = `download-grid-item-${index}`;
   const authorLabel = project.author || t('download.meta.unknownAuthor', { defaultValue: 'Unknown' });
@@ -141,14 +142,14 @@ export const ResourceCard = React.memo(({
               group relative flex min-h-[12.5rem] w-full overflow-hidden border-[0.125rem] border-[#1E1E1F]
               text-left outline-none transition-none
               ${focused
-                ? 'z-20 bg-[#E6E8EB] brightness-[1.02] outline outline-[0.1875rem] outline-offset-[0.0625rem] outline-white drop-shadow-[0_0_0.75rem_rgba(255,255,255,0.3)]'
+                ? 'z-20 bg-[#E6E8EB] brightness-[1.02] outline outline-[0.1875rem] outline-offset-[0.0625rem] outline-white'
                 : 'bg-[#D0D1D4] hover:bg-[#E6E8EB]'}
             `}
             style={{
               contain: 'layout paint',
               boxShadow: isInstalled
-                ? 'inset 0 -0.25rem #1D4D13, inset 0.125rem 0.125rem rgba(255,255,255,0.7), inset -0.125rem -0.375rem rgba(255,255,255,0.3)'
-                : 'inset 0 -0.25rem #58585A, inset 0.125rem 0.125rem rgba(255,255,255,0.7), inset -0.125rem -0.375rem rgba(255,255,255,0.38)'
+                ? 'inset 0 -0.25rem #1D4D13, 0 0 0.5rem rgba(0,0,0,0.12)'
+                : 'inset 0 -0.25rem #58585A, 0 0 0.5rem rgba(0,0,0,0.10)'
             }}
           >
             <div className="absolute inset-x-0 top-0 h-[0.25rem] bg-white/25" />
