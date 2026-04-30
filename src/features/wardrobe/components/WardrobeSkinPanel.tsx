@@ -83,7 +83,7 @@ export const WardrobeSkinPanel: React.FC<WardrobeSkinPanelProps> = ({
               onClick={onChooseSkin}
             >
               <span className="wardrobe-upload-card__icon">
-                <ImagePlus size={34} />
+                <ImagePlus className="w-[clamp(1.5rem,4vh,2.5rem)] h-[clamp(1.5rem,4vh,2.5rem)]" />
               </span>
               <span className="wardrobe-skin-card__title">{t('wardrobe.uploadCard.title')}</span>
               <span className="wardrobe-skin-card__subtitle">

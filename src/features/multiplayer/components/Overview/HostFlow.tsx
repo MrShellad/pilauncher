@@ -242,7 +242,7 @@ export const HostFlow: React.FC<HostFlowProps> = ({
         </div>
       )}
 
-      <div className="flex flex-col gap-3 mt-4 border-[2px] border-[#1E1E1F]/50 bg-black/40 backdrop-blur-md p-4 shadow-[inset_0_4px_rgba(0,0,0,0.4)] relative z-10">
+      <div className="flex flex-col gap-3 mt-4 border-[2px] border-[#1E1E1F]/50 bg-black/70 p-4 shadow-[inset_0_4px_rgba(0,0,0,0.4)] relative z-10">
         <div className="flex items-center justify-between text-[11px] uppercase tracking-widest text-[#B1B2B5] font-minecraft font-bold">
           <span className="text-[#FFE866]">生成并复制口令发给朋友</span>
           <span>CREATE &amp; COPY</span>
@@ -271,7 +271,7 @@ export const HostFlow: React.FC<HostFlowProps> = ({
               </div>
 
               {inviteCode && (
-                <div className="absolute inset-0 bg-[#6CC349]/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                <div className="absolute inset-0 bg-[#0F1A10]/85 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <span className="bg-[#172017]/90 text-white border-[1px] border-[#6CC349] text-sm px-3 py-1 font-bold inline-flex items-center gap-2 shadow-[0_0_10px_rgba(108,195,73,0.3)]">
                     {copyState === 'invite' ? <CheckCircle size={16} className="text-[#6CC349]" /> : <Copy size={16} />}
                     {copyState === 'invite' ? '分享文案已复制！' : '点击复制分享文案'}
@@ -323,7 +323,7 @@ export const HostFlow: React.FC<HostFlowProps> = ({
       </div>
 
       {inviteCode && (
-        <div className="flex flex-col gap-3 border-[2px] border-[#1E1E1F]/50 bg-black/40 backdrop-blur-md p-4 shadow-[inset_0_4px_rgba(0,0,0,0.4)] relative z-10">
+        <div className="flex flex-col gap-3 border-[2px] border-[#1E1E1F]/50 bg-black/70 p-4 shadow-[inset_0_4px_rgba(0,0,0,0.4)] relative z-10">
           <div className="flex items-center justify-between text-[11px] uppercase tracking-widest text-[#B1B2B5] font-minecraft font-bold">
             <span className="text-[#FFE866]">填入朋友的应答码</span>
             <span>{manualAnswerRequired ? '手动必填' : '自动回传后可省略'}</span>

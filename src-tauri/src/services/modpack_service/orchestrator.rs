@@ -8,6 +8,7 @@ use crate::services::deployment_cancel::is_cancelled;
 use crate::services::downloader::dependencies::{
     run_downloads, sha1_file, DownloadStage, DownloadTask,
 };
+use crate::services::downloader::logging::{clear_download_log_path, set_download_log_path};
 use crate::services::instance::mod_manifest_service::ModManifestService;
 use futures::stream::{iter, StreamExt};
 use reqwest::Client;
@@ -21,6 +22,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 
+use super::logging::ModpackImportLogger;
 use super::logic::{
     build_instance_config, resolve_curseforge_install_target, safe_relative_path,
     sanitize_instance_id, CurseForgeInstallTarget, ModpackSourceHint,
@@ -515,6 +517,35 @@ pub async fn execute_import<R: Runtime>(
 ) -> Result<(), String> {
     let base_dir = resolve_base_dir(app)?;
     let instance_id = sanitize_instance_id(instance_name);
+    let logger = ModpackImportLogger::new(&base_dir, &instance_id);
+    execute_import_with_logger(app, zip_path, instance_name, cancel, server_binding, logger).await
+}
+
+pub async fn execute_import_with_logger<R: Runtime>(
+    app: &AppHandle<R>,
+    zip_path: &str,
+    instance_name: &str,
+    cancel: &Arc<AtomicBool>,
+    server_binding: Option<crate::domain::instance::ServerBinding>,
+    logger: ModpackImportLogger,
+) -> Result<(), String> {
+    let base_dir = resolve_base_dir(app)?;
+    let instance_id = sanitize_instance_id(instance_name);
+    logger
+        .info(
+            "START",
+            format!(
+                "Starting modpack import: instance_id={} instance_name={} archive={} base_dir={} log={}",
+                instance_id,
+                instance_name,
+                zip_path,
+                base_dir.display(),
+                logger.path().display()
+            ),
+        )
+        .await;
+    set_download_log_path(&instance_id, logger.path().to_path_buf());
+
     let result = execute_import_inner(
         app,
         zip_path,
@@ -523,11 +554,48 @@ pub async fn execute_import<R: Runtime>(
         &base_dir,
         cancel,
         server_binding,
+        &logger,
     )
     .await;
 
     if result.is_err() || is_cancelled(cancel) {
-        cleanup_modpack_artifacts(&base_dir, &instance_id);
+        let reason = result
+            .as_ref()
+            .err()
+            .cloned()
+            .unwrap_or_else(|| "Cancelled".to_string());
+        logger
+            .warn(
+                "CLEANUP",
+                format!("Import did not finish cleanly: {}", reason),
+            )
+            .await;
+
+        for (path, existed, cleanup_result) in cleanup_modpack_artifacts(&base_dir, &instance_id) {
+            match cleanup_result {
+                Ok(()) if existed => {
+                    logger
+                        .info("CLEANUP", format!("Removed {}", path.display()))
+                        .await;
+                }
+                Ok(()) => {
+                    logger
+                        .info(
+                            "CLEANUP",
+                            format!("No cleanup needed for {}", path.display()),
+                        )
+                        .await;
+                }
+                Err(error) => {
+                    logger
+                        .warn(
+                            "CLEANUP",
+                            format!("Failed to remove {}: {}", path.display(), error),
+                        )
+                        .await;
+                }
+            }
+        }
 
         let db = app.state::<crate::services::db_service::AppDatabase>();
         if let Err(error) =
@@ -541,8 +609,32 @@ pub async fn execute_import<R: Runtime>(
                 "[ModpackImport] Failed to remove database records for {} after cleanup: {}",
                 instance_id, error
             );
+            logger
+                .warn(
+                    "CLEANUP",
+                    format!("Failed to remove database records: {}", error),
+                )
+                .await;
+        } else {
+            logger
+                .info("CLEANUP", "Removed database records for failed import")
+                .await;
         }
     }
+
+    match &result {
+        Ok(()) => {
+            logger
+                .info("DONE", "Modpack import finished successfully")
+                .await
+        }
+        Err(error) => {
+            logger
+                .error("ERROR", format!("Modpack import failed: {}", error))
+                .await
+        }
+    }
+    clear_download_log_path(&instance_id);
 
     result
 }
@@ -555,31 +647,92 @@ async fn execute_import_inner<R: Runtime>(
     base_dir: &Path,
     cancel: &Arc<AtomicBool>,
     server_binding: Option<crate::domain::instance::ServerBinding>,
+    logger: &ModpackImportLogger,
 ) -> Result<(), String> {
     if is_cancelled(cancel) {
+        logger
+            .warn("CANCEL", "Import was cancelled before parsing")
+            .await;
         return Err("Cancelled".to_string());
     }
 
+    logger
+        .info("PARSE", format!("Parsing archive {}", zip_path))
+        .await;
     let metadata = parse_modpack(zip_path)?;
+    logger
+        .info(
+            "PARSE",
+            format!(
+                "Metadata parsed: source={} name={} pack_version={:?} minecraft={} loader={} loader_version={} author={}",
+                metadata.source,
+                metadata.name,
+                metadata.pack_version,
+                metadata.version,
+                metadata.loader,
+                metadata.loader_version,
+                metadata.author
+            ),
+        )
+        .await;
+
     let pipack_manifest = read_pipack_manifest(zip_path).ok();
+    if let Some(manifest) = &pipack_manifest {
+        logger
+            .info(
+                "PARSE",
+                format!(
+                    "PiPack manifest found: format_version={} package_uuid={} overrides={} mods={} server_binding={}",
+                    manifest.format_version,
+                    manifest.package.uuid,
+                    manifest.overrides,
+                    manifest.mods.len(),
+                    manifest.server.is_some()
+                ),
+            )
+            .await;
+    }
+
     let effective_server_binding = server_binding.or_else(|| {
         pipack_manifest
             .as_ref()
             .and_then(|manifest| manifest.server.clone())
     });
     let instance_root = base_dir.join("instances").join(instance_id);
+    logger
+        .info(
+            "INSTANCE",
+            format!("Preparing instance directory {}", instance_root.display()),
+        )
+        .await;
 
     create_instance_layout(&instance_root)?;
+    logger.info("INSTANCE", "Instance layout created").await;
     let mut config = build_instance_config(instance_id, instance_name, &metadata);
     config.server_binding = effective_server_binding.clone();
     super::ops::write_instance_config(&instance_root, &config)?;
+    logger
+        .info("INSTANCE", "Initial instance.json written")
+        .await;
 
     let db = app.state::<crate::services::db_service::AppDatabase>();
     crate::services::instance::binding::InstanceBindingService::upsert_instance(&db.pool, &config)
         .await
         .map_err(|e| e.to_string())?;
+    logger
+        .info("INSTANCE", "Instance database record upserted")
+        .await;
 
     if let Some(binding) = &effective_server_binding {
+        logger
+            .info(
+                "SERVER_BINDING",
+                format!(
+                    "Applying server binding: uuid={} name={} address={}:{}",
+                    binding.uuid, binding.name, binding.ip, binding.port
+                ),
+            )
+            .await;
         let canonical_binding =
             crate::services::instance::binding::InstanceBindingService::replace_binding_for_instance(
                 &db.pool,
@@ -592,8 +745,15 @@ async fn execute_import_inner<R: Runtime>(
         config.server_binding = Some(canonical_binding);
         config.auto_join_server = Some(true);
         super::ops::write_instance_config(&instance_root, &config)?;
+        logger
+            .info(
+                "SERVER_BINDING",
+                "Server binding saved to database and instance.json",
+            )
+            .await;
     }
 
+    logger.info("EXTRACT", "Extracting modpack overrides").await;
     let _ = app.emit(
         "instance-deployment-progress",
         DownloadProgressEvent {
@@ -607,12 +767,26 @@ async fn execute_import_inner<R: Runtime>(
     );
 
     extract_overrides(zip_path, &instance_root)?;
+    logger.info("EXTRACT", "Overrides extracted").await;
 
     if is_cancelled(cancel) {
+        logger
+            .warn("CANCEL", "Import was cancelled after extraction")
+            .await;
         return Err("Cancelled".to_string());
     }
 
     let global_mc_root = base_dir.join("runtime");
+    logger
+        .info(
+            "VANILLA_CORE",
+            format!(
+                "Installing vanilla core and dependencies: minecraft={} runtime_root={}",
+                metadata.version,
+                global_mc_root.display()
+            ),
+        )
+        .await;
     let _ = app.emit(
         "instance-deployment-progress",
         DownloadProgressEvent {
@@ -634,6 +808,7 @@ async fn execute_import_inner<R: Runtime>(
     )
     .await
     .map_err(|e| e.to_string())?;
+    logger.info("VANILLA_CORE", "Vanilla core installed").await;
 
     crate::services::downloader::dependencies::download_dependencies(
         app,
@@ -644,7 +819,19 @@ async fn execute_import_inner<R: Runtime>(
     )
     .await
     .map_err(|e| e.to_string())?;
+    logger
+        .info("VANILLA_CORE", "Minecraft dependencies installed")
+        .await;
 
+    logger
+        .info(
+            "LOADER",
+            format!(
+                "Installing loader {} {}",
+                metadata.loader, metadata.loader_version
+            ),
+        )
+        .await;
     let _ = app.emit(
         "instance-deployment-progress",
         DownloadProgressEvent {
@@ -671,11 +858,16 @@ async fn execute_import_inner<R: Runtime>(
     )
     .await
     .map_err(|e| e.to_string())?;
+    logger.info("LOADER", "Loader installed").await;
 
     if is_cancelled(cancel) {
+        logger
+            .warn("CANCEL", "Import was cancelled after loader install")
+            .await;
         return Err("Cancelled".to_string());
     }
 
+    logger.info("MODS", "Preparing mod downloads").await;
     let _ = app.emit(
         "instance-deployment-progress",
         DownloadProgressEvent {
@@ -688,9 +880,21 @@ async fn execute_import_inner<R: Runtime>(
         },
     );
 
-    fetch_modpack_mods(app, zip_path, &instance_root, instance_id, base_dir, cancel).await?;
+    fetch_modpack_mods(
+        app,
+        zip_path,
+        &instance_root,
+        instance_id,
+        base_dir,
+        cancel,
+        logger,
+    )
+    .await?;
 
     if is_cancelled(cancel) {
+        logger
+            .warn("CANCEL", "Import was cancelled after mod downloads")
+            .await;
         return Err("Cancelled".to_string());
     }
 
@@ -709,15 +913,31 @@ async fn execute_import_inner<R: Runtime>(
     Ok(())
 }
 
-fn cleanup_modpack_artifacts(base_dir: &Path, instance_id: &str) {
+fn cleanup_modpack_artifacts(
+    base_dir: &Path,
+    instance_id: &str,
+) -> Vec<(PathBuf, bool, Result<(), String>)> {
     let instance_root = base_dir.join("instances").join(instance_id);
     let temp_root = base_dir.join("temp").join("modpack");
 
-    let _ = fs::remove_dir_all(&instance_root);
-    let _ = fs::remove_dir_all(temp_root.join(instance_id));
-    let _ = fs::remove_dir_all(temp_root.join("curseforge").join(instance_id));
-    let _ = fs::remove_dir_all(temp_root.join("modrinth").join(instance_id));
-    let _ = fs::remove_dir_all(temp_root.join("pipack").join(instance_id));
+    [
+        instance_root,
+        temp_root.join(instance_id),
+        temp_root.join("curseforge").join(instance_id),
+        temp_root.join("modrinth").join(instance_id),
+        temp_root.join("pipack").join(instance_id),
+    ]
+    .into_iter()
+    .map(|path| {
+        let existed = path.exists();
+        let result = if existed {
+            fs::remove_dir_all(&path).map_err(|error| error.to_string())
+        } else {
+            Ok(())
+        };
+        (path, existed, result)
+    })
+    .collect()
 }
 
 async fn fetch_modpack_mods<R: Runtime>(
@@ -727,19 +947,52 @@ async fn fetch_modpack_mods<R: Runtime>(
     instance_id: &str,
     base_dir: &Path,
     cancel: &Arc<AtomicBool>,
+    logger: &ModpackImportLogger,
 ) -> Result<(), String> {
     let mut archive = open_modpack_archive(zip_path)?;
-    match detect_modpack_source(&mut archive)? {
+    let source = detect_modpack_source(&mut archive)?;
+    logger
+        .info(
+            "MODS",
+            format!("Detected modpack source for mods: {:?}", source),
+        )
+        .await;
+    match source {
         ModpackSourceHint::PiPack => {
-            download_pipack_mods(app, zip_path, instance_root, instance_id, base_dir, cancel).await
+            download_pipack_mods(
+                app,
+                zip_path,
+                instance_root,
+                instance_id,
+                base_dir,
+                cancel,
+                logger,
+            )
+            .await
         }
         ModpackSourceHint::Modrinth => {
-            download_modrinth_mods(app, zip_path, instance_root, instance_id, base_dir, cancel)
-                .await
+            download_modrinth_mods(
+                app,
+                zip_path,
+                instance_root,
+                instance_id,
+                base_dir,
+                cancel,
+                logger,
+            )
+            .await
         }
         ModpackSourceHint::CurseForge => {
-            download_curseforge_mods(app, zip_path, instance_root, instance_id, base_dir, cancel)
-                .await
+            download_curseforge_mods(
+                app,
+                zip_path,
+                instance_root,
+                instance_id,
+                base_dir,
+                cancel,
+                logger,
+            )
+            .await
         }
     }
 }
@@ -751,9 +1004,24 @@ async fn download_pipack_mods<R: Runtime>(
     instance_id: &str,
     base_dir: &Path,
     cancel: &Arc<AtomicBool>,
+    logger: &ModpackImportLogger,
 ) -> Result<(), String> {
     let manifest = read_pipack_manifest(zip_path)?;
+    logger
+        .info(
+            "PIPACK_MODS",
+            format!(
+                "PiPack mod manifest loaded: mods={} overrides={} server_binding={}",
+                manifest.mods.len(),
+                manifest.overrides,
+                manifest.server.is_some()
+            ),
+        )
+        .await;
     if manifest.mods.is_empty() {
+        logger
+            .info("PIPACK_MODS", "No mods declared in PiPack manifest")
+            .await;
         return finalize_imported_mod_manifest(instance_root, Vec::new());
     }
 
@@ -766,6 +1034,19 @@ async fn download_pipack_mods<R: Runtime>(
     let retry_count = dl_settings.retry_count;
     let verify_hash = dl_settings.verify_after_download;
     let speed_limit_bytes_per_sec = ConfigService::download_speed_limit_bytes_per_sec(&dl_settings);
+    logger
+        .info(
+            "PIPACK_MODS",
+            format!(
+                "Download settings: concurrency={} retry_count={} verify_hash={} timeout={}s speed_limit={}B/s",
+                concurrency,
+                retry_count,
+                verify_hash,
+                dl_settings.timeout,
+                speed_limit_bytes_per_sec
+            ),
+        )
+        .await;
 
     let client = Client::builder()
         .user_agent("PiLauncher/1.0 (PiPack)")
@@ -781,6 +1062,12 @@ async fn download_pipack_mods<R: Runtime>(
     tokio::fs::create_dir_all(&temp_root)
         .await
         .map_err(|e| e.to_string())?;
+    logger
+        .info(
+            "PIPACK_MODS",
+            format!("Temporary directory: {}", temp_root.display()),
+        )
+        .await;
 
     let curseforge_api_key = if manifest.mods.iter().any(|entry| {
         entry
@@ -809,6 +1096,7 @@ async fn download_pipack_mods<R: Runtime>(
 
     let mut tasks: Vec<DownloadTask> = Vec::new();
     let mut manifest_entries: Vec<(String, ModManifestEntry)> = Vec::new();
+    let mut reused_count = 0usize;
 
     for entry in &manifest.mods {
         if is_cancelled(cancel) {
@@ -820,6 +1108,7 @@ async fn download_pipack_mods<R: Runtime>(
         let target_path = instance_root.join(&relative_path);
 
         if target_path.exists() && file_matches_hash(&target_path, &entry.hash).await? {
+            reused_count += 1;
             let file_state = build_file_state(&target_path)?;
             let hash = compute_file_hash(&target_path)?;
             manifest_entries.push((
@@ -839,12 +1128,28 @@ async fn download_pipack_mods<R: Runtime>(
         .await?;
 
         match remote_task {
-            Some(task) => tasks.push(task),
+            Some(task) => {
+                logger
+                    .info(
+                        "PIPACK_MODS",
+                        format!(
+                            "Queued mod download: file={} path={} platform={:?} project={:?} file_id={:?}",
+                            entry.file_name,
+                            target_path.display(),
+                            entry.source.platform,
+                            entry.source.project_id,
+                            entry.source.file_id
+                        ),
+                    )
+                    .await;
+                tasks.push(task)
+            }
             None => {
                 if entry.bundled_path.is_some()
                     && target_path.exists()
                     && file_matches_hash(&target_path, &entry.hash).await?
                 {
+                    reused_count += 1;
                     let file_state = build_file_state(&target_path)?;
                     let hash = compute_file_hash(&target_path)?;
                     manifest_entries.push((
@@ -863,6 +1168,16 @@ async fn download_pipack_mods<R: Runtime>(
     }
 
     if !tasks.is_empty() {
+        logger
+            .info(
+                "PIPACK_MODS",
+                format!(
+                    "Running {} PiPack mod downloads (reused={})",
+                    tasks.len(),
+                    reused_count
+                ),
+            )
+            .await;
         run_downloads::<R>(
             app,
             instance_id,
@@ -878,6 +1193,13 @@ async fn download_pipack_mods<R: Runtime>(
         )
         .await
         .map_err(|e| e.to_string())?;
+    } else {
+        logger
+            .info(
+                "PIPACK_MODS",
+                format!("No PiPack mod downloads needed (reused={})", reused_count),
+            )
+            .await;
     }
 
     for entry in &manifest.mods {
@@ -896,6 +1218,12 @@ async fn download_pipack_mods<R: Runtime>(
         ));
     }
 
+    logger
+        .info(
+            "PIPACK_MODS",
+            format!("Finalizing mod manifest entries={}", manifest_entries.len()),
+        )
+        .await;
     finalize_imported_mod_manifest(instance_root, manifest_entries)
 }
 
@@ -906,6 +1234,7 @@ async fn download_modrinth_mods<R: Runtime>(
     instance_id: &str,
     base_dir: &Path,
     cancel: &Arc<AtomicBool>,
+    logger: &ModpackImportLogger,
 ) -> Result<(), String> {
     let mut archive = open_modpack_archive(zip_path)?;
     let contents = read_zip_entry_to_string(&mut archive, "modrinth.index.json")?;
@@ -915,8 +1244,19 @@ async fn download_modrinth_mods<R: Runtime>(
 
     let files = match index["files"].as_array() {
         Some(files) => files,
-        None => return Ok(()),
+        None => {
+            logger
+                .warn("MODRINTH_MODS", "modrinth.index.json has no files array")
+                .await;
+            return Ok(());
+        }
     };
+    logger
+        .info(
+            "MODRINTH_MODS",
+            format!("Modrinth index loaded: declared_files={}", files.len()),
+        )
+        .await;
 
     let dl_settings = ConfigService::get_download_settings(app);
     let concurrency = if dl_settings.concurrency > 0 {
@@ -927,6 +1267,19 @@ async fn download_modrinth_mods<R: Runtime>(
     let retry_count = dl_settings.retry_count;
     let verify_hash = dl_settings.verify_after_download;
     let speed_limit_bytes_per_sec = ConfigService::download_speed_limit_bytes_per_sec(&dl_settings);
+    logger
+        .info(
+            "MODRINTH_MODS",
+            format!(
+                "Download settings: concurrency={} retry_count={} verify_hash={} timeout={}s speed_limit={}B/s",
+                concurrency,
+                retry_count,
+                verify_hash,
+                dl_settings.timeout,
+                speed_limit_bytes_per_sec
+            ),
+        )
+        .await;
 
     let client = Client::builder()
         .user_agent("PiLauncher/1.0 (Modpack)")
@@ -939,6 +1292,12 @@ async fn download_modrinth_mods<R: Runtime>(
     tokio::fs::create_dir_all(&temp_root)
         .await
         .map_err(|e| e.to_string())?;
+    logger
+        .info(
+            "MODRINTH_MODS",
+            format!("Temporary directory: {}", temp_root.display()),
+        )
+        .await;
 
     let mut tasks: Vec<DownloadTask> = Vec::new();
     let mut tracked_manifest_sources: Vec<(
@@ -946,11 +1305,14 @@ async fn download_modrinth_mods<R: Runtime>(
         crate::domain::mod_manifest::ModManifestSource,
         PathBuf,
     )> = Vec::new();
+    let mut skipped_count = 0usize;
+    let mut reused_count = 0usize;
 
     for file in files {
         if let Some(env) = file.get("env") {
             if let Some(client_env) = env.get("client").and_then(|v| v.as_str()) {
                 if client_env == "unsupported" {
+                    skipped_count += 1;
                     continue;
                 }
             }
@@ -963,17 +1325,29 @@ async fn download_modrinth_mods<R: Runtime>(
             .and_then(|v| v.as_str())
         {
             Some(url) => url,
-            None => continue,
+            None => {
+                skipped_count += 1;
+                continue;
+            }
         };
 
         let path = match file.get("path").and_then(|v| v.as_str()) {
             Some(p) => p,
-            None => continue,
+            None => {
+                skipped_count += 1;
+                continue;
+            }
         };
 
         let relative_path = match safe_relative_path(path) {
             Some(p) => p,
-            None => continue,
+            None => {
+                skipped_count += 1;
+                logger
+                    .warn("MODRINTH_MODS", format!("Skipped unsafe path: {}", path))
+                    .await;
+                continue;
+            }
         };
 
         let file_name = relative_path
@@ -1018,13 +1392,16 @@ async fn download_modrinth_mods<R: Runtime>(
                     if let Some(expected) = expected_sha1.as_ref() {
                         if let Ok(actual) = sha1_file(&target_path).await {
                             if actual == *expected {
+                                reused_count += 1;
                                 continue;
                             }
                         }
                     } else {
+                        reused_count += 1;
                         continue;
                     }
                 } else {
+                    reused_count += 1;
                     continue;
                 }
             }
@@ -1045,6 +1422,17 @@ async fn download_modrinth_mods<R: Runtime>(
     }
 
     if !tasks.is_empty() {
+        logger
+            .info(
+                "MODRINTH_MODS",
+                format!(
+                    "Running {} Modrinth downloads (reused={} skipped={})",
+                    tasks.len(),
+                    reused_count,
+                    skipped_count
+                ),
+            )
+            .await;
         run_downloads::<R>(
             app,
             instance_id,
@@ -1060,6 +1448,16 @@ async fn download_modrinth_mods<R: Runtime>(
         )
         .await
         .map_err(|e| e.to_string())?;
+    } else {
+        logger
+            .info(
+                "MODRINTH_MODS",
+                format!(
+                    "No Modrinth downloads needed (reused={} skipped={})",
+                    reused_count, skipped_count
+                ),
+            )
+            .await;
     }
 
     let mut manifest_entries = Vec::new();
@@ -1072,6 +1470,12 @@ async fn download_modrinth_mods<R: Runtime>(
         }
     }
 
+    logger
+        .info(
+            "MODRINTH_MODS",
+            format!("Finalizing mod manifest entries={}", manifest_entries.len()),
+        )
+        .await;
     finalize_imported_mod_manifest(instance_root, manifest_entries)
 }
 
@@ -1082,16 +1486,29 @@ async fn download_curseforge_mods<R: Runtime>(
     instance_id: &str,
     base_dir: &Path,
     cancel: &Arc<AtomicBool>,
+    logger: &ModpackImportLogger,
 ) -> Result<(), String> {
     let mut archive = open_modpack_archive(zip_path)?;
     let contents = read_zip_entry_to_string(&mut archive, "manifest.json")?;
     let manifest: CurseForgeManifest =
         serde_json::from_str(&contents).map_err(|e| format!("Failed to parse manifest: {}", e))?;
+    logger
+        .info(
+            "CURSEFORGE_MODS",
+            format!(
+                "CurseForge manifest loaded: declared_files={}",
+                manifest.files.len()
+            ),
+        )
+        .await;
 
     let api_key = resolve_curseforge_api_key().ok_or_else(|| {
         "CurseForge API key is missing. Set VITE_CURSEFORGE_API_KEY or CURSEFORGE_API_KEY."
             .to_string()
     })?;
+    logger
+        .info("CURSEFORGE_MODS", "CurseForge API key resolved")
+        .await;
 
     let dl_settings = ConfigService::get_download_settings(app);
     let concurrency = if dl_settings.concurrency > 0 {
@@ -1102,6 +1519,19 @@ async fn download_curseforge_mods<R: Runtime>(
     let retry_count = dl_settings.retry_count;
     let verify_hash = dl_settings.verify_after_download;
     let speed_limit_bytes_per_sec = ConfigService::download_speed_limit_bytes_per_sec(&dl_settings);
+    logger
+        .info(
+            "CURSEFORGE_MODS",
+            format!(
+                "Download settings: concurrency={} retry_count={} verify_hash={} timeout={}s speed_limit={}B/s",
+                concurrency,
+                retry_count,
+                verify_hash,
+                dl_settings.timeout,
+                speed_limit_bytes_per_sec
+            ),
+        )
+        .await;
 
     let client = Client::builder()
         .user_agent("PiLauncher/1.0 (CurseForge)")
@@ -1118,6 +1548,12 @@ async fn download_curseforge_mods<R: Runtime>(
     tokio::fs::create_dir_all(&temp_root)
         .await
         .map_err(|e| e.to_string())?;
+    logger
+        .info(
+            "CURSEFORGE_MODS",
+            format!("Temporary directory: {}", temp_root.display()),
+        )
+        .await;
 
     let entries: Vec<CurseForgeManifestFile> = manifest
         .files
@@ -1126,8 +1562,17 @@ async fn download_curseforge_mods<R: Runtime>(
         .collect();
 
     if entries.is_empty() {
+        logger
+            .info("CURSEFORGE_MODS", "No required CurseForge files declared")
+            .await;
         return finalize_imported_mod_manifest(instance_root, Vec::new());
     }
+    logger
+        .info(
+            "CURSEFORGE_MODS",
+            format!("Required CurseForge files: {}", entries.len()),
+        )
+        .await;
 
     let info_concurrency = std::cmp::max(1, std::cmp::min(concurrency, 8));
     let info_stream = iter(entries.into_iter()).map(|entry| {
@@ -1148,6 +1593,7 @@ async fn download_curseforge_mods<R: Runtime>(
         crate::domain::mod_manifest::ModManifestSource,
         PathBuf,
     )> = Vec::new();
+    let mut reused_count = 0usize;
     let mut info_results = info_stream.buffer_unordered(info_concurrency);
     while let Some(result) = info_results.next().await {
         let (entry, info, project) = result?;
@@ -1200,13 +1646,16 @@ async fn download_curseforge_mods<R: Runtime>(
                     if let Some(expected) = expected_sha1.as_ref() {
                         if let Ok(actual) = sha1_file(&target_path).await {
                             if actual == *expected {
+                                reused_count += 1;
                                 continue;
                             }
                         }
                     } else {
+                        reused_count += 1;
                         continue;
                     }
                 } else {
+                    reused_count += 1;
                     continue;
                 }
             }
@@ -1229,6 +1678,17 @@ async fn download_curseforge_mods<R: Runtime>(
     }
 
     if !tasks.is_empty() {
+        logger
+            .info(
+                "CURSEFORGE_MODS",
+                format!(
+                    "Running {} CurseForge downloads (reused={} info_concurrency={})",
+                    tasks.len(),
+                    reused_count,
+                    info_concurrency
+                ),
+            )
+            .await;
         run_downloads::<R>(
             app,
             instance_id,
@@ -1244,6 +1704,13 @@ async fn download_curseforge_mods<R: Runtime>(
         )
         .await
         .map_err(|e| e.to_string())?;
+    } else {
+        logger
+            .info(
+                "CURSEFORGE_MODS",
+                format!("No CurseForge downloads needed (reused={})", reused_count),
+            )
+            .await;
     }
 
     let mut manifest_entries = Vec::new();
@@ -1256,5 +1723,11 @@ async fn download_curseforge_mods<R: Runtime>(
         }
     }
 
+    logger
+        .info(
+            "CURSEFORGE_MODS",
+            format!("Finalizing mod manifest entries={}", manifest_entries.len()),
+        )
+        .await;
     finalize_imported_mod_manifest(instance_root, manifest_entries)
 }

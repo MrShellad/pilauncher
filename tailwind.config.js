@@ -29,7 +29,8 @@ export default {
           },
           // --- 文本颜色 ---
           text: {
-            DEFAULT: '#FFFFFF',
+            DEFAULT: '#F2F2F2',
+            emphasis: '#FFFFFF',
             muted: '#D0D1D4',
             dark: '#000000',
           }
@@ -39,8 +40,8 @@ export default {
         'ore-glow': '0 0 6px var(--ore-focus-glow)',
       },
       fontFamily: {
-    
-        minecraft: ['var(--ore-global-font, "Minecraft")', '"NotoSans Bold"', '"Noto Sans SC"', 'sans-serif'], 
+        sans: ['var(--ore-font-family-sans)'],
+        minecraft: ['var(--ore-font-family-minecraft)'],
       },
       // 这里的尺寸变量如果其他地方还在用就保留，按钮内部已经改用刚性尺寸了
       spacing: {

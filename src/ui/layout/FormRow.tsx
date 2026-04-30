@@ -33,7 +33,7 @@ export const FormRow: React.FC<FormRowProps> = ({
             {label}
           </div>
           {description && (
-            <div className="text-sm text-[#A0A0A0] font-minecraft leading-relaxed opacity-90 max-w-xl">
+            <div className="text-sm text-[#A0A0A0] font-minecraft leading-relaxed opacity-90">
               {description}
             </div>
           )}
@@ -58,7 +58,7 @@ export const FormRow: React.FC<FormRowProps> = ({
           {label}
         </div>
         {description && (
-          <div className="text-sm text-[#A0A0A0] font-minecraft leading-relaxed opacity-90 max-w-xl">
+          <div className="text-sm text-[#A0A0A0] font-minecraft leading-relaxed opacity-90">
             {description}
           </div>
         )}

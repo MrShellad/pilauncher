@@ -672,6 +672,18 @@
       "resolutionDesc": "设定游戏初始窗口的大小 (全屏模式下此项仅影响 UI 缩放)。已根据你的显示器自动隐藏不支持的超大分辨率。",
       "showLog": "游戏日志面板",
       "showLogDesc": "启动游戏时展开带有日志输出的控制台面板。关闭后将显示方块跳跃动画，直到游戏加载完成。",
+      "steamDeckKeymap": "Steam Deck 游戏模式按键映射",
+      "steamDeckKeymapDesc": "将 Steam Input 输出的键盘/鼠标布局识别为启动器手柄导航，匹配推荐的 Minecraft Java 版掌机布局。",
+      "steamDeckMap": {
+        "confirm": "空格 / 确认",
+        "cancel": "Esc / 返回",
+        "move": "移动启动器焦点",
+        "pointer": "鼠标指针",
+        "actionX": "次级操作",
+        "actionY": "快捷操作",
+        "scroll": "滚动或上下移动焦点",
+        "mouseButtons": "Minecraft 中的左右键点击"
+      },
       "visibility": "游戏运行时的可见性",
       "visibilityDesc": "当 Minecraft 实例成功拉起并运行后，主启动器界面的处理方式。",
       "resolutions": {
@@ -949,6 +961,8 @@
     },
     "actions": {
       "selectArchive": "选择整合包文件",
+      "selectArchiveNative": "系统文件选择器",
+      "selectArchiveBrowser": "内置目录浏览器",
       "change": "更改",
       "cancel": "取消",
       "startImport": "开始导入",

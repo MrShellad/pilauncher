@@ -46,7 +46,7 @@ export const WardrobeSkinMenuModal: React.FC<WardrobeSkinMenuModalProps> = ({
       isOpen={!!skinMenuAsset}
       onClose={onClose}
       title={modalTitle}
-      className="w-full max-w-[860px]"
+      className="w-full max-w-4xl"
       contentClassName="p-0 overflow-hidden"
     >
       {skinMenuAsset && (
@@ -95,7 +95,7 @@ export const WardrobeSkinMenuModal: React.FC<WardrobeSkinMenuModalProps> = ({
                   onChange={(event) => onChangeNote(event.target.value)}
                   placeholder={t('wardrobe.skinMenu.notePlaceholder')}
                   description={t('wardrobe.skinMenu.noteDescription')}
-                  className="!text-[13px]"
+                  className="!text-sm"
                 />
               </div>
             )}

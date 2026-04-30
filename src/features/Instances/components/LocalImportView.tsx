@@ -33,6 +33,12 @@ interface ModpackMetadata {
 }
 
 const SUPPORTED_ARCHIVE_EXTENSIONS = ['zip', 'mrpack', 'pipack'];
+const ARCHIVE_DIALOG_FILTERS = [
+  {
+    name: 'Modpack Archives',
+    extensions: SUPPORTED_ARCHIVE_EXTENSIONS,
+  },
+];
 
 const getFileExtension = (path: string) => {
   const fileName = path.split(/[\\/]/).pop() || path;
@@ -95,7 +101,23 @@ export const LocalImportView: React.FC = () => {
     }
   };
 
-  const handleSelectFile = () => {
+  const handleSelectNativeFile = async () => {
+    try {
+      const selected = await open({
+        directory: false,
+        multiple: false,
+        filters: ARCHIVE_DIALOG_FILTERS,
+      });
+
+      if (selected && typeof selected === 'string') {
+        void parseSelectedArchive(selected);
+      }
+    } catch (error) {
+      console.warn('Native file dialog failed:', error);
+    }
+  };
+
+  const handleOpenFileBrowser = () => {
     setIsFileBrowserOpen(true);
   };
 
@@ -161,27 +183,51 @@ export const LocalImportView: React.FC = () => {
               <span className="font-bold text-ore-green">{t('localImport.step1.autoPrepare')}</span>
             </p>
 
-            <FocusItem focusKey="btn-select-zip" onEnter={handleSelectFile}>
-              {({ ref, focused }) => (
-                <div
-                  ref={ref}
-                  className={`rounded-sm transition-shadow ${
-                    focused ? 'outline outline-[3px] outline-offset-[4px] outline-white' : ''
-                  }`}
-                >
-                  <OreButton
-                    variant="primary"
-                    size="lg"
-                    onClick={handleSelectFile}
-                    disabled={isParsing}
-                    tabIndex={-1}
+            <div className="flex flex-wrap justify-center gap-4">
+              <FocusItem focusKey="btn-select-native-archive" onEnter={handleSelectNativeFile}>
+                {({ ref, focused }) => (
+                  <div
+                    ref={ref}
+                    className={`rounded-sm transition-shadow ${
+                      focused ? 'outline outline-[3px] outline-offset-[4px] outline-white' : ''
+                    }`}
                   >
-                    <FileArchive size={20} className="mr-2" />
-                    {t('localImport.actions.selectArchive')}
-                  </OreButton>
-                </div>
-              )}
-            </FocusItem>
+                    <OreButton
+                      variant="primary"
+                      size="lg"
+                      onClick={handleSelectNativeFile}
+                      disabled={isParsing}
+                      tabIndex={-1}
+                    >
+                      <FileArchive size={20} className="mr-2" />
+                      {t('localImport.actions.selectArchiveNative')}
+                    </OreButton>
+                  </div>
+                )}
+              </FocusItem>
+
+              <FocusItem focusKey="btn-select-browser-archive" onEnter={handleOpenFileBrowser}>
+                {({ ref, focused }) => (
+                  <div
+                    ref={ref}
+                    className={`rounded-sm transition-shadow ${
+                      focused ? 'outline outline-[3px] outline-offset-[4px] outline-white' : ''
+                    }`}
+                  >
+                    <OreButton
+                      variant="secondary"
+                      size="lg"
+                      onClick={handleOpenFileBrowser}
+                      disabled={isParsing}
+                      tabIndex={-1}
+                    >
+                      <FolderArchive size={20} className="mr-2" />
+                      {t('localImport.actions.selectArchiveBrowser')}
+                    </OreButton>
+                  </div>
+                )}
+              </FocusItem>
+            </div>
           </motion.div>
         )}
 

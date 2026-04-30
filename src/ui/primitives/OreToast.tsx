@@ -9,25 +9,25 @@ const toneConfig: Record<ToastTone, { icon: React.ReactNode; accent: string; bg:
   success: {
     icon: <CheckCircle2 size={18} />,
     accent: 'text-emerald-400',
-    bg: 'bg-emerald-950/80',
+    bg: 'bg-emerald-950/95',
     border: 'border-emerald-700/60',
   },
   error: {
     icon: <XCircle size={18} />,
     accent: 'text-red-400',
-    bg: 'bg-red-950/80',
+    bg: 'bg-red-950/95',
     border: 'border-red-700/60',
   },
   warning: {
     icon: <AlertTriangle size={18} />,
     accent: 'text-amber-400',
-    bg: 'bg-amber-950/80',
+    bg: 'bg-amber-950/95',
     border: 'border-amber-700/60',
   },
   info: {
     icon: <Info size={18} />,
     accent: 'text-sky-400',
-    bg: 'bg-sky-950/80',
+    bg: 'bg-sky-950/95',
     border: 'border-sky-700/60',
   },
 };
@@ -73,7 +73,7 @@ const ToastEntry: React.FC<{ item: ToastItem }> = ({ item }) => {
     <div
       className={`
         pointer-events-auto flex items-start gap-3 rounded border-2 px-4 py-3
-        font-minecraft text-sm text-white shadow-lg backdrop-blur-md
+        font-minecraft text-sm text-white shadow-lg
         transition-all duration-300 ease-out
         ${cfg.bg} ${cfg.border}
         ${visible && !exiting ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}

@@ -53,6 +53,19 @@ pub fn sanitize_filename(input: &str) -> String {
     }
 }
 
+pub fn set_download_log_path(instance_id: &str, path: PathBuf) {
+    let cache = LOG_PATHS.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut cache = cache.lock().unwrap();
+    cache.insert(instance_id.to_string(), path);
+}
+
+pub fn clear_download_log_path(instance_id: &str) {
+    if let Some(cache) = LOG_PATHS.get() {
+        let mut cache = cache.lock().unwrap();
+        cache.remove(instance_id);
+    }
+}
+
 pub fn resolve_logs_dir<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
     if let Ok(Some(base)) = ConfigService::get_base_path(app) {
         return Some(PathBuf::from(base).join("logs"));

@@ -453,7 +453,7 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onAr
             <button
               ref={ref as React.RefObject<HTMLButtonElement>}
               type="button"
-              className={`ore-online-server-card__action ore-online-server-card__action--secondary ${focused ? 'outline outline-[3px] outline-offset-[2px] outline-white z-10' : ''}`}
+              className={`ore-online-server-card__action ore-online-server-card__action--secondary ${focused ? 'outline outline-2 outline-offset-2 outline-white z-10' : ''}`}
               onClick={handleCopyIp}
               disabled={!server.address}
               tabIndex={-1}
@@ -474,7 +474,7 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({ server, onAr
             <button
               ref={ref as React.RefObject<HTMLButtonElement>}
               type="button"
-              className={`ore-online-server-card__action ore-online-server-card__action--primary ${focused ? 'outline outline-[3px] outline-offset-[2px] outline-white z-10' : ''}`}
+              className={`ore-online-server-card__action ore-online-server-card__action--primary ${focused ? 'outline outline-2 outline-offset-2 outline-white z-10' : ''}`}
               onClick={() => onClick?.(server)}
               disabled={!onClick}
               tabIndex={-1}

@@ -28,13 +28,19 @@
 
   /* ================= 灏哄鎺у埗 ================= */
   .ore-tag-sm {
-    @apply px-1.5 py-0.5 text-[10px];
+    padding: 2px 6px;
+    font-size: 10px;
+    line-height: 12px;
   }
   .ore-tag-md {
-    @apply px-2 py-1 text-xs;
+    padding: 4px 8px;
+    font-size: 12px;
+    line-height: 14px;
   }
   .ore-tag-lg {
-    @apply px-3 py-1.5 text-sm;
+    padding: 6px 12px;
+    font-size: 14px;
+    line-height: 16px;
   }
 
   /* ================= 瀛楅噸鎺у埗 ================= */

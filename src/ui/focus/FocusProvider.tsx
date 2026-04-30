@@ -1,10 +1,24 @@
-// src/ui/focus/FocusProvider.tsx
-import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { init } from '@noriginmedia/norigin-spatial-navigation';
 import { invoke } from '@tauri-apps/api/core';
 
-import { useInputDriver, type InputMode, defaultBindings } from './InputDriver';
+import {
+  useInputDriver,
+  type InputMode,
+  type InputBindings,
+  defaultBindings,
+  steamDeckKeyboardPreset,
+} from './InputDriver';
 import { GamepadToast } from './GamepadToast';
+import { useSettingsStore } from '../../store/useSettingsStore';
 
 interface GlobalFocusContextType {
   inputMode: InputMode;
@@ -21,38 +35,71 @@ interface FocusProviderProps {
 export const FocusProvider: React.FC<FocusProviderProps> = ({ children, debug = false }) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [inputMode, setInputMode] = useState<InputMode>('mouse');
-  const [activeBindings, setActiveBindings] = useState(defaultBindings);
-  
+  const [savedBindings, setSavedBindings] = useState<Partial<InputBindings> | null>(null);
+  const steamDeckKeymapEnabled = useSettingsStore(
+    (state) => state.settings.game?.steamDeckKeymap ?? false,
+  );
+
   const currentModeRef = useRef<InputMode>('mouse');
 
   useEffect(() => {
-    // 异步加载流程：读取按键映射 -> 初始化焦点引擎
     const setupEngine = async () => {
       try {
-        const savedBindings = await invoke<any>('get_keybindings');
-        
-        // 如果后端返回了有效的配置（不是空对象），则进行合并或替换
-        if (savedBindings && Object.keys(savedBindings).length > 0) {
-          // 这里做一个简单的合并，防止后端 json 缺少某些必须的键
-          setActiveBindings((prev) => ({
-            keyboard: { ...prev.keyboard, ...savedBindings.keyboard },
-            gamepad: {
-              buttons: { ...prev.gamepad.buttons, ...savedBindings.gamepad?.buttons },
-              axes: { ...prev.gamepad.axes, ...savedBindings.gamepad?.axes }
-            }
-          }));
+        const loadedBindings = await invoke<Partial<InputBindings>>('get_keybindings');
+        if (loadedBindings && Object.keys(loadedBindings).length > 0) {
+          setSavedBindings(loadedBindings);
         }
       } catch (err) {
-        console.error("加载按键映射失败，使用默认配置:", err);
+        console.error('Failed to load keybindings, using defaults', err);
       }
 
-      // 初始化空间导航引擎
       init({ debug, visualDebug: debug });
       setIsInitialized(true);
     };
 
-    setupEngine();
+    void setupEngine();
   }, [debug]);
+
+  const activeBindings = useMemo<InputBindings>(() => {
+    const merged: InputBindings = {
+      keyboard: {
+        ...defaultBindings.keyboard,
+        ...(savedBindings?.keyboard || {}),
+      },
+      gamepad: {
+        buttons: {
+          ...defaultBindings.gamepad.buttons,
+          ...(savedBindings?.gamepad?.buttons || {}),
+        },
+        axes: {
+          ...defaultBindings.gamepad.axes,
+          ...(savedBindings?.gamepad?.axes || {}),
+        },
+      },
+    };
+
+    if (steamDeckKeymapEnabled) {
+      merged.controllerKeyboard = {
+        ...steamDeckKeyboardPreset.controllerKeyboard,
+        ...(savedBindings?.controllerKeyboard || {}),
+      };
+      merged.mouse = {
+        buttons: {
+          ...(steamDeckKeyboardPreset.mouse?.buttons || {}),
+          ...(savedBindings?.mouse?.buttons || {}),
+        },
+        wheel: {
+          ...(steamDeckKeyboardPreset.mouse?.wheel || {}),
+          ...(savedBindings?.mouse?.wheel || {}),
+        },
+      };
+    } else if (savedBindings?.controllerKeyboard || savedBindings?.mouse) {
+      merged.controllerKeyboard = savedBindings.controllerKeyboard;
+      merged.mouse = savedBindings.mouse;
+    }
+
+    return merged;
+  }, [savedBindings, steamDeckKeymapEnabled]);
 
   const updateMode = useCallback((mode: InputMode) => {
     if (currentModeRef.current !== mode) {
@@ -63,10 +110,8 @@ export const FocusProvider: React.FC<FocusProviderProps> = ({ children, debug = 
     }
   }, []);
 
-  // 挂载底层超级驱动，并传入动态加载的按键映射
   useInputDriver(updateMode, activeBindings);
 
-  // 如果引擎还没初始化完毕，展示黑屏或 loading
   if (!isInitialized) return null;
 
   return (

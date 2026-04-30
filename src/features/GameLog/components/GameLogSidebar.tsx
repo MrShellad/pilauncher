@@ -163,7 +163,7 @@ export const GameLogSidebar: React.FC = () => {
                     initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                     className="relative shrink-0 w-full bg-blue-600/10 border-b border-blue-500/30 overflow-hidden z-10"
                   >
-                    <div className="p-2 flex items-center justify-center text-blue-400 text-xs backdrop-blur-sm">
+                    <div className="p-2 flex items-center justify-center text-blue-400 text-xs bg-[#0F172A]/80">
                       <Loader2 size={14} className="mr-2 animate-spin" />
                       建立日志管道并启动虚拟机，请稍候...
                     </div>

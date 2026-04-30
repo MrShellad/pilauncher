@@ -1,4 +1,3 @@
-// /src/ui/focus/InputDriver.ts
 import { useEffect, useRef } from 'react';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { useGameLogStore } from '../../store/useGameLogStore';
@@ -10,49 +9,107 @@ export type InputAction =
   | 'TAB_LEFT' | 'TAB_RIGHT'
   | 'ACTION_X' | 'ACTION_Y';
 
-export type InputMode = "mouse" | "keyboard" | "controller";
+export type InputMode = 'mouse' | 'keyboard' | 'controller';
 
-// ------------------------------------------------------------------
-// 1. JSON 键位映射配置
-// ------------------------------------------------------------------
-export const defaultBindings = {
+type AxisMapping = { negative: InputAction; positive: InputAction };
+
+export interface InputBindings {
+  keyboard: Record<string, InputAction>;
+  gamepad: {
+    buttons: Record<string | number, InputAction>;
+    axes: Record<string | number, AxisMapping>;
+  };
+  controllerKeyboard?: Record<string, InputAction>;
+  mouse?: {
+    buttons?: Record<number, InputAction>;
+    wheel?: {
+      up?: InputAction;
+      down?: InputAction;
+    };
+  };
+}
+
+export const defaultBindings: InputBindings = {
   keyboard: {
-    'ArrowUp': 'UP', 'ArrowDown': 'DOWN', 'ArrowLeft': 'LEFT', 'ArrowRight': 'RIGHT',
-    'Enter': 'CONFIRM', 'Escape': 'CANCEL',
-    ';': 'PAGE_LEFT', "'": 'PAGE_RIGHT', '[': 'TAB_LEFT', ']': 'TAB_RIGHT',
-    'x': 'ACTION_X', 'y': 'ACTION_Y'
-  } as Record<string, InputAction>,
+    ArrowUp: 'UP',
+    ArrowDown: 'DOWN',
+    ArrowLeft: 'LEFT',
+    ArrowRight: 'RIGHT',
+    Enter: 'CONFIRM',
+    Escape: 'CANCEL',
+    ';': 'PAGE_LEFT',
+    "'": 'PAGE_RIGHT',
+    '[': 'TAB_LEFT',
+    ']': 'TAB_RIGHT',
+    x: 'ACTION_X',
+    y: 'ACTION_Y',
+  },
   gamepad: {
     buttons: {
-      // 🌟 优先使用字符串名称进行直观映射
-      'South': 'CONFIRM',
-      'East': 'CANCEL',
-      'North': 'ACTION_Y',
-      'West': 'ACTION_X',
-      'LeftTrigger': 'TAB_LEFT',
-      'LeftTrigger2': 'PAGE_LEFT',
-      'RightTrigger': 'TAB_RIGHT',
-      'RightTrigger2': 'PAGE_RIGHT',
-      'Select': 'VIEW',
-      'Start': 'MENU',
-      'DPadUp': 'UP',
-      'DPadDown': 'DOWN',
-      'DPadLeft': 'LEFT',
-      'DPadRight': 'RIGHT',
-      // 数字备份 (防止驱动没返回名称)
-      0: 'CONFIRM', 1: 'CANCEL', 2: 'ACTION_Y', 3: 'ACTION_X',
-      6: 'TAB_LEFT', 7: 'PAGE_LEFT', 8: 'TAB_RIGHT', 9: 'PAGE_RIGHT',
-      10: 'VIEW', 11: 'MENU',
-      16: 'UP', 17: 'DOWN', 18: 'LEFT', 19: 'RIGHT'
-    } as Record<string | number, InputAction>,
+      South: 'CONFIRM',
+      East: 'CANCEL',
+      North: 'ACTION_Y',
+      West: 'ACTION_X',
+      LeftTrigger: 'TAB_LEFT',
+      LeftTrigger2: 'PAGE_LEFT',
+      RightTrigger: 'TAB_RIGHT',
+      RightTrigger2: 'PAGE_RIGHT',
+      Select: 'VIEW',
+      Start: 'MENU',
+      DPadUp: 'UP',
+      DPadDown: 'DOWN',
+      DPadLeft: 'LEFT',
+      DPadRight: 'RIGHT',
+      0: 'CONFIRM',
+      1: 'CANCEL',
+      2: 'ACTION_Y',
+      3: 'ACTION_X',
+      6: 'TAB_LEFT',
+      7: 'PAGE_LEFT',
+      8: 'TAB_RIGHT',
+      9: 'PAGE_RIGHT',
+      10: 'VIEW',
+      11: 'MENU',
+      16: 'UP',
+      17: 'DOWN',
+      18: 'LEFT',
+      19: 'RIGHT',
+    },
     axes: {
-      'LeftStickX': { negative: 'LEFT', positive: 'RIGHT' },
-      // 修正：大多数驱动上，LeftStickY 向上为负值，向下为正值，这里反转映射
-      'LeftStickY': { negative: 'DOWN', positive: 'UP' },
+      LeftStickX: { negative: 'LEFT', positive: 'RIGHT' },
+      LeftStickY: { negative: 'DOWN', positive: 'UP' },
       0: { negative: 'LEFT', positive: 'RIGHT' },
-      1: { negative: 'DOWN', positive: 'UP' }
-    } as Record<string | number, { negative: InputAction, positive: InputAction }>
-  }
+      1: { negative: 'DOWN', positive: 'UP' },
+    },
+  },
+};
+
+export const steamDeckKeyboardPreset: Pick<InputBindings, 'controllerKeyboard' | 'mouse'> = {
+  controllerKeyboard: {
+    w: 'UP',
+    W: 'UP',
+    s: 'DOWN',
+    S: 'DOWN',
+    a: 'LEFT',
+    A: 'LEFT',
+    d: 'RIGHT',
+    D: 'RIGHT',
+    ' ': 'CONFIRM',
+    Space: 'CONFIRM',
+    Enter: 'CONFIRM',
+    Escape: 'CANCEL',
+    f: 'ACTION_Y',
+    F: 'ACTION_Y',
+  },
+  mouse: {
+    buttons: {
+      2: 'ACTION_X',
+    },
+    wheel: {
+      up: 'UP',
+      down: 'DOWN',
+    },
+  },
 };
 
 const REPEAT_DELAY = 300;
@@ -60,7 +117,6 @@ const REPEAT_RATE = 50;
 const AXIS_DEADZONE = 0.5;
 const MOUSE_THRESHOLD = 5;
 
-// 辅助函数：补全 KeyboardEvent 的关键属性，确保 spatial navigation 能识别
 const getKeyEventProps = (key: string) => {
   const props: any = { key };
   if (key === 'ArrowUp') { props.keyCode = 38; props.code = 'ArrowUp'; }
@@ -82,13 +138,15 @@ export const useInputAction = (action: InputAction, callback: () => void) => {
   }, [action, callback]);
 };
 
-const dispatchAction = (action: InputAction, bindings: typeof defaultBindings, source: InputMode = 'controller') => {
+const dispatchAction = (
+  action: InputAction,
+  bindings: InputBindings,
+  source: InputMode = 'controller',
+) => {
   window.dispatchEvent(new CustomEvent('ore-action', { detail: action }));
 
   if (source === 'controller') {
-    const key = Object.keys(bindings.keyboard).find(
-      k => bindings.keyboard[k] === action
-    );
+    const key = Object.keys(bindings.keyboard).find((item) => bindings.keyboard[item] === action);
     if (key) {
       const target = document.activeElement || document.body;
       const eventProps = getKeyEventProps(key);
@@ -96,10 +154,9 @@ const dispatchAction = (action: InputAction, bindings: typeof defaultBindings, s
         ...eventProps,
         bubbles: true,
         cancelable: true,
-        composed: true
+        composed: true,
       });
 
-      // 注入兼容性属性
       if (eventProps.keyCode) {
         Object.defineProperty(event, 'keyCode', { value: eventProps.keyCode });
         Object.defineProperty(event, 'which', { value: eventProps.keyCode });
@@ -112,28 +169,34 @@ const dispatchAction = (action: InputAction, bindings: typeof defaultBindings, s
 
 export const useInputDriver = (
   onModeChange: (mode: InputMode) => void,
-  bindings = defaultBindings
+  bindings: InputBindings = defaultBindings,
 ) => {
   const activeActions = useRef<Map<InputAction, { start: number; lastFire: number }>>(new Map());
   const requestRef = useRef<number>(0);
-  const activeKeys = useRef<Set<string>>(new Set());
+  const activeKeys = useRef<Map<string, InputMode>>(new Map());
+  const activeMouseButtons = useRef<Map<number, InputMode>>(new Map());
 
-  // 🌟 支持以字符串和数字形式存储状态
   const nativeButtonsRef = useRef<Set<string | number>>(new Set());
   const nativeAxesRef = useRef<Record<string | number, number>>({});
   const lastAxisActionRef = useRef<Record<string | number, string>>({});
 
-  const triggerAction = (action: InputAction, mode: InputMode, now: number, bindings: typeof defaultBindings) => {
+  const triggerAction = (
+    action: InputAction,
+    mode: InputMode,
+    now: number,
+    activeBindings: InputBindings,
+  ) => {
     const record = activeActions.current.get(action);
     if (!record) {
       onModeChange(mode);
-      dispatchAction(action, bindings, mode);
+      dispatchAction(action, activeBindings, mode);
       activeActions.current.set(action, { start: now, lastFire: now });
-    } else {
-      if (now - record.start > REPEAT_DELAY && now - record.lastFire > REPEAT_RATE) {
-        dispatchAction(action, bindings, mode);
-        record.lastFire = now;
-      }
+      return;
+    }
+
+    if (now - record.start > REPEAT_DELAY && now - record.lastFire > REPEAT_RATE) {
+      dispatchAction(action, activeBindings, mode);
+      record.lastFire = now;
     }
   };
 
@@ -146,33 +209,50 @@ export const useInputDriver = (
         nativeButtonsRef.current.clear();
         nativeAxesRef.current = {};
         lastAxisActionRef.current = {};
+        activeMouseButtons.current.clear();
       } else {
-        // 1. 处理按钮：支持混合索引
         nativeButtonsRef.current.forEach((id) => {
           const action = (bindings.gamepad.buttons as any)[id];
           if (action) currentGamepadActions.add(action);
         });
 
-        // 2. 处理摇杆：支持混合索引
         Object.entries(bindings.gamepad.axes).forEach(([id, mapping]) => {
           const value = nativeAxesRef.current[id] ?? 0;
           if (value < -AXIS_DEADZONE) currentGamepadActions.add(mapping.negative);
           else if (value > AXIS_DEADZONE) currentGamepadActions.add(mapping.positive);
         });
 
-        currentGamepadActions.forEach(action => triggerAction(action, 'controller', now, bindings));
+        currentGamepadActions.forEach((action) =>
+          triggerAction(action, 'controller', now, bindings),
+        );
       }
 
-      // 键盘处理逻辑
-      const currentKeyboardActions = new Set<InputAction>();
-      activeKeys.current.forEach(key => {
-        const action = bindings.keyboard[key];
-        if (action) currentKeyboardActions.add(action);
+      const currentKeyboardActions = new Map<InputAction, InputMode>();
+      activeKeys.current.forEach((mode, key) => {
+        const action = mode === 'controller'
+          ? bindings.controllerKeyboard?.[key]
+          : bindings.keyboard[key];
+        if (action) currentKeyboardActions.set(action, mode);
       });
-      currentKeyboardActions.forEach(action => triggerAction(action, 'keyboard', now, bindings));
+      currentKeyboardActions.forEach((mode, action) =>
+        triggerAction(action, mode, now, bindings),
+      );
+
+      const currentMouseActions = new Map<InputAction, InputMode>();
+      activeMouseButtons.current.forEach((mode, button) => {
+        const action = bindings.mouse?.buttons?.[button];
+        if (action) currentMouseActions.set(action, mode);
+      });
+      currentMouseActions.forEach((mode, action) =>
+        triggerAction(action, mode, now, bindings),
+      );
 
       activeActions.current.forEach((_, action) => {
-        if (!currentGamepadActions.has(action) && !currentKeyboardActions.has(action)) {
+        if (
+          !currentGamepadActions.has(action) &&
+          !currentKeyboardActions.has(action) &&
+          !currentMouseActions.has(action)
+        ) {
           activeActions.current.delete(action);
         }
       });
@@ -180,13 +260,26 @@ export const useInputDriver = (
       requestRef.current = requestAnimationFrame(loop);
     };
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!e.isTrusted || ['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return;
-      onModeChange('keyboard');
-      activeKeys.current.add(e.key);
+    const resolveKeyboardBinding = (e: KeyboardEvent) => {
+      const candidates = [e.key, e.code].filter(Boolean);
+      const controllerKey = candidates.find((key) => bindings.controllerKeyboard?.[key]);
+      if (controllerKey) return { key: controllerKey, mode: 'controller' as InputMode };
+      const keyboardKey = candidates.find((key) => bindings.keyboard[key]);
+      if (keyboardKey) return { key: keyboardKey, mode: 'keyboard' as InputMode };
+      return { key: e.key, mode: 'keyboard' as InputMode };
     };
 
-    const handleKeyUp = (e: KeyboardEvent) => activeKeys.current.delete(e.key);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.isTrusted || ['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return;
+      const binding = resolveKeyboardBinding(e);
+      onModeChange(binding.mode);
+      activeKeys.current.set(binding.key, binding.mode);
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      activeKeys.current.delete(e.key);
+      if (e.code) activeKeys.current.delete(e.code);
+    };
 
     let lastMousePos = { x: 0, y: 0 };
     const handleMouse = (e: MouseEvent) => {
@@ -197,16 +290,44 @@ export const useInputDriver = (
       lastMousePos = { x: e.screenX, y: e.screenY };
       activeActions.current.clear();
       activeKeys.current.clear();
+      activeMouseButtons.current.clear();
       onModeChange('mouse');
+    };
+
+    const handleMouseDown = (e: MouseEvent) => {
+      lastMousePos = { x: e.screenX, y: e.screenY };
+      const action = bindings.mouse?.buttons?.[e.button];
+      if (action) {
+        activeMouseButtons.current.set(e.button, 'controller');
+        onModeChange('controller');
+        if (e.button === 2) e.preventDefault();
+        return;
+      }
+      handleMouse(e);
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      activeMouseButtons.current.delete(e.button);
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      const action = e.deltaY < 0 ? bindings.mouse?.wheel?.up : bindings.mouse?.wheel?.down;
+      if (!action) return;
+      onModeChange('controller');
+      dispatchAction(action, bindings, 'controller');
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
+      if (bindings.mouse?.buttons?.[2]) e.preventDefault();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('mousemove', handleMouse, { passive: true });
-    window.addEventListener('mousedown', (e) => {
-      lastMousePos = { x: e.screenX, y: e.screenY };
-      handleMouse(e as any);
-    }, { passive: true });
+    window.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('wheel', handleWheel, { passive: true });
+    window.addEventListener('contextmenu', handleContextMenu);
 
     let unlistenNative: UnlistenFn | null = null;
     const DEBUG_GAMEPAD = true;
@@ -223,63 +344,69 @@ export const useInputDriver = (
       const { kind, button_code, button_name, axis_code, axis_name, axis_value } = event.payload;
 
       if (kind === 'Connected') {
-        if (DEBUG_GAMEPAD) console.log(`[手柄 🔌] 设备已连接, ID: native-${event.payload.id}`);
-        window.dispatchEvent(new CustomEvent('ore-gamepad-connected', { detail: { id: `native-${event.payload.id}` } }));
+        if (DEBUG_GAMEPAD) console.log(`[Gamepad] connected: native-${event.payload.id}`);
+        window.dispatchEvent(
+          new CustomEvent('ore-gamepad-connected', { detail: { id: `native-${event.payload.id}` } }),
+        );
         return;
       }
 
       if (kind === 'Disconnected') {
-        if (DEBUG_GAMEPAD) console.log(`[手柄 ❌] 设备已断开`);
+        if (DEBUG_GAMEPAD) console.log('[Gamepad] disconnected');
         nativeButtonsRef.current.clear();
         nativeAxesRef.current = {};
         lastAxisActionRef.current = {};
         return;
       }
 
-      // 🔘 更新按钮状态池 (支持双索引缓存，杜绝按键映射冲突)
       if (button_name || typeof button_code === 'number') {
         const name = button_name || 'unknown';
         const code = Number(button_code);
-
-        const isPressed = kind === 'ButtonPressed' || (kind === 'ButtonChanged' && (axis_value || 0) > 0.5);
-        const isReleased = kind === 'ButtonReleased' || (kind === 'ButtonChanged' && (axis_value || 0) < 0.2);
+        const isPressed =
+          kind === 'ButtonPressed' ||
+          (kind === 'ButtonChanged' && (axis_value || 0) > 0.5);
+        const isReleased =
+          kind === 'ButtonReleased' ||
+          (kind === 'ButtonChanged' && (axis_value || 0) < 0.2);
 
         if (isPressed) {
-          // ✅ 核心修复：防止手柄驱动映射错乱导致一个按键同时触发 CONFIRM 和 CANCEL
-          const actionByName = name !== 'unknown' ? (bindings.gamepad.buttons as any)[name] : undefined;
-          const actionByCode = typeof button_code === 'number' ? (bindings.gamepad.buttons as any)[code] : undefined;
+          const actionByName =
+            name !== 'unknown' ? (bindings.gamepad.buttons as any)[name] : undefined;
+          const actionByCode =
+            typeof button_code === 'number' ? (bindings.gamepad.buttons as any)[code] : undefined;
 
           if (actionByName && actionByCode && actionByName !== actionByCode) {
-            // 发生冲突时，优先信任 Name (标准化语义)
             nativeButtonsRef.current.add(name);
           } else if (actionByName) {
             nativeButtonsRef.current.add(name);
           } else if (actionByCode) {
             nativeButtonsRef.current.add(code);
           } else {
-            // 如果都没映射，兜底存入
             if (name !== 'unknown') nativeButtonsRef.current.add(name);
             if (typeof button_code === 'number') nativeButtonsRef.current.add(code);
           }
 
           if (DEBUG_GAMEPAD) {
             const action = actionByName || actionByCode;
-            console.log(`[按键按下] ${name}(${code}) => ${action}`);
+            console.log(`[Gamepad] button down ${name}(${code}) => ${action}`);
           }
         } else if (isReleased) {
-          // 释放时无论当时存的哪一个，统统清理以防万一
           if (name !== 'unknown') nativeButtonsRef.current.delete(name);
           if (typeof button_code === 'number') nativeButtonsRef.current.delete(code);
         }
       }
 
-      // 🕹️ 更新摇杆状态池 (支持双索引缓存，杜绝摇杆映射冲突)
-      if (kind === 'AxisChanged' && (axis_name || typeof axis_code === 'number') && typeof axis_value === 'number') {
+      if (
+        kind === 'AxisChanged' &&
+        (axis_name || typeof axis_code === 'number') &&
+        typeof axis_value === 'number'
+      ) {
         const name = axis_name || 'unknown';
         const code = Number(axis_code);
-
-        const mappingByName = name !== 'unknown' ? (bindings.gamepad.axes as any)[name] : undefined;
-        const mappingByCode = typeof button_code === 'number' ? (bindings.gamepad.axes as any)[code] : undefined;
+        const mappingByName =
+          name !== 'unknown' ? (bindings.gamepad.axes as any)[name] : undefined;
+        const mappingByCode =
+          typeof axis_code === 'number' ? (bindings.gamepad.axes as any)[code] : undefined;
 
         if (mappingByName && mappingByCode && mappingByName !== mappingByCode) {
           nativeAxesRef.current[name] = axis_value;
@@ -304,7 +431,7 @@ export const useInputDriver = (
           }
         }
       }
-    }).then(fn => { unlistenNative = fn; });
+    }).then((fn) => { unlistenNative = fn; });
 
     requestRef.current = requestAnimationFrame(loop);
 
@@ -312,7 +439,10 @@ export const useInputDriver = (
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('mousemove', handleMouse);
-      window.removeEventListener('mousedown', handleMouse);
+      window.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('contextmenu', handleContextMenu);
       if (unlistenNative) unlistenNative();
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };

@@ -62,7 +62,7 @@ export const OreButton: React.FC<OreButtonProps> = ({
           // 单层尺寸控制，采用rem和标准响应式类适配TV/SteamDeck/PC
           className={`
             ore-btn relative inline-flex items-center justify-center font-minecraft tracking-wide
-            focus:outline-none transition-none transform-gpu backface-hidden antialiased
+            focus:outline-none transition-none antialiased
             ${buttonSizes[size]}
             ${variants[variant]}
             ${focused ? 'is-focused' : ''}

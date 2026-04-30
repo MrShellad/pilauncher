@@ -24,6 +24,7 @@ export const useSetupWizard = () => {
   const [isGamepadMode, setIsGamepadMode] = useState(false);
 
   const updateGeneralSetting = useSettingsStore(state => state.updateGeneralSetting);
+  const updateGameSetting = useSettingsStore(state => state.updateGameSetting);
   const hasHydrated = useSettingsStore(state => state._hasHydrated);
 
   // 1. 初始化检查
@@ -139,7 +140,7 @@ export const useSetupWizard = () => {
 
   const setGamepadModeSettings = () => {
       updateGeneralSetting('closeBehavior', 'exit');
-      // Set to gamepad mode UI if there is a setting for it
+      updateGameSetting('steamDeckKeymap', true);
   };
 
   const finishSteamIntegration = () => {

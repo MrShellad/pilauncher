@@ -192,7 +192,7 @@ export const ClientFlow: React.FC<ClientFlowProps> = ({
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 border-[2px] border-[#1E1E1F]/50 bg-black/40 backdrop-blur-md p-4 shadow-[inset_0_4px_rgba(0,0,0,0.4)] relative z-10">
+      <div className="flex flex-col gap-3 border-[2px] border-[#1E1E1F]/50 bg-black/70 p-4 shadow-[inset_0_4px_rgba(0,0,0,0.4)] relative z-10">
         <div className="flex items-center justify-between text-[11px] uppercase tracking-widest text-[#B1B2B5] font-minecraft font-bold">
           <span className="text-[#FFE866]">填写房主给您的 6 位加入口令</span>
           <span>JOIN_ROOM</span>
@@ -262,7 +262,7 @@ export const ClientFlow: React.FC<ClientFlowProps> = ({
       </div>
 
       {answerCode && (
-        <div className="flex flex-col gap-3 mt-2 border-[2px] border-[#1E1E1F]/50 bg-black/40 backdrop-blur-md p-4 shadow-[inset_0_4px_rgba(0,0,0,0.4)] relative z-10">
+        <div className="flex flex-col gap-3 mt-2 border-[2px] border-[#1E1E1F]/50 bg-black/70 p-4 shadow-[inset_0_4px_rgba(0,0,0,0.4)] relative z-10">
           <div className="flex items-center justify-between text-[11px] uppercase tracking-widest text-[#B1B2B5] font-minecraft font-bold">
             <span className="text-[#FFE866]">发给房主这个应答码</span>
             <span>{manualAnswerRequired ? '请手动发送' : '已自动发送，可作兜底'}</span>

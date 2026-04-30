@@ -221,11 +221,11 @@ export default function NewInstance() {
                           borderColor: sponsor.borderColor || '',
                           color: sponsor.textColor || ''
                         }}
-                        className={`flex flex-row items-center w-72 h-20 rounded-sm border-2 flex-shrink-0 cursor-pointer transition-all backdrop-blur-sm 
+                        className={`flex flex-row items-center w-72 h-20 rounded-sm border-2 flex-shrink-0 cursor-pointer transition-all
                           /* 统一使用 brightness 滤镜来实现 hover/active 交互，这样不会被内联样式覆盖！ */
                           hover:brightness-95 active:scale-[0.98] 
                           ${focused ? 'outline outline-[3px] outline-offset-[4px] outline-yellow-400/50 shadow-[0_0_15px_rgba(250,204,21,0.2)] z-10 brightness-95' : ''}
-                          ${!sponsor.backgroundColor ? 'bg-white/5' : ''}
+                          ${!sponsor.backgroundColor ? 'bg-black/45' : ''}
                           ${!sponsor.borderColor ? 'border-white/10' : ''}
                         `}
                         title="点击获取专属赞助优惠"

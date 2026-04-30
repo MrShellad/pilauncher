@@ -1,6 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
 
 
+:root {
+  --ore-font-family-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "WenQuanYi Micro Hei", Arial, sans-serif;
+  --ore-font-family-minecraft: var(--ore-global-font, "Minecraft"), "NotoSans Bold", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "WenQuanYi Micro Hei", sans-serif;
+  --ore-font-family-heading: "Minecraft Ten", var(--ore-font-family-minecraft);
+  --ore-font-family-subheading: "Minecraft Seven", var(--ore-font-family-minecraft);
+  --ore-font-family-decorative: "Minecraft Five", var(--ore-font-family-minecraft);
+  --ore-font-family-decorative-bold: "Minecraft Five Bold", var(--ore-font-family-minecraft);
+}
+
+html {
+  font-size: 16px;
+}
+
 html, body {
   margin: 0;
   padding: 0;
@@ -9,6 +22,12 @@ html, body {
   overflow: hidden;
   user-select: none; 
   background-color: #1e1e1e; 
+  font-family: var(--ore-font-family-minecraft);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
 }
 
 

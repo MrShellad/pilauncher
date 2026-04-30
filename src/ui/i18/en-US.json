@@ -672,6 +672,18 @@
       "resolutionDesc": "Initial game window size.",
       "showLog": "Game Log Panel",
       "showLogDesc": "Expand console with logs during startup until loading is finished.",
+      "steamDeckKeymap": "Steam Deck Game Mode Keymap",
+      "steamDeckKeymapDesc": "Treat the Steam Input keyboard/mouse layout as controller navigation in the launcher, matching the recommended Minecraft Java layout.",
+      "steamDeckMap": {
+        "confirm": "Space / confirm",
+        "cancel": "Esc / back",
+        "move": "Navigate launcher focus",
+        "pointer": "Mouse pointer",
+        "actionX": "Secondary action",
+        "actionY": "Quick action",
+        "scroll": "Scroll or move focus up/down",
+        "mouseButtons": "Right / left mouse click for Minecraft"
+      },
       "visibility": "Visibility during Game Runtime",
       "visibilityDesc": "Action after Minecraft instance is successfully launched.",
       "resolutions": {
@@ -949,6 +961,8 @@
     },
     "actions": {
       "selectArchive": "Select archive",
+      "selectArchiveNative": "System file picker",
+      "selectArchiveBrowser": "Built-in browser",
       "change": "Change",
       "cancel": "Cancel",
       "startImport": "Start import",

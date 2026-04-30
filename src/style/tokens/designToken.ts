@@ -26,12 +26,14 @@ export const OreTokens = {
       bg: '#3C8527',
       hover: '#2A641C',
       active: '#1D4D13',
-      text: '#FFFFFF',
+      text: '#F2F2F2',
       shadow: '#1D4D13',
       hl1: 'rgba(255, 255, 255, 0.2)',
       hl2: 'rgba(255, 255, 255, 0.1)',
       hoverHl1: 'rgba(255, 255, 255, 0.4)',
       hoverHl2: 'rgba(255, 255, 255, 0.3)',
+      highlight: 'rgba(255, 255, 255, 0.2)',
+      press: 'rgba(0, 0, 0, 0.2)',
     },
     // ⬜ Secondary (次要 / 灰)
     secondary: {
@@ -44,30 +46,36 @@ export const OreTokens = {
       hl2: 'rgba(255, 255, 255, 0.4)',
       hoverHl1: 'rgba(255, 255, 255, 0.8)',
       hoverHl2: 'rgba(255, 255, 255, 0.6)',
+      highlight: 'rgba(255, 255, 255, 0.6)',
+      press: 'rgba(0, 0, 0, 0.2)',
     },
     // 🟥 Danger (危险 / 红)
     danger: {
       bg: '#C33636',
       hover: '#C02D2D',
       active: '#AD1D1D',
-      text: '#FFFFFF',
+      text: '#F2F2F2',
       shadow: '#AD1D1D',
       hl1: 'rgba(255, 255, 255, 0.2)',
       hl2: 'rgba(255, 255, 255, 0.1)',
       hoverHl1: 'rgba(255, 255, 255, 0.5)',
       hoverHl2: 'rgba(255, 255, 255, 0.4)',
+      highlight: 'rgba(255, 255, 255, 0.2)',
+      press: 'rgba(0, 0, 0, 0.2)',
     },
     // 🟪 Purple (史诗 / 紫)
     purple: {
       bg: '#9333EA',
       hover: '#A855F7',
       active: '#7E22CE',
-      text: '#FFFFFF',
+      text: '#F2F2F2',
       shadow: '#6B21A8',
       hl1: 'rgba(255, 255, 255, 0.2)',
       hl2: 'rgba(255, 255, 255, 0.1)',
       hoverHl1: 'rgba(255, 255, 255, 0.4)',
       hoverHl2: 'rgba(255, 255, 255, 0.3)',
+      highlight: 'rgba(255, 255, 255, 0.2)',
+      press: 'rgba(0, 0, 0, 0.2)',
     },
     // ⬛ Disabled (禁用)
     disabled: {
@@ -94,10 +102,10 @@ export const OreTokens = {
     header: {
       bg: '#48494A',
       shadow: 'inset 2px 2px rgba(255, 255, 255, 0.2), inset -2px -2px rgba(255, 255, 255, 0.1)',
-      text: '#FFFFFF',
+      text: '#F2F2F2',
     },
     content: {
-      text: '#FFFFFF',
+      text: '#F2F2F2',
       shadow: 'inset 0 4px 8px -2px rgba(0, 0, 0, 0.3)',
     },
     footer: {
@@ -156,7 +164,7 @@ export const OreTokens = {
         bgHover: '#58585A',
         bgActive: '#6CC349',
         border: '#000000',
-        text: '#FFFFFF',
+        text: '#F2F2F2',
         textActive: '#000000',
         inputBg: '#313233',
         inputBorder: '#1E1E1F',
@@ -216,16 +224,16 @@ export const OreTokens = {
   // ─────────────────────────────────────────────────────────────────────────
   typography: {
     family: {
-      /** 正文 / 按钮 / 下拉框 / 输入框 — NotoSans Bold */
-      body: '"NotoSans Bold", sans-serif',
+      /** 正文 / 按钮 / 下拉框 / 输入框 */
+      body: 'var(--ore-font-family-sans)',
       /** 大标题 / 顶栏标题 — Minecraft Ten */
-      heading: '"Minecraft Ten", sans-serif',
+      heading: 'var(--ore-font-family-heading)',
       /** 副标题 / 文章 / main_title — Minecraft Seven */
-      subheading: '"Minecraft Seven", sans-serif',
+      subheading: 'var(--ore-font-family-subheading)',
       /** 装饰细体 — Minecraft Five */
-      decorative: '"Minecraft Five", sans-serif',
+      decorative: 'var(--ore-font-family-decorative)',
       /** 装饰粗体 — Minecraft Five Bold */
-      decorativeBold: '"Minecraft Five Bold", sans-serif',
+      decorativeBold: 'var(--ore-font-family-decorative-bold)',
     },
     size: {
       /** 12px — tag、page_info */
@@ -408,12 +416,19 @@ export const OreTokens = {
 
     // ── text ────────────────────────────────────────────────────────────────
     text: {
-      /** 主要文字：白色 (modal, main, input normal, pop default) */
+      /** 主要文字：深色背景默认文本，避免纯白光晕 */
       primary: {
-        default:  '#FFFFFF',
+        default:  '#F2F2F2',
         hover:    '#FFFFFF',
         active:   '#FFFFFF',
         disabled: '#48494A',
+      },
+      /** 强调文字：焦点、强高亮、需要最大对比的短文本 */
+      emphasis: {
+        default:  '#FFFFFF',
+        hover:    '#FFFFFF',
+        active:   '#FFFFFF',
+        disabled: '#8C8D90',
       },
       /** 成功文字 (.pop.success) */
       success: {
@@ -516,15 +531,15 @@ export const OreTokens = {
   // ─────────────────────────────────────────────────────────────────────────
   font: {
     /** 正文 / 按钮 / 输入框字体 */
-    body: '"NotoSans Bold", sans-serif',
+    body: 'var(--ore-font-family-sans)',
     /** 页面主标题 (顶栏) */
-    heading: '"Minecraft Ten", sans-serif',
+    heading: 'var(--ore-font-family-heading)',
     /** 副标题 / 文章正文 */
-    subheading: '"Minecraft Seven", sans-serif',
+    subheading: 'var(--ore-font-family-subheading)',
     /** 装饰用细体 */
-    decorative: '"Minecraft Five", sans-serif',
+    decorative: 'var(--ore-font-family-decorative)',
     /** 装饰用粗体 */
-    decorativeBold: '"Minecraft Five Bold", sans-serif',
+    decorativeBold: 'var(--ore-font-family-decorative-bold)',
   },
 
 };

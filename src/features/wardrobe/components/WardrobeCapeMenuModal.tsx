@@ -30,12 +30,12 @@ export const WardrobeCapeMenuModal: React.FC<WardrobeCapeMenuModalProps> = ({
       title={t('wardrobe.capeMenu.titleDefault')}
       hideCloseButton
       defaultFocusKey="wardrobe-cape-menu-apply"
-      className="w-full max-w-[500px]"
+      className="w-full max-w-lg"
       contentClassName="p-6"
     >
       {capeMenuAsset && (
         <div className="flex flex-col gap-6">
-          <div className="flex justify-center items-center p-4 bg-black/20 rounded-lg h-64">
+          <div className="flex justify-center items-center p-4 bg-black/20 rounded-lg h-[clamp(10rem,35vh,16rem)]">
             <WardrobeCapeCardPreview capeUrl={capeMenuAsset.url} className="w-full h-full drop-shadow-lg" />
           </div>
 

@@ -381,25 +381,25 @@ const Wardrobe: React.FC = () => {
   return (
     <FocusBoundary id="wardrobe-page" defaultFocusKey="wardrobe-upload-card" className="w-full h-full text-white overflow-hidden flex flex-col">
       <div className="flex flex-col h-full w-full relative z-10">
-        <header className="flex items-center justify-between h-[40px] bg-[#E6E8EB] border-b-[4px] border-[#B1B2B5] z-10 relative px-2">
+        <header className="flex items-center justify-between h-[clamp(2.5rem,6vh,4rem)] bg-[#E6E8EB] border-b-4 border-[#B1B2B5] z-10 relative px-[clamp(0.5rem,2vw,2rem)]">
           <div className="header_left flex items-center h-full">
-            <div className="header_item header_item_left text-[#48494A] cursor-pointer w-[42px] h-full flex items-center justify-center" onClick={handleBack}>
-              <ArrowLeft size={18} />
+            <div className="header_item header_item_left text-[#48494A] cursor-pointer aspect-square h-full flex items-center justify-center" onClick={handleBack}>
+              <ArrowLeft className="w-[clamp(1.125rem,3vh,1.75rem)] h-[clamp(1.125rem,3vh,1.75rem)]" />
             </div>
           </div>
-          <div className="header_title text-[#48494A] flex flex-1 justify-center items-center font-minecraft text-[26px] leading-none h-full">
+          <div className="header_title text-[#48494A] flex flex-1 justify-center items-center font-minecraft text-[length:clamp(1.5rem,4vh,2.5rem)] leading-none h-full">
             <span>{t('wardrobe.title')}</span>
           </div>
           <div className="header_right flex items-center h-full">
             {currentAccount && (
               <div
-                className={`header_item header_item_right text-[#48494A] cursor-pointer w-[42px] h-full flex items-center justify-center ${isApplying || isLoadingProfile ? 'opacity-50 pointer-events-none' : ''}`}
+                className={`header_item header_item_right text-[#48494A] cursor-pointer aspect-square h-full flex items-center justify-center ${isApplying || isLoadingProfile ? 'opacity-50 pointer-events-none' : ''}`}
                 onClick={() => void handleRefresh()}
               >
-                <RefreshCw size={18} />
+                <RefreshCw className="w-[clamp(1.125rem,3vh,1.75rem)] h-[clamp(1.125rem,3vh,1.75rem)]" />
               </div>
             )}
-            {!currentAccount && <div className="header_item_blank w-[42px]" />}
+            {!currentAccount && <div className="aspect-square h-full" />}
           </div>
         </header>
 
@@ -407,13 +407,13 @@ const Wardrobe: React.FC = () => {
           <main className="w-full flex flex-col h-full m-auto">
 
 
-            <div className=" mt-[12px] mx-[20px] lg:mx-[5%] border-l-[2px] border-r-[2px] border-b-[2px] border-[#333334] border-t-[2px] border-t-[#5A5B5C] bg-[#1E1E1F]/50 flex flex-col md:flex-row mb-[12px] flex-1 min-h-0">
+            <div className="my-[clamp(0.75rem,2vh,2rem)] mx-[clamp(1rem,4vw,10%)] border-2 border-[#333334] border-t-[#5A5B5C] bg-[#1E1E1F]/50 flex flex-col md:flex-row flex-1 min-h-0">
               <div
-                className="w-full md:w-[360px] lg:w-[400px] md:flex-none flex flex-col border-b-[2px] md:border-b-0 md:border-r-[2px] border-[#333334] relative min-h-[300px] aspect-[4/5] md:aspect-auto"
+                className="w-full md:w-[clamp(22.5rem,30vw,35rem)] md:flex-none flex flex-col border-b-2 md:border-b-0 md:border-r-2 border-[#333334] relative min-h-[40vh] aspect-[4/5] md:aspect-auto"
 
               >
                 <div
-                  className="w-full h-full flex flex-col p-4 absolute inset-0 pointer-events-none"
+                  className="w-full h-full flex flex-col p-[clamp(1rem,2vw,2rem)] absolute inset-0 pointer-events-none"
                   style={{
                     background: 'linear-gradient(180deg, rgba(132, 204, 22, 0.15) 0%, transparent 40%)',
                   }}

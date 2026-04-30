@@ -81,7 +81,7 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
             whileHover="hover"
             className={`
               relative flex h-[clamp(12.5rem,28vh,17rem)] min-w-[17.5rem] w-[clamp(17.5rem,20vw,24rem)] flex-col rounded-[0.25rem] cursor-pointer select-none group
-              transition-all duration-200 transform-gpu
+              transition-all duration-200
               border-[0.25rem] ${focused ? 'border-white shadow-[0_0_1.5rem_rgba(255,255,255,0.22)] z-50' : 'border-transparent shadow-[0_0.5rem_1rem_rgba(0,0,0,0.35)]'}
             `}
           >
@@ -101,7 +101,7 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                 )}
 
                 {isLaunching && (
-                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
+                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/75">
                     <Loader2 size={32} className="animate-spin text-[#3C8527] mb-2" />
                     <span className="font-minecraft text-sm font-bold uppercase tracking-widest text-[#3C8527] drop-shadow-md">启动中...</span>
                   </div>
@@ -109,7 +109,7 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
 
                 <div className="absolute top-2 right-2 z-30 flex items-center">
                   {focused && !isLaunching ? (
-                    <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="pointer-events-none flex items-center gap-1.5 rounded-sm border-[0.125rem] border-[#EAB308]/50 bg-black/80 px-2.5 py-1.5 shadow-xl backdrop-blur-md">
+                    <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="pointer-events-none flex items-center gap-1.5 rounded-sm border-[0.125rem] border-[#EAB308]/50 bg-black/90 px-2.5 py-1.5 shadow-xl">
                       <div className="flex h-[1.125rem] w-[1.125rem] items-center justify-center rounded-full bg-[#EAB308] text-[0.625rem] font-black leading-none text-black shadow-[0_0_0.5rem_rgba(234,179,8,0.5)]">
                         <Menu size={11} strokeWidth={2.5} />
                       </div>
@@ -118,7 +118,7 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                   ) : !isLaunching && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onEdit(); }}
-                      className="opacity-0 group-hover:opacity-100 p-2 bg-black/60 hover:bg-[#3C8527] rounded-sm border-[2px] border-transparent hover:border-black text-gray-300 hover:text-white backdrop-blur-sm transition-all duration-200 outline-none shadow-md"
+                      className="opacity-0 group-hover:opacity-100 p-2 bg-black/75 hover:bg-[#3C8527] rounded-sm border-[2px] border-transparent hover:border-black text-gray-300 hover:text-white transition-all duration-200 outline-none shadow-md"
                       title="编辑配置"
                     >
                       <Settings size={18} />

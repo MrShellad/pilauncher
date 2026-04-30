@@ -40,7 +40,7 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
   const { instances } = useInstances();
 
   const scaleStyle = {
-    '--launch-control-w': 'clamp(20rem, 42vmin, 46rem)',
+    '--launch-control-w': 'clamp(20rem, 42vmin, 96rem)',
     '--launch-control-gap': 'calc(var(--launch-control-w) * 0.055)',
     '--launch-action-h': 'calc(var(--launch-control-w) * 0.155)',
     '--launch-hero-h': 'calc(var(--launch-control-w) * 0.195)',
@@ -49,8 +49,8 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
     '--launch-action-gap': 'calc(var(--launch-control-w) * 0.035)',
   } as React.CSSProperties;
 
-  const innerButtonClass = "h-[var(--launch-action-h)] text-[length:var(--launch-action-font)] !text-[#111214] [&_svg]:!text-[#111214] flex items-center justify-center gap-[var(--launch-action-gap)] w-full transition-colors duration-200";
-  const heroButtonClass = "h-[var(--launch-hero-h)] text-[length:var(--launch-hero-font)] !text-white [&_svg]:!text-white flex items-center justify-center gap-[var(--launch-action-gap)] w-full transition-colors duration-200";
+  const innerButtonClass = "!h-[var(--launch-action-h)] !text-[length:var(--launch-action-font)] !text-[#111214] [&_svg]:!text-[#111214] flex items-center justify-center gap-[var(--launch-action-gap)] w-full transition-colors duration-200";
+  const heroButtonClass = "!h-[var(--launch-hero-h)] !text-[length:var(--launch-hero-font)] !text-white [&_svg]:!text-white flex items-center justify-center gap-[var(--launch-action-gap)] w-full transition-colors duration-200";
 
   useEffect(() => {
     const timer = setTimeout(() => {

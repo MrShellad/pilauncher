@@ -263,7 +263,7 @@ export const AboutSettings: React.FC = () => {
                             className="
                               absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap
                               opacity-0 group-hover:opacity-100 transition-opacity duration-200
-                              text-[10px] font-minecraft px-2 py-0.5 rounded-sm bg-black/85 backdrop-blur-sm
+                              text-[10px] font-minecraft px-2 py-0.5 rounded-sm bg-black/95
                               border border-white/10 pointer-events-none z-20
                             "
                             style={{ color: tierColor }}

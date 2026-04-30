@@ -516,7 +516,7 @@ export const InstanceModDownloadView: React.FC<{
 
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border-2 border-[#1E1E1F] bg-black/20 shadow-inner">
         {isHintVisible && (
-          <div className="pointer-events-none absolute right-4 top-4 z-50 flex items-center gap-2 rounded-sm border border-white/10 bg-black/60 px-3 py-2 text-xs font-minecraft tracking-wider text-gray-200 shadow-lg backdrop-blur">
+          <div className="pointer-events-none absolute right-4 top-4 z-50 flex items-center gap-2 rounded-sm border border-white/10 bg-black/85 px-3 py-2 text-xs font-minecraft tracking-wider text-gray-200 shadow-lg">
             <GamepadBtn text="Y" color="#FACC15" />
             <span className="mt-[0.0625rem]">{yHintText}</span>
           </div>

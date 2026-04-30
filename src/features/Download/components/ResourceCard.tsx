@@ -90,12 +90,12 @@ export const ResourceCard = React.memo(({
   const authorLabel = project.author || t('download.meta.unknownAuthor', { defaultValue: 'Unknown' });
   const summary = project.description?.trim() || t('download.empty.noDescription', { defaultValue: 'No description provided yet.' });
   const authorTextClassName = authorLabel.length > 36
-    ? 'text-[0.625rem]'
+    ? 'text-[10px]'
     : authorLabel.length > 28
-      ? 'text-[0.6875rem]'
+      ? 'text-[11px]'
       : authorLabel.length > 20
-        ? 'text-[0.75rem]'
-        : 'text-[0.875rem]';
+        ? 'text-[12px]'
+        : 'text-[14px]';
 
   return (
     <FocusItem
@@ -187,7 +187,7 @@ export const ResourceCard = React.memo(({
                 </div>
 
                 <div className="flex min-h-[3.125rem] flex-col justify-center px-[0.125rem] py-[0.125rem] text-center">
-                  <div className="font-minecraft text-[0.625rem] uppercase leading-none tracking-[0.18em] text-[#4A4C50]">
+                  <div className="font-minecraft text-[10px] uppercase leading-[12px] tracking-[0.18em] text-[#4A4C50]">
                     {t('download.meta.author', { defaultValue: 'Author' })}
                   </div>
                   <div className={`mt-[0.3125rem] break-words font-bold leading-[1.1] text-[#161719] ${authorTextClassName}`}>
@@ -207,20 +207,20 @@ export const ResourceCard = React.memo(({
                       {(isInstalled || supportsClient || supportsServer) && (
                         <div className="flex shrink-0 items-center gap-[0.375rem] pt-[0.125rem]">
                           {isInstalled && (
-                            <div className="inline-flex items-center gap-1 border-[0.125rem] border-[#1E1E1F] bg-[#6CC349] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-black shadow-[inset_0_-0.125rem_0_#3C8527] sm:text-[0.625rem]">
-                              <CheckCircle2 className="h-[0.6875rem] w-[0.6875rem]" />
+                            <div className="inline-flex items-center gap-1 border-[0.125rem] border-[#1E1E1F] bg-[#6CC349] px-[6px] py-[3px] text-[11px] leading-[13px] font-minecraft uppercase tracking-[0.16em] text-black shadow-[inset_0_-0.125rem_0_#3C8527] sm:text-[10px] sm:leading-[12px]">
+                              <CheckCircle2 className="h-[11px] w-[11px]" />
                               {t('download.status.installed', { defaultValue: 'Installed' })}
                             </div>
                           )}
                           {supportsClient && (
-                            <div className="inline-flex items-center gap-1 border-[0.125rem] border-[#1E1E1F] bg-[#313233] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-white shadow-[inset_0_0.125rem_0_rgba(255,255,255,0.12)] sm:text-[0.625rem]">
-                              <Monitor className="h-[0.6875rem] w-[0.6875rem]" />
+                            <div className="inline-flex items-center gap-1 border-[0.125rem] border-[#1E1E1F] bg-[#313233] px-[6px] py-[3px] text-[11px] leading-[13px] font-minecraft uppercase tracking-[0.16em] text-white shadow-[inset_0_0.125rem_0_rgba(255,255,255,0.12)] sm:text-[10px] sm:leading-[12px]">
+                              <Monitor className="h-[11px] w-[11px]" />
                               {t('download.env.client', { defaultValue: 'Client' })}
                             </div>
                           )}
                           {supportsServer && (
-                            <div className="inline-flex items-center gap-1 border-[0.125rem] border-[#1E1E1F] bg-[#313233] px-[0.375rem] py-[0.1875rem] text-[0.6875rem] font-minecraft uppercase tracking-[0.16em] text-white shadow-[inset_0_0.125rem_0_rgba(255,255,255,0.12)] sm:text-[0.625rem]">
-                              <Server className="h-[0.6875rem] w-[0.6875rem]" />
+                            <div className="inline-flex items-center gap-1 border-[0.125rem] border-[#1E1E1F] bg-[#313233] px-[6px] py-[3px] text-[11px] leading-[13px] font-minecraft uppercase tracking-[0.16em] text-white shadow-[inset_0_0.125rem_0_rgba(255,255,255,0.12)] sm:text-[10px] sm:leading-[12px]">
+                              <Server className="h-[11px] w-[11px]" />
                               {t('download.env.server', { defaultValue: 'Server' })}
                             </div>
                           )}
@@ -239,7 +239,7 @@ export const ResourceCard = React.memo(({
                       return (
                         <span
                           key={`${feature.raw}-${feature.display}`}
-                          className="inline-flex items-center gap-[0.3125rem] whitespace-nowrap border-[0.125rem] border-[#262729] bg-[#90A6D6] px-[0.5625rem] py-[0.25rem] text-[0.75rem] font-minecraft uppercase tracking-[0.14em] text-black shadow-[inset_0_-0.125rem_0_#61749C]"
+                          className="inline-flex items-center gap-[5px] whitespace-nowrap border-[0.125rem] border-[#262729] bg-[#90A6D6] px-[9px] py-[4px] text-[12px] leading-[14px] font-minecraft uppercase tracking-[0.14em] text-black shadow-[inset_0_-0.125rem_0_#61749C]"
                         >
                           <Tags className="h-[0.75rem] w-[0.75rem]" />
                           {getLocalizedDownloadTagLabel({

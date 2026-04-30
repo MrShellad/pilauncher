@@ -141,6 +141,9 @@ export const AppearanceSettings: React.FC = () => {
       keys.push('settings-appearance-panorama-speed');
       keys.push('settings-appearance-panorama-direction');
     }
+    if (appearance.customLogo) {
+      keys.push('settings-appearance-logo-scale');
+    }
 
     PREDEFINED_COLORS.forEach((_, idx) => keys.push(`color-preset-${idx}`));
     keys.push('color-custom');
@@ -155,7 +158,7 @@ export const AppearanceSettings: React.FC = () => {
 
   return (
     <SettingsPageLayout adaptiveScale>
-      <SettingsSection title={t('settings.appearance.sections.background')} icon={<ImageIcon size={18} />}>
+      <SettingsSection title={t('settings.appearance.sections.background', '静态背景')} icon={<ImageIcon size={18} />}>
         <div className="p-6">
           <div className="group relative flex h-56 w-full flex-col items-center justify-center overflow-hidden border-2 border-dashed border-ore-gray-border bg-[#141415] transition-colors">
             {bgPreviewUrl ? (
@@ -246,64 +249,7 @@ export const AppearanceSettings: React.FC = () => {
           }
         />
 
-        {hasMicrosoftAccount && (
-          <>
-            <FormRow
-              label={t('settings.appearance.panoramaEnabled')}
-              description={t('settings.appearance.panoramaEnabledDesc')}
-              control={
-                <OreSwitch
-                  focusKey="settings-appearance-panorama-enabled"
-                  onArrowPress={handleLinearArrow}
-                  checked={appearance.panoramaEnabled}
-                  onChange={(v) => updateAppearanceSetting('panoramaEnabled', v)}
-                />
-              }
-            />
 
-            <FormRow
-              label={t('settings.appearance.panoramaSpeed')}
-              description={t('settings.appearance.panoramaSpeedDesc')}
-              vertical={true}
-              control={
-                <div className="w-full">
-                  <OreSlider
-                    focusKey="settings-appearance-panorama-speed"
-                    onArrowPress={handleLinearArrow}
-                    value={appearance.panoramaRotationSpeed}
-                    min={0}
-                    max={0.12}
-                    step={0.002}
-                    valueFormatter={(v) => `${v.toFixed(3)} rad/s`}
-                    onChange={(v) =>
-                      updateAppearanceSetting('panoramaRotationSpeed', Number(v.toFixed(3)))
-                    }
-                    disabled={!appearance.panoramaEnabled}
-                  />
-                </div>
-              }
-            />
-
-            <FormRow
-              label={t('settings.appearance.panoramaDirection')}
-              description={t('settings.appearance.panoramaDirectionDesc', { dir: appearance.panoramaRotationDirection === 'clockwise' ? t('settings.appearance.clockwise') : t('settings.appearance.counterclockwise') })}
-              control={
-                <OreSwitch
-                  focusKey="settings-appearance-panorama-direction"
-                  onArrowPress={handleLinearArrow}
-                  checked={appearance.panoramaRotationDirection === 'clockwise'}
-                  onChange={(v) =>
-                    updateAppearanceSetting(
-                      'panoramaRotationDirection',
-                      v ? 'clockwise' : 'counterclockwise',
-                    )
-                  }
-                  disabled={!appearance.panoramaEnabled}
-                />
-              }
-            />
-          </>
-        )}
 
         <FormRow
           label={t('settings.appearance.maskColor')}
@@ -397,7 +343,65 @@ export const AppearanceSettings: React.FC = () => {
         />
       </SettingsSection>
 
-      
+      {hasMicrosoftAccount && (
+        <SettingsSection title={t('settings.appearance.sections.dynamicBackground', '动态背景')} icon={<ImageIcon size={18} />}>
+<FormRow
+              label={t('settings.appearance.panoramaEnabled')}
+              description={t('settings.appearance.panoramaEnabledDesc')}
+              control={
+                <OreSwitch
+                  focusKey="settings-appearance-panorama-enabled"
+                  onArrowPress={handleLinearArrow}
+                  checked={appearance.panoramaEnabled}
+                  onChange={(v) => updateAppearanceSetting('panoramaEnabled', v)}
+                />
+              }
+            />
+
+            <FormRow
+              label={t('settings.appearance.panoramaSpeed')}
+              description={t('settings.appearance.panoramaSpeedDesc')}
+              vertical={true}
+              control={
+                <div className="w-full">
+                  <OreSlider
+                    focusKey="settings-appearance-panorama-speed"
+                    onArrowPress={handleLinearArrow}
+                    value={appearance.panoramaRotationSpeed}
+                    min={0}
+                    max={0.12}
+                    step={0.002}
+                    valueFormatter={(v) => `${v.toFixed(3)} rad/s`}
+                    onChange={(v) =>
+                      updateAppearanceSetting('panoramaRotationSpeed', Number(v.toFixed(3)))
+                    }
+                    disabled={!appearance.panoramaEnabled}
+                  />
+                </div>
+              }
+            />
+
+            <FormRow
+              label={t('settings.appearance.panoramaDirection')}
+              description={t('settings.appearance.panoramaDirectionDesc', { dir: appearance.panoramaRotationDirection === 'clockwise' ? t('settings.appearance.clockwise') : t('settings.appearance.counterclockwise') })}
+              control={
+                <OreSwitch
+                  focusKey="settings-appearance-panorama-direction"
+                  onArrowPress={handleLinearArrow}
+                  checked={appearance.panoramaRotationDirection === 'clockwise'}
+                  onChange={(v) =>
+                    updateAppearanceSetting(
+                      'panoramaRotationDirection',
+                      v ? 'clockwise' : 'counterclockwise',
+                    )
+                  }
+                  disabled={!appearance.panoramaEnabled}
+                />
+              }
+            />
+        </SettingsSection>
+      )}
+  
       {isDonor && (
         <SettingsSection title="自定义 Logo (赞助者专属)" icon={<Crown size={18} className="text-[#FFD700]" />}>
           <div className="p-6">
@@ -408,6 +412,7 @@ export const AppearanceSettings: React.FC = () => {
                     src={convertFileSrc(appearance.customLogo)}
                     alt="Custom Logo"
                     className="h-full w-full object-contain p-4 transition-all"
+                    style={{ transform: `scale(${(appearance.customLogoScale ?? 100) / 100})` }}
                   />
                   <div className="absolute inset-0 z-10 flex items-center justify-center gap-4 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                     <OreButton variant="secondary" size="sm" onClick={handleSelectCustomLogo}>更换 Logo</OreButton>
@@ -424,6 +429,25 @@ export const AppearanceSettings: React.FC = () => {
               )}
             </div>
           </div>
+          <FormRow
+            label="Logo 大小"
+            description="调节自定义 Logo 的缩放比例"
+            vertical={true}
+            control={
+              <div className="w-full">
+                <OreSlider
+                  focusKey="settings-appearance-logo-scale"
+                  onArrowPress={handleLinearArrow}
+                  value={appearance.customLogoScale ?? 100}
+                  min={10}
+                  max={200}
+                  step={5}
+                  valueFormatter={(v) => `${v}%`}
+                  onChange={(v) => updateAppearanceSetting('customLogoScale', v)}
+                />
+              </div>
+            }
+          />
         </SettingsSection>
       )}
 
@@ -442,7 +466,8 @@ export const AppearanceSettings: React.FC = () => {
                 value={appearance.fontFamily}
                 onChange={(val) => updateAppearanceSetting('fontFamily', val)}
                 disabled={isLoadingFonts}
-                className="w-56"
+                searchable={true}
+                className="w-56 shrink-0"
               />
             </div>
           }

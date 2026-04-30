@@ -1,5 +1,5 @@
 // src/features/Settings/components/tabs/GameSettings.tsx
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { Monitor, Eye } from 'lucide-react';
@@ -26,17 +26,30 @@ const STANDARD_RESOLUTIONS = [
   { w: 3840, h: 2160, value: '3840x2160', labelKey: 'settings.game.resolutions.uhd' },
 ];
 
+const STEAM_DECK_TOGGLE_DEBOUNCE_MS = 350;
+
 export const GameSettings: React.FC = () => {
   const { t } = useTranslation();
   const { settings, updateGameSetting } = useSettingsStore();
   const game = settings.game || DEFAULT_SETTINGS.game;
 
   const [maxRes, setMaxRes] = useState<{ w: number, h: number } | null>(null);
+  const [steamDeckToggleLocked, setSteamDeckToggleLocked] = useState(false);
+  const steamDeckToggleLockRef = useRef(false);
+  const steamDeckToggleTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     invoke<[number, number]>('get_primary_monitor_resolution')
       .then(([w, h]) => setMaxRes({ w, h }))
       .catch(err => console.error("无法获取屏幕分辨率:", err));
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (steamDeckToggleTimerRef.current !== null) {
+        window.clearTimeout(steamDeckToggleTimerRef.current);
+      }
+    };
   }, []);
 
   const resolutionOptions: ToggleOption[] = useMemo(() => {
@@ -68,6 +81,7 @@ export const GameSettings: React.FC = () => {
       'settings-game-window-title',
       'settings-game-fullscreen',
       ...resolutionKeys, // 展开所有分辨率的 index key
+      'settings-game-steamdeck-keymap',
       'settings-game-show-log',
       'launcher-vis-keep',
       'launcher-vis-minimize',
@@ -76,6 +90,38 @@ export const GameSettings: React.FC = () => {
   }, [resolutionOptions]);
 
   const { handleLinearArrow } = useLinearNavigation(focusOrder);
+
+  const steamDeckKeymapColumns = useMemo(() => [
+    [
+      ['A', t('settings.game.steamDeckMap.confirm')],
+      ['B / Menu', t('settings.game.steamDeckMap.cancel')],
+      ['Left Stick / WASD', t('settings.game.steamDeckMap.move')],
+      ['Right Trackpad', t('settings.game.steamDeckMap.pointer')],
+    ],
+    [
+      ['X / Right Click', t('settings.game.steamDeckMap.actionX')],
+      ['Y / F', t('settings.game.steamDeckMap.actionY')],
+      ['L1 / R1 / D-Pad', t('settings.game.steamDeckMap.scroll')],
+      ['L2 / R2', t('settings.game.steamDeckMap.mouseButtons')],
+    ],
+  ], [t]);
+
+  const handleSteamDeckKeymapChange = useCallback((enabled: boolean) => {
+    if (steamDeckToggleLockRef.current) return;
+
+    steamDeckToggleLockRef.current = true;
+    setSteamDeckToggleLocked(true);
+    updateGameSetting('steamDeckKeymap', enabled);
+
+    if (steamDeckToggleTimerRef.current !== null) {
+      window.clearTimeout(steamDeckToggleTimerRef.current);
+    }
+    steamDeckToggleTimerRef.current = window.setTimeout(() => {
+      steamDeckToggleLockRef.current = false;
+      setSteamDeckToggleLocked(false);
+      steamDeckToggleTimerRef.current = null;
+    }, STEAM_DECK_TOGGLE_DEBOUNCE_MS);
+  }, [updateGameSetting]);
 
   return (
     <SettingsPageLayout adaptiveScale>
@@ -136,6 +182,43 @@ export const GameSettings: React.FC = () => {
       </SettingsSection>
 
       <SettingsSection title={t('settings.game.sections.behavior')} icon={<Eye size={18} />}>
+
+        <div className="flex flex-col">
+          <FormRow
+            label={t('settings.game.steamDeckKeymap')}
+            description={t('settings.game.steamDeckKeymapDesc')}
+            control={
+              <OreSwitch
+                focusKey="settings-game-steamdeck-keymap"
+                onArrowPress={handleLinearArrow}
+                checked={game.steamDeckKeymap ?? false}
+                disabled={steamDeckToggleLocked}
+                onChange={handleSteamDeckKeymapChange}
+              />
+            }
+          />
+          {game.steamDeckKeymap && (
+            <div className="px-6 pb-5 -mt-2">
+              <div className="grid w-full gap-x-6 gap-y-2 rounded-sm border border-white/10 bg-black/25 p-3 text-xs text-ore-text-muted lg:grid-cols-2">
+                {steamDeckKeymapColumns.map((column, columnIndex) => (
+                  <div key={columnIndex} className="grid auto-rows-[2.25rem] gap-2">
+                    {column.map(([button, desc]) => (
+                      <div
+                        key={button}
+                        className="grid min-w-0 grid-cols-[8.75rem_minmax(0,1fr)] items-center gap-3 leading-none"
+                      >
+                        <span className="flex h-8 items-center justify-center rounded-sm border border-white/10 bg-white/10 px-2 text-center font-minecraft text-white">
+                          {button}
+                        </span>
+                        <span className="flex min-h-8 min-w-0 items-center leading-4">{desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         <FormRow
           label={t('settings.game.showLog')}

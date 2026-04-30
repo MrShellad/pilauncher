@@ -1282,13 +1282,13 @@
   width: max-content;
   min-width: 100%;
   align-items: center;
-  gap: 2.5rem;
-  padding: 0 calc(50% - 21rem);
+  gap: max(1.5rem, 2.5vw);
+  padding: 0 max(1.5rem, calc(50vw - 21rem));
 }
 
 .ore-online-server-card {
-  flex: 0 0 42rem;
-  width: 42rem;
+  flex: 0 0 auto;
+  width: min(90vw, 42rem);
   scroll-snap-align: center;
   margin: 0;
   overflow: hidden;
