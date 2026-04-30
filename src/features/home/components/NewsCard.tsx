@@ -60,11 +60,14 @@ export const NewsCard: React.FC<NewsCardProps> = ({
       }}
       className="group flex min-h-[26rem] flex-col overflow-hidden border-[3px] bg-[#313233] shadow-[8px_8px_0_rgba(0,0,0,0.24)]"
       style={{
+        '--home-news-action-h': 'clamp(2.75rem, 4.8vh, 4.5rem)',
+        '--home-news-action-font': 'clamp(0.875rem, 1.05vw, 1.375rem)',
+        '--home-news-action-icon': 'clamp(1rem, 1.25vw, 1.75rem)',
         borderTopColor: '#5A5B5C',
         borderLeftColor: '#5A5B5C',
         borderRightColor: '#1E1E1F',
         borderBottomColor: '#1E1E1F',
-      }}
+      } as React.CSSProperties}
     >
       <div className="relative h-[15.5rem] overflow-hidden border-b-[3px] border-[#1E1E1F] bg-[#1E1E1F] lg:h-[16rem]">
         <div
@@ -128,13 +131,13 @@ export const NewsCard: React.FC<NewsCardProps> = ({
               focusKey={createInstanceFocusKey}
               variant="primary"
               size="auto"
-              className="w-full !h-11 gap-2 !text-white ore-text-shadow"
+              className="w-full !h-[var(--home-news-action-h)] gap-[clamp(0.5rem,0.75vw,1rem)] !text-[length:var(--home-news-action-font)] !text-white [&_svg]:!text-white ore-text-shadow"
               onClick={onCreateInstance}
               onFocus={onActionFocus}
               onArrowPress={onCreateInstanceArrowPress}
               autoScroll
             >
-              <Plus size={16} />
+              <Plus size="var(--home-news-action-icon)" />
               <span>{createInstanceLabel}</span>
             </OreButton>
           )}
@@ -143,13 +146,13 @@ export const NewsCard: React.FC<NewsCardProps> = ({
               focusKey={officialFocusKey}
               variant="secondary"
               size="auto"
-              className="flex-1 !min-w-0 !h-11 gap-2"
+              className="flex-1 !min-w-0 !h-[var(--home-news-action-h)] gap-[clamp(0.5rem,0.75vw,1rem)] !text-[length:var(--home-news-action-font)] !text-[#111214] [&_svg]:!text-[#111214]"
               onClick={() => void openExternalLink(officialUrl)}
               onFocus={onActionFocus}
               onArrowPress={onOfficialArrowPress}
               autoScroll
             >
-              <ExternalLink size={16} />
+              <ExternalLink size="var(--home-news-action-icon)" />
               <span>{officialLabel}</span>
             </OreButton>
 
@@ -157,13 +160,13 @@ export const NewsCard: React.FC<NewsCardProps> = ({
               focusKey={wikiFocusKey}
               variant="secondary"
               size="auto"
-              className="flex-1 !min-w-0 !h-11 gap-2"
+              className="flex-1 !min-w-0 !h-[var(--home-news-action-h)] gap-[clamp(0.5rem,0.75vw,1rem)] !text-[length:var(--home-news-action-font)] !text-[#111214] [&_svg]:!text-[#111214]"
               onClick={() => void openExternalLink(wikiUrl)}
               onFocus={onActionFocus}
               onArrowPress={onWikiArrowPress}
               autoScroll
             >
-              <BookOpen size={16} />
+              <BookOpen size="var(--home-news-action-icon)" />
               <span>{wikiLabel}</span>
             </OreButton>
           </div>

@@ -23,6 +23,8 @@ export const StartupNewsModal: React.FC = () => {
     return null;
   }
 
+  const actionClassName = '!h-[clamp(2.75rem,4.8vh,4.5rem)] !px-[clamp(1.25rem,1.8vw,2.5rem)] !text-[length:clamp(0.875rem,1.05vw,1.375rem)]';
+
   return (
     <OreModal
       isOpen={isStartupModalOpen}
@@ -33,14 +35,14 @@ export const StartupNewsModal: React.FC = () => {
       contentClassName="p-5 overflow-y-auto custom-scrollbar"
       actions={
         <>
-          <OreButton focusKey="startup-news-later" variant="secondary" size="auto" onClick={dismissStartupModal}>
+          <OreButton focusKey="startup-news-later" variant="secondary" size="auto" className={`${actionClassName} !text-[#111214]`} onClick={dismissStartupModal}>
             {locale === 'zh' ? '稍后查看' : 'Later'}
           </OreButton>
           <OreButton
             focusKey="startup-news-open"
             variant="primary"
             size="auto"
-            className="!text-white"
+            className={`${actionClassName} !text-white`}
             onClick={() => {
               markAllRead();
               setActiveTab('news');

@@ -119,6 +119,16 @@ fn minecraft_api_error(action: &str, status: reqwest::StatusCode, body: String) 
     }
 }
 
+fn is_valid_png_bytes(bytes: &[u8]) -> bool {
+    bytes.len() > 8 && &bytes[0..8] == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+}
+
+fn is_valid_png_file(path: &PathBuf) -> bool {
+    std::fs::read(path)
+        .map(|bytes| is_valid_png_bytes(&bytes))
+        .unwrap_or(false)
+}
+
 /// 构建皮肤上传的 multipart body
 fn build_skin_upload_body(variant: &str, file_name: &str, file_bytes: &[u8]) -> (String, Vec<u8>) {
     let boundary = format!("----PiLauncherWardrobe{}", Uuid::new_v4().simple());
@@ -287,6 +297,57 @@ pub async fn cache_account_assets<R: Runtime>(
     Ok(())
 }
 
+/// 确保账号当前皮肤已缓存到 `{base}/runtime/accounts/{uuid}/skin.png`
+pub async fn ensure_account_skin<R: Runtime>(
+    app: &AppHandle<R>,
+    uuid: &str,
+    skin_url: Option<&str>,
+) -> Result<PathBuf, String> {
+    let target_dir = paths::account_runtime_dir(app, uuid)?;
+    fs::create_dir_all(&target_dir).map_err(|e| format!("创建账号资源目录失败: {}", e))?;
+
+    let skin_path = target_dir.join("skin.png");
+    let existing_valid = skin_path.exists() && is_valid_png_file(&skin_path);
+
+    if let Some(raw_url) = skin_url {
+        let source = raw_url.split('?').next().unwrap_or("").trim();
+
+        if source.starts_with("http://") || source.starts_with("https://") {
+            let client = get_client();
+            if let Ok(resp) = client.get(source).send().await {
+                if resp.status().is_success() {
+                    if let Ok(bytes) = resp.bytes().await {
+                        if is_valid_png_bytes(&bytes) {
+                            fs::write(&skin_path, &bytes)
+                                .map_err(|e| format!("写入皮肤缓存失败: {}", e))?;
+                            return Ok(skin_path);
+                        }
+                    }
+                }
+            }
+        } else if !source.is_empty() {
+            let source_path = PathBuf::from(source);
+            if source_path.exists() && is_valid_png_file(&source_path) {
+                if source_path != skin_path {
+                    fs::copy(&source_path, &skin_path)
+                        .map_err(|e| format!("复制皮肤缓存失败: {}", e))?;
+                }
+                return Ok(skin_path);
+            }
+        }
+    }
+
+    if existing_valid {
+        return Ok(skin_path);
+    }
+
+    if skin_path.exists() {
+        let _ = fs::remove_file(&skin_path);
+    }
+
+    Err("账号皮肤缓存不存在，且无法从账号皮肤 URL 获取".to_string())
+}
+
 /// 获取或下载账号头像
 pub async fn get_or_fetch_account_avatar<R: Runtime>(
     app: &AppHandle<R>,
@@ -302,11 +363,7 @@ pub async fn get_or_fetch_account_avatar<R: Runtime>(
     let avatar_path = target_dir.join("avatar.png");
 
     if avatar_path.exists() {
-        let is_valid_png = std::fs::read(&avatar_path)
-            .map(|bytes| {
-                bytes.len() > 8 && &bytes[0..8] == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
-            })
-            .unwrap_or(false);
+        let is_valid_png = is_valid_png_file(&avatar_path);
 
         if is_valid_png {
             return Ok(avatar_path);
@@ -326,9 +383,7 @@ pub async fn get_or_fetch_account_avatar<R: Runtime>(
         if let Ok(resp) = client.get(&url).send().await {
             if resp.status().is_success() {
                 if let Ok(bytes) = resp.bytes().await {
-                    if bytes.len() > 8
-                        && &bytes[0..8] == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
-                    {
+                    if is_valid_png_bytes(&bytes) {
                         let _ = std::fs::write(&avatar_path, &bytes);
                         return Ok(avatar_path);
                     }

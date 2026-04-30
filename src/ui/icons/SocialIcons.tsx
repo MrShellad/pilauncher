@@ -4,7 +4,7 @@
 import React from 'react';
 
 interface IconProps {
-  size?: number;
+  size?: number | string;
   className?: string;
 }
 

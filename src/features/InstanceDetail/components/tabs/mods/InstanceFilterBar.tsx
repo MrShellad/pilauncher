@@ -2,13 +2,16 @@
 import React from 'react';
 import { Search, RotateCcw, Package, Image as LucideImage, Blocks } from 'lucide-react';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { useTranslation } from 'react-i18next';
 
 import { OreToggleButton } from '../../../../../ui/primitives/OreToggleButton';
 import { OreInput } from '../../../../../ui/primitives/OreInput';
 import { OreDropdown } from '../../../../../ui/primitives/OreDropdown';
 import { OreButton } from '../../../../../ui/primitives/OreButton';
 import { FocusItem } from '../../../../../ui/focus/FocusItem';
-import { ModrinthIcon, CurseforgeIcon } from '../../../../Download/components/Icons';
+import { getSortOptions, getSourceOptions } from '../../../../Download/components/FilterBar.constants';
+import type { FilterOption } from '../../../../Download/hooks/useResourceDownload';
+import { getLocalizedDownloadOptionLabel } from '../../../../Download/logic/downloadTagLabels';
 
 interface InstanceFilterBarProps {
   onBack: () => void;
@@ -22,6 +25,7 @@ interface InstanceFilterBarProps {
   setSource: (v: string) => void;
   category: string;
   setCategory: (v: string) => void;
+  categoryOptions: FilterOption[];
   sort: string;
   setSort: (v: string) => void;
   onSearch: () => void;
@@ -57,11 +61,14 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
   setSource,
   category,
   setCategory,
+  categoryOptions,
   sort,
   setSort,
   onSearch,
   onReset
 }) => {
+  const { t, i18n } = useTranslation();
+
   const pageMeta = React.useMemo(() => {
     if (resourceTab === 'resourcepack') {
       return { title: '实例资源包下载', icon: Package };
@@ -72,42 +79,20 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
     return { title: '实例模组下载', icon: Blocks };
   }, [resourceTab]);
 
-  const sourceOptions = [
-    {
-      label: (
-        <div className="flex w-full items-center justify-center font-minecraft tracking-wider">
-          <ModrinthIcon className={`mr-1.5 text-[1.125rem] ${source === 'modrinth' ? 'text-white' : 'text-ore-green'}`} />
-          Modrinth
-        </div>
-      ),
-      value: 'modrinth'
-    },
-    {
-      label: (
-        <div className="flex w-full items-center justify-center font-minecraft tracking-wider">
-          <CurseforgeIcon className={`mr-1.5 text-[1.125rem] ${source === 'curseforge' ? 'text-white' : 'text-[#F16436]'}`} />
-          CurseForge
-        </div>
-      ),
-      value: 'curseforge'
-    }
-  ];
+  const sourceOptions = React.useMemo(() => getSourceOptions(t, source), [t, source]);
 
-  const categoryOptions = resourceTab === 'mod'
-    ? [
-      { label: '全部分类', value: '' },
-      { label: '科技', value: 'technology' },
-      { label: '魔法', value: 'magic' },
-      { label: '优化', value: 'optimization' },
-      { label: '实用', value: 'utility' }
-    ]
-    : [{ label: '全部分类', value: '' }];
-
-  const sortOptions = [
-    { label: '综合排序', value: 'relevance' },
-    { label: '下载最多', value: 'downloads' },
-    { label: '最近更新', value: 'updated' }
-  ];
+  const sortOptions = React.useMemo(() => getSortOptions(t), [t]);
+  const translatedCategoryOptions = React.useMemo(() => [
+    { label: t('download.filters.categoryAll', { defaultValue: 'All Categories' }), value: '' },
+    ...categoryOptions.map((option) => ({
+      label: getLocalizedDownloadOptionLabel({
+        t,
+        language: i18n.language,
+        option
+      }),
+      value: option.value
+    }))
+  ], [categoryOptions, i18n.language, t]);
   const loaderLabel = lockedLoaderType
     ? lockedLoaderType === 'neoforge'
       ? 'NeoForge'
@@ -166,7 +151,7 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
 
           <div className="flex flex-1 justify-center">
             <div className="pointer-events-none flex items-center gap-2 font-minecraft text-sm uppercase tracking-[0.18em] text-[#E6E8EB]">
-              <pageMeta.icon size={16} className="text-ore-green" />
+              <pageMeta.icon size="1rem" className="text-ore-green" />
               {pageMeta.title}
             </div>
           </div>
@@ -209,10 +194,11 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
             <OreDropdown
               focusKey="inst-filter-category"
               onArrowPress={handleArrow('inst-filter-category')}
-              options={categoryOptions}
-              value={category || categoryOptions[0].value}
+              options={translatedCategoryOptions}
+              value={category || ''}
               onChange={setCategory}
               className="!h-[2.75rem] w-full"
+              placeholder={t('download.filters.categoryAll', { defaultValue: 'All Categories' })}
             />
           </div>
 
@@ -221,7 +207,7 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
               focusKey="inst-filter-sort"
               onArrowPress={handleArrow('inst-filter-sort')}
               options={sortOptions}
-              value={sort || sortOptions[0].value}
+              value={sort || 'relevance'}
               onChange={setSort}
               className="!h-[2.75rem] w-full"
             />
@@ -231,7 +217,7 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
             <OreInput
               focusKey="inst-filter-search"
               width="100%"
-              height="44px"
+              height="2.75rem"
               onArrowPress={handleArrow('inst-filter-search')}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -243,7 +229,7 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
                     ? '搜索适配当前实例的资源包...'
                     : '搜索适配当前实例的模组...'
               }
-              prefixNode={<Search size={16} />}
+              prefixNode={<Search size="1rem" />}
               containerClassName="!space-y-0 !h-[2.75rem] w-full"
             />
           </div>
@@ -257,7 +243,7 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
               onClick={onSearch}
               className="!h-[2.75rem] w-full font-bold tracking-wider text-black"
             >
-              <Search size={16} className="mr-1.5" />
+              <Search size="1rem" className="mr-1.5" />
               搜索
             </OreButton>
           </div>
@@ -271,7 +257,7 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
               onClick={onReset}
               className="!h-[2.75rem] w-full text-black"
             >
-              <RotateCcw size={16} className="mr-1.5" />
+              <RotateCcw size="1rem" className="mr-1.5" />
               重置
             </OreButton>
           </div>

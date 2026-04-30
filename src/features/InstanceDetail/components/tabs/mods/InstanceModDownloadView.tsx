@@ -183,6 +183,7 @@ export const InstanceModDownloadView: React.FC<{
     setSort,
     source,
     setSource,
+    categoryOptions,
     results,
     hasMore,
     isLoading,
@@ -506,6 +507,7 @@ export const InstanceModDownloadView: React.FC<{
         setSource={(value) => setSource(value as DownloadSource)}
         category={category}
         setCategory={setCategory}
+        categoryOptions={categoryOptions}
         sort={sort}
         setSort={setSort}
         onSearch={handleSearchClick}

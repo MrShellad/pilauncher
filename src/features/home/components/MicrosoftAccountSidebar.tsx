@@ -696,12 +696,12 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
                                   (transferType === 'save' && !selectedSave)
                                 }
                                 variant="primary"
-                                className="min-w-[180px] justify-center !h-11"
+                                className="min-w-[clamp(11.25rem,14vw,18rem)] justify-center !h-[clamp(2.75rem,4.8vh,4.5rem)] !text-[length:clamp(0.875rem,1vw,1.25rem)] !text-white [&_svg]:!text-white"
                               >
                                 {isPushing ? (
-                                  <Loader2 size={16} className="mr-2 animate-spin" />
+                                  <Loader2 size="clamp(1rem,1.2vw,1.5rem)" className="mr-2 animate-spin" />
                                 ) : (
-                                  <Send size={16} className="mr-2" />
+                                  <Send size="clamp(1rem,1.2vw,1.5rem)" className="mr-2" />
                                 )}
                                 {isPushing ? '准备发送...' : '开始投送'}
                               </OreButton>
@@ -761,10 +761,10 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
           </p>
 
           <div className="flex w-full gap-4">
-            <OreButton className="flex-1 !h-12" variant="secondary" onClick={() => resolveTrustRequest(false)}>
+            <OreButton className="flex-1 !h-[clamp(3rem,5vh,4.75rem)] !text-[length:clamp(1rem,1.1vw,1.375rem)] !text-[#111214]" variant="secondary" onClick={() => resolveTrustRequest(false)}>
               拒绝
             </OreButton>
-            <OreButton className="flex-1 !h-12" variant="primary" onClick={() => resolveTrustRequest(true)}>
+            <OreButton className="flex-1 !h-[clamp(3rem,5vh,4.75rem)] !text-[length:clamp(1rem,1.1vw,1.375rem)] !text-white" variant="primary" onClick={() => resolveTrustRequest(true)}>
               {incomingRequest?.requestKind === 'trusted' ? '接受并信任' : '接受并加为好友'}
             </OreButton>
           </div>

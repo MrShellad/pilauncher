@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React from 'react';
 import { Link2, Plus, Save, X } from 'lucide-react';
-import { BUTTON_TYPES, getButtonIcon } from '../../../../../../ui/icons/SocialIcons';
+import { getButtonIcon } from '../../../../../../ui/icons/SocialIcons';
 
 import { OreInput } from '../../../../../../ui/primitives/OreInput';
 import { OreButton } from '../../../../../../ui/primitives/OreButton';
@@ -8,17 +8,8 @@ import { OreDropdown } from '../../../../../../ui/primitives/OreDropdown';
 import { SettingsSection } from '../../../../../../ui/layout/SettingsSection';
 import { FormRow } from '../../../../../../ui/layout/FormRow';
 import { FocusItem } from '../../../../../../ui/focus/FocusItem';
-
-import type { CustomButton } from '../../../../../../hooks/pages/InstanceDetail/useInstanceDetail';
-
-interface CustomLinksSectionProps {
-  initialButtons?: CustomButton[];
-  isInitializing: boolean;
-  onUpdateCustomButtons: (buttons: CustomButton[]) => Promise<void>;
-  onSuccess: (msg: string) => void;
-  isGlobalSaving: boolean;
-  setIsGlobalSaving: (val: boolean) => void;
-}
+import { useCustomLinksSection } from '../hooks/useCustomLinksSection';
+import type { CustomLinksSectionProps } from '../schemas/basicPanelSchemas';
 
 export const CustomLinksSection: React.FC<CustomLinksSectionProps> = ({
   initialButtons = [],
@@ -28,39 +19,22 @@ export const CustomLinksSection: React.FC<CustomLinksSectionProps> = ({
   isGlobalSaving,
   setIsGlobalSaving,
 }) => {
-  const [customButtons, setCustomButtons] = useState<CustomButton[]>(initialButtons);
-
-  useEffect(() => {
-    setCustomButtons(initialButtons);
-  }, [initialButtons]);
-
-  const handleSaveCustomButtons = async () => {
-    setIsGlobalSaving(true);
-    await onUpdateCustomButtons(customButtons);
-    setIsGlobalSaving(false);
-    onSuccess('自定义链接已保存');
-  };
-
-  const handleAddButton = () => {
-    setCustomButtons([...customButtons, { type: 'wiki', url: '', label: '' }]);
-  };
-
-  const handleRemoveButton = (index: number) => {
-    setCustomButtons(customButtons.filter((_, i) => i !== index));
-  };
-
-  const handleChangeButton = (index: number, field: keyof CustomButton, value: string) => {
-    const newBtns = [...customButtons];
-    newBtns[index] = { ...newBtns[index], [field]: value };
-    setCustomButtons(newBtns);
-  };
-
-  const dropdownOptions = useMemo(() => {
-    return BUTTON_TYPES.map(t => ({ label: t.label, value: t.value }));
-  }, []);
+  const {
+    customButtons,
+    dropdownOptions,
+    handleSaveCustomButtons,
+    handleAddButton,
+    handleRemoveButton,
+    handleChangeButton,
+  } = useCustomLinksSection({
+    initialButtons,
+    onUpdateCustomButtons,
+    onSuccess,
+    setIsGlobalSaving,
+  });
 
   return (
-    <SettingsSection title="自定义链接管理" icon={<Link2 size={18} />}>
+    <SettingsSection title="自定义链接管理" icon={<Link2 size="1.125rem" />}>
       <FormRow
         label="快速链接"
         description="为整合包添加快速链接按钮（如 Wiki、社区、官网等），将展示在主页和概览页。留空标题时将使用平台名称。"
@@ -74,19 +48,19 @@ export const CustomLinksSection: React.FC<CustomLinksSectionProps> = ({
                   key={idx}
                   className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2 p-3 bg-[#18181B] border-2 border-[#2A2A2C] rounded-sm transition-colors hover:border-[#3A3A3C]"
                 >
-                  <div className="w-full lg:w-[160px] flex-shrink-0">
+                  <div className="w-full lg:w-[10rem] flex-shrink-0">
                     <OreDropdown
                       focusKey={`btn-type-select-${idx}`}
                       options={dropdownOptions}
                       value={btn.type}
                       onChange={(val) => handleChangeButton(idx, 'type', val)}
                       disabled={isGlobalSaving || isInitializing}
-                      prefixNode={<IconComp size={18} />}
+                      prefixNode={<IconComp size="1.125rem" />}
                       className="w-full"
                     />
                   </div>
 
-                  <div className="w-full lg:w-[140px] flex-shrink-0">
+                  <div className="w-full lg:w-[8.75rem] flex-shrink-0">
                     <OreInput
                       focusKey={`btn-label-${idx}`}
                       value={btn.label || ''}
@@ -109,7 +83,7 @@ export const CustomLinksSection: React.FC<CustomLinksSectionProps> = ({
                   <FocusItem focusKey={`btn-remove-${idx}`}>
                     {({ ref, focused }) => (
                       <button
-                        ref={ref as any}
+                        ref={ref as React.RefObject<HTMLButtonElement>}
                         onClick={() => handleRemoveButton(idx)}
                         disabled={isGlobalSaving || isInitializing}
                         className={`w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-sm outline-none transition-all ${
@@ -119,7 +93,7 @@ export const CustomLinksSection: React.FC<CustomLinksSectionProps> = ({
                         } disabled:opacity-40`}
                         title="删除链接"
                       >
-                        <X size={18} />
+                        <X size="1.125rem" />
                       </button>
                     )}
                   </FocusItem>
@@ -129,7 +103,7 @@ export const CustomLinksSection: React.FC<CustomLinksSectionProps> = ({
 
             {customButtons.length === 0 && (
               <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-[#1E1E1F] rounded-sm bg-[#141415]/20">
-                <Link2 size={24} className="text-ore-text-muted opacity-40 mb-2" />
+                <Link2 size="1.5rem" className="text-ore-text-muted opacity-40 mb-2" />
                 <span className="text-sm text-ore-text-muted font-minecraft">暂无自定义链接，点击下方添加</span>
               </div>
             )}
@@ -147,7 +121,7 @@ export const CustomLinksSection: React.FC<CustomLinksSectionProps> = ({
               onClick={handleAddButton}
               disabled={isGlobalSaving || isInitializing}
             >
-              <Plus size={16} className="mr-1.5" /> 添加链接
+              <Plus size="1rem" className="mr-1.5" /> 添加链接
             </OreButton>
             <OreButton
               focusKey="btn-save-links"
@@ -155,7 +129,7 @@ export const CustomLinksSection: React.FC<CustomLinksSectionProps> = ({
               onClick={handleSaveCustomButtons}
               disabled={isGlobalSaving || isInitializing || customButtons.length === 0}
             >
-              <Save size={16} className="mr-1.5" /> 保存配置
+              <Save size="1rem" className="mr-1.5" /> 保存配置
             </OreButton>
           </div>
         }

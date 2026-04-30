@@ -48,16 +48,32 @@ const Home: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full relative">
+    <div
+      className="
+        relative h-full w-full
+        [--home-action-h:clamp(3rem,4.7vh,5.25rem)]
+        [--home-action-font:clamp(1rem,2vh,1.875rem)]
+        [--home-action-icon:clamp(1.25rem,1.55vw,2rem)]
+        [--home-action-gap:clamp(0.75rem,1vw,1.5rem)]
+        [--home-hero-action-h:clamp(3.75rem,6.5vh,6.875rem)]
+        [--home-hero-action-font:clamp(1.25rem,2.35vh,2.375rem)]
+        [--home-side-button:clamp(3rem,5.8vh,5rem)]
+        [--home-side-font:clamp(1rem,1.25vw,1.75rem)]
+        [--home-side-icon:clamp(1.45rem,1.65vw,2.25rem)]
+        [--home-panel-edge:clamp(1rem,2.3vw,4rem)]
+        [--home-skin-w:clamp(12rem,25vw,27rem)]
+        [--home-skin-h:clamp(18.75rem,50vh,40rem)]
+      "
+    >
       {/* ✅ 修复 3：将提取出的数据传给 PlayStats */}
       <PlayStats instanceId={currentId} playTime={playTime} lastPlayed={lastPlayed} />
-      <div className="absolute right-4 md:right-8 lg:right-12 bottom-6 w-[25vw] min-w-[180px] max-w-[320px] flex flex-col items-center gap-3 z-20">
-        <SkinViewerPlaceholder className="relative w-full h-[50vh] min-h-[300px] max-h-[500px] flex items-center justify-center cursor-grab active:cursor-grabbing" />
+      <div className="absolute bottom-[clamp(1rem,3vh,3rem)] right-[var(--home-panel-edge)] z-20 flex w-[var(--home-skin-w)] flex-col items-center gap-[clamp(0.75rem,1.4vh,1.5rem)]">
+        <SkinViewerPlaceholder className="relative flex h-[var(--home-skin-h)] w-full cursor-grab items-center justify-center active:cursor-grabbing" />
         <OreButton
           focusKey="btn-wardrobe"
           variant="secondary"
           size="auto"
-          className="!h-11 !w-full !min-w-0"
+          className="!h-[var(--home-action-h)] !w-full !min-w-0 !px-[clamp(1rem,1.4vw,2rem)] !text-[length:var(--home-action-font)] !text-[#111214] [&_svg]:!text-[#111214]"
           onClick={() => setActiveTab('wardrobe')}
           autoScroll={false}
         >
@@ -69,7 +85,7 @@ const Home: React.FC = () => {
         <HeroLogo instanceId={currentId || null} />
       </div>
 
-      <div className="absolute bottom-[13vh] left-1/2 -translate-x-1/2 w-full flex justify-center z-20 pointer-events-none">
+      <div className="pointer-events-none absolute bottom-[clamp(5.5rem,13vh,12rem)] left-1/2 z-20 flex w-full -translate-x-1/2 justify-center">
         <LaunchControls
           instanceId={currentId}
           instanceName={currentInstanceName}

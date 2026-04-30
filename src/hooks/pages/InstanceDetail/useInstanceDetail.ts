@@ -195,8 +195,6 @@ export const useInstanceDetail = (instanceId: string) => {
       setData((prev) => (prev ? { ...prev, coverUrl: assetUrl } : null));
       return;
     }
-
-    throw new Error('USER_CANCELED');
   };
 
   const handleUpdateEnvironment = async (update: {

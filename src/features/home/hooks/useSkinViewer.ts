@@ -13,6 +13,15 @@ import { SkinEngine, type AnimationPreset } from '../engine/SkinEngine';
 
 const DEFAULT_SKIN_URL = 'https://minotar.net/skin/Steve.png';
 
+interface SkinViewerAccount {
+  uuid?: string;
+  name?: string;
+  skinUrl?: string | null;
+  metadata?: {
+    model?: string | null;
+  } | null;
+}
+
 export interface UseSkinViewerReturn {
   /** 挂载到容器 div 的 ref */
   containerRef: React.RefObject<HTMLDivElement>;
@@ -62,8 +71,26 @@ export const detectSkinModel = (url: string): Promise<'classic' | 'slim'> => {
   });
 };
 
+const stripSkinUrlQuery = (url?: string | null) => (url || '').split('?')[0].trim();
+
+const appendCacheBuster = (url: string, cacheBuster: string) => {
+  if (!cacheBuster || cacheBuster === 'init') return url;
+  return `${url}${url.includes('?') ? '&' : '?'}t=${encodeURIComponent(cacheBuster)}`;
+};
+
+const toLoadableSkinUrl = (url?: string | null, cacheBuster = 'init') => {
+  const rawUrl = stripSkinUrlQuery(url);
+  if (!rawUrl) return '';
+
+  if (/^(https?:|asset:|data:|blob:)/i.test(rawUrl)) {
+    return appendCacheBuster(rawUrl, cacheBuster);
+  }
+
+  return appendCacheBuster(convertFileSrc(rawUrl), cacheBuster);
+};
+
 export const loadAccountSkin = async (engine: SkinEngine, currentAccount: unknown) => {
-  const account = currentAccount as any;
+  const account = currentAccount as SkinViewerAccount | null;
   const uuid = account?.uuid ?? '';
   const cacheBuster = account?.skinUrl?.split('?t=')[1] || 'init';
   const skinKey = uuid ? `${uuid}:${cacheBuster}` : 'default:steve';
@@ -80,24 +107,35 @@ export const loadAccountSkin = async (engine: SkinEngine, currentAccount: unknow
   }
 
   try {
-    const basePath = await invoke<string | null>('get_base_directory');
-    if (basePath) {
-      const separator = basePath.includes('\\') ? '\\' : '/';
-      const localSkinPath = `${basePath}${separator}runtime${separator}accounts${separator}${account.uuid}${separator}skin.png`;
-      const assetUrl = `${convertFileSrc(localSkinPath)}?t=${cacheBuster}`;
-      
-      // 优先级 2：本地 PNG 检测 (没有 profile 时：检测 slim 透明列)
-      const modelToLoad = metadataModel || await detectSkinModel(assetUrl);
-
-      await engine.loadSkin(skinKey, assetUrl, modelToLoad);
+    if (uuid) {
+      const cachedSkinPath = await invoke<string>('ensure_account_skin', {
+        uuid,
+        skinUrl: stripSkinUrlQuery(account.skinUrl)
+      });
+      const cachedSkinUrl = appendCacheBuster(convertFileSrc(cachedSkinPath), cacheBuster);
+      const modelToLoad = metadataModel || await detectSkinModel(cachedSkinUrl);
+      await engine.loadSkin(skinKey, cachedSkinUrl, modelToLoad);
       return;
     }
   } catch (e) {
-    console.warn('[useSkinViewer] 加载本地皮肤失败，尝试网络兜底:', e);
+    console.warn('[useSkinViewer] 加载账号皮肤缓存失败，尝试账号皮肤 URL:', e);
+  }
+
+  const accountSkinUrl = toLoadableSkinUrl(account.skinUrl, cacheBuster);
+  if (accountSkinUrl) {
+    try {
+      const modelToLoad = metadataModel || await detectSkinModel(accountSkinUrl);
+      await engine.loadSkin(skinKey, accountSkinUrl, modelToLoad);
+      return;
+    } catch (e) {
+      console.warn('[useSkinViewer] 加载账号皮肤 URL 失败，尝试网络兜底:', e);
+    }
   }
 
   try {
-    const netUrl = `https://minotar.net/skin/${account.name}.png`;
+    const fallbackName = account.name || uuid;
+    if (!fallbackName) throw new Error('Missing account name for skin fallback');
+    const netUrl = `https://minotar.net/skin/${encodeURIComponent(fallbackName)}.png`;
     const modelToLoad = metadataModel || await detectSkinModel(netUrl);
     await engine.loadSkin(skinKey, netUrl, modelToLoad);
   } catch {

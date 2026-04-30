@@ -50,13 +50,13 @@ export const rowMap: Record<string, FilterKey[]> = {
 };
 
 export const blockClassName =
-  'relative min-w-0 border-[2px] border-[#1E1E1F] bg-[#48494A] px-2.5 py-1.5 shadow-[inset_0_-3px_0_#313233,inset_2px_2px_0_rgba(255,255,255,0.12)]';
+  'relative min-w-0 border-[0.125rem] border-[#1E1E1F] bg-[#48494A] px-2.5 py-1.5 shadow-[inset_0_-0.1875rem_0_#313233,inset_0.125rem_0.125rem_0_rgba(255,255,255,0.12)]';
 
 export const getSourceOptions = (t: TFunction, source: string): ToggleOption[] => [
   {
     label: (
       <div className="flex w-full items-center justify-center gap-1 font-minecraft tracking-wider">
-        <ModrinthIcon className={`text-[16px] ${source === 'modrinth' ? 'text-white' : 'text-ore-green'}`} />
+        <ModrinthIcon className={`text-[1rem] ${source === 'modrinth' ? 'text-white' : 'text-ore-green'}`} />
         <span className={source === 'modrinth' ? 'text-white' : 'text-black'}>
           {t('download.source.modrinth', { defaultValue: 'Modrinth' })}
         </span>
@@ -67,7 +67,7 @@ export const getSourceOptions = (t: TFunction, source: string): ToggleOption[] =
   {
     label: (
       <div className="flex w-full items-center justify-center gap-1 font-minecraft tracking-wider">
-        <CurseforgeIcon className={`text-[16px] ${source === 'curseforge' ? 'text-white' : 'text-[#F16436]'}`} />
+        <CurseforgeIcon className={`text-[1rem] ${source === 'curseforge' ? 'text-white' : 'text-[#F16436]'}`} />
         <span className={source === 'curseforge' ? 'text-white' : 'text-black'}>
           {t('download.source.curseforge', { defaultValue: 'CurseForge' })}
         </span>

@@ -108,28 +108,29 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ instanceId, playTime, last
 
   const renderSocialIcon = (type: string) => {
     const IconComp = getButtonIcon(type);
-    return <IconComp size={20} />;
+    return <IconComp size="var(--home-side-icon)" />;
   };
 
-  const squareBtnClass = "!min-w-0 !w-11 !h-11 !p-0 !justify-center !items-center";
-  const accountSquareClass = "!min-w-0 !w-12 !h-12 !p-0 !justify-center !items-center";
+  const squareBtnClass = "!min-w-0 !w-[var(--home-side-button)] !h-[var(--home-side-button)] !p-0 !justify-center !items-center !text-[#111214] [&_svg]:!text-[#111214]";
+  const accountSquareClass = "!min-w-0 !w-[var(--home-side-button)] !h-[var(--home-side-button)] !p-0 !justify-center !items-center !text-[#111214] [&_svg]:!text-[#111214]";
+  const profileButtonClass = "!h-[var(--home-side-button)] !min-w-0 !px-[clamp(1rem,1.5vw,2rem)] !text-[length:var(--home-side-font)] !text-[#111214] [&_svg]:!text-[#111214]";
 
   return (
     <>
-      <div className="absolute left-8 bottom-12 flex flex-col space-y-6 z-30">
+      <div className="absolute bottom-[clamp(1.5rem,5vh,5rem)] left-[var(--home-panel-edge)] z-30 flex flex-col gap-[clamp(1.25rem,2.4vh,3rem)]">
 
-        <div className="flex flex-col space-y-3 mb-2">
+        <div className="mb-[clamp(0.375rem,0.8vh,1rem)] flex flex-col gap-[clamp(0.75rem,1.3vh,1.5rem)]">
           {piConfig?.wiki && (() => {
             const WikiIcon = getButtonIcon('wiki');
             return (
               <OreButton focusKey="btn-wiki" variant="secondary" size="auto" className={squareBtnClass} style={piConfig.buttonStyle} onClick={() => void openExternalLink(piConfig.wiki!.url)} title={piConfig.wiki!.label || 'Wiki'} autoScroll={false}>
-                <WikiIcon size={20} />
+                <WikiIcon size="var(--home-side-icon)" />
               </OreButton>
             );
           })()}
 
           {piConfig?.socials && piConfig.socials.length > 0 && (
-            <div className="flex space-x-3">
+            <div className="flex gap-[clamp(0.75rem,1.2vw,1.5rem)]">
               {piConfig.socials.slice(0, 5).map((social, index) => (
                 <OreButton key={index} focusKey={`btn-social-${index}`} variant="secondary" size="auto" className={squareBtnClass} style={piConfig.buttonStyle} onClick={() => void openExternalLink(social.url)} title={social.type} autoScroll={false}>
                   {renderSocialIcon(social.type)}
@@ -139,7 +140,7 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ instanceId, playTime, last
           )}
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-[clamp(0.75rem,1.2vw,1.5rem)]">
           <div className="relative">
             <OreButton
               focusKey="btn-notification"
@@ -153,50 +154,50 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ instanceId, playTime, last
               title={t('home.notification')}
               autoScroll={false}
             >
-              <NewspaperIcon className="block h-[1.45rem] w-[1.45rem] shrink-0 text-black drop-shadow-md" />
+              <NewspaperIcon className="block h-[var(--home-side-icon)] w-[var(--home-side-icon)] shrink-0 text-black drop-shadow-md" />
             </OreButton>
             {unreadNewsCount > 0 && (
-              <div className="absolute -top-2 -right-2 min-w-[1.45rem] bg-ore-red text-white text-[10px] font-bold font-minecraft px-1.5 py-0.5 rounded-sm z-20 border-[2px] border-[#1E1E1F] shadow-sm pointer-events-none select-none text-center leading-none">
+              <div className="pointer-events-none absolute right-[-0.5rem] top-[-0.5rem] z-20 min-w-[clamp(1.45rem,1.7vw,2.25rem)] select-none rounded-sm border-[0.125rem] border-[#1E1E1F] bg-ore-red px-[0.375rem] py-[0.125rem] text-center font-minecraft text-[clamp(0.625rem,0.75vw,0.9375rem)] font-bold leading-none text-white shadow-sm">
                 {unreadNewsCount > 99 ? '99+' : unreadNewsCount}
               </div>
             )}
           </div>
 
           {!currentAccount ? (
-            <OreButton focusKey="btn-login" variant="secondary" size="auto" className="!h-12 !px-6" style={piConfig?.buttonStyle} onClick={msAuthState.startMicrosoftLogin} autoScroll={false}>
-              <span className="text-lg tracking-widest leading-none mt-0.5">{t('home.addAccount')}</span>
+            <OreButton focusKey="btn-login" variant="secondary" size="auto" className={profileButtonClass} style={piConfig?.buttonStyle} onClick={msAuthState.startMicrosoftLogin} autoScroll={false}>
+              <span className="mt-[0.03125rem] leading-none tracking-widest">{t('home.addAccount')}</span>
             </OreButton>
           ) : (
-            <OreButton focusKey="btn-profile" variant="secondary" size="auto" className="!h-12 !px-3 !justify-start" style={piConfig?.buttonStyle} onClick={() => setIsSidebarOpen(true)} autoScroll={false}>
+            <OreButton focusKey="btn-profile" variant="secondary" size="auto" className={`${profileButtonClass} !justify-start`} style={piConfig?.buttonStyle} onClick={() => setIsSidebarOpen(true)} autoScroll={false}>
               {/* ✅ 彻底采用本地图片作为 onerror 断网兜底 */}
               <img
                 src={avatarSrc || defaultAvatar}
                 onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultAvatar; }}
                 alt="Profile"
-                className={`w-7 h-7 mr-3 border border-black/20 shadow-sm transition-opacity duration-300 ${avatarSrc ? 'opacity-100' : 'opacity-30'}`}
+                className={`mr-[clamp(0.75rem,1vw,1.25rem)] h-[clamp(1.75rem,2vw,2.75rem)] w-[clamp(1.75rem,2vw,2.75rem)] border border-black/20 shadow-sm transition-opacity duration-300 ${avatarSrc ? 'opacity-100' : 'opacity-30'}`}
                 style={{ imageRendering: 'pixelated' }}
               />
-              <span className="text-lg tracking-widest leading-none mt-0.5">{t('home.profile')}</span>
+              <span className="mt-[0.03125rem] leading-none tracking-widest">{t('home.profile')}</span>
             </OreButton>
           )}
         </div>
 
         <div 
           key={instanceId}
-          className="flex flex-col space-y-1 mt-4"
+          className="mt-[clamp(0.75rem,1.6vh,2rem)] flex flex-col gap-[clamp(0.25rem,0.55vh,0.625rem)]"
         >
-          <span className="text-ore-text-muted text-xs font-bold uppercase tracking-wider">{t('home.playTime')}</span>
+          <span className="text-[clamp(0.75rem,0.9vw,1.125rem)] font-bold uppercase tracking-wider text-ore-text-muted">{t('home.playTime')}</span>
           <span 
             key={playTime}
-            className="text-xl font-minecraft text-white drop-shadow-md"
+            className="font-minecraft text-[clamp(1.25rem,1.5vw,2.25rem)] text-white drop-shadow-md"
           >
             {formatPlayTime(playTime, t)}
           </span>
           
-          <span className="text-ore-text-muted text-xs font-bold uppercase tracking-wider mt-3">{t('home.lastPlayed')}</span>
+          <span className="mt-[clamp(0.75rem,1.3vh,1.5rem)] text-[clamp(0.75rem,0.9vw,1.125rem)] font-bold uppercase tracking-wider text-ore-text-muted">{t('home.lastPlayed')}</span>
           <span 
             key={lastPlayed}
-            className="text-base font-minecraft text-white drop-shadow-md"
+            className="font-minecraft text-[clamp(1rem,1.2vw,1.75rem)] text-white drop-shadow-md"
           >
             {lastPlayed ? formatRelativeTime(lastPlayed, t) : t('home.neverPlayed', { defaultValue: '从未进行游戏' })}
           </span>

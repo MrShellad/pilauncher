@@ -239,8 +239,8 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
         <div className="ore-ms-profile-action-bar flex items-center justify-between p-3">
           <span className="text-xs font-minecraft text-gray-400">当前活动身份</span>
           {accountsCount > 1 && (
-            <OreButton variant="secondary" size="sm" onClick={onCycleAccount} className="!h-auto !px-2 !py-1 text-[10px]">
-              <RefreshCcw size={12} className="mr-1" /> 切换
+            <OreButton variant="secondary" size="sm" onClick={onCycleAccount} className="!h-[clamp(1.75rem,3vh,2.5rem)] !min-w-0 !px-[clamp(0.5rem,0.8vw,1rem)] !py-0 text-[length:clamp(0.625rem,0.8vw,0.9375rem)] !text-[#111214] [&_svg]:!text-[#111214]">
+              <RefreshCcw size="clamp(0.75rem,0.9vw,1rem)" className="mr-1" /> 切换
             </OreButton>
           )}
         </div>
@@ -416,7 +416,7 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
                 onClick={rejectIncoming}
                 disabled={isApplying || isRejecting}
               >
-                {isRejecting ? <Loader2 size={16} className="mr-2 animate-spin" /> : <XCircle size={16} className="mr-2" />}
+                {isRejecting ? <Loader2 size="clamp(1rem,1.2vw,1.5rem)" className="mr-2 animate-spin" /> : <XCircle size="clamp(1rem,1.2vw,1.5rem)" className="mr-2" />}
                 拒绝并丢弃
               </OreButton>
               <OreButton
@@ -425,7 +425,7 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
                 onClick={executeApply}
                 disabled={isApplying || isRejecting || (incomingData.type === 'save' && !receiveTargetInstance)}
               >
-                {isApplying ? <Loader2 size={16} className="mr-2 animate-spin" /> : null}
+                {isApplying ? <Loader2 size="clamp(1rem,1.2vw,1.5rem)" className="mr-2 animate-spin" /> : null}
                 {isApplying ? '正在解压部署...' : '接收并部署'}
               </OreButton>
             </div>
@@ -449,11 +449,11 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
             取消信任后，该设备将无法向你发起实例和存档投送，但你们仍会保持好友关系。
           </p>
           <div className="flex w-full gap-4">
-            <OreButton className="flex-1 !h-12" variant="secondary" onClick={() => setDeviceToRemove(null)}>
+            <OreButton className="flex-1 !h-[clamp(3rem,5vh,4.75rem)] !text-[length:clamp(1rem,1.1vw,1.375rem)] !text-[#111214]" variant="secondary" onClick={() => setDeviceToRemove(null)}>
               取消
             </OreButton>
             <OreButton
-              className="flex-1 !h-12"
+              className="flex-1 !h-[clamp(3rem,5vh,4.75rem)] !text-[length:clamp(1rem,1.1vw,1.375rem)] !text-white"
               variant="danger"
               onClick={() => {
                 if (deviceToRemove) {

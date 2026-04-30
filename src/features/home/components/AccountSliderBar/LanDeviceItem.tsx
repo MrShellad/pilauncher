@@ -152,11 +152,11 @@ export const LanDeviceItem: React.FC<LanDeviceItemProps> = ({
       : '添加好友';
 
   const primaryIcon = isFriend ? (
-    <ShieldCheck size={14} className="mr-1.5" />
+    <ShieldCheck size="clamp(0.875rem,1vw,1.25rem)" className="mr-1.5" />
   ) : isOwnAccount ? (
-    <MonitorSmartphone size={14} className="mr-1.5" />
+    <MonitorSmartphone size="clamp(0.875rem,1vw,1.25rem)" className="mr-1.5" />
   ) : (
-    <UserPlus size={14} className="mr-1.5" />
+    <UserPlus size="clamp(0.875rem,1vw,1.25rem)" className="mr-1.5" />
   );
 
   return (
@@ -248,7 +248,7 @@ export const LanDeviceItem: React.FC<LanDeviceItemProps> = ({
                         ref={ref as any}
                         onClick={handlePrimaryAction}
                         disabled={isRequesting}
-                        className={`flex items-center justify-center rounded-sm border p-2 text-xs outline-none transition-colors ${
+                        className={`flex min-h-[clamp(2.5rem,4.2vh,3.75rem)] items-center justify-center rounded-sm border p-[clamp(0.5rem,0.8vw,1rem)] text-[clamp(0.75rem,0.9vw,1.125rem)] outline-none transition-colors ${
                           isFriend
                             ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
                             : isOwnAccount
@@ -256,7 +256,7 @@ export const LanDeviceItem: React.FC<LanDeviceItemProps> = ({
                               : 'border-white/10 bg-white/5 text-white hover:bg-white/10'
                         } ${focused ? 'ring-2 ring-white' : ''}`}
                       >
-                        {isRequesting ? <Loader2 size={14} className="mr-1.5 animate-spin" /> : primaryIcon}
+                        {isRequesting ? <Loader2 size="clamp(0.875rem,1vw,1.25rem)" className="mr-1.5 animate-spin" /> : primaryIcon}
                         {isRequesting ? '处理中...' : primaryLabel}
                       </button>
                     )}

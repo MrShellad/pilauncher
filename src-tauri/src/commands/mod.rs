@@ -146,6 +146,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         fs_cmd::open_path_in_file_manager,
         auth_cmd::refresh_microsoft_token,
         auth_cmd::get_or_fetch_account_avatar,
+        auth_cmd::ensure_account_skin,
         auth_cmd::get_wardrobe_profile,
         auth_cmd::apply_wardrobe_skin,
         auth_cmd::set_active_cape,

@@ -35,8 +35,16 @@ pub async fn poll_and_exchange_token<R: Runtime>(
     let mc_token = minecraft::auth_minecraft(&xsts_token, &uhs).await?;
     let profile = minecraft::get_minecraft_profile(&mc_token).await?;
 
-    let skin_url = profile.skins.first().map(|s| s.url.as_str());
-    let _ = minecraft::cache_account_assets(app, &profile.id, &profile.id, skin_url, None).await;
+    let skin_url = minecraft::active_skin_url(&profile).map(str::to_string);
+    let cape_url = minecraft::active_cape_url(&profile).map(str::to_string);
+    let _ = minecraft::cache_account_assets(
+        app,
+        &profile.id,
+        &profile.id,
+        skin_url.as_deref(),
+        cape_url.as_deref(),
+    )
+    .await;
 
     Ok(Account {
         id: profile.id.clone(),
@@ -46,7 +54,7 @@ pub async fn poll_and_exchange_token<R: Runtime>(
         access_token: mc_token,
         refresh_token: Some(ms_refresh_token),
         expires_at: Some(chrono::Utc::now().timestamp() + 86400),
-        skin_url: profile.skins.first().map(|s| s.url.clone()),
+        skin_url,
     })
 }
 
@@ -61,8 +69,16 @@ pub async fn refresh_microsoft_token<R: Runtime>(
     let mc_token = minecraft::auth_minecraft(&xsts_token, &uhs).await?;
     let profile = minecraft::get_minecraft_profile(&mc_token).await?;
 
-    let skin_url = profile.skins.first().map(|s| s.url.as_str());
-    let _ = minecraft::cache_account_assets(app, &profile.id, &profile.id, skin_url, None).await;
+    let skin_url = minecraft::active_skin_url(&profile).map(str::to_string);
+    let cape_url = minecraft::active_cape_url(&profile).map(str::to_string);
+    let _ = minecraft::cache_account_assets(
+        app,
+        &profile.id,
+        &profile.id,
+        skin_url.as_deref(),
+        cape_url.as_deref(),
+    )
+    .await;
 
     Ok(Account {
         id: profile.id.clone(),
@@ -72,7 +88,7 @@ pub async fn refresh_microsoft_token<R: Runtime>(
         access_token: mc_token,
         refresh_token: Some(new_refresh_token),
         expires_at: Some(chrono::Utc::now().timestamp() + 86400),
-        skin_url: profile.skins.first().map(|s| s.url.clone()),
+        skin_url,
     })
 }
 
@@ -184,6 +200,7 @@ pub use wardrobe::set_wardrobe_skin_asset_variant;
 // ==========================================
 
 pub use minecraft::cache_account_assets;
+pub use minecraft::ensure_account_skin;
 pub use minecraft::fetch_and_save_mojang_skin;
 pub use minecraft::get_or_fetch_account_avatar;
 pub use offline::delete_offline_account_dir;

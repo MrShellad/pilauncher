@@ -3,25 +3,19 @@ import { listen } from '@tauri-apps/api/event';
 
 import type {
   MissingRuntime,
+  VerifyDialogState,
+  VerifyProgressEventPayload,
   VerifyInstanceRuntimeResult,
-} from '../../../../../../hooks/pages/InstanceDetail/useInstanceDetail';
-
-export interface VerifyProgressEventPayload {
-  instance_id: string;
-  stage: string;
-  current: number;
-  total: number;
-  message?: string;
-}
-
-export type VerifyDialogState =
-  | 'idle'
-  | 'verifying'
-  | 'repair'
-  | 'repairing'
-  | 'clean'
-  | 'queued'
-  | 'error';
+} from '../schemas/basicPanelSchemas';
+import {
+  canCloseVerifyState,
+  createInitialVerifyProgress,
+  createPreparingVerifyProgress,
+  getVerifyIssues,
+  getVerifyPercent,
+  isVerifyStateBusy,
+  normalizeVerifyProgress,
+} from '../utils/verifyInstanceUtils';
 
 export const useVerifyInstance = (
   instanceId: string,
@@ -30,18 +24,18 @@ export const useVerifyInstance = (
 ) => {
   const [isVerifyDialogOpen, setIsVerifyDialogOpen] = useState(false);
   const [verifyState, setVerifyState] = useState<VerifyDialogState>('idle');
-  const [verifyProgress, setVerifyProgress] = useState({ current: 0, total: 1, message: '' });
+  const [verifyProgress, setVerifyProgress] = useState(createInitialVerifyProgress);
   const [verifyResult, setVerifyResult] = useState<VerifyInstanceRuntimeResult | null>(null);
   const [verifyError, setVerifyError] = useState('');
 
   const resetVerifyDialog = useCallback(() => {
     setVerifyState('idle');
-    setVerifyProgress({ current: 0, total: 1, message: '' });
+    setVerifyProgress(createInitialVerifyProgress());
     setVerifyResult(null);
     setVerifyError('');
   }, []);
 
-  const canCloseVerifyDialog = verifyState !== 'verifying' && verifyState !== 'repairing';
+  const canCloseVerifyDialog = canCloseVerifyState(verifyState);
 
   const handleCloseVerifyDialog = useCallback(() => {
     if (!canCloseVerifyDialog) return;
@@ -56,7 +50,7 @@ export const useVerifyInstance = (
     setVerifyState('verifying');
     setVerifyResult(null);
     setVerifyError('');
-    setVerifyProgress({ current: 0, total: 1, message: '正在准备校验...' });
+    setVerifyProgress(createPreparingVerifyProgress());
 
     let unlisten: (() => void) | null = null;
 
@@ -65,11 +59,11 @@ export const useVerifyInstance = (
         const payload = event.payload;
         if (payload.instance_id !== instanceId) return;
 
-        setVerifyProgress({
-          current: payload.current ?? 0,
-          total: Math.max(payload.total ?? 1, 1),
-          message: payload.message || '正在校验文件...',
-        });
+        setVerifyProgress(normalizeVerifyProgress(
+          payload.current,
+          payload.total,
+          payload.message,
+        ));
       });
 
       const result = await onVerifyFiles();
@@ -107,12 +101,9 @@ export const useVerifyInstance = (
     }
   }, [verifyState, verifyResult, onRepairFiles, handleCloseVerifyDialog]);
 
-  const verifyBusy = verifyState === 'verifying' || verifyState === 'repairing';
-  const verifyPercent = Math.max(
-    0,
-    Math.min(100, Math.round((verifyProgress.current / Math.max(verifyProgress.total, 1)) * 100))
-  );
-  const verifyIssues = verifyResult?.issues ?? [];
+  const verifyBusy = isVerifyStateBusy(verifyState);
+  const verifyPercent = getVerifyPercent(verifyProgress);
+  const verifyIssues = getVerifyIssues(verifyResult);
 
   return {
     isVerifyDialogOpen,

@@ -9,6 +9,7 @@ import {
   Package,
   Image as ImageIcon,
   Download,
+  type LucideIcon,
 } from 'lucide-react';
 import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
 
@@ -29,7 +30,7 @@ import { ResourcePackPanel } from '../features/InstanceDetail/components/tabs/Re
 import { ShaderPanel } from '../features/InstanceDetail/components/tabs/ShaderPanel';
 import { ExportPanel } from '../features/InstanceDetail/components/tabs/export';
 
-const TABS: { id: DetailTab; label: string; icon: React.FC<any> }[] = [
+const TABS: { id: DetailTab; label: string; icon: LucideIcon }[] = [
   { id: 'overview', label: '概览', icon: LayoutTemplate },
   { id: 'basic', label: '基础', icon: Settings },
   { id: 'java', label: 'Java', icon: Coffee },
@@ -109,7 +110,7 @@ const InstanceDetail: React.FC = () => {
         value: tab.id,
         label: (
           <div className="flex items-center justify-center whitespace-nowrap gap-2 px-1 pointer-events-none">
-            <tab.icon size={16} className={activeTab === tab.id ? 'text-ore-black' : 'text-inherit'} />
+            <tab.icon size="1rem" className={activeTab === tab.id ? 'text-ore-black' : 'text-inherit'} />
             <span>{tab.label}</span>
           </div>
         ),
@@ -135,7 +136,10 @@ const InstanceDetail: React.FC = () => {
     return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable;
   }, []);
 
+  const isModalOpen = useCallback(() => !!document.querySelector('.fixed.inset-0'), []);
+
   useInputAction('PAGE_LEFT', () => {
+    if (isModalOpen()) return;
     if (isTextEntryActive()) return;
     const currentIndex = TABS.findIndex((t) => t.id === activeTab);
     const prevIndex = (currentIndex - 1 + TABS.length) % TABS.length;
@@ -143,6 +147,7 @@ const InstanceDetail: React.FC = () => {
   });
 
   useInputAction('PAGE_RIGHT', () => {
+    if (isModalOpen()) return;
     if (isTextEntryActive()) return;
     const currentIndex = TABS.findIndex((t) => t.id === activeTab);
     const nextIndex = (currentIndex + 1) % TABS.length;
@@ -184,9 +189,9 @@ const InstanceDetail: React.FC = () => {
   return (
     <FocusContext.Provider value={focusKey}>
       <div ref={pageFocusRef} className="w-full h-full flex flex-col overflow-hidden">
-        <div className="flex flex-col flex-shrink-0 z-20 border-b-[3px] border-[#18181B] bg-[#1E1E1F] shadow-md">
-          <div className="w-full bg-[#18181B] px-[clamp(16px,2vw,32px)] py-[clamp(12px,1.6vh,20px)]">
-            <div className="mx-auto grid w-full max-w-[120rem] grid-cols-[minmax(0,1fr)] items-center gap-[clamp(10px,1.4vw,20px)] md:grid-cols-[clamp(64px,5vw,84px)_minmax(0,1fr)_clamp(64px,5vw,84px)]">
+        <div className="flex flex-col flex-shrink-0 z-20 border-b-[0.1875rem] border-[#18181B] bg-[#1E1E1F] shadow-md">
+          <div className="w-full bg-[#18181B] px-[clamp(1rem,2vw,2rem)] py-[clamp(0.75rem,1.6vh,1.25rem)]">
+            <div className="mx-auto grid w-full max-w-[120rem] grid-cols-[minmax(0,1fr)] items-center gap-[clamp(0.625rem,1.4vw,1.25rem)] md:grid-cols-[clamp(4rem,5vw,5.25rem)_minmax(0,1fr)_clamp(4rem,5vw,5.25rem)]">
               <div className="hidden md:flex justify-center text-gray-500 font-minecraft text-xs items-center bg-black/30 px-2.5 py-1.5 rounded-sm border-b-2 border-white/5 shadow-inner">
                 <span className="text-gray-300 font-bold mx-1">LT</span> / <span className="text-gray-300 font-bold mx-1">;</span>
               </div>

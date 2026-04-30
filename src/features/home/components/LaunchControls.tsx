@@ -39,8 +39,18 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
   const inputMode = useInputMode();
   const { instances } = useInstances();
 
-  const innerButtonClass = "h-[clamp(48px,4vw,90px)] text-[clamp(16px,1.5vw,28px)] flex items-center justify-center gap-3 w-full transition-colors duration-200";
-  const heroButtonClass = "h-[clamp(56px,5vw,110px)] text-[clamp(18px,1.8vw,32px)] flex items-center justify-center gap-3 w-full transition-colors duration-200";
+  const scaleStyle = {
+    '--launch-control-w': 'clamp(20rem, 42vmin, 46rem)',
+    '--launch-control-gap': 'calc(var(--launch-control-w) * 0.055)',
+    '--launch-action-h': 'calc(var(--launch-control-w) * 0.155)',
+    '--launch-hero-h': 'calc(var(--launch-control-w) * 0.195)',
+    '--launch-action-font': 'calc(var(--launch-control-w) * 0.052)',
+    '--launch-hero-font': 'calc(var(--launch-control-w) * 0.064)',
+    '--launch-action-gap': 'calc(var(--launch-control-w) * 0.035)',
+  } as React.CSSProperties;
+
+  const innerButtonClass = "h-[var(--launch-action-h)] text-[length:var(--launch-action-font)] !text-[#111214] [&_svg]:!text-[#111214] flex items-center justify-center gap-[var(--launch-action-gap)] w-full transition-colors duration-200";
+  const heroButtonClass = "h-[var(--launch-hero-h)] text-[length:var(--launch-hero-font)] !text-white [&_svg]:!text-white flex items-center justify-center gap-[var(--launch-action-gap)] w-full transition-colors duration-200";
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -95,7 +105,10 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
 
   return (
     <>
-      <div className="flex flex-col items-center justify-center space-y-[clamp(20px,2vw,40px)] w-[clamp(280px,25vw,600px)] pointer-events-auto">
+      <div
+        className="pointer-events-auto flex w-[var(--launch-control-w)] flex-col items-center justify-center gap-[var(--launch-control-gap)]"
+        style={scaleStyle}
+      >
 
         {/* 1. Play 主按钮 */}
         <FocusItem focusKey="play-button" onEnter={handlePlayClick} autoScroll={false}>
@@ -112,8 +125,8 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
                 className={`
                   relative w-full rounded-sm transition-shadow duration-150 z-10
                   ${focused
-                    ? 'outline outline-[3px] outline-offset-[4px] outline-ore-green shadow-[0_0_20px_rgba(56,133,39,0.6)]'
-                    : 'outline outline-[3px] outline-offset-[4px] outline-transparent'
+                    ? 'outline outline-[0.1875rem] outline-offset-[0.25rem] outline-ore-green shadow-[0_0_1.25rem_rgba(56,133,39,0.6)]'
+                    : 'outline outline-[0.1875rem] outline-offset-[0.25rem] outline-transparent'
                   }
                 `}
               >
@@ -141,8 +154,8 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
               className={`
                 w-full rounded-sm transition-shadow duration-150
                 ${focused
-                  ? 'outline outline-[3px] outline-offset-[4px] outline-white/60 shadow-[0_0_15px_rgba(255,255,255,0.2)] z-10'
-                  : 'outline outline-[3px] outline-offset-[4px] outline-transparent'
+                  ? 'z-10 outline outline-[0.1875rem] outline-offset-[0.25rem] outline-white/60 shadow-[0_0_0.9375rem_rgba(255,255,255,0.2)]'
+                  : 'outline outline-[0.1875rem] outline-offset-[0.25rem] outline-transparent'
                 }
               `}
             >
@@ -169,8 +182,8 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
               className={`
                 w-full rounded-sm transition-shadow duration-150
                 ${focused
-                  ? 'outline outline-[3px] outline-offset-[4px] outline-white/60 shadow-[0_0_15px_rgba(255,255,255,0.2)] z-10'
-                  : 'outline outline-[3px] outline-offset-[4px] outline-transparent'
+                  ? 'z-10 outline outline-[0.1875rem] outline-offset-[0.25rem] outline-white/60 shadow-[0_0_0.9375rem_rgba(255,255,255,0.2)]'
+                  : 'outline outline-[0.1875rem] outline-offset-[0.25rem] outline-transparent'
                 }
               `}
             >
