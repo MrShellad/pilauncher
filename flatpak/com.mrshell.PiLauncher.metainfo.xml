@@ -49,6 +49,28 @@
   </categories>
 
   <releases>
+    <release version="0.1.32" date="2026-05-04">
+      <description>
+        <p xml:lang="zh_CN">新增模组检查更新功能与多项用户体验优化</p>
+        <ul xml:lang="zh_CN">
+          <li>[新功能] 新增模组检查更新功能，支持一键检查并列出可更新的模组。</li>
+          <li>[修复] 修复了在某些 Linux 环境下自动下载和安装 Java 时报错的问题。</li>
+          <li>[修复] 修正了从 Windows 平台迁移数据后，某些路径可能因空格引用不当而导致无法识别的错误。</li>
+          <li>[优化] 优化了启动日志的保存位置，移除不必要的冗余文件，简化用户查找与管理。</li>
+          <li>[优化] 改进了社区服务器的发现逻辑，提升搜索准确性与刷新速度。</li>
+          <li>[性能] 移除了启动器启动时的部分额外计算任务，进一步缩短冷启动时间。</li>
+        </ul>
+        <p>New Mod Update Check Feature and Multiple User Experience Improvements</p>
+        <ul>
+          <li>[New] Added a mod update checking feature to easily find and list outdated mods.</li>
+          <li>[Fix] Resolved an issue on some Linux environments where automatically downloading and installing Java would cause errors.</li>
+          <li>[Fix] Corrected an issue with path recognition when migrating data from Windows, where spaces in paths could cause them to be misidentified.</li>
+          <li>[Optimization] Simplified log storage by removing redundant files, making them easier for users to find and manage.</li>
+          <li>[Optimization] Improved community server discovery logic for better accuracy and faster refreshes.</li>
+          <li>[Performance] Reduced some startup overhead in the launcher to further shorten cold boot time.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.31" date="2026-04-29">
       <description>
         <p xml:lang="zh_CN">模组列表交互升级与下载性能优化</p>
