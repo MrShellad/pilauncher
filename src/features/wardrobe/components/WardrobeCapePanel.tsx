@@ -1,7 +1,7 @@
 import React from 'react';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { useInputAction } from '../../../ui/focus/InputDriver';
-import type { WardrobeProfile, WardrobeCape } from '../types';
+import type { WardrobeProfile, WardrobeCape, WardrobeSkinModel } from '../types';
 import { WardrobeCapeCardPreview } from './WardrobeCapeCardPreview';
 
 export interface WardrobeCapePanelProps {
@@ -9,6 +9,8 @@ export interface WardrobeCapePanelProps {
   isLoadingProfile: boolean;
   profile: WardrobeProfile | null;
   activeCape: WardrobeCape | null;
+  currentSkinUrl: string | null;
+  currentSkinModel: WardrobeSkinModel;
   onOpenCapeMenu: (cape: WardrobeCape) => void;
   onPreview: (cape: WardrobeCape) => void;
 }
@@ -16,11 +18,20 @@ export interface WardrobeCapePanelProps {
 interface CapeCardItemProps {
   cape: WardrobeCape;
   isActive: boolean;
+  currentSkinUrl: string | null;
+  currentSkinModel: WardrobeSkinModel;
   onOpenCapeMenu: (cape: WardrobeCape) => void;
   onPreview: (cape: WardrobeCape) => void;
 }
 
-const CapeCardItem = React.memo(({ cape, isActive, onOpenCapeMenu, onPreview }: CapeCardItemProps) => {
+const CapeCardItem = React.memo(({
+  cape,
+  isActive,
+  currentSkinUrl,
+  currentSkinModel,
+  onOpenCapeMenu,
+  onPreview,
+}: CapeCardItemProps) => {
   const isComponentFocusedRef = React.useRef(false);
 
   useInputAction('ACTION_Y', () => {
@@ -51,7 +62,12 @@ const CapeCardItem = React.memo(({ cape, isActive, onOpenCapeMenu, onPreview }: 
           >
             {isActive && <span className="wardrobe-card-active-badge">ACTIVE</span>}
             <span className="wardrobe-cape-card__art">
-              <WardrobeCapeCardPreview capeUrl={cape.url} className="w-full h-full object-contain" />
+              <WardrobeCapeCardPreview
+                capeUrl={cape.url}
+                skinUrl={currentSkinUrl}
+                skinModel={currentSkinModel}
+                className="w-full h-full object-contain"
+              />
             </span>
           </button>
         );
@@ -65,6 +81,8 @@ export const WardrobeCapePanel: React.FC<WardrobeCapePanelProps> = ({
   isLoadingProfile,
   profile,
   activeCape,
+  currentSkinUrl,
+  currentSkinModel,
   onOpenCapeMenu,
   onPreview,
 }) => {
@@ -101,6 +119,8 @@ export const WardrobeCapePanel: React.FC<WardrobeCapePanelProps> = ({
               key={cape.id}
               cape={cape}
               isActive={activeCape?.id === cape.id}
+              currentSkinUrl={currentSkinUrl}
+              currentSkinModel={currentSkinModel}
               onOpenCapeMenu={onOpenCapeMenu}
               onPreview={onPreview}
             />

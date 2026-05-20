@@ -2,12 +2,14 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import { OreModal } from '../../../ui/primitives/OreModal';
-import type { WardrobeCape } from '../types';
+import type { WardrobeCape, WardrobeSkinModel } from '../types';
 import { WardrobeCapeCardPreview } from './WardrobeCapeCardPreview';
 
 export interface WardrobeCapeMenuModalProps {
   capeMenuAsset: WardrobeCape | null;
   activeCape: WardrobeCape | null;
+  currentSkinUrl: string | null;
+  currentSkinModel: WardrobeSkinModel;
   isApplying: boolean;
   onClose: () => void;
   onApply: () => void;
@@ -16,6 +18,8 @@ export interface WardrobeCapeMenuModalProps {
 export const WardrobeCapeMenuModal: React.FC<WardrobeCapeMenuModalProps> = ({
   capeMenuAsset,
   activeCape,
+  currentSkinUrl,
+  currentSkinModel,
   isApplying,
   onClose,
   onApply,
@@ -36,7 +40,12 @@ export const WardrobeCapeMenuModal: React.FC<WardrobeCapeMenuModalProps> = ({
       {capeMenuAsset && (
         <div className="flex flex-col gap-6">
           <div className="flex justify-center items-center p-4 bg-black/20 rounded-lg h-[clamp(10rem,35vh,16rem)]">
-            <WardrobeCapeCardPreview capeUrl={capeMenuAsset.url} className="w-full h-full drop-shadow-lg" />
+            <WardrobeCapeCardPreview
+              capeUrl={capeMenuAsset.url}
+              skinUrl={currentSkinUrl}
+              skinModel={currentSkinModel}
+              className="w-full h-full drop-shadow-lg"
+            />
           </div>
 
           <div className="flex flex-col gap-2 relative z-10">

@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { ThumbnailRenderer } from '../utils/ThumbnailRenderer';
+import type { WardrobeSkinModel } from '../types';
 
 interface WardrobeCapeCardPreviewProps {
   capeUrl: string;
+  skinUrl: string | null;
+  skinModel: WardrobeSkinModel;
   className?: string;
 }
 
 export const WardrobeCapeCardPreview: React.FC<WardrobeCapeCardPreviewProps> = ({
   capeUrl,
+  skinUrl,
+  skinModel,
   className = '',
 }) => {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
@@ -16,7 +21,7 @@ export const WardrobeCapeCardPreview: React.FC<WardrobeCapeCardPreviewProps> = (
     let active = true;
     if (!capeUrl) return;
 
-    ThumbnailRenderer.renderCape(capeUrl)
+    ThumbnailRenderer.renderCape(capeUrl, skinUrl ?? undefined, skinModel === 'slim' ? 'slim' : 'default')
       .then((url) => {
         if (active) setDataUrl(url);
       })
@@ -25,7 +30,7 @@ export const WardrobeCapeCardPreview: React.FC<WardrobeCapeCardPreviewProps> = (
     return () => {
       active = false;
     };
-  }, [capeUrl]);
+  }, [capeUrl, skinModel, skinUrl]);
 
   if (!dataUrl) {
     return <div className={`animate-pulse bg-white/5 ${className}`} />;

@@ -24,6 +24,7 @@ import { WardrobeCapeMenuModal } from '../features/wardrobe/components/WardrobeC
 
 import { useAccountStore } from '../store/useAccountStore';
 import { useLauncherStore } from '../store/useLauncherStore';
+import { useToastStore } from '../store/useToastStore';
 import { ControlHint } from '../ui/components/ControlHint';
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { focusManager } from '../ui/focus/FocusManager';
@@ -37,6 +38,7 @@ const MAX_SKIN_NOTE_LENGTH = 28;
 const Wardrobe: React.FC = () => {
   const { t } = useTranslation();
   const setActiveTab = useLauncherStore((state) => state.setActiveTab);
+  const addToast = useToastStore((state) => state.addToast);
   const { accounts, activeAccountId } = useAccountStore();
 
   const currentAccount = useMemo(
@@ -64,6 +66,18 @@ const Wardrobe: React.FC = () => {
     touchAccountSkinCache,
     hydrateWardrobe,
   } = useWardrobeSession();
+
+  useEffect(() => {
+    if (!error) return;
+    addToast('error', error, 3600);
+    setError(null);
+  }, [addToast, error, setError]);
+
+  useEffect(() => {
+    if (!notice) return;
+    addToast(notice.includes('已') ? 'success' : 'info', notice, 2600);
+    setNotice(null);
+  }, [addToast, notice, setNotice]);
 
   const isMicrosoft = isMicrosoftAccount(currentAccount);
   const activeSkin = findActiveSkin(profile);
@@ -282,15 +296,14 @@ const Wardrobe: React.FC = () => {
   const handlePreviewSkin = useCallback(
     (asset: SkinCardAsset) => {
       void previewSkinAsset(asset, asset.variant ?? skinModel, activeCape?.url ?? null);
-      playTransientAnimation('wave', 1200);
     },
-    [activeCape?.url, playTransientAnimation, previewSkinAsset, skinModel]
+    [activeCape?.url, previewSkinAsset, skinModel]
   );
 
   const handlePreviewCape = useCallback(
     (cape: any) => {
       void loadViewerState(currentSkinUrl, cape.url, skinModel, 'cape');
-      playTransientAnimation('walking', 1200);
+      playTransientAnimation('interact', 1200);
     },
     [currentSkinUrl, loadViewerState, playTransientAnimation, skinModel]
   );
@@ -490,17 +503,14 @@ const Wardrobe: React.FC = () => {
                       isLoadingProfile={isLoadingProfile}
                       profile={profile}
                       activeCape={activeCape}
+                      currentSkinUrl={currentSkinUrl}
+                      currentSkinModel={skinModel}
                       onOpenCapeMenu={handleOpenCapeMenu}
                       onPreview={handlePreviewCape}
                     />
                   )}
                 </div>
 
-                {(notice || error) && (
-                  <div className={`mt-4 shrink-0 p-3 border border-white/10 text-sm ${error ? 'bg-red-500/20 text-red-200 border-red-500/40' : 'bg-black/20 text-gray-200'}`}>
-                    {error || notice}
-                  </div>
-                )}
               </div>
             </div>
           </main>
@@ -525,6 +535,8 @@ const Wardrobe: React.FC = () => {
       <WardrobeCapeMenuModal
         capeMenuAsset={capeMenuAsset}
         activeCape={activeCape}
+        currentSkinUrl={currentSkinUrl}
+        currentSkinModel={skinModel}
         isApplying={isApplying}
         onClose={closeCapeMenu}
         onApply={handleApplyCape}

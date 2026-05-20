@@ -322,7 +322,6 @@ export function useSkinViewer(visibleTab = 'home'): UseSkinViewerReturn {
   // ─── 1. 挂载 / 卸载 canvas ───────────────────────────────────
   useEffect(() => {
     const engine = SkinEngine.getOrCreate({ enableRandomIdle: true, targetFps: 60, idleFps: 30 });
-    engine.playTransientAnimation('wave', 1400);
     const container = containerRef.current;
     if (!container) return;
 

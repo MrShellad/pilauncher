@@ -19,7 +19,7 @@ export const WardrobeSkinCardPreview: React.FC<WardrobeSkinCardPreviewProps> = (
 }) => {
   const viewerModel = toViewerModel(model);
   const renderOptions = useMemo(
-    () => (fullBody ? { fullBody: true, width: 360, height: 480 } : undefined),
+    () => (fullBody ? { fullBody: true, width: 720, height: 960 } : { width: 360, height: 504 }),
     [fullBody]
   );
   const [views, setViews] = useState<SkinThumbnailResult | null>(() =>
@@ -33,6 +33,8 @@ export const WardrobeSkinCardPreview: React.FC<WardrobeSkinCardPreviewProps> = (
     const cached = ThumbnailRenderer.getMemoryCachedSkinViews(skinUrl, viewerModel, renderOptions);
     if (cached) {
       setViews(cached);
+    } else {
+      setViews(null);
     }
 
     ThumbnailRenderer.renderSkinViews(skinUrl, viewerModel, renderOptions)

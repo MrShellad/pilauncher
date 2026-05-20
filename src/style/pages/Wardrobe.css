@@ -322,7 +322,8 @@
 
 .wardrobe-skin-card__preview-wrap {
   position: relative;
-  height: 150px;
+  flex: 1;
+  width: 100%;
   padding: 8px 10px 0;
   background:
     radial-gradient(circle at top, rgba(104, 145, 204, 0.1), transparent 46%),
@@ -330,13 +331,7 @@
 }
 
 .wardrobe-skin-card__preview-wrap::after {
-  content: "";
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 0;
-  height: 1px;
-  background: rgba(0, 0, 0, 0.1);
+  display: none;
 }
 
 .wardrobe-card-active-badge {
@@ -401,14 +396,13 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
-  image-rendering: pixelated;
+  image-rendering: auto;
   backface-visibility: hidden;
   filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.32));
-  transform: scale(1.18) translateY(5px);
 }
 
 .wardrobe-skin-card-preview__image--back {
-  transform: rotateY(180deg) scale(1.18) translateY(5px);
+  transform: rotateY(180deg);
 }
 
 .wardrobe-skin-card__meta {
@@ -467,7 +461,7 @@
   width: 86%;
   height: 100%;
   object-fit: contain;
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 
 .wardrobe-skeleton-grid {
@@ -524,8 +518,8 @@
 .wardrobe-skin-menu__preview {
   padding: 16px;
   background:
-    radial-gradient(circle at top, rgba(136, 187, 227, 0.12), transparent 42%),
-    linear-gradient(180deg, rgba(25, 30, 31, 0.98), rgba(14, 17, 18, 0.98));
+    radial-gradient(circle at 50% 18%, rgba(190, 215, 232, 0.26), transparent 48%),
+    linear-gradient(180deg, rgba(44, 52, 53, 0.98), rgba(24, 29, 30, 0.98));
   border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -534,12 +528,9 @@
   min-height: 280px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 36%),
-    rgba(0, 0, 0, 0.24);
-}
-
-.wardrobe-skin-menu__preview-card .wardrobe-skin-card-preview__image {
-  transform: scale(1.02) translateY(0);
+    radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.12), transparent 52%),
+    linear-gradient(180deg, rgba(78, 88, 88, 0.34), rgba(23, 28, 28, 0.2)),
+    rgba(32, 38, 39, 0.74);
 }
 
 .wardrobe-skin-menu__body {

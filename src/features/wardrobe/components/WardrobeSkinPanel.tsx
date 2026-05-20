@@ -53,10 +53,6 @@ const SkinCardItem = React.memo(({ asset, onOpenSkinMenu, onPreview }: SkinCardI
               {asset.isActive && <span className="wardrobe-card-active-badge">{t('wardrobe.activeBadge')}</span>}
               <WardrobeSkinCardPreview skinUrl={asset.skinUrl} model={asset.variant} />
             </div>
-            <div className="wardrobe-skin-card__meta font-minecraft">
-              <span className="wardrobe-skin-card__title">{asset.title}</span>
-              <span className="wardrobe-skin-card__subtitle">{asset.subtitle}</span>
-            </div>
           </button>
         );
       }}

@@ -1,6 +1,31 @@
-import { SkinViewer } from 'skinview3d';
+import * as THREE from 'three';
+import classicPlayerModelUrl from '../../../assets/models/classic-player.gltf?url';
+import slimPlayerModelUrl from '../../../assets/models/slim-player.gltf?url';
+import {
+  applyCapeTexture,
+  applyPlayerTexture,
+  cloneModelScene,
+  createTransparentTexture,
+  disposeObjectTree,
+  loadModrinthModel,
+  loadModrinthTexture,
+} from '../../home/engine/modrinthSkinRendering';
 
 type RenderTask = () => Promise<void>;
+
+const FRONT_ROTATION_Y = Math.PI;
+const BACK_ROTATION_Y = 0;
+const LIVE_MODEL_SCALE = 0.76;
+const FULL_BODY_MODEL_SCALE = 0.98;
+const FULL_BODY_MODEL_OFFSET_Y = 0.0;
+const FULL_BODY_CAMERA_POSITION = new THREE.Vector3(0, 1.22, -3.45);
+const FULL_BODY_CAMERA_TARGET = new THREE.Vector3(0, 0.98, 0);
+const CARD_MODEL_SCALE = 0.8;
+const CARD_MODEL_POSITION = new THREE.Vector3(0, 0.3, 1.95);
+const CARD_FRONT_CAMERA_POSITION = new THREE.Vector3(-1.3, 1, 6.3);
+const CARD_BACK_CAMERA_POSITION = new THREE.Vector3(-1.3, 1, -2.5);
+const CARD_CAMERA_FOV = 20;
+const CAPE_MODEL_SCALE = 1.02;
 
 export interface SkinThumbnailResult {
   front: string;
@@ -62,7 +87,13 @@ class PersistentCache {
 }
 
 class ThumbnailRendererClass {
-  private viewer: SkinViewer | null = null;
+  private renderer: THREE.WebGLRenderer | null = null;
+  private canvas: HTMLCanvasElement | null = null;
+  private scene: THREE.Scene | null = null;
+  private camera: THREE.PerspectiveCamera | null = null;
+  private modelRoot: THREE.Group | null = null;
+  private currentModel: THREE.Object3D | null = null;
+  private transparentTexture: THREE.Texture | null = null;
   private queue: RenderTask[] = [];
   private isProcessing = false;
   private inFlight = new Map<string, Promise<string>>();
@@ -70,18 +101,58 @@ class ThumbnailRendererClass {
   private diskCache = new PersistentCache();
   private readonly maxMemoryEntries = 160;
 
-  private getViewer(): SkinViewer {
-    if (!this.viewer) {
-      const canvas = document.createElement('canvas');
-      this.viewer = new SkinViewer({
-        canvas,
-        width: 120,
-        height: 160,
-        renderPaused: true,
-      });
-      this.viewer.controls.enabled = false;
+  private ensureRenderer(): {
+    renderer: THREE.WebGLRenderer;
+    scene: THREE.Scene;
+    camera: THREE.PerspectiveCamera;
+    modelRoot: THREE.Group;
+    transparentTexture: THREE.Texture;
+  } {
+    if (this.renderer && this.scene && this.camera && this.modelRoot && this.transparentTexture) {
+      return {
+        renderer: this.renderer,
+        scene: this.scene,
+        camera: this.camera,
+        modelRoot: this.modelRoot,
+        transparentTexture: this.transparentTexture,
+      };
     }
-    return this.viewer;
+
+    this.canvas = document.createElement('canvas');
+    this.renderer = new THREE.WebGLRenderer({
+      canvas: this.canvas,
+      alpha: true,
+      antialias: true,
+      preserveDrawingBuffer: true,
+    });
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.NoToneMapping;
+    this.renderer.toneMappingExposure = 10;
+    this.renderer.setPixelRatio(1);
+
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(40, 120 / 160, 0.1, 100);
+    this.camera.position.set(0, 1.26, -4.15);
+    this.camera.lookAt(0, 0.98, 0);
+
+    this.modelRoot = new THREE.Group();
+    this.modelRoot.position.set(0, 0.04, 0);
+    this.modelRoot.scale.setScalar(LIVE_MODEL_SCALE);
+    this.scene.add(this.modelRoot);
+    this.scene.add(new THREE.AmbientLight(0xffffff, 2));
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    directionalLight.position.set(2, 4, 3);
+    this.scene.add(directionalLight);
+
+    this.transparentTexture = createTransparentTexture();
+    return {
+      renderer: this.renderer,
+      scene: this.scene,
+      camera: this.camera,
+      modelRoot: this.modelRoot,
+      transparentTexture: this.transparentTexture,
+    };
   }
 
   private async processQueue() {
@@ -103,7 +174,11 @@ class ThumbnailRendererClass {
   }
 
   private getCacheKey(type: 'skin' | 'cape', url: string, extra: string): string {
-    return `${type}_v4_${url}_${extra}`;
+    return `${type}_gltf_v9_${url}_${extra}`;
+  }
+
+  private getPlayerModelUrl(model: 'default' | 'slim'): string {
+    return model === 'slim' ? slimPlayerModelUrl : classicPlayerModelUrl;
   }
 
   private setMemoryCache(key: string, value: string): void {
@@ -187,63 +262,109 @@ class ThumbnailRendererClass {
     const backKey = this.getCacheKey('skin', skinUrl, `${sizeKey}_back`);
 
     const [front, back] = await Promise.all([
-      this.getOrRender(frontKey, () => this.renderSkinAngle(skinUrl, model, -Math.PI / 8, options)),
-      this.getOrRender(backKey, () => this.renderSkinAngle(skinUrl, model, Math.PI - Math.PI / 8, options)),
+      this.getOrRender(frontKey, () => this.renderSkinView(skinUrl, model, 'front', options)),
+      this.getOrRender(backKey, () => this.renderSkinView(skinUrl, model, 'back', options)),
     ]);
 
     return { front, back };
   }
 
-  private async renderSkinAngle(
+  private async renderSkinView(
     skinUrl: string,
     model: 'default' | 'slim',
-    rotationY: number,
+    view: 'front' | 'back',
     options?: { fullBody?: boolean; width?: number; height?: number }
   ): Promise<string> {
-    const v = this.getViewer();
-    await v.loadSkin(skinUrl, { model });
-    v.loadCape(null);
+    const { renderer, camera, modelRoot, transparentTexture } = this.ensureRenderer();
+    const width = options?.width || 120;
+    const height = options?.height || 160;
+    renderer.setSize(width, height, false);
+    camera.aspect = width / height;
 
-    if (options?.width && options?.height) {
-      v.setSize(options.width, options.height);
-    } else {
-      v.setSize(120, 160);
+    const gltf = await loadModrinthModel(this.getPlayerModelUrl(model));
+    const texture = await loadModrinthTexture(skinUrl);
+    this.replaceModel(cloneModelScene(gltf.scene));
+    if (this.currentModel) {
+      applyPlayerTexture(this.currentModel, texture);
+      applyCapeTexture(this.currentModel, null, transparentTexture);
+      this.currentModel.rotation.y = options?.fullBody
+        ? (view === 'front' ? FRONT_ROTATION_Y - Math.PI / 8 : BACK_ROTATION_Y - Math.PI / 8)
+        : 0;
     }
 
     if (options?.fullBody) {
-      v.zoom = 0.8;
-      v.fov = 40;
-      v.controls.target.set(0, 0, 0);
+      camera.fov = 40;
+      camera.position.copy(FULL_BODY_CAMERA_POSITION);
+      camera.lookAt(FULL_BODY_CAMERA_TARGET);
+      modelRoot.position.set(0, FULL_BODY_MODEL_OFFSET_Y, 0);
+      modelRoot.scale.setScalar(FULL_BODY_MODEL_SCALE);
     } else {
-      v.zoom = 1.08;
-      v.fov = 34;
-      v.controls.target.set(0, 10, 0);
+      camera.fov = CARD_CAMERA_FOV;
+      modelRoot.position.copy(CARD_MODEL_POSITION);
+      modelRoot.scale.setScalar(CARD_MODEL_SCALE);
+      modelRoot.updateMatrixWorld(true);
+
+      const lookAtTarget = new THREE.Vector3(0, 1, CARD_MODEL_POSITION.z);
+      const head = this.currentModel?.getObjectByName('Head');
+      if (head) {
+        head.getWorldPosition(lookAtTarget);
+        lookAtTarget.y -= 0.3;
+      }
+
+      camera.position.copy(view === 'front' ? CARD_FRONT_CAMERA_POSITION : CARD_BACK_CAMERA_POSITION);
+      camera.lookAt(lookAtTarget);
     }
 
-    v.playerWrapper.rotation.y = rotationY;
-    v.controls.update();
-    v.render();
-
-    return v.canvas.toDataURL('image/webp', 0.88);
+    camera.updateProjectionMatrix();
+    renderer.render(this.scene!, camera);
+    return renderer.domElement.toDataURL('image/webp', 0.92);
   }
 
-  public async renderCape(capeUrl: string): Promise<string> {
-    const cacheKey = this.getCacheKey('cape', capeUrl, 'default');
+  public async renderCape(
+    capeUrl: string,
+    skinUrl = 'https://minotar.net/skin/Steve.png',
+    model: 'default' | 'slim' = 'default',
+  ): Promise<string> {
+    const cacheKey = this.getCacheKey('cape', capeUrl, `${model}_${skinUrl}`);
 
     return this.getOrRender(cacheKey, async () => {
-      const v = this.getViewer();
-      v.loadSkin(null);
-      await v.loadCape(capeUrl);
+      const { renderer, camera, modelRoot, transparentTexture } = this.ensureRenderer();
+      renderer.setSize(360, 504, false);
+      camera.aspect = 360 / 504;
+      camera.fov = 34;
+      camera.position.set(0, 1.18, -3.4);
+      camera.lookAt(0, 0.96, 0);
+      camera.updateProjectionMatrix();
+      modelRoot.position.set(0, -0.22, 0);
+      modelRoot.scale.setScalar(CAPE_MODEL_SCALE);
 
-      v.zoom = 1.35;
-      v.fov = 40;
-      v.playerWrapper.rotation.y = Math.PI;
-      v.controls.target.set(0, 2, 0);
-      v.controls.update();
+      const [gltf, skinTexture, capeTexture] = await Promise.all([
+        loadModrinthModel(this.getPlayerModelUrl(model)),
+        loadModrinthTexture(skinUrl),
+        loadModrinthTexture(capeUrl),
+      ]);
 
-      v.render();
-      return v.canvas.toDataURL('image/webp', 0.88);
+      this.replaceModel(cloneModelScene(gltf.scene));
+      if (this.currentModel) {
+        applyPlayerTexture(this.currentModel, skinTexture);
+        applyCapeTexture(this.currentModel, capeTexture, transparentTexture);
+        this.currentModel.rotation.y = BACK_ROTATION_Y;
+      }
+
+      renderer.render(this.scene!, camera);
+      return renderer.domElement.toDataURL('image/webp', 0.92);
     });
+  }
+
+  private replaceModel(model: THREE.Object3D): void {
+    const { modelRoot } = this.ensureRenderer();
+    if (this.currentModel) {
+      modelRoot.remove(this.currentModel);
+      disposeObjectTree(this.currentModel);
+    }
+
+    this.currentModel = model;
+    modelRoot.add(model);
   }
 }
 

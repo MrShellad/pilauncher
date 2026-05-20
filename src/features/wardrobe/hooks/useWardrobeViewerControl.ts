@@ -30,9 +30,10 @@ export function useWardrobeViewerControl() {
         engine.clearCape();
       }
 
-      engine.raw.controls.target.set(0, 0, 0);
+      engine.raw.controls.target.set(0, 0.98, 0);
       engine.raw.controls.update();
-      targetRotationRef.current = section === 'cape' ? Math.PI : 0;
+      targetRotationRef.current = section === 'cape' ? 0 : Math.PI;
+      engine.raw.playerWrapper.rotation.y = targetRotationRef.current;
     },
     [getEngine]
   );
@@ -74,7 +75,9 @@ export function useWardrobeViewerControl() {
       const engine = getEngine();
 
       if (engine) {
-        if (Math.abs(rightStickX) > 0.16) {
+        if (engine.isUserRotating) {
+          targetRotationRef.current = engine.raw.playerWrapper.rotation.y;
+        } else if (Math.abs(rightStickX) > 0.16) {
           const delta = rightStickX * 0.04;
           engine.raw.playerWrapper.rotation.y += delta;
           engine.markInteractive();
