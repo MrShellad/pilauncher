@@ -1,0 +1,71 @@
+@tailwind components;
+
+@layer components {
+  .ore-overlay-scrollarea {
+    @apply relative min-h-0 overflow-hidden;
+  }
+
+  .ore-overlay-scrollarea__viewport {
+    @apply h-full min-h-0 overflow-y-auto overflow-x-hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .ore-overlay-scrollarea__viewport::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
+  .ore-overlay-scrollarea__content {
+    min-height: 100%;
+  }
+
+  .ore-overlay-scrollarea__track {
+    position: absolute;
+    top: var(--ore-scroll-safe-top, 8px);
+    right: var(--ore-scroll-safe-right, 6px);
+    bottom: var(--ore-scroll-safe-bottom, 8px);
+    z-index: 60;
+    width: 6px;
+    opacity: 0;
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.3);
+    transition: opacity 160ms ease;
+  }
+
+  .ore-overlay-scrollarea.is-visible .ore-overlay-scrollarea__track,
+  .ore-overlay-scrollarea.is-hovering .ore-overlay-scrollarea__track,
+  .ore-overlay-scrollarea.is-dragging .ore-overlay-scrollarea__track {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .ore-overlay-scrollarea__thumb {
+    position: absolute;
+    left: -5px;
+    right: -5px;
+    top: 0;
+    min-height: 34px;
+    cursor: grab;
+    background: #d0d1d4;
+    border: 2px solid #1e1e1f;
+    box-shadow:
+      inset 0 -4px #58585a,
+      inset 2px 2px rgba(255, 255, 255, 0.76),
+      inset -2px -6px rgba(255, 255, 255, 0.22);
+    transition:
+      background-color 120ms ease,
+      box-shadow 120ms ease;
+  }
+
+  .ore-overlay-scrollarea__thumb:hover,
+  .ore-overlay-scrollarea.is-dragging .ore-overlay-scrollarea__thumb {
+    cursor: grabbing;
+    background: #f2f2f2;
+    box-shadow:
+      inset 0 -4px #6cc349,
+      inset 2px 2px rgba(255, 255, 255, 0.9),
+      inset -2px -6px rgba(255, 255, 255, 0.3),
+      0 0 0 2px rgba(108, 195, 73, 0.42);
+  }
+}

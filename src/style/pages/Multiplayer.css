@@ -1,0 +1,1917 @@
+.ore-multiplayer-page {
+  --mp-border: var(--ore-color-border-primary-default, #1e1e1f);
+  --mp-border-soft: var(--ore-color-border-neutral-subtle, #58585a);
+  --mp-surface: var(--ore-color-background-surface-default, #48494a);
+  --mp-surface-raised: var(--ore-color-background-surface-raised, #313233);
+  --mp-surface-sunken: var(--ore-color-background-surface-sunken, #1e1e1f);
+  --mp-text: var(--ore-color-text-primary-default, #ffffff);
+  --mp-text-secondary: var(--ore-color-text-secondary-default, #d0d1d4);
+  --mp-text-muted: var(--ore-color-text-muted-default, #b1b2b5);
+  --mp-text-muted-strong: var(--ore-color-text-muted-strong, rgba(255, 255, 255, 0.8));
+  --mp-accent: var(--ore-color-background-primary-default, #3c8527);
+  --mp-accent-hover: var(--ore-color-background-primary-hover, #2a641c);
+  --mp-success: var(--ore-color-background-success-default, #6cc349);
+  --mp-warning: var(--ore-color-background-warning-default, #ffe866);
+  --mp-danger: var(--ore-color-background-danger-default, #c33636);
+  --mp-info: var(--ore-color-background-info-default, #2e6be5);
+  --mp-shadow-panel: var(--ore-shadow-modal-default, 0 18px 50px rgba(0, 0, 0, 0.55));
+  --mp-shadow-card: var(--ore-shadow-neutral-default, inset 0 -4px #58585a);
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  padding: clamp(12px, 1.6vw, 18px);
+  color: var(--mp-text);
+  overflow: hidden;
+  font-family: var(--ore-typography-family-body, var(--ore-font-body, "NotoSans Bold", sans-serif));
+}
+
+.ore-multiplayer-shell {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  border: 2px solid var(--mp-border);
+  background:
+    radial-gradient(circle at top right, rgba(108, 195, 73, 0.18), transparent 28%),
+    radial-gradient(circle at top left, rgba(255, 232, 102, 0.14), transparent 24%),
+    linear-gradient(180deg, rgba(72, 73, 74, 0.96), rgba(49, 50, 51, 0.98));
+  box-shadow:
+    var(--mp-shadow-panel),
+    inset 2px 2px rgba(255, 255, 255, 0.12),
+    inset -2px -2px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+.ore-multiplayer-shell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.08;
+  background-image:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.4) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.ore-multiplayer-header,
+.ore-multiplayer-toolbar,
+.ore-multiplayer-body,
+.ore-multiplayer-panel-header,
+.ore-multiplayer-scroll,
+.ore-multiplayer-floating-action,
+.ore-multiplayer-status-strip,
+.ore-multiplayer-surface,
+.ore-multiplayer-banner {
+  position: relative;
+  z-index: 1;
+}
+
+.ore-multiplayer-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: clamp(12px, 1.5vw, 16px);
+  border-bottom: 2px solid var(--mp-border);
+  background:
+    linear-gradient(180deg, rgba(72, 73, 74, 0.92), rgba(49, 50, 51, 0.88));
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.18);
+}
+
+.ore-multiplayer-header-copy {
+  display: flex;
+  max-width: min(54rem, 100%);
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ore-multiplayer-header-side {
+  display: flex;
+  min-width: min(30rem, 100%);
+  max-width: 25rem;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.ore-multiplayer-kicker {
+  margin: 0;
+  color: var(--mp-warning);
+  font-family: var(--ore-typography-family-decorativeBold, var(--ore-font-decorativeBold, "Minecraft Five Bold", sans-serif));
+  font-size: var(--ore-typography-size-xs, 12px);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.ore-multiplayer-title {
+  margin: 0;
+  color: var(--mp-text);
+  font-family: var(--ore-typography-family-heading, var(--ore-font-heading, "Minecraft Ten", sans-serif));
+  font-size: clamp(24px, 2.5vw, 32px);
+  line-height: var(--ore-typography-lineHeight-tight, 1);
+  letter-spacing: 0.08em;
+  text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.32);
+}
+
+.ore-multiplayer-description {
+  margin: 0;
+  max-width: 38rem;
+  color: var(--mp-text-secondary);
+  font-size: var(--ore-typography-size-sm, 14px);
+  line-height: 1.45;
+}
+
+.ore-multiplayer-header-meta {
+  display: grid;
+  grid-template-columns: 1fr;
+  width: min(25rem, 100%);
+  gap: var(--ore-spacing-sm, 6px);
+}
+
+.ore-multiplayer-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 2px solid var(--mp-border);
+  background: linear-gradient(180deg, rgba(49, 50, 51, 0.94), rgba(30, 30, 31, 0.98));
+  box-shadow:
+    inset 0 -4px 0 rgba(0, 0, 0, 0.35),
+    inset 2px 2px rgba(255, 255, 255, 0.08);
+  color: var(--mp-text-secondary);
+  font-family: var(--ore-typography-family-subheading, var(--ore-font-subheading, "Minecraft Seven", sans-serif));
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+.ore-multiplayer-chip > span:last-of-type {
+  display: inline-flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ore-multiplayer-chip strong {
+  margin-left: auto;
+  color: var(--mp-text);
+  font-family: var(--ore-typography-family-body, var(--ore-font-body, "NotoSans Bold", sans-serif));
+  text-align: right;
+}
+
+.ore-multiplayer-chip code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mp-warning);
+}
+
+.ore-multiplayer-status-dot {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--mp-border);
+  border-radius: 999px;
+  background: var(--mp-text-muted);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.22);
+  flex-shrink: 0;
+}
+
+.ore-multiplayer-status-dot[data-state='ready'] {
+  background: var(--mp-success);
+}
+
+.ore-multiplayer-status-dot[data-state='starting'] {
+  background: var(--mp-warning);
+}
+
+.ore-multiplayer-status-dot[data-state='error'],
+.ore-multiplayer-status-dot[data-state='stopped'] {
+  background: var(--mp-danger);
+}
+
+.ore-multiplayer-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ore-spacing-base, 8px);
+  padding: 0 clamp(12px, 1.5vw, 16px) 12px;
+}
+
+.ore-multiplayer-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ore-spacing-sm, 6px);
+}
+
+.ore-multiplayer-header-toggle {
+  width: min(25rem, 100%);
+  margin-left: auto;
+}
+
+.ore-multiplayer-header-toggle .ore-toggle-btn-group {
+  width: 100%;
+  min-height: 40px;
+}
+
+.ore-multiplayer-header-toggle .ore-toggle-btn-item {
+  min-height: 40px;
+}
+
+.ore-multiplayer-tab {
+  min-height: 40px;
+  min-width: 144px;
+  padding: 0 16px;
+  border: 2px solid var(--mp-border);
+  background: linear-gradient(180deg, rgba(208, 209, 212, 0.96), rgba(177, 178, 181, 0.98));
+  box-shadow:
+    inset 0 -4px 0 #58585a,
+    inset 2px 2px rgba(255, 255, 255, 0.64);
+  color: var(--ore-color-text-onLight-default, #000000);
+  cursor: pointer;
+  font-family: var(--ore-typography-family-subheading, var(--ore-font-subheading, "Minecraft Seven", sans-serif));
+  font-size: var(--ore-typography-size-sm, 14px);
+  letter-spacing: 0.05em;
+  transition: none;
+}
+
+.ore-multiplayer-tab:hover {
+  filter: brightness(1.04);
+}
+
+.ore-multiplayer-tab[data-active='true'] {
+  background: linear-gradient(180deg, rgba(108, 195, 73, 0.98), rgba(60, 133, 39, 1));
+  box-shadow:
+    inset 0 -4px 0 #1d4d13,
+    inset 2px 2px rgba(255, 255, 255, 0.24);
+  color: var(--mp-text);
+}
+
+.ore-multiplayer-tab:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.ore-multiplayer-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ore-spacing-sm, 6px);
+}
+
+.ore-multiplayer-body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ore-multiplayer-surface {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  border: 2px solid var(--mp-border);
+  background:
+    linear-gradient(180deg, rgba(72, 73, 74, 0.96), rgba(49, 50, 51, 0.94));
+  box-shadow:
+    inset 0 -4px 0 rgba(0, 0, 0, 0.22),
+    inset 2px 2px rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.ore-multiplayer-panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--mp-border);
+  background: linear-gradient(180deg, rgba(49, 50, 51, 0.96), rgba(30, 30, 31, 0.96));
+  box-shadow: inset 0 2px rgba(255, 255, 255, 0.08);
+}
+
+.ore-multiplayer-panel-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ore-multiplayer-panel-title {
+  margin: 0;
+  color: var(--mp-text);
+  font-family: var(--ore-typography-family-subheading, var(--ore-font-subheading, "Minecraft Seven", sans-serif));
+  font-size: clamp(16px, 1.4vw, 18px);
+  letter-spacing: 0.06em;
+}
+
+.ore-multiplayer-panel-subtitle {
+  margin: 0;
+  color: var(--mp-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* Header status badges (lifecycle + peer connection) */
+.ore-multiplayer-header-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  margin-right: 8px;
+}
+
+.ore-multiplayer-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border: 2px solid var(--mp-border);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--mp-text-secondary);
+  font-family: var(--ore-typography-family-decorativeBold, var(--ore-font-decorativeBold, "Minecraft Five Bold", sans-serif));
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ore-multiplayer-status-badge[data-tone='accent'] {
+  border-color: rgba(108, 195, 73, 0.4);
+  background: rgba(108, 195, 73, 0.12);
+  color: var(--mp-success);
+}
+
+.ore-multiplayer-status-badge[data-tone='warning'] {
+  border-color: rgba(255, 232, 102, 0.4);
+  background: rgba(255, 232, 102, 0.10);
+  color: var(--mp-warning);
+}
+
+.ore-multiplayer-status-badge[data-tone='danger'] {
+  border-color: rgba(195, 54, 54, 0.4);
+  background: rgba(195, 54, 54, 0.12);
+  color: var(--ore-color-text-danger-default, #f46d6d);
+}
+
+.ore-multiplayer-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 2px solid var(--mp-border);
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--mp-warning);
+  font-family: var(--ore-typography-family-decorativeBold, var(--ore-font-decorativeBold, "Minecraft Five Bold", sans-serif));
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ore-multiplayer-scroll {
+  min-height: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  overflow: auto;
+  padding: 12px;
+}
+
+.ore-multiplayer-scroll--directory {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  overflow: hidden;
+  padding: 1.5rem 0 0;
+}
+
+.ore-multiplayer-scroll > .ore-multiplayer-stack {
+  flex: 1;
+}
+
+.ore-multiplayer-empty-state {
+  display: flex;
+  min-height: 176px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 2px dashed var(--mp-border-soft);
+  background: rgba(0, 0, 0, 0.18);
+  padding: 24px;
+  text-align: center;
+  color: var(--mp-text-secondary);
+}
+
+.ore-multiplayer-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 2px solid var(--mp-border);
+  background: linear-gradient(180deg, rgba(255, 232, 102, 0.2), rgba(49, 50, 51, 0.92));
+  color: var(--mp-text);
+  box-shadow:
+    inset 0 -4px 0 rgba(0, 0, 0, 0.18),
+    inset 2px 2px rgba(255, 255, 255, 0.08);
+}
+
+.ore-multiplayer-banner[data-tone='danger'] {
+  background: linear-gradient(180deg, rgba(195, 54, 54, 0.24), rgba(49, 50, 51, 0.92));
+}
+
+.ore-multiplayer-p2p-grid {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  gap: 12px;
+  grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1.18fr);
+}
+
+.ore-multiplayer-mode-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 58rem);
+  margin: 0 auto;
+}
+
+.ore-multiplayer-chooser {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.ore-multiplayer-chooser-log {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  width: min(100%, 58rem);
+  margin: 0 auto;
+}
+
+.ore-multiplayer-mode-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border: 2px solid var(--mp-border);
+  background:
+    linear-gradient(180deg, rgba(72, 73, 74, 0.98), rgba(41, 42, 43, 0.98));
+  box-shadow:
+    inset 0 -4px 0 rgba(0, 0, 0, 0.22),
+    inset 2px 2px rgba(255, 255, 255, 0.08),
+    0 14px 24px rgba(0, 0, 0, 0.2);
+  padding: 16px;
+  color: var(--mp-text);
+  cursor: pointer;
+  text-align: left;
+  transform: translateY(0);
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+}
+
+.ore-multiplayer-mode-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 232, 102, 0.72);
+  box-shadow:
+    inset 0 -4px 0 rgba(0, 0, 0, 0.22),
+    inset 2px 2px rgba(255, 255, 255, 0.08),
+    0 18px 30px rgba(0, 0, 0, 0.28);
+}
+
+.ore-multiplayer-mode-card:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 -2px 0 rgba(0, 0, 0, 0.22),
+    inset 2px 2px rgba(255, 255, 255, 0.08),
+    0 10px 16px rgba(0, 0, 0, 0.18);
+}
+
+.ore-multiplayer-mode-card:focus-visible {
+  outline: 2px solid var(--ore-focus-ring, #ffffff);
+  outline-offset: 2px;
+}
+
+.ore-multiplayer-mode-card[data-tone='host']::before,
+.ore-multiplayer-mode-card[data-tone='client']::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5px;
+}
+
+.ore-multiplayer-mode-card[data-tone='host']::before {
+  background: linear-gradient(90deg, rgba(108, 195, 73, 0.95), rgba(255, 232, 102, 0.65));
+}
+
+.ore-multiplayer-mode-card[data-tone='client']::before {
+  background: linear-gradient(90deg, rgba(46, 107, 229, 0.95), rgba(80, 194, 255, 0.7));
+}
+
+.ore-multiplayer-mode-card[data-tone='host'] .ore-multiplayer-mode-icon,
+.ore-multiplayer-mode-card[data-tone='host'] .ore-multiplayer-mode-cta {
+  color: var(--mp-success);
+}
+
+.ore-multiplayer-mode-card[data-tone='client'] .ore-multiplayer-mode-icon,
+.ore-multiplayer-mode-card[data-tone='client'] .ore-multiplayer-mode-cta {
+  color: #78c6ff;
+}
+
+.ore-multiplayer-mode-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ore-multiplayer-mode-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ore-multiplayer-mode-icon {
+  display: inline-flex;
+  width: 52px;
+  height: 52px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--mp-border);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.32));
+  color: var(--mp-warning);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.22);
+  flex-shrink: 0;
+}
+
+.ore-multiplayer-mode-kicker {
+  margin: 0;
+  display: inline-flex;
+  width: fit-content;
+  min-height: 28px;
+  align-items: center;
+  padding: 0 10px;
+  border: 2px solid var(--mp-border);
+  background: rgba(0, 0, 0, 0.24);
+  color: var(--mp-warning);
+  font-family: var(--ore-typography-family-decorativeBold, var(--ore-font-decorativeBold, "Minecraft Five Bold", sans-serif));
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ore-multiplayer-mode-pill {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  padding: 0 10px;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--mp-text-secondary);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ore-multiplayer-mode-body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ore-multiplayer-mode-title {
+  margin: 0;
+  color: var(--mp-text);
+  font-family: var(--ore-typography-family-subheading, var(--ore-font-subheading, "Minecraft Seven", sans-serif));
+  font-size: 22px;
+  letter-spacing: 0.05em;
+}
+
+.ore-multiplayer-mode-copy {
+  margin: 0;
+  color: var(--mp-text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.ore-multiplayer-mode-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--mp-text);
+  flex-shrink: 0;
+}
+
+.ore-multiplayer-mode-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ore-multiplayer-mode-tag {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  padding: 0 10px;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--mp-text-secondary);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.ore-multiplayer-mode-cta {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(255, 232, 102, 0.14), rgba(0, 0, 0, 0.18));
+  color: var(--mp-text);
+  font-family: var(--ore-typography-family-decorativeBold, var(--ore-font-decorativeBold, "Minecraft Five Bold", sans-serif));
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ore-multiplayer-stack {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ore-multiplayer-stack--server-directory {
+  width: 100%;
+  min-height: 100%;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.ore-multiplayer-stack--secondary {
+  order: 1;
+}
+
+.ore-multiplayer-stack--primary {
+  order: 2;
+}
+
+.ore-multiplayer-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 10px;
+  border: 2px solid var(--mp-border);
+  background:
+    linear-gradient(180deg, rgba(72, 73, 74, 0.96), rgba(49, 50, 51, 0.96));
+  box-shadow:
+    inset 0 -4px 0 rgba(0, 0, 0, 0.22),
+    inset 2px 2px rgba(255, 255, 255, 0.08);
+  padding: 12px;
+}
+
+.ore-multiplayer-card--action {
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 -4px 0 rgba(0, 0, 0, 0.22),
+    inset 2px 2px rgba(255, 255, 255, 0.08),
+    0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.ore-multiplayer-card-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ore-multiplayer-card-title {
+  margin: 0;
+  color: var(--mp-text);
+  font-family: var(--ore-typography-family-subheading, var(--ore-font-subheading, "Minecraft Seven", sans-serif));
+  font-size: var(--ore-typography-size-lg, 18px);
+  letter-spacing: 0.06em;
+}
+
+.ore-multiplayer-card-copy {
+  margin: 0;
+  color: var(--mp-text-muted);
+  font-size: var(--ore-typography-size-sm, 14px);
+  line-height: 1.6;
+}
+
+.ore-multiplayer-field-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ore-multiplayer-field-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ore-multiplayer-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--mp-text-secondary);
+  font-family: var(--ore-typography-family-decorativeBold, var(--ore-font-decorativeBold, "Minecraft Five Bold", sans-serif));
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ore-multiplayer-code-block,
+.ore-multiplayer-textarea {
+  width: 100%;
+  border: 2px solid var(--mp-border);
+  background: linear-gradient(180deg, rgba(30, 30, 31, 0.96), rgba(20, 20, 21, 0.98));
+  box-shadow:
+    inset 0 4px 0 rgba(0, 0, 0, 0.28),
+    inset 2px 2px rgba(255, 255, 255, 0.04);
+  color: var(--mp-text);
+  font-family: "Cascadia Code", "Consolas", monospace;
+}
+
+.ore-multiplayer-code-block {
+  min-height: 112px;
+  padding: 14px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.55;
+}
+
+.ore-multiplayer-textarea {
+  min-height: 112px;
+  resize: vertical;
+  padding: 14px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.ore-multiplayer-textarea:focus {
+  outline: 2px solid var(--ore-focus-ring, #ffffff);
+  outline-offset: 1px;
+}
+
+.ore-multiplayer-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.ore-multiplayer-floating-action {
+  position: absolute;
+  right: clamp(1rem, 1.8vw, 1.5rem);
+  bottom: clamp(1rem, 1.8vw, 1.5rem);
+  z-index: 4;
+}
+
+.ore-multiplayer-floating-action__button {
+  min-height: 2.75rem;
+  border-color: rgba(255, 232, 102, 0.26);
+  background:
+    linear-gradient(180deg, rgba(49, 50, 51, 0.98), rgba(30, 30, 31, 0.98));
+  box-shadow:
+    0 0.875rem 1.75rem rgba(0, 0, 0, 0.3),
+    inset 0 -0.25rem 0 rgba(0, 0, 0, 0.35),
+    inset 0.125rem 0.125rem rgba(255, 255, 255, 0.1);
+  color: var(--mp-text);
+}
+
+.ore-multiplayer-floating-action__button:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.ore-multiplayer-floating-action__button.is-focused {
+  outline: 0.125rem solid #ffffff;
+  outline-offset: 0.25rem;
+}
+
+.ore-multiplayer-floating-action__content {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.ore-multiplayer-floating-action__badge {
+  display: inline-flex;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--mp-warning);
+  box-shadow: inset 0 -0.125rem 0 rgba(0, 0, 0, 0.18);
+  color: #000000;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.ore-multiplayer-note {
+  margin: 0;
+  color: var(--mp-text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.ore-multiplayer-section-note {
+  margin: 0;
+  color: var(--mp-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.ore-multiplayer-note strong {
+  color: var(--mp-text-secondary);
+}
+
+.ore-multiplayer-status-strip {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ore-multiplayer-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 68px;
+  justify-content: center;
+  border: 2px solid var(--mp-border);
+  background: linear-gradient(180deg, rgba(49, 50, 51, 0.95), rgba(30, 30, 31, 0.96));
+  padding: 10px 12px;
+  box-shadow:
+    inset 0 -4px 0 rgba(0, 0, 0, 0.24),
+    inset 2px 2px rgba(255, 255, 255, 0.06);
+}
+
+.ore-multiplayer-stat-label {
+  color: var(--mp-text-muted);
+  font-family: var(--ore-typography-family-decorativeBold, var(--ore-font-decorativeBold, "Minecraft Five Bold", sans-serif));
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ore-multiplayer-stat-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--mp-text);
+  white-space: nowrap;
+  font-family: var(--ore-typography-family-subheading, var(--ore-font-subheading, "Minecraft Seven", sans-serif));
+  font-size: 17px;
+  letter-spacing: 0.04em;
+}
+
+.ore-multiplayer-stat-value[data-tone='accent'] {
+  color: var(--mp-success);
+}
+
+.ore-multiplayer-stat-value[data-tone='warning'] {
+  color: var(--mp-warning);
+}
+
+.ore-multiplayer-stat-value[data-tone='danger'] {
+  color: var(--ore-color-text-danger-default, #f46d6d);
+}
+
+.ore-multiplayer-connection-tip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(46, 107, 229, 0.14), rgba(0, 0, 0, 0.16));
+  padding: 12px 14px;
+}
+
+.ore-multiplayer-connection-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--mp-text);
+  font-family: var(--ore-typography-family-subheading, var(--ore-font-subheading, "Minecraft Seven", sans-serif));
+  letter-spacing: 0.04em;
+}
+
+.ore-multiplayer-callout {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 2px solid var(--mp-border);
+  background: linear-gradient(180deg, rgba(46, 107, 229, 0.14), rgba(49, 50, 51, 0.94));
+  padding: 14px 16px;
+}
+
+.ore-multiplayer-callout h3,
+.ore-multiplayer-callout h4 {
+  margin: 0;
+  color: var(--mp-text);
+  font-family: var(--ore-typography-family-subheading, var(--ore-font-subheading, "Minecraft Seven", sans-serif));
+  letter-spacing: 0.06em;
+}
+
+.ore-multiplayer-callout p,
+.ore-multiplayer-callout li {
+  margin: 0;
+  color: var(--mp-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.ore-multiplayer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.ore-multiplayer-log-list {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+}
+
+.ore-multiplayer-log-entry {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  border: 2px solid var(--mp-border);
+  background: rgba(0, 0, 0, 0.24);
+  padding: 10px 12px;
+}
+
+.ore-multiplayer-log-entry[data-level='WARN'] {
+  border-color: var(--mp-warning);
+}
+
+.ore-multiplayer-log-entry[data-level='ERROR'],
+.ore-multiplayer-log-entry[data-level='STDERR'] {
+  border-color: var(--mp-danger);
+}
+
+.ore-multiplayer-log-meta {
+  display: flex;
+  min-width: 82px;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--mp-text-muted);
+  font-size: 11px;
+}
+
+.ore-multiplayer-log-level {
+  color: var(--mp-warning);
+  font-family: var(--ore-typography-family-decorativeBold, var(--ore-font-decorativeBold, "Minecraft Five Bold", sans-serif));
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ore-multiplayer-log-entry[data-level='ERROR'] .ore-multiplayer-log-level,
+.ore-multiplayer-log-entry[data-level='STDERR'] .ore-multiplayer-log-level {
+  color: var(--ore-color-text-danger-default, #f46d6d);
+}
+
+.ore-multiplayer-log-message {
+  color: var(--mp-text-secondary);
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.ore-multiplayer-server-grid,
+.ore-multiplayer-ad-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.ore-multiplayer-server-card,
+.ore-multiplayer-ad-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 2px solid var(--mp-border);
+  background:
+    linear-gradient(180deg, rgba(72, 73, 74, 0.96), rgba(49, 50, 51, 0.98));
+  box-shadow:
+    inset 0 -4px 0 rgba(0, 0, 0, 0.22),
+    inset 2px 2px rgba(255, 255, 255, 0.08);
+}
+
+.ore-multiplayer-server-media {
+  position: relative;
+  display: flex;
+  height: 156px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-bottom: 2px solid var(--mp-border);
+  background:
+    linear-gradient(180deg, rgba(30, 30, 31, 0.98), rgba(20, 20, 21, 0.98));
+}
+
+.ore-multiplayer-server-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.84;
+}
+
+.ore-multiplayer-server-media svg {
+  opacity: 0.32;
+}
+
+.ore-multiplayer-ribbon,
+.ore-multiplayer-ping {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 2px solid var(--mp-border);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.24);
+  font-family: var(--ore-typography-family-decorativeBold, var(--ore-font-decorativeBold, "Minecraft Five Bold", sans-serif));
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ore-multiplayer-ribbon {
+  top: 10px;
+  right: 10px;
+  background: linear-gradient(180deg, rgba(255, 232, 102, 0.96), rgba(230, 180, 43, 0.96));
+  color: var(--ore-color-text-onLight-default, #000000);
+}
+
+.ore-multiplayer-ping {
+  right: 10px;
+  bottom: 10px;
+  background: rgba(0, 0, 0, 0.72);
+  color: var(--mp-text);
+}
+
+.ore-multiplayer-ping-dot {
+  width: 10px;
+  height: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: var(--mp-text-muted);
+}
+
+.ore-multiplayer-ping-dot[data-tone='good'] {
+  background: var(--mp-success);
+}
+
+.ore-multiplayer-ping-dot[data-tone='mid'] {
+  background: var(--mp-warning);
+}
+
+.ore-multiplayer-ping-dot[data-tone='bad'] {
+  background: var(--mp-danger);
+}
+
+.ore-multiplayer-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.ore-multiplayer-card-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ore-multiplayer-card-title-text {
+  margin: 0;
+  color: var(--mp-text);
+  font-family: var(--ore-typography-family-subheading, var(--ore-font-subheading, "Minecraft Seven", sans-serif));
+  font-size: 20px;
+  letter-spacing: 0.04em;
+}
+
+.ore-multiplayer-card-subline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--mp-text-muted);
+  font-size: 13px;
+}
+
+.ore-multiplayer-card-subline strong {
+  color: var(--mp-success);
+}
+
+.ore-multiplayer-card-description {
+  margin: 0;
+  color: var(--mp-text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.ore-multiplayer-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ore-multiplayer-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 2px solid var(--mp-border);
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--mp-text-secondary);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ore-multiplayer-card-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 2px solid rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.18);
+  padding: 14px 16px;
+}
+
+.ore-multiplayer-address {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--mp-text-secondary);
+  font-size: 13px;
+}
+
+.ore-multiplayer-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ore-multiplayer-link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  min-width: 112px;
+  flex: 1;
+  border: 2px solid var(--mp-border);
+  background: linear-gradient(180deg, rgba(208, 209, 212, 0.96), rgba(177, 178, 181, 0.98));
+  box-shadow:
+    inset 0 -4px 0 #58585a,
+    inset 2px 2px rgba(255, 255, 255, 0.62);
+  color: var(--ore-color-text-onLight-default, #000000);
+  cursor: pointer;
+  font-family: var(--ore-typography-family-subheading, var(--ore-font-subheading, "Minecraft Seven", sans-serif));
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.ore-multiplayer-link-button:hover {
+  filter: brightness(1.04);
+}
+
+.ore-multiplayer-link-button--primary {
+  background: linear-gradient(180deg, rgba(108, 195, 73, 0.98), rgba(60, 133, 39, 0.98));
+  box-shadow:
+    inset 0 -4px 0 #1d4d13,
+    inset 2px 2px rgba(255, 255, 255, 0.24);
+  color: var(--mp-text);
+}
+
+.ore-multiplayer-ad-card {
+  cursor: pointer;
+}
+
+.ore-multiplayer-ad-card:hover {
+  filter: brightness(1.04);
+}
+
+.ore-multiplayer-ad-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+}
+
+.ore-multiplayer-ad-title {
+  margin: 0;
+  color: var(--mp-text);
+  font-family: var(--ore-typography-family-subheading, var(--ore-font-subheading, "Minecraft Seven", sans-serif));
+  font-size: 18px;
+  letter-spacing: 0.04em;
+}
+
+.ore-multiplayer-ad-description {
+  margin: 0;
+  color: var(--mp-text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.ore-multiplayer-ad-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 2px solid rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.16);
+  padding: 12px 16px;
+  color: var(--mp-text-muted);
+  font-size: 12px;
+}
+
+.ore-multiplayer-ad-footer strong {
+  color: var(--mp-warning);
+}
+
+.ore-online-server-grid {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  width: 100%;
+  max-width: 80rem;
+  align-items: center;
+  gap: max(1.5rem, 2.5vw);
+  margin: 0 auto;
+  padding: 0 max(1rem, 3vw);
+}
+
+.ore-online-server-card {
+  flex: 0 0 auto;
+  width: min(90vw, 42rem);
+  scroll-snap-align: center;
+  margin: 0;
+  overflow: hidden;
+  border-top: 0.125rem solid #5a5b5c;
+  border-right: 0.125rem solid #333334;
+  border-bottom: 0.125rem solid #333334;
+  border-left: 0.125rem solid #333334;
+  background-color: #313233;
+  box-shadow: 0 0.875rem 2rem rgba(0, 0, 0, 0.24);
+}
+
+.ore-online-server-card__hero-trigger {
+  width: 100%;
+  cursor: pointer;
+  border: none;
+  border-bottom: 0.1875rem solid #1e1e1f;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  transition: filter 0.2s ease;
+}
+
+.ore-online-server-card__hero-trigger:hover {
+  filter: brightness(1.05);
+}
+
+.ore-online-server-card__hero-trigger:focus-visible {
+  outline: 0.1875rem solid #ffe866;
+  outline-offset: -0.1875rem;
+}
+
+.ore-online-server-card__hero-image {
+  position: relative;
+  height: 20rem;
+  width: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.18), transparent 20%),
+    linear-gradient(180deg, rgba(60, 61, 62, 0.94), rgba(30, 30, 31, 0.98));
+}
+
+.ore-online-server-card__hero-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.45s ease;
+}
+
+.ore-online-server-card__hero-trigger:hover .ore-online-server-card__hero-media {
+  transform: scale(1.04);
+}
+
+.ore-online-server-card__hero-media--soft {
+  transform: scale(1.08);
+  opacity: 0.48;
+  filter: blur(0.15rem);
+}
+
+.ore-online-server-card__hero-trigger:hover .ore-online-server-card__hero-media--soft {
+  transform: scale(1.12);
+}
+
+.ore-online-server-card__hero-placeholder {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.ore-online-server-card__hero-gradient {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 7rem;
+  background: linear-gradient(to top, rgba(49, 50, 51, 0.95) 0%, rgba(49, 50, 51, 0.4) 50%, transparent 100%);
+  z-index: 1;
+}
+
+.ore-online-server-card__gamepad-hint {
+  position: absolute;
+  top: 0.75rem;
+  right: 1rem;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 0.125rem solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.5rem;
+  background: rgba(30, 30, 31, 0.72);
+  padding: 0.25rem 0.75rem 0.25rem 0.25rem;
+  color: #e2e8f0;
+  backdrop-filter: blur(0.25rem);
+  font-family: var(--ore-typography-family-subheading, var(--ore-font-subheading, "Minecraft Seven", sans-serif));
+  font-size: 0.75rem;
+}
+
+.ore-online-server-card__gamepad-button {
+  display: inline-flex;
+  width: 1.25rem;
+  height: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background-color: #facc15;
+  box-shadow: 0 0.125rem 0 #a16207;
+  color: #000000;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.ore-online-server-card__hero-bottom {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+}
+
+.ore-online-server-card__hero-title {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  color: #ffffff;
+  font-family: var(--ore-typography-family-heading, var(--ore-font-heading, "Minecraft Ten", sans-serif));
+  font-size: 2rem;
+  text-overflow: ellipsis;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.ore-online-server-card__warnings {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.ore-online-server-card__warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 0.125rem solid #1e1e1f;
+  padding: 0.1875rem 0.5rem;
+  font-family: var(--ore-typography-family-subheading, var(--ore-font-subheading, "Minecraft Seven", sans-serif));
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.ore-online-server-card__warning-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
+.ore-online-server-card__warning--version {
+  background-color: #1e1e1f;
+  color: #ffffff;
+}
+
+.ore-online-server-card__warning--age {
+  background-color: #ffe866;
+  color: #000000;
+}
+
+.ore-online-server-card__warning--paid {
+  background-color: #ffffff;
+  color: #c33636;
+}
+
+.ore-online-server-card__meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  border-top: 0.125rem solid #5a5b5c;
+  border-bottom: none;
+  padding: 0.625rem;
+}
+
+.ore-online-server-card__meta-tag {
+  display: inline-flex;
+  margin: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  color: #000000;
+  font-family: var(--ore-typography-family-subheading, var(--ore-font-subheading, "Minecraft Seven", sans-serif));
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+.ore-online-server-card__meta-tag--green {
+  background-color: #6cc349;
+}
+
+.ore-online-server-card__meta-tag--blue {
+  background-color: #8cb3ff;
+}
+
+.ore-online-server-card__drawer {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  grid-template-rows: 0fr;
+  background-color: #242526;
+  box-shadow: inset 0 0.5rem 0.75rem -0.375rem rgba(0, 0, 0, 0.8);
+  transition: grid-template-rows 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ore-online-server-card__drawer.is-open {
+  grid-template-rows: 1fr;
+}
+
+.ore-online-server-card__drawer-inner {
+  overflow: hidden;
+}
+
+.ore-online-server-card__drawer-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+}
+
+.ore-online-server-card__description {
+  margin: 0;
+  border-left: 0.25rem solid #8cb3ff;
+  background-color: rgba(30, 30, 31, 0.5);
+  padding: 0.625rem 0.75rem;
+  color: #d0d1d4;
+  font-family: var(--ore-typography-family-subheading, var(--ore-font-subheading, "Minecraft Seven", sans-serif));
+  font-size: 0.84375rem;
+  line-height: 1.6;
+}
+
+.ore-online-server-card__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.ore-online-server-card__link-block {
+  position: relative;
+  display: flex;
+  min-width: 8.75rem;
+  flex: 1 1 10rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 0.125rem solid #58585a;
+  background-color: #48494a;
+  padding: 0.375rem 1.25rem;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.ore-online-server-card__link-block::before,
+.ore-online-server-card__link-block::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -150%;
+  transform: skewX(-45deg);
+}
+
+.ore-online-server-card__link-block::before {
+  z-index: 2;
+  width: 0.9375rem;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+.ore-online-server-card__link-block::after {
+  z-index: 1;
+  width: 0.375rem;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+.ore-online-server-card__link-block:hover::before {
+  animation: ore-online-server-card-flash-thick 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ore-online-server-card__link-block:hover::after {
+  animation: ore-online-server-card-flash-thin 0.6s 0.01s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ore-online-server-card__link-block:hover,
+.ore-online-server-card__link-block:active {
+  border-color: #6d6d6e;
+  background-color: #58585a;
+}
+
+.ore-online-server-card__link-block:focus-visible {
+  outline: 0.1875rem solid #ffe866;
+  outline-offset: 0.125rem;
+}
+
+.ore-online-server-card__link-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: var(--ore-typography-family-subheading, var(--ore-font-subheading, "Minecraft Seven", sans-serif));
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.ore-online-server-card__link-icon {
+  flex-shrink: 0;
+}
+
+.ore-online-server-card__action-bar {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  border-top: 0.125rem solid #5a5b5c;
+  background-color: #313233;
+  padding: 1rem;
+}
+
+.ore-online-server-card__action {
+  display: inline-flex;
+  width: 10rem;
+  height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border: 0.125rem solid #1e1e1f;
+  padding-bottom: 0.25rem;
+  cursor: pointer;
+  font-family: var(--ore-typography-family-body, var(--ore-font-body, "NotoSans Bold", sans-serif));
+  font-size: 0.9375rem;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.1s ease;
+}
+
+.ore-online-server-card__action:active {
+  transform: translateY(0.125rem);
+}
+
+.ore-online-server-card__action:focus-visible {
+  outline: 0.1875rem solid #ffe866;
+  outline-offset: 0.125rem;
+}
+
+.ore-online-server-card__action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.ore-online-server-card__action--primary {
+  background-color: #3c8527;
+  box-shadow:
+    inset 0 -0.25rem #1d4d13,
+    inset 0.1875rem 0.1875rem rgba(255, 255, 255, 0.2),
+    inset -0.1875rem -0.4375rem rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.ore-online-server-card__action--primary:hover:not(:disabled) {
+  background-color: #2a641c;
+  box-shadow:
+    inset 0 -0.25rem #1d4d13,
+    inset 0.1875rem 0.1875rem rgba(255, 255, 255, 0.4),
+    inset -0.1875rem -0.4375rem rgba(255, 255, 255, 0.3);
+}
+
+.ore-online-server-card__action--primary:active:not(:disabled) {
+  background-color: #1d4d13;
+  box-shadow:
+    inset 0.1875rem 0.1875rem rgba(255, 255, 255, 0.4),
+    inset -0.1875rem -0.1875rem rgba(255, 255, 255, 0.3);
+}
+
+.ore-online-server-card__action--secondary {
+  background-color: #d0d1d4;
+  box-shadow:
+    inset 0 -0.25rem #58585a,
+    inset 0.1875rem 0.1875rem rgba(255, 255, 255, 0.6),
+    inset -0.1875rem -0.4375rem rgba(255, 255, 255, 0.4);
+  color: #000000;
+}
+
+.ore-online-server-card__action--secondary:hover:not(:disabled) {
+  background-color: #b1b2b5;
+  box-shadow:
+    inset 0 -0.25rem #58585a,
+    inset 0.1875rem 0.1875rem rgba(255, 255, 255, 0.8),
+    inset -0.1875rem -0.4375rem rgba(255, 255, 255, 0.6);
+}
+
+.ore-online-server-card__action--secondary:active:not(:disabled) {
+  background-color: #b1b2b5;
+  box-shadow:
+    inset 0.1875rem 0.1875rem rgba(255, 255, 255, 0.8),
+    inset -0.1875rem -0.1875rem rgba(255, 255, 255, 0.6);
+}
+
+@keyframes ore-online-server-card-flash-thick {
+  0% {
+    left: -150%;
+  }
+
+  100% {
+    left: 150%;
+  }
+}
+
+@keyframes ore-online-server-card-flash-thin {
+  0% {
+    left: -150%;
+  }
+
+  100% {
+    left: 150%;
+  }
+}
+
+@media (max-width: 1080px) {
+  .ore-multiplayer-p2p-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ore-multiplayer-stack--primary {
+    order: 1;
+  }
+
+  .ore-multiplayer-stack--secondary {
+    order: 2;
+  }
+}
+
+@media (max-width: 1180px) {
+  .ore-multiplayer-status-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .ore-multiplayer-header-side {
+    min-width: 100%;
+    max-width: none;
+  }
+
+  .ore-multiplayer-header-toggle {
+    width: 100%;
+    margin-left: auto;
+  }
+
+  .ore-multiplayer-mode-grid,
+  .ore-multiplayer-field-grid,
+  .ore-multiplayer-status-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-height: 860px) {
+  .ore-multiplayer-page {
+    gap: 10px;
+    padding: 10px 12px 12px;
+  }
+
+  .ore-multiplayer-shell {
+    gap: 10px;
+  }
+
+  .ore-multiplayer-header,
+  .ore-multiplayer-toolbar {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .ore-multiplayer-header {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .ore-multiplayer-description {
+    display: none;
+  }
+
+  .ore-multiplayer-panel-subtitle {
+    display: none;
+  }
+
+  .ore-multiplayer-title {
+    font-size: clamp(22px, 2.3vw, 28px);
+  }
+
+  .ore-multiplayer-chip {
+    min-height: 34px;
+  }
+
+  .ore-multiplayer-toolbar {
+    padding-bottom: 12px;
+  }
+
+  .ore-multiplayer-panel-header {
+    padding: 10px 12px;
+  }
+
+  .ore-multiplayer-scroll {
+    padding: 10px;
+  }
+
+  .ore-multiplayer-banner,
+  .ore-multiplayer-callout,
+  .ore-multiplayer-card,
+  .ore-multiplayer-mode-card {
+    padding: 10px;
+  }
+
+  .ore-multiplayer-empty-state {
+    min-height: 108px;
+    padding: 14px;
+  }
+
+  .ore-multiplayer-stat {
+    min-height: 60px;
+  }
+
+  .ore-multiplayer-code-block,
+  .ore-multiplayer-textarea {
+    min-height: 88px;
+  }
+
+  .ore-multiplayer-mode-grid {
+    gap: 10px;
+  }
+
+  .ore-multiplayer-mode-card {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  .ore-multiplayer-page {
+    padding: 10px;
+  }
+
+  .ore-multiplayer-header,
+  .ore-multiplayer-toolbar {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .ore-multiplayer-floating-action {
+    right: 0.75rem;
+    bottom: 0.75rem;
+  }
+
+  .ore-multiplayer-floating-action__button {
+    min-width: 0;
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+
+  .ore-multiplayer-tab {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .ore-multiplayer-chip,
+  .ore-multiplayer-header-meta,
+  .ore-multiplayer-meta {
+    width: 100%;
+  }
+
+  .ore-multiplayer-link-row {
+    flex-direction: column;
+  }
+
+  .ore-online-server-grid {
+    flex-direction: column;
+    width: 100%;
+    padding: 1rem;
+    gap: 1.5rem;
+  }
+
+  .ore-online-server-card {
+    width: 100%;
+    flex: 0 0 auto;
+  }
+
+  .ore-online-server-card__hero-image {
+    height: 12rem;
+  }
+
+  .ore-online-server-card__hero-bottom {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ore-online-server-card__hero-title {
+    font-size: 1.625rem;
+  }
+
+  .ore-online-server-card__warnings {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .ore-online-server-card__action-bar {
+    flex-direction: column;
+  }
+
+  .ore-online-server-card__action {
+    width: 100%;
+  }
+
+  .ore-multiplayer-scroll--directory {
+    padding-bottom: 0;
+  }
+}

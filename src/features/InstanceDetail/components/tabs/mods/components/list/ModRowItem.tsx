@@ -1,0 +1,163 @@
+import React from 'react';
+
+import { FocusItem } from '../../../../../../../ui/focus/FocusItem';
+import type { ModIconSnapshot } from '../../../../../logic/modIconService';
+import type { ModMeta } from '../../../../../logic/modService';
+import { ModRowActionCluster } from './ModRowActionCluster';
+import type { ModListTheme, ModListViewMode, RowAction } from '../../modListShared';
+import { ModRowView } from './ModRowView';
+
+interface ModRowItemProps {
+  mod: ModMeta;
+  iconSnapshot?: ModIconSnapshot;
+  focusedRowFileName: string | null;
+  operationRowFileName: string | null;
+  requiresRowOperation: boolean;
+  isSelected: boolean;
+  rowIndex: number;
+  rowFocusKey: string;
+  viewMode: ModListViewMode;
+  listTheme: ModListTheme;
+  onFocusRow: (fileName: string) => void;
+  onEnterRowOperation: (fileName: string) => void;
+  onRowArrow: (direction: string) => boolean;
+  onRowClick: (mod: ModMeta) => void;
+  onActionArrow: (fileName: string, action: RowAction, direction: string) => boolean;
+  onPreventLockedAction: (fileName: string, event?: { preventDefault?: () => void; stopPropagation?: () => void }) => boolean;
+  onToggleMod: (fileName: string, currentEnabled: boolean) => void;
+  onUpgradeMod: (mod: ModMeta) => void;
+  onToggleSelection: (fileName: string) => void;
+  onDeleteMod: (fileName: string) => void;
+  getActionFocusKey: (fileName: string, action: RowAction) => string;
+  onFocusRenderIndex?: () => void;
+}
+
+const ModRowItemComponent: React.FC<ModRowItemProps> = ({
+  mod,
+  iconSnapshot,
+  focusedRowFileName,
+  operationRowFileName,
+  requiresRowOperation,
+  isSelected,
+  rowIndex,
+  rowFocusKey,
+  viewMode,
+  listTheme,
+  onFocusRow,
+  onEnterRowOperation,
+  onRowArrow,
+  onRowClick,
+  onActionArrow,
+  onPreventLockedAction,
+  onToggleMod,
+  onUpgradeMod,
+  onToggleSelection,
+  onDeleteMod,
+  getActionFocusKey,
+  onFocusRenderIndex
+}) => {
+  const isRowInOperationMode = operationRowFileName === mod.fileName;
+  const isActionLocked = requiresRowOperation && !isRowInOperationMode;
+  const isEnabled = !!mod.isEnabled;
+
+  return (
+    <FocusItem
+      focusKey={rowFocusKey}
+      onFocus={() => {
+        onFocusRow(mod.fileName);
+        onFocusRenderIndex?.();
+      }}
+      onEnter={() => onEnterRowOperation(mod.fileName)}
+      onArrowPress={onRowArrow}
+      autoScroll={false}
+    >
+      {({ ref, focused, hasFocusedChild }) => (
+        <div ref={ref as React.RefObject<HTMLDivElement>}>
+          <ModRowView
+            mod={mod}
+            iconSnapshot={iconSnapshot}
+            focused={focused}
+            hasFocusedChild={hasFocusedChild}
+            isPrimaryRow={focusedRowFileName === mod.fileName}
+            isSelected={isSelected}
+            isEnabled={isEnabled}
+            isRowInOperationMode={isRowInOperationMode}
+            rowIndex={rowIndex}
+            viewMode={viewMode}
+            listTheme={listTheme}
+            onClick={() => onRowClick(mod)}
+            leading={
+              (
+                <div 
+                  className={`flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-[0.125rem] transition-colors ${isSelected
+                    ? 'border border-[#57D38C] bg-[#57D38C]'
+                    : listTheme === 'light'
+                      ? 'border border-[#1E1E1F] bg-[#E4E5E7] hover:bg-white'
+                      : 'border border-[#313A4D] bg-[#232937] hover:bg-[#2B3447]'
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleSelection(mod.fileName);
+                  }}
+                >
+                  {isSelected && (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  )}
+                </div>
+              )
+            }
+            trailing={(
+              <ModRowActionCluster
+                fileName={mod.fileName}
+                isEnabled={isEnabled}
+                isSelected={isSelected}
+                canUpgrade={!!mod.hasUpdate && !!mod.updateDownloadUrl && !!mod.updateFileId && !!mod.updateFileName}
+                isUpdating={!!mod.isUpdatingMod}
+                updateVersionName={mod.updateVersionName}
+                isActionLocked={isActionLocked}
+                viewMode={viewMode}
+                getActionFocusKey={getActionFocusKey}
+                onActionArrow={onActionArrow}
+                onPreventLockedAction={onPreventLockedAction}
+                onUpgradeMod={() => onUpgradeMod(mod)}
+                onToggleMod={onToggleMod}
+                onDeleteMod={onDeleteMod}
+              />
+            )}
+          />
+        </div>
+      )}
+    </FocusItem>
+  );
+};
+
+const areRowPropsEqual = (prev: ModRowItemProps, next: ModRowItemProps) => {
+  return prev.mod.fileName === next.mod.fileName &&
+    prev.mod.name === next.mod.name &&
+    prev.mod.description === next.mod.description &&
+    prev.mod.version === next.mod.version &&
+    prev.mod.fileSize === next.mod.fileSize &&
+    prev.mod.isEnabled === next.mod.isEnabled &&
+    prev.mod.hasUpdate === next.mod.hasUpdate &&
+    prev.mod.updateVersionName === next.mod.updateVersionName &&
+    prev.mod.updateFileId === next.mod.updateFileId &&
+    prev.mod.updateFileName === next.mod.updateFileName &&
+    prev.mod.updateDownloadUrl === next.mod.updateDownloadUrl &&
+    prev.mod.isUpdatingMod === next.mod.isUpdatingMod &&
+    prev.mod.isFetchingNetwork === next.mod.isFetchingNetwork &&
+    prev.mod.networkInfo?.title === next.mod.networkInfo?.title &&
+    prev.mod.networkInfo?.description === next.mod.networkInfo?.description &&
+    prev.iconSnapshot === next.iconSnapshot &&
+    prev.focusedRowFileName === next.focusedRowFileName &&
+    prev.operationRowFileName === next.operationRowFileName &&
+    prev.requiresRowOperation === next.requiresRowOperation &&
+    prev.isSelected === next.isSelected &&
+    prev.rowIndex === next.rowIndex &&
+    prev.rowFocusKey === next.rowFocusKey &&
+    prev.viewMode === next.viewMode &&
+    prev.listTheme === next.listTheme;
+};
+
+export const ModRowItem = React.memo(ModRowItemComponent, areRowPropsEqual);

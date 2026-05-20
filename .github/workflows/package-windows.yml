@@ -1,0 +1,72 @@
+name: Package Windows (x86_64)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+
+      - name: Install Rust Stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10.26.0
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Validate build secrets
+        shell: pwsh
+        env:
+          DONORS_API_URL: ${{ secrets.DONORS_API_URL }}
+          DONORS_API_KEY: ${{ secrets.DONORS_API_KEY }}
+          CLIENT_INSTALLATION_TRACK_API_URL: ${{ secrets.CLIENT_INSTALLATION_TRACK_API_URL }}
+          CLIENT_INSTALLATION_TRACK_API_KEY: ${{ secrets.CLIENT_INSTALLATION_TRACK_API_KEY }}
+        run: |
+          $required = @(
+            'DONORS_API_URL',
+            'DONORS_API_KEY',
+            'CLIENT_INSTALLATION_TRACK_API_URL',
+            'CLIENT_INSTALLATION_TRACK_API_KEY'
+          )
+          $missing = @()
+          foreach ($name in $required) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+              $missing += $name
+            }
+          }
+          if ($missing.Count -gt 0) {
+            throw "Missing required build secrets: $($missing -join ', ')"
+          }
+
+      - name: Build Tauri App
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
+          VITE_CURSEFORGE_API_KEY: ${{ secrets.VITE_CURSEFORGE_API_KEY }}
+          VITE_ONLINE_SERVERS_API_URL: ${{ secrets.VITE_ONLINE_SERVERS_API_URL }}
+          DONORS_API_URL: ${{ secrets.DONORS_API_URL }}
+          DONORS_API_KEY: ${{ secrets.DONORS_API_KEY }}
+          CLIENT_INSTALLATION_TRACK_API_URL: ${{ secrets.CLIENT_INSTALLATION_TRACK_API_URL }}
+          CLIENT_INSTALLATION_TRACK_API_KEY: ${{ secrets.CLIENT_INSTALLATION_TRACK_API_KEY }}
+        with:
+          tagName: v__VERSION__
+          releaseName: "PiLauncher v__VERSION__"
+          releaseBody: "Automated Windows (x86_64) build."
+          releaseDraft: true
+          prerelease: false

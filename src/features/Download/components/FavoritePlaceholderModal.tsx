@@ -1,0 +1,615 @@
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Check, Info, Radar, Save, Search, Tag } from 'lucide-react';
+
+import { useLibraryStore } from '../../../stores/useLibraryStore';
+import type { Collection, CollectionItem, StarredItem } from '../../../types/library';
+import { OreButton } from '../../../ui/primitives/OreButton';
+import { OreDropdown, type DropdownOption } from '../../../ui/primitives/OreDropdown';
+import { OreInput } from '../../../ui/primitives/OreInput';
+import { OreModal } from '../../../ui/primitives/OreModal';
+import { OreOverlayScrollArea } from '../../../ui/primitives/OreOverlayScrollArea';
+import { OreSwitch } from '../../../ui/primitives/OreSwitch';
+import { useModSetTrackerStore, toModSetTrackerProject } from '../../Library/stores/useModSetTrackerStore';
+import type { ModrinthProject } from '../../InstanceDetail/logic/modrinthApi';
+import type { TabType } from '../hooks/useResourceDownload';
+
+interface FavoritePlaceholderModalProps {
+  isOpen: boolean;
+  projects: ModrinthProject[];
+  onClose: () => void;
+  resourceType?: Extract<TabType, 'mod' | 'resourcepack'>;
+  defaultGameVersion?: string;
+  defaultLoader?: string;
+  mcVersionOptions?: DropdownOption[];
+  onCreated?: () => void;
+}
+
+const LOADER_OPTIONS: DropdownOption[] = [
+  { label: 'Fabric', value: 'fabric' },
+  { label: 'Forge', value: 'forge' },
+  { label: 'NeoForge', value: 'neoforge' },
+  { label: 'Quilt', value: 'quilt' },
+];
+
+const nowSeconds = () => Math.floor(Date.now() / 1000);
+
+const createId = (prefix: string) => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `${prefix}_${crypto.randomUUID()}`;
+  }
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+};
+
+const normalizeProjectId = (project: ModrinthProject) =>
+  project.id || project.project_id || project.slug || project.title;
+
+const toStarredItem = (
+  project: ModrinthProject,
+  resourceType: Extract<TabType, 'mod' | 'resourcepack'>,
+): StarredItem => {
+  const timestamp = nowSeconds();
+  const source = project.source || 'modrinth';
+  const projectId = normalizeProjectId(project);
+
+  return {
+    id: `${source}:${projectId}`,
+    type: resourceType,
+    source,
+    projectId,
+    title: project.title,
+    author: project.author,
+    snapshot: JSON.stringify({
+      title: project.title,
+      iconUrl: project.icon_url,
+      author: project.author,
+      description: project.description,
+      loaders: project.loaders || project.categories || [],
+      categories: project.display_categories || project.categories || [],
+      updatedAt: project.date_modified,
+    }),
+    state: JSON.stringify({
+      hasUpdate: false,
+      lastCheckedAt: timestamp,
+    }),
+    meta: JSON.stringify({
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    }),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+};
+
+const buildCollectionRelation = (
+  collectionId: string,
+  item: StarredItem,
+  position: number,
+  timestamp: number,
+): CollectionItem => ({
+  id: `${collectionId}:${item.id}`,
+  collectionId,
+  itemId: item.id,
+  position,
+  extra: JSON.stringify({ source: item.source, projectId: item.projectId }),
+  createdAt: timestamp,
+});
+
+export const FavoritePlaceholderModal: React.FC<FavoritePlaceholderModalProps> = ({
+  isOpen,
+  projects,
+  onClose,
+  resourceType = 'mod',
+  defaultGameVersion = '',
+  defaultLoader = '',
+  mcVersionOptions = [],
+  onCreated,
+}) => {
+  const {
+    collections,
+    initialized,
+    initializeLibrary,
+    addStarredItem,
+    createCollection,
+    addItemsToCollection,
+  } = useLibraryStore();
+  const loadTrackers = useModSetTrackerStore((state) => state.loadTrackers);
+  const createTracker = useModSetTrackerStore((state) => state.createTracker);
+  const checkTracker = useModSetTrackerStore((state) => state.checkTracker);
+
+  const tagCollections = useMemo(
+    () => collections
+      .filter((collection) => collection.type === 'group')
+      .sort((a, b) => a.sortOrder - b.sortOrder),
+    [collections],
+  );
+  const modSetCollections = useMemo(
+    () => collections
+      .filter((collection) => collection.type === 'mod_set')
+      .sort((a, b) => a.sortOrder - b.sortOrder),
+    [collections],
+  );
+  const trackingVersionOptions = useMemo(() => {
+    const normalized = mcVersionOptions
+      .filter((option) => option.value && option.value !== 'all')
+      .map((option) => ({ label: option.label, value: option.value }));
+
+    if (defaultGameVersion && !normalized.some((option) => option.value === defaultGameVersion)) {
+      normalized.unshift({ label: defaultGameVersion, value: defaultGameVersion });
+    }
+
+    return normalized;
+  }, [defaultGameVersion, mcVersionOptions]);
+
+  const [selectedTagId, setSelectedTagId] = useState('');
+  const [includeCollection, setIncludeCollection] = useState(false);
+  const [collectionName, setCollectionName] = useState('');
+  const [isCollectionListOpen, setIsCollectionListOpen] = useState(false);
+  const [trackingEnabled, setTrackingEnabled] = useState(Boolean(defaultGameVersion && defaultLoader));
+  const [targetGameVersion, setTargetGameVersion] = useState(defaultGameVersion);
+  const [targetLoader, setTargetLoader] = useState(defaultLoader);
+  const [isSaving, setIsSaving] = useState(false);
+  const [notice, setNotice] = useState('');
+  const collectionComboboxRef = useRef<HTMLDivElement | null>(null);
+  const collectionListboxRef = useRef<HTMLDivElement | null>(null);
+  const [collectionListboxStyle, setCollectionListboxStyle] = useState<React.CSSProperties | null>(null);
+  const isModFavorite = resourceType === 'mod';
+  const copy = isModFavorite
+    ? {
+        title: '加入收藏',
+        tagTitle: '入库标签',
+        tagPlaceholder: '选择标签',
+        includeCollectionLabel: '同时加入模组集',
+        collectionLabel: '模组集',
+        collectionPlaceholder: '输入名称，或从已有模组集中选择',
+        autoCreateLabel: '未命名模组集',
+        matchedText: '已匹配现有模组集，保存时会加入其中。',
+        unmatchedText: '没有同名模组集时，保存会自动创建。',
+        selectedTitle: '已选择 Mod',
+        info: '默认只保存到收藏并关联标签；开启模组集后，才会额外生成可追踪的模组集合。',
+        saveText: '保存入库',
+      }
+    : {
+        title: '收藏资源包',
+        tagTitle: '资源包标签',
+        tagPlaceholder: '选择标签',
+        selectedTitle: '已选择资源包',
+        info: '资源包会保存到收藏，并可按标签整理。',
+        saveText: '保存资源包',
+      };
+
+  useEffect(() => {
+    if (isOpen && !initialized) {
+      void initializeLibrary();
+    }
+  }, [initializeLibrary, initialized, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const fallbackName = projects.length === 1
+      ? `${projects[0].title} 相关模组`
+      : `模组集 ${new Date().toLocaleDateString()}`;
+
+    setSelectedTagId(tagCollections[0]?.id || '');
+    setIncludeCollection(false);
+    setCollectionName(fallbackName);
+    setIsCollectionListOpen(false);
+    setTrackingEnabled(isModFavorite && Boolean(defaultGameVersion && defaultLoader));
+    setTargetGameVersion(defaultGameVersion);
+    setTargetLoader(defaultLoader);
+    setNotice('');
+  }, [defaultGameVersion, defaultLoader, isModFavorite, isOpen, modSetCollections, projects, tagCollections]);
+
+  useEffect(() => {
+    if (!isCollectionListOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        collectionComboboxRef.current?.contains(target) ||
+        collectionListboxRef.current?.contains(target)
+      ) {
+        return;
+      }
+      if (!collectionComboboxRef.current?.contains(target)) {
+        setIsCollectionListOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [isCollectionListOpen]);
+
+  const normalizedCollectionName = collectionName.trim();
+  const matchedCollection = useMemo(
+    () => modSetCollections.find(
+      (collection) => collection.name.trim().toLowerCase() === normalizedCollectionName.toLowerCase(),
+    ),
+    [modSetCollections, normalizedCollectionName],
+  );
+  const filteredModSetCollections = useMemo(() => {
+    const keyword = normalizedCollectionName.toLowerCase();
+    if (!keyword) return modSetCollections;
+    return modSetCollections.filter((collection) => collection.name.toLowerCase().includes(keyword));
+  }, [modSetCollections, normalizedCollectionName]);
+
+  const needsCollectionTarget = isModFavorite && includeCollection && normalizedCollectionName.length === 0;
+  const needsTrackingTarget = isModFavorite &&
+    includeCollection &&
+    trackingEnabled &&
+    (targetGameVersion.trim().length === 0 || targetLoader.trim().length === 0);
+  const canSave = projects.length > 0 && !needsCollectionTarget && !needsTrackingTarget;
+
+  const updateCollectionListboxGeometry = () => {
+    if (!collectionComboboxRef.current) return;
+    const rect = collectionComboboxRef.current.getBoundingClientRect();
+    const listHeight = Math.min(208, Math.max(120, window.innerHeight - rect.bottom - 18));
+    setCollectionListboxStyle({
+      position: 'fixed',
+      top: rect.bottom + 6,
+      left: rect.left,
+      width: rect.width,
+      height: listHeight,
+      zIndex: 10020,
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (!isCollectionListOpen) return;
+    updateCollectionListboxGeometry();
+  }, [isCollectionListOpen, collectionName, filteredModSetCollections.length]);
+
+  useEffect(() => {
+    if (!isCollectionListOpen) return;
+    window.addEventListener('resize', updateCollectionListboxGeometry);
+    window.addEventListener('scroll', updateCollectionListboxGeometry, true);
+    return () => {
+      window.removeEventListener('resize', updateCollectionListboxGeometry);
+      window.removeEventListener('scroll', updateCollectionListboxGeometry, true);
+    };
+  }, [isCollectionListOpen]);
+
+  const handleSave = async () => {
+    if (!canSave || isSaving) return;
+
+    setIsSaving(true);
+    setNotice('');
+
+    try {
+      const timestamp = nowSeconds();
+      const starredItems = projects.map((project) => toStarredItem(project, resourceType));
+      const collectionRelations: CollectionItem[] = [];
+
+      for (const item of starredItems) {
+        await addStarredItem(item);
+      }
+
+      if (selectedTagId) {
+        for (let index = 0; index < starredItems.length; index += 1) {
+          collectionRelations.push(buildCollectionRelation(
+            selectedTagId,
+            starredItems[index],
+            timestamp + index,
+            timestamp,
+          ));
+        }
+      }
+
+      let collection: Collection | undefined;
+      if (isModFavorite && includeCollection) {
+        collection = matchedCollection;
+        if (!collection) {
+          collection = {
+            id: createId('modset'),
+            name: normalizedCollectionName,
+            description: '',
+            type: 'mod_set',
+            sortOrder: 0,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          };
+          await createCollection(collection);
+        }
+
+        if (!collection) return;
+
+        for (let index = 0; index < starredItems.length; index += 1) {
+          collectionRelations.push(buildCollectionRelation(
+            collection.id,
+            starredItems[index],
+            timestamp + index,
+            timestamp,
+          ));
+        }
+
+        if (trackingEnabled) {
+          await loadTrackers();
+          const trackerProjects = projects
+            .map(toModSetTrackerProject)
+            .filter((item): item is NonNullable<typeof item> => Boolean(item));
+          if (trackerProjects.length > 0) {
+            const tracker = createTracker({
+              collectionId: collection.id,
+              collectionName: collection.name,
+              gameVersion: targetGameVersion.trim(),
+              loader: targetLoader.trim().toLowerCase(),
+              projects: trackerProjects,
+            });
+            void checkTracker(tracker.id);
+          }
+        }
+      }
+
+      await addItemsToCollection(collectionRelations);
+
+      onCreated?.();
+      onClose();
+    } catch (error) {
+      console.error('[FavoriteModal] save failed', error);
+      setNotice(`保存失败：${String(error)}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <OreModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={copy.title}
+      defaultFocusKey="favorite-save"
+      className="h-[min(46rem,calc(100vh-2rem))] w-[72rem] max-w-[calc(100vw-2rem)] border-[0.1875rem] border-[#1E1E1F] bg-[var(--ore-modal-bg)]"
+      contentClassName="min-h-0 overflow-visible p-0"
+      actions={(
+        <>
+          {isModFavorite && includeCollection && trackingEnabled && (
+            <div className="mr-auto hidden items-center text-xs text-[#6CC349] lg:flex">
+              <Radar size={14} className="mr-1" />
+              首次检查会在保存后自动开始
+            </div>
+          )}
+          <OreButton variant="secondary" onClick={onClose}>
+            取消
+          </OreButton>
+          <OreButton
+            focusKey="favorite-save"
+            variant="primary"
+            disabled={!canSave || isSaving}
+            onClick={() => { void handleSave(); }}
+          >
+            <Save size={15} className="mr-2" />
+            {isSaving ? '保存中...' : isModFavorite && includeCollection && trackingEnabled ? '保存并追踪' : copy.saveText}
+          </OreButton>
+        </>
+      )}
+    >
+      <div className="flex h-full min-h-0 flex-col overflow-visible">
+
+      <div className="grid min-h-0 flex-1 gap-0 overflow-visible bg-[#313233] lg:grid-cols-[minmax(0,1fr)_24rem]">
+        <OreOverlayScrollArea
+          className="min-h-0"
+          viewportClassName="overflow-x-visible"
+          contentClassName="grid content-start gap-4 p-5 pb-6"
+          safeInsetTop={14}
+          safeInsetBottom={14}
+          safeInsetRight={10}
+          contentSafePaddingRight={24}
+        >
+          <div className="border-2 border-[#1E1E1F] bg-[#1E1E1F] p-3">
+            <div className="mb-2 flex items-center gap-2 font-minecraft text-sm text-white">
+              <Tag size={15} className="text-[#6CC349]" />
+              {copy.tagTitle}
+            </div>
+            <OreDropdown
+              focusKey="favorite-tag"
+              options={[
+                { label: '不打标签', value: '' },
+                ...tagCollections.map((collection) => ({ label: collection.name, value: collection.id })),
+              ]}
+              value={selectedTagId}
+              onChange={setSelectedTagId}
+              placeholder={copy.tagPlaceholder}
+              searchable={tagCollections.length > 8}
+              portal
+              panelWidth="trigger"
+              lazy
+            />
+          </div>
+
+          {isModFavorite && (
+            <div className={[
+              'grid gap-3 border-2 border-[#1E1E1F] bg-[#1E1E1F] p-3',
+              includeCollection ? 'md:grid-cols-2' : '',
+            ].join(' ')}>
+              <div className="flex min-h-10 items-center">
+                <OreSwitch
+                  focusKey="favorite-include-collection"
+                  checked={includeCollection}
+                  onChange={setIncludeCollection}
+                  label={copy.includeCollectionLabel}
+                />
+              </div>
+              {includeCollection && (
+                <div className="flex min-h-10 items-center md:justify-end">
+                  <OreSwitch
+                    focusKey="modset-enable-tracking"
+                    checked={trackingEnabled}
+                    onChange={setTrackingEnabled}
+                    label="开启版本追踪"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {isModFavorite && includeCollection && (
+            <div className="grid gap-4 border-2 border-[#1E1E1F] bg-[#242526] p-3">
+              <div ref={collectionComboboxRef} className="relative">
+                <OreInput
+                  focusKey="modset-combobox"
+                  label={copy.collectionLabel}
+                  value={collectionName}
+                  onFocus={() => setIsCollectionListOpen(true)}
+                  onBlur={() => {
+                    setTimeout(() => setIsCollectionListOpen(false), 150);
+                  }}
+                  onChange={(event) => {
+                    setCollectionName(event.target.value);
+                    setIsCollectionListOpen(true);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'ArrowDown') {
+                      setIsCollectionListOpen(true);
+                    }
+                  }}
+                  placeholder={copy.collectionPlaceholder}
+                  prefixNode={<Search size={15} />}
+                  aria-autocomplete="list"
+                  aria-expanded={isCollectionListOpen}
+                  aria-controls="favorite-modset-listbox"
+                  role="combobox"
+                />
+
+                {isCollectionListOpen && typeof document !== 'undefined' && createPortal(
+                  <div
+                    ref={collectionListboxRef}
+                    id="favorite-modset-listbox"
+                    role="listbox"
+                    className="border-2 border-[#1E1E1F] bg-[#111214] shadow-[0_0.75rem_0_rgba(0,0,0,0.26)]"
+                    style={collectionListboxStyle || { position: 'fixed', top: 0, left: 0, width: 1, height: 1, visibility: 'hidden' }}
+                  >
+                    <OreOverlayScrollArea
+                      className="h-full"
+                      contentClassName="grid gap-1 p-1"
+                      safeInsetTop={6}
+                      safeInsetBottom={6}
+                      safeInsetRight={4}
+                      contentSafePaddingRight={18}
+                    >
+                      {filteredModSetCollections.length > 0 ? (
+                        filteredModSetCollections.map((collection) => {
+                          const active = collection.id === matchedCollection?.id;
+                          return (
+                            <button
+                              key={collection.id}
+                              type="button"
+                              role="option"
+                              aria-selected={active}
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => {
+                                setCollectionName(collection.name);
+                                setIsCollectionListOpen(false);
+                              }}
+                              className={[
+                                'flex h-10 w-full items-center justify-between gap-2 border-2 px-3 text-left font-minecraft text-sm',
+                                active
+                                  ? 'border-[#6CC349] bg-[#6CC349] text-[#111214]'
+                                  : 'border-transparent bg-[#242526] text-white hover:border-[#6CC349] hover:bg-[#313233]',
+                              ].join(' ')}
+                            >
+                              <span className="truncate">{collection.name}</span>
+                              {active && <Check size={15} />}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="border-2 border-dashed border-[#3C8527] bg-[#1C2A1B] px-3 py-2 font-minecraft text-sm text-[#A7F08A]">
+                          保存时自动创建“{normalizedCollectionName || copy.autoCreateLabel}”
+                        </div>
+                      )}
+                    </OreOverlayScrollArea>
+                  </div>,
+                  document.body,
+                )}
+
+                <div className="mt-2 text-xs text-[#B1B2B5]">
+                  {matchedCollection ? copy.matchedText : copy.unmatchedText}
+                </div>
+              </div>
+
+              {trackingEnabled && (
+                <div className="border-2 border-[#1E1E1F] bg-[#1E1E1F] p-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <div className="mb-1 font-minecraft text-sm text-white">目标 Minecraft 版本</div>
+                      <OreDropdown
+                        focusKey="modset-target-version"
+                        options={trackingVersionOptions}
+                        value={targetGameVersion}
+                        onChange={setTargetGameVersion}
+                        placeholder="选择版本"
+                        searchable
+                        portal
+                        panelWidth="trigger"
+                        lazy
+                        lazyBatchSize={36}
+                      />
+                    </div>
+                    <div>
+                      <div className="mb-1 font-minecraft text-sm text-white">目标 Loader</div>
+                      <OreDropdown
+                        focusKey="modset-target-loader"
+                        options={LOADER_OPTIONS}
+                        value={targetLoader}
+                        onChange={setTargetLoader}
+                        placeholder="选择 Loader"
+                        portal
+                        panelWidth="trigger"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-start gap-2 border-2 border-[#1E1E1F] bg-[#1E1E1F] p-3 text-sm leading-6 text-[#D0D1D4]">
+            <Info size={16} className="mt-1 shrink-0 text-[#6CC349]" />
+            <span>{copy.info}</span>
+          </div>
+
+          {notice && (
+            <div className="border-2 border-[#7A2323] bg-[#3A1414] p-3 text-sm text-[#F46D6D]">
+              {notice}
+            </div>
+          )}
+        </OreOverlayScrollArea>
+
+        <aside className="flex min-h-[18rem] flex-col border-t-2 border-[#1E1E1F] bg-[#242526] p-4 lg:min-h-0 lg:border-l-2 lg:border-t-0">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="font-minecraft text-sm text-white">{copy.selectedTitle}</div>
+            <div className="border-2 border-[#1E1E1F] bg-[#6CC349] px-2 py-1 font-minecraft text-xs text-[#111214]">
+              {projects.length}
+            </div>
+          </div>
+
+          <OreOverlayScrollArea
+            className="min-h-0 flex-1"
+            contentClassName="space-y-2"
+            safeInsetTop={4}
+            safeInsetBottom={4}
+            safeInsetRight={2}
+            contentSafePaddingRight={20}
+          >
+            {projects.map((project) => (
+              <div
+                key={`${project.source || 'modrinth'}:${normalizeProjectId(project)}`}
+                className="flex items-center gap-3 border-2 border-[#1E1E1F] bg-[#D0D1D4] p-2 text-[#111214] shadow-[inset_0_-0.1875rem_0_#58585A,inset_0.125rem_0.125rem_0_rgba(255,255,255,0.68)]"
+              >
+                <div className="h-10 w-10 shrink-0 overflow-hidden border-2 border-[#1E1E1F] bg-[#48494A]">
+                  {project.icon_url ? (
+                    <img src={project.icon_url} alt="" className="h-full w-full object-cover" />
+                  ) : null}
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate font-minecraft text-sm">{project.title}</div>
+                  <div className="truncate text-xs text-[#48494A]">{project.author || project.source || 'Unknown'}</div>
+                </div>
+              </div>
+            ))}
+          </OreOverlayScrollArea>
+        </aside>
+      </div>
+      </div>
+    </OreModal>
+  );
+};

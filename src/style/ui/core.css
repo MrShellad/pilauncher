@@ -1,0 +1,8 @@
+@tailwind components;
+/* /src/style/ui/core.css */
+@layer components {
+  /* 鍩哄博鐗堢殑鏍囧噯鏂囧瓧闃村奖 */
+  /* .ore-text-shadow {
+    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.6);
+  } */
+}

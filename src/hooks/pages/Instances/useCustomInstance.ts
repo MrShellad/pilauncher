@@ -1,0 +1,210 @@
+import { useState, useEffect, useMemo } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { useLauncherStore } from '../../../store/useLauncherStore';
+import { useDownloadStore } from '../../../store/useDownloadStore';
+import {
+  filterVersionGroups,
+  sortLoaderVersionsDesc,
+  type LoaderType,
+  type McVersionType,
+  type VersionGroup,
+} from '../../../features/Instances/logic/environmentSelection';
+
+export const useCustomInstance = () => {
+  const [step, setStep] = useState<number>(1);
+  const [direction, setDirection] = useState(1);
+
+  // --- 表单状态 ---
+  const [instanceName, setInstanceName] = useState('');
+  const [folderName, setFolderName] = useState('');
+  // ✅ 将硬编码改为默认空字符串，后续通过 useEffect 动态加载
+  const [savePath, setSavePath] = useState(''); 
+  const [coverImage, setCoverImage] = useState<string | null>(null);
+
+  // --- 游戏参数 ---
+  const [gameVersion, setGameVersion] = useState<string | null>(null);
+  const [versionType, setVersionType] = useState<McVersionType>('release');
+  const [loaderType, setLoaderType] = useState<LoaderType>('Vanilla');
+  const [loaderVersion, setLoaderVersion] = useState<string | null>('Vanilla');
+
+  // --- 版本与加载状态 ---
+  const [versionGroups, setVersionGroups] = useState<VersionGroup[]>([]);
+  const [isLoadingVersions, setIsLoadingVersions] = useState(false);
+  const [loaderVersions, setLoaderVersions] = useState<string[]>([]);
+  const [isLoadingLoaders, setIsLoadingLoaders] = useState(false);
+
+  // ✅ 新增：组件挂载时，获取用户配置的全局基础目录
+  useEffect(() => {
+    const fetchBasePath = async () => {
+      try {
+        const basePath = await invoke<string | null>('get_base_directory');
+        if (basePath) {
+          // 自动判断系统的路径分隔符（Windows 是 \，macOS/Linux 是 /）
+          const separator = basePath.includes('\\') ? '\\' : '/';
+          setSavePath(`${basePath}${separator}instances`);
+        }
+      } catch (error) {
+        console.error("获取基础目录失败:", error);
+      }
+    };
+    fetchBasePath();
+  }, []);
+
+  // 1. 获取 MC 版本列表 (带缓存/强制刷新逻辑)
+  const fetchVersions = async (force: boolean = false) => {
+    try {
+      setIsLoadingVersions(true);
+      const data = await invoke<VersionGroup[]>('get_minecraft_versions', { force });
+      setVersionGroups(data);
+    } catch (error) {
+      console.error("获取版本列表失败:", error);
+    } finally {
+      setIsLoadingVersions(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVersions(true);
+  }, []);
+
+  useEffect(() => {
+    const pendingBinding = useLauncherStore.getState().pendingServerBinding;
+    if (pendingBinding && !pendingBinding.isModded && pendingBinding.versions && pendingBinding.versions.length > 0) {
+      setGameVersion(pendingBinding.versions[0]);
+      setStep(2);
+    }
+  }, []);
+
+  // ✅ 从新闻卡片跳转：预设 MC 版本并直接进入步骤 2（选择引导器）
+  useEffect(() => {
+    const pendingVersion = useLauncherStore.getState().pendingNewsVersion;
+    if (pendingVersion) {
+      setGameVersion(pendingVersion);
+      setStep(2);
+      useLauncherStore.getState().setPendingNewsVersion(null);
+    }
+  }, []);
+
+  const handleRefreshVersions = () => fetchVersions(true);
+
+  // 根据类型过滤版本
+  const filteredVersionGroups = useMemo(() => {
+    return filterVersionGroups(versionGroups, versionType);
+  }, [versionGroups, versionType]);
+
+  // 4. Wiki 跳转处理：调用后端解析 URL，使用系统浏览器打开
+  const handleOpenWiki = async (versionId: string) => {
+    if (!versionId) return;
+    try {
+      const url = await invoke<string>('get_wiki_url', {
+        versionId,
+        lang: navigator.language,
+      });
+      if (url) {
+        const { open } = await import('@tauri-apps/plugin-shell');
+        await open(url);
+      }
+    } catch (err) {
+      console.warn('Wiki URL 解析失败，回退到默认英文 Wiki', err);
+      window.open(`https://minecraft.wiki/w/Java_Edition_${versionId}`, '_blank');
+    }
+  };
+
+  // 2. 获取 Loader 版本逻辑
+  useEffect(() => {
+    if (step === 2 && loaderType !== 'Vanilla' && gameVersion) {
+      const fetchLoaders = async () => {
+        try {
+          setIsLoadingLoaders(true);
+          setLoaderVersions([]); 
+          
+          const data = await invoke<string[]>('get_loader_versions', { 
+            loaderType: loaderType, 
+            gameVersion: gameVersion 
+          });
+
+          const sortedVersions = sortLoaderVersionsDesc(data);
+
+          setLoaderVersions(sortedVersions);
+
+          if (sortedVersions.length > 0) {
+            setLoaderVersion(sortedVersions[0]);
+          } else {
+            setLoaderVersion(null); 
+          }
+        } catch (error) {
+          console.error("获取引导器版本失败:", error);
+        } finally {
+          setIsLoadingLoaders(false);
+        }
+      };
+      
+      fetchLoaders();
+    }
+  }, [step, loaderType, gameVersion]); 
+
+  // 3. 自动生成文件夹名称逻辑
+  useEffect(() => {
+    if (gameVersion) {
+      const now = new Date();
+      const ts = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}`;
+      const lType = loaderType;
+      const lVer = loaderType === 'Vanilla' ? '' : `_${loaderVersion}`;
+      setFolderName(`${gameVersion}_${lType}${lVer}_${ts}`);
+    }
+  }, [gameVersion, loaderType, loaderVersion]);
+
+  const handleNextStep = () => { setDirection(1); setStep(s => s + 1); };
+  const handlePrevStep = () => { setDirection(-1); setStep(s => s - 1); };
+
+  const handleCreate = async (onSuccess?: () => void) => {
+    const payload = {
+      name: instanceName || folderName,
+      folder_name: folderName,
+      game_version: gameVersion,
+      loader_type: loaderType,
+      loader_version: loaderVersion,
+      save_path: savePath,
+      cover_image: coverImage,
+      server_binding: (() => {
+        const pendingBinding = useLauncherStore.getState().pendingServerBinding;
+        if (!pendingBinding) return undefined;
+        return {
+          uuid: pendingBinding.id,
+          name: pendingBinding.name,
+          ip: pendingBinding.address?.split(':')[0] || 'localhost',
+          port: pendingBinding.address?.includes(':') ? parseInt(pendingBinding.address.split(':')[1], 10) : 25565
+        };
+      })()
+    };
+    try {
+      useDownloadStore.getState().addOrUpdateTask({
+        id: folderName,
+        taskType: 'instance',
+        title: instanceName || folderName,
+        stage: 'PREPARING',
+        current: 0,
+        total: 100,
+        message: '准备创建实例...',
+        retryAction: 'create_instance',
+        retryPayload: { payload }
+      });
+
+      await invoke('create_instance', { payload });
+      // ✅ 触发全局下载任务面板展开
+      useDownloadStore.getState().setPopupOpen(true);
+      useLauncherStore.getState().setPendingServerBinding(null);
+      if (onSuccess) onSuccess();
+    } catch (e) {
+      console.error("创建失败", e);
+    }
+  };
+
+  return {
+    step, direction, instanceName, setInstanceName, folderName, setFolderName,
+    save_path: savePath, setSavePath, coverImage, setCoverImage, gameVersion, setGameVersion,
+    versionType, setVersionType, loaderType, setLoaderType, loaderVersion, setLoaderVersion,
+    filteredVersionGroups, loaderVersions, isLoadingVersions, isLoadingLoaders,
+    handleNextStep, handlePrevStep, handleCreate, handleRefreshVersions, handleOpenWiki,
+  };
+};

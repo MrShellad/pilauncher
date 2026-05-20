@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.mrshell.PiLauncher</id>
+  <icon type="remote">https://mrshellad.github.io/PiLauncher-Flatpak/icon.png</icon>
+  <name>PiLauncher</name>
+  
+  <summary>Minecraft Launcher for Gamepad</summary>
+  <summary xml:lang="zh_CN">专为手柄设计的 Minecraft 启动器</summary>
+
+  <developer id="com.mrshell">
+    <name>MrShell</name>
+  </developer>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+
+  <description>
+    <p xml:lang="zh_CN">PiLauncher 是一款为游戏手柄和掌机量身定制的 Minecraft 启动器。它拥有为主机式体验优化的全屏用户界面，让你可以轻松地使用手柄管理、配置和运行你的 Minecraft 游戏实例。</p>
+    <p>PiLauncher is a Minecraft launcher tailored for gamepads and handheld consoles. It features a full-screen, console-like user interface optimized for controller inputs, allowing you to easily manage and launch your Minecraft instances.</p>
+    <ul>
+      <li xml:lang="zh_CN">完全支持手柄操作，提供沉浸式大屏体验。</li>
+      <li>Full gamepad support for an immersive large-screen experience.</li>
+      <li xml:lang="zh_CN">自动识别和配置手柄相关模组。</li>
+      <li>Automatic detection and configuration of gamepad-related mods.</li>
+      <li xml:lang="zh_CN">极简且现代化的实例和模组管理。</li>
+      <li>Minimalist and modern instance and mod management.</li>
+    </ul>
+  </description>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://pi.nav4ai.net/screenshots/01.webp</image>
+      <caption>Home</caption>
+    </screenshot>
+    <screenshot type="default">
+      <image>https://pi.nav4ai.net/screenshots/02.webp</image>
+      <caption>Download</caption>
+    </screenshot>
+    <screenshot type="default">
+      <image>https://pi.nav4ai.net/screenshots/03.webp</image>
+      <caption>Setting</caption>
+    </screenshot>
+  </screenshots>
+
+  <launchable type="desktop-id">com.mrshell.PiLauncher.desktop</launchable>
+
+  <categories>
+    <category>Game</category>
+  </categories>
+
+  <releases>
+    <release version="0.1.35" date="2026-05-15">
+      <description>
+        <p xml:lang="zh_CN">新增资源库功能，并改进资源浏览与掌机设置体验。</p>
+        <ul xml:lang="zh_CN">
+          <li>新增资源库，可收藏、整理和查看常用资源。</li>
+          <li>新增模组集跟踪，管理一组常用模组更方便。</li>
+          <li>下载页分类标签支持本地化，查找资源更直观。</li>
+          <li>优化资源列表和资源库的滚动体验，浏览更顺手。</li>
+          <li>新增掌机设置页，集中管理性能配置和 Steam Deck 按键布局。</li>
+        </ul>
+        <p>Added the Library and improved browsing and handheld settings.</p>
+        <ul>
+          <li>Added a Library for saving, organizing, and viewing frequently used resources.</li>
+          <li>Added mod set tracking to make groups of favorite mods easier to manage.</li>
+          <li>Localized download category labels so resources are easier to find.</li>
+          <li>Improved scrolling in resource lists and the Library for smoother browsing.</li>
+          <li>Added a Handheld settings page for performance options and Steam Deck key layout controls.</li>
+        </ul>
+      </description>
+    </release>
+
+    <release version="0.1.34" date="2026-05-10">
+      <description>
+        <p xml:lang="zh_CN">重构模组详情界面，优化性能并修复全屏模式开关失效问题</p>
+        <ul xml:lang="zh_CN">
+          <li>[重构] 深度重构模组详情弹窗，适配小屏幕响应式布局，操作按钮移至底部操作区。</li>
+          <li>[新功能] 模组版本列表支持跨平台自动匹配，解决切换来源后找不到版本的问题。</li>
+          <li>[修复] 彻底修复全屏模式开关失效的 Bug，现在启动器设置可以强制覆盖游戏的内部全屏状态。</li>
+          <li>[优化] 大幅提升模组列表滚动流畅度，通过全新的图标预加载与缓冲机制解决了图标闪烁问题。</li>
+          <li>[优化] 改进了删除确认弹窗的排版，提升触控与手柄交互体验。</li>
+        </ul>
+        <p>Overhauled Mod Detail UI, Performance Improvements, and Fullscreen Fix</p>
+        <ul>
+          <li>[Refactor] Deeply refactored the Mod Detail modal with a responsive layout for small screens and unified action buttons in the footer.</li>
+          <li>[New] Added cross-platform project ID matching for mod versions, ensuring history displays correctly when switching sources.</li>
+          <li>[Fix] Resolved a critical bug where the fullscreen toggle was ignored; the launcher now correctly enforces your preferred window mode.</li>
+          <li>[Optimization] Significant performance boost for mod list scrolling, eliminating icon flickering via an improved pre-loading and buffering system.</li>
+          <li>[Optimization] Improved layout of deletion confirmation dialogs for better touch and gamepad interaction.</li>
+        </ul>
+      </description>
+      </release>
+
+    <release version="0.1.33" date="2026-05-08">
+      <description>
+        <p xml:lang="zh_CN">集成 Authlib-injector 支持与披风自定义功能</p>
+        <ul xml:lang="zh_CN">
+          <li>[新功能] 集成 Authlib-injector 支持，支持第三方登录（如小皮肤、LittleSkin 等）。</li>
+          <li>[新功能] 支持自定义披风 URL，让你的角色外观更加个性化。</li>
+          <li>[新功能] 新增客户端安装遥测功能，并提供相关的隐私设置开关。</li>
+          <li>[优化] 重构了身份验证服务与登录界面，显著提升系统稳定性。</li>
+        </ul>
+        <p>Integrated Authlib-injector Support and Custom Cape Support</p>
+        <ul>
+          <li>[New] Added Authlib-injector support for third-party authentication services like LittleSkin.</li>
+          <li>[New] Added support for custom cape URLs.</li>
+          <li>[New] Introduced client installation telemetry with a dedicated privacy toggle in settings.</li>
+          <li>[Optimization] Restructured authentication services and overhauled the login UI for better stability.</li>
+        </ul>
+      </description>
+    </release>
+
+  </releases>
+
+  <content_rating type="oars-1.1" />
+
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+    <control>touch</control>
+    <control>gamepad</control>
+  </supports>
+
+  <url type="vcs-browser">https://github.com/MrShellad/pilauncher</url>
+  <url type="homepage">https://pil.nav4ai.net</url>
+
+
+
+</component>

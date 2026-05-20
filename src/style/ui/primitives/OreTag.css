@@ -1,0 +1,53 @@
+@tailwind components;
+/* /src/style/ui/primitives/OreTag.css */
+@layer components {
+  /* 鍩虹鏍峰紡 */
+  .ore-tag {
+    @apply inline-flex items-center justify-center font-minecraft tracking-wide whitespace-nowrap leading-none;
+  }
+
+  /* ================= 鑹插僵鍙樹綋 ================= */
+  .ore-tag-neutral {
+    @apply bg-[#202020] text-white;
+  }
+  .ore-tag-primary {
+    @apply bg-[#71B943] text-black;
+  }
+  .ore-tag-informative {
+    @apply bg-[#81A6FF] text-black;
+  }
+  .ore-tag-notice {
+    @apply bg-[#FCE05E] text-black;
+  }
+  .ore-tag-warning {
+    @apply bg-[#FF7676] text-black;
+  }
+  .ore-tag-realms {
+    @apply bg-[#B192EA] text-black;
+  }
+
+  /* ================= 灏哄鎺у埗 ================= */
+  .ore-tag-sm {
+    padding: 2px 6px;
+    font-size: 10px;
+    line-height: 12px;
+  }
+  .ore-tag-md {
+    padding: 4px 8px;
+    font-size: 12px;
+    line-height: 14px;
+  }
+  .ore-tag-lg {
+    padding: 6px 12px;
+    font-size: 14px;
+    line-height: 16px;
+  }
+
+  /* ================= 瀛楅噸鎺у埗 ================= */
+  .ore-tag-normal {
+    @apply font-normal;
+  }
+  .ore-tag-bold {
+    @apply font-bold;
+  }
+}

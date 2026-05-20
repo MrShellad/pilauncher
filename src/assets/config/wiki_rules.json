@@ -1,0 +1,24 @@
+{
+  "zh": {
+    "url_template": "https://zh.minecraft.wiki/w/Java%E7%89%88{version}",
+    "replacements": []
+  },
+  "en": {
+    "url_template": "https://minecraft.wiki/w/Java_Edition_{version}",
+    "replacements": [
+      { "pattern": "-(snapshot)-(\\d+)", "replace": "_Snapshot_$2" },
+      { "pattern": "-(rc)-(\\d+)", "replace": "_Release_Candidate_$2" },
+      { "pattern": "-(pre)-(\\d+)", "replace": "_Pre-Release_$2" },
+      { "pattern": "\\.", "replace": "." }
+    ]
+  },
+  "ja": {
+    "url_template": "https://ja.minecraft.wiki/w/Java_Edition_{version}",
+    "replacements": [
+      { "pattern": "-(snapshot)-(\\d+)", "replace": "_Snapshot_$2" },
+      { "pattern": "-(rc)-(\\d+)", "replace": "_Release_Candidate_$2" },
+      { "pattern": "-(pre)-(\\d+)", "replace": "_Pre-Release_$2" },
+      { "pattern": "\\.", "replace": "." }
+    ]
+  }
+}

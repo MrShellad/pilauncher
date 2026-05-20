@@ -1,0 +1,40 @@
+{
+  "categories": [
+    {
+      "id": "minecraft",
+      "label": "Minecraft",
+      "icon": "cube",
+      "extensions": ["jar", "mrpack", "pipack", "mcpack", "mcworld"]
+    },
+    {
+      "id": "archives",
+      "label": "Archives",
+      "icon": "archive",
+      "extensions": ["zip", "7z", "rar", "tar", "gz", "xz"]
+    },
+    {
+      "id": "images",
+      "label": "Images",
+      "icon": "image",
+      "extensions": ["png", "jpg", "jpeg", "webp", "gif", "bmp", "svg"]
+    },
+    {
+      "id": "configs",
+      "label": "Configs",
+      "icon": "settings",
+      "extensions": ["json", "json5", "toml", "yaml", "yml", "properties", "cfg", "conf", "ini"]
+    },
+    {
+      "id": "executables",
+      "label": "Executables",
+      "icon": "terminal",
+      "extensions": ["exe", "msi", "app", "sh", "bat", "cmd"]
+    },
+    {
+      "id": "documents",
+      "label": "Documents",
+      "icon": "document",
+      "extensions": ["txt", "md", "pdf", "doc", "docx", "rtf"]
+    }
+  ]
+}

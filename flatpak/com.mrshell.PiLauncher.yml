@@ -1,0 +1,50 @@
+app-id: com.mrshell.PiLauncher
+
+runtime: org.gnome.Platform
+runtime-version: "49"
+sdk: org.gnome.Sdk
+
+command: PiLauncher
+
+finish-args:
+  - --share=network
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=all
+  - --socket=pulseaudio
+  - --filesystem=/run/media
+  - --filesystem=~/.local/share/Steam
+  - --filesystem=home
+  - --filesystem=xdg-data/.minecraft
+  - --filesystem=xdg-data/PiLauncher:create
+  - --filesystem=xdg-data/fonts
+  - --filesystem=~/.jdks:ro
+  - --filesystem=~/.sdkman/candidates/java:ro
+  - --filesystem=/opt:ro
+  - --filesystem=/run/udev:ro
+  - --talk-name=org.freedesktop.Notifications
+
+modules:
+  - name: PiLauncher
+    buildsystem: simple
+
+    build-commands:
+      - install -D PiLauncher /app/bin/PiLauncher
+      - chmod +x /app/bin/PiLauncher
+      - install -D com.mrshell.PiLauncher.desktop /app/share/applications/com.mrshell.PiLauncher.desktop
+      - install -D com.mrshell.PiLauncher.png /app/share/icons/hicolor/256x256/apps/com.mrshell.PiLauncher.png
+      - install -D com.mrshell.PiLauncher.metainfo.xml /app/share/metainfo/com.mrshell.PiLauncher.metainfo.xml
+
+    sources:
+      - type: file
+        path: ../src-tauri/target/release/PiLauncher
+
+      - type: file
+        path: com.mrshell.PiLauncher.desktop
+
+      - type: file
+        path: com.mrshell.PiLauncher.png
+
+      - type: file
+        path: com.mrshell.PiLauncher.metainfo.xml

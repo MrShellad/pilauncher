@@ -1,0 +1,102 @@
+﻿{
+  "version": "1.0.0",
+  "apiEndpoint": "https://api.pilauncher.net/v1/config/download-sources",
+  "sources": {
+    "vanilla": [
+      {
+        "id": "bmclapi",
+        "name": "BMCLAPI",
+        "url": "https://bmclapi2.bangbang93.com"
+      },
+      {
+        "id": "mojang",
+        "name": "Mojang 官方",
+        "url": "https://piston-meta.mojang.com"
+      }
+    ],
+    "forge": [
+      {
+        "id": "bmclapi",
+        "name": "BMCLAPI",
+        "url": "https://bmclapi2.bangbang93.com/forge"
+      },
+      {
+        "id": "official",
+        "name": "Forge 官方",
+        "url": "https://maven.minecraftforge.net"
+      }
+    ],
+    "fabric": [
+      {
+        "id": "bmclapi",
+        "name": "BMCLAPI",
+        "url": "https://bmclapi2.bangbang93.com/fabric-meta"
+      },
+      {
+        "id": "official",
+        "name": "Fabric 官方",
+        "url": "https://meta.fabricmc.net"
+      }
+    ],
+    "neoforge": [
+      {
+        "id": "bmclapi",
+        "name": "BMCLAPI",
+        "url": "https://bmclapi2.bangbang93.com/neoforge"
+      },
+      {
+        "id": "official",
+        "name": "NeoForge 官方",
+        "url": "https://maven.neoforged.net/releases"
+      }
+    ],
+    "quilt": [
+      {
+        "id": "official",
+        "name": "Quilt 官方",
+        "url": "https://meta.quiltmc.org"
+      }
+    ],
+    "java": [
+      {
+        "id": "adoptium",
+        "name": "Adoptium 官方源",
+        "type": "api",
+        "packages": [
+          "jre",
+          "jdk"
+        ],
+        "api": "https://api.adoptium.net/v3/assets/feature_releases/{version}/ga?architecture={arch}&heap_size=normal&image_type={package}&jvm_impl=hotspot&os={os}"
+      },
+      {
+        "id": "zulu",
+        "name": "Azul Zulu 源",
+        "type": "api",
+        "packages": [
+          "jre",
+          "jdk"
+        ],
+        "api": "https://api.azul.com/metadata/v1/zulu/packages?java_version={version}&os={os}&arch={arch}&hw_bitness={bitness}&archive_type={archive}&java_package_type={package}&latest=true"
+      },
+      {
+        "id": "tuna",
+        "name": "清华大学开源软件镜像",
+        "type": "mirror",
+        "packages": [
+          "jre",
+          "jdk"
+        ],
+        "api": "https://mirrors.tuna.tsinghua.edu.cn/Adoptium/{version}/{package}/{arch}/{os}/"
+      },
+      {
+        "id": "aks",
+        "name": "微软源",
+        "type": "direct",
+        "packages": [
+          "jdk"
+        ],
+        "template": "https://aka.ms/download-jdk/microsoft-jdk-{version}-{os}-{arch}.{ext}"
+      }
+    ]
+  }
+}

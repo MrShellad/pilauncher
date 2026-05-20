@@ -1,0 +1,46 @@
+@tailwind components;
+
+.ore-download-detail-modal {
+  --ore-download-detail-width: 67.5rem;
+  --ore-download-detail-height: 52rem;
+  --ore-download-detail-scale: 1;
+
+  width: calc(min(var(--ore-download-detail-width), 95vw) / var(--ore-download-detail-scale));
+  height: calc(min(var(--ore-download-detail-height), 85vh) / var(--ore-download-detail-scale));
+  zoom: var(--ore-download-detail-scale);
+}
+
+.ore-download-detail-modal__content {
+  min-height: 0;
+}
+
+@media (max-width: 48rem) {
+  .ore-download-detail-modal {
+    --ore-download-detail-width: 95vw;
+    --ore-download-detail-height: 85vh;
+  }
+}
+
+@media (min-width: 90rem) {
+  .ore-download-detail-modal {
+    --ore-download-detail-width: 70rem;
+    --ore-download-detail-height: 54rem;
+    --ore-download-detail-scale: 1.04;
+  }
+}
+
+@media (min-width: 120rem) {
+  .ore-download-detail-modal {
+    --ore-download-detail-width: 76rem;
+    --ore-download-detail-height: 58rem;
+    --ore-download-detail-scale: 1.1;
+  }
+}
+
+@media (min-width: 160rem) {
+  .ore-download-detail-modal {
+    --ore-download-detail-width: 82rem;
+    --ore-download-detail-height: 62rem;
+    --ore-download-detail-scale: 1.18;
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "mods": [
+    {
+      "name": "MidnightControls",
+      "source": "modrinth",
+      "slug": "midnightcontrols",
+      "loaders": ["fabric", "quilt"]
+    },
+    {
+      "name": "MidnightControls",
+      "source": "modrinth",
+      "slug": "midnightcontrols",
+      "loaders": ["neoforge"]
+    },
+    {
+      "name": "Controllable",
+      "source": "curseforge",
+      "curseforgeId": "313076",
+      "loaders": ["forge"]
+    },
+    {
+      "name": "Controllable",
+      "source": "curseforge",
+      "curseforgeId": "313076",
+      "loaders": ["neoforge"]
+    }
+  ]
+}

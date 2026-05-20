@@ -1,0 +1,1610 @@
+{
+  "home": {
+    "selectInstance": "Select Instance",
+    "neverPlayed": "Never played",
+    "playTime": "Play Time",
+    "playTimeUnit": "H",
+    "lastPlayed": "Last Played",
+    "notification": "Notifications & News",
+    "addAccount": "Add Account",
+    "profile": "Profile",
+    "launchGame": "Play",
+    "instanceDetail": "Instance Details",
+    "selectInstanceModal": {
+      "title": "Select Instance",
+      "empty": "No instances created yet",
+      "emptyHint": "Go to Instance Management to create or import your first game environment",
+      "searchPlaceholder": "Search title, Loader, or MC version...",
+      "noResults": "No matching instances found",
+      "resultCount": "Found {{count}} instances"
+    },
+    "noAccount": {
+      "title": "Cannot Launch Instance",
+      "headline": "No Game Account Detected",
+      "description": "Launching Minecraft requires at least one valid game account.<br />Please go to Settings to add a Microsoft account.",
+      "cancel": "Cancel",
+      "add": "Add"
+    },
+    "noInstance": {
+      "title": "Cannot Launch Game",
+      "headline": "No Instances Created",
+      "description": "You need to create or import a game instance first.<br />Browse Resource Downloads for modpacks, or import from local files.",
+      "importModpack": "Import Modpack",
+      "downloadResource": "Download Resources"
+    },
+    "sidebar": {
+      "airdrop": "AirDrop",
+      "targetDevice": "Target device",
+      "transferInstance": "Transfer Instance",
+      "transferSave": "Transfer Save",
+      "selectInstanceToSend": "Select instance to send",
+      "selectInstanceToExtract": "Extract from instance",
+      "selectPlaceholder": "-- Select --",
+      "selectSave": "Select world save",
+      "pushing": "Packing & sending...",
+      "startTransfer": "Start Transfer",
+      "pushSuccess": "Push successful!",
+      "pushFailed": "Push failed",
+      "transferConsole": "Transfer Console",
+      "transferConsoleHint": "Click a trusted online device from the list on the left to transfer instances or saves across devices.",
+      "trustRequestTitle": "✨ Friend Request",
+      "trustRequestMessage": "Device <strong class=\"text-ore-green\">{{deviceName}}</strong> wants to establish LAN trust with you",
+      "trustRequestHint": "Once accepted, you can transfer game instances and saves between devices, and view each other's real-time game status. Make sure you recognize this device.",
+      "rejectTrust": "Reject & Ignore",
+      "acceptTrust": "Accept & Trust"
+    }
+  },
+  "multiplayer": {
+    "title": "Multiplayer Hub",
+    "description": "Community Server Directory and Terracotta Multiplayer.",
+    "onlineServers": "Community Servers",
+    "piHub": "Terracotta Multiplayer"
+  },
+  "instanceExport": {
+    "optimization": {
+      "formats": {
+        "zip": {
+          "label": "Standard ZIP",
+          "desc": "Maximum compatibility and full file bundling."
+        },
+        "curseforge": {
+          "label": "CurseForge",
+          "desc": "Exports a CurseForge-style archive with manifest.json."
+        },
+        "mrpack": {
+          "label": "Modrinth (mrpack)",
+          "desc": "Exports a Modrinth-compatible mrpack archive."
+        },
+        "pipack": {
+          "label": "PiPack",
+          "desc": "PiLauncher smart pack with mixed-source mod recovery."
+        }
+      },
+      "manifest": {
+        "title": "MANIFEST MODE",
+        "primary": "Prefer platform references over bundling mod files when the source can be resolved.",
+        "fallback": "Mods without a recoverable platform reference stay inside the archive as fallbacks.",
+        "pipackLocked": "PiPack always writes `pi_manifest.json` and only bundles mods that cannot be restored from their source platform."
+      }
+    }
+  },
+  "download": {
+    "tabs": {
+      "mod": "Mods",
+      "resourcepack": "Resource Packs",
+      "shader": "Shaders",
+      "modpack": "Modpacks"
+    },
+    "source": {
+      "modrinth": "Modrinth",
+      "curseforge": "CurseForge"
+    },
+    "filters": {
+      "source": "Source",
+      "keyword": "Keyword",
+      "gameVersion": "Game Version",
+      "loader": "Loader",
+      "loaderAll": "All Loaders",
+      "category": "Category",
+      "categoryAll": "All Categories",
+      "versionAll": "All Versions",
+      "sort": "Sort",
+      "versionFilters": "Version Filters",
+      "moreHistory": "More History",
+      "snapshots": "Snapshots / Preview"
+    },
+    "sort": {
+      "relevance": "Relevance",
+      "downloads": "Downloads",
+      "updated": "Recently Updated"
+    },
+    "actions": {
+      "search": "Search",
+      "reset": "Reset",
+      "details": "Details",
+      "downloadVersion": "Download Version",
+      "hidePreview": "Hide Preview",
+      "togglePreview": "Toggle Preview",
+      "previewCount": "Preview {{count}}",
+      "cycleLoader": "Cycle Loader",
+      "clearSelection": "Clear current group filter",
+      "clearHistory": "Clear history filter",
+      "clearSnapshots": "Clear snapshot filter",
+      "openProject": "Open {{project}}"
+    },
+    "status": {
+      "installed": "Installed",
+      "loadingEnv": "Loading environment...",
+      "loadingVersions": "Syncing version list...",
+      "alreadyInInstance": "Already in instance"
+    },
+    "progress": {
+      "connecting": "Connecting...",
+      "failed": "Download failed: {{error}}"
+    },
+    "placeholders": {
+      "search": "Search resources or authors..."
+    },
+    "empty": {
+      "noDescription": "No description provided yet.",
+      "noFilesMatch": "No files matched {{version}} + {{loader}}."
+    },
+    "meta": {
+      "author": "Author",
+      "unknownAuthor": "Unknown",
+      "byAuthor": "by {{author}}",
+      "description": "Description",
+      "matchedFiles": "{{count}} matching files",
+      "current": "Current"
+    },
+    "env": {
+      "client": "Client",
+      "server": "Server",
+      "required": "Required",
+      "optional": "Optional"
+    },
+    "loader": {
+      "universal": "Universal",
+      "noneAvailable": "No loaders available"
+    },
+    "curseforge": {
+      "apiKeyMissing": "CurseForge requires `VITE_CURSEFORGE_API_KEY`."
+    },
+    "tags": {
+      "clientSide": "Client-side",
+      "optimization": "Optimization",
+      "technology": "Technology",
+      "magic": "Magic",
+      "utility": "Utility",
+      "decoration": "Decoration",
+      "loader": {
+        "fabric": "Fabric",
+        "forge": "Forge",
+        "neoforge": "NeoForge",
+        "quilt": "Quilt",
+        "liteloader": "LiteLoader"
+      }
+    },
+    "time": {
+      "unknown": "Unknown time",
+      "today": "Today",
+      "daysAgo": "{{count}} days ago",
+      "monthsAgo": "{{count}} months ago",
+      "yearsAgo": "{{count}} years ago"
+    },
+    "categories": {
+      "8x_minus": "8x and Below",
+      "16x": "16x",
+      "32x": "32x",
+      "48x": "48x",
+      "64x": "64x",
+      "128x": "128x",
+      "256x": "256x",
+      "512x_plus": "512x and Above",
+      "adventure": "Adventure",
+      "adventure_and_rpg": "Adventure and RPG",
+      "addons": "Addons",
+      "api_and_library": "API and Library",
+      "applied_energistics_2": "Applied Energistics 2",
+      "armor_tools_and_weapons": "Armor, Tools, and Weapons",
+      "atmosphere": "Atmosphere",
+      "audio": "Audio",
+      "biomes": "Biomes",
+      "blocks": "Blocks",
+      "bloom": "Bloom",
+      "bukkit_plugins": "Bukkit Plugins",
+      "cartoon": "Cartoon",
+      "challenging": "Challenging",
+      "colored_lighting": "Colored Lighting",
+      "combat": "Combat",
+      "core_shaders": "Core Shaders",
+      "cosmetic": "Cosmetic",
+      "cosmetic_armor": "Cosmetic Armor",
+      "cursed": "Cursed",
+      "decoration": "Decoration",
+      "dimensions": "Dimensions",
+      "economy": "Economy",
+      "education": "Education",
+      "entities": "Entities",
+      "environment": "Environment",
+      "equipment": "Equipment",
+      "fantasy": "Fantasy",
+      "farming": "Farming",
+      "foliage": "Foliage",
+      "food": "Food",
+      "fonts": "Fonts",
+      "game_mechanics": "Game Mechanics",
+      "gui": "GUI",
+      "high": "High Impact",
+      "items": "Items",
+      "kitchen_sink": "Kitchen Sink",
+      "library": "Library",
+      "lightweight": "Lightweight",
+      "locale": "Localization",
+      "low": "Low Impact",
+      "magic": "Magic",
+      "magic_blood_magic": "Blood Magic",
+      "management": "Management",
+      "map": "Map",
+      "map_and_information": "Map and Information",
+      "map_information": "Map and Information",
+      "mc_creator": "MCreator",
+      "mc_food": "Food",
+      "medium": "Medium Impact",
+      "minigame": "Minigame",
+      "miscellaneous": "Miscellaneous",
+      "mobs": "Mobs",
+      "mods": "Mods",
+      "modded": "Modded",
+      "modded_world": "Modded World",
+      "models": "Models",
+      "multiplayer": "Multiplayer",
+      "optimization": "Optimization",
+      "ores_and_resources": "Ores and Resources",
+      "path_tracing": "Path Tracing",
+      "pbr": "PBR",
+      "potato": "Potato PC",
+      "processing": "Processing",
+      "quests": "Quests",
+      "realistic": "Realistic",
+      "redstone": "Redstone",
+      "reflections": "Reflections",
+      "resource_packs": "Resource Packs",
+      "screenshot": "Screenshot",
+      "semi_realistic": "Semi-realistic",
+      "server_utility": "Server Utility",
+      "shaders": "Shaders",
+      "shadows": "Shadows",
+      "simplistic": "Simplistic",
+      "social": "Social",
+      "storage": "Storage",
+      "structures": "Structures",
+      "technology": "Technology",
+      "texture_packs": "Texture Packs",
+      "themed": "Themed",
+      "transportation": "Transportation",
+      "tweaks": "Tweaks",
+      "utility": "Utility",
+      "utility_qol": "Utility & QoL",
+      "vanilla_like": "Vanilla-like",
+      "world_gen": "World Gen",
+      "worldgen": "World Gen",
+      "automation": "Automation",
+      "blood_magic": "Blood Magic",
+      "bug_fixes": "Bug Fixes",
+      "buildcraft": "BuildCraft",
+      "crafttweaker": "CraftTweaker",
+      "create": "Create",
+      "creativemode": "CreativeMode",
+      "energy": "Energy",
+      "energy_fluid_and_item_transport": "Energy, Fluid, and Item Transport",
+      "farmer_s_delight": "Farmer's Delight",
+      "forestry": "Forestry",
+      "galacticraft": "Galacticraft",
+      "genetics": "Genetics",
+      "horror": "Horror",
+      "industrial_craft": "Industrial Craft",
+      "integrated_dynamics": "Integrated Dynamics",
+      "kubejs": "KubeJS",
+      "mcreator": "MCreator",
+      "modjam_2025": "ModJam 2025",
+      "performance": "Performance",
+      "player_transport": "Player Transport",
+      "refined_storage": "Refined Storage",
+      "skyblock": "Skyblock",
+      "thaumcraft": "Thaumcraft",
+      "thermal_expansion": "Thermal Expansion",
+      "tinker_s_construct": "Tinker's Construct",
+      "twilight_forest": "Twilight Forest",
+      "twitch_integration": "Twitch Integration",
+      "combat_pvp": "Combat / PvP",
+      "expert": "Expert",
+      "exploration": "Exploration",
+      "extra_large": "Extra Large",
+      "ftb_official_pack": "FTB Official Pack",
+      "hardcore": "Hardcore",
+      "map_based": "Map Based",
+      "mini_game": "Mini Game",
+      "rlcraft": "RLCraft",
+      "sci_fi": "Sci-Fi",
+      "small_light": "Small / Light",
+      "tech": "Tech",
+      "vanilla_plus": "Vanilla+",
+      "512x_and_higher": "512x and Higher",
+      "animated": "Animated",
+      "data_packs": "Data Packs",
+      "font_packs": "Font Packs",
+      "medieval": "Medieval",
+      "mod_support": "Mod Support",
+      "modern": "Modern",
+      "photo_realistic": "Photo Realistic",
+      "steampunk": "Steampunk",
+      "traditional": "Traditional",
+      "vanilla": "Vanilla"
+    }
+  },
+  "modSnapshots": {
+    "title": "Mod Snapshot Timeline",
+    "empty": "No snapshot records yet.",
+    "emptySelection": "Select a snapshot from the left first.",
+    "loadingDiff": "Calculating differences from the previous snapshot...",
+    "noChanges": "No file-level changes compared with the previous snapshot.",
+    "triggers": {
+      "userManual": "Manual Snapshot",
+      "rollback": "Rollback Target",
+      "rollbackGuard": "Rollback Guard",
+      "auto": "Automatic Snapshot",
+      "unknown": "Unknown Source"
+    },
+    "timeline": {
+      "title": "Version History",
+      "current": "Current State",
+      "versionLabel": "Version #{{index}}",
+      "modCount": "{{count}} mods"
+    },
+    "tags": {
+      "current": "Current",
+      "history": "History",
+      "latestState": "Latest State",
+      "initialState": "Initial State",
+      "added": "Added",
+      "removed": "Removed",
+      "updated": "Updated",
+      "contentUpdated": "Content Updated",
+      "stateChanged": "State Changed",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "sections": {
+      "added": "Added {{count}} mods",
+      "removed": "Removed {{count}} mods",
+      "updated": "Updated {{count}} mods",
+      "stateChanged": "Changed enabled state for {{count}} mods"
+    },
+    "labels": {
+      "untitled": "Snapshot State",
+      "noMessage": "No note provided",
+      "createdAt": "Created At: {{value}}"
+    },
+    "summary": {
+      "compareWithPrevious": "Comparing the selected snapshot with the previous version.",
+      "initialSnapshot": "This is the earliest snapshot in history. The list below shows the recorded mod state."
+    },
+    "messages": {
+      "manualSnapshot": "Manual Snapshot ({{count}} mods)",
+      "createSuccess": "Snapshot created successfully. Recorded {{count}} mods.",
+      "createFailed": "Failed to create snapshot. Check the logs for details.",
+      "historyLoadFailed": "Failed to load snapshot history. Check the logs for details.",
+      "rollbackSuccess": "Rolled back to the selected snapshot.",
+      "rollbackFailed": "Failed to roll back snapshot. Check the logs for details."
+    },
+    "actions": {
+      "rollback": "Rollback to This Snapshot",
+      "rollingBack": "Rolling Back..."
+    },
+    "states": {
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "descriptions": {
+      "initialEnabled": "This mod is first recorded in this snapshot.",
+      "initialDisabled": "This mod is first recorded in this snapshot and is disabled here.",
+      "added": "This mod first appears in the selected snapshot.",
+      "removed": "This mod exists in the previous snapshot but not in the selected snapshot.",
+      "updated": "The file content of this mod changed.",
+      "stateChanged": "{{from}} -> {{to}}"
+    },
+    "meta": {
+      "file": "File: {{fileName}}",
+      "sha1": "SHA1: {{hash}}",
+      "version": "Version: {{version}}",
+      "project": "Project: {{modId}}",
+      "oldFile": "Old File: {{fileName}}",
+      "newFile": "New File: {{fileName}}",
+      "oldSha1": "Old SHA1: {{hash}}",
+      "newSha1": "New SHA1: {{hash}}"
+    }
+  },
+  "saves": {
+    "triggers": {
+      "manual": "Manual Backup",
+      "autoExit": "Backup on Exit",
+      "autoInterval": "Scheduled Backup",
+      "restoreGuard": "Pre-restore Guard",
+      "legacy": "Legacy Snapshot",
+      "unknown": "Unknown Source"
+    },
+    "restoreModal": {
+      "title": "Restore Save Backup",
+      "hero": {
+        "verifyingTitle": "Verifying Backup Environment",
+        "safeTitle": "Ready for a Safe Restore",
+        "warningTitle": "Review Differences Before Restore",
+        "verifyingDescription": "Comparing the current instance against the backup snapshot for Minecraft version, loader, mods, and configs.",
+        "defaultDescription": "A guard backup of the current world will be created before the selected snapshot is restored."
+      },
+      "sections": {
+        "targetWorld": "Target World",
+        "backupInfo": "Backup Info",
+        "gameEnvironment": "Game Environment",
+        "restoreStrategy": "Restore Strategy"
+      },
+      "labels": {
+        "folder": "Folder",
+        "unknownLoader": "Unknown Loader",
+        "mcVersion": "MC Version",
+        "loaderVersion": "Loader Version",
+        "mods": "Mods",
+        "configs": "Configs",
+        "matches": "matches",
+        "differs": "differs",
+        "safeSnapshot": "Safe Snapshot",
+        "unsafeSnapshot": "Unsafe Snapshot",
+        "includesConfigSnapshot": "Includes Config Snapshot"
+      },
+      "strategy": {
+        "primary": "Create a guard backup for the current world before restoring the selected snapshot.",
+        "secondary": "World data {{worldSize}}, config data {{configSize}}."
+      },
+      "toggle": {
+        "title": "Restore Config Files Too",
+        "description": "This replaces the current `config` and `defaultconfigs`. Enable it when you want a full rollback of both the world and configs."
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "confirm": "Confirm Restore",
+        "proceed": "Continue Restore"
+      },
+      "metrics": {
+        "modCount": "{{count}} Mods"
+      },
+      "hints": {
+        "scrollInfo": "Right stick scrolls the details"
+      },
+      "warnings": {
+        "title": "Risks Detected",
+        "minecraftMismatch": "Minecraft version differs: current {{current}}, backup {{backup}}.",
+        "loaderMismatch": "Loader version differs: current {{current}}, backup {{backup}}.",
+        "modEnvironmentDiffers": "Mod environment differs: current {{current}} mods, backup {{backup}} mods.",
+        "missingMod": "Missing mod: {{fileName}}",
+        "changedMod": "Changed mod file: {{fileName}}",
+        "extraMod": "Extra mod installed locally: {{fileName}}",
+        "configSnapshotDiffers": "Config snapshot differs from the current instance. Enable config restore for a full rollback.",
+        "unsafeSnapshot": "This snapshot was marked non-safe and may have been created while the world was active."
+      },
+      "errors": {
+        "verifyFailed": "Unable to verify restore: {{error}}",
+        "backupNotFound": "Backup snapshot not found."
+      }
+    }
+  },
+  "settings": {
+    "general": {
+      "sections": {
+        "basic": "Basic",
+        "window": "Window & App",
+        "danger": "Danger Zone"
+      },
+      "deviceName": {
+        "label": "Device Name",
+        "description": "Identifier used for LAN discovery and file transfer.",
+        "placeholder": "Enter device name"
+      },
+      "language": {
+        "label": "Launcher Language",
+        "description": "Change the display language. Fully applied after restart.",
+        "options": {
+          "zhCN": "简体中文",
+          "enUS": "English"
+        }
+      },
+      "checkUpdate": {
+        "label": "Check for Updates",
+        "description": "Check for new versions and install updates seamlessly within Tauri.",
+        "checking": "Checking...",
+        "upToDate": "Up to date",
+        "error": "Check failed",
+        "check": "Check Update"
+      },
+      "checkUpdateOnStart": {
+        "label": "Check Update on Start",
+        "description": "Automatically check for a new version every time you open the launcher."
+      },
+      "performanceProfile": {
+        "label": "Performance Mode",
+        "description": "Battery Saver is recommended for low-power handhelds like Steam Deck. It reduces background, log, and download concurrency overhead.",
+        "options": {
+          "auto": "Auto",
+          "quality": "Quality",
+          "balanced": "Balanced",
+          "batterySaver": "Battery Saver"
+        }
+      },
+      "closeBehavior": {
+        "label": "Close Button Behavior",
+        "description": "Action when clicking the 'X' button.",
+        "options": {
+          "tray": "Minimize to Tray",
+          "exit": "Exit Application"
+        }
+      },
+      "preventTouchAction": {
+        "label": "Prevent Touch Action",
+        "description": "Disable default web touch behaviors globally."
+      },
+      "toggleFullscreen": {
+        "label": "Toggle Fullscreen",
+        "description": "Manually enter or exit fullscreen mode.",
+        "exit": "Exit Fullscreen",
+        "enter": "Enter Fullscreen"
+      },
+      "exitApp": {
+        "label": "Exit App",
+        "description": "Close PiLauncher totally. A prompt will be shown."
+      },
+      "linuxDisableDmabuf": {
+        "label": "Linux Compatibility Mode (DMABUF)",
+        "description": "Disables WebKit DMABUF renderer to fix flickering/black screen on some Linux distros (e.g. Kali). **Requires manual restart**."
+      },
+      "resetSettings": {
+        "label": "Reset Settings",
+        "description": "Restore launcher settings to default. Data won't be deleted."
+      },
+      "exitConfirm": {
+        "title": "Confirm Exit",
+        "headline": "Exit PiLauncher",
+        "description": "Clicking confirm will exit the launcher immediately. Background tasks will stop.",
+        "confirm": "Exit Now",
+        "cancel": "Cancel"
+      },
+      "resetConfirm": {
+        "title": "Reset Settings",
+        "headline": "Confirm Reset",
+        "description": "Settings will be reset. Data and instances will be kept.",
+        "confirm": "Confirm Reset",
+        "cancel": "Cancel"
+      }
+    },
+    "java": {
+      "sections": {
+        "autoDownload": "Auto Download",
+        "environment": "Environment Config",
+        "memory": "Global Memory & Args"
+      },
+      "autoDownloadDesc": "Select version and provider, then download to <code class=\"bg-black/30 px-1 rounded ml-1\">runtime/Java</code> locally.",
+      "targetVersion": "Target Java Version",
+      "provider": "Provider",
+      "btnDownload": "Download Java",
+      "downloading": "Downloading...",
+      "autoDetect": "Auto-Detect Java Environment",
+      "autoDetectDesc": "If enabled, scans on startup and automatically picks the best versions.",
+      "globalPath": "Global Java Runtime (Fallback)",
+      "globalPathDesc": "Default Java path used when mapped version isn't available.",
+      "btnTest": "Test",
+      "majorConfig": "Version-specific Configurations (Recommended)",
+      "missingAuth": "Missing Java Environment",
+      "memoryDesc": "New instances inherit this global config by default unless customized.",
+      "memoryMode": "Memory Allocation Mode",
+      "memoryLoading": "Reading system memory...",
+      "memoryEffective": "Current Effective Allocation",
+      "memoryTarget": "Requested Target",
+      "memoryRecommended": "Recommended",
+      "memorySafeLimit": "Safe Limit",
+      "memoryHardLimit": "Hard Limit",
+      "memoryAvailable": "Available Now",
+      "memoryTotal": "System Total",
+      "memoryProfile": "GC Profile",
+      "memoryApplyRecommended": "Apply Recommended",
+      "memoryModes": {
+        "auto": "Auto",
+        "manual": "Manual",
+        "force": "Force"
+      },
+      "memoryModeDescriptions": {
+        "auto": "Automatically calculates RAM allocation from the documented recommendation and safety limits.",
+        "manual": "Uses your requested target, but caps it to the current safe range when memory is tight.",
+        "force": "Ignores the safety limit and tries to honor your target. It can exceed the current available-memory hard limit, but still stays within device memory."
+      },
+      "memoryProfiles": {
+        "small-heap": "Small Heap",
+        "standard-g1gc": "Standard G1GC",
+        "large-heap": "Large Heap Region Tuning"
+      },
+      "memoryWarnings": {
+        "hardLimitTitle": "Hard limit reached",
+        "hardLimitBody": "You requested {{requested}}, but the current hard limit is {{limit}}, so this run can only use {{effective}}.",
+        "safeLimitTitle": "Capped by safety limit",
+        "safeLimitBody": "You requested {{requested}}, but this run will be reduced to {{effective}} to keep within the safe limit ({{limit}}).",
+        "forceModeBody": "Force mode ignores the safety limit and can exceed the current available-memory hard limit of {{limit}}. Make sure the system still has enough headroom.",
+        "manualModeBody": "Manual mode prioritizes your requested {{requested}} and is currently expected to use {{effective}}. It will fall back to the safe range if available memory is tight.",
+        "autoModeBody": "Auto mode uses min(recommended {{recommended}}, safe limit {{safeLimit}}), so this run is expected to use {{effective}}."
+      },
+      "maxMemory": "Global Maximum RAM Allocation",
+      "maxMemoryDesc": "Dynamically adjust the maximum RAM for the game.",
+      "jvmArgs": "Global Extra JVM Args",
+      "jvmArgsDesc": "Advanced level. Applies to instances that inherit settings.",
+      "jvmArgsResetDefault": "Reset Default",
+      "versions": {
+        "8": "Java 8 (For MC 1.7 - 1.16)",
+        "16": "Java 16 (For MC 1.17)",
+        "17": "Java 17 (For MC 1.18 - 1.20)",
+        "21": "Java 21 (For MC 1.21+)",
+        "25": "Java 25 (For newer versions and snapshots)"
+      },
+      "majorDescriptions": {
+        "8": "Recommended for 1.16.5 and earlier",
+        "16": "Dedicated to 1.17 / 1.17.1",
+        "17": "Recommended for 1.18 - 1.20.4",
+        "21": "Recommended for 1.20.5 and newer",
+        "25": "Recommended for 26.1+ and snapshots"
+      },
+      "providers": {
+        "adoptium": "Adoptium Official",
+        "zulu": "Azul Zulu",
+        "tuna": "Tsinghua TUNA Mirror",
+        "aks": "Microsoft"
+      },
+      "testTargets": {
+        "global": "Global Java"
+      },
+      "selector": {
+        "placeholder": "Click to choose Java path...",
+        "select": "Select",
+        "modalTitle": "Select Java Runtime",
+        "rescan": "Rescan Local Java",
+        "rescanning": "Scanning...",
+        "manualBrowse": "Browse Folder...",
+        "scanningDisk": "Scanning drives for Java runtimes...",
+        "notFound": "No available Java detected. Please browse manually.",
+        "managed": "Launcher managed",
+        "delete": "Delete",
+        "deleteConfirmTitle": "Delete Java Runtime",
+        "deleteConfirmDesc": "Only Java runtimes downloaded into runtime/java by the launcher can be deleted. External Java installations are never removed.",
+        "confirmDelete": "Delete"
+      },
+      "testDialog": {
+        "title": "Java Test",
+        "missingPathHeadline": "{{target}} path is not configured",
+        "missingPathDesc": "Please choose an executable Java path before testing.",
+        "successTitle": "Java Test Passed",
+        "successHeadline": "{{target}} is available",
+        "successDesc": "Version: {{version}}",
+        "pathLabel": "Path: {{path}}",
+        "failedTitle": "Java Test Failed",
+        "failedHeadline": "{{target}} is unavailable",
+        "failedDesc": "The current path cannot be used as a Java runtime.",
+        "confirm": "OK",
+        "cancel": "Close"
+      }
+    },
+    "appearance": {
+      "sections": {
+        "background": "Background & Theme",
+        "dynamicBackground": "Dynamic Background",
+        "typography": "Typography & Effects",
+        "navigation": "Navigation & Behavior"
+      },
+      "btnChangeBg": "Change Image",
+      "btnRemoveBg": "Remove Background",
+      "noBg": "No Background",
+      "selectLocalInfo": "Click to select a local image",
+      "bgBlur": "Background Blur",
+      "bgBlurDesc": "Adjust the blur level for the main background image.",
+      "panoramaEnabled": "Enable Panorama",
+      "panoramaEnabledDesc": "Use effective panorama from base_path/config/background if available.",
+      "panoramaSpeed": "Panorama Speed",
+      "panoramaSpeedDesc": "Rotation speed for panorama background. Set 0 to pause.",
+      "panoramaDirection": "Panorama Direction",
+      "panoramaDirectionDesc": "Currently {{dir}}.",
+      "clockwise": "Clockwise",
+      "counterclockwise": "Counterclockwise",
+      "maskColor": "Mask Color",
+      "maskColorDesc": "Overlay color on background to ensure text readability.",
+      "maskOpacity": "Mask Opacity",
+      "maskOpacityDesc": "Overlay opacity. Higher value makes background darker.",
+      "fontFamily": "Global Font",
+      "fontFamilyDesc": "Main font for launcher. Fallbacks to Minecraft font if not supported.",
+      "maskGradient": "Enable Bottom Gradient",
+      "maskGradientDesc": "Add a black gradient at bottom to improve text/nav readability.",
+      "customColor": "Custom Color",
+      "defaultFont": "Default (Minecraft)",
+      "showInstances": "Show \"Instances\"",
+      "showInstancesDesc": "Show the Instances entry in the top navigation bar",
+      "showMultiplayer": "Show \"Multiplayer\"",
+      "showMultiplayerDesc": "Show the Multiplayer entry in the top navigation bar",
+      "showDownloads": "Show \"Downloads\"",
+      "showDownloadsDesc": "Show the Downloads entry in the top navigation bar",
+      "showLibrary": "Show \"Library\"",
+      "showLibraryDesc": "Show the Library entry in the top navigation bar",
+      "skipExitConfirm": "Skip Exit Confirmation",
+      "skipExitConfirmDesc": "Close the window without showing a confirmation dialog (only applies when close behavior is set to \"Exit\")"
+    },
+    "handheld": {
+      "sections": {
+        "handheld": "Handheld"
+      }
+    },
+    "game": {
+      "sections": {
+        "window": "Window & Render",
+        "behavior": "Launcher Behavior"
+      },
+      "windowTitle": "Custom Window Title",
+      "windowTitleDesc": "Text displayed on the Minecraft game window titlebar.",
+      "fullscreen": "Fullscreen Mode",
+      "fullscreenDesc": "Enter exclusive fullscreen on game start.",
+      "resolution": "Launch Resolution",
+      "resolutionDesc": "Initial game window size.",
+      "showLog": "Game Log Panel",
+      "showLogDesc": "Expand console with logs during startup until loading is finished.",
+      "steamDeckKeymap": "Steam Deck Game Mode Keymap",
+      "steamDeckKeymapDesc": "Treat the Steam Input keyboard/mouse layout as controller navigation in the launcher, matching the recommended Minecraft Java layout.",
+      "steamDeckMap": {
+        "confirm": "Space / confirm",
+        "cancel": "Esc / back",
+        "move": "Navigate launcher focus",
+        "pointer": "Mouse pointer",
+        "actionX": "Secondary action",
+        "actionY": "Quick action",
+        "scroll": "Scroll or move focus up/down",
+        "mouseButtons": "Right / left mouse click for Minecraft"
+      },
+      "visibility": "Visibility during Game Runtime",
+      "visibilityDesc": "Action after Minecraft instance is successfully launched.",
+      "resolutions": {
+        "standard": "854x480",
+        "hd": "1280x720",
+        "laptop": "1366x768",
+        "widescreen": "1600x900",
+        "fhd": "1080p",
+        "qhd": "2K",
+        "uhd": "4K",
+        "native": "Native",
+        "nativeDesc": "Automatically detected physical monitor resolution"
+      },
+      "visibilityOptions": {
+        "keep": {
+          "label": "Keep Window Open",
+          "desc": "Launcher stays as is, convenient for logs or management."
+        },
+        "minimize": {
+          "label": "Auto-Minimize to Tray",
+          "desc": "Hide UI to save resources, auto-restore after game exit."
+        },
+        "close": {
+          "label": "Close Launcher Directly",
+          "desc": "Maximize performance, but requires manual restart later."
+        }
+      }
+    },
+    "download": {
+      "sections": {
+        "source": "Component Download Source",
+        "speed": "Speed & Concurrency",
+        "faultTolerance": "Fault Tolerance & Validation",
+        "proxy": "Proxy Server",
+        "diagnostics": "Network Diagnostics"
+      },
+      "metaSource": "Minecraft Metadata Source",
+      "metaSourceDesc": "Used to fetch version_manifest_v2.",
+      "autoLatency": "Dynamic Auto-Switching",
+      "autoLatencyDesc": "Test latency before downloading and pick the lowest one.",
+      "speedUnit": "Speed Unit",
+      "speedUnitDesc": "Display mode: MB/s or Mbps.",
+      "speedLimit": "Global Speed Limit",
+      "speedLimitDesc": "0 means unlimited.",
+      "concurrency": "Max Concurrent Tasks",
+      "concurrencyDesc": "Higher concurrency increases speed but consumes more CPU/RAM.",
+      "chunkedEnable": "Chunked Downloading",
+      "chunkedEnableDesc": "Use multi-threaded downloads for large files that support Range.",
+      "chunkedThreads": "Chunked Threads",
+      "chunkedThreadsDesc": "Number of connections per file.",
+      "chunkedThreshold": "Chunk Threshold",
+      "chunkedThresholdDesc": "Apply chunked downloading for files larger than this (MB).",
+      "timeout": "Connection Timeout",
+      "timeoutDesc": "Time before automatically interrupting and retrying.",
+      "retry": "Max Retries",
+      "retryDesc": "Retry attempts when downloading a single file fails.",
+      "verifyHash": "Verify After Download (Hash)",
+      "verifyHashDesc": "Ensure file was not corrupted after downloaded.",
+      "proxyMode": "Proxy Mode",
+      "proxyModeDesc": "Affects downloads and APIs only, not game multi-player.",
+      "proxyHost": "Proxy Host",
+      "proxyPort": "Proxy Port",
+      "diagTitle": "Network Connection Diagnostic",
+      "diagDesc": "Check core domains accessibility, including DNS, TCP, TLS and HTTP.",
+      "btnDiag": "Start Full Diagnostic",
+      "diaging": "Testing...",
+      "systemStatus": "System & Network Status",
+      "scanQr": "Scan QR Code\\nTo get Base64 report",
+      "analyzing": "Analyzing packets and connectivity...",
+      "clickToTest": "Click the button to test network status",
+      "sources": {
+        "vanilla": "Vanilla Core Download Source",
+        "forge": "Forge Download Source",
+        "fabric": "Fabric Download Source",
+        "neoforge": "NeoForge Download Source",
+        "quilt": "Quilt Download Source"
+      },
+      "proxyOptions": {
+        "none": "Direct"
+      }
+    },
+    "account": {
+      "sections": {
+        "identities": "Identity Library"
+      },
+      "btnAddMs": "Add Microsoft Acc",
+      "btnAddOffline": "Add Offline Acc",
+      "noAccount": "No game accounts connected yet",
+      "noMcTip": "Don't own Minecraft? Get it securely from official stores",
+      "buyMc": "Get on Minecraft.net",
+      "buyMs": "Microsoft Store",
+      "delConfirmTitle": "Confirm Removal",
+      "delConfirmDesc": "Are you sure? This only removes identity from launcher, \\nwill NOT delete local save data.",
+      "cancel": "Cancel",
+      "confirmDel": "Confirm Remove",
+      "btnAddAuthlib": "Third-party Skin Server",
+      "card": {
+        "unknownPlayer": "Unknown Player",
+        "typeMicrosoft": "Microsoft Account",
+        "typeAuthlib": "Skin Server Account",
+        "typeOffline": "Offline Account",
+        "current": "Current",
+        "switchable": "Switchable",
+        "noteMicrosoft": "Identity and avatar will sync automatically.",
+        "noteAuthlib": "Uses a custom skin server authentication service.",
+        "noteOffline": "Offline account",
+        "uploadSkin": "Upload Custom Skin",
+        "editName": "Edit Name",
+        "removeAccount": "Remove Account",
+        "inUse": "In Use",
+        "setCurrent": "Set as Current Identity"
+      },
+      "actions": {
+        "cancel": "Cancel"
+      },
+      "microsoft": {
+        "title": "Microsoft Account Login",
+        "requesting": "Requesting a secure code from Microsoft...",
+        "hint": "Scan the QR code below to open the verification page, or copy the code and continue in your browser.",
+        "codeLabel": "Enter this code after scanning",
+        "copyAndOpen": "Copy and Open Browser",
+        "waitingAuth": "Waiting for browser authorization...",
+        "polling": "Waiting for authorization and token exchange in the background. Do not close this dialog...",
+        "loginFailed": "Login failed: {{error}}",
+        "failedMarker": "Login failed"
+      },
+      "offline": {
+        "editTitle": "Configure Offline Account",
+        "createTitle": "Create Offline Account",
+        "confirmEdit": "Confirm Changes",
+        "confirmCreate": "Create Account",
+        "playerName": "Player Name (ID)",
+        "placeholder": "Example: Steve_123",
+        "rule": "Rules: 3-16 characters, letters, numbers, and underscores only.",
+        "randomName": "Random Name",
+        "warningTitle": "Warning: ",
+        "warningLine1": "Renaming will also change the linked UUID.",
+        "warningLine2": "Single-player saves and offline servers will identify you as a new player, so old inventory and progress will not carry over directly.",
+        "errors": {
+          "invalidName": "Invalid username. Use 3-16 letters, numbers, or underscores only.",
+          "duplicateName": "This game ID already exists. Choose another name."
+        }
+      },
+      "authlib": {
+        "title": "Third-party Skin Server Login",
+        "loggingIn": "Logging in",
+        "login": "Login",
+        "hint": "Use a skin server API compatible with authlib-injector / Yggdrasil. Enter the API root provided by the skin server, such as https://example.com/api/yggdrasil.",
+        "apiRoot": "API URL",
+        "username": "Account",
+        "usernamePlaceholder": "Email or skin server username",
+        "password": "Password",
+        "passwordPlaceholder": "Skin server password",
+        "errors": {
+          "missingApiRoot": "Enter the third-party skin server Yggdrasil API URL.",
+          "missingCredentials": "Enter account and password."
+        }
+      }
+    },
+    "data": {
+      "sections": {
+        "core": "Core Data Directory",
+        "thirdParty": "Imported Instances",
+        "privacy": "Privacy & Telemetry"
+      },
+      "telemetryUpload": {
+        "label": "Upload installation telemetry",
+        "description": "Enabled by default. PiLauncher uploads at most once every 3 days, including only installation ID, platform, memory capacity, GPU name, launcher version, and first install time for install-count analysis and compatibility testing."
+      },
+      "coreLocation": "Core Data Location",
+      "currentLoc": "Current: {{path}}\\nMigrate all settings, logs, games to a new folder.",
+      "btnModify": "Change Folder & Migrate",
+      "renameDir": "Rename Data Folder",
+      "renameDirDesc": "Rename the current data folder to distinguish it from others.",
+      "btnRename": "Rename Folder",
+      "cleanLogs": "Clean Launcher Logs",
+      "cleanLogsDesc": "Empty all logs from logs/ directory to free space. Currently at: {{path}}",
+      "btnCleanLogs": "Clean Logs",
+      "removeConfirmTitle": "Confirm Removal",
+      "removeConfirmHeadline": "Are you sure to remove this linked dir?",
+      "removeConfirmDesc1": "This action unlinks the dir and cleans up related cache in PiLauncher.",
+      "removeConfirmDesc2": "Original files will not be touched.",
+      "btnCancel": "Cancel",
+      "btnRemove": "Remove",
+      "cleanLogsTitle": "Clean Logs",
+      "cleanLogsConfirmTitle": "This will delete all log files under logs/ directory.",
+      "cleanLogsConfirmDesc": "Irreversible. Revert is impossible. Loc: {{path}}",
+      "btnConfirmClean": "Confirm Clean",
+      "btnDone": "Done",
+      "cleaning": "Cleaning...",
+      "cleanSuccess": "Success",
+      "cleanSuccessDesc": "Cleaned {{count}} log entries.",
+      "cleanFailed": "Clean Failed",
+      "renameModalTitle": "Rename Directory",
+      "renameModalDesc": "Launcher will restart after a successful rename.",
+      "renameModalPlaceholder": "New folder name...",
+      "btnConfirmRename": "Confirm Rename",
+      "noThirdParty": "No external instances found",
+      "thirdPartyList": "Linked Third-Party Folders",
+      "thirdPartyListDesc1": "Scanned during startup. Removal doesn't delete local data.",
+      "thirdPartyListDesc2": "These external folders are managed by PiLauncher too.",
+      "removedCountSuccess": "Unlinked and cleaned {{count}} related imported instance data.",
+      "success": "Success",
+      "failed": "Removal failed: {{error}}",
+      "error": "Error",
+      "migrateConfirm": "Would you like to move all game data (instances, configs, etc.) from the current directory to the new one?\n\nSelect [Yes] to move all data.\nSelect [No] to only copy the basic configuration file (settings.json), keeping old data.",
+      "migrateTitle": "Data Migration Confirmation",
+      "migrateSuccess": "Data directory migration successful! To ensure normal game operation, PiLauncher will exit. Please restart the launcher.",
+      "migrateSuccessTitle": "Migration Successful",
+      "migrateError": "Error during directory modification: {{error}}",
+      "migrateErrorTitle": "Migration Failed",
+      "renameSuccess": "Rename successful! To ensure everything is normal, the launcher will exit. Please restart.",
+      "renameError": "Rename failed: {{error}}",
+      "renameSuccessTitle": "Success",
+      "renameErrorTitle": "Error",
+      "remoteLogs": {
+        "title": "Remote Log History",
+        "description": "View logs uploaded to LogShare.CN and remove remote logs with saved delete tokens.",
+        "manage": "Manage Remote Logs",
+        "refresh": "Refresh",
+        "logId": "Log ID",
+        "createdAt": "Created",
+        "expiresAt": "Expires",
+        "action": "Action",
+        "loading": "Loading remote log history...",
+        "empty": "No remote logs recorded yet.",
+        "delete": "Delete",
+        "deleteTitle": "Delete Remote Log",
+        "deleteHeadline": "Delete this remote log?",
+        "deleteDesc": "Deletion uses the locally saved token to request LogShare.CN and clears local history after success.",
+        "successTitle": "Deleted",
+        "successHeadline": "Remote log deleted",
+        "successDesc": "Local history has also been cleared.",
+        "deleteFailed": "Failed to delete remote log: {{error}}",
+        "deleteFailedTitle": "Delete Failed"
+      },
+      "webdav": {
+        "title": "WebDAV Sync",
+        "configuredDesc": "Remote endpoint configured. Favorites sync uses append-only operation logs with offline replay and diff merge.",
+        "unconfiguredDesc": "Configure WebDAV address, account, and sync content. https:// defaults to 443, http:// defaults to 80.",
+        "manage": "Manage WebDAV",
+        "configure": "Configure WebDAV"
+      }
+    },
+    "about": {
+      "sections": {
+        "product": "Product Information",
+        "support": "Support Us",
+        "sponsors": "Sponsors"
+      },
+      "productDesc": "Cross-platform Minecraft Launcher optimized for Gamepad and Handhelds.",
+      "scanOrA": "Scan or press A",
+      "thanks": "Thanks to all our sponsors",
+      "thanksDesc": "Because of your support, PiLauncher can continue to improve. You can sponsor us via AfDian above.",
+      "emptySeat": "Awaiting...",
+      "links": {
+        "github": {
+          "title": "Project GitHub",
+          "desc": "Open source, PRs and Issues welcome"
+        },
+        "bilibili": {
+          "title": "Author Bilibili",
+          "desc": "Follow the author for development updates"
+        },
+        "afdian": {
+          "title": "AfDian",
+          "desc": "Sponsor development and support maintenance"
+        }
+      },
+      "anonymous": "Anonymous",
+      "openSource": {
+        "button": "Open Source Projects",
+        "title": "Open Source Projects",
+        "headline": "Major open source projects used by PiLauncher",
+        "description": "This list contains {{count}} direct dependencies and ecosystem projects, excluding transitive lockfile dependencies.",
+        "open": "Open",
+        "groups": {
+          "frontend": "Frontend & UI",
+          "backend": "Desktop & Runtime",
+          "ecosystem": "Minecraft Ecosystem"
+        }
+      }
+    },
+    "tabs": {
+      "general": "General",
+      "appearance": "Appearance",
+      "handheld": "Handheld",
+      "game": "Game",
+      "java": "Java",
+      "download": "Download",
+      "account": "Account",
+      "data": "Data",
+      "about": "About"
+    },
+    "developing": "Settings module under development...",
+    "update": {
+      "title": "New Version Available",
+      "noChangelog": "No changelog available.",
+      "later": "Remind Me Later",
+      "installing": "Downloading and installing...",
+      "installNow": "Update Now",
+      "externalAcknowledge": "Got it",
+      "latestVersion": "Latest Version",
+      "changelog": "Changelog",
+      "notice": "Click \"Update Now\" to download and install automatically. The launcher will restart after installation.",
+      "flatpakNotice": "This Flatpak build does not support in-app update downloads. Please update PiLauncher from Discover or Flathub."
+    }
+  },
+  "instancesPage": {
+    "viewToggleList": "Switch to List View",
+    "viewToggleGrid": "Switch to Grid View",
+    "searchPlaceholder": "Search instances...",
+    "sortOptions": {
+      "lastPlayed": "Recently Played",
+      "createdAt": "Creation Time"
+    },
+    "tagsBtn": "Tags",
+    "actionNew": "New Instance",
+    "actionFolder": "Select Directory",
+    "actionDetect": "Auto Detect",
+    "tagFilterModal": {
+      "title": "Tag Filter",
+      "description": "Select tags below to filter the instance list.",
+      "empty": "No available tags currently",
+      "clear": "Clear",
+      "done": "Done"
+    }
+  },
+  "directoryBrowser": {
+    "title": {
+      "directory": "Select directory",
+      "fileOrDirectory": "Select file or directory",
+      "modpackArchive": "Select modpack archive"
+    },
+    "actions": {
+      "newFolder": "New folder",
+      "cancel": "Cancel",
+      "select": "Select",
+      "open": "Open",
+      "selectCurrentDirectory": "Select current directory"
+    },
+    "menu": {
+      "currentDirectory": "Current directory",
+      "sort": "Sort"
+    },
+    "sort": {
+      "foldersFirst": "Folders first",
+      "filesFirst": "Files first"
+    },
+    "status": {
+      "loading": "Loading..."
+    },
+    "roots": {
+      "thisPc": "This PC"
+    },
+    "fileCategories": {
+      "file": "File",
+      "minecraft": "Minecraft",
+      "archives": "Archives",
+      "images": "Images",
+      "configs": "Configs",
+      "executables": "Executables",
+      "documents": "Documents"
+    },
+    "empty": {
+      "noMatchingItems": "No matching items",
+      "noSubdirectories": "No subdirectories"
+    },
+    "hints": {
+      "openConfirm": "Open / Confirm",
+      "cancel": "Cancel",
+      "upForward": "Up / Forward",
+      "actions": "Actions",
+      "listFooter": "List / Footer",
+      "keyboard": "Enter opens, Esc cancels",
+      "doubleClick": "Double click"
+    }
+  },
+  "localImport": {
+    "step1": {
+      "title": "Import local modpack",
+      "reading": "Reading metadata...",
+      "supportPrefix": "Supports",
+      "separator": ",",
+      "supportSuffix": "archives.",
+      "autoPrepare": "Metadata and runtime requirements will be prepared automatically."
+    },
+    "step2": {
+      "parsed": "Parsed: {{name}}"
+    },
+    "meta": {
+      "source": "Source",
+      "author": "Author",
+      "pack": "Pack",
+      "gameVersion": "Game Version",
+      "loader": "Loader"
+    },
+    "fields": {
+      "instanceName": "Instance Name",
+      "installPath": "Install Path"
+    },
+    "warning": {
+      "requiresPrefix": "The pack requires",
+      "with": "with",
+      "autoRestore": "Missing runtimes and referenced mods will be restored automatically during import."
+    },
+    "actions": {
+      "selectArchive": "Select archive",
+      "selectArchiveNative": "System file picker",
+      "selectArchiveBrowser": "Built-in browser",
+      "change": "Change",
+      "cancel": "Cancel",
+      "startImport": "Start import",
+      "importing": "Importing..."
+    },
+    "status": {
+      "loadingInstancesDir": "Loading instances directory...",
+      "baseDirMissing": "Base directory is not configured.",
+      "defaultDirReadFailed": "Unable to read default directory."
+    },
+    "errors": {
+      "unsupportedArchive": "Please select a supported archive: .zip, .mrpack, or .pipack.",
+      "parseFailed": "Failed to parse archive: {{error}}",
+      "importFailed": "Import failed: {{error}}"
+    }
+  },
+  "wardrobe": {
+    "title": "Wardrobe",
+    "skinTab": "Skin",
+    "capeTab": "Cape",
+    "refresh": "Refresh",
+    "emptyAccount": "Please add a game account in settings first.",
+    "activeBadge": "ACTIVE",
+    "uploadCard": {
+      "title": "Local Upload",
+      "subtitle": "Enter library after upload"
+    },
+    "hints": {
+      "openDialog": "Open Dialog",
+      "preview": "Preview",
+      "switchTab": "Switch Skin/Cape",
+      "rotate": "Rotate Character",
+      "refresh": "Refresh"
+    },
+    "skinMenu": {
+      "titleDefault": "Skin Asset",
+      "filePrefix": "File: ",
+      "activeSkin": "Current active skin.",
+      "applySkinHint": "Apply to switch to this skin.",
+      "modelLabel": "Model",
+      "modelClassic": "Classic",
+      "modelClassicDesc": "Standard arm width.",
+      "modelSlim": "Slim",
+      "modelSlimDesc": "Slim arm width.",
+      "noteLabel": "Note",
+      "notePlaceholder": "Name this skin card",
+      "noteDescription": "When set, this note replaces the card title.",
+      "applyAction": "Apply skin",
+      "deleteAction": "Delete skin",
+      "onlineProfileNote": "This is the online active profile skin. It can be previewed and model-switched only.",
+      "activeLibraryNote": "Active library skin cannot be deleted."
+    },
+    "capeMenu": {
+      "titleDefault": "Cape Asset",
+      "activeCape": "Current active cape",
+      "applyCapeHint": "Are you sure you want to equip this cape?",
+      "unequipAction": "Unequip current cape",
+      "applyAction": "Equip cape",
+      "cancelAction": "Cancel"
+    }
+  },
+  "setup": {
+    "directory": {
+      "title": "Initialize Data Directory",
+      "desc1": "We need a dedicated folder to store your game cores and instances.",
+      "desc2": "It can be a <1>brand new empty directory</1>, or an <3>existing PiLauncher legacy directory</3> to restore data.",
+      "desc3": "Please note: The path must absolutely NOT contain non-ASCII characters!",
+      "placeholder": "Please click browse to select an ASCII-only directory ->",
+      "browse": "Browse",
+      "confirm": "Confirm and Next"
+    },
+    "java": {
+      "title": "No Java Environment Detected",
+      "desc1": "We noticed that Java does not seem to be installed on your computer.",
+      "desc2": "Please select the Minecraft version you want to play, and we will automatically download and configure the corresponding runtime for you.",
+      "targetVersion": "Target Minecraft Version:",
+      "provider": "Download Source (Provider):",
+      "skip": "Skip, I will install manually later",
+      "download": "Auto Download"
+    },
+    "steam": {
+      "title": "Steam Library Integration",
+      "desc1": "Detecting if Steam exists on your system.",
+      "desc2": "Would you like to register PiLauncher as a non-Steam game to launch it directly from your library or Big Picture mode?",
+      "success": "Registration successful! Please restart Steam for the shortcut to take effect.",
+      "gamepadModeDesc": "Detected that you are currently in Gaming Mode. Would you like to launch in Fullscreen (Gamepad) mode by default and exit the application when the Gamepad UI is closed?",
+      "enableGamepadAndFinish": "Enable Fullscreen and Finish",
+      "finish": "Finish",
+      "skip": "No thanks, skip",
+      "registering": "Registering...",
+      "register": "Register to Steam"
+    },
+    "legal": {
+      "title": "End User License Agreement",
+      "subtitle": "To continue using PiLauncher, you must read and agree to the following terms",
+      "updateWarning": "Due to changes in the EULA or Privacy Policy, you must read and agree again before continuing.",
+      "agree": "I have read and fully agree"
+    }
+  },
+  "nav": {
+    "home": "Home",
+    "instances": "Instances",
+    "multiplayer": "Multiplayer",
+    "downloads": "Downloads",
+    "library": "Library",
+    "settings": "Settings"
+  },
+  "titlebar": {
+    "exit": {
+      "title": "Confirm Exit",
+      "headline": "Exit PiLauncher",
+      "description": "The close button is set to \"Exit Application\". Confirming will immediately terminate the app process."
+    }
+  },
+  "common": {
+    "confirm_exit": "Confirm Exit",
+    "cancel": "Cancel",
+    "ok": "OK",
+    "finish": "Finish"
+  },
+  "libraryPage": {
+    "views": {
+      "all": "All Favorites",
+      "mod": "Mods",
+      "modSet": "Mod Sets",
+      "modpack": "Modpacks",
+      "external": "External Resources"
+    },
+    "filters": {
+      "all": "All",
+      "modpack": "Modpacks",
+      "mod": "Mods",
+      "server": "Servers",
+      "updated": "Updates"
+    },
+    "sort": {
+      "manual": "Collection Order",
+      "recent": "Recently Updated",
+      "name": "Name A-Z",
+      "source": "Source"
+    },
+    "toolbar": {
+      "back": "Back",
+      "visibleCount": "{{count}} shown",
+      "highlights": "Highlights",
+      "editCollection": "Edit Collection",
+      "editModSet": "Edit Mod Set",
+      "editModpack": "Edit Modpack",
+      "cloudSync": "Library Cloud Sync",
+      "deleteModSet": "Delete Mod Set",
+      "deploy": "Deploy",
+      "deployTitle": "Deploy current mod set",
+      "deployDisabled": "No cross-version tracking data is ready for this mod set",
+      "searchPlaceholder": "Search name, author, version, Loader..."
+    },
+    "context": {
+      "detail": "View Mod Details",
+      "tags": "Add Tag",
+      "deleteFavorite": "Remove from Favorites",
+      "removeFromTag": "Remove from Current Tag",
+      "removeFromModSet": "Remove from Mod Set",
+      "removeFromModpack": "Remove from Modpack",
+      "removeFromCollection": "Remove from Current Collection"
+    },
+    "empty": {
+      "loadingTitle": "Loading Favorites",
+      "noMatchTitle": "No Matches",
+      "emptyTitle": "No Favorites Yet",
+      "loadingDesc": "Reading favorites, tags, and mod sets.",
+      "noMatchDesc": "Try another keyword, type, or collection filter.",
+      "emptyDesc": "Search resources in Downloads and favorite them to see them here.",
+      "actionDownload": "Browse Downloads",
+      "actionDownloadDesc": "Search and favorite resources from Downloads"
+    },
+    "item": {
+      "ready": "Ready",
+      "noSummary": "No description.",
+      "installed": "Installed",
+      "version": "Version",
+      "byAuthor": "by {{author}}",
+      "updated": "Update",
+      "pinned": "Pinned",
+      "archived": "Archived",
+      "unknownDate": "Unknown Date"
+    },
+    "types": {
+      "modpack": "Modpack",
+      "mod": "Mod",
+      "resourcepack": "Resource Pack",
+      "shader": "Shader",
+      "server": "Server"
+    },
+    "sortMode": {
+      "moveUp": "Move Up",
+      "moveDown": "Move Down"
+    },
+    "tagModal": {
+      "title": "Add Tags",
+      "done": "Done",
+      "hint": "Select tags to associate with this resource.",
+      "empty": "No tags yet. Create tags in the sidebar first.",
+      "pending": "Pending",
+      "added": "Added",
+      "add": "Add"
+    },
+    "deleteFavorite": {
+      "title": "Remove Favorite",
+      "confirm": "Confirm Delete",
+      "deleting": "Deleting...",
+      "desc": "\"{{title}}\" will be removed from favorites. If it also exists in tags or mod sets, it will be removed from those collections as well."
+    },
+    "deleteModSet": {
+      "title": "Delete Mod Set",
+      "confirm": "Confirm Delete",
+      "deleting": "Deleting...",
+      "desc": "Mod set \"{{name}}\" and its cross-version tracking records will be deleted.",
+      "removeMods": "Also remove selected mods from favorites",
+      "removeDesc": "When off, only the mod set is deleted. When on, checked mods will also be removed from All Favorites, tags, and other collections.",
+      "selected": "{{selected}}/{{total}} mods selected",
+      "selectAll": "Select All",
+      "invert": "Invert",
+      "empty": "No mods to remove from this mod set."
+    },
+    "messages": {
+      "operationFailed": "Operation failed: {{error}}",
+      "reorderFailed": "Reorder save failed: {{error}}",
+      "connectingDownload": "Connecting to resource download...",
+      "downloadFailed": "Download failed: {{error}}"
+    },
+    "backup": {
+      "importPreviewFailed": "Import preview failed: {{error}}",
+      "exportDone": "Export complete: {{path}}",
+      "exportFailed": "Export failed: {{error}}",
+      "importDone": "Import complete: {{starred}} favorites, {{collections}} collections, and {{relations}} relations added.",
+      "importFailed": "Import failed: {{error}}",
+      "webdavMissingAddress": "WebDAV address is not configured. Go to Settings - Data first.",
+      "webdavSyncDisabled": "Library favorites sync is disabled. Enable it in WebDAV settings first."
+    },
+    "sidebar": {
+      "tagSystem": "Tags",
+      "manageTags": "Manage Tags",
+      "noTags": "No tags",
+      "newTag": "New Tag",
+      "tagNamePlaceholder": "Enter tag name",
+      "saveTag": "Save Tag",
+      "tagColor": "Tag Color",
+      "duplicateTag": "A tag with this name already exists",
+      "tagResourceCount": "{{count}} resources",
+      "saveChanges": "Save Changes",
+      "renameTag": "Rename Tag",
+      "deleteTag": "Delete Tag",
+      "confirmDelete": "Confirm Delete",
+      "confirmShort": "Confirm"
+    },
+    "metadata": {
+      "title": "Edit {{type}}",
+      "save": "Save",
+      "name": "Name",
+      "nameRequired": "Name is required.",
+      "clearCover": "Clear Cover",
+      "changeCover": "Change Cover",
+      "hint": "Rename it or click the icon on the left to change the cover.",
+      "hintModSet": "Rename it or click the icon on the left to change the cover. Cross-version tracking can also be edited here.",
+      "trackingTitle": "Cross-Version Tracking",
+      "trackingDesc": "Changing this clears current matches and checks all mods against the new target environment.",
+      "minecraftVersion": "Minecraft Version",
+      "selectVersion": "Select Version"
+    },
+    "cloud": {
+      "title": "Library Cloud Sync",
+      "operations": "Library Actions",
+      "description": "Local backups remain available. WebDAV provides an explicit sync entry for consolidating multi-device state.",
+      "export": "Export Library",
+      "import": "Import Library",
+      "syncing": "Syncing...",
+      "syncNow": "Sync WebDAV Now",
+      "history": "Sync History",
+      "recentCount": "Latest {{count}}",
+      "emptyHistory": "No manual sync records yet. The first WebDAV sync will appear here.",
+      "success": "Sync Succeeded",
+      "failed": "Sync Failed",
+      "resultLine1": "Uploaded {{uploaded}} / downloaded {{downloaded}}, current favorites {{favorites}}",
+      "resultLine2": "Total operations {{total}}, snapshot {{snapshot}}",
+      "snapshotUpdated": "updated",
+      "snapshotUnchanged": "unchanged",
+      "compacted": ", compacted {{count}} old operations",
+      "unknownError": "Unknown error"
+    },
+    "importPreview": {
+      "title": "Import Library",
+      "confirm": "Confirm Import",
+      "description": "Import merges into the current Library and does not clear existing data.",
+      "mergeTags": "Merge same-name tags",
+      "starredItems": "Favorites",
+      "collections": "Collections",
+      "relations": "Relations",
+      "trackers": "Tracker",
+      "newDuplicate": "{{added}} new / {{duplicate}} duplicate",
+      "newMerged": "{{added}} new / {{merged}} merged tags",
+      "importableTotal": "{{importable}} importable / {{total}} total"
+    },
+    "tracker": {
+      "title": "Mod Set Cross-Version Tracking ({{count}})",
+      "empty": "No trackable mod sets yet. Favorite resources in bulk from Downloads and enable version tracking first.",
+      "readyCount": "{{ready}}/{{total}} ready",
+      "install": "Install Mod Set",
+      "noInstallable": "No installable versions",
+      "checkNow": "Check Now",
+      "remove": "Remove Tracking",
+      "deployableCount": "{{ready}}/{{total}} mods deployable",
+      "close": "Close",
+      "confirmDeploy": "Confirm Deploy",
+      "deployingShort": "Deploying...",
+      "targetEnv": "Target: MC {{version}} | {{loader}}",
+      "notReadyWarning": "This tracker is not fully ready. Only mods with matched versions will be installed.",
+      "installExisting": "Install to Existing Instance",
+      "loadingTargets": "Matching compatible instances...",
+      "compatibleCount": "{{count}} compatible instances found",
+      "unknownVersion": "Unknown Version",
+      "unknownLoader": "Unknown Loader",
+      "createNew": "Create New Instance and Install",
+      "createNewDesc": "Automatically create an MC / Loader instance using the tracking target.",
+      "newInstanceName": "New Instance Name",
+      "newInstanceNamePlaceholder": "Enter new instance name",
+      "loadTargetsFailed": "Failed to load compatible instances: {{error}}",
+      "creatingInstance": "Creating instance...",
+      "deploying": "Deploying mod set...",
+      "downloading": "Downloading mods and dependencies...",
+      "result": "Deploy complete: installed {{installed}}, skipped {{skipped}}, failed {{failed}}.",
+      "installFailed": "Deploy failed: {{error}}",
+      "checkFailed": "Check failed",
+      "noLoaderVersion": "No Loader version found for {{version}} / {{loader}}"
+    }
+  },
+  "gameLog": {
+    "share": {
+      "noLogs": "No logs available to upload",
+      "success": "Logs uploaded to LogShare.CN",
+      "copied": "Share link copied"
+    },
+    "view": {
+      "waiting": "Waiting for standard output...",
+      "copied": "Copied!",
+      "copyLine": "Copy line",
+      "scrollHint": "Scroll logs"
+    },
+    "shareDialog": {
+      "issueFallback": "Issue {{index}}",
+      "title": "Share Logs",
+      "copied": "Copied",
+      "copyLink": "Copy Link",
+      "openPage": "Open Page",
+      "finish": "Finish",
+      "uploading": "Uploading...",
+      "upload": "Upload Logs",
+      "uploadInfo": "Ready to upload {{count}} lines of logs. Size validation and optional sanitization will be performed.",
+      "sanitizeTitle": "Sanitize sensitive info",
+      "sanitizeDesc": "Replaces common tokens, auth headers, and local paths.",
+      "aiTitle": "Request AI Diagnosis",
+      "aiDesc": "Fetch AI diagnosis after upload. May take longer.",
+      "analyzing": "Uploading and analyzing...",
+      "uploadSuccess": "Upload Successful",
+      "sanitized": "Sanitized",
+      "unsanitized": "Unsanitized",
+      "historyInfo": "Remote deletion credentials saved. Expiration will be tracked.",
+      "historyError": "Failed to save history: {{error}}",
+      "insights": "Basic Insights",
+      "softwareType": "Software Type",
+      "unidentified": "Unidentified",
+      "version": "Version",
+      "insightsError": "Failed to get insights: {{error}}",
+      "aiDiagnosis": "AI Diagnosis",
+      "aiAnalysisError": "Failed to get AI diagnosis: {{error}}"
+    },
+    "launchAnimation": {
+      "prepare": "Prepare",
+      "init": "Initialize",
+      "core": "Load Core",
+      "resource": "Load Resources",
+      "sound": "Almost Ready",
+      "atlas": "Atlas Creation",
+      "ready": "Main Menu",
+      "readyDesc": "Game launched successfully",
+      "ariaLabel": "Game launching",
+      "prepareFallback": "Preparing Launch",
+      "envFallback": "Preparing game environment",
+      "killProcess": "Kill Process",
+      "killWarnTitle": "Safety Warning",
+      "killWarnHeadline": "Force terminate game?",
+      "killWarnDesc": "Force closing the process may corrupt the current world save or cause data loss. Use only if the game is completely unresponsive.",
+      "killConfirm": "Force Terminate",
+      "killCancel": "Keep Waiting"
+    },
+    "sidebar": {
+      "title": "Console & Logs",
+      "initializing": "Initializing",
+      "running": "Running",
+      "crashed": "Crashed",
+      "telemetry": "Telemetry",
+      "pipelineWait": "Establishing log pipeline & starting VM, please wait...",
+      "autoDiag": "Auto-Diagnosis Report",
+      "linesCaptured": "{{count}} Lines captured",
+      "copied": "Copied",
+      "copyAll": "Copy All",
+      "packing": "Packing...",
+      "diagPack": "Diagnostic Pack",
+      "killProcess": "Kill Process",
+      "hidePanel": "Hide Panel",
+      "exportSuccessTitle": "Export Successful",
+      "exportSuccessHeadline": "Diagnostic pack generated successfully",
+      "openFolder": "Open Folder",
+      "exportFailTitle": "Export Failed",
+      "exportFailHeadline": "Failed to pack diagnostic data",
+      "killWarnTitle": "Safety Warning",
+      "killWarnHeadline": "Force terminate game?",
+      "killWarnDesc": "Force closing the process may corrupt the current world save or cause data loss. Use only if the game is completely unresponsive.",
+      "killConfirm": "Force Terminate",
+      "killCancel": "Cancel"
+    },
+    "telemetry": {
+      "jvm": "JVM Uptime",
+      "mod": "Mod Load Time",
+      "resource": "Resource Load Time",
+      "render": "Render Init Time",
+      "total": "Total Startup Time",
+      "wait": "Wait..."
+    }
+  }
+}

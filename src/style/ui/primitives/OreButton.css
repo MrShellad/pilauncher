@@ -1,0 +1,153 @@
+@tailwind components;
+/* /src/style/ui/primitives/OreButton.css */
+@layer components {
+  /* ================= 鍩虹鐗╃悊妗嗘灦 ================= */
+  .ore-btn {
+    /* 缁熶竴 2px 绾粦鎻忚竟 */
+    @apply relative inline-flex items-center justify-center box-border font-minecraft uppercase font-bold border-2 transition-none outline-none;
+    border-color: var(--ore-border-color);
+    white-space: nowrap;
+    padding-bottom: 4px; /* 涓哄簳閮ㄧ殑 4px 3D闃村奖棰勭暀瑙嗚琛ュ伩涓績 */
+  }
+
+  /* 鐗╃悊涓嬪帇寮曟搸锛氫娇鐢?transform 浠ｆ浛 margin/height 鍙樺寲锛岄槻姝㈠竷灞€濉岄櫡 */
+  .ore-btn:active:not(:disabled) {
+    transform: translateY(4px);
+    padding-bottom: 0px; 
+  }
+
+  /* ================= 楂樺厜鐒︾偣瀵艰埅鐜?(HDR Ready) ================= */
+  .ore-btn.is-focused {
+    /* 1px 缂濋殭 + 2px 浜櫧鐜?*/
+    outline: 2px solid var(--ore-focus-ringFallback);
+    outline: 2px solid var(--ore-focus-ring); /* 鑻ユ祻瑙堝櫒鏀寔P3鑹插煙鍒欒嚜鍔ㄨ鐩?*/
+    outline-offset: 1px;
+    z-index: 20;
+    
+    /* 缁濇潃锛氶€氳繃 drop-shadow 缁?outline 璧嬩簣澶栧洿鍏夋檿锛屽嵆渚垮湪绾櫧鑳屾櫙涓嬩篃鑳芥竻鏅拌鲸璁?*/
+    filter: drop-shadow(0 0 6px var(--ore-focus-glow)) brightness(1.1);
+  }
+
+  /* 褰撴寜閽鎸変笅鏃讹紝鍏夌幆闇€瑕佽窡闅忔寜閽竴璧蜂笅娌?*/
+  .ore-btn.is-focused:active:not(:disabled) {
+    outline-offset: 0px;
+    filter: drop-shadow(0 0 3px var(--ore-focus-glow)) brightness(1.1);
+  }
+
+  /* ================= Primary / Hero (缁胯壊鍔ㄤ綔) ================= */
+  .ore-btn-primary {
+    background-color: var(--ore-btn-primary-bg);
+    color: var(--ore-btn-primary-text);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-primary-shadow), 
+      inset 3px 3px var(--ore-btn-primary-hl1), 
+      inset -3px -7px var(--ore-btn-primary-hl2);
+  }
+  .ore-btn-primary:hover:not(:disabled) {
+    background-color: var(--ore-btn-primary-hover);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-primary-shadow), 
+      inset 3px 3px var(--ore-btn-primary-hoverHl1), 
+      inset -3px -7px var(--ore-btn-primary-hoverHl2);
+  }
+  .ore-btn-primary:active:not(:disabled) {
+    background-color: var(--ore-btn-primary-active);
+    /* 鎸変笅鏃讹細搴曢儴榛戞娑堝け锛岃浆鎹负椤惰鍑归櫡闃村奖 */
+    box-shadow: 
+      inset 3px 3px var(--ore-btn-primary-hoverHl1), 
+      inset -3px -3px var(--ore-btn-primary-hoverHl2);
+  }
+
+  /* ================= Secondary (鐏拌壊娆¤) ================= */
+  .ore-btn-secondary {
+    background-color: var(--ore-btn-secondary-bg);
+    color: var(--ore-btn-secondary-text);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-secondary-shadow), 
+      inset 3px 3px var(--ore-btn-secondary-hl1), 
+      inset -3px -7px var(--ore-btn-secondary-hl2);
+  }
+  .ore-btn-secondary:hover:not(:disabled) {
+    background-color: var(--ore-btn-secondary-hover);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-secondary-shadow), 
+      inset 3px 3px var(--ore-btn-secondary-hoverHl1), 
+      inset -3px -7px var(--ore-btn-secondary-hoverHl2);
+  }
+  .ore-btn-secondary:active:not(:disabled) {
+    background-color: var(--ore-btn-secondary-active);
+    box-shadow: 
+      inset 3px 3px var(--ore-btn-secondary-hoverHl1), 
+      inset -3px -3px var(--ore-btn-secondary-hoverHl2);
+  }
+
+  /* ================= Danger (绾㈣壊鍗遍櫓) ================= */
+  .ore-btn-danger {
+    background-color: var(--ore-btn-danger-bg);
+    color: var(--ore-btn-danger-text);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-danger-shadow), 
+      inset 3px 3px var(--ore-btn-danger-hl1), 
+      inset -3px -7px var(--ore-btn-danger-hl2);
+  }
+  .ore-btn-danger:hover:not(:disabled) {
+    background-color: var(--ore-btn-danger-hover);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-danger-shadow), 
+      inset 3px 3px var(--ore-btn-danger-hoverHl1), 
+      inset -3px -7px var(--ore-btn-danger-hoverHl2);
+  }
+  .ore-btn-danger:active:not(:disabled) {
+    background-color: var(--ore-btn-danger-active);
+    box-shadow: 
+      inset 3px 3px var(--ore-btn-danger-hoverHl1), 
+      inset -3px -3px var(--ore-btn-danger-hoverHl2);
+  }
+
+  /* ================= Purple (绱壊鍙茶瘲) ================= */
+  .ore-btn-purple {
+    background-color: var(--ore-btn-purple-bg);
+    color: var(--ore-btn-purple-text);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-purple-shadow), 
+      inset 3px 3px var(--ore-btn-purple-hl1), 
+      inset -3px -7px var(--ore-btn-purple-hl2);
+  }
+  .ore-btn-purple:hover:not(:disabled) {
+    background-color: var(--ore-btn-purple-hover);
+    box-shadow: 
+      inset 0 -4px var(--ore-btn-purple-shadow), 
+      inset 3px 3px var(--ore-btn-purple-hoverHl1), 
+      inset -3px -7px var(--ore-btn-purple-hoverHl2);
+  }
+  .ore-btn-purple:active:not(:disabled) {
+    background-color: var(--ore-btn-purple-active);
+    box-shadow: 
+      inset 3px 3px var(--ore-btn-purple-hoverHl1), 
+      inset -3px -3px var(--ore-btn-purple-hoverHl2);
+  }
+
+  /* 鉁?鏂板锛?-- Ghost (骞界伒 / 閫忔槑鎸夐挳) --- */
+  .ore-btn-ghost {
+    @apply bg-transparent text-[#A0A2A5] border-transparent;
+    box-shadow: none;
+  }
+  .ore-btn-ghost:hover:not(:disabled) {
+    @apply bg-white/10 text-white;
+  }
+  .ore-btn-ghost:active:not(:disabled) {
+    @apply bg-white/20 text-white;
+    /* 骞界伒鎸夐挳鎸変笅鏃朵娇鐢ㄥ唴鍑归槾褰辨ā鎷熶笅娌?*/
+    box-shadow: inset 0 4px 0 rgba(0, 0, 0, 0.2);
+  }
+
+  /* ================= Disabled (绂佺敤杩樺師) ================= */
+  .ore-btn:disabled {
+    background-color: var(--ore-btn-disabled-bg);
+    color: var(--ore-btn-disabled-text);
+    border-color: var(--ore-btn-disabled-border);
+    cursor: not-allowed;
+    /* 绂佺敤鐘舵€佷笅鍙繚鐣欐瀬鍏跺井寮辩殑 3D 鏁堟灉搴曡竟 */
+    box-shadow: inset 0 -4px var(--ore-btn-disabled-shadow);
+  }
+}

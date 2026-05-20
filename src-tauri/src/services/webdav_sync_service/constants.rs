@@ -1,0 +1,9 @@
+pub(crate) const FAVORITE_SNAPSHOT_VERSION: i32 = 1;
+pub(crate) const REMOTE_ROOT: &str = "PiLauncherSync";
+pub(crate) const FAVORITES_DIR: &str = "PiLauncherSync/favorites";
+pub(crate) const OPERATIONS_DIR: &str = "PiLauncherSync/favorites/operations";
+pub(crate) const SNAPSHOT_PATH: &str = "PiLauncherSync/favorites/snapshot.json";
+pub(crate) const LEGACY_FAVORITES_FILE: &str = "pilauncher-favorites.sync.json";
+pub(crate) const SYNC_META_VERSION: i32 = 1;
+pub(crate) const SNAPSHOT_OPERATION_THRESHOLD: usize = 100;
+pub(crate) const SNAPSHOT_MAX_AGE_MILLIS: i64 = 7 * 24 * 60 * 60 * 1000;
