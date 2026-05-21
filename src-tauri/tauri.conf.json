@@ -21,7 +21,7 @@
         "fullscreen": false,
         "decorations": false,
         "transparent": true,
-        "devtools": true
+        "devtools": false
       }
     ],
     "security": {

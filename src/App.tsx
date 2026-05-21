@@ -22,6 +22,7 @@ import { GameLogService } from './features/GameLog/components/GameLogService';
 import { GameLogSidebar } from './features/GameLog/components/GameLogSidebar';
 import { LaunchingAnimation } from './features/GameLog/components/LaunchingAnimation';
 import { StartupNewsModal } from './features/home/components/StartupNewsModal';
+import { StartupArticlePushModal } from './features/home/components/StartupArticlePushModal';
 import { GamepadModPrompt } from './features/Instances/components/GamepadModPrompt';
 import { SetupWizard } from './features/Setup/components/SetupWizard';
 import { JavaGuard } from './features/runtime/components/JavaGuard';
@@ -325,6 +326,7 @@ const App: React.FC = () => {
         {showGameLog ? <GameLogSidebar /> : <LaunchingAnimation />}
 
         <StartupNewsModal />
+        <StartupArticlePushModal />
         <GamepadModPrompt />
         <JavaEnvironmentChangedDialog
           isOpen={isJavaEnvChangedDialogOpen}
