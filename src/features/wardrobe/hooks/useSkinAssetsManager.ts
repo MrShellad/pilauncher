@@ -137,7 +137,7 @@ export function useSkinAssetsManager(options: UseSkinAssetsManagerOptions) {
             setProfile(nextProfile, currentAccount.uuid);
             touchAccountSkinCache(
               currentAccount,
-              findActiveSkin(nextProfile)?.url,
+              skinMenuAsset.filePath ?? findActiveSkin(nextProfile)?.url,
               findActiveCape(nextProfile)?.url,
               resolveSkinModel(findActiveSkin(nextProfile)?.variant)
             );
@@ -179,7 +179,7 @@ export function useSkinAssetsManager(options: UseSkinAssetsManagerOptions) {
         setSkinLibrary(nextLibrary);
         touchAccountSkinCache(
           currentAccount,
-          findActiveSkin(nextProfile)?.url,
+          skinMenuAsset.filePath,
           findActiveCape(nextProfile)?.url,
           resolveSkinModel(findActiveSkin(nextProfile)?.variant)
         );

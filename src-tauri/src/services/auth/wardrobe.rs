@@ -6,7 +6,7 @@
 use crate::domain::auth::{McProfile, WardrobeSkinAsset, WardrobeSkinLibrary};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Runtime};
 
 use super::minecraft;
@@ -35,6 +35,8 @@ pub struct SkinMetadata {
     pub user_id: String,
     #[serde(default)]
     pub current_skin_id: String,
+    #[serde(default)]
+    pub current_profile_skin_url: Option<String>,
     #[serde(default)]
     pub skins: Vec<SkinMetadataEntry>,
 }
@@ -82,6 +84,51 @@ fn hash_file(path: &Path) -> Result<String, String> {
     Ok(format!("{:x}", md5::compute(bytes)))
 }
 
+fn normalize_profile_skin_url(url: Option<&str>) -> Option<String> {
+    let value = url?.split('?').next().unwrap_or("").trim();
+    if value.is_empty() {
+        None
+    } else {
+        Some(value.to_string())
+    }
+}
+
+fn valid_skin_asset_path(assets_dir: &Path, asset_id: &str) -> Option<PathBuf> {
+    let path = paths::skin_asset_file_path(assets_dir, asset_id);
+    if path.exists() && path.is_file() && skin_png::is_valid_skin_png_file(&path) {
+        Some(path)
+    } else {
+        None
+    }
+}
+
+fn remove_skin_asset_file(assets_dir: &Path, asset_id: &str) -> Result<(), String> {
+    let asset_path = paths::skin_asset_file_path(assets_dir, asset_id);
+    if asset_path.exists() {
+        fs::remove_file(&asset_path)
+            .map_err(|e| format!("鐗╃悊鍒犻櫎鐨偆鏂囦欢澶辫触: {}", e))?;
+    }
+    Ok(())
+}
+
+fn copy_skin_asset_to_runtime<R: Runtime>(
+    app: &AppHandle<R>,
+    account_uuid: &str,
+    asset_path: &Path,
+) -> Result<(), String> {
+    skin_png::validate_skin_png_file(asset_path)?;
+
+    let runtime_skin_path = paths::active_account_skin_path(app, account_uuid)?;
+    if let Some(parent) = runtime_skin_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("鍒涘缓璐﹀彿鐨偆鐩綍澶辫触: {}", e))?;
+    }
+
+    fs::copy(asset_path, &runtime_skin_path)
+        .map_err(|e| format!("澶嶅埗鐨偆鍒拌处鍙风紦瀛樺け璐? {}", e))?;
+    Ok(())
+}
+
 fn read_stored_skin_library(path: &Path) -> Result<SkinMetadata, String> {
     if !path.exists() {
         return Ok(SkinMetadata::default());
@@ -101,6 +148,46 @@ fn write_stored_skin_library(path: &Path, library: &SkinMetadata) -> Result<(), 
     fs::write(path, serialized).map_err(|e| format!("写入皮肤资产清单失败: {}", e))
 }
 
+fn active_profile_local_asset_path<R: Runtime>(
+    app: &AppHandle<R>,
+    account_uuid: &str,
+    profile_skin_url: Option<&str>,
+) -> Result<Option<PathBuf>, String> {
+    let Some(profile_skin_url) = normalize_profile_skin_url(profile_skin_url) else {
+        return Ok(None);
+    };
+
+    let assets_dir = paths::wardrobe_skin_assets_dir(app, account_uuid)?;
+    let manifest_path = paths::wardrobe_skin_library_path(app, account_uuid)?;
+    let stored = read_stored_skin_library(&manifest_path)?;
+
+    if stored.current_profile_skin_url.as_deref() != Some(profile_skin_url.as_str()) {
+        return Ok(None);
+    }
+
+    if stored.current_skin_id.is_empty() {
+        return Ok(None);
+    }
+
+    let Some(asset) = stored
+        .skins
+        .iter()
+        .find(|asset| asset.id == stored.current_skin_id && !asset.is_deleted)
+    else {
+        return Ok(None);
+    };
+
+    Ok(valid_skin_asset_path(&assets_dir, &asset.id))
+}
+
+pub fn profile_skin_local_asset_path<R: Runtime>(
+    app: &AppHandle<R>,
+    account_uuid: &str,
+    profile_skin_url: &str,
+) -> Result<Option<PathBuf>, String> {
+    active_profile_local_asset_path(app, account_uuid, Some(profile_skin_url))
+}
+
 fn get_active_skin_hash<R: Runtime>(
     app: &AppHandle<R>,
     account_uuid: &str,
@@ -117,6 +204,40 @@ fn get_active_skin_hash<R: Runtime>(
     hash_file(&skin_path).map(Some)
 }
 
+fn mark_library_asset_as_active_profile_skin<R: Runtime>(
+    app: &AppHandle<R>,
+    account_uuid: &str,
+    asset_id: &str,
+    profile_skin_url: Option<&str>,
+    variant: Option<&str>,
+) -> Result<(), String> {
+    let assets_dir = paths::wardrobe_skin_assets_dir(app, account_uuid)?;
+    let manifest_path = paths::wardrobe_skin_library_path(app, account_uuid)?;
+    let mut stored = read_stored_skin_library(&manifest_path)?;
+
+    let target_index = stored
+        .skins
+        .iter()
+        .position(|asset| asset.id == asset_id && !asset.is_deleted)
+        .ok_or_else(|| "鏈壘鍒版寚瀹氱殑鐨偆璧勪骇".to_string())?;
+
+    let asset_path = valid_skin_asset_path(&assets_dir, asset_id)
+        .ok_or_else(|| "鐨偆璧勪骇鏂囦欢涓嶅瓨鍦ㄦ垨宸叉崯鍧?".to_string())?;
+
+    if let Some(variant) = variant {
+        stored.skins[target_index].model = normalize_skin_variant(variant)?.to_string();
+    }
+
+    stored.current_skin_id = asset_id.to_string();
+    stored.current_profile_skin_url = normalize_profile_skin_url(profile_skin_url);
+    if stored.user_id.is_empty() {
+        stored.user_id = account_uuid.to_string();
+    }
+
+    copy_skin_asset_to_runtime(app, account_uuid, &asset_path)?;
+    write_stored_skin_library(&manifest_path, &stored)
+}
+
 // ==========================================
 // 核心：皮肤同步与 finalize
 // ==========================================
@@ -127,6 +248,7 @@ fn sync_active_runtime_skin_into_library<R: Runtime>(
     variant: Option<&str>,
     source: &str,
     forced_asset_id: Option<&str>,
+    profile_skin_url: Option<&str>,
 ) -> Result<(), String> {
     let runtime_skin_path = paths::active_account_skin_path(app, account_uuid)?;
     if !runtime_skin_path.exists() || !runtime_skin_path.is_file() {
@@ -181,6 +303,9 @@ fn sync_active_runtime_skin_into_library<R: Runtime>(
     };
 
     stored.current_skin_id = active_id;
+    if profile_skin_url.is_some() {
+        stored.current_profile_skin_url = normalize_profile_skin_url(profile_skin_url);
+    }
     write_stored_skin_library(&manifest_path, &stored)
 }
 
@@ -195,13 +320,29 @@ fn finalize_skin_library<R: Runtime>(
     let original_len = stored.skins.len();
     let mut should_persist = false;
 
-    stored.skins.retain(|asset| {
-        if asset.is_deleted {
-            return false;
-        }
+    let mut retained = Vec::with_capacity(stored.skins.len());
+    for asset in std::mem::take(&mut stored.skins) {
         let abs_path = paths::skin_asset_file_path(&assets_dir, &asset.id);
-        abs_path.exists() && abs_path.is_file() && skin_png::is_valid_skin_png_file(&abs_path)
-    });
+        let file_valid =
+            abs_path.exists() && abs_path.is_file() && skin_png::is_valid_skin_png_file(&abs_path);
+
+        if asset.is_deleted {
+            remove_skin_asset_file(&assets_dir, &asset.id)?;
+            should_persist = true;
+            continue;
+        }
+
+        if !file_valid {
+            if abs_path.exists() {
+                let _ = fs::remove_file(&abs_path);
+            }
+            should_persist = true;
+            continue;
+        }
+
+        retained.push(asset);
+    }
+    stored.skins = retained;
 
     if persist_if_pruned && stored.skins.len() != original_len {
         should_persist = true;
@@ -228,6 +369,7 @@ fn finalize_skin_library<R: Runtime>(
                 .any(|asset| asset.id == stored.current_skin_id) =>
         {
             stored.current_skin_id.clear();
+            stored.current_profile_skin_url = None;
             should_persist = true;
         }
         _ => {}
@@ -280,14 +422,8 @@ pub async fn cache_profile_assets<R: Runtime>(
     profile: &McProfile,
     forced_skin_id: Option<&str>,
 ) {
-    let _ = minecraft::cache_account_assets(
-        app,
-        account_uuid,
-        &profile.id,
-        minecraft::active_skin_url(profile),
-        minecraft::active_cape_url(profile),
-    )
-    .await;
+    let active_skin_url = minecraft::active_skin_url(profile);
+    let active_cape_url = minecraft::active_cape_url(profile);
 
     let active_variant = profile
         .skins
@@ -296,12 +432,59 @@ pub async fn cache_profile_assets<R: Runtime>(
         .or_else(|| profile.skins.first())
         .and_then(|skin| skin.variant.as_deref());
 
+    if let Some(forced_skin_id) = forced_skin_id {
+        if mark_library_asset_as_active_profile_skin(
+            app,
+            account_uuid,
+            forced_skin_id,
+            active_skin_url,
+            active_variant,
+        )
+        .is_ok()
+        {
+            let _ = minecraft::cache_account_assets(
+                app,
+                account_uuid,
+                &profile.id,
+                None,
+                active_cape_url,
+            )
+            .await;
+            return;
+        }
+    }
+
+    if let Ok(Some(local_asset_path)) =
+        active_profile_local_asset_path(app, account_uuid, active_skin_url)
+    {
+        let _ = copy_skin_asset_to_runtime(app, account_uuid, &local_asset_path);
+        let _ = minecraft::cache_account_assets(
+            app,
+            account_uuid,
+            &profile.id,
+            None,
+            active_cape_url,
+        )
+        .await;
+        return;
+    }
+
+    let _ = minecraft::cache_account_assets(
+        app,
+        account_uuid,
+        &profile.id,
+        active_skin_url,
+        active_cape_url,
+    )
+    .await;
+
     let _ = sync_active_runtime_skin_into_library(
         app,
         account_uuid,
         active_variant,
         "profile",
-        forced_skin_id,
+        None,
+        active_skin_url,
     );
 }
 
@@ -314,7 +497,7 @@ pub fn get_wardrobe_skin_library<R: Runtime>(
     app: &AppHandle<R>,
     account_uuid: &str,
 ) -> Result<WardrobeSkinLibrary, String> {
-    sync_active_runtime_skin_into_library(app, account_uuid, None, "sync", None)?;
+    sync_active_runtime_skin_into_library(app, account_uuid, None, "sync", None, None)?;
     let manifest_path = paths::wardrobe_skin_library_path(app, account_uuid)?;
     let stored = read_stored_skin_library(&manifest_path)?;
     finalize_skin_library(app, account_uuid, stored, true)
@@ -409,7 +592,6 @@ pub fn delete_wardrobe_skin_asset<R: Runtime>(
     }
 
     let mut removed_asset = stored.skins.remove(target_index);
-    removed_asset.is_deleted = true; // just to be conceptually sound
 
     let asset_path = paths::skin_asset_file_path(&assets_dir, &removed_asset.id);
     removed_asset.url = asset_path.to_string_lossy().to_string();
@@ -462,6 +644,7 @@ pub fn set_active_wardrobe_skin_offline<R: Runtime>(
     let source_path = assets_dir.join(format!("{}.png", target_asset.id));
 
     stored.current_skin_id = asset_id.to_string();
+    stored.current_profile_skin_url = None;
     write_stored_skin_library(&manifest_path, &stored)?;
 
     // physical copy to runtime/accounts/{uuid}/skin.png

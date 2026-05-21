@@ -11,6 +11,7 @@ import {
   cloneModelScene,
   createTransparentTexture,
   disposeObjectTree,
+  enableSampleAlphaToCoverage,
   loadModrinthAnimationSource,
   loadModrinthModel,
   loadModrinthTexture,
@@ -186,6 +187,7 @@ export class SkinEngine {
   private pointerMoved = false;
   private previousPointerX = 0;
   private _disposed = false;
+  private previewScale = 1;
 
   private randomIdlePool: RandomIdleEntry[] = [...defaultRandomIdlePool];
   private randomIdleInterval: [number, number];
@@ -204,7 +206,7 @@ export class SkinEngine {
     this.lastSkinSource = this.defaultSkinUrl;
 
     this._canvas = document.createElement('canvas');
-    this._canvas.className = 'w-full h-full outline-none pointer-events-auto drop-shadow-2xl';
+    this._canvas.className = 'w-full h-full outline-none pointer-events-auto';
     this._canvas.style.display = 'block';
     this._canvas.style.opacity = '0';
     this._canvas.style.transition = 'opacity 500ms ease';
@@ -221,6 +223,7 @@ export class SkinEngine {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.NoToneMapping;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    enableSampleAlphaToCoverage(this.renderer);
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
@@ -237,7 +240,7 @@ export class SkinEngine {
     this.playerWrapper.rotation.y = FRONT_ROTATION_Y;
     this.modelWrapper = new THREE.Group();
     this.modelWrapper.position.set(0, 0.04, 0);
-    this.modelWrapper.scale.setScalar(MODEL_SCALE);
+    this.modelWrapper.scale.setScalar(MODEL_SCALE * this.previewScale);
     this.playerWrapper.add(this.modelWrapper);
     this.scene.add(this.playerWrapper);
 
@@ -327,6 +330,16 @@ export class SkinEngine {
   markInteractive(durationMs = 1400): void {
     if (this._disposed) return;
     this.interactionBoostUntil = Math.max(this.interactionBoostUntil, performance.now() + durationMs);
+  }
+
+  setPreviewScale(scale: number): void {
+    if (this._disposed) return;
+    const safeScale = Number.isFinite(scale) ? Math.min(Math.max(scale, 0.5), 1.8) : 1;
+    if (Math.abs(safeScale - this.previewScale) < 0.001) return;
+
+    this.previewScale = safeScale;
+    this.modelWrapper.scale.setScalar(MODEL_SCALE * this.previewScale);
+    this.render();
   }
 
   async loadSkin(

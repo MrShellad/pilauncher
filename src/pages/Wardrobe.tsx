@@ -82,7 +82,10 @@ const Wardrobe: React.FC = () => {
   const isMicrosoft = isMicrosoftAccount(currentAccount);
   const activeSkin = findActiveSkin(profile);
   const activeCape = findActiveCape(profile);
-  const currentSkinUrl = activeSkin?.url || accountSkinPreviewUrl(currentAccount);
+  const activeLocalSkinAsset = skinLibrary?.assets.find((asset) => asset.isActive) ?? null;
+  const currentSkinUrl = activeLocalSkinAsset
+    ? toStoredAssetUrl(activeLocalSkinAsset)
+    : activeSkin?.url || accountSkinPreviewUrl(currentAccount);
 
   const {
     containerRef,

@@ -156,7 +156,17 @@ pub async fn update_active_wardrobe_skin_variant<R: Runtime>(
     account_uuid: &str,
     variant: &str,
 ) -> Result<McProfile, String> {
-    let source = paths::active_account_skin_path(app, account_uuid)?;
+    let source = wardrobe::get_wardrobe_skin_library(app, account_uuid)
+        .ok()
+        .and_then(|library| {
+            library
+                .assets
+                .into_iter()
+                .find(|asset| asset.is_active)
+                .map(|asset| Path::new(&asset.file_path).to_path_buf())
+        })
+        .unwrap_or(paths::active_account_skin_path(app, account_uuid)?);
+
     apply_wardrobe_skin(
         app,
         access_token,

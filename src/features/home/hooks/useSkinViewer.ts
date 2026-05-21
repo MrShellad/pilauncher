@@ -56,6 +56,10 @@ export interface UseSkinViewerReturn {
   isSkinLoaded: boolean;
 }
 
+interface UseSkinViewerOptions {
+  previewScale?: number;
+}
+
 export const detectSkinModel = (url: string): Promise<'classic' | 'slim'> => {
   return new Promise((resolve) => {
     const img = new Image();
@@ -300,9 +304,10 @@ export const loadAccountSkin = async (engine: SkinEngine, currentAccount: unknow
  *
  * @param visibleTab - 当 activeTab 匹配此值时才渲染（默认 'home'）
  */
-export function useSkinViewer(visibleTab = 'home'): UseSkinViewerReturn {
+export function useSkinViewer(visibleTab = 'home', options: UseSkinViewerOptions = {}): UseSkinViewerReturn {
   const containerRef = useRef<HTMLDivElement>(null!);
   const [isSkinLoaded, setIsSkinLoaded] = useState(false);
+  const previewScale = options.previewScale ?? 1;
 
   // ─── Store 订阅 ──────────────────────────────────────────────
   const { accounts, activeAccountId, isHydrated, updateAccount } = useAccountStore();
@@ -324,6 +329,7 @@ export function useSkinViewer(visibleTab = 'home'): UseSkinViewerReturn {
     const engine = SkinEngine.getOrCreate({ enableRandomIdle: true, targetFps: 60, idleFps: 30 });
     const container = containerRef.current;
     if (!container) return;
+    engine.setPreviewScale(previewScale);
 
     // 将引擎的 canvas 挂到 DOM
     container.appendChild(engine.canvas);
@@ -355,8 +361,11 @@ export function useSkinViewer(visibleTab = 'home'): UseSkinViewerReturn {
       engine.canvas.removeEventListener('pointerdown', markInteractive);
       engine.canvas.removeEventListener('pointermove', markInteractive);
       engine.canvas.removeEventListener('wheel', markInteractive);
+      if (SkinEngine.current === engine) {
+        engine.setPreviewScale(1);
+      }
     };
-  }, []);
+  }, [previewScale]);
 
   // ─── 2. 标签页可见性 → 暂停 / 恢复渲染 ──────────────────────
   useEffect(() => {

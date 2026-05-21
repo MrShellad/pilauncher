@@ -580,7 +580,17 @@
 .wardrobe-skin-menu__actions>button {
   flex: 1;
   min-width: 0;
+  gap: 8px;
+  line-height: 1;
   white-space: nowrap;
+}
+
+.wardrobe-skin-menu__action-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  transform: translateY(-1px);
 }
 
 .wardrobe-skin-menu__model-toggle {

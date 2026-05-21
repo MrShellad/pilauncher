@@ -7,6 +7,7 @@ import {
   cloneModelScene,
   createTransparentTexture,
   disposeObjectTree,
+  enableSampleAlphaToCoverage,
   loadModrinthModel,
   loadModrinthTexture,
 } from '../../home/engine/modrinthSkinRendering';
@@ -129,6 +130,7 @@ class ThumbnailRendererClass {
     this.renderer.toneMapping = THREE.NoToneMapping;
     this.renderer.toneMappingExposure = 10;
     this.renderer.setPixelRatio(1);
+    enableSampleAlphaToCoverage(this.renderer);
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(40, 120 / 160, 0.1, 100);
@@ -174,7 +176,7 @@ class ThumbnailRendererClass {
   }
 
   private getCacheKey(type: 'skin' | 'cape', url: string, extra: string): string {
-    return `${type}_gltf_v9_${url}_${extra}`;
+    return `${type}_gltf_v10_${url}_${extra}`;
   }
 
   private getPlayerModelUrl(model: 'default' | 'slim'): string {

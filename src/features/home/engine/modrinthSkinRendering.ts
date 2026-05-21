@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 const modelCache = new Map<string, GLTF>();
 const textureCache = new Map<string, THREE.Texture>();
+const ALPHA_TEST_THRESHOLD = 0.5;
 
 export async function loadModrinthModel(modelUrl: string): Promise<GLTF> {
   const cached = modelCache.get(modelUrl);
@@ -62,6 +63,11 @@ export function createTransparentTexture(): THREE.Texture {
   return texture;
 }
 
+export function enableSampleAlphaToCoverage(renderer: THREE.WebGLRenderer): void {
+  const gl = renderer.getContext();
+  gl.enable(gl.SAMPLE_ALPHA_TO_COVERAGE);
+}
+
 export function applyPlayerTexture(model: THREE.Object3D, texture: THREE.Texture): void {
   model.traverse((child) => {
     const mesh = child as THREE.Mesh;
@@ -77,10 +83,12 @@ export function applyPlayerTexture(model: THREE.Object3D, texture: THREE.Texture
       material.roughness = 1;
       material.toneMapped = false;
       material.flatShading = true;
+      material.transparent = false;
       material.depthTest = true;
       material.depthWrite = true;
       material.side = THREE.DoubleSide;
-      material.alphaTest = 0.1;
+      material.alphaTest = ALPHA_TEST_THRESHOLD;
+      material.alphaToCoverage = true;
       material.needsUpdate = true;
     }
   });
@@ -110,7 +118,8 @@ export function applyCapeTexture(
       material.depthTest = true;
       material.depthWrite = true;
       material.side = THREE.DoubleSide;
-      material.alphaTest = 0.1;
+      material.alphaTest = texture ? ALPHA_TEST_THRESHOLD : 0;
+      material.alphaToCoverage = !!texture;
       material.needsUpdate = true;
     }
   });

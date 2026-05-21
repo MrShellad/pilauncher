@@ -8,12 +8,14 @@
 import React from 'react';
 import { useSkinViewer } from '../hooks/useSkinViewer';
 
+const HOME_SKIN_PREVIEW_SCALE = 1.18;
+
 interface SkinViewerPlaceholderProps {
   className?: string;
 }
 
 export const SkinViewerPlaceholder: React.FC<SkinViewerPlaceholderProps> = ({ className }) => {
-  const { containerRef, isSkinLoaded } = useSkinViewer('home');
+  const { containerRef, isSkinLoaded } = useSkinViewer('home', { previewScale: HOME_SKIN_PREVIEW_SCALE });
 
   const baseClassName = className || "absolute right-4 md:right-8 lg:right-12 bottom-12 w-[25vw] min-w-[180px] max-w-[320px] h-[50vh] min-h-[300px] max-h-[500px] flex items-center justify-center cursor-grab active:cursor-grabbing z-10";
 

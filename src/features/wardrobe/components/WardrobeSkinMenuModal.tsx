@@ -119,7 +119,13 @@ export const WardrobeSkinMenuModal: React.FC<WardrobeSkinMenuModalProps> = ({
                   onClick={onDelete}
                   disabled={isApplying}
                 >
-                  <Trash2 size={16} />
+                  <Trash2
+                    size={16}
+                    strokeWidth={2}
+                    aria-hidden="true"
+                    focusable="false"
+                    className="wardrobe-skin-menu__action-icon"
+                  />
                   {t('wardrobe.skinMenu.deleteAction')}
                 </OreButton>
               )}

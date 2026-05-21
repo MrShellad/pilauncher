@@ -183,11 +183,17 @@ export function useWardrobeSession() {
           ]);
           
           const nextModel = resolveSkinModel(findActiveSkin(nextProfile)?.variant);
+          const activeLocalAsset = nextLibrary.assets.find((asset) => asset.isActive);
 
           setProfile(nextProfile, account.uuid);
           setSkinLibrary(nextLibrary, account.uuid);
           onModelResolved(nextModel);
-          touchAccountSkinCache(account, findActiveSkin(nextProfile)?.url, findActiveCape(nextProfile)?.url, nextModel);
+          touchAccountSkinCache(
+            account,
+            activeLocalAsset?.filePath ?? findActiveSkin(nextProfile)?.url,
+            findActiveCape(nextProfile)?.url,
+            nextModel
+          );
 
           if (!silent) setNotice('资产已同步');
         } else {

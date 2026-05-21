@@ -11,7 +11,7 @@ use tauri::{AppHandle, Runtime};
 use uuid::Uuid;
 
 use super::http::{format_reqwest_error, get_client};
-use super::{paths, skin_png};
+use super::{paths, skin_png, wardrobe};
 use crate::services::config_service::ConfigService;
 
 /// 使用 XSTS Token + UHS 换取 Minecraft Access Token
@@ -317,6 +317,16 @@ pub async fn ensure_account_skin<R: Runtime>(
         let source = raw_url.split('?').next().unwrap_or("").trim();
 
         if source.starts_with("http://") || source.starts_with("https://") {
+            if let Ok(Some(local_asset_path)) =
+                wardrobe::profile_skin_local_asset_path(app, uuid, source)
+            {
+                if local_asset_path != skin_path {
+                    fs::copy(&local_asset_path, &skin_path)
+                        .map_err(|e| format!("澶嶅埗鐨偆缂撳瓨澶辫触: {}", e))?;
+                }
+                return Ok(skin_path);
+            }
+
             let client = get_client();
             if let Ok(resp) = client.get(source).send().await {
                 if resp.status().is_success() {
