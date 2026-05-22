@@ -10,7 +10,6 @@ import { BackupListModal } from './saves/BackupListModal';
 import { SaveRestoreModal } from './saves/SaveRestoreModal';
 import { BackupDeleteConfirmModal } from './saves/BackupDeleteConfirmModal';
 import { BackupConfirmModal } from './saves/BackupConfirmModal';
-import { BackupProgressModal } from './saves/BackupProgressModal';
 import { SaveDeleteConfirmModal } from './saves/SaveDeleteConfirmModal';
 import { SaveListRow } from './saves/SaveListRow';
 import { getActionFocusKey, useSavePanel } from './saves/useSavePanel';
@@ -201,7 +200,11 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         />
 
         <BackupConfirmModal
+          key={state.pendingBackupSave?.folderName || state.activeBackupSave?.folderName || 'none'}
           pendingBackupSave={state.pendingBackupSave}
+          isBackingUp={isBackingUp}
+          backupProgress={backupProgress}
+          activeBackupSave={state.activeBackupSave}
           hasFullBackup={backups.some(
             (backup) =>
               (backup.world.folderName === state.pendingBackupSave?.folderName ||
@@ -210,12 +213,6 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
           )}
           onClose={actions.closeBackupConfirmModal}
           onConfirm={(mode) => { void actions.handleConfirmBackup(mode); }}
-        />
-
-        <BackupProgressModal
-          isBackupProgressOpen={state.isBackupProgressOpen}
-          activeBackupSave={state.activeBackupSave}
-          backupProgress={backupProgress}
         />
 
         <SaveDeleteConfirmModal
