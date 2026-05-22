@@ -5,6 +5,13 @@
 
 use super::http::{format_reqwest_error, get_client};
 
+#[derive(Debug, Clone)]
+pub struct XstsIdentity {
+    pub token: String,
+    pub uhs: String,
+    pub xuid: Option<String>,
+}
+
 /// XBL 认证：使用微软 Access Token 获取 XBL Token
 pub async fn auth_xbl(ms_token: &str) -> Result<String, String> {
     let client = get_client();
@@ -43,14 +50,25 @@ pub async fn auth_xbl(ms_token: &str) -> Result<String, String> {
 }
 
 /// XSTS 认证：使用 XBL Token 获取 XSTS Token 和 User Hash (UHS)
-pub async fn auth_xsts(xbl_token: &str) -> Result<(String, String), String> {
+pub async fn auth_xsts_for_relying_party(
+    xbl_token: &str,
+    relying_party: &str,
+) -> Result<(String, String), String> {
+    let identity = auth_xsts_identity_for_relying_party(xbl_token, relying_party).await?;
+    Ok((identity.token, identity.uhs))
+}
+
+pub async fn auth_xsts_identity_for_relying_party(
+    xbl_token: &str,
+    relying_party: &str,
+) -> Result<XstsIdentity, String> {
     let client = get_client();
     let payload = serde_json::json!({
         "Properties": {
             "SandboxId": "RETAIL",
             "UserTokens": [xbl_token]
         },
-        "RelyingParty": "rp://api.minecraftservices.com/",
+        "RelyingParty": relying_party,
         "TokenType": "JWT"
     });
 
@@ -84,11 +102,33 @@ pub async fn auth_xsts(xbl_token: &str) -> Result<(String, String), String> {
     let data: serde_json::Value =
         serde_json::from_str(&text).map_err(|e| format!("XSTS 数据解析异常: {}", e))?;
     let token = data["Token"].as_str().ok_or("XSTS 返回缺少 Token")?;
-    let uhs = data["DisplayClaims"]["xui"][0]["uhs"]
+    let xui = &data["DisplayClaims"]["xui"][0];
+    let uhs = xui["uhs"]
         .as_str()
         .ok_or("XSTS 返回缺少 uhs")?;
 
-    Ok((token.to_string(), uhs.to_string()))
+    let xuid = xui["xid"]
+        .as_str()
+        .or_else(|| xui["xuid"].as_str())
+        .map(str::to_string);
+
+    Ok(XstsIdentity {
+        token: token.to_string(),
+        uhs: uhs.to_string(),
+        xuid,
+    })
+}
+
+pub async fn auth_xsts(xbl_token: &str) -> Result<(String, String), String> {
+    auth_xsts_for_relying_party(xbl_token, "rp://api.minecraftservices.com/").await
+}
+
+pub async fn auth_xsts_xbox_live(xbl_token: &str) -> Result<(String, String), String> {
+    auth_xsts_for_relying_party(xbl_token, "http://xboxlive.com").await
+}
+
+pub async fn auth_xsts_xbox_live_identity(xbl_token: &str) -> Result<XstsIdentity, String> {
+    auth_xsts_identity_for_relying_party(xbl_token, "http://xboxlive.com").await
 }
 
 /// 完整的 Xbox 认证链：MS Token -> XBL -> XSTS -> (xsts_token, uhs)

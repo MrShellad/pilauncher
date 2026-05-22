@@ -21,6 +21,7 @@ pub mod playtime;
 pub mod qrcode_service;
 pub mod resource_service; // ✅ 新增 resource 模块
 pub mod runtime_service; // ✅ 新增 launcher 模块
+pub mod social_service;
 pub mod telemetry_service;
 pub mod terracotta;
 pub mod webdav_sync_service;

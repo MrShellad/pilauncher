@@ -20,6 +20,7 @@ pub mod qrcode_cmd;
 pub mod resource_cmd;
 pub mod runtime_cmd;
 pub mod settings_cmd;
+pub mod social_cmd;
 pub mod system_cmd;
 pub mod telemetry_cmd;
 pub mod terracotta;
@@ -58,6 +59,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         settings_cmd::import_panorama_from_pack,
         settings_cmd::get_keybindings,
         settings_cmd::save_keybindings,
+        social_cmd::get_java_friends_status,
         system_cmd::check_steam_deck,
         runtime_cmd::get_system_memory,
         runtime_cmd::validate_java_cache,

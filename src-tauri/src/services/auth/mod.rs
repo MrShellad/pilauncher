@@ -5,7 +5,7 @@
 // 对外暴露与原 auth_service.rs 完全一致的公共 API，保持调用层零改动。
 
 pub mod authlib;
-mod http;
+pub(crate) mod http;
 pub mod microsoft;
 pub mod minecraft;
 pub mod offline;
