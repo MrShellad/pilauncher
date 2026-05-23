@@ -40,11 +40,12 @@ export const OreSwitch: React.FC<OreSwitchProps> = ({
           }}
           tabIndex={-1} // 禁用原生焦点
         >
-          {/* 文本标签：聚焦时文字会变绿并发出光晕 */}
+          {/* 文本标签 */}
           {label && (
             <span className={`
-              mr-3 font-minecraft font-bold ore-text-shadow transition-all duration-200
-              ${focused ? 'text-[var(--ore-btn-primary-bg)] drop-shadow-[0_0_8px_rgba(60,133,39,0.4)]' : 'text-white'}
+              mr-3 font-minecraft font-bold ore-text-shadow transition-colors duration-150
+              ${disabled ? 'text-[#5A5A5A]' : (checked ? 'text-[var(--ore-btn-primary-bg)]' : 'text-white')}
+              ${focused ? 'brightness-110' : ''}
             `}>
               {label}
             </span>

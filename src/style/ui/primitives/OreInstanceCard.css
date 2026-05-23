@@ -26,6 +26,19 @@
     cursor: default;
   }
 
+  .ore-instance-card.is-focused {
+    outline: 2px solid var(--ore-focus-ringFallback);
+    outline: 2px solid var(--ore-focus-ring);
+    outline-offset: 1px;
+    z-index: 20;
+    filter: drop-shadow(0 0 6px var(--ore-focus-glow)) brightness(1.06);
+  }
+
+  .ore-instance-card.is-focused:active {
+    outline-offset: 0px;
+    filter: drop-shadow(0 0 3px var(--ore-focus-glow)) brightness(1.06);
+  }
+
   /* 灏侀潰鍥惧鍣ㄧ殑鍐呴儴鍒嗗壊绾?*/
   .ore-instance-cover-wrapper {
     @apply w-full relative bg-[#1E1E1F] border-b-2 border-ore-gray-border;

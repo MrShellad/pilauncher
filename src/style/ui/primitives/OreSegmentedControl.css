@@ -129,12 +129,20 @@
     height: 100%;
     box-sizing: border-box;
     outline: none;
-    transition: colors 0.15s;
+    transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
     background-color: transparent;
     color: #8C8D90;
     padding-left: var(--seg-px);
     padding-right: var(--seg-px);
     min-width: var(--seg-min-width);
+  }
+
+  .ore-segmented-tab.is-focused {
+    outline: 2px solid var(--ore-focus-ringFallback);
+    outline: 2px solid var(--ore-focus-ring);
+    outline-offset: -2px;
+    z-index: 20;
+    filter: drop-shadow(0 0 6px var(--ore-focus-glow)) brightness(1.15);
   }
 
   .ore-segmented-tab:last-child {

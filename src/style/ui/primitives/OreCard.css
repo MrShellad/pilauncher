@@ -6,13 +6,27 @@
     box-shadow: inset 2px 2px rgba(255, 255, 255, 0.05), inset -2px -2px rgba(0, 0, 0, 0.1);
   }
 
-  .ore-card-item:hover:not(.disabled) {
+  .ore-card-item:hover:not(.disabled),
+  .ore-card-item.is-focused:not(.disabled) {
     @apply bg-ore-nav-hover;
   }
 
   .ore-card-item:active:not(.disabled) {
     @apply bg-ore-nav-active;
     box-shadow: inset 0 4px theme('colors.ore.nav.shadow');
+  }
+
+  .ore-card-item.is-focused:not(.disabled) {
+    outline: 2px solid var(--ore-focus-ringFallback);
+    outline: 2px solid var(--ore-focus-ring);
+    outline-offset: 1px;
+    z-index: 20;
+    filter: drop-shadow(0 0 6px var(--ore-focus-glow)) brightness(1.06);
+  }
+
+  .ore-card-item.is-focused:active:not(.disabled) {
+    outline-offset: 0px;
+    filter: drop-shadow(0 0 3px var(--ore-focus-glow)) brightness(1.06);
   }
 
   .ore-card-media {

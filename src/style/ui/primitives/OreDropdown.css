@@ -10,8 +10,7 @@
       inset 0 -4px #58585a,
       inset 3px 3px rgba(255, 255, 255, 0.6),
       inset -3px -7px rgba(255, 255, 255, 0.4);
-    /* 修改这里：原为 10px 38px 16px 10px */
-    padding: 10px 10px 16px 10px;
+    padding: 0 10px 4px 10px;
   }
 
   .ore-dropdown-trigger:hover:not(:disabled):not(.is-open) {
@@ -129,5 +128,13 @@
 
   .ore-dropdown-empty {
     @apply px-4 py-8 text-center font-minecraft text-sm text-[#D0D1D4];
+  }
+
+  .ore-dropdown-root.is-focused .ore-dropdown-trigger {
+    outline: 2px solid var(--ore-focus-ringFallback);
+    outline: 2px solid var(--ore-focus-ring);
+    outline-offset: 1px;
+    z-index: 20;
+    filter: drop-shadow(0 0 6px var(--ore-focus-glow)) brightness(1.06);
   }
 }

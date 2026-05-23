@@ -2,6 +2,8 @@ import React, { useRef, useState, useEffect, useMemo } from 'react';
 import type { KeyboardEvent, ClipboardEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import { FocusItem } from '../focus/FocusItem';
+
 interface OrePinInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -9,6 +11,7 @@ interface OrePinInputProps {
   disabled?: boolean;
   isAnimating?: boolean; // Rapid cycling state
   isAlive?: boolean;     // Idle pulse state
+  focusKey?: string;
 }
 
 export const OrePinInput: React.FC<OrePinInputProps> = ({ 
@@ -17,7 +20,8 @@ export const OrePinInput: React.FC<OrePinInputProps> = ({
   length = 6, 
   disabled = false,
   isAnimating = false,
-  isAlive = false
+  isAlive = false,
+  focusKey
 }) => {
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
   const [animatedDigits, setAnimatedDigits] = useState<string[]>([]);
@@ -153,8 +157,20 @@ export const OrePinInput: React.FC<OrePinInputProps> = ({
     : splitValue; // Value is shown, if empty then input shows placeholder
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex gap-2 w-full justify-between sm:justify-start">
+    <FocusItem
+      focusKey={focusKey}
+      disabled={disabled}
+      onEnter={() => {
+        const targetIndex = value.length < length ? value.length : 0;
+        inputsRef.current[targetIndex]?.focus();
+      }}
+    >
+      {({ ref, focused }) => (
+        <div 
+          ref={ref as any}
+          className={`flex flex-col gap-2 p-1 rounded-sm outline-none transition-all ${focused ? 'outline outline-[3px] outline-white outline-offset-[4px] z-20 brightness-110' : ''}`}
+        >
+          <div className="flex gap-2 w-full justify-between sm:justify-start">
         {displayDigits.map((digit, index) => {
           const isSlotAnimating = isAnimating && !lockedIndices.has(index);
           const currentPlaceholder = isAlive && !isAnimating && !value ? idleDigits[index] : '-';
@@ -196,7 +212,7 @@ export const OrePinInput: React.FC<OrePinInputProps> = ({
                   ${disabled 
                     ? (isAlive ? 'bg-black/40 border-white/10 text-[#58585A]' : 'bg-[#1E1E1F]/50 border-[#1E1E1F]/50 text-[#58585A]')
                     : isSlotAnimating
-                      ? 'bg-[#1B293A] border-[#78C6FF]/60 text-[#78C6FF] shadow-[0_0_15px_rgba(120,198,255,0.2)]'
+                      ? 'bg-[#1B293A] border-[#78C6FF]/60 text-transparent shadow-[0_0_15px_rgba(120,198,255,0.2)]'
                       : 'bg-black/60 border-white/10 text-white hover:border-white/30 focus:border-[#78C6FF] focus:bg-[#1B293A]/80 focus:shadow-[0_0_20px_rgba(120,198,255,0.25)]'
                   }`}
               />
@@ -229,7 +245,9 @@ export const OrePinInput: React.FC<OrePinInputProps> = ({
             </AnimatePresence>
           </motion.div>
         )})}
-      </div>
-    </div>
+          </div>
+        </div>
+      )}
+    </FocusItem>
   );
 };

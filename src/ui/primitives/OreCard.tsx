@@ -1,5 +1,6 @@
 // /src/ui/primitives/OreCard.tsx
 import React from 'react';
+import { FocusItem } from '../focus/FocusItem';
 
 interface OreCardProps {
   title: string;
@@ -10,6 +11,7 @@ interface OreCardProps {
   onClick?: () => void;
   disabled?: boolean;
   className?: string;
+  focusKey?: string;
 }
 
 export const OreCard: React.FC<OreCardProps> = ({
@@ -21,11 +23,12 @@ export const OreCard: React.FC<OreCardProps> = ({
   onClick,
   disabled = false,
   className = '',
+  focusKey,
 }) => {
-  return (
+  const renderInner = (isVisualFocused: boolean) => (
     <div
       onClick={() => !disabled && onClick?.()}
-      className={`ore-card-item ${disabled ? 'disabled opacity-50 cursor-not-allowed' : ''} ${className}`}
+      className={`ore-card-item ${disabled ? 'disabled opacity-50 cursor-not-allowed' : ''} ${isVisualFocused ? 'is-focused' : ''} ${className}`}
     >
       {/* 1. 媒体区 */}
       <div className="ore-card-media">
@@ -50,5 +53,17 @@ export const OreCard: React.FC<OreCardProps> = ({
         </div>
       </div>
     </div>
+  );
+
+  return onClick ? (
+    <FocusItem focusKey={focusKey} disabled={disabled} onEnter={onClick}>
+      {({ ref, focused }) => (
+        <div ref={ref as any} className="outline-none w-full">
+          {renderInner(focused)}
+        </div>
+      )}
+    </FocusItem>
+  ) : (
+    renderInner(false)
   );
 };

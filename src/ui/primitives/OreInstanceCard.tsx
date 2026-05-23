@@ -12,7 +12,10 @@ export interface OreInstanceCardProps {
   isActive?: boolean; // 是否处于选中状态
   onClick?: (id: string) => void;
   className?: string; // 控制宽高等额外样式
+  focusKey?: string;
 }
+
+import { FocusItem } from '../focus/FocusItem';
 
 export const OreInstanceCard: React.FC<OreInstanceCardProps> = ({
   id,
@@ -23,17 +26,25 @@ export const OreInstanceCard: React.FC<OreInstanceCardProps> = ({
   coverUrl,
   isActive = false,
   onClick,
-  className = 'w-48 h-64' // 默认给一个竖向卡片的尺寸
+  className = 'w-48 h-64', // 默认给一个竖向卡片的尺寸
+  focusKey
 }) => {
   return (
-    <button
-      onClick={() => onClick && onClick(id)}
-      className={`
-        ore-instance-card focus:outline-none focus-visible:ring-2 focus-visible:ring-white
-        ${isActive ? 'active' : ''} 
-        ${className}
-      `}
+    <FocusItem
+      focusKey={focusKey}
+      onEnter={() => onClick && onClick(id)}
     >
+      {({ ref, focused }) => (
+        <button
+          ref={ref as any}
+          onClick={() => onClick && onClick(id)}
+          className={`
+            ore-instance-card focus:outline-none
+            ${isActive ? 'active' : ''} 
+            ${focused ? 'is-focused' : ''}
+            ${className}
+          `}
+        >
       {/* ================= 第一段：上部封面图 ================= */}
       <div className="ore-instance-cover-wrapper flex-shrink-0 flex items-center justify-center overflow-hidden">
         {coverUrl ? (
@@ -82,6 +93,8 @@ export const OreInstanceCard: React.FC<OreInstanceCardProps> = ({
         </span>
       </div>
       
-    </button>
+        </button>
+      )}
+    </FocusItem>
   );
 };

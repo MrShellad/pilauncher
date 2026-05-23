@@ -81,8 +81,8 @@ export const OreAssetRow: React.FC<OreAssetRowProps> = ({
     const rowToneClass = operationActive
       ? 'brightness-[0.9] saturate-[1.05]'
       : isRowActive
-        ? 'brightness-[0.88]'
-        : 'hover:brightness-[0.94]';
+        ? 'brightness-[1.04]'
+        : 'hover:brightness-[0.96]';
 
     return (
       <div
@@ -99,7 +99,7 @@ export const OreAssetRow: React.FC<OreAssetRowProps> = ({
           boxShadow: rowBoxShadow
         }}
       >
-        <div className={`absolute inset-y-0 left-0 w-2 ${accentClass}`} />
+        <div className={`absolute inset-y-0 left-0 w-2 rounded-l-sm ${accentClass}`} />
         
         {/* 禁用状态的半透明遮罩 */}
         {inactive && (

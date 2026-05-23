@@ -47,8 +47,8 @@ export const OreList: React.FC<OreListProps> = ({
 
       <div className="flex-1 min-w-0 flex flex-col justify-center">
         <div className={`font-minecraft font-bold text-[18px] truncate drop-shadow-sm leading-tight
-          ${disabled || isInactive ? 'text-[#48494A]' : 'text-[#FFFFFF]'}
-          ${isInactive && !disabled ? 'line-through text-[#8C8D90]' : ''}
+          ${disabled ? 'text-[#48494A]' : (isInactive ? 'text-[#8C8D90]' : 'text-[#FFFFFF]')}
+          ${isInactive && !disabled ? 'line-through' : ''}
         `}>
           {title}
         </div>

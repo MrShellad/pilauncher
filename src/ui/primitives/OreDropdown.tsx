@@ -375,8 +375,7 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
       {({ ref: focusRef, focused }) => (
         <div
           ref={focusRef as React.RefObject<HTMLDivElement>}
-          className={`ore-dropdown-root relative block h-[40px] w-full rounded-sm ${className} ${isOpen ? 'z-[100]' : focused ? 'z-40 scale-[1.02] ring-2 ring-white shadow-lg brightness-110' : 'z-20'
-            }`}
+          className={`ore-dropdown-root relative block h-[40px] w-full rounded-sm ${className} ${isOpen ? 'z-[100]' : 'z-20'} ${focused ? 'is-focused' : ''}`}
         >
           <div ref={containerRef} className="relative flex h-full flex-col">
             <button
