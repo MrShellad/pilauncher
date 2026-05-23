@@ -13,8 +13,9 @@ import {
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
+import { AnimatePresence, motion } from 'framer-motion';
 
-import { DirectoryBrowserModal } from '../../../../../ui/components/DirectoryBrowserModal';
+import { useToastStore } from '../../../../../store/useToastStore';
 import { OreButton } from '../../../../../ui/primitives/OreButton';
 import type { ExportData } from './ExportPanel';
 
@@ -29,8 +30,8 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
   data,
   onChange,
 }) => {
-  const [isDirBrowserOpen, setIsDirBrowserOpen] = useState(false);
   const [defaultPath, setDefaultPath] = useState('');
+  const addToast = useToastStore((s) => s.addToast);
 
   useEffect(() => {
     const initPath = async () => {
@@ -70,15 +71,27 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
     onChange({ [id]: !data[id] } as Partial<ExportData>);
   };
 
-  const handleDirSelected = (selectedPath: string) => {
-    setIsDirBrowserOpen(false);
-    if (!selectedPath) return;
-
-    const trimmedPath = selectedPath.trim();
-    if (!data.additionalPaths.find((item) => item.path === trimmedPath)) {
-      onChange({
-        additionalPaths: [...data.additionalPaths, { path: trimmedPath, type: 'dir' }],
+  const handleSelectDir = async () => {
+    try {
+      const selectedPath = await open({
+        directory: true,
+        multiple: false,
+        defaultPath,
       });
+
+      if (!selectedPath || typeof selectedPath !== 'string') return;
+
+      const trimmedPath = selectedPath.trim();
+      if (data.additionalPaths.find((item) => item.path === trimmedPath)) {
+        addToast('warning', `目录 [${getBasename(trimmedPath)}] 已在附加列表中，请勿重复添加`);
+      } else {
+        onChange({
+          additionalPaths: [...data.additionalPaths, { path: trimmedPath, type: 'dir' }],
+        });
+      }
+    } catch (error) {
+      console.error('Failed to open directory dialog', error);
+      addToast('error', '打开目录选择器失败，请检查系统权限');
     }
   };
 
@@ -93,19 +106,35 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
       if (!selectedPath) return;
 
       const paths = Array.isArray(selectedPath) ? selectedPath : [selectedPath];
-      const nextPaths = paths
-        .filter((path): path is string => typeof path === 'string')
-        .map((path) => path.trim())
-        .filter(
-          (path) => path.length > 0 && !data.additionalPaths.find((item) => item.path === path)
-        )
-        .map((path) => ({ path, type: 'file' as const }));
+      const filteredPaths: string[] = [];
+      const duplicatePaths: string[] = [];
 
-      if (nextPaths.length > 0) {
+      for (const path of paths) {
+        if (typeof path !== 'string') continue;
+        const trimmed = path.trim();
+        if (trimmed.length === 0) continue;
+
+        if (data.additionalPaths.find((item) => item.path === trimmed)) {
+          duplicatePaths.push(trimmed);
+        } else {
+          filteredPaths.push(trimmed);
+        }
+      }
+
+      if (duplicatePaths.length > 0) {
+        addToast(
+          'warning',
+          `文件 [${duplicatePaths.map((p) => getBasename(p)).join(', ')}] 已在附加列表中，请勿重复添加`
+        );
+      }
+
+      if (filteredPaths.length > 0) {
+        const nextPaths = filteredPaths.map((path) => ({ path, type: 'file' as const }));
         onChange({ additionalPaths: [...data.additionalPaths, ...nextPaths] });
       }
     } catch (error) {
       console.error('Failed to open file dialog', error);
+      addToast('error', '打开文件选择器失败，请检查系统权限');
     }
   };
 
@@ -123,12 +152,11 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
             key={option.id}
             type="button"
             onClick={() => toggleStatus(option.id)}
-            className={`flex w-full cursor-pointer flex-col items-start rounded-sm border-2 p-4 text-left transition-opacity hover:opacity-90 focus:outline-none ${
+            className={`flex w-full cursor-pointer flex-col items-start rounded-sm border-2 p-4 text-left transition-all duration-75 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#313233] active:translate-y-[2px] ${
               data[option.id]
-                ? 'border-[#18181B] bg-[#3C8527] shadow-[inset_0_-4px_#1D4D13,inset_3px_3px_rgba(255,255,255,0.2),inset_-3px_-7px_rgba(255,255,255,0.1)]'
-                : 'border-[#18181B] bg-[#1E1E1F] shadow-[inset_2px_2px_rgba(255,255,255,0.05)]'
+                ? 'border-[#18181B] bg-[#3C8527] shadow-[inset_0_-4px_#1D4D13,inset_3px_3px_rgba(255,255,255,0.2),inset_-3px_-7px_rgba(255,255,255,0.1)] active:shadow-[inset_0_-2px_#1D4D13]'
+                : 'border-[#18181B] bg-[#1E1E1F] shadow-[inset_2px_2px_rgba(255,255,255,0.05)] active:shadow-[inset_2px_2px_rgba(0,0,0,0.2)]'
             }`}
-            style={{ fontWeight: 'normal' }}
           >
             <div className="mb-1 flex w-full items-center">
               <option.icon
@@ -160,7 +188,7 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
             附加自定义内容
           </label>
           <div className="flex flex-wrap gap-2">
-            <OreButton variant="secondary" size="sm" onClick={() => setIsDirBrowserOpen(true)}>
+            <OreButton variant="secondary" size="sm" onClick={handleSelectDir}>
               <FolderArchive size={14} className="mr-2" />
               目录
             </OreButton>
@@ -173,30 +201,37 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
 
         {data.additionalPaths.length > 0 ? (
           <div className="mt-2 flex flex-wrap gap-2">
-            {data.additionalPaths.map((item) => (
-              <div
-                key={item.path}
-                className="group relative flex items-center rounded-sm border border-[#18181B] bg-[#1E1E1F] px-3 py-1.5 shadow-sm"
-                title={item.path}
-              >
-                {item.type === 'dir' ? (
-                  <FolderArchive size={14} className="mr-2 text-[#3C8527]" />
-                ) : (
-                  <ImageIcon size={14} className="mr-2 text-[#D0D1D4]" />
-                )}
-                <span className="mr-3 max-w-[12.5rem] truncate text-sm text-[#D0D1D4]">
-                  {getBasename(item.path)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => removePath(item.path)}
-                  className="text-[#B1B2B5] transition-colors group-hover:text-[#C33636] focus:outline-none"
-                  title="Remove"
+            <AnimatePresence>
+              {data.additionalPaths.map((item) => (
+                <motion.div
+                  key={item.path}
+                  layout
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="group relative flex items-center rounded-sm border border-[#18181B] bg-[#1E1E1F] px-3 py-1.5 shadow-sm"
+                  title={item.path}
                 >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
+                  {item.type === 'dir' ? (
+                    <FolderArchive size={14} className="mr-2 text-[#3C8527]" />
+                  ) : (
+                    <ImageIcon size={14} className="mr-2 text-[#D0D1D4]" />
+                  )}
+                  <span className="mr-3 max-w-[12.5rem] truncate text-sm text-[#D0D1D4]">
+                    {getBasename(item.path)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removePath(item.path)}
+                    className="text-[#B1B2B5] transition-colors group-hover:text-[#C33636] focus:outline-none"
+                    title="Remove"
+                  >
+                    <X size={14} />
+                  </button>
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         ) : (
           <div className="mt-2 text-xs italic text-[#58585A]">
@@ -204,13 +239,6 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
           </div>
         )}
       </div>
-
-      <DirectoryBrowserModal
-        isOpen={isDirBrowserOpen}
-        onClose={() => setIsDirBrowserOpen(false)}
-        onSelect={handleDirSelected}
-        initialPath={defaultPath}
-      />
     </div>
   );
 };

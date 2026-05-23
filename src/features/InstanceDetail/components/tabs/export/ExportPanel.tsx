@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle2 } from 'lucide-react';
 
 import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary';
+import { OreOverlayScrollArea } from '../../../../../ui/primitives/OreOverlayScrollArea';
 import { ExportBasicStep } from './ExportBasicStep';
 import { ExportConfirmStep } from './ExportConfirmStep';
 import { ExportContentStep } from './ExportContentStep';
@@ -85,8 +86,27 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({
     }
   }, [defaultName, defaultVersion, defaultHeroLogo]);
 
+  const isStep1Valid = data.name.trim() !== '' && data.version.trim() !== '';
+  const isStep2Valid =
+    data.includeMods ||
+    data.includeConfigs ||
+    data.includeResourcePacks ||
+    data.includeShaderPacks ||
+    data.includeSaves ||
+    data.additionalPaths.length > 0;
+
+  let maxAllowedStep = 1;
+  if (isStep1Valid) {
+    maxAllowedStep = 2;
+    if (isStep2Valid) {
+      maxAllowedStep = 3;
+      maxAllowedStep = 4;
+    }
+  }
+
   const goToStep = (targetStep: number) => {
     if (targetStep === step) return;
+    if (targetStep > maxAllowedStep) return;
     setNavigationDirection(targetStep > step ? 1 : -1);
     setStep(targetStep);
   };
@@ -106,32 +126,37 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({
             animate="center"
             exit="exit"
             transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-5 lg:p-6 xl:p-8"
+            className="flex-1 overflow-hidden"
           >
-            <FocusBoundary id={`export-step-${step}-boundary`} isActive trapFocus>
-              {step === 1 && (
-                <ExportBasicStep
-                  data={data}
-                  onChange={(partial) => setData((prev) => ({ ...prev, ...partial }))}
-                />
-              )}
-              {step === 2 && (
-                <ExportContentStep
-                  instanceId={instanceId}
-                  data={data}
-                  onChange={(partial) => setData((prev) => ({ ...prev, ...partial }))}
-                />
-              )}
-              {step === 3 && (
-                <ExportOptimizationStep
-                  data={data}
-                  onChange={(partial) => setData((prev) => ({ ...prev, ...partial }))}
-                />
-              )}
-              {step === 4 && (
-                <ExportConfirmStep instanceId={instanceId} data={data} onBack={() => goToStep(3)} />
-              )}
-            </FocusBoundary>
+            <OreOverlayScrollArea
+              className="h-full w-full"
+              viewportClassName="p-4 sm:p-5 lg:p-6 xl:p-8"
+            >
+              <FocusBoundary id={`export-step-${step}-boundary`} isActive trapFocus={false}>
+                {step === 1 && (
+                  <ExportBasicStep
+                    data={data}
+                    onChange={(partial) => setData((prev) => ({ ...prev, ...partial }))}
+                  />
+                )}
+                {step === 2 && (
+                  <ExportContentStep
+                    instanceId={instanceId}
+                    data={data}
+                    onChange={(partial) => setData((prev) => ({ ...prev, ...partial }))}
+                  />
+                )}
+                {step === 3 && (
+                  <ExportOptimizationStep
+                    data={data}
+                    onChange={(partial) => setData((prev) => ({ ...prev, ...partial }))}
+                  />
+                )}
+                {step === 4 && (
+                  <ExportConfirmStep instanceId={instanceId} data={data} onBack={() => goToStep(3)} />
+                )}
+              </FocusBoundary>
+            </OreOverlayScrollArea>
           </motion.div>
         </AnimatePresence>
       </div>
@@ -143,19 +168,23 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({
               const stepNumber = index + 1;
               const isCompleted = step > stepNumber;
               const isCurrent = step === stepNumber;
+              const isEnabled = stepNumber <= maxAllowedStep;
 
               return (
                 <button
                   key={label}
                   type="button"
                   onClick={() => goToStep(stepNumber)}
+                  disabled={!isEnabled}
                   aria-current={isCurrent ? 'step' : undefined}
                   className={`flex min-w-0 items-center gap-3 rounded-sm border-2 px-3 py-2.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
                     isCurrent
                       ? 'border-[#18181B] bg-[#D0D1D4]/90 text-black shadow-[0_0_1rem_rgba(208,209,212,0.2)]'
                       : isCompleted
                         ? 'border-[#18181B] bg-[#3C8527] text-white shadow-[0_0_1rem_rgba(60,133,39,0.18)] hover:brightness-105'
-                        : 'border-[#18181B] bg-[#1E1E1F] text-[#B1B2B5] hover:bg-[#2A2A2C]'
+                        : !isEnabled
+                          ? 'opacity-40 cursor-not-allowed border-[#18181B] bg-[#1E1E1F] text-[#58585A]'
+                          : 'border-[#18181B] bg-[#1E1E1F] text-[#B1B2B5] hover:bg-[#2A2A2C]'
                   }`}
                 >
                   <div
@@ -164,7 +193,9 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({
                         ? 'border-[#18181B] bg-white/80 text-black'
                         : isCompleted
                           ? 'border-[#18181B] bg-black/15 text-white'
-                          : 'border-[#18181B] bg-[#48494A] text-[#D0D1D4]'
+                          : !isEnabled
+                            ? 'border-[#18181B] bg-[#1E1E1F] text-[#58585A]'
+                            : 'border-[#18181B] bg-[#48494A] text-[#D0D1D4]'
                     }`}
                   >
                     {isCompleted ? <CheckCircle2 size={16} /> : stepNumber}

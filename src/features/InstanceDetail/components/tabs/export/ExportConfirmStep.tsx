@@ -12,8 +12,9 @@ import { motion } from 'framer-motion';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { join } from '@tauri-apps/api/path';
+import { open } from '@tauri-apps/plugin-dialog';
+import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
-import { DirectoryBrowserModal } from '../../../../../ui/components/DirectoryBrowserModal';
 import { OreButton } from '../../../../../ui/primitives/OreButton';
 import type { ExportData } from './ExportPanel';
 
@@ -48,7 +49,6 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
   const [status, setStatus] = useState<'idle' | 'exporting' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [outputDir, setOutputDir] = useState('');
-  const [isBrowserOpen, setIsBrowserOpen] = useState(false);
 
   useEffect(() => {
     const initOutputDir = async () => {
@@ -75,7 +75,9 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
   }, []);
 
   useEffect(() => {
-    const unlisten = listen<ExportProgress>('export-progress', (event) => {
+    let active = true;
+    const unlistenPromise = listen<ExportProgress>('export-progress', (event) => {
+      if (!active) return;
       setProgress(event.payload);
       if (event.payload.stage === 'DONE') {
         setStatus('success');
@@ -83,9 +85,24 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
     });
 
     return () => {
-      unlisten.then((cleanup) => cleanup());
+      active = false;
+      unlistenPromise.then((cleanup) => cleanup());
     };
   }, []);
+
+  useEffect(() => {
+    if (status === 'success') {
+      const timer = setTimeout(() => {
+        setFocus('export-success-dir-btn');
+      }, 100);
+      return () => clearTimeout(timer);
+    } else if (status === 'error') {
+      const timer = setTimeout(() => {
+        setFocus('export-error-retry-btn');
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [status]);
 
   const fileExtension =
     data.format === 'pipack' ? 'pipack' : data.format === 'mrpack' ? 'mrpack' : 'zip';
@@ -167,6 +184,21 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
     }
   };
 
+  const handleChangeOutputDir = async () => {
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        defaultPath: outputDir || undefined,
+      });
+      if (selected && typeof selected === 'string') {
+        setOutputDir(selected);
+      }
+    } catch (error) {
+      console.error('Failed to select output directory:', error);
+    }
+  };
+
   return (
     <div className="flex h-full flex-col gap-5">
       {status === 'idle' && (
@@ -240,7 +272,7 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
                   size="sm"
                   variant="secondary"
                   className="w-full sm:w-auto"
-                  onClick={() => setIsBrowserOpen(true)}
+                  onClick={handleChangeOutputDir}
                 >
                   更改路径
                 </OreButton>
@@ -324,7 +356,7 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
           </div>
 
           <div className="relative mt-4 w-full max-w-md shrink-0 space-y-2">
-            <div className="flex h-4 overflow-hidden rounded-full border-2 border-[#333334] bg-[#18181B] shadow-inner">
+            <div className="flex h-5 overflow-hidden rounded-full border-2 border-[#333334] bg-[#18181B] shadow-inner">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${percent}%` }}
@@ -333,11 +365,11 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
               />
             </div>
 
-            <div className="relative flex justify-between text-[0.625rem] font-bold uppercase tracking-widest text-[#A1A3A5]">
+            <div className="relative flex justify-between text-xs font-bold uppercase tracking-widest text-[#E6E8EB]">
               <div className="absolute left-0 top-1 z-10 bg-[#1E1E1F] px-2">
                 {progress?.stage || 'QUEUE'}
               </div>
-              <div className="absolute right-0 top-1 z-10 bg-[#1E1E1F] px-2 text-[#3C8527]">
+              <div className="absolute right-0 top-1 z-10 bg-[#1E1E1F] px-2 text-[#6CC349]">
                 {percent}%
               </div>
             </div>
@@ -356,6 +388,7 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
               className="flex shrink-0 flex-col gap-3 pt-2 sm:flex-row"
             >
               <OreButton
+                focusKey="export-success-dir-btn"
                 variant="secondary"
                 onClick={() => invoke('show_in_folder', { path: outputDir })}
                 size="lg"
@@ -363,7 +396,7 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
                 <ExternalLink size={18} className="mr-2" />
                 打开所在目录
               </OreButton>
-              <OreButton variant="primary" onClick={onBack} size="lg">
+              <OreButton focusKey="export-success-back-btn" variant="primary" onClick={onBack} size="lg">
                 返回导出设置
               </OreButton>
             </motion.div>
@@ -383,6 +416,7 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
             </p>
           </div>
           <OreButton
+            focusKey="export-error-retry-btn"
             variant="secondary"
             onClick={() => setStatus('idle')}
             size="lg"
@@ -392,16 +426,6 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
           </OreButton>
         </div>
       )}
-
-      <DirectoryBrowserModal
-        isOpen={isBrowserOpen}
-        onClose={() => setIsBrowserOpen(false)}
-        onSelect={(path) => {
-          setOutputDir(path);
-          setIsBrowserOpen(false);
-        }}
-        initialPath={outputDir}
-      />
     </div>
   );
 };

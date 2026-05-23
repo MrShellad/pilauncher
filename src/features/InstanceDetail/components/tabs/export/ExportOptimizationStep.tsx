@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileArchive, Package, Sparkles } from 'lucide-react';
+import { FileArchive, Lock, Package, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { CurseforgeIcon, ModrinthIcon } from '../../../../Download/components/Icons';
 import { OreSwitch } from '../../../../../ui/primitives/OreSwitch';
@@ -97,10 +97,10 @@ export const ExportOptimizationStep: React.FC<ExportOptimizationStepProps> = ({
             key={formatItem.id}
             type="button"
             onClick={() => handleFormatSelect(formatItem.id)}
-            className={`flex h-[6.25rem] w-full select-none flex-col items-center justify-center gap-2 rounded-sm border-2 px-3 py-3 text-center transition-[background-color,box-shadow] sm:h-[6.75rem] sm:gap-2.5 sm:px-4 sm:py-[0.875rem] xl:h-[7.125rem] xl:px-[1.25rem] xl:py-[1rem] 2xl:h-[7.5rem] 2xl:gap-3 2xl:px-[1.375rem] 2xl:py-[1.125rem] ${
+            className={`flex h-[6.25rem] w-full select-none flex-col items-center justify-center gap-2 rounded-sm border-2 px-3 py-3 text-center transition-all duration-75 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#313233] active:translate-y-[2px] sm:h-[6.75rem] sm:gap-2.5 sm:px-4 sm:py-[0.875rem] xl:h-[7.125rem] xl:px-[1.25rem] xl:py-[1rem] 2xl:h-[7.5rem] 2xl:gap-3 2xl:px-[1.375rem] 2xl:py-[1.125rem] ${
               data.format === formatItem.id
-                ? 'border-[#18181B] bg-[#3C8527] shadow-[inset_0_-0.25rem_#1D4D13,inset_0.1875rem_0.1875rem_rgba(255,255,255,0.2),inset_-0.1875rem_-0.4375rem_rgba(255,255,255,0.1)]'
-                : 'border-[#18181B] bg-[#1E1E1F] shadow-[inset_0.125rem_0.125rem_rgba(255,255,255,0.05)] hover:bg-[#2A2A2C]'
+                ? 'border-[#18181B] bg-[#3C8527] shadow-[inset_0_-0.25rem_#1D4D13,inset_0.1875rem_0.1875rem_rgba(255,255,255,0.2),inset_-0.1875rem_-0.4375rem_rgba(255,255,255,0.1)] hover:brightness-105 active:shadow-[inset_0_-0.125rem_#1D4D13]'
+                : 'border-[#18181B] bg-[#1E1E1F] shadow-[inset_0.125rem_0.125rem_rgba(255,255,255,0.05)] hover:bg-[#2A2A2C] active:shadow-[inset_0.125rem_0.125rem_rgba(0,0,0,0.2)]'
             }`}
           >
             <div className="flex h-[2.625rem] w-[2.625rem] shrink-0 items-center justify-center rounded-sm border-2 border-[#18181B] bg-black/40 p-[0.5625rem] shadow-[inset_0.125rem_0.125rem_rgba(255,255,255,0.1)] sm:h-[2.875rem] sm:w-[2.875rem] sm:p-[0.625rem] 2xl:h-[3.125rem] 2xl:w-[3.125rem] 2xl:p-[0.6875rem]">
@@ -133,8 +133,8 @@ export const ExportOptimizationStep: React.FC<ExportOptimizationStepProps> = ({
         ))}
       </div>
 
-      <div className="mt-1 grid gap-4 rounded-sm border-2 border-[#18181B] bg-[#313233] p-4 shadow-[inset_0_0.25rem_0.5rem_-0.125rem_rgba(0,0,0,0.3)] sm:gap-5 sm:p-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center xl:gap-6 2xl:p-6">
-        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-4 gap-y-2 sm:gap-x-5">
+      <div className="mt-1 flex flex-col gap-4 rounded-sm border-2 border-[#18181B] bg-[#313233] p-4 shadow-[inset_0_0.25rem_0.5rem_-0.125rem_rgba(0,0,0,0.3)] sm:flex-row sm:items-center sm:justify-between sm:p-5 2xl:p-6">
+        <div className="flex gap-4 items-start min-w-0 flex-1">
           <div className="flex h-[3rem] w-[3rem] shrink-0 items-center justify-center rounded-sm border-2 border-[#18181B] bg-[#1E1E1F] p-[0.6875rem] text-[#A855F7] shadow-[inset_0.125rem_0.125rem_rgba(255,255,255,0.1)] sm:h-[3.25rem] sm:w-[3.25rem] sm:p-[0.75rem]">
             <Sparkles className="h-[1.5rem] w-[1.5rem] sm:h-[1.625rem] sm:w-[1.625rem]" />
           </div>
@@ -144,7 +144,7 @@ export const ExportOptimizationStep: React.FC<ExportOptimizationStepProps> = ({
                 defaultValue: 'MANIFEST MODE',
               })}
             </div>
-            <div className="mt-[0.5rem] space-y-[0.375rem] text-[0.78125rem] leading-[1.7] text-[#B1B2B5] sm:mt-[0.625rem] sm:text-[0.8125rem] 2xl:text-sm">
+            <div className="mt-[0.5rem] space-y-[0.375rem] text-[0.78125rem] leading-[1.7] text-[#B1B2B5] sm:text-[0.8125rem] 2xl:text-sm">
               <p>
                 {t('instanceExport.optimization.manifest.primary', {
                   defaultValue:
@@ -171,7 +171,19 @@ export const ExportOptimizationStep: React.FC<ExportOptimizationStepProps> = ({
           </div>
         </div>
 
-        <div className="flex justify-end self-center xl:justify-start">
+        <div className="flex items-center gap-3 shrink-0 justify-end sm:justify-start self-center">
+          {manifestLocked && (
+            <span
+              className="cursor-help flex items-center"
+              title={
+                data.format === 'zip'
+                  ? '由于您选择了 Standard ZIP 格式，Manifest 模式已固定为禁用。'
+                  : '由于您选择了 PiPack 格式，Manifest 模式已固定为启用。'
+              }
+            >
+              <Lock size={14} className="text-[#FFE866]/80" />
+            </span>
+          )}
           <OreSwitch
             checked={manifestChecked}
             onChange={(checked) => onChange({ manifestMode: checked })}
