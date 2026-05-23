@@ -11,7 +11,6 @@ import { OreInput } from '../../../../ui/primitives/OreInput';
 import { OreSwitch } from '../../../../ui/primitives/OreSwitch';
 import { OreToggleButton, type ToggleOption } from '../../../../ui/primitives/OreToggleButton';
 import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
-import { FocusItem } from '../../../../ui/focus/FocusItem';
 
 import { useSettingsStore } from '../../../../store/useSettingsStore';
 import { DEFAULT_SETTINGS } from '../../../../types/settings';
@@ -72,6 +71,24 @@ export const GameSettings: React.FC = () => {
   }, [maxRes, t]);
 
   // ✅ 核心修复 1：使用 Index (idx) 而不是 Value 来生成焦点链
+  const launcherVisibilityOptions: ToggleOption[] = useMemo(() => ([
+    {
+      value: 'keep',
+      label: <span className="font-minecraft text-sm">{t('settings.game.visibilityOptions.keep.label')}</span>,
+      description: t('settings.game.visibilityOptions.keep.desc'),
+    },
+    {
+      value: 'minimize',
+      label: <span className="font-minecraft text-sm">{t('settings.game.visibilityOptions.minimize.label')}</span>,
+      description: t('settings.game.visibilityOptions.minimize.desc'),
+    },
+    {
+      value: 'close',
+      label: <span className="font-minecraft text-sm">{t('settings.game.visibilityOptions.close.label')}</span>,
+      description: t('settings.game.visibilityOptions.close.desc'),
+    },
+  ]), [t]);
+
   const focusOrder = useMemo(() => {
     const resolutionKeys = resolutionOptions.map(
       (_, idx) => `settings-game-resolution-${idx}`
@@ -83,9 +100,9 @@ export const GameSettings: React.FC = () => {
       ...resolutionKeys, // 展开所有分辨率的 index key
       'settings-game-show-log',
       'settings-game-steamdeck-keymap',
-      'launcher-vis-keep',
-      'launcher-vis-minimize',
-      'launcher-vis-close'
+      'launcher-vis-0',
+      'launcher-vis-1',
+      'launcher-vis-2'
     ];
   }, [resolutionOptions]);
 
@@ -238,35 +255,15 @@ export const GameSettings: React.FC = () => {
           description={t('settings.game.visibilityDesc')}
           vertical={true}
           control={
-            <div className="w-full mt-2">
-              <div className="flex flex-col space-y-2 max-w-md">
-                {[
-                  { value: 'keep', label: t('settings.game.visibilityOptions.keep.label'), desc: t('settings.game.visibilityOptions.keep.desc') },
-                  { value: 'minimize', label: t('settings.game.visibilityOptions.minimize.label'), desc: t('settings.game.visibilityOptions.minimize.desc') },
-                  { value: 'close', label: t('settings.game.visibilityOptions.close.label'), desc: t('settings.game.visibilityOptions.close.desc') }
-                ].map((opt) => (
-                  <FocusItem
-                    key={opt.value}
-                    focusKey={`launcher-vis-${opt.value}`}
-                    onArrowPress={handleLinearArrow}
-                  >
-                    {({ ref, focused }) => (
-                      <label
-                        ref={ref}
-                        className={`
-                          flex flex-col p-3 border-2 cursor-pointer transition-all duration-200 outline-none
-                          ${game.launcherVisibility === opt.value ? 'bg-[#2A2A2C] border-ore-green shadow-[0_0_8px_rgba(56,133,39,0.2)]' : 'bg-[#141415] border-[#1E1E1F] hover:border-white/30'}
-                          ${focused ? 'border-white ring-2 ring-white/20 scale-[1.01] z-10' : ''}
-                        `}
-                        onClick={() => updateGameSetting('launcherVisibility', opt.value as any)}
-                      >
-                        <span className="text-white font-minecraft text-sm mb-1">{opt.label}</span>
-                        <span className="text-ore-text-muted font-minecraft text-xs">{opt.desc}</span>
-                      </label>
-                    )}
-                  </FocusItem>
-                ))}
-              </div>
+            <div className="mx-auto mt-2 w-full max-w-[42rem]">
+              <OreToggleButton
+                focusKeyPrefix="launcher-vis"
+                onArrowPress={handleLinearArrow}
+                options={launcherVisibilityOptions}
+                value={game.launcherVisibility}
+                onChange={(value) => updateGameSetting('launcherVisibility', value as any)}
+                size="md"
+              />
             </div>
           }
         />

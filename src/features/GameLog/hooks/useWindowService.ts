@@ -1,9 +1,14 @@
 import { useCallback, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow, UserAttentionType } from '@tauri-apps/api/window';
+import type { GameSettings } from '../../../types/settings';
+
+type LauncherVisibility = GameSettings['launcherVisibility'];
 
 export const useWindowService = () => {
   const appWindowRef = useRef(getCurrentWindow());
   const foregroundLockRef = useRef(false);
+  const launcherHiddenByRuntimeRef = useRef(false);
 
   const forceLauncherToFront = useCallback(async () => {
     if (foregroundLockRef.current) return;
@@ -29,5 +34,25 @@ export const useWindowService = () => {
     }
   }, []);
 
-  return { forceLauncherToFront };
+  const applyLauncherVisibility = useCallback(async (mode: LauncherVisibility) => {
+    if (mode === 'keep') return;
+
+    if (mode === 'minimize') {
+      launcherHiddenByRuntimeRef.current = true;
+      await appWindowRef.current.minimize().catch(() => undefined);
+      return;
+    }
+
+    await invoke('plugin:process|exit', { code: 0 }).catch((error) => {
+      console.error('[WindowService] Failed to exit launcher after game start:', error);
+    });
+  }, []);
+
+  const restoreLauncherAfterGameExit = useCallback(async () => {
+    if (!launcherHiddenByRuntimeRef.current) return;
+    launcherHiddenByRuntimeRef.current = false;
+    await forceLauncherToFront();
+  }, [forceLauncherToFront]);
+
+  return { forceLauncherToFront, applyLauncherVisibility, restoreLauncherAfterGameExit };
 };

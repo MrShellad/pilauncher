@@ -3,11 +3,14 @@ import { listen } from '@tauri-apps/api/event';
 import { useGameLogStore } from '../../../store/useGameLogStore';
 
 interface UseLogServiceProps {
-  closeSidebarAndRestoreFocus: () => void;
   forceLauncherToFront: () => Promise<void>;
+  restoreLauncherAfterGameExit: () => Promise<void>;
 }
 
-export const useLogService = ({ closeSidebarAndRestoreFocus, forceLauncherToFront }: UseLogServiceProps) => {
+export const useLogService = ({
+  forceLauncherToFront,
+  restoreLauncherAfterGameExit
+}: UseLogServiceProps) => {
   const logBufferRef = useRef<string[]>([]);
 
   const isMinecraftStoppingLog = useCallback((line: string) => {
@@ -22,8 +25,7 @@ export const useLogService = ({ closeSidebarAndRestoreFocus, forceLauncherToFron
       if (isMinecraftStoppingLog(line)) {
         const store = useGameLogStore.getState();
         store.setGameState('idle');
-        closeSidebarAndRestoreFocus();
-        void forceLauncherToFront();
+        void restoreLauncherAfterGameExit();
       }
     });
 
@@ -46,6 +48,7 @@ export const useLogService = ({ closeSidebarAndRestoreFocus, forceLauncherToFron
         void forceLauncherToFront();
       } else {
         store.setGameState('idle');
+        void restoreLauncherAfterGameExit();
       }
     });
 
@@ -54,5 +57,9 @@ export const useLogService = ({ closeSidebarAndRestoreFocus, forceLauncherToFron
       unlistenLog.then(f => f());
       unlistenExit.then(f => f());
     };
-  }, [closeSidebarAndRestoreFocus, forceLauncherToFront, isMinecraftStoppingLog]);
+  }, [
+    forceLauncherToFront,
+    isMinecraftStoppingLog,
+    restoreLauncherAfterGameExit
+  ]);
 };

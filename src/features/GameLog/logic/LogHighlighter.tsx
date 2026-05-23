@@ -7,6 +7,9 @@ export interface LogHighlightRule {
   className: string;
 }
 
+export const LOG_TIMESTAMP_PATTERN =
+  /(?:\[\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?\])|(?:\b\d{4}[-/]\d{2}[-/]\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,6})?\b)|(?:\b\d{2}:\d{2}:\d{2}(?:[.,]\d{1,6})?\b)/g;
+
 // 默认的高亮规则
 export const defaultHighlightRules: LogHighlightRule[] = [
   { pattern: /\[INFO\]|INFO/g, className: 'text-blue-400' },

@@ -1,5 +1,5 @@
 // src/features/Settings/components/tabs/AccountSettings.tsx
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { open as openShell } from '@tauri-apps/plugin-shell';
 import { Users, Plus, AlertTriangle, ShoppingCart, Server } from 'lucide-react';
@@ -64,7 +64,8 @@ export const AccountSettings: React.FC = () => {
   };
 
   const hasMicrosoftAccount = accounts.some((account) => account.type?.toLowerCase() === 'microsoft');
-  const canUseThirdPartyAuth = hasUnlockedThirdPartyAuth || hasMicrosoftAccount;
+  const isUtcPlusEight = useMemo(() => new Date().getTimezoneOffset() === -8 * 60, []);
+  const canUseThirdPartyAuth = isUtcPlusEight && (hasUnlockedThirdPartyAuth || hasMicrosoftAccount);
 
   const accountSortWeight = (type?: string) => {
     const normalizedType = type?.toLowerCase();
@@ -92,9 +93,11 @@ export const AccountSettings: React.FC = () => {
               <OreButton focusKey="btn-add-ms" variant="purple" size="lg" onClick={startMicrosoftLogin}>
                 <span className="flex items-center"><Plus size={20} className="mr-2" /> {t('settings.account.btnAddMs')}</span>
               </OreButton>
-              <OreButton focusKey="btn-add-offline" variant="secondary" size="lg" onClick={openAddOffline}>
-                <span className="flex items-center"><Plus size={20} className="mr-2" /> {t('settings.account.btnAddOffline')}</span>
-              </OreButton>
+              {isUtcPlusEight && (
+                <OreButton focusKey="btn-add-offline" variant="secondary" size="lg" onClick={openAddOffline}>
+                  <span className="flex items-center"><Plus size={20} className="mr-2" /> {t('settings.account.btnAddOffline')}</span>
+                </OreButton>
+              )}
               {canUseThirdPartyAuth && (
                 <OreButton focusKey="btn-add-authlib" variant="secondary" size="lg" onClick={openAuthlibLogin}>
                   <span className="flex items-center"><Server size={20} className="mr-2" /> {t('settings.account.btnAddAuthlib')}</span>
@@ -163,26 +166,30 @@ export const AccountSettings: React.FC = () => {
         copyCodeAndOpen={copyCodeAndOpen}
       />
 
-      <OfflineAuthModal
-        isOpen={isOfflineModalOpen}
-        onClose={() => setIsOfflineModalOpen(false)}
-        offlineForm={offlineForm}
-        setOfflineForm={setOfflineForm}
-        offlineError={offlineError}
-        setOfflineError={setOfflineError}
-        handleSaveOffline={handleSaveOffline}
-      />
+      {isUtcPlusEight && (
+        <OfflineAuthModal
+          isOpen={isOfflineModalOpen}
+          onClose={() => setIsOfflineModalOpen(false)}
+          offlineForm={offlineForm}
+          setOfflineForm={setOfflineForm}
+          offlineError={offlineError}
+          setOfflineError={setOfflineError}
+          handleSaveOffline={handleSaveOffline}
+        />
+      )}
 
-      <AuthlibAuthModal
-        isOpen={isAuthlibModalOpen}
-        onClose={closeAuthlibLogin}
-        authlibForm={authlibForm}
-        setAuthlibForm={setAuthlibForm}
-        authlibError={authlibError}
-        setAuthlibError={setAuthlibError}
-        isLoading={isAuthlibLoading}
-        handleLogin={handleAuthlibLogin}
-      />
+      {isUtcPlusEight && (
+        <AuthlibAuthModal
+          isOpen={isAuthlibModalOpen}
+          onClose={closeAuthlibLogin}
+          authlibForm={authlibForm}
+          setAuthlibForm={setAuthlibForm}
+          authlibError={authlibError}
+          setAuthlibError={setAuthlibError}
+          isLoading={isAuthlibLoading}
+          handleLogin={handleAuthlibLogin}
+        />
+      )}
 
       {/* 删除确认弹窗依然留在页面内，因为它强关联于当前的账号列表展示逻辑 */}
       <OreModal isOpen={!!accountToDelete} onClose={() => setAccountToDelete(null)} title={t('settings.account.delConfirmTitle')}>

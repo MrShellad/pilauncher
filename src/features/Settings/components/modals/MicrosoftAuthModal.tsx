@@ -91,17 +91,18 @@ export const MicrosoftAuthModal: React.FC<MicrosoftAuthModalProps> = ({
       onClose={onClose}
       title={t('settings.account.microsoft.title')}
       closeOnOutsideClick={false}
+      className="w-[38rem]"
       defaultFocusKey={!isLoading && deviceCodeInfo ? COPY_BUTTON_FOCUS_KEY : undefined}
     >
       <div className="flex flex-col items-center px-8 py-6">
         {isLoading || !deviceCodeInfo ? (
           <div className="flex flex-col items-center justify-center py-10">
             <Loader2 size={40} className="mb-4 animate-spin text-ore-green" />
-            <p className="font-minecraft text-white">{t('settings.account.microsoft.requesting')}</p>
+            <p className="font-minecraft text-white text-[1.1rem]">{t('settings.account.microsoft.requesting')}</p>
           </div>
         ) : (
           <>
-            <p className="mb-4 max-w-sm text-center text-sm font-minecraft leading-relaxed text-ore-text-muted">
+            <p className="mb-4 text-center text-[1.1rem] font-minecraft leading-relaxed text-ore-text-muted">
               {t('settings.account.microsoft.hint')}
             </p>
 
@@ -119,8 +120,8 @@ export const MicrosoftAuthModal: React.FC<MicrosoftAuthModalProps> = ({
               </div>
             )}
 
-            <div className="relative mb-6 flex w-full max-w-[300px] flex-col items-center border-[2px] border-[#2A2A2C] bg-[#141415] px-8 py-3 shadow-inner">
-              <span className="absolute -top-2.5 whitespace-nowrap bg-[#1E1E1F] px-2 text-center text-[10px] font-minecraft text-ore-text-muted">
+            <div className="relative mb-6 flex w-full max-w-[18.75rem] flex-col items-center border-[2px] border-[#2A2A2C] bg-[#141415] px-8 py-3 shadow-inner">
+              <span className="absolute -top-3.5 whitespace-nowrap bg-[#1E1E1F] px-2 text-center text-[1.05rem] font-minecraft text-ore-text-muted">
                 {t('settings.account.microsoft.codeLabel')}
               </span>
               <span className="mt-1 select-all font-minecraft text-3xl tracking-widest text-white">
@@ -129,8 +130,6 @@ export const MicrosoftAuthModal: React.FC<MicrosoftAuthModalProps> = ({
             </div>
 
             <div className="flex w-full gap-3">
-
-
               <OreButton
                 focusKey={COPY_BUTTON_FOCUS_KEY}
                 variant="primary"
@@ -143,14 +142,14 @@ export const MicrosoftAuthModal: React.FC<MicrosoftAuthModalProps> = ({
                   return true;
                 }}
                 size="lg"
-                className="flex-1 font-minecraft"
+                className="flex-1 font-minecraft text-[1.1rem]"
               >
                 <Copy size={18} className="mr-2" /> {t('settings.account.microsoft.copyAndOpen')}
               </OreButton>
             </div>
 
-            <div className={`mt-5 flex items-center text-xs font-minecraft ${loginStatusMsg.includes(t('settings.account.microsoft.failedMarker')) ? 'text-red-400' : 'text-ore-text-muted'}`}>
-              {!loginStatusMsg.includes(t('settings.account.microsoft.failedMarker')) && <Loader2 size={12} className="mr-2 animate-spin" />}
+            <div className={`mt-5 flex items-center text-[1.1rem] font-minecraft ${loginStatusMsg.includes(t('settings.account.microsoft.failedMarker')) ? 'text-red-400' : 'text-ore-text-muted'}`}>
+              {!loginStatusMsg.includes(t('settings.account.microsoft.failedMarker')) && <Loader2 size={16} className="mr-2 animate-spin" />}
               {loginStatusMsg}
             </div>
           </>

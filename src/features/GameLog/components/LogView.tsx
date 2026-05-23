@@ -1,20 +1,99 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Virtuoso } from 'react-virtuoso';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Copy, Check } from 'lucide-react';
 import { FocusItem } from '../../../ui/focus/FocusItem';
-import { renderHighlightedLog, defaultHighlightRules } from '../logic/LogHighlighter';
+import {
+  renderHighlightedLog,
+  defaultHighlightRules,
+  LOG_TIMESTAMP_PATTERN,
+} from '../logic/LogHighlighter';
 
 interface LogViewProps {
   logs: string[];
   isOpen: boolean;
 }
 
+interface LogSegment {
+  id: string;
+  startIndex: number;
+  lines: string[];
+  text: string;
+}
+
+const hasTimestamp = (line: string) => new RegExp(LOG_TIMESTAMP_PATTERN.source).test(line);
+
+const renderLogLine = (line: string): React.ReactNode => {
+  const timestampPattern = new RegExp(LOG_TIMESTAMP_PATTERN.source, 'g');
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = timestampPattern.exec(line)) !== null) {
+    const timestamp = match[0];
+    if (match.index > lastIndex) {
+      parts.push(renderHighlightedLog(line.slice(lastIndex, match.index), defaultHighlightRules));
+    }
+    parts.push(
+      <span key={`ts-${match.index}`} className="rounded-sm bg-ore-green/10 px-1 font-bold text-ore-green">
+        {timestamp}
+      </span>
+    );
+    lastIndex = match.index + timestamp.length;
+  }
+
+  if (lastIndex < line.length) {
+    parts.push(renderHighlightedLog(line.slice(lastIndex), defaultHighlightRules));
+  }
+
+  return parts.length > 0 ? parts : renderHighlightedLog(line, defaultHighlightRules);
+};
+
+const segmentLogsByTimestamp = (logs: string[]): LogSegment[] => {
+  const segments: LogSegment[] = [];
+
+  logs.forEach((line, index) => {
+    if (hasTimestamp(line) || segments.length === 0) {
+      segments.push({
+        id: `${index}-${line.slice(0, 24)}`,
+        startIndex: index,
+        lines: [line],
+        text: line,
+      });
+      return;
+    }
+
+    const current = segments[segments.length - 1];
+    current.lines.push(line);
+    current.text += `\n${line}`;
+  });
+
+  return segments;
+};
+
 export const LogView: React.FC<LogViewProps> = ({ logs, isOpen }) => {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLElement | Window | null>(null);
+  const virtuosoRef = useRef<VirtuosoHandle | null>(null);
   const [copiedLine, setCopiedLine] = useState<number | null>(null);
+  const logSegments = useMemo(() => segmentLogsByTimestamp(logs), [logs]);
+
+  useEffect(() => {
+    if (!isOpen || logSegments.length === 0) return;
+
+    const scrollToEnd = () => {
+      virtuosoRef.current?.scrollToIndex({
+        index: logSegments.length - 1,
+        align: 'end',
+        behavior: 'auto',
+      });
+    };
+
+    scrollToEnd();
+    const timer = window.setTimeout(scrollToEnd, 0);
+    return () => window.clearTimeout(timer);
+  }, [isOpen, logSegments.length]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -37,6 +116,8 @@ export const LogView: React.FC<LogViewProps> = ({ logs, isOpen }) => {
     setTimeout(() => setCopiedLine(null), 2000);
   };
 
+  if (!isOpen) return null;
+
   return (
     <FocusItem focusKey="log-area">
       {({ ref: focusRef, focused }) => (
@@ -46,23 +127,32 @@ export const LogView: React.FC<LogViewProps> = ({ logs, isOpen }) => {
               <div className="text-ore-text-muted/50 text-center mt-20 text-sm">{t('gameLog.view.waiting', '等待标准输出...')}</div>
             ) : (
               <Virtuoso
+                ref={virtuosoRef}
                 style={{ flex: 1 }}
-                data={logs}
-                followOutput="auto"
+                data={logSegments}
+                followOutput={true}
+                atBottomThreshold={200}
                 scrollerRef={(node) => {
                   if (node && node instanceof HTMLElement) {
                     (scrollRef as any).current = node;
                     (focusRef as any).current = node;
                   }
                 }}
-                itemContent={(idx, line) => (
-                  <div className="group relative font-mono hover:bg-[#1E1E1F] px-2 py-1.5 border-b border-white/[0.03] transition-colors pr-10 text-[13px] leading-relaxed break-all select-text">
-                    {renderHighlightedLog(line, defaultHighlightRules)}
+                itemContent={(idx, segment) => (
+                  <div className="group relative font-mono hover:bg-[#1E1E1F] px-2 py-1.5 border-b border-white/[0.06] transition-colors pr-10 text-[13px] leading-relaxed break-all select-text">
+                    {segment.lines.map((line, lineIndex) => (
+                      <div
+                        key={`${segment.startIndex}-${lineIndex}`}
+                        className={lineIndex > 0 ? 'pl-4 text-white/90' : ''}
+                      >
+                        {renderLogLine(line)}
+                      </div>
+                    ))}
 
                     <button
-                      onClick={() => handleCopyLine(line, idx)}
+                      onClick={() => handleCopyLine(segment.text, idx)}
                       className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-sm transition-all"
-                      title={copiedLine === idx ? t('gameLog.view.copied', '已复制！') : t('gameLog.view.copyLine', '复制此行')}
+                      title={copiedLine === idx ? t('gameLog.view.copied', '已复制！') : t('gameLog.view.copyLine', '复制此段')}
                     >
                       {copiedLine === idx ? <Check size={14} className="text-ore-green" /> : <Copy size={14} />}
                     </button>

@@ -36,12 +36,12 @@ export const useGameLaunch = () => {
         console.log(`[Launch] 准备使用账号 [${currentAccount.name}] 启动实例: ${instanceId}`);
 
         const logStore = useGameLogStore.getState();
+        const { settings } = useSettingsStore.getState();
         logStore.clearLogs();
         logStore.setInstanceId(instanceId);
         logStore.setGameState('launching');
-        logStore.setOpen(true);
+        logStore.setOpen(settings.game.showGameLog ?? true);
 
-        const { settings } = useSettingsStore.getState();
         const gamepadModCheckEnabled = settings.game.gamepadModCheck;
 
         if (isGamepad && gamepadModCheckEnabled) {
