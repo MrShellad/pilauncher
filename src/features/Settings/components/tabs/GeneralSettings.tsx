@@ -126,28 +126,28 @@ export const GeneralSettings: React.FC = () => {
       case 'checking':
         return (
           <OreButton focusKey="settings-btn-check-update" className="w-[200px] justify-center whitespace-nowrap" disabled>
-            <Loader2 size={14} className="animate-spin mr-1.5" />
+            <Loader2 size={16} className="animate-spin mr-1.5" />
             {t('settings.general.checkUpdate.checking')}
           </OreButton>
         );
       case 'up-to-date':
         return (
           <OreButton focusKey="settings-btn-check-update" className="w-[200px] justify-center whitespace-nowrap" variant="secondary" disabled>
-            <CheckCircle2 size={14} className="text-ore-green mr-1.5" />
+            <CheckCircle2 size={16} className="text-ore-green mr-1.5" />
             {t('settings.general.checkUpdate.upToDate')}
           </OreButton>
         );
       case 'error':
         return (
           <OreButton focusKey="settings-btn-check-update" className="w-[200px] justify-center whitespace-nowrap" variant="danger" disabled>
-            <XCircle size={14} className="mr-1.5" />
+            <XCircle size={16} className="mr-1.5" />
             {t('settings.general.checkUpdate.error')}
           </OreButton>
         );
       default:
         return (
           <OreButton focusKey="settings-btn-check-update" className="w-[200px] justify-center whitespace-nowrap" onClick={checkForUpdate}>
-            <RefreshCw size={14} className="mr-1.5" />
+            <RefreshCw size={16} className="mr-1.5" />
             {t('settings.general.checkUpdate.check')}
           </OreButton>
         );
@@ -280,9 +280,9 @@ export const GeneralSettings: React.FC = () => {
                 disabled={isFullscreenTransitioning}
               >
                 {isFullscreenTransitioning ? (
-                  <Loader2 size={14} className="mr-1.5 animate-spin" />
+                  <Loader2 size={16} className="mr-1.5 animate-spin" />
                 ) : (
-                  <Maximize size={14} className="mr-1.5" />
+                  <Maximize size={16} className="mr-1.5" />
                 )}
                 {isFullscreen ? t('settings.general.toggleFullscreen.exit') : t('settings.general.toggleFullscreen.enter')}
               </OreButton>
@@ -299,7 +299,7 @@ export const GeneralSettings: React.FC = () => {
                 className="w-[200px] justify-center whitespace-nowrap"
                 onClick={() => setIsExitConfirmOpen(true)}
               >
-                <PowerOff size={14} className="mr-1.5" />
+                <PowerOff size={16} className="mr-1.5" />
                 {t('settings.general.exitApp.label')}
               </OreButton>
             }
@@ -317,7 +317,7 @@ export const GeneralSettings: React.FC = () => {
                 className="w-[200px] justify-center whitespace-nowrap"
                 onClick={() => setIsResetConfirmOpen(true)}
               >
-                <RotateCcw size={14} className="mr-1.5" />
+                <RotateCcw size={16} className="mr-1.5" />
                 {t('settings.general.resetSettings.label')}
               </OreButton>
             }

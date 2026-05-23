@@ -331,13 +331,13 @@ export const AppearanceSettings: React.FC = () => {
                       ref={ref as any}
                       onClick={() => updateAppearanceSetting('maskColor', color)}
                       tabIndex={-1}
-                      className={`h-7 w-7 rounded-full border-2 shadow-md outline-none transition-transform ${
+                      className={`h-7 w-7 rounded-none border-2 outline-none transition-transform ${
                         appearance.maskColor.toUpperCase() === color
-                          ? 'scale-125 border-ore-green'
-                          : 'border-ore-gray-border hover:scale-110'
+                          ? 'scale-110 border-black shadow-[inset_0_-3px_rgba(0,0,0,0.35),inset_2px_2px_rgba(255,255,255,0.3)]'
+                          : 'border-[#58585A] hover:scale-105 shadow-[inset_0_-3px_rgba(0,0,0,0.2),inset_2px_2px_rgba(255,255,255,0.15)]'
                       } ${
                         focused
-                          ? 'z-10 scale-125 ring-2 ring-white ring-offset-2 ring-offset-[#1E1E1F]'
+                          ? 'z-10 scale-110 ring-2 ring-white ring-offset-2 ring-offset-[#1E1E1F]'
                           : ''
                       }`}
                       style={{ backgroundColor: color }}
@@ -356,9 +356,9 @@ export const AppearanceSettings: React.FC = () => {
                   <label
                     ref={ref as any}
                     tabIndex={-1}
-                    className={`relative flex h-7 w-7 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-ore-gray-border outline-none transition-all hover:border-ore-green ${
+                    className={`relative flex h-7 w-7 cursor-pointer items-center justify-center overflow-hidden rounded-none border-2 border-dashed border-[#58585A] bg-[#2A2A2C] outline-none transition-all hover:border-ore-green hover:bg-[#3C8527]/10 ${
                       focused
-                        ? 'z-10 scale-125 border-white text-white ring-2 ring-white ring-offset-2 ring-offset-[#1E1E1F]'
+                        ? 'z-10 scale-110 border-white text-white ring-2 ring-white ring-offset-2 ring-offset-[#1E1E1F]'
                         : ''
                     }`}
                     title={t('settings.appearance.customColor')}
@@ -451,9 +451,9 @@ export const AppearanceSettings: React.FC = () => {
                     className="shrink-0 !min-w-[9rem] !h-10 !px-4 !justify-center gap-1.5 whitespace-nowrap"
                   >
                     {isImportingPanorama ? (
-                      <Loader2 size={15} className="animate-spin" />
+                      <Loader2 size={16} className="animate-spin" />
                     ) : (
-                      <Package size={15} />
+                      <Package size={16} />
                     )}
                     从材质包导入
                   </OreButton>
@@ -572,7 +572,7 @@ export const AppearanceSettings: React.FC = () => {
           description={t('settings.appearance.fontFamilyDesc')}
           control={
             <div className="flex items-center space-x-2">
-              {isLoadingFonts && <Type size={14} className="animate-pulse text-ore-text-muted" />}
+              {isLoadingFonts && <Type size={16} className="animate-pulse text-ore-text-muted" />}
               <OreDropdown
                 focusKey="settings-appearance-font"
                 onArrowPress={handleLinearArrow}

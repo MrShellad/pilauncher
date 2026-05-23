@@ -203,10 +203,10 @@ const InstanceDetail: React.FC = () => {
                     options={toggleOptions}
                     value={activeTab}
                     onChange={handleTabSelect}
-                    size="md"
+                    size="lg"
                     uiScale="adaptive"
                     focusable={false}
-                    className="w-max"
+                    className="w-full ore-tab-nav-toggle max-w-[88rem]"
                   />
                 </div>
               </div>

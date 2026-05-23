@@ -77,7 +77,7 @@ export const LibraryHeader: React.FC<LibraryHeaderProps> = ({
               size="lg"
               uiScale="adaptive"
               focusable={false}
-              buttonClassName="!text-base"
+              className="w-full ore-tab-nav-toggle max-w-[55rem]"
             />
           </div>
         </div>
