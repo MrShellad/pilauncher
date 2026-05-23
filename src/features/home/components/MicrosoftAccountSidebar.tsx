@@ -593,7 +593,7 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
         {isOpen && (
           <FocusBoundary
             id="account-sidebar-boundary"
-            trapFocus={true}
+            trapFocus={isOpen}
             onEscape={handleClose}
             className="fixed inset-0 z-[100] flex outline-none"
           >

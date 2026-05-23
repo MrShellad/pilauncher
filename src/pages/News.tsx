@@ -47,10 +47,12 @@ const News: React.FC = () => {
     if (hasInitialFocusRef.current || items.length === 0) return;
 
     let attempts = 0;
-    let timer: ReturnType<typeof setTimeout> | null = null;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+    let isDisposed = false;
     const firstKey = `news-official-${getNewsFocusKeySegment(items[0].id)}`;
 
     const tryFocusEntry = () => {
+      if (isDisposed) return;
       if (doesFocusableExist(firstKey)) {
         focusManager.focus(firstKey);
         hasInitialFocusRef.current = true;
@@ -59,13 +61,14 @@ const News: React.FC = () => {
 
       attempts += 1;
       if (attempts < 12) {
-        timer = setTimeout(tryFocusEntry, 70);
+        timerId = setTimeout(tryFocusEntry, 70);
       }
     };
 
-    timer = setTimeout(tryFocusEntry, 80);
+    timerId = setTimeout(tryFocusEntry, 80);
     return () => {
-      if (timer) clearTimeout(timer);
+      isDisposed = true;
+      if (timerId) clearTimeout(timerId);
     };
   }, [items]);
 
@@ -112,24 +115,30 @@ const News: React.FC = () => {
   const visibleItems = items.slice(0, visibleCount);
   const hasMore = visibleCount < items.length;
   const resolvedError = error ? `${pageCopy.error}: ${error}` : null;
-  const focusSequence = useMemo(
-    () => [
+  const focusSequence = useMemo(() => {
+    const seq = ['btn-news-refresh', 'btn-news-back'];
+    if (resolvedError) {
+      seq.push('btn-news-error-retry');
+    }
+    seq.push(
       ...visibleItems.flatMap((item) => {
         const focusSegment = getNewsFocusKeySegment(item.id);
         return [`news-create-${focusSegment}`, `news-official-${focusSegment}`, `news-wiki-${focusSegment}`];
-      }),
-    ],
-    [visibleItems]
-  );
+      })
+    );
+    return seq;
+  }, [visibleItems, resolvedError]);
 
   useEffect(() => {
     const pendingFocusKey = pendingFocusKeyRef.current;
     if (!pendingFocusKey) return;
 
     let attempts = 0;
-    let timer: ReturnType<typeof setTimeout> | null = null;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+    let isDisposed = false;
 
     const tryFocus = () => {
+      if (isDisposed) return;
       if (doesFocusableExist(pendingFocusKey)) {
         focusManager.focus(pendingFocusKey);
         pendingFocusKeyRef.current = null;
@@ -138,13 +147,14 @@ const News: React.FC = () => {
 
       attempts += 1;
       if (attempts < 10) {
-        timer = setTimeout(tryFocus, 60);
+        timerId = setTimeout(tryFocus, 60);
       }
     };
 
-    timer = setTimeout(tryFocus, 50);
+    timerId = setTimeout(tryFocus, 50);
     return () => {
-      if (timer) clearTimeout(timer);
+      isDisposed = true;
+      if (timerId) clearTimeout(timerId);
     };
   }, [focusSequence, visibleCount]);
 
@@ -199,7 +209,7 @@ const News: React.FC = () => {
     >
       <div
         ref={scrollRef}
-        className="h-full w-full overflow-y-auto custom-scrollbar px-5 pt-4 pb-6 sm:px-7 sm:pt-5 lg:px-8 lg:pt-5"
+        className="h-full w-full overflow-y-auto custom-scrollbar px-5 py-6 sm:px-7 sm:py-8 lg:px-8 lg:py-8"
         style={{ scrollbarGutter: 'stable both-edges' }}
       >
         <div className="mx-auto flex w-full max-w-[1380px] flex-col gap-5">
@@ -219,11 +229,12 @@ const News: React.FC = () => {
 
             <div className="flex flex-wrap gap-3">
               <OreButton
-                focusable={false}
+                focusKey="btn-news-refresh"
                 variant="primary"
                 size="auto"
                 className="!h-11 gap-2 !px-4 !text-white"
                 onClick={() => void refreshNews({ background: rawItems.length > 0 })}
+                onArrowPress={(direction) => moveLinearFocus('btn-news-refresh', direction)}
                 autoScroll={false}
               >
                 <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
@@ -232,11 +243,12 @@ const News: React.FC = () => {
               </OreButton>
 
               <OreButton
-                focusable={false}
+                focusKey="btn-news-back"
                 variant="secondary"
                 size="auto"
                 className="!h-11 gap-2 !px-4"
                 onClick={() => setActiveTab('home')}
+                onArrowPress={(direction) => moveLinearFocus('btn-news-back', direction)}
                 autoScroll={false}
               >
                 <ArrowLeft size={18} />
@@ -247,9 +259,22 @@ const News: React.FC = () => {
           </div>
 
           {resolvedError && (
-            <div className="flex items-start gap-3 border-[3px] border-[#5d2c2c] bg-[#2d1a1a]/90 px-5 py-4 text-sm text-[#ffd2d2] shadow-[8px_8px_0_rgba(0,0,0,0.18)]">
-              <AlertCircle size={18} className="mt-0.5 shrink-0 text-[#ff8a8a]" />
-              <span className="font-minecraft leading-6">{resolvedError}</span>
+            <div className="flex flex-col gap-3 border-[3px] border-[#5d2c2c] bg-[#2d1a1a]/90 px-5 py-4 text-sm text-[#ffd2d2] shadow-[8px_8px_0_rgba(0,0,0,0.18)] sm:flex-row sm:items-center sm:justify-between sm:gap-5">
+              <div className="flex items-start gap-3">
+                <AlertCircle size={18} className="mt-0.5 shrink-0 text-[#ff8a8a]" />
+                <span className="font-minecraft leading-6">{resolvedError}</span>
+              </div>
+              <OreButton
+                focusKey="btn-news-error-retry"
+                variant="primary"
+                size="auto"
+                className="!h-9 !min-w-[6.25rem] self-start sm:self-auto !px-4 !text-white"
+                onClick={() => void refreshNews({ background: rawItems.length > 0 })}
+                onArrowPress={(direction) => moveLinearFocus('btn-news-error-retry', direction)}
+                autoScroll={false}
+              >
+                <span>{pageCopy.refresh || '重试'}</span>
+              </OreButton>
             </div>
           )}
 

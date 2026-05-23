@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, ExternalLink, Plus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import { openExternalLink } from '../../../utils/openExternalLink';
 
@@ -42,16 +43,25 @@ export const NewsCard: React.FC<NewsCardProps> = ({
   wikiFocusKey,
   displayIndex,
   onCreateInstance,
-  createInstanceLabel = '创建对应实例',
+  createInstanceLabel,
   createInstanceFocusKey,
   onActionFocus,
   onCreateInstanceArrowPress,
   onOfficialArrowPress,
   onWikiArrowPress,
 }) => {
+  const { t } = useTranslation();
+  const isMountedRef = useRef(false);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+  }, []);
+
+  const resolvedCreateInstanceLabel = createInstanceLabel || t('home.createInstance', { defaultValue: '创建对应实例' });
+
   return (
     <motion.article
-      initial={{ opacity: 0, y: 22 }}
+      initial={isMountedRef.current ? false : { opacity: 0, y: 22 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
         duration: 0.28,
@@ -60,7 +70,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
       }}
       className="group flex min-h-[26rem] flex-col overflow-hidden border-[3px] bg-[#313233] shadow-[8px_8px_0_rgba(0,0,0,0.24)]"
       style={{
-        '--home-news-action-h': 'clamp(2.75rem, 4.8vh, 4.5rem)',
+        '--home-news-action-h': '2.75rem',
         '--home-news-action-font': 'clamp(0.875rem, 1.05vw, 1.375rem)',
         '--home-news-action-icon': 'clamp(1rem, 1.25vw, 1.75rem)',
         borderTopColor: '#5A5B5C',
@@ -76,7 +86,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
             backgroundColor: '#1E1E1F',
             backgroundImage: coverImageUrl
               ? `url("${coverImageUrl}")`
-              : 'linear-gradient(135deg, #0f4c81 0%, #277da1 42%, #3fa34d 100%)',
+              : 'linear-gradient(135deg, #1E1E1F 0%, #2A2B2D 50%, #5B8731 100%)',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
             backgroundSize: 'cover',
@@ -138,7 +148,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
               autoScroll
             >
               <Plus size="var(--home-news-action-icon)" />
-              <span>{createInstanceLabel}</span>
+              <span>{resolvedCreateInstanceLabel}</span>
             </OreButton>
           )}
           <div className="flex gap-3">
