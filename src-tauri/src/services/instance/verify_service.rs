@@ -501,25 +501,27 @@ pub async fn download_missing_runtimes<R: Runtime>(
 
         let no_cancel = Arc::new(AtomicBool::new(false));
 
-        let _ = crate::services::downloader::core_installer::install_vanilla_core(
+        crate::services::downloader::core_installer::install_vanilla_core(
             app,
             &missing.instance_id,
             &missing.mc_version,
             &runtime_dir,
             &no_cancel,
         )
-        .await;
+        .await
+        .map_err(|error| error.to_string())?;
 
-        let _ = crate::services::downloader::dependencies::download_dependencies_force_hash(
+        crate::services::downloader::dependencies::download_dependencies_force_hash(
             app,
             &missing.instance_id,
             &missing.mc_version,
             &runtime_dir,
             &no_cancel,
         )
-        .await;
+        .await
+        .map_err(|error| error.to_string())?;
 
-        let _ = crate::services::downloader::loader_installer::install_loader(
+        crate::services::downloader::loader_installer::install_loader(
             app,
             &missing.instance_id,
             &missing.mc_version,
@@ -528,7 +530,8 @@ pub async fn download_missing_runtimes<R: Runtime>(
             &runtime_dir,
             &no_cancel,
         )
-        .await;
+        .await
+        .map_err(|error| error.to_string())?;
 
         let _ = app.emit(
             "instance-deployment-progress",

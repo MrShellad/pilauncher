@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use reqwest::Client;
 use serde_json::Value;
+use sha1::{Digest, Sha1};
 use tauri::{AppHandle, Runtime};
 
 use crate::error::{AppError, AppResult};
@@ -13,11 +14,43 @@ use super::mirror::{route_asset_object_urls, route_assets_index_urls};
 use super::progress::DownloadStage;
 use super::scheduler::{run_downloads, sha1_file, DownloadTask};
 
+fn sha1_text(text: &str) -> String {
+    let mut hasher = Sha1::new();
+    hasher.update(text.as_bytes());
+    let digest = hasher.finalize();
+    digest
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<String>()
+}
+
+fn text_matches_expectations(
+    text: &str,
+    expected_sha1: Option<&str>,
+    expected_size: Option<u64>,
+) -> bool {
+    if let Some(size) = expected_size {
+        if text.as_bytes().len() as u64 != size {
+            return false;
+        }
+    }
+
+    if let Some(expected) = expected_sha1 {
+        if !sha1_text(text).eq_ignore_ascii_case(expected) {
+            return false;
+        }
+    }
+
+    true
+}
+
 async fn download_text_from_candidates(
     client: &Client,
     urls: &[String],
     retry_count: u32,
     cancel: &Arc<AtomicBool>,
+    expected_sha1: Option<&str>,
+    expected_size: Option<u64>,
 ) -> AppResult<String> {
     let max_attempts = retry_count.max(1);
     let mut last_error = "unknown error".to_string();
@@ -29,7 +62,22 @@ async fn download_text_from_candidates(
             }
 
             match client.get(url).send().await {
-                Ok(res) if res.status().is_success() => return Ok(res.text().await?),
+                Ok(res) if res.status().is_success() => {
+                    let text = res.text().await?;
+                    if text_matches_expectations(&text, expected_sha1, expected_size) {
+                        return Ok(text);
+                    }
+
+                    let actual_sha1 = sha1_text(&text);
+                    last_error = format!(
+                        "{} -> assets index verification failed (expected sha1 {:?}, got {}, expected size {:?}, got {})",
+                        url,
+                        expected_sha1,
+                        actual_sha1,
+                        expected_size,
+                        text.as_bytes().len()
+                    );
+                }
                 Ok(res) => {
                     last_error = format!("{} -> {}", url, res.status());
                 }
@@ -80,6 +128,10 @@ async fn download_assets_inner<R: Runtime>(
 
     let index_id = index_meta["id"].as_str().unwrap_or("");
     let index_url = index_meta["url"].as_str().unwrap_or("");
+    let expected_index_sha1 = index_meta["sha1"]
+        .as_str()
+        .map(|value| value.to_lowercase());
+    let expected_index_size = index_meta["size"].as_u64();
     if index_id.is_empty() || index_url.is_empty() {
         return Ok(());
     }
@@ -93,6 +145,12 @@ async fn download_assets_inner<R: Runtime>(
             .await
             .unwrap_or_default();
         serde_json::from_str::<serde_json::Value>(&content).is_err()
+            || (verify_hash
+                && !text_matches_expectations(
+                    &content,
+                    expected_index_sha1.as_deref(),
+                    expected_index_size,
+                ))
     } else {
         true
     };
@@ -103,8 +161,23 @@ async fn download_assets_inner<R: Runtime>(
         }
 
         let candidate_urls = route_assets_index_urls(index_url, &dl_settings);
-        let text =
-            download_text_from_candidates(client, &candidate_urls, retry_count, cancel).await?;
+        let text = download_text_from_candidates(
+            client,
+            &candidate_urls,
+            retry_count,
+            cancel,
+            if verify_hash {
+                expected_index_sha1.as_deref()
+            } else {
+                None
+            },
+            if verify_hash {
+                expected_index_size
+            } else {
+                None
+            },
+        )
+        .await?;
         tokio::fs::write(&index_path, text).await?;
     }
 
@@ -194,6 +267,29 @@ async fn download_assets_inner<R: Runtime>(
         cancel,
     )
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{sha1_text, text_matches_expectations};
+
+    #[test]
+    fn validates_assets_index_text_sha1_and_size() {
+        let text = r#"{"objects":{}}"#;
+        let sha1 = sha1_text(text);
+
+        assert!(text_matches_expectations(
+            text,
+            Some(&sha1),
+            Some(text.as_bytes().len() as u64)
+        ));
+        assert!(!text_matches_expectations(
+            text,
+            Some("0000000000000000000000000000000000000000"),
+            Some(text.as_bytes().len() as u64)
+        ));
+        assert!(!text_matches_expectations(text, Some(&sha1), Some(1)));
+    }
 }
 
 pub async fn download_assets<R: Runtime>(

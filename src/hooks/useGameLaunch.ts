@@ -1,6 +1,8 @@
 import { useState, useCallback, type KeyboardEvent, type MouseEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { ask } from '@tauri-apps/plugin-dialog';
 import { useAccountStore } from '../store/useAccountStore';
+import { useDownloadStore } from '../store/useDownloadStore';
 import { useGameLogStore } from '../store/useGameLogStore';
 import { useGamepadModStore } from '../store/useGamepadModStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -11,6 +13,24 @@ import {
 } from '../services/gamepadModService';
 
 type LaunchEvent = MouseEvent | KeyboardEvent;
+
+interface MissingRuntime {
+  instance_id: string;
+  mc_version: string;
+  loader_type: string;
+  loader_version: string;
+}
+
+interface PreLaunchCheckReport {
+  passed: boolean;
+  repair?: MissingRuntime | null;
+  checks?: Array<{
+    kind: string;
+    status: 'passed' | 'warning' | 'failed' | string;
+    message: string;
+    details?: string[];
+  }>;
+}
 
 export const useGameLaunch = () => {
   const [isLaunching, setIsLaunching] = useState(false);
@@ -262,6 +282,54 @@ export const useGameLaunch = () => {
           logStore.addLogs(['[INFO] 手柄 Mod 检测已在设置中关闭，跳过。']);
         }
 
+        const preLaunchCheckEnabled = settings.game.preLaunchCheck ?? true;
+        if (preLaunchCheckEnabled) {
+          const preLaunchReport = await invoke<PreLaunchCheckReport>('run_pre_launch_check', {
+            instanceId,
+          });
+
+          if (!preLaunchReport.passed) {
+            const firstFailure = preLaunchReport.checks?.find((check) => check.status === 'failed');
+            const issuePreview = firstFailure?.details?.[0] || firstFailure?.message || '检测到运行环境异常';
+
+            if (!preLaunchReport.repair) {
+              throw new Error(`启动前检查未通过，且没有可用补全方案：${issuePreview}`);
+            }
+
+            logStore.addLogs(['[WARN] 启动前检查未通过，等待玩家确认是否补全运行库。']);
+            const shouldRepair = await ask(
+              `启动前检查发现游戏运行库不完整或文件校验失败。\n\n${issuePreview}\n\n是否现在自动补全并重新校验？`,
+              {
+                title: '启动前检查未通过',
+                kind: 'warning',
+              }
+            );
+
+            if (!shouldRepair) {
+              logStore.addLogs(['[INFO] 玩家取消运行库补全，启动已中止。']);
+              logStore.setGameState('idle');
+              setIsLaunching(false);
+              return;
+            }
+
+            logStore.addLogs(['[INFO] 开始补全缺失或损坏的运行库文件...']);
+            useDownloadStore.getState().setPopupOpen(true);
+            await invoke('download_missing_runtimes', { missingList: [preLaunchReport.repair] });
+
+            logStore.addLogs(['[INFO] 运行库补全完成，正在重新执行启动前检查...']);
+            const retryReport = await invoke<PreLaunchCheckReport>('run_pre_launch_check', {
+              instanceId,
+            });
+            if (!retryReport.passed) {
+              const retryFailure = retryReport.checks?.find((check) => check.status === 'failed');
+              const retryIssue = retryFailure?.details?.[0] || retryFailure?.message || '未知错误';
+              throw new Error(`补全后启动前检查仍未通过：${retryIssue}`);
+            }
+
+            logStore.addLogs(['[INFO] 补全后启动前检查已通过，继续启动游戏。']);
+          }
+        }
+
         let mappedAccountType = 'offline';
         if (currentAccount.type?.toLowerCase() === 'microsoft') {
           mappedAccountType = 'microsoft';
@@ -321,7 +389,7 @@ export const useGameLaunch = () => {
 
         await invoke('launch_game', {
           instanceId,
-          preLaunchCheckEnabled: settings.game.preLaunchCheck ?? true,
+          preLaunchCheckEnabled: false,
           account: {
             id: currentAccount.uuid,
             accountType: mappedAccountType,

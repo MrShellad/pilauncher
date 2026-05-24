@@ -4,6 +4,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Runtime};
 
 use crate::domain::instance::InstanceConfig;
+use crate::domain::modpack::MissingRuntime;
 use crate::error::{AppError, AppResult};
 use crate::services::config_service::ConfigService;
 use crate::services::instance::verify_service;
@@ -34,6 +35,7 @@ pub struct PreLaunchCheckReport {
     pub instance_id: String,
     pub passed: bool,
     pub checks: Vec<PreLaunchCheckItem>,
+    pub repair: Option<MissingRuntime>,
 }
 
 pub struct PreLaunchCheckService;
@@ -320,6 +322,7 @@ impl PreLaunchCheckService {
         let runtime_check = verify_service::verify_instance_runtime(app, instance_id)
             .await
             .map_err(AppError::Generic)?;
+        let runtime_repair = runtime_check.repair.clone();
         if runtime_check.needs_repair {
             checks.push(PreLaunchCheckItem {
                 kind: "integrity".to_string(),
@@ -368,6 +371,7 @@ impl PreLaunchCheckService {
             instance_id: instance_id.to_string(),
             passed,
             checks,
+            repair: runtime_repair,
         })
     }
 
