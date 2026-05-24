@@ -123,6 +123,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         resource_cmd::get_ore_project_versions,
         resource_cmd::download_resource,
         launcher_cmd::launch_game,
+        launcher_cmd::run_pre_launch_check,
         launcher_cmd::kill_current_game,
         launcher_cmd::export_diagnostics,
         system_cmd::get_primary_monitor_resolution,

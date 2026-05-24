@@ -71,6 +71,7 @@ export interface GameSettings {
   launcherVisibility: 'keep' | 'minimize' | 'close';
   resolution: string;
   fullscreen: boolean;
+  preLaunchCheck: boolean;
   steamDeckKeymap: boolean;
   gamepadModCheck: boolean; // 鎵嬫焺鍚姩鏃惰嚜鍔ㄦ娴嬫墜鏌?Mod
   showGameLog: boolean; // 鏄剧ず娓告垙鏃ュ織闈㈡澘
@@ -186,6 +187,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     launcherVisibility: 'minimize',
     resolution: '854x480',
     fullscreen: true,
+    preLaunchCheck: true,
     steamDeckKeymap: false,
     gamepadModCheck: true,
     showGameLog: true,
@@ -219,4 +221,3 @@ export const DEFAULT_SETTINGS: AppSettings = {
     proxyPort: '7890',
   }
 };
-

@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod builder;
+pub mod pre_launch_check;
 pub mod resolver;
 
 use std::io::Write;
@@ -196,6 +197,7 @@ impl LauncherService {
         app: &AppHandle<R>,
         instance_id: &str,
         account: Account,
+        pre_launch_check_enabled: Option<bool>,
     ) -> AppResult<()> {
         let base_path = crate::services::config_service::ConfigService::get_base_path(app)?
             .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "未配置数据目录"))?;
@@ -212,6 +214,17 @@ impl LauncherService {
         let config_path = instance_dir.join("instance.json");
         let content = std::fs::read_to_string(&config_path)?;
         let instance_cfg: InstanceConfig = serde_json::from_str(&content)?;
+
+        let should_pre_launch_check = pre_launch_check_enabled.unwrap_or_else(|| {
+            crate::services::config_service::ConfigService::get_game_settings(app).pre_launch_check
+        });
+        if should_pre_launch_check {
+            pre_launch_check::PreLaunchCheckService::ensure_passed(app, instance_id).await?;
+        } else {
+            let message = "[INFO] 启动前检查已在设置中关闭，跳过。".to_string();
+            println!("[PreLaunchCheck] {}", message);
+            let _ = app.emit("game-log", message);
+        }
 
         let mut game_dir = instance_dir.clone();
         if let Some(third_party) = &instance_cfg.third_party_path {

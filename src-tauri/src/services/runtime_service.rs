@@ -48,11 +48,9 @@ pub fn get_required_java_version(mc_version: &str) -> String {
         return required_java_for_snapshot_year(snapshot_year);
     }
 
-    let parts: Vec<&str> = raw.split('.').collect();
-    if parts.len() >= 2 {
-        let Some(minor) = parse_prefixed_u32(parts[1]) else {
-            return "8".to_string();
-        };
+    let version_numbers = extract_version_numbers(&raw);
+    if version_numbers.len() >= 2 && version_numbers[0] == 1 {
+        let minor = version_numbers[1];
 
         if minor >= 26 {
             return "25".to_string();
@@ -63,8 +61,8 @@ pub fn get_required_java_version(mc_version: &str) -> String {
         }
 
         if minor == 20 {
-            if let Some(patch) = parts.get(2).and_then(|part| parse_prefixed_u32(part)) {
-                if patch >= 5 {
+            if let Some(patch) = version_numbers.get(2) {
+                if *patch >= 5 {
                     return "21".to_string();
                 }
             }
@@ -80,7 +78,7 @@ pub fn get_required_java_version(mc_version: &str) -> String {
         }
     }
 
-    if let Some(major) = parse_prefixed_u32(&raw) {
+    if let Some(major) = version_numbers.first().copied() {
         if major >= 26 {
             return "25".to_string();
         }
@@ -213,13 +211,28 @@ fn normalize_java_command_name(command: &str, prefer_console_binary: bool) -> St
     command.to_string()
 }
 
-fn parse_prefixed_u32(value: &str) -> Option<u32> {
-    let digits: String = value.chars().take_while(|c| c.is_ascii_digit()).collect();
-    if digits.is_empty() {
-        None
-    } else {
-        digits.parse::<u32>().ok()
+fn extract_version_numbers(value: &str) -> Vec<u32> {
+    let mut numbers = Vec::new();
+    let mut current = String::new();
+
+    for ch in value.chars() {
+        if ch.is_ascii_digit() {
+            current.push(ch);
+        } else if !current.is_empty() {
+            if let Ok(number) = current.parse::<u32>() {
+                numbers.push(number);
+            }
+            current.clear();
+        }
     }
+
+    if !current.is_empty() {
+        if let Ok(number) = current.parse::<u32>() {
+            numbers.push(number);
+        }
+    }
+
+    numbers
 }
 
 fn parse_snapshot_year(value: &str) -> Option<u32> {

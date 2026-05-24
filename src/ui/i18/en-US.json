@@ -782,6 +782,8 @@
       "resolutionDesc": "Initial game window size.",
       "showLog": "Game Log Panel",
       "showLogDesc": "Expand console with logs during startup until loading is finished.",
+      "preLaunchCheck": "Pre-Launch Integrity Check",
+      "preLaunchCheckDesc": "Validate game files, platform compatibility, and Java version before launch; block launch on critical issues.",
       "steamDeckKeymap": "Steam Deck Game Mode Keymap",
       "steamDeckKeymapDesc": "Treat the Steam Input keyboard/mouse layout as controller navigation in the launcher, matching the recommended Minecraft Java layout.",
       "steamDeckMap": {

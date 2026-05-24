@@ -321,6 +321,7 @@ export const useGameLaunch = () => {
 
         await invoke('launch_game', {
           instanceId,
+          preLaunchCheckEnabled: settings.game.preLaunchCheck ?? true,
           account: {
             id: currentAccount.uuid,
             accountType: mappedAccountType,

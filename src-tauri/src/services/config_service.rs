@@ -79,6 +79,10 @@ fn default_playtime_remote_path() -> String {
     "PiLauncher/playtime".to_string()
 }
 
+fn default_pre_launch_check() -> bool {
+    true
+}
+
 impl Default for DownloadSettings {
     fn default() -> Self {
         Self {
@@ -172,12 +176,15 @@ impl Default for JavaSettings {
 pub struct GameSettings {
     pub fullscreen: bool,
     pub resolution: String,
+    #[serde(default = "default_pre_launch_check")]
+    pub pre_launch_check: bool,
 }
 impl Default for GameSettings {
     fn default() -> Self {
         Self {
             fullscreen: false,
             resolution: "854x480".to_string(),
+            pre_launch_check: true,
         }
     }
 }

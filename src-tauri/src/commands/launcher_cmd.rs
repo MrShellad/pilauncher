@@ -10,9 +10,19 @@ pub async fn launch_game<R: Runtime>(
     app: AppHandle<R>,
     instance_id: String,
     account: Account, // 核心修改 2：将 AccountPayload 替换为 Account
+    pre_launch_check_enabled: Option<bool>,
 ) -> AppResult<()> {
     // 异步交由 Service 调度
-    LauncherService::launch_instance(&app, &instance_id, account).await
+    LauncherService::launch_instance(&app, &instance_id, account, pre_launch_check_enabled).await
+}
+
+#[tauri::command]
+pub async fn run_pre_launch_check<R: Runtime>(
+    app: AppHandle<R>,
+    instance_id: String,
+) -> AppResult<crate::services::launcher::pre_launch_check::PreLaunchCheckReport> {
+    crate::services::launcher::pre_launch_check::PreLaunchCheckService::run(&app, &instance_id)
+        .await
 }
 
 use std::sync::atomic::{AtomicU32, Ordering};

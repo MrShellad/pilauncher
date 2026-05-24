@@ -99,6 +99,7 @@ export const GameSettings: React.FC = () => {
       'settings-game-fullscreen',
       ...resolutionKeys, // 展开所有分辨率的 index key
       'settings-game-show-log',
+      'settings-game-prelaunch-check',
       'settings-game-steamdeck-keymap',
       'launcher-vis-0',
       'launcher-vis-1',
@@ -209,6 +210,19 @@ export const GameSettings: React.FC = () => {
               onArrowPress={handleLinearArrow}
               checked={game.showGameLog ?? true}
               onChange={(v) => updateGameSetting('showGameLog', v)}
+            />
+          }
+        />
+
+        <FormRow
+          label={t('settings.game.preLaunchCheck')}
+          description={t('settings.game.preLaunchCheckDesc')}
+          control={
+            <OreSwitch
+              focusKey="settings-game-prelaunch-check"
+              onArrowPress={handleLinearArrow}
+              checked={game.preLaunchCheck ?? true}
+              onChange={(v) => updateGameSetting('preLaunchCheck', v)}
             />
           }
         />

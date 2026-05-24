@@ -57,8 +57,14 @@ impl LaunchCommandBuilder {
     }
 
     fn split_path_entries(value: &str) -> Vec<String> {
-        value
-            .split(Self::classpath_separator())
+        let separator = if value.contains(';') {
+            ';'
+        } else {
+            Self::classpath_separator().chars().next().unwrap_or(':')
+        };
+
+        split_path_entries_with_separator(value, separator)
+            .into_iter()
             .map(str::trim)
             .filter(|entry| !entry.is_empty())
             .map(|entry| entry.to_string())
@@ -710,6 +716,53 @@ impl LaunchCommandBuilder {
 }
 
 #[cfg(test)]
+fn split_path_entries_for_test(value: &str, separator: char) -> Vec<String> {
+    split_path_entries_with_separator(value, separator)
+        .into_iter()
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty())
+        .map(|entry| entry.to_string())
+        .collect()
+}
+
+fn split_path_entries_with_separator(value: &str, separator: char) -> Vec<&str> {
+    if separator != ':' {
+        return value.split(separator).collect();
+    }
+
+    let mut entries = Vec::new();
+    let mut segment_start = 0usize;
+    let chars = value.char_indices().collect::<Vec<_>>();
+
+    for (entry_index, (byte_index, ch)) in chars.iter().enumerate() {
+        if *ch != ':' {
+            continue;
+        }
+
+        let is_windows_drive_colon = *byte_index == segment_start + 1
+            && value[segment_start..*byte_index]
+                .chars()
+                .next()
+                .map(|drive| drive.is_ascii_alphabetic())
+                .unwrap_or(false)
+            && chars
+                .get(entry_index + 1)
+                .map(|(_, next)| *next == '/' || *next == '\\')
+                .unwrap_or(false);
+
+        if is_windows_drive_colon {
+            continue;
+        }
+
+        entries.push(&value[segment_start..*byte_index]);
+        segment_start = *byte_index + ch.len_utf8();
+    }
+
+    entries.push(&value[segment_start..]);
+    entries
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::domain::launcher::{AuthSession, ResolvedLaunchConfig};
@@ -823,6 +876,17 @@ mod tests {
                 "b.jar".to_string(),
                 "c.jar".to_string(),
                 "d.jar".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn split_path_entries_keeps_windows_drive_prefix_on_unix_separator() {
+        assert_eq!(
+            split_path_entries_for_test("C:/runtime/libs/a.jar:/opt/libs/b.jar", ':'),
+            vec![
+                "C:/runtime/libs/a.jar".to_string(),
+                "/opt/libs/b.jar".to_string()
             ]
         );
     }

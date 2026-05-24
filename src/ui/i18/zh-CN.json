@@ -782,6 +782,8 @@
       "resolutionDesc": "设定游戏初始窗口的大小 (全屏模式下此项仅影响 UI 缩放)。已根据你的显示器自动隐藏不支持的超大分辨率。",
       "showLog": "游戏日志面板",
       "showLogDesc": "启动游戏时展开带有日志输出的控制台面板。关闭后将显示方块跳跃动画，直到游戏加载完成。",
+      "preLaunchCheck": "启动前完整性检查",
+      "preLaunchCheckDesc": "启动前校验游戏文件、当前平台适配和 Java 版本；发现关键问题时阻止启动。",
       "steamDeckKeymap": "Steam Deck 游戏模式按键映射",
       "steamDeckKeymapDesc": "将 Steam Input 输出的键盘/鼠标布局识别为启动器手柄导航，匹配推荐的 Minecraft Java 版掌机布局。",
       "steamDeckMap": {
