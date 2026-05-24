@@ -98,6 +98,54 @@ async fn download_dependencies_inner<R: Runtime>(
     Ok(())
 }
 
+async fn download_loaded_manifest_dependencies_inner<R: Runtime>(
+    app: &AppHandle<R>,
+    instance_id: &str,
+    manifest: &serde_json::Value,
+    global_mc_root: &Path,
+    cancel: &Arc<AtomicBool>,
+    force_verify_hash: bool,
+) -> AppResult<()> {
+    let dl_settings = ConfigService::get_download_settings(app);
+    let client = build_download_client(&dl_settings)?;
+
+    if force_verify_hash {
+        libraries::download_libraries_force_hash(
+            app,
+            instance_id,
+            &client,
+            manifest,
+            global_mc_root,
+            cancel,
+        )
+        .await?;
+    } else {
+        libraries::download_libraries(app, instance_id, &client, manifest, global_mc_root, cancel)
+            .await?;
+    }
+
+    if is_cancelled(cancel) {
+        return Err(AppError::Cancelled);
+    }
+
+    if force_verify_hash {
+        assets::download_assets_force_hash(
+            app,
+            instance_id,
+            &client,
+            manifest,
+            global_mc_root,
+            cancel,
+        )
+        .await?;
+    } else {
+        assets::download_assets(app, instance_id, &client, manifest, global_mc_root, cancel)
+            .await?;
+    }
+
+    Ok(())
+}
+
 pub async fn download_dependencies<R: Runtime>(
     app: &AppHandle<R>,
     instance_id: &str,
@@ -116,4 +164,22 @@ pub async fn download_dependencies_force_hash<R: Runtime>(
     cancel: &Arc<AtomicBool>,
 ) -> AppResult<()> {
     download_dependencies_inner(app, instance_id, version_id, global_mc_root, cancel, true).await
+}
+
+pub async fn download_loaded_manifest_dependencies_force_hash<R: Runtime>(
+    app: &AppHandle<R>,
+    instance_id: &str,
+    manifest: &serde_json::Value,
+    global_mc_root: &Path,
+    cancel: &Arc<AtomicBool>,
+) -> AppResult<()> {
+    download_loaded_manifest_dependencies_inner(
+        app,
+        instance_id,
+        manifest,
+        global_mc_root,
+        cancel,
+        true,
+    )
+    .await
 }

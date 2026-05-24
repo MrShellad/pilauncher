@@ -1,11 +1,12 @@
 import { useState, useCallback, type KeyboardEvent, type MouseEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { ask } from '@tauri-apps/plugin-dialog';
 import { useAccountStore } from '../store/useAccountStore';
 import { useDownloadStore } from '../store/useDownloadStore';
 import { useGameLogStore } from '../store/useGameLogStore';
 import { useGamepadModStore } from '../store/useGamepadModStore';
+import { useRuntimeRepairDialogStore } from '../store/useRuntimeRepairDialogStore';
 import { useSettingsStore } from '../store/useSettingsStore';
+import type { PreLaunchCheckReport } from '../types/runtimeRepair';
 import {
   resolveGamepadMod,
   resolveGamepadModOnDemand,
@@ -13,24 +14,6 @@ import {
 } from '../services/gamepadModService';
 
 type LaunchEvent = MouseEvent | KeyboardEvent;
-
-interface MissingRuntime {
-  instance_id: string;
-  mc_version: string;
-  loader_type: string;
-  loader_version: string;
-}
-
-interface PreLaunchCheckReport {
-  passed: boolean;
-  repair?: MissingRuntime | null;
-  checks?: Array<{
-    kind: string;
-    status: 'passed' | 'warning' | 'failed' | string;
-    message: string;
-    details?: string[];
-  }>;
-}
 
 export const useGameLaunch = () => {
   const [isLaunching, setIsLaunching] = useState(false);
@@ -297,12 +280,9 @@ export const useGameLaunch = () => {
             }
 
             logStore.addLogs(['[WARN] 启动前检查未通过，等待玩家确认是否补全运行库。']);
-            const shouldRepair = await ask(
-              `启动前检查发现游戏运行库不完整或文件校验失败。\n\n${issuePreview}\n\n是否现在自动补全并重新校验？`,
-              {
-                title: '启动前检查未通过',
-                kind: 'warning',
-              }
+            const shouldRepair = await useRuntimeRepairDialogStore.getState().promptRepair(
+              firstFailure?.details?.length ? firstFailure.details : [issuePreview],
+              preLaunchReport.repair
             );
 
             if (!shouldRepair) {

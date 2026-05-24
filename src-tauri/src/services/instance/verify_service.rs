@@ -259,6 +259,11 @@ fn build_runtime_repair(instance_id: &str, config: &InstanceConfig) -> MissingRu
     }
 }
 
+fn read_json_file(path: &Path) -> Option<serde_json::Value> {
+    let content = fs::read_to_string(path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
 pub async fn verify_instance_runtime<R: Runtime>(
     app: &AppHandle<R>,
     instance_id: &str,
@@ -521,17 +526,50 @@ pub async fn download_missing_runtimes<R: Runtime>(
         .await
         .map_err(|error| error.to_string())?;
 
-        crate::services::downloader::loader_installer::install_loader(
-            app,
-            &missing.instance_id,
-            &missing.mc_version,
+        if let Some(loader_folder) = resolve_loader_folder(
             &missing.loader_type,
+            &missing.mc_version,
             &missing.loader_version,
-            &runtime_dir,
-            &no_cancel,
-        )
-        .await
-        .map_err(|error| error.to_string())?;
+        ) {
+            let loader_json_path = runtime_dir
+                .join("versions")
+                .join(&loader_folder)
+                .join(format!("{}.json", loader_folder));
+
+            let loader_manifest = match read_json_file(&loader_json_path) {
+                Some(manifest) => manifest,
+                None => {
+                    crate::services::downloader::loader_installer::install_loader(
+                        app,
+                        &missing.instance_id,
+                        &missing.mc_version,
+                        &missing.loader_type,
+                        &missing.loader_version,
+                        &runtime_dir,
+                        &no_cancel,
+                    )
+                    .await
+                    .map_err(|error| error.to_string())?;
+
+                    read_json_file(&loader_json_path).ok_or_else(|| {
+                        format!(
+                            "Loader install completed but version json is still missing: {}",
+                            loader_json_path.display()
+                        )
+                    })?
+                }
+            };
+
+            crate::services::downloader::dependencies::download_loaded_manifest_dependencies_force_hash(
+                app,
+                &missing.instance_id,
+                &loader_manifest,
+                &runtime_dir,
+                &no_cancel,
+            )
+            .await
+            .map_err(|error| error.to_string())?;
+        }
 
         let _ = app.emit(
             "instance-deployment-progress",

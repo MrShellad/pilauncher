@@ -27,6 +27,7 @@ import { GamepadModPrompt } from './features/Instances/components/GamepadModProm
 import { SetupWizard } from './features/Setup/components/SetupWizard';
 import { JavaGuard } from './features/runtime/components/JavaGuard';
 import { JavaEnvironmentChangedDialog } from './features/runtime/components/JavaEnvironmentChangedDialog';
+import { RuntimeRepairDialogHost } from './features/runtime/components/RuntimeRepairDialogHost';
 import { StartupUpdateChecker } from './features/Settings/components/StartupUpdateChecker';
 import { useWebDavAutoSync } from './hooks/useWebDavAutoSync';
 
@@ -328,6 +329,7 @@ const App: React.FC = () => {
         <StartupNewsModal />
         <StartupArticlePushModal />
         <GamepadModPrompt />
+        <RuntimeRepairDialogHost />
         <JavaEnvironmentChangedDialog
           isOpen={isJavaEnvChangedDialogOpen}
           onClose={() => setIsJavaEnvChangedDialogOpen(false)}
