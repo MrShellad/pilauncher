@@ -20,6 +20,7 @@ import { useSettingsStore } from '../../../../../../store/useSettingsStore';
 import { OreButton } from '../../../../../../ui/primitives/OreButton';
 import { OreDropdown } from '../../../../../../ui/primitives/OreDropdown';
 import { OreModal } from '../../../../../../ui/primitives/OreModal';
+import { OreToggleButton, type ToggleOption } from '../../../../../../ui/primitives/OreToggleButton';
 import { FocusBoundary } from '../../../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../../../ui/focus/FocusItem';
 import { useLinearNavigation } from '../../../../../../ui/focus/useLinearNavigation';
@@ -65,6 +66,29 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
   const webDav = settings.general.webDav;
   const [activeTab, setActiveTab] = useState<'saves' | 'skins'>('saves');
   const [remoteBackups, setRemoteBackups] = useState<WebDavRemoteSaveBackup[]>([]);
+  const tabs = useMemo<ToggleOption[]>(
+    () => [
+      {
+        value: 'saves',
+        label: (
+          <div className="flex items-center justify-center gap-2">
+            <HardDrive size={16} />
+            <span>存档备份 ({remoteBackups.length})</span>
+          </div>
+        ),
+      },
+      {
+        value: 'skins',
+        label: (
+          <div className="flex items-center justify-center gap-2">
+            <Shirt size={16} />
+            <span>皮肤备份</span>
+          </div>
+        ),
+      },
+    ],
+    [remoteBackups.length]
+  );
   const [instances, setInstances] = useState<InstanceOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [busyBackupId, setBusyBackupId] = useState<string | null>(null);
@@ -203,7 +227,7 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
   );
 
   const focusOrder = useMemo(() => {
-    const tabKeys = ['webdav-manage-tab-saves', 'webdav-manage-tab-skins', 'webdav-manage-refresh'];
+    const tabKeys = ['webdav-manage-tab-0', 'webdav-manage-tab-1', 'webdav-manage-refresh'];
     const itemKeys =
       activeTab === 'saves'
         ? remoteBackups.flatMap((backup) => [
@@ -214,8 +238,8 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
     const downloadKeys = pendingDownload
       ? [
           'webdav-manage-target-instance',
-          'webdav-manage-mode-local',
-          'webdav-manage-mode-restore',
+          'webdav-manage-mode-0',
+          'webdav-manage-mode-1',
           ...(downloadMode === 'restore' ? ['webdav-manage-restore-configs'] : []),
           'webdav-manage-confirm-download',
           'webdav-manage-cancel-download',
@@ -265,34 +289,27 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
           </div>
         )}
 
-        <div className="flex border-b-2 border-[#1E1E1F] bg-[#141517]">
-          <OreButton
-            variant={activeTab === 'saves' ? 'primary' : 'secondary'}
-            onClick={() => setActiveTab('saves')}
-            focusKey="webdav-manage-tab-saves"
+        <div 
+          className="flex items-center border-b-2 border-[#1E1E1F] bg-[#141517] w-full"
+          style={{ '--ore-toggle-height': 'clamp(2.625rem, calc(2vw + 0.875rem), 3.25rem)' } as any}
+        >
+          <OreToggleButton
+            options={tabs}
+            value={activeTab}
+            onChange={(val) => setActiveTab(val as 'saves' | 'skins')}
+            focusKeyPrefix="webdav-manage-tab"
             onArrowPress={handleLinearArrow}
-            className="flex-1 !h-11 !min-h-11 justify-center rounded-none border-b-0"
-          >
-            <HardDrive size={16} className="mr-2" />
-            存档备份 ({remoteBackups.length})
-          </OreButton>
-          <OreButton
-            variant={activeTab === 'skins' ? 'primary' : 'secondary'}
-            onClick={() => setActiveTab('skins')}
-            focusKey="webdav-manage-tab-skins"
-            onArrowPress={handleLinearArrow}
-            className="flex-1 !h-11 !min-h-11 justify-center rounded-none border-b-0"
-          >
-            <Shirt size={16} className="mr-2" />
-            皮肤备份
-          </OreButton>
+            className="flex-1 ore-tab-nav-toggle"
+            uiScale="adaptive"
+            focusable={true}
+          />
           <OreButton
             variant="secondary"
             onClick={loadBackups}
             focusKey="webdav-manage-refresh"
             onArrowPress={handleLinearArrow}
             disabled={isLoading}
-            className="!h-11 !min-h-11 rounded-none border-b-0 px-4"
+            className="!h-[var(--ore-toggle-height)] !min-h-[var(--ore-toggle-height)] rounded-none !m-0 border-y-0 border-r-0 border-l border-[#1E1E1F] px-4"
           >
             {isLoading ? <Loader2 size={16} className="mr-2 animate-spin" /> : <RefreshCw size={16} className="mr-2" />}
             刷新
@@ -406,24 +423,34 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
 
               <div>
                 <div className="mb-1 text-xs text-[#B1B2B5]">下载模式</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <RadioButton
-                    focusKey="webdav-manage-mode-local"
-                    checked={downloadMode === 'local'}
-                    label="仅下载"
-                    icon={<HardDrive size={14} />}
-                    onClick={() => setDownloadMode('local')}
-                    onArrowPress={handleLinearArrow}
-                  />
-                  <RadioButton
-                    focusKey="webdav-manage-mode-restore"
-                    checked={downloadMode === 'restore'}
-                    label="立即恢复"
-                    icon={<RotateCcw size={14} />}
-                    onClick={() => setDownloadMode('restore')}
-                    onArrowPress={handleLinearArrow}
-                  />
-                </div>
+                <OreToggleButton
+                  options={[
+                    {
+                      value: 'local',
+                      label: (
+                        <div className="flex items-center gap-2 justify-center">
+                          <HardDrive size={14} />
+                          <span>仅下载</span>
+                        </div>
+                      ),
+                    },
+                    {
+                      value: 'restore',
+                      label: (
+                        <div className="flex items-center gap-2 justify-center">
+                          <RotateCcw size={14} />
+                          <span>立即恢复</span>
+                        </div>
+                      ),
+                    },
+                  ]}
+                  value={downloadMode}
+                  onChange={(val) => setDownloadMode(val as DownloadMode)}
+                  focusKeyPrefix="webdav-manage-mode"
+                  onArrowPress={handleLinearArrow}
+                  size="sm"
+                  disabled={!!busyBackupId}
+                />
               </div>
             </div>
 
