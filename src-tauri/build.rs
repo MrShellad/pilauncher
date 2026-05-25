@@ -14,6 +14,11 @@ const CLIENT_INSTALLATION_TRACK_API_URL_KEY: &str = "CLIENT_INSTALLATION_TRACK_A
 const VITE_CLIENT_INSTALLATION_TRACK_API_URL_KEY: &str = "VITE_CLIENT_INSTALLATION_TRACK_API_URL";
 const CLIENT_INSTALLATION_TRACK_API_KEY_KEY: &str = "CLIENT_INSTALLATION_TRACK_API_KEY";
 const VITE_CLIENT_INSTALLATION_TRACK_API_KEY_KEY: &str = "VITE_CLIENT_INSTALLATION_TRACK_API_KEY";
+const TMT_API_URL_KEY: &str = "TMT_API_URL";
+const TMT_SECRET_ID_KEY: &str = "TMT_SECRET_ID";
+const TMT_SECRET_KEY_KEY: &str = "TMT_SECRET_KEY";
+const TMT_REGION_KEY: &str = "TMT_REGION";
+const TMT_PROJECT_ID_KEY: &str = "TMT_PROJECT_ID";
 
 fn main() {
     let manifest_dir =
@@ -35,6 +40,11 @@ fn main() {
     println!("cargo:rerun-if-env-changed={VITE_CLIENT_INSTALLATION_TRACK_API_URL_KEY}");
     println!("cargo:rerun-if-env-changed={CLIENT_INSTALLATION_TRACK_API_KEY_KEY}");
     println!("cargo:rerun-if-env-changed={VITE_CLIENT_INSTALLATION_TRACK_API_KEY_KEY}");
+    println!("cargo:rerun-if-env-changed={TMT_API_URL_KEY}");
+    println!("cargo:rerun-if-env-changed={TMT_SECRET_ID_KEY}");
+    println!("cargo:rerun-if-env-changed={TMT_SECRET_KEY_KEY}");
+    println!("cargo:rerun-if-env-changed={TMT_REGION_KEY}");
+    println!("cargo:rerun-if-env-changed={TMT_PROJECT_ID_KEY}");
 
     let client_id = env::var(CLIENT_ID_KEY)
         .ok()
@@ -96,6 +106,18 @@ fn main() {
         ],
     ) {
         println!("cargo:rustc-env={CLIENT_INSTALLATION_TRACK_API_KEY_KEY}={key}");
+    }
+
+    for key in [
+        TMT_API_URL_KEY,
+        TMT_SECRET_ID_KEY,
+        TMT_SECRET_KEY_KEY,
+        TMT_REGION_KEY,
+        TMT_PROJECT_ID_KEY,
+    ] {
+        if let Some(value) = read_first_env_value(&root_env_path, &[key]) {
+            println!("cargo:rustc-env={key}={value}");
+        }
     }
 
     // NOTE: Terracotta sidecar is temporarily disabled for CI compatibility.

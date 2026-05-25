@@ -1,6 +1,7 @@
 import React from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
-import { CheckCircle2, Clock3, Download, Loader2 } from 'lucide-react';
+import { CheckCircle2, Clock3, Download, Languages, Loader2, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useInputAction } from '../../../../ui/focus/InputDriver';
 
@@ -23,6 +24,18 @@ interface VersionListProps {
   observerTarget: React.Ref<HTMLDivElement>;
 }
 
+type ChangelogTranslationState =
+  | { status: 'loading' }
+  | { status: 'translated'; text: string; source: string; target: string; chunks: number }
+  | { status: 'error'; error: string };
+
+interface ChangelogTranslationResponse {
+  translatedText: string;
+  source: string;
+  target: string;
+  chunks: number;
+}
+
 export const VersionList: React.FC<VersionListProps> = ({
   versions,
   isLoadingVersions,
@@ -36,6 +49,8 @@ export const VersionList: React.FC<VersionListProps> = ({
 }) => {
   const { t } = useTranslation();
   const [selectedVersion, setSelectedVersion] = React.useState<OreProjectVersion | null>(null);
+  const [translations, setTranslations] = React.useState<Record<string, ChangelogTranslationState>>({});
+  const [showTranslatedChangelog, setShowTranslatedChangelog] = React.useState<Record<string, boolean>>({});
   const getVersionRowFocusKey = (idx: number) => `download-modal-version-row-${idx}`;
   const isVersionInstalled = (version: OreProjectVersion) =>
     installedVersionIds.includes(version.id) ||
@@ -70,6 +85,60 @@ export const VersionList: React.FC<VersionListProps> = ({
   const handleVersionEnter = (version: OreProjectVersion) => {
     setSelectedVersion(version);
   };
+
+  const handleTranslateChangelog = React.useCallback(async () => {
+    if (!selectedVersion?.changelog?.trim()) return;
+
+    const versionId = selectedVersion.id;
+    const current = translations[versionId];
+    if (current?.status === 'translated') {
+      setShowTranslatedChangelog((prev) => ({
+        ...prev,
+        [versionId]: !prev[versionId],
+      }));
+      return;
+    }
+
+    setTranslations((prev) => ({
+      ...prev,
+      [versionId]: { status: 'loading' },
+    }));
+    setShowTranslatedChangelog((prev) => ({
+      ...prev,
+      [versionId]: true,
+    }));
+
+    try {
+      const result = await invoke<ChangelogTranslationResponse>('translate_changelog_tmt', {
+        text: selectedVersion.changelog,
+        source: 'auto',
+        target: 'zh',
+      });
+
+      setTranslations((prev) => ({
+        ...prev,
+        [versionId]: {
+          status: 'translated',
+          text: result.translatedText,
+          source: result.source,
+          target: result.target,
+          chunks: result.chunks,
+        },
+      }));
+    } catch (error) {
+      setTranslations((prev) => ({
+        ...prev,
+        [versionId]: {
+          status: 'error',
+          error: error instanceof Error ? error.message : String(error),
+        },
+      }));
+      setShowTranslatedChangelog((prev) => ({
+        ...prev,
+        [versionId]: false,
+      }));
+    }
+  }, [selectedVersion, translations]);
 
   const renderChangelog = (body?: string | null) => {
     if (!body?.trim()) {
@@ -118,6 +187,31 @@ export const VersionList: React.FC<VersionListProps> = ({
       </div>
     );
   };
+
+  const selectedTranslation = selectedVersion ? translations[selectedVersion.id] : undefined;
+  const selectedHasChangelog = !!selectedVersion?.changelog?.trim();
+  const selectedIsShowingTranslation =
+    !!selectedVersion &&
+    showTranslatedChangelog[selectedVersion.id] &&
+    selectedTranslation?.status === 'translated';
+  const selectedChangelogText =
+    selectedIsShowingTranslation && selectedTranslation?.status === 'translated'
+      ? selectedTranslation.text
+      : selectedVersion?.changelog;
+  const selectedCanTranslate =
+    !!selectedVersion && selectedHasChangelog && selectedTranslation?.status !== 'loading';
+  const selectedTranslateLabel =
+    selectedIsShowingTranslation
+      ? t('download.versionChangelog.showOriginal', { defaultValue: 'Show Original' })
+      : selectedTranslation?.status === 'translated'
+        ? t('download.versionChangelog.showTranslation', { defaultValue: 'Show Translation' })
+        : t('download.versionChangelog.translate', { defaultValue: 'Translate' });
+  const selectedDefaultFocusKey =
+    selectedVersion && !isVersionInstalled(selectedVersion)
+      ? 'download-version-changelog-download'
+      : selectedHasChangelog
+        ? 'download-version-changelog-translate'
+        : 'download-version-changelog-close';
 
   return (
     <>
@@ -247,9 +341,32 @@ export const VersionList: React.FC<VersionListProps> = ({
         title={t('download.versionChangelog.title', { defaultValue: 'Version Changelog' })}
         className="w-[min(42rem,calc(100vw-2rem))]"
         contentClassName="max-h-[70vh] overflow-y-auto custom-scrollbar p-[1rem] bg-[var(--ore-modal-bg)]"
-        defaultFocusKey={selectedVersion && !isVersionInstalled(selectedVersion) ? 'download-version-changelog-download' : 'download-version-changelog-close'}
+        defaultFocusKey={selectedDefaultFocusKey}
         actions={
           <div className="flex w-full items-center justify-end gap-[0.75rem]">
+            {selectedVersion && selectedHasChangelog && (
+              <OreButton
+                focusKey="download-version-changelog-translate"
+                variant="secondary"
+                size="sm"
+                className="gap-[0.5rem]"
+                disabled={!selectedCanTranslate}
+                onClick={() => {
+                  void handleTranslateChangelog();
+                }}
+              >
+                {selectedTranslation?.status === 'loading' ? (
+                  <Loader2 size={14} className="shrink-0 animate-spin" />
+                ) : selectedIsShowingTranslation ? (
+                  <RotateCcw size={14} className="shrink-0" />
+                ) : (
+                  <Languages size={14} className="shrink-0" />
+                )}
+                {selectedTranslation?.status === 'loading'
+                  ? t('download.versionChangelog.translating', { defaultValue: 'Translating' })
+                  : selectedTranslateLabel}
+              </OreButton>
+            )}
             {selectedVersion && !isVersionInstalled(selectedVersion) && (
               <OreButton
                 focusKey="download-version-changelog-download"
@@ -290,8 +407,25 @@ export const VersionList: React.FC<VersionListProps> = ({
               </div>
             </div>
 
+            {selectedTranslation?.status === 'error' && (
+              <div className="border-[0.125rem] border-red-500/70 bg-red-950/40 px-[0.875rem] py-[0.625rem] font-minecraft text-[0.75rem] leading-[1.5] text-red-100">
+                {t('download.versionChangelog.translateFailed', {
+                  defaultValue: 'Translation failed: {{message}}',
+                  message: selectedTranslation.error,
+                })}
+              </div>
+            )}
+
+            {selectedIsShowingTranslation && selectedTranslation?.status === 'translated' && (
+              <div className="border-[0.125rem] border-[#6D6D6E] bg-[#313233] px-[0.875rem] py-[0.5rem] font-minecraft text-[0.6875rem] uppercase tracking-[0.08em] text-[#B9FF8A]">
+                {t('download.versionChangelog.machineTranslated', {
+                  defaultValue: 'Machine translated by TMT',
+                })}
+              </div>
+            )}
+
             <div className="max-h-[24rem] overflow-y-auto custom-scrollbar border-[0.125rem] border-[#6D6D6E] bg-[#1E1E1F] p-[0.875rem] shadow-[inset_0_0.125rem_0_rgba(255,255,255,0.08)]">
-              {renderChangelog(selectedVersion.changelog)}
+              {renderChangelog(selectedChangelogText)}
             </div>
           </div>
         )}

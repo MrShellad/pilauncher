@@ -24,6 +24,7 @@ pub mod social_cmd;
 pub mod system_cmd;
 pub mod telemetry_cmd;
 pub mod terracotta;
+pub mod translation_cmd;
 pub mod update_cmd;
 pub mod wiki_cmd;
 
@@ -192,6 +193,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         update_cmd::check_update,
         update_cmd::install_update,
         telemetry_cmd::track_client_installation,
+        translation_cmd::translate_changelog_tmt,
         library_cmd::get_starred_items,
         library_cmd::save_starred_item,
         library_cmd::remove_starred_item,
