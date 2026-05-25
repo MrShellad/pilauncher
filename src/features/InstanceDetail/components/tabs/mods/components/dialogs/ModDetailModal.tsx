@@ -20,6 +20,7 @@ import {
 } from '../../../../../logic/modrinthApi';
 import { fetchCurseForgeVersions, getCurseForgeProjectDetails, searchCurseForge } from '../../../../../../Download/logic/curseforgeApi';
 import {
+  getModPlatformReference,
   modService,
   resolveInstanceGameVersion,
   resolveInstanceLoader,
@@ -139,10 +140,10 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
       let projectId: string | undefined = undefined;
       if (activePlatform === 'curseforge') {
         projectId = (displayMod.networkInfo?.source === 'curseforge' ? displayMod.networkInfo.id : undefined)
-          || (displayMod.manifestEntry?.source.platform === 'curseforge' ? displayMod.manifestEntry.source.projectId : undefined);
+          || getModPlatformReference(displayMod, 'curseforge')?.projectId;
       } else {
         projectId = (displayMod.networkInfo?.source === 'modrinth' ? displayMod.networkInfo.id : undefined)
-          || (displayMod.manifestEntry?.source.platform === 'modrinth' ? displayMod.manifestEntry.source.projectId : undefined)
+          || getModPlatformReference(displayMod, 'modrinth')?.projectId
           || displayMod.modId;
       }
 

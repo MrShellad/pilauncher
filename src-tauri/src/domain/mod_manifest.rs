@@ -42,6 +42,15 @@ pub struct ModManifestSource {
     pub file_id: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ModPlatformMatch {
+    #[serde(default, alias = "project_id", skip_serializing_if = "Option::is_none")]
+    pub project_id: Option<String>,
+    #[serde(default, alias = "file_id", skip_serializing_if = "Option::is_none")]
+    pub file_id: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ModFileHash {
@@ -86,6 +95,8 @@ pub struct ModManifestEntry {
     pub icon_rel_path: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub curseforge_fingerprint: Option<u32>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub matched_platforms: HashMap<String, ModPlatformMatch>,
 }
 
 pub type ModManifest = HashMap<String, ModManifestEntry>;
@@ -117,6 +128,8 @@ pub struct RawModManifestEntry {
     pub icon_rel_path: Option<String>,
     #[serde(default)]
     pub curseforge_fingerprint: Option<u32>,
+    #[serde(default)]
+    pub matched_platforms: HashMap<String, ModPlatformMatch>,
 }
 
 pub type RawModManifest = HashMap<String, RawModManifestEntry>;
@@ -189,6 +202,7 @@ pub fn build_manifest_entry(
         description: None,
         icon_rel_path: None,
         curseforge_fingerprint: None,
+        matched_platforms: HashMap::new(),
     }
 }
 
@@ -303,6 +317,7 @@ fn copy_cached_metadata_from_raw(raw: Option<&RawModManifestEntry>, entry: &mut 
     entry.description = raw.description.clone();
     entry.icon_rel_path = raw.icon_rel_path.clone();
     entry.curseforge_fingerprint = raw.curseforge_fingerprint;
+    entry.matched_platforms = raw.matched_platforms.clone();
 }
 
 fn merge_cached_metadata(target: &mut ModManifestEntry, source: &ModManifestEntry) {
@@ -323,6 +338,16 @@ fn merge_cached_metadata(target: &mut ModManifestEntry, source: &ModManifestEntr
     }
     if target.curseforge_fingerprint.is_none() {
         target.curseforge_fingerprint = source.curseforge_fingerprint;
+    }
+    if target.matched_platforms.is_empty() {
+        target.matched_platforms = source.matched_platforms.clone();
+    } else {
+        for (platform, matched) in &source.matched_platforms {
+            target
+                .matched_platforms
+                .entry(platform.clone())
+                .or_insert_with(|| matched.clone());
+        }
     }
 }
 
@@ -374,6 +399,14 @@ mod tests {
         fs::write(&file_path, b"demo").expect("write mod file");
 
         let file_state = build_file_state(&file_path).expect("file state");
+        let mut matched_platforms = HashMap::new();
+        matched_platforms.insert(
+            "modrinth".to_string(),
+            ModPlatformMatch {
+                project_id: Some("project-1".to_string()),
+                file_id: Some("version-1".to_string()),
+            },
+        );
         let raw = RawModManifestEntry {
             source: Some(build_manifest_source(
                 ModSourceKind::LauncherDownload,
@@ -388,6 +421,7 @@ mod tests {
             version: Some("1.0.0".to_string()),
             description: Some("Cached description".to_string()),
             icon_rel_path: Some("icons/demo.png".to_string()),
+            matched_platforms,
             ..Default::default()
         };
 
@@ -407,6 +441,13 @@ mod tests {
             Some("Cached description")
         );
         assert_eq!(normalized.icon_rel_path.as_deref(), Some("icons/demo.png"));
+        assert_eq!(
+            normalized
+                .matched_platforms
+                .get("modrinth")
+                .and_then(|matched| matched.project_id.as_deref()),
+            Some("project-1")
+        );
 
         let _ = fs::remove_dir_all(dir);
     }
@@ -432,6 +473,13 @@ mod tests {
         existing_entry.version = Some("1.0.0".to_string());
         existing_entry.description = Some("Keep me".to_string());
         existing_entry.icon_rel_path = Some("icons/demo.png".to_string());
+        existing_entry.matched_platforms.insert(
+            "curseforge".to_string(),
+            ModPlatformMatch {
+                project_id: Some("123".to_string()),
+                file_id: Some("456".to_string()),
+            },
+        );
         existing_manifest.insert("demo.jar".to_string(), existing_entry);
         write_mod_manifest(&manifest_path, &existing_manifest).expect("write manifest");
 
@@ -457,6 +505,13 @@ mod tests {
         assert_eq!(entry.version.as_deref(), Some("1.0.0"));
         assert_eq!(entry.description.as_deref(), Some("Keep me"));
         assert_eq!(entry.icon_rel_path.as_deref(), Some("icons/demo.png"));
+        assert_eq!(
+            entry
+                .matched_platforms
+                .get("curseforge")
+                .and_then(|matched| matched.file_id.as_deref()),
+            Some("456")
+        );
 
         let _ = fs::remove_dir_all(dir);
     }

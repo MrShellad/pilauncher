@@ -2,6 +2,11 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { ModrinthProject } from './modrinthApi';
 
+export interface ModPlatformMatch {
+  projectId?: string;
+  fileId?: string;
+}
+
 export interface ModManifestEntry {
   source: {
     kind: 'externalImport' | 'launcherDownload' | 'modpackDeployment' | 'unknown';
@@ -18,6 +23,7 @@ export interface ModManifestEntry {
     modifiedAt: number;
   };
   curseforgeFingerprint?: number;
+  matchedPlatforms?: Record<string, ModPlatformMatch>;
 }
 
 export interface ModMeta {
@@ -63,15 +69,36 @@ export const resolveInstanceLoader = (config: any): string => {
 
 const normalizeInstalledKey = (value?: string | null) => String(value || '').trim();
 
+export const getModPlatformReference = (
+  mod: ModMeta,
+  platform: 'modrinth' | 'curseforge'
+): ModPlatformMatch | undefined => {
+  const source = mod.manifestEntry?.source;
+  const matched = mod.manifestEntry?.matchedPlatforms?.[platform];
+
+  if (source?.platform === platform && (source.projectId || source.fileId)) {
+    return {
+      projectId: source.projectId || matched?.projectId,
+      fileId: source.fileId || matched?.fileId
+    };
+  }
+
+  return matched;
+};
+
 export const getInstalledProjectIds = (mods: ModMeta[]): string[] => {
   const ids = new Set<string>();
 
   for (const mod of mods) {
     const directId = normalizeInstalledKey(mod.modId);
     const manifestProjectId = normalizeInstalledKey(mod.manifestEntry?.source.projectId);
+    const modrinthProjectId = normalizeInstalledKey(getModPlatformReference(mod, 'modrinth')?.projectId);
+    const curseforgeProjectId = normalizeInstalledKey(getModPlatformReference(mod, 'curseforge')?.projectId);
 
     if (directId) ids.add(directId);
     if (manifestProjectId) ids.add(manifestProjectId);
+    if (modrinthProjectId) ids.add(modrinthProjectId);
+    if (curseforgeProjectId) ids.add(curseforgeProjectId);
   }
 
   return [...ids];
@@ -82,11 +109,15 @@ export const getInstalledVersionIds = (mods: ModMeta[]): string[] => {
 
   for (const mod of mods) {
     const manifestFileId = normalizeInstalledKey(mod.manifestEntry?.source.fileId);
+    const modrinthFileId = normalizeInstalledKey(getModPlatformReference(mod, 'modrinth')?.fileId);
+    const curseforgeFileId = normalizeInstalledKey(getModPlatformReference(mod, 'curseforge')?.fileId);
     const fileName = normalizeInstalledKey(mod.fileName);
     const baseFileName = normalizeInstalledKey(mod.fileName?.replace(/\.disabled$/i, ''));
     const version = normalizeInstalledKey(mod.version);
 
     if (manifestFileId) ids.add(manifestFileId);
+    if (modrinthFileId) ids.add(modrinthFileId);
+    if (curseforgeFileId) ids.add(curseforgeFileId);
     if (fileName) ids.add(fileName);
     if (baseFileName) ids.add(baseFileName);
     if (version) ids.add(version);
@@ -105,6 +136,10 @@ export class InstalledModIndex {
       if (mod.manifestEntry?.source.projectId) {
         this.projectIds.add(normalizeInstalledKey(mod.manifestEntry.source.projectId));
       }
+      const modrinthProjectId = normalizeInstalledKey(getModPlatformReference(mod, 'modrinth')?.projectId);
+      const curseforgeProjectId = normalizeInstalledKey(getModPlatformReference(mod, 'curseforge')?.projectId);
+      if (modrinthProjectId) this.projectIds.add(modrinthProjectId);
+      if (curseforgeProjectId) this.projectIds.add(curseforgeProjectId);
       this.fileNames.push(normalizeInstalledKey(mod.fileName).toLowerCase());
     }
   }
@@ -234,6 +269,18 @@ export const modService = {
   ) => {
     modManifestCache.delete(instanceId);
     return invoke('update_mod_manifest', { instanceId, fileName, sourceKind, platform, projectId, fileId })
+      .finally(() => {
+        modManifestCache.delete(instanceId);
+      });
+  },
+
+  updateModPlatformMatches: (
+    instanceId: string,
+    fileName: string,
+    matches: Record<string, ModPlatformMatch>
+  ) => {
+    modManifestCache.delete(instanceId);
+    return invoke('update_mod_platform_matches', { instanceId, fileName, matches })
       .finally(() => {
         modManifestCache.delete(instanceId);
       });

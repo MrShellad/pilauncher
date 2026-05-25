@@ -190,9 +190,15 @@ export const isExternalMod = (mod: ModMeta) => {
 export const getModSourceLabel = (mod: ModMeta) => {
   const source = mod.manifestEntry?.source;
   const platform = source?.platform;
+  const matchedPlatforms = mod.manifestEntry?.matchedPlatforms || {};
+  const platformLabels = [
+    platform === 'modrinth' || matchedPlatforms.modrinth?.projectId ? 'Modrinth' : '',
+    platform === 'curseforge' || matchedPlatforms.curseforge?.projectId ? 'CurseForge' : ''
+  ].filter(Boolean);
 
-  if (platform === 'modrinth') return 'Modrinth';
-  if (platform === 'curseforge') return 'CurseForge';
+  if (platformLabels.length > 0) {
+    return platformLabels.join(' / ');
+  }
 
   if (source?.kind === 'launcherDownload') return '启动器';
   if (source?.kind === 'modpackDeployment') return '整合包';

@@ -101,6 +101,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         instance::resource_cmd::delete_resource,
         instance::resource_cmd::create_resource_snapshot,
         instance::resource_cmd::update_mod_manifest,
+        instance::resource_cmd::update_mod_platform_matches,
         instance::save_cmd::get_saves,
         instance::save_cmd::set_save_webdav_backup_enabled,
         instance::save_cmd::backup_save,

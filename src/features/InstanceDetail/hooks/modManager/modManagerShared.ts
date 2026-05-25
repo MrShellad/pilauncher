@@ -1,5 +1,5 @@
 import { fetchCurseForgeVersions, hasCurseForgeApiKey } from '../../../Download/logic/curseforgeApi';
-import type { ModMeta } from '../../logic/modService';
+import { getModPlatformReference, type ModMeta } from '../../logic/modService';
 import { fetchModrinthVersions, type OreProjectVersion } from '../../logic/modrinthApi';
 
 export type ModSortType = 'time' | 'name' | 'fileName' | 'version' | 'update';
@@ -45,14 +45,15 @@ export const getUpdateScopeKey = (instanceId: string, gameVersion: string, loade
 };
 
 export const getModUpdateCacheKey = (mod: ModMeta) => {
-  const source = mod.manifestEntry?.source;
+  const modrinthReference = getModPlatformReference(mod, 'modrinth');
+  const curseForgeReference = getModPlatformReference(mod, 'curseforge');
 
-  if (source?.platform === 'modrinth' && source.projectId && source.fileId) {
-    return `modrinth:${source.projectId}:${source.fileId}`;
+  if (modrinthReference?.projectId && modrinthReference.fileId) {
+    return `modrinth:${modrinthReference.projectId}:${modrinthReference.fileId}`;
   }
 
-  if (source?.platform === 'curseforge' && source.projectId && source.fileId) {
-    return `curseforge:${source.projectId}:${source.fileId}`;
+  if (curseForgeReference?.projectId && curseForgeReference.fileId) {
+    return `curseforge:${curseForgeReference.projectId}:${curseForgeReference.fileId}`;
   }
 
   return `file:${mod.fileName.replace(/\.disabled$/i, '')}`;
@@ -60,9 +61,20 @@ export const getModUpdateCacheKey = (mod: ModMeta) => {
 
 export const canCheckManagedUpdate = (mod: ModMeta) => {
   const source = mod.manifestEntry?.source;
-  if (!source?.projectId || !source.fileId) return false;
-  if (source.platform === 'modrinth') return true;
-  if (source.platform === 'curseforge') return hasCurseForgeApiKey();
+  const modrinthReference = getModPlatformReference(mod, 'modrinth');
+  const curseForgeReference = getModPlatformReference(mod, 'curseforge');
+
+  if (source?.platform === 'curseforge') {
+    return !!curseForgeReference?.projectId && !!curseForgeReference.fileId && hasCurseForgeApiKey();
+  }
+
+  if (source?.platform === 'modrinth') {
+    return !!modrinthReference?.projectId && !!modrinthReference.fileId;
+  }
+
+  if (modrinthReference?.projectId && modrinthReference.fileId) return true;
+  if (curseForgeReference?.projectId && curseForgeReference.fileId) return hasCurseForgeApiKey();
+
   return false;
 };
 
@@ -193,6 +205,6 @@ export const mergeSyncedModMetadata = (
 };
 
 export const needsCloudSourceMatch = (mod: ModMeta) => {
-  const source = mod.manifestEntry?.source;
-  return !source?.platform || !source.projectId || !source.fileId;
+  return !getModPlatformReference(mod, 'modrinth')?.fileId
+    || !getModPlatformReference(mod, 'curseforge')?.fileId;
 };

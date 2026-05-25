@@ -2,6 +2,7 @@
 use crate::services::instance::resource_manager::{
     ResourceItem, ResourceManager, ResourceSnapshot, ResourceType,
 };
+use std::collections::HashMap;
 use tauri::{AppHandle, Runtime};
 
 #[tauri::command]
@@ -188,4 +189,14 @@ pub async fn update_mod_manifest<R: Runtime>(
         &project_id,
         &file_id,
     )
+}
+
+#[tauri::command]
+pub async fn update_mod_platform_matches<R: Runtime>(
+    app: AppHandle<R>,
+    instance_id: String,
+    file_name: String,
+    matches: HashMap<String, crate::domain::mod_manifest::ModPlatformMatch>,
+) -> Result<(), String> {
+    ResourceManager::update_mod_platform_matches(&app, &instance_id, &file_name, matches)
 }

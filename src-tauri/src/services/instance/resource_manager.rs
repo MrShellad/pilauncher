@@ -264,4 +264,16 @@ impl ResourceManager {
             },
         )
     }
+
+    pub fn update_mod_platform_matches<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        file_name: &str,
+        matches: std::collections::HashMap<String, crate::domain::mod_manifest::ModPlatformMatch>,
+    ) -> Result<(), String> {
+        let instance_root = Self::get_instance_root(app, instance_id)?;
+        let manifest_path = instance_root.join("mod_manifest.json");
+
+        ModManifestService::update_platform_matches(&manifest_path, file_name, matches)
+    }
 }
