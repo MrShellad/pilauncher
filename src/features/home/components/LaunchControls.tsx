@@ -49,8 +49,8 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
     '--launch-action-gap': 'calc(var(--launch-control-w) * 0.035)',
   } as React.CSSProperties;
 
-  const innerButtonClass = "!h-[var(--launch-action-h)] !text-[length:var(--launch-action-font)] !text-[#111214] [&_svg]:!text-[#111214] flex items-center justify-center gap-[var(--launch-action-gap)] w-full transition-colors duration-200";
-  const heroButtonClass = "!h-[var(--launch-hero-h)] !text-[length:var(--launch-hero-font)] !text-white [&_svg]:!text-white flex items-center justify-center gap-[var(--launch-action-gap)] w-full transition-colors duration-200";
+  const innerButtonClass = "!h-[var(--launch-action-h)] !text-[length:var(--launch-action-font)] !text-[#111214] [&_svg]:!text-[#111214] flex items-center justify-center gap-[var(--launch-action-gap)] w-full transition-colors duration-200 !m-0";
+  const heroButtonClass = "!h-[var(--launch-hero-h)] !text-[length:var(--launch-hero-font)] !text-white [&_svg]:!text-white flex items-center justify-center gap-[var(--launch-action-gap)] w-full transition-colors duration-200 !m-0";
 
   useEffect(() => {
     const timer = setTimeout(() => {

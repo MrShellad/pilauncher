@@ -937,7 +937,7 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
                                   (transferType === 'save' && !selectedSave)
                                 }
                                 variant="primary"
-                                className="min-w-[clamp(11.25rem,14vw,18rem)] justify-center !h-[clamp(2.75rem,4.8vh,4.5rem)] !text-[length:clamp(0.875rem,1vw,1.25rem)] !text-white [&_svg]:!text-white"
+                                className="min-w-[clamp(11.25rem,14vw,18rem)] justify-center !h-[clamp(2.75rem,4.8vh,4.5rem)] !text-[length:clamp(0.875rem,1vw,1.25rem)] !text-white [&_svg]:!text-white !m-0"
                               >
                                 {isPushing ? (
                                   <Loader2 size="clamp(1rem,1.2vw,1.5rem)" className="mr-2 animate-spin" />
@@ -1002,10 +1002,10 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
           </p>
 
           <div className="flex w-full gap-4">
-            <OreButton className="flex-1 !h-[clamp(3rem,5vh,4.75rem)] !text-[length:clamp(1rem,1.1vw,1.375rem)] !text-[#111214]" variant="secondary" onClick={() => resolveTrustRequest(false)}>
+            <OreButton className="flex-1 !h-[clamp(3rem,5vh,4.75rem)] !text-[length:clamp(1rem,1.1vw,1.375rem)] !text-[#111214] !m-0" variant="secondary" onClick={() => resolveTrustRequest(false)}>
               拒绝
             </OreButton>
-            <OreButton className="flex-1 !h-[clamp(3rem,5vh,4.75rem)] !text-[length:clamp(1rem,1.1vw,1.375rem)] !text-white" variant="primary" onClick={() => resolveTrustRequest(true)}>
+            <OreButton className="flex-1 !h-[clamp(3rem,5vh,4.75rem)] !text-[length:clamp(1rem,1.1vw,1.375rem)] !text-white !m-0" variant="primary" onClick={() => resolveTrustRequest(true)}>
               {incomingRequest?.requestKind === 'trusted' ? '接受并信任' : '接受并加为好友'}
             </OreButton>
           </div>
@@ -1088,7 +1088,7 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
 
             <div className="mt-4 flex w-full gap-4">
               <OreButton
-                className="flex-1"
+                className="flex-1 !m-0"
                 variant="secondary"
                 onClick={rejectIncoming}
                 disabled={isApplying || isRejecting}
@@ -1101,7 +1101,7 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
                 拒绝并丢弃
               </OreButton>
               <OreButton
-                className="flex-1 flex justify-center"
+                className="flex-1 flex justify-center !m-0"
                 variant="primary"
                 onClick={executeApply}
                 disabled={isApplying || isRejecting || (incomingData.type === 'save' && !receiveTargetInstance)}
@@ -1132,11 +1132,11 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
             取消信任后，该设备将无法向你发起实例和存档投送，但你们仍会保持好友关系。
           </p>
           <div className="flex w-full gap-4">
-            <OreButton className="flex-1 !h-[clamp(3rem,5vh,4.75rem)] !text-[length:clamp(1rem,1.1vw,1.375rem)] !text-[#111214]" variant="secondary" onClick={() => setDeviceToRemove(null)}>
+            <OreButton className="flex-1 !h-[clamp(3rem,5vh,4.75rem)] !text-[length:clamp(1rem,1.1vw,1.375rem)] !text-[#111214] !m-0" variant="secondary" onClick={() => setDeviceToRemove(null)}>
               取消
             </OreButton>
             <OreButton
-              className="flex-1 !h-[clamp(3rem,5vh,4.75rem)] !text-[length:clamp(1rem,1.1vw,1.375rem)] !text-white"
+              className="flex-1 !h-[clamp(3rem,5vh,4.75rem)] !text-[length:clamp(1rem,1.1vw,1.375rem)] !text-white !m-0"
               variant="danger"
               onClick={() => {
                 if (deviceToRemove) {

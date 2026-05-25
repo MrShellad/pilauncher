@@ -3,17 +3,18 @@
 @layer components {
   /* ================= 鍩虹鐗╃悊妗嗘灦 ================= */
   .ore-btn {
-    /* 缁熶竴 2px 绾粦鎻忚竟 */
+    /* 统一 2px 描边与 6px 外边距 */
     @apply relative inline-flex items-center justify-center box-border font-minecraft uppercase font-bold border-2 transition-none outline-none;
     border-color: var(--ore-border-color);
     white-space: nowrap;
-    padding-bottom: 4px; /* 涓哄簳閮ㄧ殑 4px 3D闃村奖棰勭暀瑙嗚琛ュ伩涓績 */
+    margin: 6px;
+    padding-bottom: 4px; /* 为底部的 4px 3D阴影预留视觉补偿中心 */
   }
 
-  /* 鐗╃悊涓嬪帇寮曟搸锛氫娇鐢?transform 浠ｆ浛 margin/height 鍙樺寲锛岄槻姝㈠竷灞€濉岄櫡 */
+  /* 物理下压引擎：使用 transform 代替 margin/height 变化，防止布局塌陷 */
   .ore-btn:active:not(:disabled) {
     transform: translateY(4px);
-    padding-bottom: 0px; 
+    /* 保持默认的 padding-bottom 恒定，使得文本在物理按下时也能同步下沉 4px */
   }
 
   /* ================= 楂樺厜鐒︾偣瀵艰埅鐜?(HDR Ready) ================= */
@@ -24,7 +25,7 @@
     outline-offset: 1px;
     z-index: 20;
     
-    /* 缁濇潃锛氶€氳繃 drop-shadow 缁?outline 璧嬩簣澶栧洿鍏夋檿锛屽嵆渚垮湪绾櫧鑳屾櫙涓嬩篃鑳芥竻鏅拌鲸璁?*/
+    /* 缁濇潃锛炵粡杩?drop-shadow 缁?outline 璧嬩簣澶栧洿鍏夋檿锛屽嵆渚垮湪绾櫧鑳屾櫙涓嬩篃鑳芥竻鏅拌鲸璁?*/
     filter: drop-shadow(0 0 6px var(--ore-focus-glow)) brightness(1.1);
   }
 
@@ -141,13 +142,20 @@
     box-shadow: inset 0 4px 0 rgba(0, 0, 0, 0.2);
   }
 
-  /* ================= Disabled (绂佺敤杩樺師) ================= */
+  /* ================= Disabled (禁用还原) ================= */
   .ore-btn:disabled {
     background-color: var(--ore-btn-disabled-bg);
     color: var(--ore-btn-disabled-text);
     border-color: var(--ore-btn-disabled-border);
     cursor: not-allowed;
-    /* 绂佺敤鐘舵€佷笅鍙繚鐣欐瀬鍏跺井寮辩殑 3D 鏁堟灉搴曡竟 */
+    /* 禁用状态下只保留极其微弱的 3D 效果底边 */
     box-shadow: inset 0 -4px var(--ore-btn-disabled-shadow);
+  }
+
+  /* 禁用状态下的图标与 SVG 滤镜置灰反色 */
+  .ore-btn:disabled img,
+  .ore-btn:disabled svg {
+    filter: invert(100%) grayscale(100%) brightness(50%);
+    opacity: 0.6;
   }
 }

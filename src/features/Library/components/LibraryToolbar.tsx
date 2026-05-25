@@ -78,6 +78,7 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
     return cols.join(' ');
   }, [onBack, showCollectionEditAction, showBackupActions, showModSetManageActions, showDeployAction]);
 
+
   return (
     <div className="shrink-0 border-b-2 border-[var(--ore-color-border-primary-default)] bg-[var(--ore-color-background-surface-panel)] px-5 py-4 shadow-[inset_0_0.125rem_0_rgba(255,255,255,0.08)]">
       {/* ── Top row ── */}
@@ -86,7 +87,7 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
         style={{ gridTemplateColumns: topRowGridTemplate }}
       >
         {onBack && (
-          <OreButton focusKey="library-toolbar-back" variant="secondary" onClick={onBack} className="!h-full w-full !px-2">
+          <OreButton focusKey="library-toolbar-back" variant="secondary" onClick={onBack} className="!h-full w-full !px-2 !m-0">
             <span className="flex items-center justify-center gap-2 whitespace-nowrap font-minecraft text-sm">
               <ArrowLeft size={16} />
               {t('libraryPage.toolbar.back')}
@@ -128,7 +129,7 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
             focusKey="library-toolbar-edit"
             variant="secondary"
             onClick={onEditCollectionMetadata}
-            className="!h-full aspect-square !min-w-0 !px-0"
+            className="!h-full aspect-square !min-w-0 !px-0 !m-0"
             title={collectionEditLabel ?? t('libraryPage.toolbar.editCollection')}
           >
             <span className="flex items-center justify-center">
@@ -144,7 +145,7 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
             variant="secondary"
             onClick={onOpenBackupActions}
             disabled={backupActionDisabled}
-            className="!h-full aspect-square !min-w-0 !px-0"
+            className="!h-full aspect-square !min-w-0 !px-0 !m-0"
             title={t('libraryPage.toolbar.cloudSync')}
           >
             <span className="flex items-center justify-center">
@@ -159,7 +160,7 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
             focusKey="library-toolbar-delete-modset"
             variant="secondary"
             onClick={onDeleteModSet}
-            className="!h-full aspect-square !min-w-0 !px-0"
+            className="!h-full aspect-square !min-w-0 !px-0 !m-0"
             title={t('libraryPage.toolbar.deleteModSet')}
           >
             <span className="flex items-center justify-center">
@@ -175,7 +176,7 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
             variant="primary"
             onClick={onOpenModSetDeploy}
             disabled={deployDisabled}
-            className="!h-full w-full !min-w-0 !px-2"
+            className="!h-full w-full !min-w-0 !px-2 !m-0"
             title={deployDisabled ? t('libraryPage.toolbar.deployDisabled') : t('libraryPage.toolbar.deployTitle')}
           >
             <span className="flex items-center justify-center gap-2 whitespace-nowrap font-minecraft text-sm">

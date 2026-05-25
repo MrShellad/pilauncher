@@ -389,7 +389,7 @@ export const CollectionSidebar: React.FC<CollectionSidebarProps> = ({
         contentClassName="p-0 overflow-hidden min-h-0"
         actionsClassName="!justify-center"
         actions={(
-          <OreButton variant="secondary" onClick={closeTagManager} disabled={isSavingTag}>
+          <OreButton variant="secondary" onClick={closeTagManager} disabled={isSavingTag} className="!m-0">
             {t('libraryPage.tagModal.done')}
           </OreButton>
         )}
@@ -431,7 +431,7 @@ export const CollectionSidebar: React.FC<CollectionSidebarProps> = ({
                   disabled={isSavingTag || newTagName.trim() === ''}
                   onClick={() => void handleCreateTag()}
                   title={t('libraryPage.sidebar.saveTag')}
-                  className="!h-10 !w-11 !min-w-0 !px-0"
+                  className="!h-10 !w-11 !min-w-0 !px-0 !m-0"
                 >
                   <Check size={16} strokeWidth={3} />
                 </OreButton>
@@ -536,7 +536,7 @@ export const CollectionSidebar: React.FC<CollectionSidebarProps> = ({
                               disabled={isSavingTag || editingTagName.trim() === ''}
                               onClick={() => void handleUpdateTag(collection)}
                               title={t('libraryPage.sidebar.saveChanges')}
-                              className="!h-10 !w-10 !min-w-0 !px-0"
+                              className="!h-10 !w-10 !min-w-0 !px-0 !m-0"
                             >
                               <Check size={14} strokeWidth={3} />
                             </OreButton>
@@ -552,7 +552,7 @@ export const CollectionSidebar: React.FC<CollectionSidebarProps> = ({
                                 setOpenIconPicker(null);
                               }}
                               title={t('common.cancel')}
-                              className="!h-10 !w-10 !min-w-0 !px-0"
+                              className="!h-10 !w-10 !min-w-0 !px-0 !m-0"
                             >
                               <X size={14} />
                             </OreButton>
@@ -565,7 +565,7 @@ export const CollectionSidebar: React.FC<CollectionSidebarProps> = ({
                               disabled={isSavingTag}
                               onClick={() => startEditingTag(collection)}
                               title={t('libraryPage.sidebar.renameTag')}
-                              className="!h-10 !w-10 !min-w-0 !px-0"
+                              className="!h-10 !w-10 !min-w-0 !px-0 !m-0"
                             >
                               <Pencil size={14} />
                             </OreButton>
@@ -575,7 +575,7 @@ export const CollectionSidebar: React.FC<CollectionSidebarProps> = ({
                               disabled={isSavingTag}
                               onClick={() => void handleRemoveTag(collection)}
                               title={isDeleting ? t('libraryPage.sidebar.confirmDelete') : t('libraryPage.sidebar.deleteTag')}
-                              className={isDeleting ? '!h-10 !w-[5.75rem] !min-w-0 !px-2 !text-xs' : '!h-10 !w-10 !min-w-0 !px-0'}
+                              className={`${isDeleting ? '!h-10 !w-[5.75rem] !min-w-0 !px-2 !text-xs' : '!h-10 !w-10 !min-w-0 !px-0'} !m-0`}
                             >
                               {isDeleting ? t('libraryPage.sidebar.confirmShort') : <Trash2 size={14} />}
                             </OreButton>

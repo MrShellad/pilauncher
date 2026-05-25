@@ -148,7 +148,7 @@ const Instances: React.FC = () => {
                 <OreButton
                   variant="secondary"
                   size="auto"
-                  className="!h-[40px] px-4 relative !min-w-0"
+                  className="!h-[40px] px-4 relative !min-w-0 !m-0"
                   onClick={() => setIsTagModalOpen(true)}
                   tabIndex={-1}
                 >
@@ -179,7 +179,7 @@ const Instances: React.FC = () => {
                 <OreButton
                   variant="primary"
                   size="auto"
-                  className="!h-[40px] !min-w-0 !px-0"
+                  className="!h-[40px] !min-w-0 !px-0 !m-0"
                   onClick={handleCreate}
                   tabIndex={-1}
                 >
@@ -206,7 +206,7 @@ const Instances: React.FC = () => {
                 <OreButton
                   variant="secondary"
                   size="auto"
-                  className="!h-[40px] !min-w-0 !px-0"
+                  className="!h-[40px] !min-w-0 !px-0 !m-0"
                   onClick={() => setIsDirModalOpen(true)}
                   tabIndex={-1}
                 >
@@ -233,7 +233,7 @@ const Instances: React.FC = () => {
                 <OreButton
                   variant="secondary"
                   size="auto"
-                  className="!h-[40px] !min-w-0 !px-0"
+                  className="!h-[40px] !min-w-0 !px-0 !m-0"
                   onClick={() => void refreshImportSources()}
                   disabled={isDetectingSources || isImporting}
                   tabIndex={-1}
@@ -365,7 +365,7 @@ const Instances: React.FC = () => {
                 <FocusItem focusKey="tag-clear" onEnter={() => setSelectedTags([])}>
                   {({ ref, focused }) => (
                     <div ref={ref}>
-                      <OreButton variant="secondary" onClick={() => setSelectedTags([])} className={focused ? 'ring-2 ring-white' : ''}>
+                      <OreButton variant="secondary" onClick={() => setSelectedTags([])} className={`${focused ? 'ring-2 ring-white' : ''} !m-0`}>
                       {t('instancesPage.tagFilterModal.clear', '清空')}
                     </OreButton>
                   </div>
@@ -375,7 +375,7 @@ const Instances: React.FC = () => {
             <FocusItem focusKey="tag-done" onEnter={() => setIsTagModalOpen(false)}>
               {({ ref, focused }) => (
                 <div ref={ref}>
-                  <OreButton variant="primary" onClick={() => setIsTagModalOpen(false)} className={focused ? 'ring-2 ring-white' : ''}>
+                  <OreButton variant="primary" onClick={() => setIsTagModalOpen(false)} className={`${focused ? 'ring-2 ring-white' : ''} !m-0`}>
                     {t('instancesPage.tagFilterModal.done', '完成')}
                   </OreButton>
                   </div>

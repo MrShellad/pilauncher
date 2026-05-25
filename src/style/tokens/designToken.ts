@@ -87,7 +87,7 @@ export const OreTokens = {
   },
 
   border: {
-    color: '#000000', // 统一 2px 纯黑描边
+    color: '#1E1E1F', // 统一 2px 深灰黑描边
   },
 
   focus: {

@@ -232,7 +232,7 @@ const News: React.FC = () => {
                 focusKey="btn-news-refresh"
                 variant="primary"
                 size="auto"
-                className="!h-11 gap-2 !px-4 !text-white"
+                className="!h-11 gap-2 !px-4 !text-white !m-0"
                 onClick={() => void refreshNews({ background: rawItems.length > 0 })}
                 onArrowPress={(direction) => moveLinearFocus('btn-news-refresh', direction)}
                 autoScroll={false}
@@ -246,7 +246,7 @@ const News: React.FC = () => {
                 focusKey="btn-news-back"
                 variant="secondary"
                 size="auto"
-                className="!h-11 gap-2 !px-4"
+                className="!h-11 gap-2 !px-4 !m-0"
                 onClick={() => setActiveTab('home')}
                 onArrowPress={(direction) => moveLinearFocus('btn-news-back', direction)}
                 autoScroll={false}
