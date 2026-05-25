@@ -13,7 +13,9 @@ use tokio::process::Command;
 use crate::domain::instance::InstanceConfig;
 use crate::domain::launcher::{Account, AccountType, LoaderType};
 use crate::error::{AppError, AppResult};
-use crate::services::minecraft_service::{parse_third_party_json, resolve_loader_folder};
+use crate::services::minecraft_service::{
+    normalize_loader_version_token, parse_third_party_json, resolve_loader_folder,
+};
 use crate::services::playtime::PlaytimeService;
 
 use auth::AuthService;
@@ -236,6 +238,17 @@ fn loader_metadata_matches(
     discovered_loader_type: &str,
     discovered_loader_version: &str,
 ) -> bool {
+    let requested_loader_version = normalize_loader_version_token(
+        requested_loader_type,
+        requested_mc,
+        requested_loader_version,
+    );
+    let discovered_loader_version = normalize_loader_version_token(
+        discovered_loader_type,
+        discovered_mc,
+        discovered_loader_version,
+    );
+
     discovered_mc == requested_mc
         && discovered_loader_type.eq_ignore_ascii_case(requested_loader_type)
         && discovered_loader_version == requested_loader_version
@@ -769,6 +782,41 @@ mod tests {
         assert_eq!(
             discover_launch_version_from_metadata(&root.join("runtime"), None, &config),
             Some("1.20.1-forge-47.4.18".to_string())
+        );
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn discover_launch_version_matches_normalized_loader_versions() {
+        let root = unique_test_root("metadata-normalized-loader");
+        let runtime_dir = root.join("runtime");
+        let profile_id = "neoforge-21.1.224";
+        let profile_dir = runtime_dir.join("versions").join(profile_id);
+        std::fs::create_dir_all(&profile_dir).unwrap();
+        std::fs::write(
+            profile_dir.join(format!("{}.json", profile_id)),
+            serde_json::to_string(&serde_json::json!({
+                "id": profile_id,
+                "inheritsFrom": "1.20.1",
+                "arguments": {
+                    "game": [
+                        "--fml.mcVersion", "1.20.1",
+                        "--fml.neoForgeVersion", "21.1.224"
+                    ]
+                },
+                "libraries": [
+                    { "name": "net.neoforged:neoforge:21.1.224" }
+                ]
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        let config = test_instance_config("neoforge", "neoforge-21.1.224");
+        assert_eq!(
+            discover_launch_version_from_metadata(&runtime_dir, None, &config),
+            Some(profile_id.to_string())
         );
 
         let _ = std::fs::remove_dir_all(root);

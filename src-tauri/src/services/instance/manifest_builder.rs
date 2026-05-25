@@ -2,6 +2,7 @@
 use crate::domain::instance::CreateInstancePayload;
 use crate::domain::manifest::*;
 use crate::error::AppResult;
+use crate::services::minecraft_service::resolve_loader_folder;
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
@@ -24,19 +25,8 @@ pub fn build_and_save_manifest(
     let loader_type = payload.loader_type.to_lowercase();
     if loader_type != "vanilla" && !loader_type.is_empty() {
         let loader_version = payload.loader_version.clone().unwrap_or_default();
-        let loader_version_dir_name = match loader_type.as_str() {
-            "fabric" => Some(format!(
-                "fabric-loader-{}-{}",
-                loader_version, payload.game_version
-            )),
-            "forge" => Some(format!("{}-forge-{}", payload.game_version, loader_version)),
-            "neoforge" => Some(format!("neoforge-{}", loader_version)),
-            "quilt" => Some(format!(
-                "quilt-loader-{}-{}",
-                loader_version, payload.game_version
-            )),
-            _ => None,
-        };
+        let loader_version_dir_name =
+            resolve_loader_folder(&loader_type, &payload.game_version, &loader_version);
         if let Some(dir_name) = loader_version_dir_name {
             let loader_path = global_mc_root
                 .join("versions")

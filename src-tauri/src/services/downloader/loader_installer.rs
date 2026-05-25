@@ -945,6 +945,12 @@ pub async fn install_loader<R: Runtime>(
     global_mc_root: &Path,
     cancel: &Arc<AtomicBool>,
 ) -> AppResult<()> {
+    let loader_version = crate::services::minecraft_service::normalize_loader_version_token(
+        loader_type,
+        mc_version,
+        loader_version,
+    );
+
     if loader_type.eq_ignore_ascii_case("Vanilla") || loader_version.is_empty() {
         return Ok(());
     }
@@ -958,7 +964,7 @@ pub async fn install_loader<R: Runtime>(
             app,
             instance_id,
             mc_version,
-            loader_version,
+            &loader_version,
             global_mc_root,
             cancel,
         )
@@ -968,7 +974,7 @@ pub async fn install_loader<R: Runtime>(
             app,
             instance_id,
             mc_version,
-            loader_version,
+            &loader_version,
             global_mc_root,
             cancel,
         )
@@ -978,7 +984,7 @@ pub async fn install_loader<R: Runtime>(
             app,
             instance_id,
             mc_version,
-            loader_version,
+            &loader_version,
             global_mc_root,
             cancel,
         )
@@ -988,7 +994,7 @@ pub async fn install_loader<R: Runtime>(
             app,
             instance_id,
             mc_version,
-            loader_version,
+            &loader_version,
             global_mc_root,
             cancel,
         )

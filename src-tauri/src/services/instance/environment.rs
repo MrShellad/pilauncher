@@ -13,6 +13,7 @@ use crate::services::config_service::ConfigService;
 use crate::services::db_service::AppDatabase;
 use crate::services::deployment_cancel;
 use crate::services::instance::binding::InstanceBindingService;
+use crate::services::minecraft_service::normalize_loader_version_token;
 
 pub struct InstanceEnvironmentService;
 
@@ -35,8 +36,11 @@ impl InstanceEnvironmentService {
         }
 
         let loader_type = normalize_loader_type(&payload.loader_type);
-        let loader_version =
-            normalize_loader_version(&loader_type, payload.loader_version.as_deref());
+        let loader_version = normalize_loader_version(
+            &loader_type,
+            game_version,
+            payload.loader_version.as_deref(),
+        );
         if loader_type != "vanilla" && loader_version.is_empty() {
             return Err(AppError::Generic("Loader version is required".to_string()));
         }
@@ -186,11 +190,15 @@ fn normalize_loader_type(loader_type: &str) -> String {
     }
 }
 
-fn normalize_loader_version(loader_type: &str, loader_version: Option<&str>) -> String {
+fn normalize_loader_version(
+    loader_type: &str,
+    mc_version: &str,
+    loader_version: Option<&str>,
+) -> String {
     if loader_type.eq_ignore_ascii_case("vanilla") {
         String::new()
     } else {
-        loader_version.unwrap_or_default().trim().to_string()
+        normalize_loader_version_token(loader_type, mc_version, loader_version.unwrap_or_default())
     }
 }
 

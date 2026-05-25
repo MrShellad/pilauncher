@@ -384,16 +384,88 @@ pub fn resolve_loader_folder(
     mc_version: &str,
     loader_version: &str,
 ) -> Option<String> {
-    if loader_version.trim().is_empty() || loader_type.eq_ignore_ascii_case("vanilla") {
+    let normalized_loader_version =
+        normalize_loader_version_token(loader_type, mc_version, loader_version);
+    if normalized_loader_version.is_empty() || loader_type.eq_ignore_ascii_case("vanilla") {
         return None;
     }
 
     match loader_type.to_lowercase().as_str() {
-        "fabric" => Some(format!("fabric-loader-{}-{}", loader_version, mc_version)),
-        "forge" => Some(format!("{}-forge-{}", mc_version, loader_version)),
-        "neoforge" => Some(format!("neoforge-{}", loader_version)),
-        "quilt" => Some(format!("quilt-loader-{}-{}", loader_version, mc_version)),
+        "fabric" => Some(format!(
+            "fabric-loader-{}-{}",
+            normalized_loader_version, mc_version
+        )),
+        "forge" => Some(format!(
+            "{}-forge-{}",
+            mc_version, normalized_loader_version
+        )),
+        "neoforge" => Some(format!("neoforge-{}", normalized_loader_version)),
+        "quilt" => Some(format!(
+            "quilt-loader-{}-{}",
+            normalized_loader_version, mc_version
+        )),
         _ => None,
+    }
+}
+
+pub fn normalize_loader_version_token(
+    loader_type: &str,
+    mc_version: &str,
+    loader_version: &str,
+) -> String {
+    let mut normalized = loader_version.trim();
+    if normalized.is_empty() || loader_type.eq_ignore_ascii_case("vanilla") {
+        return String::new();
+    }
+
+    let loader_type = loader_type.trim().to_lowercase();
+    let mc_loader_prefix = format!("{}-{}-", mc_version, loader_type);
+    let mc_prefix = format!("{}-", mc_version);
+
+    match loader_type.as_str() {
+        "fabric" => {
+            if let Some(stripped) = normalized.strip_prefix("fabric-loader-") {
+                normalized = stripped;
+            }
+            normalized
+                .strip_suffix(&format!("-{}", mc_version))
+                .unwrap_or(normalized)
+                .trim()
+                .to_string()
+        }
+        "quilt" => {
+            if let Some(stripped) = normalized.strip_prefix("quilt-loader-") {
+                normalized = stripped;
+            }
+            normalized
+                .strip_suffix(&format!("-{}", mc_version))
+                .unwrap_or(normalized)
+                .trim()
+                .to_string()
+        }
+        "forge" => {
+            if let Some(stripped) = normalized.strip_prefix(&mc_loader_prefix) {
+                normalized = stripped;
+            } else if let Some(stripped) = normalized.strip_prefix(&mc_prefix) {
+                normalized = stripped;
+            } else if let Some(stripped) = normalized.strip_prefix("forge-") {
+                normalized = stripped;
+            }
+            normalized.trim().to_string()
+        }
+        "neoforge" => {
+            if let Some(stripped) = normalized.strip_prefix("neoforge-") {
+                normalized = stripped;
+            }
+            if let Some(stripped) = normalized.strip_prefix(&mc_prefix) {
+                normalized = stripped;
+            }
+            if let Some(stripped) = normalized.strip_prefix("forge-") {
+                normalized = stripped;
+            }
+            normalized.trim().to_string()
+        }
+        _ => normalized.to_string(),
     }
 }
 
@@ -513,6 +585,8 @@ pub fn parse_third_party_json(
         }
     }
 
+    loader_version = normalize_loader_version_token(&loader_type, &mc_version, &loader_version);
+
     (mc_version, loader_type, loader_version)
 }
 
@@ -553,7 +627,7 @@ pub fn detect_missing_runtime(
 
 #[cfg(test)]
 mod tests {
-    use super::parse_third_party_json;
+    use super::{normalize_loader_version_token, parse_third_party_json, resolve_loader_folder};
     use serde_json::json;
 
     #[test]
@@ -610,5 +684,45 @@ mod tests {
         assert_eq!(mc, "1.19.2-forge-43.2.0");
         assert_eq!(loader, "forge");
         assert_eq!(version, "43.2.0");
+    }
+
+    #[test]
+    fn normalizes_loader_versions_from_profile_ids_and_api_variants() {
+        assert_eq!(
+            normalize_loader_version_token("neoforge", "1.21.1", "neoforge-21.1.224"),
+            "21.1.224"
+        );
+        assert_eq!(
+            normalize_loader_version_token("neoforge", "1.21.1", "1.21.1-21.1.224"),
+            "21.1.224"
+        );
+        assert_eq!(
+            normalize_loader_version_token("forge", "1.20.1", "1.20.1-forge-47.4.18"),
+            "47.4.18"
+        );
+        assert_eq!(
+            normalize_loader_version_token("forge", "1.20.1", "1.20.1-47.4.18"),
+            "47.4.18"
+        );
+        assert_eq!(
+            normalize_loader_version_token("fabric", "1.20.1", "fabric-loader-0.16.10-1.20.1"),
+            "0.16.10"
+        );
+    }
+
+    #[test]
+    fn resolves_loader_folder_from_normalized_loader_version() {
+        assert_eq!(
+            resolve_loader_folder("neoforge", "1.21.1", "neoforge-21.1.224"),
+            Some("neoforge-21.1.224".to_string())
+        );
+        assert_eq!(
+            resolve_loader_folder("forge", "1.20.1", "1.20.1-forge-47.4.18"),
+            Some("1.20.1-forge-47.4.18".to_string())
+        );
+        assert_eq!(
+            resolve_loader_folder("fabric", "1.20.1", "fabric-loader-0.16.10-1.20.1"),
+            Some("fabric-loader-0.16.10-1.20.1".to_string())
+        );
     }
 }

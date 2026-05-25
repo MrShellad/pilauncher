@@ -13,6 +13,7 @@ use crate::services::db_service::AppDatabase;
 use crate::services::deployment_cancel;
 use crate::services::downloader::logging::sanitize_filename;
 use crate::services::instance::binding::InstanceBindingService;
+use crate::services::minecraft_service::{normalize_loader_version_token, resolve_loader_folder};
 
 pub struct InstanceCreationService;
 
@@ -70,6 +71,13 @@ impl InstanceCreationService {
             }
         }
 
+        let normalized_loader_type = payload.loader_type.to_lowercase();
+        let normalized_loader_version = normalize_loader_version_token(
+            &normalized_loader_type,
+            &payload.game_version,
+            payload.loader_version.as_deref().unwrap_or_default(),
+        );
+
         let config = InstanceConfig {
             id: instance_id.clone(),
             name: if payload.name.is_empty() {
@@ -79,8 +87,8 @@ impl InstanceCreationService {
             },
             mc_version: payload.game_version.clone(),
             loader: LoaderConfig {
-                r#type: payload.loader_type.to_lowercase(),
-                version: payload.loader_version.clone().unwrap_or_default(),
+                r#type: normalized_loader_type.clone(),
+                version: normalized_loader_version.clone(),
             },
             java: JavaConfig {
                 path: "auto".to_string(),
@@ -131,19 +139,8 @@ impl InstanceCreationService {
 
         let loader_type = payload.loader_type.to_lowercase();
         let loader_version = payload.loader_version.clone().unwrap_or_default();
-        let loader_version_dir_name = match loader_type.as_str() {
-            "fabric" => Some(format!(
-                "fabric-loader-{}-{}",
-                loader_version, payload.game_version
-            )),
-            "forge" => Some(format!("{}-forge-{}", payload.game_version, loader_version)),
-            "neoforge" => Some(format!("neoforge-{}", loader_version)),
-            "quilt" => Some(format!(
-                "quilt-loader-{}-{}",
-                loader_version, payload.game_version
-            )),
-            _ => None,
-        };
+        let loader_version_dir_name =
+            resolve_loader_folder(&loader_type, &payload.game_version, &loader_version);
         let loader_version_dir = loader_version_dir_name
             .as_ref()
             .map(|name| global_mc_root.join("versions").join(name));
