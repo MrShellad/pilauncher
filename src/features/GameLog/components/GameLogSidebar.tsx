@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, Loader2, AlertTriangle, Bug, Activity, Check, Share2, ChevronRight, Power, Copy, FolderOpen } from 'lucide-react';
+import { Terminal, Loader2, AlertTriangle, Bug, Activity, Check, Share2, ChevronRight, Power, Copy, FolderOpen, X } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import { OreConfirmDialog } from '../../../ui/primitives/OreConfirmDialog';
@@ -151,21 +151,38 @@ export const GameLogSidebar: React.FC = () => {
                 </div>
               </div>
 
-              <FocusItem focusKey="log-btn-telemetry" onEnter={() => setShowTelemetry(!showTelemetry)}>
-                {({ ref, focused }) => (
-                  <button
-                    ref={ref as React.Ref<HTMLButtonElement>}
-                    onClick={() => setShowTelemetry(!showTelemetry)}
-                    className={`flex items-center outline-none text-xs px-2 py-1.5 rounded-sm transition-colors ${showTelemetry ? 'bg-white/10 text-white' : 'text-ore-text-muted hover:text-white hover:bg-white/5'} ${focused ? 'ring-2 ring-white scale-105 bg-white/10' : ''}`}
-                  >
-                    <Activity size={14} className="mr-1.5" />
-                    <span className="[.intent-controller_&]:hidden">{t('gameLog.sidebar.telemetry', '性能遥测')}</span>
-                    <span className="hidden [.intent-controller_&]:flex items-center gap-1.5">
-                      {t('gameLog.sidebar.telemetry', '性能遥测')} <div className="w-3.5 h-3.5 rounded-full bg-[#EAB308] text-black flex items-center justify-center text-[9px] font-bold">Y</div>
-                    </span>
-                  </button>
-                )}
-              </FocusItem>
+              <div className="flex items-center gap-2">
+                <FocusItem focusKey="log-btn-telemetry" onEnter={() => setShowTelemetry(!showTelemetry)}>
+                  {({ ref, focused }) => (
+                    <button
+                      ref={ref as React.Ref<HTMLButtonElement>}
+                      onClick={() => setShowTelemetry(!showTelemetry)}
+                      className={`flex items-center outline-none text-xs px-2 py-1.5 rounded-sm transition-colors ${showTelemetry ? 'bg-white/10 text-white' : 'text-ore-text-muted hover:text-white hover:bg-white/5'} ${focused ? 'ring-2 ring-white scale-105 bg-white/10' : ''}`}
+                    >
+                      <Activity size={14} className="mr-1.5" />
+                      <span className="[.intent-controller_&]:hidden">{t('gameLog.sidebar.telemetry', '性能遥测')}</span>
+                      <span className="hidden [.intent-controller_&]:flex items-center gap-1.5">
+                        {t('gameLog.sidebar.telemetry', '性能遥测')} <div className="w-3.5 h-3.5 rounded-full bg-[#EAB308] text-black flex items-center justify-center text-[9px] font-bold">Y</div>
+                      </span>
+                    </button>
+                  )}
+                </FocusItem>
+
+                <FocusItem focusKey="log-btn-close" onEnter={closeSidebarAndRestoreFocus}>
+                  {({ ref, focused }) => (
+                    <button
+                      ref={ref as React.Ref<HTMLButtonElement>}
+                      type="button"
+                      aria-label={t('common.close', '关闭')}
+                      title={t('common.close', '关闭')}
+                      onClick={closeSidebarAndRestoreFocus}
+                      className={`flex h-8 w-8 items-center justify-center rounded-sm text-ore-text-muted outline-none transition-colors hover:bg-white/5 hover:text-white ${focused ? 'ring-2 ring-white scale-105 bg-white/10 text-white' : ''}`}
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </FocusItem>
+              </div>
             </div>
 
             <div className="flex-1 flex flex-col overflow-hidden relative">

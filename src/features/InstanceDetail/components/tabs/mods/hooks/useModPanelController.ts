@@ -17,7 +17,7 @@ import {
   toggleSelectedModFile,
   type ModFileCleanupItem
 } from '../../../../logic/modPanelService';
-import type { ModMeta } from '../../../../logic/modService';
+import type { ModMeta, ModVersionInstallAction } from '../../../../logic/modService';
 import type { OreProjectVersion } from '../../../../logic/modrinthApi';
 import { useModPanelDialogs } from './useModPanelDialogs';
 
@@ -87,6 +87,7 @@ export const useModPanelController = (instanceId: string) => {
   const [isCleaningUp, setIsCleaningUp] = useState(false);
   const [pendingUpgradeMod, setPendingUpgradeMod] = useState<ModMeta | null>(null);
   const [pendingUpgradeVersion, setPendingUpgradeVersion] = useState<OreProjectVersion | null>(null);
+  const [pendingUpgradeAction, setPendingUpgradeAction] = useState<ModVersionInstallAction>('upgrade');
   const [isPreparingUpgradeSnapshot, setIsPreparingUpgradeSnapshot] = useState(false);
   const upgradeSnapshotPromptHandledRef = useRef(false);
 
@@ -94,6 +95,7 @@ export const useModPanelController = (instanceId: string) => {
     upgradeSnapshotPromptHandledRef.current = false;
     setPendingUpgradeMod(null);
     setPendingUpgradeVersion(null);
+    setPendingUpgradeAction('upgrade');
     setIsPreparingUpgradeSnapshot(false);
   }, [instanceId]);
 
@@ -102,6 +104,7 @@ export const useModPanelController = (instanceId: string) => {
   }, []);
 
   const { state: dialogState, actions: dialogActions } = useModPanelDialogs({
+    mods,
     fetchHistory,
     diffSnapshots,
     doRollback,
@@ -261,28 +264,46 @@ export const useModPanelController = (instanceId: string) => {
     void checkModUpdates();
   }, [checkModUpdates]);
 
-  const executeUpgradeMod = useCallback(async (mod: ModMeta, version?: OreProjectVersion | null) => {
+  const getInstallActionLabel = useCallback((action: ModVersionInstallAction) => {
+    if (action === 'downgrade') return '降级';
+    if (action === 'reinstall') return '重装';
+    if (action === 'install') return '安装';
+    return '升级';
+  }, []);
+
+  const executeUpgradeMod = useCallback(async (
+    mod: ModMeta,
+    version?: OreProjectVersion | null,
+    action: ModVersionInstallAction = 'upgrade'
+  ) => {
+    const actionLabel = getInstallActionLabel(action);
     try {
       if (version) {
-        await installModVersion(mod, version);
+        await installModVersion(mod, version, action);
       } else {
         await upgradeMod(mod);
       }
-      addToast('success', t('modPanel.upgradeSuccess', {
+      addToast('success', t('modPanel.installVersionSuccess', {
+        action: actionLabel,
         name: mod.name || mod.fileName,
-        defaultValue: `已安装 ${mod.name || mod.fileName}。`
+        defaultValue: `已${actionLabel} ${mod.name || mod.fileName}。`
       }));
     } catch (error) {
       console.error(error);
       const message = error instanceof Error ? error.message : String(error);
-      addToast('error', t('modPanel.upgradeFailed', {
+      addToast('error', t('modPanel.installVersionFailed', {
+        action: actionLabel,
         error: message,
-        defaultValue: `升级失败: ${message}`
+        defaultValue: `${actionLabel}失败: ${message}`
       }));
     }
-  }, [addToast, installModVersion, t, upgradeMod]);
+  }, [addToast, getInstallActionLabel, installModVersion, t, upgradeMod]);
 
-  const handleUpgradeMod = useCallback((mod: ModMeta, version?: OreProjectVersion) => {
+  const handleUpgradeMod = useCallback((
+    mod: ModMeta,
+    version?: OreProjectVersion,
+    action: ModVersionInstallAction = 'upgrade'
+  ) => {
     if ((!version && !mod.hasUpdate) || mod.isUpdatingMod) {
       return;
     }
@@ -290,10 +311,11 @@ export const useModPanelController = (instanceId: string) => {
     if (!upgradeSnapshotPromptHandledRef.current) {
       setPendingUpgradeMod(mod);
       setPendingUpgradeVersion(version || null);
+      setPendingUpgradeAction(action);
       return;
     }
 
-    void executeUpgradeMod(mod, version || null);
+    void executeUpgradeMod(mod, version || null, action);
   }, [executeUpgradeMod]);
 
   const closeUpgradeSnapshotPrompt = useCallback(() => {
@@ -303,6 +325,7 @@ export const useModPanelController = (instanceId: string) => {
 
     setPendingUpgradeMod(null);
     setPendingUpgradeVersion(null);
+    setPendingUpgradeAction('upgrade');
   }, [isPreparingUpgradeSnapshot]);
 
   const confirmUpgradeWithSnapshot = useCallback(async () => {
@@ -316,27 +339,30 @@ export const useModPanelController = (instanceId: string) => {
       await takeSnapshot(
         'MOD_UPDATE',
         t('modPanel.beforeUpgradeSnapshotMessage', {
+          action: getInstallActionLabel(pendingUpgradeAction),
           name: pendingUpgradeMod.name || pendingUpgradeMod.fileName,
-          defaultValue: `升级 ${pendingUpgradeMod.name || pendingUpgradeMod.fileName} 前的快照`
+          defaultValue: `${getInstallActionLabel(pendingUpgradeAction)} ${pendingUpgradeMod.name || pendingUpgradeMod.fileName} 前的快照`
         })
       );
       upgradeSnapshotPromptHandledRef.current = true;
       const modToUpgrade = pendingUpgradeMod;
       const versionToInstall = pendingUpgradeVersion;
+      const actionToRun = pendingUpgradeAction;
       setPendingUpgradeMod(null);
       setPendingUpgradeVersion(null);
-      await executeUpgradeMod(modToUpgrade, versionToInstall);
+      setPendingUpgradeAction('upgrade');
+      await executeUpgradeMod(modToUpgrade, versionToInstall, actionToRun);
     } catch (error) {
       console.error(error);
       const message = error instanceof Error ? error.message : String(error);
       addToast('error', t('modPanel.beforeUpgradeSnapshotFailed', {
         error: message,
-        defaultValue: `创建升级前快照失败: ${message}`
+        defaultValue: `创建${getInstallActionLabel(pendingUpgradeAction)}前快照失败: ${message}`
       }));
     } finally {
       setIsPreparingUpgradeSnapshot(false);
     }
-  }, [addToast, executeUpgradeMod, pendingUpgradeMod, pendingUpgradeVersion, t, takeSnapshot]);
+  }, [addToast, executeUpgradeMod, getInstallActionLabel, pendingUpgradeAction, pendingUpgradeMod, pendingUpgradeVersion, t, takeSnapshot]);
 
   const skipUpgradeSnapshot = useCallback(() => {
     if (!pendingUpgradeMod || isPreparingUpgradeSnapshot) {
@@ -346,10 +372,12 @@ export const useModPanelController = (instanceId: string) => {
     upgradeSnapshotPromptHandledRef.current = true;
     const modToUpgrade = pendingUpgradeMod;
     const versionToInstall = pendingUpgradeVersion;
+    const actionToRun = pendingUpgradeAction;
     setPendingUpgradeMod(null);
     setPendingUpgradeVersion(null);
-    void executeUpgradeMod(modToUpgrade, versionToInstall);
-  }, [executeUpgradeMod, isPreparingUpgradeSnapshot, pendingUpgradeMod, pendingUpgradeVersion]);
+    setPendingUpgradeAction('upgrade');
+    void executeUpgradeMod(modToUpgrade, versionToInstall, actionToRun);
+  }, [executeUpgradeMod, isPreparingUpgradeSnapshot, pendingUpgradeAction, pendingUpgradeMod, pendingUpgradeVersion]);
 
   const handleSearchQueryChange = useCallback((value: string) => {
     setSearchQuery(value);
@@ -498,6 +526,8 @@ export const useModPanelController = (instanceId: string) => {
     upgradeSnapshotDialog: {
       isOpen: pendingUpgradeMod !== null,
       mod: pendingUpgradeMod,
+      action: pendingUpgradeAction,
+      actionLabel: getInstallActionLabel(pendingUpgradeAction),
       isCreatingSnapshot: isPreparingUpgradeSnapshot,
       onClose: closeUpgradeSnapshotPrompt,
       onConfirm: confirmUpgradeWithSnapshot,

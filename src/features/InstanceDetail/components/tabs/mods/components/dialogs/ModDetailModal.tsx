@@ -23,7 +23,8 @@ import {
   modService,
   resolveInstanceGameVersion,
   resolveInstanceLoader,
-  type ModMeta
+  type ModMeta,
+  type ModVersionInstallAction
 } from '../../../../../logic/modService';
 
 interface ModDetailModalProps {
@@ -32,7 +33,7 @@ interface ModDetailModalProps {
   onClose: () => void;
   onToggle: (fileName: string, currentEnabled: boolean) => void;
   onDelete: (fileName: string) => void;
-  onInstallVersion: (mod: ModMeta, version: OreProjectVersion) => void;
+  onInstallVersion: (mod: ModMeta, version: OreProjectVersion, action: ModVersionInstallAction) => void;
 }
 
 const toNetworkInfo = (detail: OreProjectDetail, source: 'modrinth' | 'curseforge'): ModrinthProject => ({
@@ -222,6 +223,21 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
       : displayMod?.manifestEntry?.source.platform || '本地';
 
   const cacheKey = displayMod?.modifiedAt || displayMod?.fileSize || displayMod?.fileName || 'cache';
+  const currentFileId = displayMod?.manifestEntry?.source.fileId || mod.manifestEntry?.source.fileId;
+  const currentVersionIndex = currentFileId
+    ? modVersions.findIndex((version) => version.id === currentFileId)
+    : -1;
+  const getVersionInstallAction = (version: OreProjectVersion, index: number): ModVersionInstallAction => {
+    if (version.id === currentFileId) return 'reinstall';
+    if (currentVersionIndex < 0) return 'install';
+    return index < currentVersionIndex ? 'upgrade' : 'downgrade';
+  };
+  const versionInstallLabels: Record<ModVersionInstallAction, string> = {
+    install: '安装',
+    upgrade: '升级',
+    downgrade: '降级',
+    reinstall: '重装'
+  };
 
   const modalActions = (
     <>
@@ -294,39 +310,45 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
                 <Virtuoso
                   className="h-full custom-scrollbar"
                   data={modVersions}
-                  itemContent={(index, v) => (
-                    <FocusItem key={v.id || index} focusKey={`mod-version-${index}`}>
-                      {({ ref, focused }) => (
-                        <div
-                          ref={ref as any}
-                          className={`flex flex-col sm:flex-row justify-between sm:items-center py-2.5 px-3 sm:px-4 bg-transparent border-b border-[#2A2A2C]/50 outline-none transition-all cursor-pointer gap-3 sm:gap-0 ${focused ? 'bg-[#2A2A2C] z-10 brightness-110' : 'hover:bg-[#202022]'}`}
-                        >
-                          <div className="flex items-center flex-1 min-w-0 pr-0 sm:pr-4">
-                            <div className={`hidden sm:block w-2 h-2 rounded-full mr-3 flex-shrink-0 ${focused ? 'bg-white' : 'bg-ore-green/80'}`}></div>
-                            <div className="flex flex-col flex-1 min-w-0">
-                              <span className={`font-minecraft text-sm truncate ${focused ? 'text-white' : 'text-gray-200'}`}>
-                                <span className={`inline-block sm:hidden w-1.5 h-1.5 rounded-full mr-1.5 align-middle ${focused ? 'bg-white' : 'bg-ore-green/80'}`}></span>
-                                {v.name}
-                              </span>
-                              <span className="text-xs text-ore-text-muted mt-0.5 truncate font-sans">
-                                版本: {v.version_number} • {new Date(v.date_published).toLocaleDateString()} 发布
-                              </span>
-                            </div>
-                          </div>
-                          <OreButton
-                            focusKey={`btn-install-${index}`}
-                            variant={v.id === mod.manifestEntry?.source.fileId ? "secondary" : "primary"}
-                            size="sm"
-                            onClick={() => onInstallVersion(mod, v)}
-                            className="w-full sm:w-20 shrink-0"
+                  itemContent={(index, v) => {
+                    const action = getVersionInstallAction(v, index);
+                    const actionLabel = versionInstallLabels[action];
+                    const actionTarget = displayMod || mod;
+
+                    return (
+                      <FocusItem key={v.id || index} focusKey={`mod-version-${index}`}>
+                        {({ ref, focused }) => (
+                          <div
+                            ref={ref as any}
+                            className={`flex flex-col sm:flex-row justify-between sm:items-center py-2.5 px-3 sm:px-4 bg-transparent border-b border-[#2A2A2C]/50 outline-none transition-all cursor-pointer gap-3 sm:gap-0 ${focused ? 'bg-[#2A2A2C] z-10 brightness-110' : 'hover:bg-[#202022]'}`}
                           >
-                            <Download size={13} className="mr-1.5" />
-                            {v.id === mod.manifestEntry?.source.fileId ? '重装' : '安装'}
-                          </OreButton>
-                        </div>
-                      )}
-                    </FocusItem>
-                  )}
+                            <div className="flex items-center flex-1 min-w-0 pr-0 sm:pr-4">
+                              <div className={`hidden sm:block w-2 h-2 rounded-full mr-3 flex-shrink-0 ${focused ? 'bg-white' : 'bg-ore-green/80'}`}></div>
+                              <div className="flex flex-col flex-1 min-w-0">
+                                <span className={`font-minecraft text-sm truncate ${focused ? 'text-white' : 'text-gray-200'}`}>
+                                  <span className={`inline-block sm:hidden w-1.5 h-1.5 rounded-full mr-1.5 align-middle ${focused ? 'bg-white' : 'bg-ore-green/80'}`}></span>
+                                  {v.name}
+                                </span>
+                                <span className="text-xs text-ore-text-muted mt-0.5 truncate font-sans">
+                                  版本: {v.version_number} • {new Date(v.date_published).toLocaleDateString()} 发布
+                                </span>
+                              </div>
+                            </div>
+                            <OreButton
+                              focusKey={`btn-install-${index}`}
+                              variant={action === 'reinstall' ? "secondary" : "primary"}
+                              size="sm"
+                              onClick={() => onInstallVersion(actionTarget, v, action)}
+                              className="w-full sm:w-20 shrink-0"
+                            >
+                              <Download size={13} className="mr-1.5" />
+                              {actionLabel}
+                            </OreButton>
+                          </div>
+                        )}
+                      </FocusItem>
+                    );
+                  }}
                 />
               </div>
             ) : (

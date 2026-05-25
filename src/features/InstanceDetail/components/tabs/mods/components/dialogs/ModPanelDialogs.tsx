@@ -3,7 +3,7 @@ import { AlertTriangle } from 'lucide-react';
 
 import { OreConfirmDialog } from '../../../../../../../ui/primitives/OreConfirmDialog';
 
-import type { ModMeta } from '../../../../../logic/modService';
+import type { ModMeta, ModVersionInstallAction } from '../../../../../logic/modService';
 import type { OreProjectVersion } from '../../../../../logic/modrinthApi';
 import { ModSnapshotModal } from '../../../ModSnapshotModal';
 import { ModDetailModal } from './ModDetailModal';
@@ -15,7 +15,7 @@ interface ModPanelDialogsProps {
   snapshotState: 'idle' | 'snapshotting' | 'rolling_back';
   state: ModPanelDialogState;
   actions: ModPanelDialogActions;
-  onInstallVersion: (mod: ModMeta, version: OreProjectVersion) => void;
+  onInstallVersion: (mod: ModMeta, version: OreProjectVersion, action: ModVersionInstallAction) => void;
 }
 
 export const ModPanelDialogs: React.FC<ModPanelDialogsProps> = ({

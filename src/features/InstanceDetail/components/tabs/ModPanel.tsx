@@ -73,14 +73,14 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         isOpen={controller.upgradeSnapshotDialog.isOpen}
         onClose={controller.upgradeSnapshotDialog.onClose}
         onConfirm={controller.upgradeSnapshotDialog.onConfirm}
-        title="升级前创建快照"
+        title={`${controller.upgradeSnapshotDialog.actionLabel}前创建快照`}
         headline="建议先记录当前模组状态"
         description={
           controller.upgradeSnapshotDialog.mod
-            ? `首次升级模组前，可以创建一个快照，之后如果新版本不稳定，可在历史快照中快速回退。即将升级：${controller.upgradeSnapshotDialog.mod.fileName}`
+            ? `首次${controller.upgradeSnapshotDialog.actionLabel}模组前，可以创建一个快照，之后如果版本不稳定，可在历史快照中快速回退。即将${controller.upgradeSnapshotDialog.actionLabel}：${controller.upgradeSnapshotDialog.mod.fileName}`
             : undefined
         }
-        confirmLabel={controller.upgradeSnapshotDialog.isCreatingSnapshot ? '创建中...' : '创建快照并升级'}
+        confirmLabel={controller.upgradeSnapshotDialog.isCreatingSnapshot ? '创建中...' : `创建快照并${controller.upgradeSnapshotDialog.actionLabel}`}
         cancelLabel="取消"
         confirmVariant="primary"
         tone="warning"
@@ -89,10 +89,10 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         isConfirming={controller.upgradeSnapshotDialog.isCreatingSnapshot}
         closeOnOutsideClick={!controller.upgradeSnapshotDialog.isCreatingSnapshot}
         className="w-full max-w-2xl"
-        confirmationNote="这个提示只会在本实例本次进入页面后的第一次升级时出现。"
+        confirmationNote={`这个提示只会在本实例本次进入页面后的第一次${controller.upgradeSnapshotDialog.actionLabel}时出现。`}
         confirmationNoteTone="info"
         tertiaryAction={{
-          label: '直接升级',
+          label: `直接${controller.upgradeSnapshotDialog.actionLabel}`,
           onClick: controller.upgradeSnapshotDialog.onSkip,
           variant: 'secondary',
           focusKey: 'mod-upgrade-snapshot-skip',

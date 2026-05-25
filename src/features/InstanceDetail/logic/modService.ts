@@ -46,6 +46,8 @@ export interface ModMeta {
   cacheKey?: string;
 }
 
+export type ModVersionInstallAction = 'install' | 'upgrade' | 'downgrade' | 'reinstall';
+
 export const resolveInstanceGameVersion = (config: any): string => {
   return config?.game_version || config?.gameVersion || config?.mcVersion || '';
 };

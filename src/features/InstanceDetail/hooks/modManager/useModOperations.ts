@@ -1,7 +1,7 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 
 import { useDownloadStore } from '../../../../store/useDownloadStore';
-import { modService, type ModMeta } from '../../logic/modService';
+import { modService, type ModMeta, type ModVersionInstallAction } from '../../logic/modService';
 import type { OreProjectVersion } from '../../logic/modrinthApi';
 
 interface UseModOperationsOptions {
@@ -9,6 +9,13 @@ interface UseModOperationsOptions {
   setMods: Dispatch<SetStateAction<ModMeta[]>>;
   loadMods: () => Promise<void>;
 }
+
+const getActionText = (action: ModVersionInstallAction) => {
+  if (action === 'downgrade') return '降级';
+  if (action === 'reinstall') return '重装';
+  if (action === 'install') return '安装';
+  return '升级';
+};
 
 export const useModOperations = ({
   instanceId,
@@ -72,7 +79,11 @@ export const useModOperations = ({
     }
   }, [instanceId, loadMods, setMods]);
 
-  const installModVersion = useCallback(async (mod: ModMeta, version?: OreProjectVersion) => {
+  const installModVersion = useCallback(async (
+    mod: ModMeta,
+    version?: OreProjectVersion,
+    action: ModVersionInstallAction = 'upgrade'
+  ) => {
     const source = mod.manifestEntry?.source;
     const platform = source?.platform || '';
     const projectId = source?.projectId || '';
@@ -101,7 +112,7 @@ export const useModOperations = ({
       stage: 'DOWNLOADING_MOD',
       current: 0,
       total: 100,
-      message: '正在准备升级模组...',
+      message: `正在准备${getActionText(action)}模组...`,
       retryAction: 'download_resource',
       retryPayload: {
         url: targetDownloadUrl,
@@ -126,6 +137,55 @@ export const useModOperations = ({
         await modService.deleteMod(instanceId, oldFileName);
       }
 
+      const installedMod: ModMeta = {
+        ...mod,
+        fileName: targetFileName,
+        version: version?.version_number || version?.name || mod.updateVersionName || mod.version,
+        fileSize: mod.fileSize,
+        isEnabled: !shouldKeepDisabled,
+        modifiedAt: Date.now(),
+        manifestEntry: mod.manifestEntry
+          ? {
+              ...mod.manifestEntry,
+              source: {
+                ...mod.manifestEntry.source,
+                kind: 'launcherDownload',
+                platform,
+                projectId,
+                fileId: targetVersionId
+              }
+            }
+          : mod.manifestEntry,
+        hasUpdate: false,
+        updateVersionName: undefined,
+        updateFileId: undefined,
+        updateFileName: undefined,
+        updateDownloadUrl: undefined,
+        isUpdatingMod: false
+      };
+
+      setMods((current) => {
+        const next: ModMeta[] = [];
+        let inserted = false;
+
+        for (const item of current) {
+          if (item.fileName === oldFileName || item.fileName === targetFileName) {
+            if (!inserted) {
+              next.push(installedMod);
+              inserted = true;
+            }
+            continue;
+          }
+          next.push(item);
+        }
+
+        if (!inserted) {
+          next.unshift(installedMod);
+        }
+
+        return next;
+      });
+
       await loadMods();
     } catch (error) {
       setMods((current) => current.map((item) => (
@@ -135,7 +195,7 @@ export const useModOperations = ({
     }
   }, [instanceId, loadMods, setMods]);
 
-  const upgradeMod = useCallback(async (mod: ModMeta) => installModVersion(mod), [installModVersion]);
+  const upgradeMod = useCallback(async (mod: ModMeta) => installModVersion(mod, undefined, 'upgrade'), [installModVersion]);
 
   const openModFolder = useCallback(() => {
     modService.openModFolder(instanceId).catch(console.error);

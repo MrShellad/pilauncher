@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { useTranslation } from 'react-i18next';
 
@@ -14,6 +14,7 @@ export interface PendingDeleteState {
 }
 
 interface UseModPanelDialogsOptions {
+  mods: ModMeta[];
   fetchHistory: () => Promise<InstanceSnapshot[]>;
   diffSnapshots: (oldId: string, newId: string) => Promise<SnapshotDiff>;
   doRollback: (snapshotId: string) => Promise<void>;
@@ -47,6 +48,7 @@ export interface ModPanelDialogActions {
 }
 
 export const useModPanelDialogs = ({
+  mods,
   fetchHistory,
   diffSnapshots,
   doRollback,
@@ -71,6 +73,38 @@ export const useModPanelDialogs = ({
   const openModDetail = useCallback((mod: ModMeta) => {
     setSelectedMod(mod);
   }, []);
+
+  useEffect(() => {
+    const syncTimer = window.setTimeout(() => {
+      setSelectedMod((current) => {
+        if (!current) return current;
+
+        const directMatch = mods.find((mod) => mod.fileName === current.fileName);
+        if (directMatch) {
+          return {
+            ...directMatch,
+            networkInfo: directMatch.networkInfo || current.networkInfo
+          };
+        }
+
+        const currentProjectId = current.manifestEntry?.source.projectId || current.modId;
+        if (!currentProjectId) return current;
+
+        const projectMatches = mods.filter((mod) => (
+          mod.manifestEntry?.source.projectId === currentProjectId || mod.modId === currentProjectId
+        ));
+
+        if (projectMatches.length !== 1) return current;
+
+        return {
+          ...projectMatches[0],
+          networkInfo: projectMatches[0].networkInfo || current.networkInfo
+        };
+      });
+    }, 0);
+
+    return () => window.clearTimeout(syncTimer);
+  }, [mods]);
 
   const closeModDetail = useCallback(() => {
     setSelectedMod(null);
