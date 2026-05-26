@@ -36,9 +36,12 @@ export const ModPanelDialogs: React.FC<ModPanelDialogsProps> = ({
   onReidentifyAllMods
 }) => {
   const currentGlobalSettings = React.useMemo(() => {
+    if (instanceConfig?.globalMetadataSettings) {
+      return instanceConfig.globalMetadataSettings;
+    }
     const firstWithSettings = mods.find(m => m.manifestEntry?.metadataSettings);
     return firstWithSettings?.manifestEntry?.metadataSettings;
-  }, [mods]);
+  }, [instanceConfig, mods]);
 
   return (
     <>

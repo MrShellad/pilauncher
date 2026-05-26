@@ -147,6 +147,19 @@ impl ModManifestService {
         let mut manifest = Self::read_manifest_robust(manifest_path);
 
         for entry in manifest.values_mut() {
+            let old_platform = entry.metadata_settings.as_ref()
+                .and_then(|s| s.metadata_platform.as_deref())
+                .unwrap_or("auto");
+            let new_platform = settings.metadata_platform.as_deref().unwrap_or("auto");
+
+            if old_platform != new_platform {
+                entry.source.platform = None;
+                entry.source.project_id = None;
+                entry.source.file_id = None;
+                entry.name = None;
+                entry.description = None;
+                entry.icon_rel_path = None;
+            }
             entry.metadata_settings = Some(settings.clone());
         }
 
@@ -160,6 +173,9 @@ impl ModManifestService {
             entry.source.platform = None;
             entry.source.project_id = None;
             entry.source.file_id = None;
+            entry.name = None;
+            entry.description = None;
+            entry.icon_rel_path = None;
             entry.matched_platforms.clear();
         }
 
@@ -178,9 +194,16 @@ impl ModManifestService {
         let mut manifest = Self::read_manifest_robust(manifest_path);
 
         let key = mod_manifest_key(file_name);
-        let entry = manifest
-            .get_mut(&key)
-            .ok_or_else(|| format!("Mod manifest entry not found: {}", file_name))?;
+        let entry = manifest.entry(key).or_insert_with(|| {
+            build_manifest_entry(
+                build_manifest_source(ModSourceKind::ExternalImport, None, None, None),
+                ModFileHash {
+                    algorithm: "none".to_string(),
+                    value: "none".to_string(),
+                },
+                crate::domain::mod_manifest::ModFileState::default(),
+            )
+        });
 
         for (platform, matched) in matches {
             if platform.trim().is_empty() {
@@ -210,9 +233,30 @@ impl ModManifestService {
         let mut manifest = Self::read_manifest_robust(manifest_path);
 
         let key = mod_manifest_key(file_name);
-        let entry = manifest
-            .get_mut(&key)
-            .ok_or_else(|| format!("Mod manifest entry not found: {}", file_name))?;
+        let entry = manifest.entry(key).or_insert_with(|| {
+            build_manifest_entry(
+                build_manifest_source(ModSourceKind::ExternalImport, None, None, None),
+                ModFileHash {
+                    algorithm: "none".to_string(),
+                    value: "none".to_string(),
+                },
+                crate::domain::mod_manifest::ModFileState::default(),
+            )
+        });
+
+        let old_platform = entry.metadata_settings.as_ref()
+            .and_then(|s| s.metadata_platform.as_deref())
+            .unwrap_or("auto");
+        let new_platform = settings.metadata_platform.as_deref().unwrap_or("auto");
+
+        if old_platform != new_platform {
+            entry.source.platform = None;
+            entry.source.project_id = None;
+            entry.source.file_id = None;
+            entry.name = None;
+            entry.description = None;
+            entry.icon_rel_path = None;
+        }
 
         entry.metadata_settings = Some(settings);
         write_mod_manifest(manifest_path, &manifest)
@@ -222,13 +266,23 @@ impl ModManifestService {
         let mut manifest = Self::read_manifest_robust(manifest_path);
 
         let key = mod_manifest_key(file_name);
-        let entry = manifest
-            .get_mut(&key)
-            .ok_or_else(|| format!("Mod manifest entry not found: {}", file_name))?;
+        let entry = manifest.entry(key).or_insert_with(|| {
+            build_manifest_entry(
+                build_manifest_source(ModSourceKind::ExternalImport, None, None, None),
+                ModFileHash {
+                    algorithm: "none".to_string(),
+                    value: "none".to_string(),
+                },
+                crate::domain::mod_manifest::ModFileState::default(),
+            )
+        });
 
         entry.source.platform = None;
         entry.source.project_id = None;
         entry.source.file_id = None;
+        entry.name = None;
+        entry.description = None;
+        entry.icon_rel_path = None;
         entry.matched_platforms.clear();
         write_mod_manifest(manifest_path, &manifest)
     }

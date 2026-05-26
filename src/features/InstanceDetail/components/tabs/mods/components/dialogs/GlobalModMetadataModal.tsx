@@ -6,6 +6,7 @@ import { OreModal } from '../../../../../../../ui/primitives/OreModal';
 import { OreButton } from '../../../../../../../ui/primitives/OreButton';
 import { FocusBoundary } from '../../../../../../../ui/focus/FocusBoundary';
 import { OreToggleButton } from '../../../../../../../ui/primitives/OreToggleButton';
+import { OreProgressBar } from '../../../../../../../ui/primitives/OreProgressBar';
 import type { ModMetadataSettings, ModPlatformPreference } from '../../../../../logic/modService';
 
 interface GlobalModMetadataModalProps {
@@ -137,37 +138,30 @@ export const GlobalModMetadataModal: React.FC<GlobalModMetadataModalProps> = ({
         </div>
 
         {/* 危险操作 / 维护区域 */}
-        <div className="rounded-sm border border-red-900/30 bg-red-950/10 p-4 space-y-3">
+        <div className="rounded-sm border border-red-900/50 bg-red-950/20 p-4 space-y-3">
           <div>
-            <h4 className="text-xs font-minecraft font-bold text-red-400">高级维护操作</h4>
-            <p className="text-[11px] text-gray-400 mt-1 font-minecraft leading-relaxed">
+            <h4 className="text-xs font-minecraft font-bold text-red-300">高级维护操作</h4>
+            <p className="text-[11px] text-gray-300 mt-1 font-minecraft leading-relaxed">
               如果模组匹配信息出现偏差或无法获取更新，可清空并重新从云端检索匹配所有模组的数据。
             </p>
           </div>
           
           {isReidentifying ? (
-            <div className="space-y-2 pt-1">
-              <div className="flex items-center justify-between text-[11px] font-minecraft text-gray-400">
-                <span className="flex items-center gap-1.5">
+            <OreProgressBar
+              percent={progress && progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0}
+              label={
+                <span className="flex items-center gap-1.5 font-minecraft text-[11px] text-gray-300 normal-case tracking-normal">
                   <RefreshCw size={11} className="animate-spin text-ore-green" />
-                  正在重新匹配模组云端数据...
+                  正在重新匹配模组云端数据... ({progress ? `${progress.current}/${progress.total}` : '0/0'})
                 </span>
-                <span className="text-white font-minecraft">
-                  {progress ? `${progress.current} / ${progress.total}` : '0 / 0'}
-                </span>
-              </div>
-              <div className="w-full h-1.5 bg-[#101012] rounded-full overflow-hidden border border-[#2A2A2C]">
-                <div 
-                  className="bg-ore-green h-full rounded-full transition-all duration-300 ease-out"
-                  style={{ width: progress ? `${(progress.current / progress.total) * 100}%` : '0%' }}
-                />
-              </div>
-            </div>
+              }
+              className="pt-1 !px-0"
+            />
           ) : (
             <OreButton
               focusKey="global-metadata-reidentify"
-              variant="secondary"
-              className="w-full justify-center !text-red-400 hover:!bg-red-950/20 hover:!border-red-900/40"
+              variant="danger"
+              className="w-full justify-center"
               onClick={handleReidentifyAll}
               disabled={isSaving}
             >

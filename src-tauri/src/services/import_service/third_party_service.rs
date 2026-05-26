@@ -58,6 +58,7 @@ fn build_third_party_instance_config(candidate: &ThirdPartyInstanceCandidate) ->
         window_width: None,
         window_height: None,
         is_favorite: None,
+        global_metadata_settings: None,
     }
 }
 

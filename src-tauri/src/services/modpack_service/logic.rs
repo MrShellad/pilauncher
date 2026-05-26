@@ -103,6 +103,7 @@ pub fn build_instance_config(
         window_width: None,
         window_height: None,
         is_favorite: None,
+        global_metadata_settings: None,
     }
 }
 

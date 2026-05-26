@@ -1,5 +1,6 @@
 // /src/features/InstanceDetail/components/tabs/mods/components/dialogs/ModDetailModal.tsx
 import React, { useCallback, useState, useEffect, useRef } from 'react';
+import { useModIcon } from '../../../../../logic/modIconService';
 import { Virtuoso } from 'react-virtuoso';
 import { OreModal } from '../../../../../../../ui/primitives/OreModal';
 import { OreButton } from '../../../../../../../ui/primitives/OreButton';
@@ -13,11 +14,12 @@ import {
   fetchModrinthInfo,
   fetchModrinthProjectById,
   searchModrinth,
+  matchModrinthVersionsByHashes,
   type ModrinthProject,
   type OreProjectDetail,
   type OreProjectVersion
 } from '../../../../../logic/modrinthApi';
-import { fetchCurseForgeVersions, getCurseForgeProjectDetails, searchCurseForge } from '../../../../../../Download/logic/curseforgeApi';
+import { fetchCurseForgeVersions, getCurseForgeProjectDetails, searchCurseForge, matchCurseForgeFingerprints } from '../../../../../../Download/logic/curseforgeApi';
 import {
   getModPlatformReference,
   getModPreferredPlatform,
@@ -97,6 +99,34 @@ const toNetworkInfo = (detail: OreProjectDetail, source: 'modrinth' | 'curseforg
   source
 });
 
+const resolveProjectIdByHash = async (
+  mod: ModMeta,
+  platform: ModPlatformId
+): Promise<string | undefined> => {
+  if (platform === 'modrinth') {
+    const sha1 = mod.manifestEntry?.hash?.value;
+    if (sha1 && mod.manifestEntry?.hash?.algorithm === 'sha1') {
+      try {
+        const matches = await matchModrinthVersionsByHashes([sha1], 'sha1');
+        return matches[sha1]?.project_id;
+      } catch (err) {
+        console.error('Modrinth hash matching failed:', err);
+      }
+    }
+  } else if (platform === 'curseforge') {
+    const fingerprint = mod.curseforgeFingerprint;
+    if (typeof fingerprint === 'number') {
+      try {
+        const matches = await matchCurseForgeFingerprints([fingerprint]);
+        return matches[fingerprint]?.project_id;
+      } catch (err) {
+        console.error('CurseForge fingerprint matching failed:', err);
+      }
+    }
+  }
+  return undefined;
+};
+
 export const ModDetailModal: React.FC<ModDetailModalProps> = ({
   mod,
   instanceConfig,
@@ -112,6 +142,8 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
   const [modVersions, setModVersions] = useState<any[]>([]);
   const [isLoadingVersions, setIsLoadingVersions] = useState(false);
   const [displayMod, setDisplayMod] = useState<ModMeta | null>(null);
+  const activeIconMod = displayMod || mod || ({} as ModMeta);
+  const iconSnapshot = useModIcon(activeIconMod, 'high');
   const [activePlatform, setActivePlatform] = useState<ModPlatformId>('modrinth');
   const [showMetadataSettings, setShowMetadataSettings] = useState(false);
   const [metadataPlatformDraft, setMetadataPlatformDraft] = useState<ModPlatformPreference>('auto');
@@ -131,17 +163,25 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
       const initialPlatform = sourcePlatform === 'curseforge' ? 'curseforge' : 'modrinth';
       setActivePlatform(initialPlatform);
 
-      const projectId = getPlatformProjectId(mod, initialPlatform);
-      const query =
-        mod.modId ||
-        mod.fileName.replace('.jar', '').replace('.disabled', '').replace(/[-_v0-9\.]+$/, '');
-      const metadataRequest = projectId
-        ? initialPlatform === 'curseforge'
-          ? getCurseForgeProjectDetails(projectId).then((detail) => toNetworkInfo(detail, 'curseforge'))
-          : fetchModrinthProjectById(projectId)
-        : fetchModrinthInfo(query);
+      const fetchMetadata = async () => {
+        let projectId = getPlatformProjectId(mod, initialPlatform);
+        if (!projectId) {
+          projectId = await resolveProjectIdByHash(mod, initialPlatform);
+        }
 
-      metadataRequest.then(netInfo => {
+        if (projectId) {
+          return initialPlatform === 'curseforge'
+            ? getCurseForgeProjectDetails(projectId).then((detail) => toNetworkInfo(detail, 'curseforge'))
+            : fetchModrinthProjectById(projectId);
+        } else {
+          const query =
+            mod.modId ||
+            mod.fileName.replace('.jar', '').replace('.disabled', '').replace(/[-_v0-9\.]+$/, '');
+          return fetchModrinthInfo(query);
+        }
+      };
+
+      fetchMetadata().then(netInfo => {
         if (netInfo) {
           setDisplayMod(prev => prev ? { ...prev, networkInfo: netInfo } : null);
           if (mod.cacheKey) {
@@ -185,13 +225,16 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
     if (displayMod && instanceConfig) {
       setIsLoadingVersions(true);
 
-      let projectId: string | undefined = undefined;
-      projectId = getPlatformProjectId(displayMod, activePlatform)
-        || (activePlatform === 'modrinth' ? displayMod.modId : undefined);
-
       const fetchPlatformVersions = async () => {
-        let currentProjectId = projectId;
+        let currentProjectId = getPlatformProjectId(displayMod, activePlatform)
+          || (activePlatform === 'modrinth' ? displayMod.modId : undefined);
 
+        // 1. 优先使用哈希唯一标识反查项目 ID
+        if (!currentProjectId) {
+          currentProjectId = await resolveProjectIdByHash(displayMod, activePlatform);
+        }
+
+        // 2. 特征码未匹配到，则退回文本模糊搜索
         if (!currentProjectId) {
           const query = displayMod.modId || displayMod.name || displayMod.fileName.replace('.jar', '').replace('.disabled', '').replace(/[-_v0-9\.]+$/, '');
 
@@ -332,7 +375,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
       ? 'Modrinth'
       : displayMod?.manifestEntry?.source.platform || '本地';
 
-  const detailIconUrl = displayMod?.networkIconUrl || displayMod?.networkInfo?.icon_url || '';
+  const detailIconUrl = iconSnapshot.src || displayMod?.networkIconUrl || displayMod?.networkInfo?.icon_url || '';
   const currentFileId = getPlatformFileId(displayMod, activePlatform) || getPlatformFileId(mod, activePlatform);
   const currentVersionIndex = currentFileId
     ? modVersions.findIndex((version) => version.id === currentFileId)

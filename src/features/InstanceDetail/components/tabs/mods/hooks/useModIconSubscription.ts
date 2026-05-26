@@ -70,6 +70,14 @@ interface UseModIconSubscriptionOptions {
   focusedRowFileName: string | null;
 }
 
+const getModIconSourceKey = (mod: ModMeta) => {
+  return [
+    mod.iconAbsolutePath || '',
+    mod.networkIconUrl || '',
+    mod.networkInfo?.icon_url || ''
+  ].join('|');
+};
+
 export const useModIconSubscription = ({
   mods,
   visibleMods,
@@ -83,7 +91,7 @@ export const useModIconSubscription = ({
     return mods.findIndex((mod) => mod.fileName === focusedRowFileName);
   }, [focusedRowFileName, mods]);
 
-  const subscriptionsRef = useRef<Map<string, () => void>>(new Map());
+  const subscriptionsRef = useRef<Map<string, { unsubscribe: () => void; sourceKey: string }>>(new Map());
   const unsubscribeTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
@@ -115,11 +123,11 @@ export const useModIconSubscription = ({
     const timers = unsubscribeTimersRef.current;
     const nextFileNames = new Set(visibleMods.map((mod) => mod.fileName));
 
-    for (const [fileName, unsubscribe] of currentSubs.entries()) {
+    for (const [fileName, sub] of currentSubs.entries()) {
       if (!nextFileNames.has(fileName)) {
         if (!timers.has(fileName)) {
           const timer = setTimeout(() => {
-            unsubscribe();
+            sub.unsubscribe();
             currentSubs.delete(fileName);
             timers.delete(fileName);
           }, 3000);
@@ -135,14 +143,22 @@ export const useModIconSubscription = ({
     }
 
     visibleMods.forEach((mod, modIndex) => {
-      if (!currentSubs.has(mod.fileName)) {
+      const existing = currentSubs.get(mod.fileName);
+      const currentSourceKey = getModIconSourceKey(mod);
+
+      if (!existing || existing.sourceKey !== currentSourceKey) {
+        if (existing) {
+          existing.unsubscribe();
+        }
+
         const priority = getIconPriority(modIndex, focusedRowIndex, visibleMods.length);
         
         let subDisposed = false;
         let unsubscribe = () => { subDisposed = true; };
         
-        currentSubs.set(mod.fileName, () => {
-          unsubscribe();
+        currentSubs.set(mod.fileName, {
+          unsubscribe: () => { unsubscribe(); },
+          sourceKey: currentSourceKey
         });
 
         void subscribeToModIcon(mod, priority, (snapshot) => {
@@ -185,7 +201,7 @@ export const useModIconSubscription = ({
     return () => {
       unsubscribeTimersRef.current.forEach((timer) => clearTimeout(timer));
       unsubscribeTimersRef.current.clear();
-      subscriptionsRef.current.forEach((dispose) => dispose());
+      subscriptionsRef.current.forEach((sub) => sub.unsubscribe());
       subscriptionsRef.current.clear();
     };
   }, []);

@@ -164,6 +164,7 @@ pub async fn get_instance_detail<R: Runtime>(
                     window_width: window_width.map(|w| w as u32),
                     window_height: window_height.map(|h| h as u32),
                     is_favorite: Some(is_favorite != 0),
+                    global_metadata_settings: None,
                 };
 
                 if let Err(e) = InstanceBindingService::write_instance_config(&app, &id, &config) {

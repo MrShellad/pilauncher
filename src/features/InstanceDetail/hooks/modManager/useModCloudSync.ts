@@ -45,9 +45,16 @@ const mergePlatformMatch = (
   }
 });
 
-const choosePrimaryPlatform = (matches: Partial<MatchedPlatforms>) => (
-  PLATFORM_PRIORITY.find((platform) => matches[platform]?.projectId && matches[platform]?.fileId)
-);
+const choosePrimaryPlatform = (mod: ModMeta, matches: Partial<MatchedPlatforms>) => {
+  const preferred = getModPreferredPlatform(mod, 'metadata');
+  if (preferred === 'curseforge' || preferred === 'modrinth') {
+    const list: MatchPlatform[] = preferred === 'curseforge'
+      ? ['curseforge', 'modrinth']
+      : ['modrinth', 'curseforge'];
+    return list.find((platform) => matches[platform]?.projectId && matches[platform]?.fileId);
+  }
+  return PLATFORM_PRIORITY.find((platform) => matches[platform]?.projectId && matches[platform]?.fileId);
+};
 
 const buildMatchedManifestEntry = (
   mod: ModMeta,
@@ -60,13 +67,32 @@ const buildMatchedManifestEntry = (
     ...(entry.matchedPlatforms || {}),
     ...matches
   };
-  const primaryPlatform = hasCompletePrimarySource(mod) ? undefined : choosePrimaryPlatform(matches);
-  const primaryMatch = primaryPlatform ? matches[primaryPlatform] : undefined;
+
+  const preferred = getModPreferredPlatform(mod, 'metadata');
+  const source = entry.source;
+  const currentPlatform = source?.platform;
+
+  let shouldUpdatePrimary = false;
+  let primaryPlatform: MatchPlatform | undefined;
+
+  if (preferred && preferred !== currentPlatform) {
+    if (matchedPlatforms[preferred as MatchPlatform]?.projectId && matchedPlatforms[preferred as MatchPlatform]?.fileId) {
+      primaryPlatform = preferred as MatchPlatform;
+      shouldUpdatePrimary = true;
+    }
+  }
+
+  if (!shouldUpdatePrimary && (!source?.platform || !source.projectId || !source.fileId)) {
+    primaryPlatform = choosePrimaryPlatform(mod, matchedPlatforms);
+    shouldUpdatePrimary = true;
+  }
+
+  const primaryMatch = primaryPlatform ? matchedPlatforms[primaryPlatform] : undefined;
 
   return {
     ...entry,
     matchedPlatforms,
-    source: primaryPlatform && primaryMatch
+    source: shouldUpdatePrimary && primaryPlatform && primaryMatch
       ? {
           ...entry.source,
           platform: primaryPlatform,
@@ -83,10 +109,34 @@ const persistPlatformMatches = async (
   matches: Partial<MatchedPlatforms>,
   version?: string
 ) => {
-  const primaryPlatform = hasCompletePrimarySource(mod) ? undefined : choosePrimaryPlatform(matches);
-  const primaryMatch = primaryPlatform ? matches[primaryPlatform] : undefined;
+  const entry = mod.manifestEntry;
+  const preferred = getModPreferredPlatform(mod, 'metadata');
+  const source = entry?.source;
+  const currentPlatform = source?.platform;
 
-  if (primaryPlatform && primaryMatch?.projectId && primaryMatch.fileId) {
+  const matchedPlatforms = {
+    ...(entry?.matchedPlatforms || {}),
+    ...matches
+  };
+
+  let shouldUpdatePrimary = false;
+  let primaryPlatform: MatchPlatform | undefined;
+
+  if (preferred && preferred !== currentPlatform) {
+    if (matchedPlatforms[preferred as MatchPlatform]?.projectId && matchedPlatforms[preferred as MatchPlatform]?.fileId) {
+      primaryPlatform = preferred as MatchPlatform;
+      shouldUpdatePrimary = true;
+    }
+  }
+
+  if (!shouldUpdatePrimary && (!source?.platform || !source.projectId || !source.fileId)) {
+    primaryPlatform = choosePrimaryPlatform(mod, matchedPlatforms);
+    shouldUpdatePrimary = true;
+  }
+
+  const primaryMatch = primaryPlatform ? matchedPlatforms[primaryPlatform] : undefined;
+
+  if (shouldUpdatePrimary && primaryPlatform && primaryMatch?.projectId && primaryMatch.fileId) {
     try {
       await modService.updateModManifest(
         instanceId,
@@ -185,11 +235,12 @@ export const useModCloudSync = (instanceId: string) => {
               }
               detail = await modrinthDetailCache.get(version.project_id);
               if (detail && mod.cacheKey) {
+                const dbIcon = mod.manifestEntry?.icon_rel_path || detail.icon_url || '';
                 await modService.updateModCache(
                   mod.cacheKey,
                   detail.title,
                   detail.description,
-                  detail.icon_url || ''
+                  dbIcon
                 );
               }
             } catch (error) {
@@ -237,11 +288,12 @@ export const useModCloudSync = (instanceId: string) => {
                 }
                 detail = await curseForgeDetailCache.get(version.project_id);
                 if (detail && mod.cacheKey) {
+                  const dbIcon = mod.manifestEntry?.icon_rel_path || detail.icon_url || '';
                   await modService.updateModCache(
                     mod.cacheKey,
                     detail.title,
                     detail.description,
-                    detail.icon_url || ''
+                    dbIcon
                   );
                 }
               } catch (error) {

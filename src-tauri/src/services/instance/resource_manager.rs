@@ -275,7 +275,16 @@ impl ResourceManager {
         let instance_root = Self::get_instance_root(app, instance_id)?;
         let manifest_path = instance_root.join("mod_manifest.json");
 
-        ModManifestService::update_all_metadata_settings(&manifest_path, settings)
+        ModManifestService::update_all_metadata_settings(&manifest_path, settings.clone())?;
+
+        if let Ok(mut config) = crate::services::instance::binding::InstanceBindingService::load_instance_config(app, instance_id) {
+            config.global_metadata_settings = Some(settings);
+            if let Err(e) = crate::services::instance::binding::InstanceBindingService::write_instance_config(app, instance_id, &config) {
+                eprintln!("[ResourceManager] Failed to write instance config global_metadata_settings: {}", e);
+            }
+        }
+
+        Ok(())
     }
 
     pub fn reset_all_mods_platform_metadata<R: Runtime>(

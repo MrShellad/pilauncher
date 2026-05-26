@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { convertFileSrc } from '@tauri-apps/api/core';
 
 import type { ModMeta } from './modService';
 
@@ -103,6 +104,14 @@ class ModIconService {
   }
 
   private async resolveDescriptor(mod: ModMeta): Promise<ModIconDescriptor | null> {
+    if (mod.iconAbsolutePath) {
+      const localUrl = convertFileSrc(mod.iconAbsolutePath);
+      return {
+        cacheId: `local:${mod.iconAbsolutePath}`,
+        candidates: [localUrl]
+      };
+    }
+
     const remoteSrc = buildRemoteIconSrc(mod);
 
     if (!remoteSrc) {
@@ -340,6 +349,7 @@ export const useModIcon = (mod: ModMeta, priority: ModIconPriority) => {
     mod.fileName,
     mod.fileSize,
     mod.modifiedAt,
+    mod.iconAbsolutePath,
     priority,
     remoteIconSrc
   ]);

@@ -237,6 +237,7 @@ fn load_instance_meta(
             window_width: None,
             window_height: None,
             is_favorite: None,
+            global_metadata_settings: None,
         }),
     )
 }

@@ -336,7 +336,7 @@ impl ModManagerService {
         let pool = db.pool.clone();
 
         let manifest_path = instance_dir.join("mod_manifest.json");
-        let mut manifest_dict = ModManifestService::load_from_mods_dir(&mods_dir, &manifest_path)?;
+        let mut manifest_dict = ModManifestService::sync_from_mods_dir(&mods_dir, &manifest_path)?;
 
         let mut tasks = Vec::new();
         let mut mods = Vec::new();
@@ -413,11 +413,24 @@ impl ModManagerService {
                                         if icon_url.starts_with("http") {
                                             meta.network_icon_url = Some(icon_url);
                                         } else if !icon_url.is_empty() {
-                                            let abs_path = shared_mods_dir.join(icon_url);
-                                            if abs_path.exists() {
-                                                meta.icon_absolute_path = Some(
-                                                    abs_path.to_string_lossy().replace('\\', "/"),
-                                                );
+                                            let path = Path::new(&icon_url);
+                                            let is_bucketed = if let Ok(sub) = path.strip_prefix("icons") {
+                                                if let Some(parent) = sub.parent() {
+                                                    !parent.as_os_str().is_empty()
+                                                } else {
+                                                    false
+                                                }
+                                            } else {
+                                                false
+                                            };
+
+                                            if is_bucketed {
+                                                let abs_path = shared_mods_dir.join(&icon_url);
+                                                if abs_path.exists() {
+                                                    meta.icon_absolute_path = Some(
+                                                        abs_path.to_string_lossy().replace('\\', "/"),
+                                                    );
+                                                }
                                             }
                                         }
                                     }
@@ -464,29 +477,45 @@ impl ModManagerService {
                                 );
                                 m.cache_key = Some(cache_key.clone());
 
-                                // 提取图标
-                                use sha1::{Digest, Sha1};
-                                let mut hasher = Sha1::new();
-                                hasher.update(cache_key.as_bytes());
-                                let hash = format!("{:x}", hasher.finalize());
-                                let bucket_dir = icons_base_dir_clone.join(&hash[0..2]);
-                                std::fs::create_dir_all(&bucket_dir).ok();
-
-                                let cached_icon = Self::find_cached_icon(&bucket_dir, &cache_key);
                                 let mut rel_path = None;
-                                if let Some(cached) = cached_icon {
-                                    m.icon_absolute_path = Some(cached.clone());
-                                    if let Ok(rel) = Path::new(&cached).strip_prefix(&shared_mods_dir_for_blocking) {
-                                        rel_path = Some(rel.to_string_lossy().replace('\\', "/"));
-                                    }
-                                } else {
-                                    m.icon_absolute_path = Self::extract_icon_to_shared(&path_clone, &bucket_dir, &cache_key);
-                                    if let Some(ref absolute) = m.icon_absolute_path {
-                                        if let Ok(rel) = Path::new(absolute).strip_prefix(&shared_mods_dir_for_blocking) {
-                                            rel_path = Some(rel.to_string_lossy().replace('\\', "/"));
+                                let mut icon_resolved = false;
+                                let mut allocated_bucket = None;
+
+                                // 1. Try checking for cached icon by mod_id
+                                if let Some(ref mod_id) = m.mod_id {
+                                    let trimmed_mod_id = mod_id.trim();
+                                    if !trimmed_mod_id.is_empty() {
+                                        if let Some(cached_path) = Self::find_cached_icon_in_buckets(&icons_base_dir_clone, trimmed_mod_id) {
+                                            let abs_path_str = cached_path.to_string_lossy().to_string();
+                                            m.icon_absolute_path = Some(abs_path_str);
+                                            if let Ok(rel) = cached_path.strip_prefix(&shared_mods_dir_for_blocking) {
+                                                rel_path = Some(rel.to_string_lossy().replace('\\', "/"));
+                                                if let Some(parent) = cached_path.parent() {
+                                                    allocated_bucket = Some(parent.to_path_buf());
+                                                }
+                                            }
+                                            icon_resolved = true;
                                         }
                                     }
                                 }
+
+                                // 2. Try checking for cached icon by cache_key
+                                if !icon_resolved {
+                                    if let Some(cached_path) = Self::find_cached_icon_in_buckets(&icons_base_dir_clone, &cache_key) {
+                                        let abs_path_str = cached_path.to_string_lossy().to_string();
+                                        m.icon_absolute_path = Some(abs_path_str);
+                                        if let Ok(rel) = cached_path.strip_prefix(&shared_mods_dir_for_blocking) {
+                                            rel_path = Some(rel.to_string_lossy().replace('\\', "/"));
+                                            if let Some(parent) = cached_path.parent() {
+                                                allocated_bucket = Some(parent.to_path_buf());
+                                            }
+                                        }
+                                    }
+                                }
+
+                                let bucket_dir = allocated_bucket.unwrap_or_else(|| {
+                                    Self::get_or_create_available_bucket(&icons_base_dir_clone)
+                                });
 
                                 (m, rel_path, bucket_dir)
                             }).await.unwrap();
@@ -508,10 +537,23 @@ impl ModManagerService {
                                     if meta.icon_absolute_path.is_none() {
                                         if let Some(ref icon_url) = row.icon_url {
                                             if !icon_url.starts_with("http") && !icon_url.is_empty() {
-                                                let abs_path = shared_mods_dir_clone.join(icon_url);
-                                                if abs_path.exists() {
-                                                    meta.icon_absolute_path = Some(abs_path.to_string_lossy().replace('\\', "/"));
-                                                    extracted_icon_rel_path = Some(icon_url.clone());
+                                                let path = Path::new(icon_url);
+                                                let is_bucketed = if let Ok(sub) = path.strip_prefix("icons") {
+                                                    if let Some(parent) = sub.parent() {
+                                                        !parent.as_os_str().is_empty()
+                                                    } else {
+                                                        false
+                                                    }
+                                                } else {
+                                                    false
+                                                };
+
+                                                if is_bucketed {
+                                                    let abs_path = shared_mods_dir_clone.join(icon_url);
+                                                    if abs_path.exists() {
+                                                        meta.icon_absolute_path = Some(abs_path.to_string_lossy().replace('\\', "/"));
+                                                        extracted_icon_rel_path = Some(icon_url.clone());
+                                                    }
                                                 }
                                             } else {
                                                 meta.network_icon_url = Some(icon_url.clone());
@@ -762,7 +804,7 @@ impl ModManagerService {
         None
     }
 
-    async fn fallback_api_metadata(
+    async fn try_fetch_modrinth_metadata(
         client: &reqwest::Client,
         mod_id: &str,
         cache_key: &str,
@@ -770,15 +812,11 @@ impl ModManagerService {
         shared_mods_dir: &Path,
         meta: &mut ModMetadata,
         extracted_icon_rel_path: &mut Option<String>,
-    ) {
-        let mut hit = false;
-
-        // 1. 尝试 Modrinth
+    ) -> bool {
         let modrinth_url = format!("https://api.modrinth.com/v2/project/{}", mod_id);
         if let Ok(resp) = client.get(&modrinth_url).send().await {
             if resp.status().is_success() {
                 if let Ok(json) = resp.json::<serde_json::Value>().await {
-                    hit = true;
                     if meta.name.is_none() {
                         meta.name = json["title"].as_str().map(|s| s.to_string());
                     }
@@ -787,15 +825,25 @@ impl ModManagerService {
                     }
                     if meta.icon_absolute_path.is_none() {
                         if let Some(icon_url) = json["icon_url"].as_str() {
-                            if let Some(path) = Self::download_icon_to_bucket(
-                                client, icon_url, bucket_dir, cache_key,
-                            )
-                            .await
-                            {
-                                meta.icon_absolute_path = Some(path.clone());
-                                if let Ok(rel) = Path::new(&path).strip_prefix(shared_mods_dir) {
+                            let target_path = bucket_dir.join(format!("{}.png", mod_id.trim()));
+                            if Self::download_icon_to_path(client, icon_url, &target_path).await {
+                                let abs_path_str = target_path.to_string_lossy().to_string();
+                                meta.icon_absolute_path = Some(abs_path_str);
+                                if let Ok(rel) = target_path.strip_prefix(shared_mods_dir) {
                                     *extracted_icon_rel_path =
                                         Some(rel.to_string_lossy().replace('\\', "/"));
+                                }
+                            } else {
+                                if let Some(path) = Self::download_icon_to_bucket(
+                                    client, icon_url, bucket_dir, cache_key,
+                                )
+                                .await
+                                {
+                                    meta.icon_absolute_path = Some(path.clone());
+                                    if let Ok(rel) = Path::new(&path).strip_prefix(shared_mods_dir) {
+                                        *extracted_icon_rel_path =
+                                            Some(rel.to_string_lossy().replace('\\', "/"));
+                                    }
                                 }
                             }
                         }
@@ -822,40 +870,59 @@ impl ModManagerService {
                         entry.source.project_id = Some(project_id.to_string());
                         meta.manifest_entry = Some(entry);
                     }
+                    return true;
                 }
             }
         }
+        false
+    }
 
-        // 2. 尝试 CurseForge
-        if !hit {
-            let cf_key = std::env::var("VITE_CURSEFORGE_API_KEY")
-                .ok()
-                .or_else(|| std::env::var("CURSEFORGE_API_KEY").ok())
-                .or_else(|| option_env!("CURSEFORGE_API_KEY").map(|s| s.to_string()))
-                .or_else(|| option_env!("VITE_CURSEFORGE_API_KEY").map(|s| s.to_string()));
+    async fn try_fetch_curseforge_metadata(
+        client: &reqwest::Client,
+        mod_id: &str,
+        cache_key: &str,
+        bucket_dir: &Path,
+        shared_mods_dir: &Path,
+        meta: &mut ModMetadata,
+        extracted_icon_rel_path: &mut Option<String>,
+    ) -> bool {
+        let cf_key = std::env::var("VITE_CURSEFORGE_API_KEY")
+            .ok()
+            .or_else(|| std::env::var("CURSEFORGE_API_KEY").ok())
+            .or_else(|| option_env!("CURSEFORGE_API_KEY").map(|s| s.to_string()))
+            .or_else(|| option_env!("VITE_CURSEFORGE_API_KEY").map(|s| s.to_string()));
 
-            if let Some(key) = cf_key {
-                let cf_url = format!(
-                    "https://api.curseforge.com/v1/mods/search?gameId=432&slug={}",
-                    mod_id
-                );
-                if let Ok(resp) = client.get(&cf_url).header("x-api-key", &key).send().await {
-                    if resp.status().is_success() {
-                        if let Ok(json) = resp.json::<serde_json::Value>().await {
-                            if let Some(data) = json["data"].as_array() {
-                                if let Some(first) = data.first() {
-                                    if meta.name.is_none() {
-                                        meta.name = first["name"].as_str().map(|s| s.to_string());
-                                    }
-                                    if meta.description.is_none() {
-                                        meta.description =
-                                            first["summary"].as_str().map(|s| s.to_string());
-                                    }
-                                    if meta.icon_absolute_path.is_none() {
-                                        if let Some(icon_url) = first["logo"]["thumbnailUrl"]
-                                            .as_str()
-                                            .or_else(|| first["logo"]["url"].as_str())
-                                        {
+        if let Some(key) = cf_key {
+            let cf_url = format!(
+                "https://api.curseforge.com/v1/mods/search?gameId=432&slug={}",
+                mod_id
+            );
+            if let Ok(resp) = client.get(&cf_url).header("x-api-key", &key).send().await {
+                if resp.status().is_success() {
+                    if let Ok(json) = resp.json::<serde_json::Value>().await {
+                        if let Some(data) = json["data"].as_array() {
+                            if let Some(first) = data.first() {
+                                if meta.name.is_none() {
+                                    meta.name = first["name"].as_str().map(|s| s.to_string());
+                                }
+                                if meta.description.is_none() {
+                                    meta.description =
+                                        first["summary"].as_str().map(|s| s.to_string());
+                                }
+                                if meta.icon_absolute_path.is_none() {
+                                    if let Some(icon_url) = first["logo"]["thumbnailUrl"]
+                                        .as_str()
+                                        .or_else(|| first["logo"]["url"].as_str())
+                                    {
+                                        let target_path = bucket_dir.join(format!("{}.png", mod_id.trim()));
+                                        if Self::download_icon_to_path(client, icon_url, &target_path).await {
+                                            let abs_path_str = target_path.to_string_lossy().to_string();
+                                            meta.icon_absolute_path = Some(abs_path_str);
+                                            if let Ok(rel) = target_path.strip_prefix(shared_mods_dir) {
+                                                *extracted_icon_rel_path =
+                                                    Some(rel.to_string_lossy().replace('\\', "/"));
+                                            }
+                                        } else {
                                             if let Some(path) = Self::download_icon_to_bucket(
                                                 client, icon_url, bucket_dir, cache_key,
                                             )
@@ -872,25 +939,54 @@ impl ModManagerService {
                                             }
                                         }
                                     }
-
-                                    // Capture genuine project_id from CurseForge fallback too!
-                                    if let Some(cf_id_num) = first["id"].as_i64() {
-                                        let mut entry = meta.manifest_entry.clone().unwrap_or_else(|| {
-                                            crate::domain::mod_manifest::build_manifest_entry(
-                                                crate::domain::mod_manifest::build_manifest_source(crate::domain::mod_manifest::ModSourceKind::ExternalImport, None, None, None),
-                                                crate::domain::mod_manifest::ModFileHash { algorithm: "none".into(), value: "none".into() },
-                                                crate::domain::mod_manifest::ModFileState::default()
-                                            )
-                                        });
-                                        entry.source.platform = Some("curseforge".to_string());
-                                        entry.source.project_id = Some(cf_id_num.to_string());
-                                        meta.manifest_entry = Some(entry);
-                                    }
                                 }
+
+                                // Capture genuine project_id from CurseForge fallback too!
+                                if let Some(cf_id_num) = first["id"].as_i64() {
+                                    let mut entry = meta.manifest_entry.clone().unwrap_or_else(|| {
+                                        crate::domain::mod_manifest::build_manifest_entry(
+                                            crate::domain::mod_manifest::build_manifest_source(crate::domain::mod_manifest::ModSourceKind::ExternalImport, None, None, None),
+                                            crate::domain::mod_manifest::ModFileHash { algorithm: "none".into(), value: "none".into() },
+                                            crate::domain::mod_manifest::ModFileState::default()
+                                        )
+                                    });
+                                    entry.source.platform = Some("curseforge".to_string());
+                                    entry.source.project_id = Some(cf_id_num.to_string());
+                                    meta.manifest_entry = Some(entry);
+                                }
+                                return true;
                             }
                         }
                     }
                 }
+            }
+        }
+        false
+    }
+
+    async fn fallback_api_metadata(
+        client: &reqwest::Client,
+        mod_id: &str,
+        cache_key: &str,
+        bucket_dir: &Path,
+        shared_mods_dir: &Path,
+        meta: &mut ModMetadata,
+        extracted_icon_rel_path: &mut Option<String>,
+    ) {
+        let preferred_platform = meta.manifest_entry.as_ref()
+            .and_then(|entry| entry.metadata_settings.as_ref())
+            .and_then(|settings| settings.metadata_platform.as_deref())
+            .unwrap_or("auto");
+
+        if preferred_platform == "curseforge" {
+            let hit = Self::try_fetch_curseforge_metadata(client, mod_id, cache_key, bucket_dir, shared_mods_dir, meta, extracted_icon_rel_path).await;
+            if !hit {
+                let _ = Self::try_fetch_modrinth_metadata(client, mod_id, cache_key, bucket_dir, shared_mods_dir, meta, extracted_icon_rel_path).await;
+            }
+        } else {
+            let hit = Self::try_fetch_modrinth_metadata(client, mod_id, cache_key, bucket_dir, shared_mods_dir, meta, extracted_icon_rel_path).await;
+            if !hit {
+                let _ = Self::try_fetch_curseforge_metadata(client, mod_id, cache_key, bucket_dir, shared_mods_dir, meta, extracted_icon_rel_path).await;
             }
         }
     }
@@ -1102,17 +1198,181 @@ impl ModManagerService {
         meta
     }
 
-    fn find_cached_icon(icons_dir: &Path, cache_key: &str) -> Option<String> {
-        for ext in &["png", "jpg", "jpeg", "gif", "webp"] {
-            let candidate = icons_dir.join(format!("{}.{}", cache_key, ext));
-            if candidate.exists() {
-                return Some(candidate.to_string_lossy().to_string());
+    fn find_cached_icon_in_buckets(icons_base_dir: &Path, name: &str) -> Option<PathBuf> {
+        // Only check in buckets (directories under icons_base_dir)
+        if let Ok(entries) = fs::read_dir(icons_base_dir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let path = entry.path();
+                if path.is_dir() {
+                    for ext in &["png", "jpg", "jpeg", "gif", "webp"] {
+                        let candidate = path.join(format!("{}.{}", name, ext));
+                        if candidate.exists() {
+                            return Some(candidate);
+                        }
+                    }
+                }
             }
         }
         None
     }
 
+    fn get_or_create_available_bucket(icons_base_dir: &Path) -> PathBuf {
+        let mut index = 0;
+        loop {
+            let bucket_name = format!("{}", index);
+            let bucket_dir = icons_base_dir.join(&bucket_name);
+            if !bucket_dir.exists() {
+                let _ = fs::create_dir_all(&bucket_dir);
+                return bucket_dir;
+            }
+            // Count files in the directory
+            if let Ok(entries) = fs::read_dir(&bucket_dir) {
+                let file_count = entries
+                    .filter_map(|e| e.ok())
+                    .filter(|e| e.path().is_file())
+                    .count();
+                if file_count < 50 {
+                    return bucket_dir;
+                }
+            }
+            index += 1;
+        }
+    }
+
+    async fn download_icon_to_path(
+        client: &reqwest::Client,
+        url: &str,
+        target_path: &Path,
+    ) -> bool {
+        if let Ok(resp) = client.get(url).send().await {
+            if resp.status().is_success() {
+                if let Ok(bytes) = resp.bytes().await {
+                    if let Some(parent) = target_path.parent() {
+                        let _ = std::fs::create_dir_all(parent);
+                    }
+                    if tokio::fs::write(target_path, bytes).await.is_ok() {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    #[allow(dead_code)]
+    fn extract_icon_to_path(
+        jar_path: &Path,
+        target_path: &Path,
+    ) -> bool {
+        if let Ok(file) = File::open(jar_path) {
+            if let Ok(mut archive) = zip::ZipArchive::new(file) {
+                let mut icon_path_in_jar = None;
+
+                // 1. Fabric 解析
+                if let Ok(mut mod_json) = archive.by_name("fabric.mod.json") {
+                    let mut contents = String::new();
+                    if mod_json.read_to_string(&mut contents).is_ok() {
+                        if let Ok(json) = serde_json::from_str::<Value>(&contents) {
+                            if let Some(icon) = json["icon"].as_str() {
+                                icon_path_in_jar = Some(icon.to_string());
+                            }
+                        }
+                    }
+                }
+
+                // 1.5. Quilt 解析
+                if icon_path_in_jar.is_none() {
+                    if let Ok(mut quilt_json) = archive.by_name("quilt.mod.json") {
+                        let mut contents = String::new();
+                        if quilt_json.read_to_string(&mut contents).is_ok() {
+                            if let Ok(json) = serde_json::from_str::<Value>(&contents) {
+                                if let Some(quilt_loader) = json.get("quilt_loader") {
+                                    if let Some(metadata) = quilt_loader.get("metadata") {
+                                        if let Some(icon) = metadata["icon"].as_str() {
+                                            icon_path_in_jar = Some(icon.to_string());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 2. Forge / NeoForge 解析
+                if icon_path_in_jar.is_none() {
+                    for toml_path in ["META-INF/mods.toml", "META-INF/neoforge.mods.toml"] {
+                        if let Ok(mut mod_toml) = archive.by_name(toml_path) {
+                            let mut contents = String::new();
+                            if mod_toml.read_to_string(&mut contents).is_ok() {
+                                if let Ok(logo_re) =
+                                    regex::Regex::new(r#"logoFile\s*=\s*(?:"|')([^"']+)(?:"|')"#)
+                                {
+                                    if let Some(caps) = logo_re.captures(&contents) {
+                                        icon_path_in_jar = Some(caps[1].to_string());
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 3. mcmod.info 解析
+                if icon_path_in_jar.is_none() {
+                    if let Ok(mut mcmod_info) = archive.by_name("mcmod.info") {
+                        let mut contents = String::new();
+                        if mcmod_info.read_to_string(&mut contents).is_ok() {
+                            if let Ok(json) = serde_json::from_str::<Value>(&contents) {
+                                let mods = if json.is_array() {
+                                    json.as_array()
+                                } else {
+                                    json["modList"].as_array()
+                                };
+                                if let Some(mods_arr) = mods {
+                                    if let Some(first_mod) = mods_arr.first() {
+                                        if let Some(logo) = first_mod["logoFile"].as_str() {
+                                            if !logo.is_empty() {
+                                                icon_path_in_jar = Some(logo.to_string());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 4. Default Fallbacks
+                if icon_path_in_jar.is_none() {
+                    let fallbacks = ["pack.png", "logo.png", "icon.png", "assets/icon.png"];
+                    for f in fallbacks {
+                        if archive.by_name(f).is_ok() {
+                            icon_path_in_jar = Some(f.to_string());
+                            break;
+                        }
+                    }
+                }
+
+                if let Some(icon_path) = icon_path_in_jar {
+                    let clean_path = icon_path.trim_start_matches('/');
+                    if let Ok(mut icon_file) = archive.by_name(clean_path) {
+                        if let Some(parent) = target_path.parent() {
+                            let _ = std::fs::create_dir_all(parent);
+                        }
+                        if let Ok(mut out_file) = File::create(target_path) {
+                            if std::io::copy(&mut icon_file, &mut out_file).is_ok() {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+
     /// 从 JAR 内提取图标并存到 shared_mods/icons/<cache_key>.<ext>
+    #[allow(dead_code)]
     fn extract_icon_to_shared(
         jar_path: &Path,
         icons_dir: &Path,

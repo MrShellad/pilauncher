@@ -1,6 +1,6 @@
 use super::{LaunchCommandBuilder, LaunchPreparationError, VersionManifest};
 use serde_json::Value;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 const LAUNCHER_NAME: &str = env!("CARGO_PKG_NAME");
@@ -112,6 +112,7 @@ impl LaunchCommandBuilder {
         entries
     }
 
+    #[allow(dead_code)]
     fn resolve_placeholders(
         &self,
         arg: &str,
@@ -157,8 +158,9 @@ impl LaunchCommandBuilder {
             .replace("${auth_session}", "{}")
             .replace("${auth_xuid}", "0")
             .replace("${clientid}", "0")
-    }
+        }
 
+    #[allow(dead_code)]
     fn resolve_library_placeholder_segment(&self, segment: &str) -> String {
         let libraries_dir = self.get_libraries_dir();
         let libraries_dir_str = libraries_dir.to_string_lossy().to_string();
@@ -186,6 +188,7 @@ impl LaunchCommandBuilder {
         trimmed.replace("${library_directory}", &libraries_dir_str)
     }
 
+    #[allow(dead_code)]
     fn resolve_library_placeholder_value(&self, value: &str) -> String {
         if !value.contains("${library_directory}") {
             return value.to_string();
@@ -202,6 +205,7 @@ impl LaunchCommandBuilder {
             .join(Self::classpath_separator())
     }
 
+    #[allow(dead_code)]
     fn resolve_library_placeholder_arg(&self, arg: &str) -> String {
         if !arg.contains("${library_directory}") {
             return arg.to_string();
@@ -564,6 +568,7 @@ impl LaunchCommandBuilder {
             .collect()
     }
 
+    #[allow(dead_code)]
     fn resolve_jvm_args(
         &self,
         raw: &RawLaunchArgs,
@@ -585,6 +590,7 @@ impl LaunchCommandBuilder {
             .collect()
     }
 
+    #[allow(dead_code)]
     fn resolve_game_args(
         &self,
         raw: &RawLaunchArgs,

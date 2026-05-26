@@ -121,6 +121,7 @@ impl InstanceCreationService {
             window_width: None,
             window_height: None,
             is_favorite: None,
+            global_metadata_settings: None,
         };
         fs::write(
             tmp_instance_root.join("instance.json"),
