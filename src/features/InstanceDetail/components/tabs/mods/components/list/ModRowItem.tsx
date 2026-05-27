@@ -147,8 +147,12 @@ const areRowPropsEqual = (prev: ModRowItemProps, next: ModRowItemProps) => {
     prev.mod.updateDownloadUrl === next.mod.updateDownloadUrl &&
     prev.mod.isUpdatingMod === next.mod.isUpdatingMod &&
     prev.mod.isFetchingNetwork === next.mod.isFetchingNetwork &&
+    prev.mod.iconAbsolutePath === next.mod.iconAbsolutePath &&
+    prev.mod.networkIconUrl === next.mod.networkIconUrl &&
     prev.mod.networkInfo?.title === next.mod.networkInfo?.title &&
     prev.mod.networkInfo?.description === next.mod.networkInfo?.description &&
+    prev.mod.networkInfo?.icon_url === next.mod.networkInfo?.icon_url &&
+    prev.mod.networkInfo?.source === next.mod.networkInfo?.source &&
     prev.iconSnapshot === next.iconSnapshot &&
     prev.focusedRowFileName === next.focusedRowFileName &&
     prev.operationRowFileName === next.operationRowFileName &&

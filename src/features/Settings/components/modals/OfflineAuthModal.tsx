@@ -112,6 +112,7 @@ export const OfflineAuthModal: React.FC<OfflineAuthModalProps> = ({
           <OreButton
             focusKey={CANCEL_BUTTON_FOCUS_KEY}
             variant="secondary"
+            size="full"
             onClick={onClose}
             onArrowPress={(direction) => {
               if (direction === 'UP') {
@@ -124,12 +125,14 @@ export const OfflineAuthModal: React.FC<OfflineAuthModalProps> = ({
               }
               return true;
             }}
+            className="flex-1"
           >
             {t('settings.account.actions.cancel')}
           </OreButton>
           <OreButton
             focusKey={CONFIRM_BUTTON_FOCUS_KEY}
             variant="primary"
+            size="full"
             onClick={handleSaveOffline}
             onArrowPress={(direction) => {
               if (direction === 'UP') {
@@ -142,6 +145,7 @@ export const OfflineAuthModal: React.FC<OfflineAuthModalProps> = ({
               }
               return true;
             }}
+            className="flex-1"
           >
             {offlineForm.isEdit ? t('settings.account.offline.confirmEdit') : t('settings.account.offline.confirmCreate')}
           </OreButton>

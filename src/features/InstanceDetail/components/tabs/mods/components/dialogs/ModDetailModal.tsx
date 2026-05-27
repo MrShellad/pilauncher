@@ -1,5 +1,5 @@
 // /src/features/InstanceDetail/components/tabs/mods/components/dialogs/ModDetailModal.tsx
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { useModIcon } from '../../../../../logic/modIconService';
 import { Virtuoso } from 'react-virtuoso';
 import { OreModal } from '../../../../../../../ui/primitives/OreModal';
@@ -42,6 +42,7 @@ interface ModDetailModalProps {
   onInstallVersion: (mod: ModMeta, version: OreProjectVersion, action: ModVersionInstallAction) => void;
   onSaveMetadataSettings: (mod: ModMeta, settings: ModMetadataSettings) => Promise<ModMeta>;
   onReidentifyMod: (mod: ModMeta) => Promise<ModMeta>;
+  onMetadataResolved?: (mod: ModMeta) => void;
   openMetadataSettingsOnOpen?: boolean;
   onMetadataSettingsOpenHandled?: () => void;
 }
@@ -136,6 +137,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
   onInstallVersion,
   onSaveMetadataSettings,
   onReidentifyMod,
+  onMetadataResolved,
   openMetadataSettingsOnOpen = false,
   onMetadataSettingsOpenHandled
 }) => {
@@ -151,26 +153,89 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
   const [isSavingMetadataSettings, setIsSavingMetadataSettings] = useState(false);
   const [isReidentifying, setIsReidentifying] = useState(false);
   const lastFocusBeforeModalRef = useRef<string | null>(null);
+  const lastOpenedFileNameRef = useRef<string | null>(null);
+  const fetchedMetadataKeysRef = useRef<Set<string>>(new Set());
 
   // 删除确认弹窗状态
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const lastFocusBeforeDeleteRef = useRef<string | null>(null);
 
+  const initialMetadataPlatform = useMemo(() => {
+    if (!mod) return 'modrinth';
+    const sourcePlatform = getModPreferredPlatform(mod, 'metadata') || mod.manifestEntry?.source.platform;
+    return sourcePlatform === 'curseforge' ? 'curseforge' : 'modrinth';
+  }, [mod]);
+
+  const metadataRequestKey = useMemo(() => {
+    if (!mod) return '';
+
+    return [
+      mod.fileName,
+      mod.cacheKey || '',
+      initialMetadataPlatform,
+      getPlatformProjectId(mod, initialMetadataPlatform) || '',
+      getPlatformFileId(mod, initialMetadataPlatform) || '',
+      mod.manifestEntry?.hash?.algorithm || '',
+      mod.manifestEntry?.hash?.value || '',
+      mod.curseforgeFingerprint ?? '',
+      mod.modId || ''
+    ].join('|');
+  }, [initialMetadataPlatform, mod]);
+
   useEffect(() => {
-    if (mod) {
-      setDisplayMod(mod);
-      const sourcePlatform = getModPreferredPlatform(mod, 'metadata') || mod.manifestEntry?.source.platform;
-      const initialPlatform = sourcePlatform === 'curseforge' ? 'curseforge' : 'modrinth';
-      setActivePlatform(initialPlatform);
+    if (!mod) {
+      setDisplayMod(null);
+      lastOpenedFileNameRef.current = null;
+      return;
+    }
+
+    setDisplayMod((current) => {
+      const nextMod = {
+        ...mod,
+        networkInfo: mod.networkInfo || current?.networkInfo,
+        networkIconUrl: mod.networkIconUrl || current?.networkIconUrl
+      };
+
+      if (
+        current?.fileName === nextMod.fileName &&
+        current.name === nextMod.name &&
+        current.description === nextMod.description &&
+        current.version === nextMod.version &&
+        current.fileSize === nextMod.fileSize &&
+        current.isEnabled === nextMod.isEnabled &&
+        current.isFetchingNetwork === nextMod.isFetchingNetwork &&
+        current.networkInfo === nextMod.networkInfo &&
+        current.networkIconUrl === nextMod.networkIconUrl
+      ) {
+        return current;
+      }
+
+      return nextMod;
+    });
+
+    if (lastOpenedFileNameRef.current !== mod.fileName) {
+      lastOpenedFileNameRef.current = mod.fileName;
+      setActivePlatform(initialMetadataPlatform);
+    }
+  }, [initialMetadataPlatform, mod]);
+
+  useEffect(() => {
+    if (mod && metadataRequestKey) {
+      let disposed = false;
+
+      if (fetchedMetadataKeysRef.current.has(metadataRequestKey)) {
+        return;
+      }
+      fetchedMetadataKeysRef.current.add(metadataRequestKey);
 
       const fetchMetadata = async () => {
-        let projectId = getPlatformProjectId(mod, initialPlatform);
+        let projectId = getPlatformProjectId(mod, initialMetadataPlatform);
         if (!projectId) {
-          projectId = await resolveProjectIdByHash(mod, initialPlatform);
+          projectId = await resolveProjectIdByHash(mod, initialMetadataPlatform);
         }
 
         if (projectId) {
-          return initialPlatform === 'curseforge'
+          return initialMetadataPlatform === 'curseforge'
             ? getCurseForgeProjectDetails(projectId).then((detail) => toNetworkInfo(detail, 'curseforge'))
             : fetchModrinthProjectById(projectId);
         } else {
@@ -182,8 +247,26 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
       };
 
       fetchMetadata().then(netInfo => {
+        if (disposed) {
+          return;
+        }
+
         if (netInfo) {
-          setDisplayMod(prev => prev ? { ...prev, networkInfo: netInfo } : null);
+          const resolvedMod: ModMeta = {
+            ...mod,
+            networkInfo: netInfo,
+            networkIconUrl: netInfo.icon_url || mod.networkIconUrl,
+            isFetchingNetwork: false
+          };
+
+          setDisplayMod(prev => prev ? {
+            ...prev,
+            networkInfo: netInfo,
+            networkIconUrl: netInfo.icon_url || prev.networkIconUrl,
+            isFetchingNetwork: false
+          } : null);
+          onMetadataResolved?.(resolvedMod);
+
           if (mod.cacheKey) {
             modService.updateModCache(
               mod.cacheKey,
@@ -191,9 +274,18 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
             ).catch(console.error);
           }
         }
-      }).catch(console.error);
+      }).catch((error) => {
+        if (!disposed) {
+          fetchedMetadataKeysRef.current.delete(metadataRequestKey);
+        }
+        console.error(error);
+      });
+
+      return () => {
+        disposed = true;
+      };
     }
-  }, [mod]);
+  }, [initialMetadataPlatform, metadataRequestKey, mod, onMetadataResolved]);
 
   useEffect(() => {
     if (mod) {

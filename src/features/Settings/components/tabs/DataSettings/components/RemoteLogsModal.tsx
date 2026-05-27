@@ -53,12 +53,13 @@ export const RemoteLogsModal: React.FC<RemoteLogsModalProps> = ({
       className="w-[760px]"
       contentClassName="p-0 overflow-hidden"
       actions={
-        <div className="flex flex-row gap-3 justify-end">
+        <div className="flex w-full justify-center gap-3">
           <OreButton
             variant="secondary"
+            size="full"
             onClick={() => void onReload()}
             focusKey="remote-logs-refresh"
-            className="min-w-[110px] justify-center whitespace-nowrap"
+            className="flex-1"
             disabled={isLoading}
           >
             {isLoading ? <Loader2 size={16} className="mr-2 animate-spin" /> : <RefreshCw size={16} className="mr-2" />}
@@ -66,9 +67,10 @@ export const RemoteLogsModal: React.FC<RemoteLogsModalProps> = ({
           </OreButton>
           <OreButton
             variant="primary"
+            size="full"
             onClick={onClose}
             focusKey="remote-logs-close"
-            className="min-w-[110px] justify-center whitespace-nowrap"
+            className="flex-1"
           >
             {t('common.finish')}
           </OreButton>

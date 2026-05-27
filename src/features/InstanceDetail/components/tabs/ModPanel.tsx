@@ -46,6 +46,7 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         onInstallVersion={controller.modActions.onInstallVersion}
         onSaveMetadataSettings={controller.modActions.onSaveMetadataSettings}
         onReidentifyMod={controller.modActions.onReidentifyMod}
+        onMetadataResolved={controller.modActions.onMetadataResolved}
         onSaveGlobalMetadataSettings={controller.dialogs.actions.onSaveGlobalMetadataSettings}
         onReidentifyAllMods={controller.dialogs.actions.onReidentifyAllMods}
       />

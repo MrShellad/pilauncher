@@ -269,6 +269,52 @@ export const useModPanelController = (instanceId: string) => {
     void checkModUpdates();
   }, [checkModUpdates]);
 
+  const handleMetadataResolved = useCallback((updatedMod: ModMeta) => {
+    setMods((current) => {
+      let changed = false;
+      const nextMods = current.map((mod) => {
+        if (mod.fileName !== updatedMod.fileName) {
+          return mod;
+        }
+
+        const nextMod = {
+          ...mod,
+          name: mod.name || updatedMod.name,
+          description: mod.description || updatedMod.description,
+          networkInfo: updatedMod.networkInfo || mod.networkInfo,
+          networkIconUrl: updatedMod.networkIconUrl || updatedMod.networkInfo?.icon_url || mod.networkIconUrl,
+          isFetchingNetwork: false
+        };
+
+        const sameNetworkInfo = (
+          nextMod.networkInfo === mod.networkInfo ||
+          (
+            nextMod.networkInfo?.id === mod.networkInfo?.id &&
+            nextMod.networkInfo?.title === mod.networkInfo?.title &&
+            nextMod.networkInfo?.description === mod.networkInfo?.description &&
+            nextMod.networkInfo?.icon_url === mod.networkInfo?.icon_url &&
+            nextMod.networkInfo?.source === mod.networkInfo?.source
+          )
+        );
+
+        if (
+          nextMod.name === mod.name &&
+          nextMod.description === mod.description &&
+          sameNetworkInfo &&
+          nextMod.networkIconUrl === mod.networkIconUrl &&
+          nextMod.isFetchingNetwork === mod.isFetchingNetwork
+        ) {
+          return mod;
+        }
+
+        changed = true;
+        return nextMod;
+      });
+
+      return changed ? nextMods : current;
+    });
+  }, [setMods]);
+
   const getInstallActionLabel = useCallback((action: ModVersionInstallAction) => {
     if (action === 'downgrade') return '降级';
     if (action === 'reinstall') return '重装';
@@ -522,7 +568,8 @@ export const useModPanelController = (instanceId: string) => {
     modActions: {
       onInstallVersion: handleUpgradeMod,
       onSaveMetadataSettings: saveModMetadataSettings,
-      onReidentifyMod: reidentifyMod
+      onReidentifyMod: reidentifyMod,
+      onMetadataResolved: handleMetadataResolved
     },
     topBar: {
       snapshotState,

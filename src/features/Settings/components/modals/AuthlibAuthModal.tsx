@@ -96,6 +96,7 @@ export const AuthlibAuthModal: React.FC<AuthlibAuthModalProps> = ({
           <OreButton
             focusKey={CANCEL_BUTTON_FOCUS_KEY}
             variant="secondary"
+            size="full"
             disabled={isLoading}
             onClick={onClose}
             onArrowPress={(direction) => {
@@ -109,12 +110,14 @@ export const AuthlibAuthModal: React.FC<AuthlibAuthModalProps> = ({
               }
               return true;
             }}
+            className="flex-1"
           >
             {t('settings.account.actions.cancel')}
           </OreButton>
           <OreButton
             focusKey={CONFIRM_BUTTON_FOCUS_KEY}
             variant="primary"
+            size="full"
             disabled={isLoading}
             onClick={handleLogin}
             onArrowPress={(direction) => {
@@ -128,6 +131,7 @@ export const AuthlibAuthModal: React.FC<AuthlibAuthModalProps> = ({
               }
               return true;
             }}
+            className="flex-1"
           >
             {isLoading ? (
               <>

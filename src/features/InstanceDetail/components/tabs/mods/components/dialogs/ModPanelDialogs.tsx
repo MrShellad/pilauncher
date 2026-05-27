@@ -19,6 +19,7 @@ interface ModPanelDialogsProps {
   onInstallVersion: (mod: ModMeta, version: OreProjectVersion, action: ModVersionInstallAction) => void;
   onSaveMetadataSettings: (mod: ModMeta, settings: ModMetadataSettings) => Promise<ModMeta>;
   onReidentifyMod: (mod: ModMeta) => Promise<ModMeta>;
+  onMetadataResolved: (mod: ModMeta) => void;
   onSaveGlobalMetadataSettings: (settings: ModMetadataSettings) => Promise<void>;
   onReidentifyAllMods: (onProgress?: (current: number, total: number) => void) => Promise<void>;
 }
@@ -32,6 +33,7 @@ export const ModPanelDialogs: React.FC<ModPanelDialogsProps> = ({
   onInstallVersion,
   onSaveMetadataSettings,
   onReidentifyMod,
+  onMetadataResolved,
   onSaveGlobalMetadataSettings,
   onReidentifyAllMods
 }) => {
@@ -54,6 +56,7 @@ export const ModPanelDialogs: React.FC<ModPanelDialogsProps> = ({
         onInstallVersion={onInstallVersion}
         onSaveMetadataSettings={onSaveMetadataSettings}
         onReidentifyMod={onReidentifyMod}
+        onMetadataResolved={onMetadataResolved}
         openMetadataSettingsOnOpen={state.openMetadataSettingsOnDetailOpen}
         onMetadataSettingsOpenHandled={actions.markMetadataSettingsOpened}
       />

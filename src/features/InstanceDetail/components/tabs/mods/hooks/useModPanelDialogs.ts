@@ -54,6 +54,36 @@ export interface ModPanelDialogActions {
   closeGlobalMetadata: () => void;
 }
 
+const mergeSelectedModFromList = (current: ModMeta, matched: ModMeta) => {
+  const next = {
+    ...matched,
+    networkInfo: matched.networkInfo || current.networkInfo,
+    networkIconUrl: matched.networkIconUrl || current.networkIconUrl
+  };
+
+  if (
+    current.fileName === next.fileName &&
+    current.name === next.name &&
+    current.description === next.description &&
+    current.version === next.version &&
+    current.fileSize === next.fileSize &&
+    current.isEnabled === next.isEnabled &&
+    current.isFetchingNetwork === next.isFetchingNetwork &&
+    current.hasUpdate === next.hasUpdate &&
+    current.updateVersionName === next.updateVersionName &&
+    current.updateFileId === next.updateFileId &&
+    current.updateFileName === next.updateFileName &&
+    current.updateDownloadUrl === next.updateDownloadUrl &&
+    current.manifestEntry === next.manifestEntry &&
+    current.networkInfo === next.networkInfo &&
+    current.networkIconUrl === next.networkIconUrl
+  ) {
+    return current;
+  }
+
+  return next;
+};
+
 export const useModPanelDialogs = ({
   mods,
   fetchHistory,
@@ -109,10 +139,7 @@ export const useModPanelDialogs = ({
 
         const directMatch = mods.find((mod) => mod.fileName === current.fileName);
         if (directMatch) {
-          return {
-            ...directMatch,
-            networkInfo: directMatch.networkInfo || current.networkInfo
-          };
+          return mergeSelectedModFromList(current, directMatch);
         }
 
         const currentProjectId = current.manifestEntry?.source.projectId || current.modId;
@@ -124,10 +151,7 @@ export const useModPanelDialogs = ({
 
         if (projectMatches.length !== 1) return current;
 
-        return {
-          ...projectMatches[0],
-          networkInfo: projectMatches[0].networkInfo || current.networkInfo
-        };
+        return mergeSelectedModFromList(current, projectMatches[0]);
       });
     }, 0);
 

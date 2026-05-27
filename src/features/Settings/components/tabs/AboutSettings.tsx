@@ -370,13 +370,16 @@ export const AboutSettings: React.FC = () => {
         className="w-full max-w-[860px]"
         contentClassName="p-0 overflow-hidden"
         actions={
-          <OreButton
-            focusKey="settings-about-open-source-close"
-            onClick={() => setShowOpenSourceModal(false)}
-            className="min-w-[110px] justify-center whitespace-nowrap"
-          >
-            {t('common.finish')}
-          </OreButton>
+          <div className="flex w-full justify-center gap-3">
+            <OreButton
+              focusKey="settings-about-open-source-close"
+              onClick={() => setShowOpenSourceModal(false)}
+              size="full"
+              className="flex-1"
+            >
+              {t('common.finish')}
+            </OreButton>
+          </div>
         }
       >
         <div className="flex h-[520px] flex-col">

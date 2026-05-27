@@ -35,22 +35,24 @@ export const CleanLogsDialog: React.FC<CleanLogsDialogProps> = ({
       closeOnOutsideClick={phase !== 'cleaning'}
       className="w-[440px]"
       actions={
-        <div className="flex flex-row gap-3 justify-end">
+        <div className="flex w-full justify-center gap-3">
           {phase === 'confirm' && (
             <>
               <OreButton
                 variant="secondary"
+                size="full"
                 onClick={onClose}
                 focusKey="clean-logs-cancel"
-                className="min-w-[110px] justify-center whitespace-nowrap"
+                className="flex-1"
               >
                 {t('settings.data.btnCancel')}
               </OreButton>
               <OreButton
                 variant="danger"
+                size="full"
                 onClick={() => void onClean()}
                 focusKey="clean-logs-confirm"
-                className="min-w-[110px] justify-center whitespace-nowrap"
+                className="flex-1"
               >
                 {t('settings.data.btnConfirmClean')}
               </OreButton>
@@ -59,9 +61,10 @@ export const CleanLogsDialog: React.FC<CleanLogsDialogProps> = ({
           {phase !== 'confirm' && phase !== 'cleaning' && (
             <OreButton
               variant="primary"
+              size="full"
               onClick={onClose}
               focusKey="clean-logs-done"
-              className="min-w-[110px] justify-center whitespace-nowrap"
+              className="flex-1"
             >
               {t('settings.data.btnDone')}
             </OreButton>

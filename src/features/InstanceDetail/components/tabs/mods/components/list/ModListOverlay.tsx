@@ -3,9 +3,13 @@ import { RefreshCw } from 'lucide-react';
 
 interface ModListOverlayProps {
   visible: boolean;
+  label?: string;
 }
 
-export const ModListOverlay: React.FC<ModListOverlayProps> = ({ visible }) => {
+export const ModListOverlay: React.FC<ModListOverlayProps> = ({
+  visible,
+  label = '正在同步模组...'
+}) => {
   const [shouldRender, setShouldRender] = useState(visible);
 
   useEffect(() => {
@@ -34,7 +38,7 @@ export const ModListOverlay: React.FC<ModListOverlayProps> = ({ visible }) => {
       }}
     >
       <RefreshCw size={14} className="mr-2 animate-spin text-ore-green" />
-      <span className="text-[1.0625rem] text-[var(--ore-downloadDetail-labelText)]">正在同步模组...</span>
+      <span className="text-[1.0625rem] text-[var(--ore-downloadDetail-labelText)]">{label}</span>
     </div>
   );
 };

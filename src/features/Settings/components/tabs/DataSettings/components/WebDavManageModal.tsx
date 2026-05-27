@@ -260,12 +260,14 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
       defaultFocusKey={defaultFocusKey}
       className="w-[58rem] max-w-[calc(100vw-2rem)]"
       actions={(
-        <div className="flex justify-end">
+        <div className="flex w-full justify-center gap-3">
           <OreButton
             variant="secondary"
+            size="full"
             onClick={onClose}
             focusKey="webdav-manage-close"
             onArrowPress={handleLinearArrow}
+            className="flex-1"
           >
             关闭
           </OreButton>

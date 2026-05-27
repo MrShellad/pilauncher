@@ -68,29 +68,35 @@ export const WebDavSettingsModal: React.FC<WebDavSettingsModalProps> = ({
       className="w-[52rem] max-w-[calc(100vw-2rem)]"
       contentClassName="flex flex-col h-[35rem] overflow-hidden !p-0"
       actions={(
-        <div className="flex flex-row justify-end gap-3">
+        <div className="flex w-full justify-center gap-3">
           <OreButton
             variant="secondary"
+            size="full"
             onClick={onClose}
             focusKey="webdav-cancel"
             disabled={isSyncing}
+            className="flex-1"
           >
             {t('settings.data.webdav.close')}
           </OreButton>
           <OreButton
             variant="secondary"
+            size="full"
             onClick={onSave}
             focusKey="webdav-save"
             disabled={isSyncing}
+            className="flex-1"
           >
             <Save size={16} className="mr-1.5" />
             {t('settings.data.webdav.save')}
           </OreButton>
           <OreButton
             variant="primary"
+            size="full"
             onClick={() => { void onSync(); }}
             focusKey="webdav-sync"
             disabled={!canSync}
+            className="flex-1"
           >
             <RefreshCw size={16} className={`mr-1.5 ${isSyncing ? 'animate-spin' : ''}`} />
             {isSyncing ? t('settings.data.webdav.syncing') : t('settings.data.webdav.syncNow')}

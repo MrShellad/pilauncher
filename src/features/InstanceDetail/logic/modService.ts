@@ -32,6 +32,7 @@ export interface ModManifestEntry {
     size: number;
     modifiedAt: number;
   };
+  icon_rel_path?: string;
   curseforgeFingerprint?: number;
   matchedPlatforms?: Record<string, ModPlatformMatch>;
   metadataSettings?: ModMetadataSettings;

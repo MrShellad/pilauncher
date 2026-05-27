@@ -28,11 +28,6 @@ const hasCompletePlatformReference = (mod: ModMeta, platform: MatchPlatform) => 
   return !!reference?.projectId && !!reference.fileId;
 };
 
-const hasCompletePrimarySource = (mod: ModMeta) => {
-  const source = mod.manifestEntry?.source;
-  return !!source?.platform && !!source.projectId && !!source.fileId;
-};
-
 const mergePlatformMatch = (
   current: Partial<MatchedPlatforms> | undefined,
   platform: MatchPlatform,

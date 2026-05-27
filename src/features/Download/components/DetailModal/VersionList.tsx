@@ -75,7 +75,7 @@ export const VersionList: React.FC<VersionListProps> = ({
       if (match) {
         const idx = parseInt(match[1], 10);
         const version = displayVersions[idx];
-        if (version && !isVersionInstalled(version)) {
+        if (version) {
           onDownload(version);
         }
       }
@@ -207,7 +207,7 @@ export const VersionList: React.FC<VersionListProps> = ({
         ? t('download.versionChangelog.showTranslation', { defaultValue: 'Show Translation' })
         : t('download.versionChangelog.translate', { defaultValue: 'Translate' });
   const selectedDefaultFocusKey =
-    selectedVersion && !isVersionInstalled(selectedVersion)
+    selectedVersion
       ? 'download-version-changelog-download'
       : selectedHasChangelog
         ? 'download-version-changelog-translate'
@@ -252,7 +252,7 @@ export const VersionList: React.FC<VersionListProps> = ({
                     onClick={() => handleVersionEnter(version)}
                     className={`
                       group relative flex items-center justify-between gap-3 overflow-hidden border-[2px]
-                      border-[var(--ore-downloadDetail-divider)] px-4 py-2.5
+                      border-[var(--ore-downloadDetail-divider)] px-4 py-3
                       transition-[filter,outline] duration-100 cursor-pointer hover:brightness-[1.06]
                       ${isInstalled
                         ? 'bg-[var(--ore-downloadDetail-installedBg)]'
@@ -297,11 +297,13 @@ export const VersionList: React.FC<VersionListProps> = ({
                           variant="secondary"
                           size="auto"
                           focusable={false}
-                          disabled
-                          className="!h-[3.25rem] min-w-[11.5rem] gap-[0.5rem] !px-[1.25rem] text-[0.875rem] tracking-[0.12em]"
-                          onClick={(event) => event.stopPropagation()}
+                          className="h-10 w-[13.5rem] gap-2 px-4 text-xs tracking-wider"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onDownload(version);
+                          }}
                         >
-                          <CheckCircle2 size={16} className="shrink-0" />
+                          <CheckCircle2 size={14} className="shrink-0" />
                           {t('download.status.alreadyInInstance', { defaultValue: 'Already in instance' })}
                         </OreButton>
                       ) : (
@@ -309,13 +311,13 @@ export const VersionList: React.FC<VersionListProps> = ({
                           variant="primary"
                           size="auto"
                           focusable={false}
-                          className="!h-[3.25rem] min-w-[11.5rem] gap-[0.5rem] !px-[1.25rem] text-[0.875rem] tracking-[0.12em]"
+                          className="h-10 w-[13.5rem] gap-2 px-4 text-xs tracking-wider"
                           onClick={(event) => {
                             event.stopPropagation();
                             onDownload(version);
                           }}
                         >
-                          <Download size={16} className="shrink-0" />
+                          <Download size={14} className="shrink-0" />
                           {t('download.actions.downloadVersion', { defaultValue: 'Download Version' })}
                         </OreButton>
                       )}
@@ -367,10 +369,10 @@ export const VersionList: React.FC<VersionListProps> = ({
                   : selectedTranslateLabel}
               </OreButton>
             )}
-            {selectedVersion && !isVersionInstalled(selectedVersion) && (
+            {selectedVersion && (
               <OreButton
                 focusKey="download-version-changelog-download"
-                variant="primary"
+                variant={isVersionInstalled(selectedVersion) ? 'secondary' : 'primary'}
                 size="sm"
                 className="gap-[0.5rem]"
                 onClick={() => {
@@ -378,8 +380,10 @@ export const VersionList: React.FC<VersionListProps> = ({
                   setSelectedVersion(null);
                 }}
               >
-                <Download size={14} className="shrink-0" />
-                {t('download.actions.downloadVersion', { defaultValue: 'Download Version' })}
+                {isVersionInstalled(selectedVersion) ? <CheckCircle2 size={14} className="shrink-0" /> : <Download size={14} className="shrink-0" />}
+                {isVersionInstalled(selectedVersion)
+                  ? t('download.status.alreadyInInstance', { defaultValue: 'Already in instance' })
+                  : t('download.actions.downloadVersion', { defaultValue: 'Download Version' })}
               </OreButton>
             )}
             <OreButton

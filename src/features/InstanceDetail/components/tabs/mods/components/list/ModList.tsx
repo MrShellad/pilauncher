@@ -17,6 +17,7 @@ import { ModListEmptyState } from './ModListEmptyState';
 import { ModListGridHeader } from './ModListGridHeader';
 import { ModListHeader } from './ModListHeader';
 import { ModListOverlay } from './ModListOverlay';
+import { ModListSkeleton } from './ModListSkeleton';
 import { useModListController } from '../../hooks/useModListController';
 
 export interface ModListProps {
@@ -83,6 +84,7 @@ export const ModList: React.FC<ModListProps> = ({
   onTopBarCollapseChange
 }) => {
   const [listTheme, setListTheme] = useState<ModListTheme>('dark');
+  const [hasShownReadyList, setHasShownReadyList] = useState(false);
   const controller = useModListController({
     mods,
     searchQuery,
@@ -96,9 +98,19 @@ export const ModList: React.FC<ModListProps> = ({
     onNavigateOut
   });
 
+  const shouldShowSkeleton = !hasShownReadyList && (isLoading || isCheckingModUpdates);
+  const showUpdateOverlay = hasShownReadyList && isCheckingModUpdates;
+  const showSyncingOverlay = controller.state.showSyncingOverlay || showUpdateOverlay;
+
+  useEffect(() => {
+    if (!isLoading && !isCheckingModUpdates && mods.length > 0) {
+      setHasShownReadyList(true);
+    }
+  }, [isCheckingModUpdates, isLoading, mods.length]);
 
   useEffect(() => {
     if (
+      shouldShowSkeleton ||
       controller.state.showInitialLoading ||
       controller.state.showEmptyState ||
       controller.state.showFilteredEmptyState
@@ -109,7 +121,8 @@ export const ModList: React.FC<ModListProps> = ({
     controller.state.showEmptyState,
     controller.state.showFilteredEmptyState,
     controller.state.showInitialLoading,
-    onTopBarCollapseChange
+    onTopBarCollapseChange,
+    shouldShowSkeleton
   ]);
 
   return (
@@ -120,7 +133,10 @@ export const ModList: React.FC<ModListProps> = ({
       }`}
       style={{ fontFamily: 'var(--ore-global-font, "Minecraft"), "NotoSans Bold", "Noto Sans SC", sans-serif' }}
     >
-      <ModListOverlay visible={controller.state.showSyncingOverlay} />
+      <ModListOverlay
+        visible={showSyncingOverlay}
+        label={showUpdateOverlay ? '正在检查模组更新...' : '正在同步模组...'}
+      />
 
       <ModListHeader
         stats={controller.state.stats}
@@ -212,8 +228,8 @@ export const ModList: React.FC<ModListProps> = ({
           )}
         </FocusItem>
 
-        {controller.state.showInitialLoading ? (
-          <ModListEmptyState variant="loading" listTheme={listTheme} />
+        {shouldShowSkeleton || controller.state.showInitialLoading ? (
+          <ModListSkeleton listTheme={listTheme} />
         ) : controller.state.showEmptyState ? (
           <ModListEmptyState variant="empty" emptyMessage={emptyMessage} listTheme={listTheme} />
         ) : controller.state.showFilteredEmptyState ? (

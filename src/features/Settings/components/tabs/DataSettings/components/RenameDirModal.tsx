@@ -32,22 +32,24 @@ export const RenameDirModal: React.FC<RenameDirModalProps> = ({
       title={t('settings.data.renameModalTitle')}
       defaultFocusKey="settings-rename-input"
       actions={
-        <div className="flex flex-row gap-3 justify-end">
+        <div className="flex w-full justify-center gap-3">
           <OreButton
             variant="secondary"
+            size="full"
             onClick={onClose}
             focusKey="settings-rename-cancel"
             onArrowPress={onArrowPress}
-            className="min-w-[110px] justify-center whitespace-nowrap"
+            className="flex-1"
           >
             {t('settings.data.btnCancel')}
           </OreButton>
           <OreButton
             variant="primary"
+            size="full"
             onClick={() => void onSubmit()}
             focusKey="settings-rename-submit"
             onArrowPress={onArrowPress}
-            className="min-w-[110px] justify-center whitespace-nowrap"
+            className="flex-1"
           >
             {t('settings.data.btnConfirmRename')}
           </OreButton>

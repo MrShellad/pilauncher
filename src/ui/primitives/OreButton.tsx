@@ -33,7 +33,7 @@ export const OreButton: React.FC<OreButtonProps> = ({
     md: "min-w-[10rem] h-10 px-6 text-base", 
     lg: "min-w-[12.5rem] h-11 px-8 text-lg", 
     auto: "w-auto min-w-[6.25rem] h-10 px-5 text-base", 
-    full: "w-full h-10 md:h-12 lg:h-14 px-4 md:px-6 text-base md:text-lg lg:text-xl", 
+    full: "w-full h-10 md:h-11 lg:h-12 px-4 md:px-6 text-base md:text-base lg:text-lg", 
   };
   
   const variants = {

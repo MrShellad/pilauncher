@@ -45,6 +45,7 @@ const getRememberedIconSnapshots = (mods: ModMeta[]) => {
 };
 
 const getIconPriority = (
+  visibleIndex: number,
   modIndex: number,
   focusedIndex: number,
   visibleCount: number
@@ -53,7 +54,7 @@ const getIconPriority = (
     return 'high';
   }
 
-  if (modIndex < Math.min(visibleCount, 10)) {
+  if (visibleIndex < Math.min(visibleCount, 10)) {
     return 'high';
   }
 
@@ -87,11 +88,15 @@ export const useModIconSubscription = ({
     getRememberedIconSnapshots(mods)
   ));
 
+  const modIndexByFileName = useMemo(() => {
+    return new Map(mods.map((mod, index) => [mod.fileName, index]));
+  }, [mods]);
+
   const focusedRowIndex = useMemo(() => {
     return mods.findIndex((mod) => mod.fileName === focusedRowFileName);
   }, [focusedRowFileName, mods]);
 
-  const subscriptionsRef = useRef<Map<string, { unsubscribe: () => void; sourceKey: string }>>(new Map());
+  const subscriptionsRef = useRef<Map<string, { unsubscribe: () => void; sourceKey: string; priority: ModIconPriority }>>(new Map());
   const unsubscribeTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
@@ -145,20 +150,21 @@ export const useModIconSubscription = ({
     visibleMods.forEach((mod, modIndex) => {
       const existing = currentSubs.get(mod.fileName);
       const currentSourceKey = getModIconSourceKey(mod);
+      const absoluteIndex = modIndexByFileName.get(mod.fileName) ?? modIndex;
+      const priority = getIconPriority(modIndex, absoluteIndex, focusedRowIndex, visibleMods.length);
 
-      if (!existing || existing.sourceKey !== currentSourceKey) {
+      if (!existing || existing.sourceKey !== currentSourceKey || existing.priority !== priority) {
         if (existing) {
           existing.unsubscribe();
         }
 
-        const priority = getIconPriority(modIndex, focusedRowIndex, visibleMods.length);
-        
         let subDisposed = false;
         let unsubscribe = () => { subDisposed = true; };
         
         currentSubs.set(mod.fileName, {
           unsubscribe: () => { unsubscribe(); },
-          sourceKey: currentSourceKey
+          sourceKey: currentSourceKey,
+          priority
         });
 
         void subscribeToModIcon(mod, priority, (snapshot) => {
@@ -195,7 +201,7 @@ export const useModIconSubscription = ({
         });
       }
     });
-  }, [focusedRowIndex, visibleMods]);
+  }, [focusedRowIndex, modIndexByFileName, visibleMods]);
 
   useEffect(() => {
     return () => {

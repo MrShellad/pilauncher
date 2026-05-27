@@ -109,14 +109,14 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
       closeOnOutsideClick={!isInstalling}
       actionsClassName="px-[1.5rem] py-[1.125rem]"
       actions={
-        <div className="flex w-full items-center justify-end gap-[0.875rem]">
+        <div className="flex w-full justify-center gap-3">
           <OreButton
             focusKey={LATER_FOCUS_KEY}
             variant="secondary"
-            size="auto"
+            size="full"
             onClick={onClose}
             disabled={isInstalling}
-            className="!h-[3rem] !w-[10.5rem] gap-[0.5rem] !px-[1rem] text-[0.9375rem] leading-[1.25rem]"
+            className="flex-1 gap-2"
           >
             <Bell size={ACTION_ICON_SIZE} />
             {t('settings.update.later')}
@@ -125,10 +125,10 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
           <OreButton
             focusKey={INSTALL_FOCUS_KEY}
             variant="primary"
-            size="auto"
+            size="full"
             onClick={requiresExternalUpdate ? onClose : onConfirm}
             disabled={isInstalling}
-            className="!h-[3rem] !w-[14rem] gap-[0.5rem] !px-[1.125rem] text-[0.9375rem] leading-[1.25rem]"
+            className="flex-1 gap-2"
           >
             {requiresExternalUpdate ? (
               <>
