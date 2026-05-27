@@ -61,14 +61,14 @@ export const SaveListRow: React.FC<SaveListRowProps> = ({
             title={save.worldName}
             description={
               latestBackup
-                ? `最近备份：${formatDate(latestBackup.createdAt)} · ${formatTrigger(latestBackup.trigger)}`
-                : `最后游玩：${formatDate(save.lastPlayedTime)}`
+                ? `${formatDate(latestBackup.createdAt)} · ${formatTrigger(latestBackup.trigger)}`
+                : formatDate(save.lastPlayedTime)
             }
             metaItems={[
-              `文件夹：${save.folderName}`,
-              `世界大小：${formatSize(save.sizeBytes)}`,
-              summary.count > 0 ? `备份 ${summary.count} 个` : '暂无备份',
-            ]}
+              save.folderName,
+              formatSize(save.sizeBytes),
+              summary.count > 0 ? `${summary.count} 个备份` : undefined,
+            ].filter(Boolean) as string[]}
             leading={
               save.iconPath ? (
                 <img

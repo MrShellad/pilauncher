@@ -47,7 +47,7 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
     : null;
 
   return (
-    <SettingsPageLayout>
+    <SettingsPageLayout width="wide">
       <div className="relative flex h-full w-full flex-col">
         <div className="mb-6 flex items-center justify-between border-2 border-[#2A2A2C] bg-[#18181B] p-4">
           <div>
@@ -93,7 +93,7 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
           <FocusBoundary
             id="save-list"
             trapFocus={state.operationRowIndex !== null}
-            className="flex flex-col space-y-2 overflow-y-auto px-2 pb-4 custom-scrollbar"
+            className="grid grid-cols-1 gap-2 overflow-y-auto pb-4 custom-scrollbar"
           >
             {saves.map((save, index) => {
               const summary =

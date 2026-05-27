@@ -175,7 +175,7 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
 
   return (
     <>
-      <SettingsPageLayout>
+      <SettingsPageLayout width="wide">
         <div className="relative flex h-full w-full flex-col">
           <div className="mb-6 flex items-center justify-between border-2 border-[#2A2A2C] bg-[#18181B] p-4">
             <div>
@@ -224,7 +224,7 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
             <FocusBoundary
               id="shader-list"
               trapFocus={operationRowIndex !== null}
-              className="custom-scrollbar grid grid-cols-1 gap-2 overflow-y-auto px-2 pb-4"
+              className="custom-scrollbar grid grid-cols-1 gap-2 overflow-y-auto pb-4"
             >
               {items.map((item, index) => (
                 <FocusItem
@@ -242,8 +242,8 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
                         inactive={!item.isEnabled}
                         selected={item.isEnabled}
                         title={item.fileName.replace('.zip', '').replace('.disabled', '')}
-                        description="本地光影包"
-                        metaItems={[`文件名：${item.fileName}    大小：${formatSize(item.fileSize)}`]}
+                        description={item.isDirectory ? '文件夹光影包' : 'ZIP 光影包'}
+                        metaItems={[item.fileName, formatSize(item.fileSize)]}
                         leading={<ImageIcon size={28} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />}
                         trailingClassName="flex items-center space-x-2"
                         trailing={

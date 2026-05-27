@@ -176,7 +176,7 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
 
   return (
     <>
-      <SettingsPageLayout>
+      <SettingsPageLayout width="wide">
         <div className="relative flex h-full w-full flex-col">
           <div className="mb-6 flex items-center justify-between border-2 border-[#2A2A2C] bg-[#18181B] p-4">
             <div>
@@ -225,7 +225,7 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
             <FocusBoundary
               id="resourcepack-list"
               trapFocus={operationRowIndex !== null}
-              className="custom-scrollbar grid grid-cols-1 gap-2 overflow-y-auto px-2 pb-4"
+              className="custom-scrollbar grid grid-cols-1 gap-2 overflow-y-auto pb-4"
             >
               {items.map((item, index) => {
                 const cacheKey = item.modifiedAt || item.fileSize || item.fileName;
@@ -251,7 +251,7 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
                           title={item.fileName.replace('.zip', '').replace('.disabled', '')}
                           description={item.isDirectory ? '文件夹资源包' : 'ZIP 资源包'}
                           metaItems={[
-                            `文件名：${item.fileName}    大小：${item.isDirectory ? '文件夹' : formatSize(item.fileSize)}`,
+                            item.fileName, item.isDirectory ? '文件夹' : formatSize(item.fileSize),
                           ]}
                           leading={
                             iconUrl ? (
