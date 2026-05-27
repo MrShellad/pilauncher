@@ -1,18 +1,15 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Check, Info, Radar, Save, Search, Tag } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Info, Radar, Save, Search, Tag } from 'lucide-react';
 
 import { useLibraryStore } from '../../../stores/useLibraryStore';
 import type { Collection, CollectionItem, StarredItem } from '../../../types/library';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import { OreDropdown, type DropdownOption } from '../../../ui/primitives/OreDropdown';
-import { OreInput } from '../../../ui/primitives/OreInput';
+import { CreatableCombobox } from '../../../ui/primitives/CreatableCombobox';
 import { OreModal } from '../../../ui/primitives/OreModal';
 import { OreOverlayScrollArea } from '../../../ui/primitives/OreOverlayScrollArea';
 import { OreSwitch } from '../../../ui/primitives/OreSwitch';
 import { useModSetTrackerStore, toModSetTrackerProject } from '../../Library/stores/useModSetTrackerStore';
-import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
-import { FocusItem } from '../../../ui/focus/FocusItem';
 import type { ModrinthProject } from '../../InstanceDetail/logic/modrinthApi';
 import type { TabType } from '../hooks/useResourceDownload';
 
@@ -118,6 +115,7 @@ export const FavoritePlaceholderModal: React.FC<FavoritePlaceholderModalProps> =
   const loadTrackers = useModSetTrackerStore((state) => state.loadTrackers);
   const createTracker = useModSetTrackerStore((state) => state.createTracker);
   const checkTracker = useModSetTrackerStore((state) => state.checkTracker);
+  const trackers = useModSetTrackerStore((state) => state.trackers);
 
   const tagCollections = useMemo(
     () => collections
@@ -146,15 +144,11 @@ export const FavoritePlaceholderModal: React.FC<FavoritePlaceholderModalProps> =
   const [selectedTagId, setSelectedTagId] = useState('');
   const [includeCollection, setIncludeCollection] = useState(false);
   const [collectionName, setCollectionName] = useState('');
-  const [isCollectionListOpen, setIsCollectionListOpen] = useState(false);
   const [trackingEnabled, setTrackingEnabled] = useState(Boolean(defaultGameVersion && defaultLoader));
   const [targetGameVersion, setTargetGameVersion] = useState(defaultGameVersion);
   const [targetLoader, setTargetLoader] = useState(defaultLoader);
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState('');
-  const collectionComboboxRef = useRef<HTMLDivElement | null>(null);
-  const collectionListboxRef = useRef<HTMLDivElement | null>(null);
-  const [collectionListboxStyle, setCollectionListboxStyle] = useState<React.CSSProperties | null>(null);
   const isModFavorite = resourceType === 'mod';
   const copy = isModFavorite
     ? {
@@ -181,10 +175,13 @@ export const FavoritePlaceholderModal: React.FC<FavoritePlaceholderModalProps> =
       };
 
   useEffect(() => {
-    if (isOpen && !initialized) {
-      void initializeLibrary();
+    if (isOpen) {
+      if (!initialized) {
+        void initializeLibrary();
+      }
+      void loadTrackers();
     }
-  }, [initializeLibrary, initialized, isOpen]);
+  }, [initializeLibrary, initialized, isOpen, loadTrackers]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -195,31 +192,11 @@ export const FavoritePlaceholderModal: React.FC<FavoritePlaceholderModalProps> =
     setSelectedTagId(tagCollections[0]?.id || '');
     setIncludeCollection(false);
     setCollectionName(fallbackName);
-    setIsCollectionListOpen(false);
     setTrackingEnabled(isModFavorite && Boolean(defaultGameVersion && defaultLoader));
     setTargetGameVersion(defaultGameVersion);
     setTargetLoader(defaultLoader);
     setNotice('');
   }, [defaultGameVersion, defaultLoader, isModFavorite, isOpen, modSetCollections, projects, tagCollections]);
-
-  useEffect(() => {
-    if (!isCollectionListOpen) return;
-    const handlePointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (
-        collectionComboboxRef.current?.contains(target) ||
-        collectionListboxRef.current?.contains(target)
-      ) {
-        return;
-      }
-      if (!collectionComboboxRef.current?.contains(target)) {
-        setIsCollectionListOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [isCollectionListOpen]);
 
   const normalizedCollectionName = collectionName.trim();
   const matchedCollection = useMemo(
@@ -228,11 +205,34 @@ export const FavoritePlaceholderModal: React.FC<FavoritePlaceholderModalProps> =
     ),
     [modSetCollections, normalizedCollectionName],
   );
-  const filteredModSetCollections = useMemo(() => {
-    const keyword = normalizedCollectionName.toLowerCase();
-    if (!keyword) return modSetCollections;
-    return modSetCollections.filter((collection) => collection.name.toLowerCase().includes(keyword));
-  }, [modSetCollections, normalizedCollectionName]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (matchedCollection) {
+      const existingTracker = trackers.find((t) => t.collectionId === matchedCollection.id);
+      if (existingTracker) {
+        setTargetGameVersion(existingTracker.gameVersion);
+        setTargetLoader(existingTracker.loader);
+        setTrackingEnabled(true);
+      } else {
+        setTargetGameVersion(defaultGameVersion);
+        setTargetLoader(defaultLoader);
+        setTrackingEnabled(false);
+      }
+    } else {
+      setTargetGameVersion(defaultGameVersion);
+      setTargetLoader(defaultLoader);
+      setTrackingEnabled(Boolean(defaultGameVersion && defaultLoader));
+    }
+  }, [isOpen, matchedCollection?.id, trackers, defaultGameVersion, defaultLoader]);
+
+  const modSetOptions = useMemo(
+    () => modSetCollections.map((collection) => ({
+      label: collection.name,
+      value: collection.id,
+    })),
+    [modSetCollections],
+  );
 
   const needsCollectionTarget = isModFavorite && includeCollection && normalizedCollectionName.length === 0;
   const needsTrackingTarget = isModFavorite &&
@@ -240,35 +240,6 @@ export const FavoritePlaceholderModal: React.FC<FavoritePlaceholderModalProps> =
     trackingEnabled &&
     (targetGameVersion.trim().length === 0 || targetLoader.trim().length === 0);
   const canSave = projects.length > 0 && !needsCollectionTarget && !needsTrackingTarget;
-
-  const updateCollectionListboxGeometry = () => {
-    if (!collectionComboboxRef.current) return;
-    const rect = collectionComboboxRef.current.getBoundingClientRect();
-    const listHeight = Math.min(208, Math.max(120, window.innerHeight - rect.bottom - 18));
-    setCollectionListboxStyle({
-      position: 'fixed',
-      top: rect.bottom + 6,
-      left: rect.left,
-      width: rect.width,
-      height: listHeight,
-      zIndex: 10020,
-    });
-  };
-
-  useLayoutEffect(() => {
-    if (!isCollectionListOpen) return;
-    updateCollectionListboxGeometry();
-  }, [isCollectionListOpen, collectionName, filteredModSetCollections.length]);
-
-  useEffect(() => {
-    if (!isCollectionListOpen) return;
-    window.addEventListener('resize', updateCollectionListboxGeometry);
-    window.addEventListener('scroll', updateCollectionListboxGeometry, true);
-    return () => {
-      window.removeEventListener('resize', updateCollectionListboxGeometry);
-      window.removeEventListener('scroll', updateCollectionListboxGeometry, true);
-    };
-  }, [isCollectionListOpen]);
 
   const handleSave = async () => {
     if (!canSave || isSaving) return;
@@ -445,98 +416,21 @@ export const FavoritePlaceholderModal: React.FC<FavoritePlaceholderModalProps> =
 
           {isModFavorite && includeCollection && (
             <div className="grid gap-4 border-2 border-[#1E1E1F] bg-[#242526] p-3">
-              <div ref={collectionComboboxRef} className="relative">
-                <OreInput
+              <div className="relative">
+                <CreatableCombobox
                   focusKey="modset-combobox"
                   label={copy.collectionLabel}
                   value={collectionName}
-                  onFocus={() => setIsCollectionListOpen(true)}
-                  onBlur={() => {
-                    setTimeout(() => setIsCollectionListOpen(false), 150);
+                  options={modSetOptions}
+                  onChange={(option) => {
+                    setCollectionName(option.label);
                   }}
-                  onChange={(event) => {
-                    setCollectionName(event.target.value);
-                    setIsCollectionListOpen(true);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'ArrowDown') {
-                      setIsCollectionListOpen(true);
-                    }
+                  onCreate={(inputValue) => {
+                    setCollectionName(inputValue);
                   }}
                   placeholder={copy.collectionPlaceholder}
                   prefixNode={<Search size={15} />}
-                  aria-autocomplete="list"
-                  aria-expanded={isCollectionListOpen}
-                  aria-controls="favorite-modset-listbox"
-                  role="combobox"
                 />
-
-                {isCollectionListOpen && typeof document !== 'undefined' && createPortal(
-                  <FocusBoundary id="favorite-modset-listbox-boundary">
-                    <div
-                      ref={collectionListboxRef}
-                      id="favorite-modset-listbox"
-                      role="listbox"
-                      className="border-2 border-[#1E1E1F] bg-[#111214] shadow-[0_0.75rem_0_rgba(0,0,0,0.26)]"
-                      style={collectionListboxStyle || { position: 'fixed', top: 0, left: 0, width: 1, height: 1, visibility: 'hidden' }}
-                    >
-                      <OreOverlayScrollArea
-                        className="h-full"
-                        contentClassName="grid gap-1 p-1"
-                        safeInsetTop={6}
-                        safeInsetBottom={6}
-                        safeInsetRight={4}
-                        contentSafePaddingRight={18}
-                      >
-                        {filteredModSetCollections.length > 0 ? (
-                          filteredModSetCollections.map((collection) => {
-                            const active = collection.id === matchedCollection?.id;
-                            return (
-                              <FocusItem
-                                key={collection.id}
-                                focusKey={`modset-item-${collection.id}`}
-                                onEnter={() => {
-                                  setCollectionName(collection.name);
-                                  setIsCollectionListOpen(false);
-                                }}
-                              >
-                                {({ ref, focused }) => (
-                                  <button
-                                    ref={ref}
-                                    type="button"
-                                    role="option"
-                                    aria-selected={active}
-                                    onMouseDown={(event) => event.preventDefault()}
-                                    onClick={() => {
-                                      setCollectionName(collection.name);
-                                      setIsCollectionListOpen(false);
-                                    }}
-                                    className={[
-                                      'flex h-10 w-full items-center justify-between gap-2 border-2 px-3 text-left font-minecraft text-sm transition-all duration-150',
-                                      focused
-                                        ? 'border-white bg-[#48494A] text-white shadow-[0_0_1rem_rgba(255,255,255,0.2)]'
-                                        : active
-                                          ? 'border-[#6CC349] bg-[#6CC349] text-[#111214]'
-                                          : 'border-transparent bg-[#242526] text-white hover:border-[#6CC349] hover:bg-[#313233]',
-                                    ].join(' ')}
-                                  >
-                                    <span className="truncate">{collection.name}</span>
-                                    {active && <Check size={15} />}
-                                  </button>
-                                )}
-                              </FocusItem>
-                            );
-                          })
-                        ) : (
-                          <div className="border-2 border-dashed border-[#3C8527] bg-[#1C2A1B] px-3 py-2 font-minecraft text-sm text-[#A7F08A]">
-                            保存时自动创建“{normalizedCollectionName || copy.autoCreateLabel}”
-                          </div>
-                        )}
-                      </OreOverlayScrollArea>
-                    </div>
-                  </FocusBoundary>,
-                  document.body,
-                )}
 
                 <div className="mt-2 text-xs text-[#B1B2B5]">
                   {matchedCollection ? copy.matchedText : copy.unmatchedText}

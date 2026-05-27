@@ -1,0 +1,41 @@
+@tailwind components;
+
+/* /src/style/ui/primitives/CreatableCombobox.css */
+@layer components {
+  .ore-combobox-panel {
+    @apply absolute z-[10020] max-h-60 overflow-y-auto border-2 border-[#1E1E1F] bg-[#111214] shadow-[0_0.75rem_0_rgba(0,0,0,0.26)] outline-none;
+    box-sizing: border-box;
+  }
+
+  .ore-combobox-options-list {
+    @apply flex flex-col gap-1 p-1;
+  }
+
+  .ore-combobox-item {
+    @apply flex h-10 w-full items-center justify-between gap-2 border-2 px-3 text-left font-minecraft text-sm transition-all duration-150 outline-none;
+  }
+
+  .ore-combobox-item.is-highlighted {
+    @apply border-white bg-[#48494A] text-white shadow-[0_0_1rem_rgba(255,255,255,0.2)];
+  }
+
+  .ore-combobox-item.is-active {
+    @apply border-[#6CC349] bg-[#6CC349] text-[#111214];
+  }
+
+  .ore-combobox-item.is-normal {
+    @apply border-transparent bg-[#242526] text-white hover:border-[#6CC349] hover:bg-[#313233];
+  }
+
+  .ore-combobox-create-item {
+    @apply flex h-10 w-full items-center justify-between gap-2 border-2 border-dashed border-[#3C8527] bg-[#1C2A1B] px-3 font-minecraft text-sm text-[#A7F08A] transition-all duration-150 outline-none;
+  }
+
+  .ore-combobox-create-item.is-highlighted {
+    @apply border-white bg-[#253f24] text-white shadow-[0_0_1rem_rgba(255,255,255,0.2)];
+  }
+
+  .ore-combobox-empty {
+    @apply border-2 border-dashed border-[#48494A] bg-[#1A1B1C] px-3 py-2 font-minecraft text-sm text-[#B1B2B5] text-center;
+  }
+}

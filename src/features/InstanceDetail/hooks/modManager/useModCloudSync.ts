@@ -247,7 +247,7 @@ export const useModCloudSync = (instanceId: string) => {
               fileId: version.id
             }, detail
               ? {
-                  name: mod.name || detail.title,
+                  name: detail.title || mod.name,
                   description: mod.description || detail.description,
                   networkIconUrl: detail.icon_url || mod.networkIconUrl
                 }
@@ -300,7 +300,7 @@ export const useModCloudSync = (instanceId: string) => {
                 fileId: version.id
               }, detail
                 ? {
-                    name: mod.name || detail.title,
+                    name: detail.title || mod.name,
                     description: mod.description || detail.description,
                     networkIconUrl: detail.icon_url || mod.networkIconUrl
                   }

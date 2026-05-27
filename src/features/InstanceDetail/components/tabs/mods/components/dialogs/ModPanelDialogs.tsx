@@ -22,6 +22,7 @@ interface ModPanelDialogsProps {
   onMetadataResolved: (mod: ModMeta) => void;
   onSaveGlobalMetadataSettings: (settings: ModMetadataSettings) => Promise<void>;
   onReidentifyAllMods: (onProgress?: (current: number, total: number) => void) => Promise<void>;
+  onAddFavorite: (mod: ModMeta) => void;
 }
 
 export const ModPanelDialogs: React.FC<ModPanelDialogsProps> = ({
@@ -35,7 +36,8 @@ export const ModPanelDialogs: React.FC<ModPanelDialogsProps> = ({
   onReidentifyMod,
   onMetadataResolved,
   onSaveGlobalMetadataSettings,
-  onReidentifyAllMods
+  onReidentifyAllMods,
+  onAddFavorite
 }) => {
   const currentGlobalSettings = React.useMemo(() => {
     if (instanceConfig?.globalMetadataSettings) {
@@ -57,6 +59,7 @@ export const ModPanelDialogs: React.FC<ModPanelDialogsProps> = ({
         onSaveMetadataSettings={onSaveMetadataSettings}
         onReidentifyMod={onReidentifyMod}
         onMetadataResolved={onMetadataResolved}
+        onAddFavorite={onAddFavorite}
         openMetadataSettingsOnOpen={state.openMetadataSettingsOnDetailOpen}
         onMetadataSettingsOpenHandled={actions.markMetadataSettingsOpened}
       />

@@ -8,7 +8,7 @@ import { FocusBoundary } from '../../../../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../../../../ui/focus/FocusItem';
 import { OreSegmentedControl } from '../../../../../../../ui/primitives/OreSegmentedControl';
 import { setFocus, getCurrentFocusKey, doesFocusableExist } from '@noriginmedia/norigin-spatial-navigation';
-import { AlertTriangle, Blocks, Download, Loader2, Power, RefreshCw, Settings2, Trash2 } from 'lucide-react';
+import { AlertTriangle, Blocks, Download, Loader2, Power, RefreshCw, Settings2, Trash2, Star } from 'lucide-react';
 import {
   fetchModrinthVersions,
   fetchModrinthInfo,
@@ -43,6 +43,7 @@ interface ModDetailModalProps {
   onSaveMetadataSettings: (mod: ModMeta, settings: ModMetadataSettings) => Promise<ModMeta>;
   onReidentifyMod: (mod: ModMeta) => Promise<ModMeta>;
   onMetadataResolved?: (mod: ModMeta) => void;
+  onAddFavorite?: (mod: ModMeta) => void;
   openMetadataSettingsOnOpen?: boolean;
   onMetadataSettingsOpenHandled?: () => void;
 }
@@ -138,6 +139,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
   onSaveMetadataSettings,
   onReidentifyMod,
   onMetadataResolved,
+  onAddFavorite,
   openMetadataSettingsOnOpen = false,
   onMetadataSettingsOpenHandled
 }) => {
@@ -491,6 +493,9 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
       </OreButton>
       <OreButton focusKey="btn-mod-delete" variant="danger" size="sm" onClick={() => setShowDeleteConfirm(true)}>
         <Trash2 size={14} className="mr-1.5" /> 删除
+      </OreButton>
+      <OreButton focusKey="btn-mod-favorite" variant="secondary" size="sm" onClick={() => onAddFavorite?.(mod)}>
+        <Star size={14} className="mr-1.5" /> 收藏
       </OreButton>
       <OreButton focusKey="btn-mod-metadata-settings" variant="secondary" size="sm" onClick={openMetadataSettings}>
         <Settings2 size={14} className="mr-1.5" /> 元数据

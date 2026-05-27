@@ -1050,7 +1050,6 @@ impl ModManagerService {
                     if mod_json.read_to_string(&mut contents).is_ok() {
                         if let Ok(json) = serde_json::from_str::<Value>(&contents) {
                             meta.mod_id = json["id"].as_str().map(|s| s.to_string());
-                            meta.name = json["name"].as_str().map(|s| s.to_string());
                             meta.version = json["version"].as_str().map(|s| s.to_string());
                             meta.description = json["description"].as_str().map(|s| s.to_string());
                             parsed = true;
@@ -1068,7 +1067,6 @@ impl ModManagerService {
                                     meta.mod_id = quilt_loader["id"].as_str().map(|s| s.to_string());
                                     meta.version = quilt_loader["version"].as_str().map(|s| s.to_string());
                                     if let Some(metadata) = quilt_loader.get("metadata") {
-                                        meta.name = metadata["name"].as_str().map(|s| s.to_string());
                                         meta.description = metadata["description"].as_str().map(|s| s.to_string());
                                     }
                                     parsed = true;
@@ -1089,13 +1087,6 @@ impl ModManagerService {
                                 {
                                     if let Some(caps) = id_re.captures(&contents) {
                                         meta.mod_id = Some(caps[1].to_string());
-                                    }
-                                }
-                                if let Ok(name_re) =
-                                    regex::Regex::new(r#"displayName\s*=\s*(?:"|')([^"']+)(?:"|')"#)
-                                {
-                                    if let Some(caps) = name_re.captures(&contents) {
-                                        meta.name = Some(caps[1].to_string());
                                     }
                                 }
                                 if let Ok(version_re) =
@@ -1143,8 +1134,6 @@ impl ModManagerService {
                                     if let Some(first_mod) = mods_arr.first() {
                                         meta.mod_id =
                                             first_mod["modid"].as_str().map(|s| s.to_string());
-                                        meta.name =
-                                            first_mod["name"].as_str().map(|s| s.to_string());
                                         meta.version =
                                             first_mod["version"].as_str().map(|s| s.to_string());
                                         meta.description = first_mod["description"]

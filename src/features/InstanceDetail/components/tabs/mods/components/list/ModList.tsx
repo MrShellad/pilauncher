@@ -43,6 +43,7 @@ export interface ModListProps {
   onBatchEnable: () => void;
   onBatchDisable: () => void;
   onBatchDelete: () => void;
+  onBatchFavorite?: () => void;
   onExitBatchMode: () => void;
   onOpenModMetadataSettings: () => void;
   onCheckModUpdates: () => void;
@@ -75,6 +76,7 @@ export const ModList: React.FC<ModListProps> = ({
   onBatchEnable,
   onBatchDisable,
   onBatchDelete,
+  onBatchFavorite,
   onExitBatchMode,
   onOpenModMetadataSettings,
   onCheckModUpdates,
@@ -152,6 +154,7 @@ export const ModList: React.FC<ModListProps> = ({
         onBatchEnable={onBatchEnable}
         onBatchDisable={onBatchDisable}
         onBatchDelete={onBatchDelete}
+        onBatchFavorite={onBatchFavorite || (() => {})}
         onExitBatchMode={onExitBatchMode}
         onOpenModMetadataSettings={onOpenModMetadataSettings}
         onCheckModUpdates={onCheckModUpdates}

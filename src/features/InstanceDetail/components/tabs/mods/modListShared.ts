@@ -75,7 +75,7 @@ export const getModRowActionFocusKey = (fileName: string, action: RowAction) => 
 };
 
 export const getModDisplayName = (mod: ModMeta) => {
-  return mod.name || mod.networkInfo?.title || mod.fileName;
+  return mod.networkInfo?.title || mod.name || mod.fileName;
 };
 
 export const getModDisplayDescription = (mod: ModMeta) => {

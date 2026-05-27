@@ -14,7 +14,8 @@ import {
   Sun,
   Trash2,
   X,
-  Settings2
+  Settings2,
+  Star
 } from 'lucide-react';
 
 import { OreButton } from '../../../../../../../ui/primitives/OreButton';
@@ -42,6 +43,7 @@ export interface ModListHeaderProps {
   onBatchEnable: () => void;
   onBatchDisable: () => void;
   onBatchDelete: () => void;
+  onBatchFavorite: () => void;
   onExitBatchMode: () => void;
   onOpenModMetadataSettings: () => void;
   onCheckModUpdates: () => void;
@@ -71,7 +73,8 @@ const getFilterIcon = (filter: ModQuickFilter) => {
 
 const LIST_CONTROL_TEXT_STYLE: React.CSSProperties = {
   fontFamily: 'inherit',
-  fontSize: '1.0625rem'
+  fontSize: '1.0625rem',
+  fontWeight: 'normal'
 };
 
 export const ModListHeader: React.FC<ModListHeaderProps> = ({
@@ -87,6 +90,7 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
   onBatchEnable,
   onBatchDisable,
   onBatchDelete,
+  onBatchFavorite,
   onExitBatchMode,
   onOpenModMetadataSettings,
   onCheckModUpdates,
@@ -213,7 +217,7 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
           </OreButton>
 
           {isBatchMode && (
-            <div className="flex shrink-0 animate-in flex-wrap items-center gap-2 border border-ore-green/30 bg-ore-green/10 px-2 py-0.5 fade-in slide-in-from-top-1">
+            <div className="flex shrink-0 animate-in flex-wrap items-center gap-2 fade-in slide-in-from-top-1">
               <OreButton
                 focusKey="mod-btn-batch-enable"
                 size="auto"
@@ -251,6 +255,19 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
               >
                 <Trash2 size={14} className="mr-1.5" />
                 删除
+              </OreButton>
+
+              <OreButton
+                focusKey="mod-btn-batch-favorite"
+                size="auto"
+                variant="secondary"
+                onClick={onBatchFavorite}
+                onArrowPress={onHeaderArrowPress}
+                className={MOD_LIST_HEADER_CLASSES.oreButton}
+                style={LIST_CONTROL_TEXT_STYLE}
+              >
+                <Star size={14} className="mr-1.5" />
+                收藏
               </OreButton>
 
               <OreButton
