@@ -50,6 +50,7 @@ export interface ResourceCardProps {
   onToggleSelection?: (project: ModrinthProject) => void;
   isNearBottom: boolean;
   categoryOptions?: FilterOption[];
+  onClickAuthor?: (author: string) => void;
 }
 
 function useTimeAgo() {
@@ -85,12 +86,13 @@ export const ResourceCard = React.memo(({
   isSelected = false,
   onToggleSelection,
   isNearBottom,
-  categoryOptions
+  categoryOptions,
+  onClickAuthor
 }: ResourceCardProps) => {
   const { t, i18n } = useTranslation();
   const timeAgo = useTimeAgo();
   const shouldReduceMotion = useReducedMotion();
-  const cardRef = useRef<HTMLButtonElement | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
 
   const { features, followerCount, loaders, supportsClient, supportsServer } = viewModel;
 
@@ -122,16 +124,15 @@ export const ResourceCard = React.memo(({
       }}
     >
       {({ ref, focused }) => {
-        const focusRef = ref as React.MutableRefObject<HTMLButtonElement | null>;
-        const setCardNode = (node: HTMLButtonElement | null) => {
+        const focusRef = ref as React.MutableRefObject<HTMLDivElement | null>;
+        const setCardNode = (node: HTMLDivElement | null) => {
           cardRef.current = node;
           focusRef.current = node;
         };
 
         return (
-          <motion.button
+          <motion.div
             ref={setCardNode}
-            type="button"
             onClick={() => {
               if (isSelectionMode) {
                 onToggleSelection?.(project);
@@ -157,6 +158,7 @@ export const ResourceCard = React.memo(({
               event.stopPropagation();
               onToggleSelection?.(project);
             }}
+            role="button"
             tabIndex={-1}
             aria-label={t('download.actions.openProject', {
               defaultValue: `Open ${project.title}`,
@@ -164,7 +166,7 @@ export const ResourceCard = React.memo(({
             })}
             className={`
               group relative flex min-h-[8.5rem] w-full overflow-hidden border-[0.125rem] border-[#1E1E1F]
-              text-left outline-none transition-none
+              text-left outline-none transition-none cursor-pointer
               ${focused
                 ? 'z-20 bg-[#DDE0E3] brightness-[1.01]'
                 : 'bg-[#C6C8CB] hover:bg-[#D7DADF]'}
@@ -224,9 +226,24 @@ export const ResourceCard = React.memo(({
                     <div className="min-w-0 truncate font-minecraft text-[1.25rem] font-bold leading-[1.15] text-black">
                       {project.title}
                     </div>
-                    <div className="min-w-0 truncate text-[0.875rem] font-bold leading-none text-[#4A4C50]">
-                      {t('download.meta.byAuthor', { defaultValue: 'by {{author}}', author: authorLabel })}
-                    </div>
+                    {onClickAuthor ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          onClickAuthor(authorLabel);
+                        }}
+                        className="min-w-0 truncate text-[0.875rem] font-bold leading-none text-[#4A4C50] hover:text-ore-green hover:underline cursor-pointer transition-colors"
+                        title={t('download.actions.searchAuthor', { defaultValue: 'Search mods by {{author}}', author: authorLabel })}
+                      >
+                        {t('download.meta.byAuthor', { defaultValue: 'by {{author}}', author: authorLabel })}
+                      </button>
+                    ) : (
+                      <div className="min-w-0 truncate text-[0.875rem] font-bold leading-none text-[#4A4C50]">
+                        {t('download.meta.byAuthor', { defaultValue: 'by {{author}}', author: authorLabel })}
+                      </div>
+                    )}
                   </div>
 
                   {(isInstalled || supportsClient || supportsServer) && (
@@ -311,7 +328,7 @@ export const ResourceCard = React.memo(({
                 </span>
               </>
             )}
-          </motion.button>
+          </motion.div>
         );
       }}
     </FocusItem>

@@ -1,16 +1,20 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useRef, useId } from 'react';
+import { createPortal } from 'react-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { doesFocusableExist, getCurrentFocusKey } from '@noriginmedia/norigin-spatial-navigation';
+
 import { NewsCard } from './NewsCard';
 import { NEWS_PAGE_COPY, getNewsLocale, normalizeMinecraftNewsItems } from '../data/newsItems';
 import { useLauncherStore } from '../../../store/useLauncherStore';
 import { useNewsStore } from '../../../store/useNewsStore';
-import { OreModal } from '../../../ui/primitives/OreModal';
-import { OreButton } from '../../../ui/primitives/OreButton';
+import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
+import { focusManager } from '../../../ui/focus/FocusManager';
 
 export const StartupNewsModal: React.FC = () => {
   const { i18n } = useTranslation();
   const setActiveTab = useLauncherStore((state) => state.setActiveTab);
-  const { startupItem, isStartupModalOpen, dismissStartupModal, markAllRead } = useNewsStore();
+  const { startupItem, isStartupModalOpen, dismissStartupModal } = useNewsStore();
 
   const locale = getNewsLocale(i18n.language);
   const pageCopy = NEWS_PAGE_COPY[locale];
@@ -19,63 +23,136 @@ export const StartupNewsModal: React.FC = () => {
     [locale, startupItem]
   );
 
+  const modalId = useId();
+  const boundaryId = `news-modal-boundary-${modalId.replace(/:/g, '')}`;
+  const previousFocusKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (isStartupModalOpen) {
+      previousFocusKeyRef.current = getCurrentFocusKey();
+    }
+
+    return () => {
+      if (isStartupModalOpen && previousFocusKeyRef.current) {
+        const keyToRestore = previousFocusKeyRef.current;
+        setTimeout(() => {
+          if (doesFocusableExist(keyToRestore)) {
+            focusManager.focus(keyToRestore);
+          }
+        }, 120);
+      }
+    };
+  }, [isStartupModalOpen]);
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || !isStartupModalOpen) return;
+      e.stopPropagation();
+      dismissStartupModal();
+    };
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    if (isStartupModalOpen) {
+      document.body.style.overflow = 'hidden';
+      window.addEventListener('keydown', handleEsc, { capture: true });
+
+      let attempts = 0;
+      const maxAttempts = 14;
+      const tryFocus = () => {
+        if (doesFocusableExist('startup-news-create')) {
+          focusManager.focus('startup-news-create');
+        } else if (doesFocusableExist('startup-news-official')) {
+          focusManager.focus('startup-news-official');
+        } else {
+          attempts += 1;
+          if (attempts < maxAttempts) {
+            timer = setTimeout(tryFocus, 70);
+          }
+        }
+      };
+      timer = setTimeout(tryFocus, 80);
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      document.body.style.overflow = 'unset';
+      window.removeEventListener('keydown', handleEsc, { capture: true });
+    };
+  }, [isStartupModalOpen, dismissStartupModal]);
+
   if (!normalizedItem) {
     return null;
   }
 
-  const actionClassName = '!h-[clamp(2.75rem,4.8vh,4.5rem)] !px-[clamp(1.25rem,1.8vw,2.5rem)] !text-[length:clamp(0.875rem,1.05vw,1.375rem)]';
+  if (typeof document === 'undefined') {
+    return null;
+  }
 
-  return (
-    <OreModal
-      isOpen={isStartupModalOpen}
-      onClose={dismissStartupModal}
-      title={locale === 'zh' ? '发现新更新日志' : 'New Update Log'}
-      defaultFocusKey="startup-news-open"
-      className="w-full max-w-[860px]"
-      contentClassName="p-5 overflow-y-auto custom-scrollbar"
-      actions={
-        <>
-          <OreButton focusKey="startup-news-later" variant="secondary" size="auto" className={`${actionClassName} !text-[#111214]`} onClick={dismissStartupModal}>
-            {locale === 'zh' ? '稍后查看' : 'Later'}
-          </OreButton>
-          <OreButton
-            focusKey="startup-news-open"
-            variant="primary"
-            size="auto"
-            className={`${actionClassName} !text-white`}
-            onClick={() => {
-              markAllRead();
-              setActiveTab('news');
-            }}
+  return createPortal(
+    <AnimatePresence>
+      {isStartupModalOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) {
+              dismissStartupModal();
+            }
+          }}
+        >
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm pointer-events-none"
+          />
+
+          <FocusBoundary
+            id={boundaryId}
+            trapFocus={isStartupModalOpen}
+            onEscape={dismissStartupModal}
+            defaultFocusKey="startup-news-create"
+            className="relative z-10 w-full max-w-[640px] outline-none"
           >
-            {locale === 'zh' ? '查看新闻页' : 'Open News'}
-          </OreButton>
-        </>
-      }
-    >
-
-
-      <NewsCard
-        date={normalizedItem.date}
-        version={normalizedItem.version}
-        tag={normalizedItem.tag}
-        title={normalizedItem.title}
-        summary={normalizedItem.summary}
-        coverImageUrl={normalizedItem.coverImageUrl}
-        officialUrl={normalizedItem.officialUrl}
-        wikiUrl={normalizedItem.wikiUrl}
-        officialLabel={pageCopy.official}
-        wikiLabel={pageCopy.wiki}
-        officialFocusKey="startup-news-official"
-        wikiFocusKey="startup-news-wiki"
-        createInstanceFocusKey="startup-news-create"
-        displayIndex={0}
-        onCreateInstance={() => {
-          useLauncherStore.getState().setPendingNewsVersion(normalizedItem.version);
-          dismissStartupModal();
-          setActiveTab('new-instance');
-        }}
-      />
-    </OreModal>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="w-full"
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <NewsCard
+                date={normalizedItem.date}
+                version={normalizedItem.version}
+                tag={normalizedItem.tag}
+                title={normalizedItem.title}
+                summary={normalizedItem.summary}
+                coverImageUrl={normalizedItem.coverImageUrl}
+                officialUrl={normalizedItem.officialUrl}
+                wikiUrl={normalizedItem.wikiUrl}
+                officialLabel={pageCopy.official}
+                wikiLabel={pageCopy.wiki}
+                officialFocusKey="startup-news-official"
+                wikiFocusKey="startup-news-wiki"
+                createInstanceFocusKey="startup-news-create"
+                displayIndex={0}
+                onCreateInstance={() => {
+                  useLauncherStore.getState().setPendingNewsVersion(normalizedItem.version);
+                  dismissStartupModal();
+                  setActiveTab('new-instance');
+                }}
+                onClose={dismissStartupModal}
+              />
+            </motion.div>
+          </FocusBoundary>
+        </div>
+      )}
+    </AnimatePresence>,
+    document.body
   );
 };

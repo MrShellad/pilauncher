@@ -83,6 +83,8 @@ const MissingDependenciesModal: React.FC<{
   onToggleAutoInstall: () => void;
   onClose: () => void;
   onConfirm: () => void;
+  isBatch?: boolean;
+  batchCount?: number;
 }> = ({
   isOpen,
   version,
@@ -91,9 +93,11 @@ const MissingDependenciesModal: React.FC<{
   isChecking,
   onToggleAutoInstall,
   onClose,
-  onConfirm
+  onConfirm,
+  isBatch = false,
+  batchCount = 0
 }) => {
-  if (!isOpen || !version) return null;
+  if (!isOpen || (!version && !isBatch)) return null;
 
   return (
     <OreModal
@@ -127,7 +131,7 @@ const MissingDependenciesModal: React.FC<{
           准备部署到当前实例
         </div>
         <div className="truncate font-minecraft text-[1rem] leading-[1.25] text-[var(--ore-btn-primary-bg)] ore-text-shadow">
-          {version.file_name}
+          {isBatch ? `已选择 ${batchCount} 个组件/模组` : version?.file_name}
         </div>
       </div>
 
@@ -265,6 +269,9 @@ export const InstanceModDownloadView: React.FC<{
   const [missingDeps, setMissingDeps] = useState<MissingDependencyInfo[]>([]);
   const [autoInstallDeps, setAutoInstallDeps] = useState(true);
   const [isCheckingDeps, setIsCheckingDeps] = useState(false);
+  const [isBatchDependency, setIsBatchDependency] = useState(false);
+  const [batchCount, setBatchCount] = useState(0);
+  const [batchDownloadable, setBatchDownloadable] = useState<{ version: OreProjectVersion; projectId: string }[]>([]);
   const [resultsScrollTop, setResultsScrollTop] = useState(0);
   const [isFavoriteModalOpen, setIsFavoriteModalOpen] = useState(false);
   const selectedProjectIds = useInstanceDownloadSelectionStore((state) => state.selectedProjectIds);
@@ -417,6 +424,9 @@ export const InstanceModDownloadView: React.FC<{
     setMissingDeps([]);
     setAutoInstallDeps(true);
     setIsCheckingDeps(false);
+    setIsBatchDependency(false);
+    setBatchCount(0);
+    setBatchDownloadable([]);
   }, []);
 
   const enqueueDownload = useCallback(async (version: OreProjectVersion, targetInstanceId: string, explicitProjectId?: string) => {
@@ -632,24 +642,158 @@ export const InstanceModDownloadView: React.FC<{
     return versions[0] ? { version: versions[0], projectId } : null;
   }, [resourceTab, source, targetLoader, targetMc]);
 
-  const handleBatchDownload = useCallback(async () => {
-    const targets = [...selectedProjects];
-    const resolvedVersions = await Promise.allSettled(
-      targets.map((project) => fetchLatestProjectVersion(project))
-    );
+  const handleConfirmBatchDownload = useCallback(async () => {
+    if (batchDownloadable.length === 0) return;
 
-    const downloadable = resolvedVersions
-      .map((result) => result.status === 'fulfilled' ? result.value : null)
-      .filter((result): result is { version: OreProjectVersion; projectId: string } => Boolean(result));
+    const fetchVersions = source === 'curseforge' ? fetchCurseForgeVersions : fetchModrinthVersions;
+    const targetInstanceId = instanceId;
+
+    setIsCheckingDeps(true);
+    const dependenciesToInstall = autoInstallDeps ? pendingDependencyEntries : [];
+    closeDependencyModal();
+
+    if (dependenciesToInstall.length > 0) {
+      for (const dependency of dependenciesToInstall) {
+        if (dependency.project_id) {
+          pendingDepIdsRef.current.add(dependency.project_id);
+        }
+      }
+
+      await Promise.allSettled(
+        dependenciesToInstall.map(async (dependency) => {
+          const depId = dependency.project_id!;
+          try {
+            const dependencyVersions = await fetchVersions(
+              depId,
+              targetMc || undefined,
+              resourceTab === 'mod' ? targetLoader || undefined : undefined
+            );
+            if (dependencyVersions.length > 0) {
+              await enqueueDownload(dependencyVersions[0], targetInstanceId, depId);
+            }
+          } catch (error) {
+            console.error(`批量前置 ${depId} 自动下载失败:`, error);
+          } finally {
+            pendingDepIdsRef.current.delete(depId);
+          }
+        })
+      );
+    }
 
     await Promise.allSettled(
-      downloadable.map(({ version, projectId }) =>
-        handleStartDownload(version, instanceId, false, projectId)
+      batchDownloadable.map(({ version, projectId }) =>
+        enqueueDownload(version, targetInstanceId, projectId)
       )
     );
 
     clearSelection();
-  }, [clearSelection, fetchLatestProjectVersion, handleStartDownload, instanceId, selectedProjects]);
+  }, [
+    autoInstallDeps,
+    batchDownloadable,
+    closeDependencyModal,
+    enqueueDownload,
+    instanceId,
+    pendingDependencyEntries,
+    resourceTab,
+    source,
+    targetLoader,
+    targetMc,
+    clearSelection
+  ]);
+
+  const handleBatchDownload = useCallback(async () => {
+    const targets = [...selectedProjects];
+    if (targets.length === 0) return;
+
+    setIsCheckingDeps(true);
+    setIsBatchDependency(true);
+    setBatchCount(targets.length);
+    setMissingDeps([]);
+    setAutoInstallDeps(true);
+
+    try {
+      const resolvedVersions = await Promise.allSettled(
+        targets.map((project) => fetchLatestProjectVersion(project))
+      );
+
+      const downloadable = resolvedVersions
+        .map((result) => result.status === 'fulfilled' ? result.value : null)
+        .filter((result): result is { version: OreProjectVersion; projectId: string } => Boolean(result));
+
+      if (downloadable.length === 0) {
+        closeDependencyModal();
+        clearSelection();
+        return;
+      }
+
+      setBatchDownloadable(downloadable);
+      setBatchCount(downloadable.length);
+
+      if (resourceTab !== 'mod') {
+        await Promise.allSettled(
+          downloadable.map(({ version, projectId }) =>
+            enqueueDownload(version, instanceId, projectId)
+          )
+        );
+        closeDependencyModal();
+        clearSelection();
+        return;
+      }
+
+      const allRequiredDepsMap = new Map<string, OreProjectDependency>();
+      const downloadableProjectIds = new Set(downloadable.map((d) => d.projectId));
+
+      for (const { version } of downloadable) {
+        const reqs = (version.dependencies || []).filter(
+          (dep) => dep.dependency_type === 'required' && dep.project_id
+        );
+        for (const dep of reqs) {
+          const depId = dep.project_id!;
+          if (
+            !downloadableProjectIds.has(depId) &&
+            !installedModIds.includes(depId) &&
+            !pendingDepIdsRef.current.has(depId)
+          ) {
+            allRequiredDepsMap.set(depId, dep);
+          }
+        }
+      }
+
+      const missingDependencyEntries = Array.from(allRequiredDepsMap.values());
+
+      if (missingDependencyEntries.length === 0) {
+        await Promise.allSettled(
+          downloadable.map(({ version, projectId }) =>
+            enqueueDownload(version, instanceId, projectId)
+          )
+        );
+        closeDependencyModal();
+        clearSelection();
+        return;
+      }
+
+      setPendingDependencyEntries(missingDependencyEntries);
+
+      const resolvedMissingDeps = await resolveMissingDependencyInfo(missingDependencyEntries, source);
+      setMissingDeps(resolvedMissingDeps);
+      setIsCheckingDeps(false);
+    } catch (error) {
+      console.error('批量下载依赖分析失败:', error);
+      closeDependencyModal();
+      clearSelection();
+    }
+  }, [
+    selectedProjects,
+    fetchLatestProjectVersion,
+    resourceTab,
+    installedModIds,
+    source,
+    resolveMissingDependencyInfo,
+    enqueueDownload,
+    instanceId,
+    closeDependencyModal,
+    clearSelection
+  ]);
 
   if (!isEnvLoaded || syncStep < 3) {
     return (
@@ -709,6 +853,10 @@ export const InstanceModDownloadView: React.FC<{
           getProjectKey={getProjectKey}
           scrollContainerId="instance-mod-download-results"
           onScrollTopChange={setResultsScrollTop}
+          onClickAuthor={(author) => {
+            setCategory('');
+            setQuery(author);
+          }}
         />
 
         <ContextualActionBar
@@ -738,14 +886,16 @@ export const InstanceModDownloadView: React.FC<{
       />
 
       <MissingDependenciesModal
-        isOpen={!!pendingDependencyVersion}
+        isOpen={!!pendingDependencyVersion || isBatchDependency}
         version={pendingDependencyVersion}
         missingDeps={missingDeps}
         autoInstallDeps={autoInstallDeps}
         isChecking={isCheckingDeps}
         onToggleAutoInstall={() => setAutoInstallDeps((prev) => !prev)}
         onClose={closeDependencyModal}
-        onConfirm={handleConfirmDependencyDownload}
+        onConfirm={isBatchDependency ? handleConfirmBatchDownload : handleConfirmDependencyDownload}
+        isBatch={isBatchDependency}
+        batchCount={batchCount}
       />
 
       <FavoritePlaceholderModal

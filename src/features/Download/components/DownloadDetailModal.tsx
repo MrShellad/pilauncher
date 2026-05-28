@@ -259,6 +259,7 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
             onClose();
           }}
           ignoreLoader={activeTab !== 'mod'}
+          source={source}
         />
       )}
     </>

@@ -198,7 +198,7 @@ export const DownloadNetworkDiagnosticsSection: React.FC<
                       下载测试
                     </h5>
                     <p className="text-xs text-ore-text-muted">
-                      对 Assets、Java、Loader 源做 200KB 下载测试，输出 TTFB、速度、Range 和并发结果。
+                      根据您配置的最大并发数，对 Assets、Java、Loader 源进行下载测速，测试其响应时间（TTFB）、单通道速度及并发下载表现。
                     </p>
                   </div>
                   <OreButton
@@ -342,7 +342,7 @@ const BenchmarkGroup: React.FC<BenchmarkGroupProps> = ({
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <MetricItem label="TTFB" value={formatNullableMs(entry.ttfb_ms)} />
                   <MetricItem
-                    label="下载速度"
+                    label="单通道速度"
                     value={formatNullableSpeed(entry.download_speed_mbps)}
                   />
                   <MetricItem

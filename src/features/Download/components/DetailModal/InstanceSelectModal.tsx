@@ -9,7 +9,10 @@ import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreModal } from '../../../../ui/primitives/OreModal';
+import { OreCheckbox } from '../../../../ui/primitives/OreCheckbox';
 import { getProjectDetails, type OreProjectVersion } from '../../../InstanceDetail/logic/modrinthApi';
+import { getCurseForgeProjectDetails } from '../../logic/curseforgeApi';
+import type { DownloadSource } from '../../hooks/useResourceDownload';
 import { getInstalledProjectIds, getInstalledVersionIds, modService } from '../../../InstanceDetail/logic/modService';
 
 interface CompatibleInstance {
@@ -31,6 +34,7 @@ interface InstanceSelectModalProps {
   onConfirm: (instanceIds: string[], autoInstallDeps: boolean) => void | Promise<void>;
   ignoreLoader?: boolean;
   projectId?: string;
+  source?: DownloadSource;
 }
 
 const AUTO_DEPS_FOCUS_KEY = 'modal-inst-auto-deps';
@@ -44,7 +48,8 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
   onClose,
   onConfirm,
   ignoreLoader = false,
-  projectId
+  projectId,
+  source = 'modrinth'
 }) => {
   const { t } = useTranslation();
   const [instances, setInstances] = useState<CompatibleInstance[]>([]);
@@ -297,7 +302,8 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
         const resolvedMissingDeps = await Promise.all(
           [...missingDepIds].map(async (dependencyId) => {
             try {
-              const detail = await getProjectDetails(dependencyId);
+              const fetchDetails = source === 'curseforge' ? getCurseForgeProjectDetails : getProjectDetails;
+              const detail = await fetchDetails(dependencyId);
               return { id: dependencyId, name: detail.title };
             } catch {
               return { id: dependencyId, name: t('download.instanceSelect.unknownDependency', { id: dependencyId, defaultValue: `未知前置 (${dependencyId})` }) };
@@ -359,32 +365,14 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
         </div>
       </div>
 
-      <FocusItem
+      <OreCheckbox
         focusKey={AUTO_DEPS_FOCUS_KEY}
-        onEnter={() => setAutoInstallDeps((prev) => !prev)}
+        checked={autoInstallDeps}
+        onChange={setAutoInstallDeps}
         onArrowPress={handleLinearFocus}
-      >
-        {({ ref, focused }) => (
-          <div
-            ref={ref as any}
-            onClick={() => setAutoInstallDeps((prev) => !prev)}
-            className={`w-max cursor-pointer p-[0.375rem] outline-none transition-none ${
-              focused ? 'bg-[#48494A] outline outline-[0.125rem] outline-white outline-offset-[0.0625rem]' : 'hover:bg-[#48494A]/60'
-            }`}
-          >
-            <div className="flex items-center gap-[0.625rem]">
-              <div className={`flex h-[0.875rem] w-[0.875rem] items-center justify-center border-[0.125rem] ${
-                autoInstallDeps ? 'border-[#1D4D13] bg-[#6CC349] text-black' : 'border-[#8C8D90] bg-[#1E1E1F]'
-              }`}>
-                {autoInstallDeps && <CheckCircle2 size={10} />}
-              </div>
-              <span className="font-minecraft text-[0.75rem] uppercase tracking-[0.08em] text-[#E6E8EB]">
-                {t('download.instanceSelect.autoDownloadDeps', { defaultValue: '自动下载并补全前置模组' })}
-              </span>
-            </div>
-          </div>
-        )}
-      </FocusItem>
+        label={t('download.instanceSelect.autoDownloadDeps', { defaultValue: '自动下载并补全前置模组' })}
+        className="mt-2"
+      />
     </div>
   ) : (
     <div className="flex h-full items-center border-[0.125rem] border-[#1E1E1F] bg-[#242425] px-[0.75rem] font-minecraft text-[0.75rem] text-[#B1B2B5] shadow-[inset_0_0.125rem_0_rgba(255,255,255,0.06)]">

@@ -439,6 +439,10 @@ const ResourceDownloadPage: React.FC = () => {
         isSelectionMode={selectionEnabled && isSelectionMode}
         onToggleProjectSelection={selectionEnabled ? handleToggleProjectSelection : undefined}
         getProjectKey={getProjectKey}
+        onClickAuthor={(author) => {
+          setCategory('');
+          setQuery(author);
+        }}
       />
 
       {selectionEnabled && (
@@ -498,6 +502,7 @@ const ResourceDownloadPage: React.FC = () => {
           void handleBatchDownloadConfirm(instanceIds);
         }}
         ignoreLoader={activeTab !== 'mod'}
+        source={source}
       />
     </FocusBoundary>
   );

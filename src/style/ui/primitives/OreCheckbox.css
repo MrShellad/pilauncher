@@ -1,0 +1,95 @@
+@tailwind components;
+
+@layer components {
+  /* 外层容器 */
+  .ore-checkbox-wrapper {
+    @apply inline-flex items-center cursor-pointer select-none outline-none transition-none;
+  }
+
+  .ore-checkbox-wrapper.disabled {
+    @apply opacity-80 cursor-not-allowed;
+  }
+
+  /* 标签文字样式 */
+  .ore-checkbox-label {
+    @apply ml-[0.625rem] font-minecraft font-bold transition-colors duration-150 text-white text-[0.875rem] uppercase tracking-[0.08em] select-none;
+    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.6);
+  }
+
+  /* 聚焦状态时的文字 */
+  .ore-checkbox-wrapper.is-focused .ore-checkbox-label {
+    @apply text-white brightness-110;
+  }
+
+  /* 禁用状态时的文字 */
+  .ore-checkbox-wrapper.disabled .ore-checkbox-label {
+    @apply text-[#5A5A5A] !important;
+  }
+
+  /* 选中状态且未被聚焦/禁用时的文字 */
+  .ore-checkbox-wrapper.is-checked:not(.disabled):not(.is-focused) .ore-checkbox-label {
+    color: var(--ore-btn-primary-bg);
+  }
+
+  /* ============================================== */
+  /* 🔲 Checkbox 盒体 (Box) */
+  /* ============================================== */
+  .ore-checkbox-box {
+    @apply relative flex items-center justify-center w-[18px] h-[18px] border-[2px] transition-all flex-shrink-0;
+    border-color: var(--ore-border-color);
+    background-color: #8B8B8D; /* Off + Normal 默认灰色 */
+    box-shadow: inset 1px 1px rgba(255, 255, 255, 0.2);
+  }
+
+  /* Normal + On */
+  .ore-checkbox-wrapper.is-checked .ore-checkbox-box {
+    background-color: var(--ore-btn-primary-bg); /* 经典绿色 */
+  }
+
+  /* Hovered + Off */
+  .ore-checkbox-wrapper:hover:not(.disabled):not(.is-checked) .ore-checkbox-box {
+    background-color: #A5A5A7;
+  }
+
+  /* Hovered + On */
+  .ore-checkbox-wrapper.is-checked:hover:not(.disabled) .ore-checkbox-box {
+    background-color: var(--ore-btn-primary-hover);
+  }
+
+  /* Focused (无论是 On 还是 Off) */
+  .ore-checkbox-wrapper.is-focused .ore-checkbox-box {
+    outline: 2px solid var(--ore-focus-ringFallback);
+    outline: 2px solid var(--ore-focus-ring);
+    outline-offset: 1px;
+    filter: drop-shadow(0 0 4px var(--ore-focus-glow)) brightness(1.1);
+  }
+
+  /* Pressed + Off */
+  .ore-checkbox-wrapper:active:not(.disabled):not(.is-checked) .ore-checkbox-box {
+    background-color: #525254;
+  }
+
+  /* Pressed + On */
+  .ore-checkbox-wrapper.is-checked:active:not(.disabled) .ore-checkbox-box {
+    background-color: var(--ore-btn-primary-active);
+  }
+
+  /* Disabled + Off */
+  .ore-checkbox-wrapper.disabled:not(.is-checked) .ore-checkbox-box {
+    background-color: #BDBDBD;
+    border-color: #8B8B8D;
+  }
+
+  /* Disabled + On */
+  .ore-checkbox-wrapper.is-checked.disabled .ore-checkbox-box {
+    background-color: #8B8B8D;
+    border-color: #5A5A5A;
+  }
+
+  /* ============================================== */
+  /* ✔️ 对勾图标 (Checkmark) */
+  /* ============================================== */
+  .ore-checkbox-checkmark {
+    @apply w-[14px] h-[14px];
+  }
+}

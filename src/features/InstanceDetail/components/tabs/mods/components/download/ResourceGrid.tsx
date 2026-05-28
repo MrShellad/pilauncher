@@ -41,6 +41,7 @@ interface ResourceGridProps {
   getProjectKey?: (project: ModrinthProject) => string;
   scrollContainerId?: string;
   onScrollTopChange?: (scrollTop: number) => void;
+  onClickAuthor?: (author: string) => void;
 }
 
 interface ResourceCardProps {
@@ -56,6 +57,7 @@ interface ResourceCardProps {
   isSelected?: boolean;
   onToggleSelection?: (project: ModrinthProject) => void;
   isNearBottom: boolean;
+  onClickAuthor?: (author: string) => void;
 }
 
 interface ResourceGridItem {
@@ -116,12 +118,14 @@ const ResourceCard = React.memo(({
   isSelectionMode = false,
   isSelected = false,
   onToggleSelection,
-  isNearBottom
+  isNearBottom,
+  onClickAuthor
 }: ResourceCardProps) => {
   const { t, i18n } = useTranslation();
-  const cardRef = useRef<HTMLButtonElement | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
   const { features, followerCount, loaders, supportsClient, supportsServer } = viewModel;
   const focusKey = `download-grid-item-${index}`;
+  const authorLabel = project.author || t('download.meta.unknownAuthor', { defaultValue: 'Unknown' });
 
   const timeAgo = (dateStr?: string) => {
     if (!dateStr) return t('download.time.unknown', { defaultValue: 'Unknown time' });
@@ -160,22 +164,28 @@ const ResourceCard = React.memo(({
       }}
     >
       {({ ref, focused }) => {
-        const focusRef = ref as React.MutableRefObject<HTMLButtonElement | null>;
-        const setCardNode = (node: HTMLButtonElement | null) => {
+        const focusRef = ref as React.MutableRefObject<HTMLDivElement | null>;
+        const setCardNode = (node: HTMLDivElement | null) => {
           cardRef.current = node;
           focusRef.current = node;
         };
 
         return (
-          <button
+          <div
             ref={setCardNode}
-            type="button"
             onClick={() => {
               if (isSelectionMode) {
                 onToggleSelection?.(project);
                 return;
               }
               onSelectProject(project);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === ' ' || event.key === 'Spacebar') {
+                event.preventDefault();
+                event.stopPropagation();
+                onToggleSelection?.(project);
+              }
             }}
             onMouseDown={(event) => {
               if (event.button === 2) {
@@ -188,13 +198,14 @@ const ResourceCard = React.memo(({
               event.stopPropagation();
               onToggleSelection?.(project);
             }}
+            role="button"
             tabIndex={-1}
             aria-label={t('download.actions.openProject', {
               defaultValue: `Open ${project.title}`,
               project: project.title
             })}
             className={`
-              group relative flex min-h-[8.5rem] w-full overflow-hidden border-[0.125rem] border-[#1E1E1F] text-left outline-none transition-none
+              group relative flex min-h-[8.5rem] w-full overflow-hidden border-[0.125rem] border-[#1E1E1F] text-left outline-none transition-none cursor-pointer
               ${focused
                 ? 'z-20 bg-[#DDE0E3] brightness-[1.01] outline outline-[0.1875rem] outline-offset-[0.0625rem] outline-white'
                 : 'bg-[#C6C8CB] hover:bg-[#D7DADF]'}
@@ -255,12 +266,24 @@ const ResourceCard = React.memo(({
                         <div className="min-w-0 truncate font-minecraft text-[1.25rem] font-bold leading-[1.15] text-black">
                           {project.title}
                         </div>
-                        <div className="min-w-0 truncate text-[0.875rem] font-bold leading-none text-[#4A4C50]">
-                          {t('download.meta.byAuthor', {
-                            defaultValue: 'by {{author}}',
-                            author: project.author || t('download.meta.unknownAuthor', { defaultValue: 'Unknown' })
-                          })}
-                        </div>
+                        {onClickAuthor ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              onClickAuthor(authorLabel);
+                            }}
+                            className="min-w-0 truncate text-[0.875rem] font-bold leading-none text-[#4A4C50] hover:text-ore-green hover:underline cursor-pointer transition-colors"
+                            title={t('download.actions.searchAuthor', { defaultValue: 'Search mods by {{author}}', author: authorLabel })}
+                          >
+                            {t('download.meta.byAuthor', { defaultValue: 'by {{author}}', author: authorLabel })}
+                          </button>
+                        ) : (
+                          <div className="min-w-0 truncate text-[0.875rem] font-bold leading-none text-[#4A4C50]">
+                            {t('download.meta.byAuthor', { defaultValue: 'by {{author}}', author: authorLabel })}
+                          </div>
+                        )}
                       </div>
                       {(isInstalled || supportsClient || supportsServer) && (
                         <div className="ml-auto flex shrink-0 items-center justify-end gap-[0.375rem]">
@@ -337,7 +360,7 @@ const ResourceCard = React.memo(({
                 </span>
               </>
             )}
-          </button>
+          </div>
         );
       }}
     </FocusItem>
@@ -362,7 +385,8 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   onToggleProjectSelection,
   getProjectKey = (project) => project.id || project.project_id || project.slug || project.title,
   scrollContainerId,
-  onScrollTopChange
+  onScrollTopChange,
+  onClickAuthor
 }) => {
   const scrollContainerRef = useRef<HTMLElement | null>(null);
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
@@ -476,6 +500,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
                   isSelected={selectedProjectIds?.has(getProjectKey(project)) ?? false}
                   onToggleSelection={onToggleProjectSelection}
                   isNearBottom={index >= results.length - 6}
+                  onClickAuthor={onClickAuthor}
                 />
               )}
             />

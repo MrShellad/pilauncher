@@ -52,6 +52,7 @@ interface ResourceGridProps {
   scrollContainerId?: string;
   onScrollTopChange?: (scrollTop: number) => void;
   categoryOptions?: FilterOption[];
+  onClickAuthor?: (author: string) => void;
 }
 
 export const ResourceGrid: React.FC<ResourceGridProps> = ({
@@ -69,7 +70,8 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   getProjectKey = (project) => project.id || project.project_id || project.slug || project.title,
   scrollContainerId,
   onScrollTopChange,
-  categoryOptions
+  categoryOptions,
+  onClickAuthor
 }) => {
   const scrollContainerRef = useRef<HTMLElement | null>(null);
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
@@ -188,6 +190,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
               onToggleSelection={onToggleProjectSelection}
               isNearBottom={index >= results.length - 6}
               categoryOptions={categoryOptions}
+              onClickAuthor={onClickAuthor}
             />
           )}
         />

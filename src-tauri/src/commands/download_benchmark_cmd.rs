@@ -16,7 +16,6 @@ use tauri::{AppHandle, Runtime};
 use tokio::io::AsyncWriteExt;
 
 const DOWNLOAD_SAMPLE_SIZE_BYTES: u64 = 200 * 1024;
-const DOWNLOAD_CONCURRENCY_STREAMS: usize = 4;
 const DOWNLOAD_TEST_GAME_VERSION: &str = "1.21.1";
 const DOWNLOAD_TEST_JAVA_VERSION: u8 = 21;
 
@@ -110,7 +109,7 @@ pub async fn run_download_benchmark<R: Runtime>(
 
     Ok(DownloadBenchmarkReport {
         sample_size_bytes: DOWNLOAD_SAMPLE_SIZE_BYTES,
-        concurrency_streams: DOWNLOAD_CONCURRENCY_STREAMS,
+        concurrency_streams: download_settings.concurrency.max(1),
         timestamp: chrono::Local::now().to_rfc3339(),
         assets,
         java,
@@ -356,8 +355,9 @@ async fn probe_concurrent_downloads(
         .map_err(|error| error.to_string())?;
 
     let started = Instant::now();
-    let mut tasks = Vec::with_capacity(DOWNLOAD_CONCURRENCY_STREAMS);
-    for index in 0..DOWNLOAD_CONCURRENCY_STREAMS {
+    let concurrency = dl_settings.concurrency.max(1);
+    let mut tasks = Vec::with_capacity(concurrency);
+    for index in 0..concurrency {
         let client = client.clone();
         let url = url.to_string();
         let temp_path = temp_dir.join(format!("{}.bin", index));

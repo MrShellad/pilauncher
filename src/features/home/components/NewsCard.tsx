@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, ExternalLink, Plus } from 'lucide-react';
+import { BookOpen, ExternalLink, Plus, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import { openExternalLink } from '../../../utils/openExternalLink';
@@ -26,6 +26,7 @@ interface NewsCardProps {
   onCreateInstanceArrowPress?: (direction: string) => boolean | void;
   onOfficialArrowPress?: (direction: string) => boolean | void;
   onWikiArrowPress?: (direction: string) => boolean | void;
+  onClose?: () => void;
 }
 
 export const NewsCard: React.FC<NewsCardProps> = ({
@@ -49,6 +50,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
   onCreateInstanceArrowPress,
   onOfficialArrowPress,
   onWikiArrowPress,
+  onClose,
 }) => {
   const { t } = useTranslation();
   const isMountedRef = useRef(false);
@@ -108,9 +110,23 @@ export const NewsCard: React.FC<NewsCardProps> = ({
         <div className="absolute left-4 top-4 border border-white/20 bg-black/55 px-3 py-1 text-xs font-minecraft tracking-[0.2em] text-white">
           {date}
         </div>
-        <div className="absolute right-4 top-4 border border-[#6fd08c]/40 bg-[#1f3a28]/85 px-3 py-1 text-xs font-minecraft tracking-[0.2em] text-[#9be7b0]">
+        <div className={`absolute ${onClose ? 'right-14' : 'right-4'} top-4 border border-[#6fd08c]/40 bg-[#1f3a28]/85 px-3 py-1 text-xs font-minecraft tracking-[0.2em] text-[#9be7b0] transition-all`}>
           {tag}
         </div>
+
+        {onClose && (
+          <button
+            type="button"
+            className="absolute right-4 top-4 z-50 flex items-center justify-center w-8 h-8 text-white/70 hover:text-white bg-black/45 hover:bg-black/70 border border-white/10 hover:border-white/30 rounded transition-colors cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            aria-label="Close"
+          >
+            <X size={16} />
+          </button>
+        )}
 
         <div className="absolute bottom-4 left-4 right-4">
           <div className="mb-2 text-[0.72rem] font-minecraft tracking-[0.3em] text-white/70">
