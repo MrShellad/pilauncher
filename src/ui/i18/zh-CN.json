@@ -1696,6 +1696,7 @@
       "diagPack": "诊断包",
       "killProcess": "结束进程",
       "hidePanel": "隐藏面板",
+      "closePanel": "关闭面板",
       "exportSuccessTitle": "生成成功",
       "exportSuccessHeadline": "完整的诊断包已成功生成",
       "openFolder": "打开所在目录",

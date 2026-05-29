@@ -142,7 +142,7 @@ export const LogView: React.FC<LogViewProps> = ({ logs, isOpen }) => {
                   }
                 }}
                 itemContent={(idx, segment) => (
-                  <div className="group relative font-mono hover:bg-[#1E1E1F] px-2 py-1.5 border-b border-white/[0.06] transition-colors pr-10 text-[13px] leading-relaxed break-all select-text">
+                  <div className="group relative font-jetbrains hover:bg-[#1E1E1F] px-2 py-1.5 border-b border-white/[0.06] transition-colors pr-10 text-[13px] leading-relaxed break-all select-text">
                     {segment.lines.map((line, lineIndex) => (
                       <div
                         key={`${segment.startIndex}-${lineIndex}`}

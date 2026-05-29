@@ -45,7 +45,7 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
   const { t } = useTranslation();
 
   const [showTooltip, setShowTooltip] = useState(false);
-  const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tooltipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnter = () => {
     if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);

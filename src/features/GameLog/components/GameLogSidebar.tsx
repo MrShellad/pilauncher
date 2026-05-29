@@ -26,9 +26,10 @@ import { LogShareDialog } from './LogShareDialog';
 
 export const GameLogSidebar: React.FC = () => {
   const { t } = useTranslation();
-  const { isOpen, setOpen, currentInstanceId, logs, gameState, crashReason, telemetry } = useGameLogStore();
+  const { isOpen, setOpen, currentInstanceId, logs, gameState, crashReason, telemetry, clearLogs } = useGameLogStore();
   const hasDownloadTasks = useDownloadStore((state) => Object.keys(state.tasks).length > 0);
   const isDownloadPopupOpen = useDownloadStore((state) => state.isPopupOpen);
+  const isGameTerminated = gameState === 'crashed' || gameState === 'idle';
 
   const [showTelemetry, setShowTelemetry] = useState(false);
   const [exportedZipPath, setExportedZipPath] = useState<string | null>(null);
@@ -43,8 +44,11 @@ export const GameLogSidebar: React.FC = () => {
 
   const closeSidebarAndRestoreFocus = useCallback(() => {
     setOpen(false);
+    if (gameState === 'crashed' || gameState === 'idle') {
+      clearLogs();
+    }
     setTimeout(() => restoreFocusToCurrentPage(), 80);
-  }, [restoreFocusToCurrentPage, setOpen]);
+  }, [restoreFocusToCurrentPage, setOpen, gameState, clearLogs]);
 
   const openSidebar = useCallback(() => {
     setOpen(true);
@@ -272,8 +276,21 @@ export const GameLogSidebar: React.FC = () => {
 
                 <div className="w-px h-4 bg-white/10 mx-1"></div>
 
-                <OreButton focusKey="log-btn-hide-panel" variant="primary" size="md" onClick={closeSidebarAndRestoreFocus}>
-                  {t('gameLog.sidebar.hidePanel', '隐藏面板')} <ChevronRight size={16} className="ml-1" />
+                <OreButton
+                  focusKey={isGameTerminated ? 'log-btn-close-panel' : 'log-btn-hide-panel'}
+                  variant="primary"
+                  size="md"
+                  onClick={closeSidebarAndRestoreFocus}
+                >
+                  {isGameTerminated ? (
+                    <>
+                      {t('gameLog.sidebar.closePanel', '关闭面板')} <X size={16} className="ml-1" />
+                    </>
+                  ) : (
+                    <>
+                      {t('gameLog.sidebar.hidePanel', '隐藏面板')} <ChevronRight size={16} className="ml-1" />
+                    </>
+                  )}
                 </OreButton>
 
               </div>

@@ -49,6 +49,33 @@
   </categories>
 
   <releases>
+    <release version="0.1.37" date="2026-05-29">
+      <description>
+        <p xml:lang="zh_CN">集成游戏启动前检查与修复机制，深度重构模组元数据管理，优化手柄焦点与无障碍交互体验。</p>
+        <ul xml:lang="zh_CN">
+          <li>[新功能] 新增游戏启动前检查功能，支持自动补全与验证运行库，并提供运行时修复引导对话框。</li>
+          <li>[新功能] 支持游戏退出时自动备份世界存档，保障玩家存档安全。</li>
+          <li>[新功能] 模组管理支持收藏与置顶功能，并引入全新的模组元数据设置和删除确认弹窗。</li>
+          <li>[新功能] 引入全新的 OreCheckbox 基础组件，并整合至实例选择、资源卡片与网格视图中。</li>
+          <li>[新功能] 新增基础 UI 组件库展示与交互预览页面，方便开发与组件调试。</li>
+          <li>[优化] 重构模组详情、资源包、材质包、光影及存档管理面板，全面支持列表快照功能与性能指标展示。</li>
+          <li>[优化] 针对手柄操作大幅优化了新闻、微软账户侧边栏、下载管理器以及通用组件（卡片、下拉菜单等）的焦点跳转逻辑与空间导航无障碍体验。</li>
+          <li>[优化] 强化国际化多语言本地化支持，优化各级界面的英文等长文本布局溢出表现。</li>
+        </ul>
+        <p>Integrated pre-launch verification &amp; repair checks, overhauled mod metadata management, and optimized gamepad focus and accessibility.</p>
+        <ul>
+          <li>[New] Added pre-launch compatibility checks with automatic runtime verification/downloading and an interactive runtime repair dialog.</li>
+          <li>[New] Added automatic world save backups on game exit to safeguard player progress.</li>
+          <li>[New] Added support for favoriting/pinning mods, alongside new mod metadata settings and deletion confirmation modals.</li>
+          <li>[New] Introduced the OreCheckbox primitive component, integrated into instance selection and resource displays.</li>
+          <li>[New] Added an interactive UI component showcase page for previewing and testing primitive elements.</li>
+          <li>[Optimization] Refactored Mod, Resource Pack, Save, and Shader panels with snapshot tools and improved metadata layouts.</li>
+          <li>[Optimization] Overhauled focus navigation and accessibility for gamepads in News, Account Sidebar, Download Manager, and core primitives (dropdowns, buttons).</li>
+          <li>[Optimization] Enhanced internationalization support (i18n) and layouts to prevent text overflows.</li>
+        </ul>
+      </description>
+    </release>
+
     <release version="0.1.36" date="2026-05-21">
       <description>
         <p xml:lang="zh_CN">新增 WebDAV 同步与增强皮肤管理功能</p>

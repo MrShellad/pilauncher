@@ -42,6 +42,7 @@ export default {
       fontFamily: {
         sans: ['var(--ore-font-family-sans)'],
         minecraft: ['var(--ore-font-family-minecraft)'],
+        jetbrains: ['"JetBrains Mono"', 'monospace'],
       },
       // 这里的尺寸变量如果其他地方还在用就保留，按钮内部已经改用刚性尺寸了
       spacing: {

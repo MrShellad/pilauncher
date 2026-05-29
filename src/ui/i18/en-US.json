@@ -1696,6 +1696,7 @@
       "diagPack": "Diagnostic Pack",
       "killProcess": "Kill Process",
       "hidePanel": "Hide Panel",
+      "closePanel": "Close Panel",
       "exportSuccessTitle": "Export Successful",
       "exportSuccessHeadline": "Diagnostic pack generated successfully",
       "openFolder": "Open Folder",
