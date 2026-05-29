@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
+import { useTranslation } from 'react-i18next';
 
 import { useInstanceDetail, type DetailTab } from '../hooks/pages/InstanceDetail/useInstanceDetail';
 import { useLauncherStore } from '../store/useLauncherStore';
@@ -42,6 +43,7 @@ const TABS: { id: DetailTab; label: string; icon: LucideIcon }[] = [
 ];
 
 const InstanceDetail: React.FC = () => {
+  const { t } = useTranslation();
   const instanceId = useLauncherStore((state) => state.selectedInstanceId) || 'demo-id-123';
   const setActiveTabGlobal = useLauncherStore((state) => state.setActiveTab);
 
@@ -112,11 +114,11 @@ const InstanceDetail: React.FC = () => {
         label: (
           <div className="flex items-center justify-center whitespace-nowrap gap-2 px-1 pointer-events-none">
             <tab.icon size="1rem" className={activeTab === tab.id ? 'text-ore-black' : 'text-inherit'} />
-            <span>{tab.label}</span>
+            <span>{t(`instanceDetail.tabs.${tab.id}`, tab.label)}</span>
           </div>
         ),
       })),
-    [activeTab]
+    [activeTab, t]
   );
 
   const handleTabSelect = useCallback(
@@ -181,7 +183,7 @@ const InstanceDetail: React.FC = () => {
           ref={pageFocusRef}
           className="w-full h-full flex items-center justify-center text-white font-minecraft"
         >
-          加载中...
+          {t('instanceDetail.loading', '加载中...')}
         </div>
       </FocusContext.Provider>
     );

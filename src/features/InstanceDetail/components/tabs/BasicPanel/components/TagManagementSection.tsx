@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { useTranslation } from 'react-i18next';
 import {
   Check,
   Pickaxe,
@@ -67,12 +68,21 @@ export const TagManagementSection: React.FC<TagManagementSectionProps> = ({
   isGlobalSaving,
   setIsGlobalSaving,
 }) => {
+  const { t } = useTranslation();
   const instances = useLauncherStore((state) => state.instances);
   const normalizedInitialTags = useMemo(() => normalizeTags(initialTags ?? []), [initialTags]);
   const [tags, setTags] = useState<string[]>(normalizedInitialTags);
   const [fetchedAvailableTags, setFetchedAvailableTags] = useState<string[]>([]);
   const [iconValue, setIconValue] = useState(TAG_ICON_OPTIONS[0].value);
   const [tagInput, setTagInput] = useState('');
+
+  const tagDropdownOptions = useMemo(() =>
+    TAG_ICON_OPTIONS.map((opt) => ({
+      value: opt.value,
+      label: t(`instanceDetail.basic.tags.dropdownOptions.${opt.value}`, opt.label),
+    })),
+    [t]
+  );
 
   useEffect(() => {
     setTags(normalizedInitialTags);
@@ -119,7 +129,7 @@ export const TagManagementSection: React.FC<TagManagementSectionProps> = ({
     setIsGlobalSaving(true);
     try {
       await onUpdateTags(normalized);
-      onSuccess('标签已保存');
+      onSuccess('tagsSaved');
     } finally {
       setIsGlobalSaving(false);
     }
@@ -154,10 +164,10 @@ export const TagManagementSection: React.FC<TagManagementSectionProps> = ({
   };
 
   return (
-    <SettingsSection title="标签管理" icon={<Tags size="1.125rem" />}>
+    <SettingsSection title={t('instanceDetail.basic.tags.title', '标签管理')} icon={<Tags size="1.125rem" />}>
       <FormRow
-        label="添加标签"
-        description="选择图标后输入标签名，也可以在输入框中选择已有标签；确认后立即保存。"
+        label={t('instanceDetail.basic.tags.addLabel', '添加标签')}
+        description={t('instanceDetail.basic.tags.addDesc', '选择图标后输入标签名，也可以在输入框中选择已有标签；确认后立即保存。')}
         vertical
         control={
           <div className="w-full">
@@ -165,7 +175,7 @@ export const TagManagementSection: React.FC<TagManagementSectionProps> = ({
               <div className="w-[8.5rem] flex-shrink-0">
                 <OreDropdown
                   focusKey="tag-icon-select"
-                  options={TAG_ICON_OPTIONS}
+                  options={tagDropdownOptions}
                   value={iconValue}
                   onChange={setIconValue}
                   disabled={isGlobalSaving || isInitializing}
@@ -181,7 +191,7 @@ export const TagManagementSection: React.FC<TagManagementSectionProps> = ({
                     if (event.key === 'Enter') void handleConfirmTag();
                   }}
                   disabled={isGlobalSaving || isInitializing}
-                  placeholder="输入标签名称或选择已有标签"
+                  placeholder={t('instanceDetail.basic.tags.placeholderInput', '输入标签名称或选择已有标签')}
                   containerClassName="w-full"
                   list="instance-detail-tag-options"
                 />
@@ -202,7 +212,7 @@ export const TagManagementSection: React.FC<TagManagementSectionProps> = ({
                   disabled={!canConfirmTag || isGlobalSaving || isInitializing}
                   className="w-full px-0"
                 >
-                  <Check size="1rem" className="mr-1.5" /> 确认
+                  <Check size="1rem" className="mr-1.5" /> {t('common.confirm', '确认')}
                 </OreButton>
               </div>
             </div>
@@ -211,15 +221,15 @@ export const TagManagementSection: React.FC<TagManagementSectionProps> = ({
       />
 
       <FormRow
-        label="当前标签"
-        description="这些标签会出现在实例列表的标签筛选中。"
+        label={t('instanceDetail.basic.tags.currentLabel', '当前标签')}
+        description={t('instanceDetail.basic.tags.currentDesc', '这些标签会出现在实例列表的标签筛选中。')}
         vertical
         control={
           <div className="w-full">
             {tags.length === 0 ? (
               <div className="flex min-h-[5rem] flex-col items-center justify-center border-2 border-dashed border-[#1E1E1F] bg-[#141415]/50 text-ore-text-muted">
                 <Tags size="1.375rem" className="mb-2 opacity-60" />
-                <span className="font-minecraft text-sm">暂无标签</span>
+                <span className="font-minecraft text-sm">{t('instanceDetail.basic.tags.empty', '暂无标签')}</span>
               </div>
             ) : (
               <div className="flex flex-wrap gap-2">
@@ -234,7 +244,7 @@ export const TagManagementSection: React.FC<TagManagementSectionProps> = ({
                         tabIndex={-1}
                         className={`group inline-flex h-9 items-center overflow-hidden border-2 border-[#18181B] bg-[#202226] font-minecraft text-sm text-white shadow-[inset_0_-0.125rem_0_rgba(0,0,0,0.35)] outline-none transition-all hover:border-ore-green hover:bg-[#262A28] ${focused ? 'ring-2 ring-white brightness-110' : ''
                           } disabled:opacity-50`}
-                        title="移除标签"
+                        title={t('instanceDetail.basic.tags.removeTitle', '移除标签')}
                       >
                         <span className="flex h-full items-center gap-2 px-3">
                           <Tag size="0.875rem" strokeWidth={2.5} className="text-ore-green" />

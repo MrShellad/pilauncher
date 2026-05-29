@@ -60,22 +60,21 @@ export const useServerBindingSection = ({
     await onUpdateServerBinding(createServerBindingUpdate(editServer, serverBinding));
     setIsGlobalSaving(false);
     setIsEditingServer(false);
-    onSuccess('服务器信息已保存');
+    onSuccess('serverInfoSaved');
   }, [editServer, onSuccess, onUpdateServerBinding, serverBinding, setIsGlobalSaving]);
 
   const handleUnbindServer = useCallback(async () => {
     setIsGlobalSaving(true);
     await onUpdateServerBinding(null);
     setIsGlobalSaving(false);
-    setIsEditingServer(false);
-    onSuccess('已解除服务器绑定');
+    onSuccess('serverUnbound');
   }, [onSuccess, onUpdateServerBinding, setIsGlobalSaving]);
 
   const handleAutoJoinChange = useCallback(async (checked: boolean) => {
     setIsGlobalSaving(true);
     await onUpdateAutoJoinServer(checked);
     setIsGlobalSaving(false);
-    onSuccess(checked ? '已开启自动进入服务器' : '已关闭自动进入服务器');
+    onSuccess(checked ? 'autoJoinEnabled' : 'autoJoinDisabled');
   }, [onSuccess, onUpdateAutoJoinServer, setIsGlobalSaving]);
 
   return {

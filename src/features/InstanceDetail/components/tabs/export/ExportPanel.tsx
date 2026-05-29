@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary';
 import { OreOverlayScrollArea } from '../../../../../ui/primitives/OreOverlayScrollArea';
@@ -32,7 +33,6 @@ interface ExportPanelProps {
   defaultVersion?: string;
 }
 
-const stepLabels = ['基础信息', '导出内容', '格式优化', '最终确认'];
 const slideVariants = {
   enter: (direction: number) => ({
     x: direction > 0 ? '3rem' : direction < 0 ? '-3rem' : 0,
@@ -54,6 +54,13 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({
   defaultHeroLogo,
   defaultVersion,
 }) => {
+  const { t } = useTranslation();
+  const stepLabels = [
+    t('instanceDetail.export.steps.basic', { defaultValue: '基础信息' }),
+    t('instanceDetail.export.steps.content', { defaultValue: '导出内容' }),
+    t('instanceDetail.export.steps.optimization', { defaultValue: '格式优化' }),
+    t('instanceDetail.export.steps.confirm', { defaultValue: '最终确认' }),
+  ];
   const [step, setStep] = useState(1);
   const [navigationDirection, setNavigationDirection] = useState(0);
   const initialized = useRef(false);

@@ -40,7 +40,7 @@ export const BaseDirectorySection: React.FC<BaseDirectorySectionProps> = ({
             onClick={onOpenBrowser}
             focusKey="settings-data-modify-dir"
             onArrowPress={onArrowPress}
-            className="w-[200px] justify-center whitespace-nowrap"
+            className="w-[240px] justify-center whitespace-nowrap"
           >
             <LogOut size={16} className="mr-1.5" /> {t('settings.data.btnModify')}
           </OreButton>
@@ -57,7 +57,7 @@ export const BaseDirectorySection: React.FC<BaseDirectorySectionProps> = ({
             onClick={onOpenRename}
             focusKey="settings-data-rename-dir"
             onArrowPress={onArrowPress}
-            className="w-[200px] justify-center whitespace-nowrap"
+            className="w-[240px] justify-center whitespace-nowrap"
           >
             <Edit2 size={16} className="mr-1.5" /> {t('settings.data.btnRename')}
           </OreButton>
@@ -74,7 +74,7 @@ export const BaseDirectorySection: React.FC<BaseDirectorySectionProps> = ({
             onClick={onOpenCleanLogs}
             focusKey="settings-data-clean-logs"
             onArrowPress={onArrowPress}
-            className="w-[200px] justify-center whitespace-nowrap"
+            className="w-[240px] justify-center whitespace-nowrap"
           >
             <FileX size={16} className="mr-1.5" /> {t('settings.data.btnCleanLogs')}
           </OreButton>
@@ -91,7 +91,7 @@ export const BaseDirectorySection: React.FC<BaseDirectorySectionProps> = ({
             onClick={onOpenRemoteLogs}
             focusKey="settings-data-remote-logs"
             onArrowPress={onArrowPress}
-            className="w-[200px] justify-center whitespace-nowrap"
+            className="w-[240px] justify-center whitespace-nowrap"
           >
             <Trash2 size={16} className="mr-1.5" /> {t('settings.data.remoteLogs.manage')}
           </OreButton>
@@ -108,7 +108,7 @@ export const BaseDirectorySection: React.FC<BaseDirectorySectionProps> = ({
             onClick={onOpenManageInstances}
             focusKey="settings-data-manage-instances"
             onArrowPress={onArrowPress}
-            className="w-[200px] justify-center whitespace-nowrap"
+            className="w-[240px] justify-center whitespace-nowrap"
           >
             <FolderKanban size={16} className="mr-1.5" /> {t('settings.data.manageInstances.btn', '管理本地实例')}
           </OreButton>

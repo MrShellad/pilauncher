@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldCheck, Wrench } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { OreButton } from '../../../../../../ui/primitives/OreButton';
 import { SettingsSection } from '../../../../../../ui/layout/SettingsSection';
@@ -16,6 +17,7 @@ export const MaintenanceSection: React.FC<MaintenanceSectionProps> = ({
   onVerifyFiles,
   onRepairFiles,
 }) => {
+  const { t } = useTranslation();
   const {
     isVerifyDialogOpen,
     verifyState,
@@ -31,10 +33,10 @@ export const MaintenanceSection: React.FC<MaintenanceSectionProps> = ({
 
   return (
     <>
-      <SettingsSection title="实例维护" icon={<Wrench size="1.125rem" />}>
+      <SettingsSection title={t('instanceDetail.basic.maintenance.title', '实例维护')} icon={<Wrench size="1.125rem" />}>
         <FormRow
-          label="补全缺失文件"
-          description="自动检查并重新下载缺失的核心文件、运行库或依赖资源。"
+          label={t('instanceDetail.basic.maintenance.label', '补全缺失文件')}
+          description={t('instanceDetail.basic.maintenance.desc', '自动检查并重新下载缺失的核心文件、运行库或依赖资源。')}
           control={
             <OreButton
               focusKey="basic-btn-verify-files"
@@ -43,7 +45,7 @@ export const MaintenanceSection: React.FC<MaintenanceSectionProps> = ({
               disabled={isGlobalSaving || isInitializing || verifyBusy}
               className="w-40"
             >
-              <ShieldCheck size="1rem" className="mr-2" /> 校验补全
+              <ShieldCheck size="1rem" className="mr-2" /> {t('instanceDetail.basic.maintenance.btn', '校验补全')}
             </OreButton>
           }
         />

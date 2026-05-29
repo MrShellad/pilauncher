@@ -14,6 +14,7 @@ import {
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 
 import { useToastStore } from '../../../../../store/useToastStore';
 import { OreButton } from '../../../../../ui/primitives/OreButton';
@@ -30,6 +31,7 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
   data,
   onChange,
 }) => {
+  const { t } = useTranslation();
   const [defaultPath, setDefaultPath] = useState('');
   const addToast = useToastStore((s) => s.addToast);
 
@@ -50,21 +52,21 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
   }, [instanceId]);
 
   const toggles = [
-    { id: 'includeMods', label: 'Mods', icon: Blocks, desc: '包含 mods 文件夹' },
-    { id: 'includeConfigs', label: 'Config', icon: Settings2, desc: '包含 config 文件夹' },
+    { id: 'includeMods', label: 'Mods', icon: Blocks, desc: t('instanceDetail.export.content.toggles.mods', { defaultValue: '包含 mods 文件夹' }) },
+    { id: 'includeConfigs', label: 'Config', icon: Settings2, desc: t('instanceDetail.export.content.toggles.config', { defaultValue: '包含 config 文件夹' }) },
     {
       id: 'includeResourcePacks',
-      label: '资源包',
+      label: t('instanceDetail.export.content.toggles.resourcePacksLabel', { defaultValue: '资源包' }),
       icon: FolderArchive,
-      desc: '包含 resourcepacks 文件夹',
+      desc: t('instanceDetail.export.content.toggles.resourcePacks', { defaultValue: '包含 resourcepacks 文件夹' }),
     },
     {
       id: 'includeShaderPacks',
-      label: '光影包',
+      label: t('instanceDetail.export.content.toggles.shaderPacksLabel', { defaultValue: '光影包' }),
       icon: ImageIcon,
-      desc: '包含 shaderpacks 文件夹',
+      desc: t('instanceDetail.export.content.toggles.shaderPacks', { defaultValue: '包含 shaderpacks 文件夹' }),
     },
-    { id: 'includeSaves', label: '存档', icon: HardDrive, desc: '包含 saves 文件夹' },
+    { id: 'includeSaves', label: t('instanceDetail.export.content.toggles.savesLabel', { defaultValue: '存档' }), icon: HardDrive, desc: t('instanceDetail.export.content.toggles.saves', { defaultValue: '包含 saves 文件夹' }) },
   ] as const;
 
   const toggleStatus = (id: (typeof toggles)[number]['id']) => {
@@ -83,7 +85,7 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
 
       const trimmedPath = selectedPath.trim();
       if (data.additionalPaths.find((item) => item.path === trimmedPath)) {
-        addToast('warning', `目录 [${getBasename(trimmedPath)}] 已在附加列表中，请勿重复添加`);
+        addToast('warning', t('instanceDetail.export.content.directoryAlreadyAdded', { defaultValue: '目录 [{{name}}] 已在附加列表中，请勿重复添加', name: getBasename(trimmedPath) }));
       } else {
         onChange({
           additionalPaths: [...data.additionalPaths, { path: trimmedPath, type: 'dir' }],
@@ -91,7 +93,7 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
       }
     } catch (error) {
       console.error('Failed to open directory dialog', error);
-      addToast('error', '打开目录选择器失败，请检查系统权限');
+      addToast('error', t('instanceDetail.export.content.openDirectoryPickerFailed', { defaultValue: '打开目录选择器失败，请检查系统权限' }));
     }
   };
 
@@ -124,7 +126,7 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
       if (duplicatePaths.length > 0) {
         addToast(
           'warning',
-          `文件 [${duplicatePaths.map((p) => getBasename(p)).join(', ')}] 已在附加列表中，请勿重复添加`
+          t('instanceDetail.export.content.fileAlreadyAdded', { defaultValue: '文件 [{{names}}] 已在附加列表中，请勿重复添加', names: duplicatePaths.map((p) => getBasename(p)).join(', ') })
         );
       }
 
@@ -134,7 +136,7 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
       }
     } catch (error) {
       console.error('Failed to open file dialog', error);
-      addToast('error', '打开文件选择器失败，请检查系统权限');
+      addToast('error', t('instanceDetail.export.content.openFilePickerFailed', { defaultValue: '打开文件选择器失败，请检查系统权限' }));
     }
   };
 
@@ -185,16 +187,16 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <label className="flex items-center text-sm font-bold text-[#D0D1D4]">
             <Plus size={16} className="mr-2 text-[#B1B2B5]" />
-            附加自定义内容
+            {t('instanceDetail.export.content.additionalContent', { defaultValue: '附加自定义内容' })}
           </label>
           <div className="flex flex-wrap gap-2">
             <OreButton variant="secondary" size="sm" onClick={handleSelectDir}>
               <FolderArchive size={14} className="mr-2" />
-              目录
+              {t('instanceDetail.export.content.directory', { defaultValue: '目录' })}
             </OreButton>
             <OreButton variant="secondary" size="sm" onClick={handleAddFile}>
               <FilePlus2 size={14} className="mr-2" />
-              文件
+              {t('instanceDetail.export.content.file', { defaultValue: '文件' })}
             </OreButton>
           </div>
         </div>
@@ -235,7 +237,7 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
           </div>
         ) : (
           <div className="mt-2 text-xs italic text-[#58585A]">
-            当前没有手动附加额外的文件或目录。
+            {t('instanceDetail.export.content.noAdditionalPaths', { defaultValue: '当前没有手动附加额外的文件或目录。' })}
           </div>
         )}
       </div>

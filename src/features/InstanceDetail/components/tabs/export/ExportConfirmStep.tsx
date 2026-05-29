@@ -14,6 +14,7 @@ import { listen } from '@tauri-apps/api/event';
 import { join } from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/plugin-dialog';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { useTranslation } from 'react-i18next';
 
 import { OreButton } from '../../../../../ui/primitives/OreButton';
 import type { ExportData } from './ExportPanel';
@@ -31,13 +32,6 @@ interface ExportProgress {
   stage: string;
 }
 
-const formatLabels: Record<ExportData['format'], string> = {
-  zip: '标准 ZIP',
-  curseforge: 'CurseForge',
-  mrpack: 'Modrinth (mrpack)',
-  pipack: 'PiPack',
-};
-
 const getBasename = (path: string) => path.split(/[/\\]/).pop() || path;
 
 export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
@@ -45,10 +39,18 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
   data,
   onBack,
 }) => {
+  const { t } = useTranslation();
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const [status, setStatus] = useState<'idle' | 'exporting' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [outputDir, setOutputDir] = useState('');
+
+  const formatLabels: Record<ExportData['format'], string> = {
+    zip: t('instanceDetail.export.confirm.format.zip', { defaultValue: '标准 ZIP' }),
+    curseforge: 'CurseForge',
+    mrpack: 'Modrinth (mrpack)',
+    pipack: 'PiPack',
+  };
 
   useEffect(() => {
     const initOutputDir = async () => {
@@ -119,32 +121,36 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
     data.includeShaderPacks ? 'Shader Packs' : '',
     data.includeSaves ? 'Saves' : '',
     ...data.additionalPaths.map(
-      (item) => `自定义${item.type === 'dir' ? '目录' : '文件'}: ${getBasename(item.path)}`
+      (item) => t('instanceDetail.export.confirm.customItem', {
+        defaultValue: '自定义{{type}}: {{name}}',
+        type: item.type === 'dir' ? t('instanceDetail.export.confirm.customDir', { defaultValue: '目录' }) : t('instanceDetail.export.confirm.customFile', { defaultValue: '文件' }),
+        name: getBasename(item.path)
+      })
     ),
   ].filter(Boolean);
 
   const manifestSummaryValue =
     data.format === 'pipack'
-      ? 'PiPack 强制启用'
+      ? t('instanceDetail.export.confirm.manifest.pipackForce', { defaultValue: 'PiPack 强制启用' })
       : data.format === 'zip'
-        ? '标准 ZIP 不使用 Manifest'
+        ? t('instanceDetail.export.confirm.manifest.zipDisabled', { defaultValue: '标准 ZIP 不使用 Manifest' })
         : effectiveManifestMode
-          ? '已启用'
-          : '未启用';
+          ? t('instanceDetail.export.confirm.manifest.enabled', { defaultValue: '已启用' })
+          : t('instanceDetail.export.confirm.manifest.disabled', { defaultValue: '未启用' });
 
   const summaryItems = [
-    { label: '整合包名称', value: data.name || '未填写' },
-    { label: '版本号', value: data.version || '未填写' },
-    { label: '作者', value: data.author || '未填写' },
-    { label: '导出格式', value: formatLabels[data.format], accent: 'text-[#3C8527]' },
+    { label: t('instanceDetail.export.confirm.packName', { defaultValue: '整合包名称' }), value: data.name || t('instanceDetail.export.confirm.empty', { defaultValue: '未填写' }) },
+    { label: t('instanceDetail.export.confirm.version', { defaultValue: '版本号' }), value: data.version || t('instanceDetail.export.confirm.empty', { defaultValue: '未填写' }) },
+    { label: t('instanceDetail.export.confirm.author', { defaultValue: '作者' }), value: data.author || t('instanceDetail.export.confirm.empty', { defaultValue: '未填写' }) },
+    { label: t('instanceDetail.export.confirm.exportFormat', { defaultValue: '导出格式' }), value: formatLabels[data.format], accent: 'text-[#3C8527]' },
     {
-      label: 'Manifest 模式',
+      label: t('instanceDetail.export.confirm.manifestMode', { defaultValue: 'Manifest 模式' }),
       value: manifestSummaryValue,
     },
-    { label: 'Hero Logo', value: data.heroLogo ? '已设置' : '未设置' },
+    { label: t('instanceDetail.export.confirm.heroLogo', { defaultValue: 'Hero Logo' }), value: data.heroLogo ? t('instanceDetail.export.confirm.set', { defaultValue: '已设置' }) : t('instanceDetail.export.confirm.notSet', { defaultValue: '未设置' }) },
     {
-      label: '附加内容',
-      value: data.additionalPaths.length > 0 ? `${data.additionalPaths.length} 项` : '无',
+      label: t('instanceDetail.export.confirm.additionalPaths', { defaultValue: '附加内容' }),
+      value: data.additionalPaths.length > 0 ? t('instanceDetail.export.confirm.itemsCount', { defaultValue: '{{count}} 项', count: data.additionalPaths.length }) : t('instanceDetail.export.confirm.none', { defaultValue: '无' }),
     },
   ];
 
@@ -206,7 +212,7 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
           <div className="rounded-sm border-2 border-[#18181B] bg-[#1E1E1F] p-4 shadow-[inset_0.125rem_0.125rem_rgba(255,255,255,0.05)] sm:p-5 xl:p-6">
             <div className="flex items-center text-sm font-bold uppercase tracking-[0.18em] text-[#D0D1D4]">
               <List size={18} className="mr-2 text-[#B1B2B5]" />
-              参数摘要
+              {t('instanceDetail.export.confirm.summaryTitle', { defaultValue: '参数摘要' })}
             </div>
 
             <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
@@ -231,17 +237,17 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
 
                 <div className="rounded-sm border border-[#18181B] bg-[#2A2A2C] px-4 py-3 shadow-[inset_0.0625rem_0.0625rem_rgba(255,255,255,0.05)] sm:col-span-2">
                   <div className="text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-[#8E8F92]">
-                    描述
+                    {t('instanceDetail.export.confirm.description', { defaultValue: '描述' })}
                   </div>
                   <p className="mt-2 break-words text-sm leading-6 text-[#E6E8EB]">
-                    {data.description || '未填写说明。'}
+                    {data.description || t('instanceDetail.export.confirm.noDescription', { defaultValue: '未填写说明。' })}
                   </p>
                 </div>
               </div>
 
               <div className="rounded-sm border-2 border-[#18181B] bg-[#313233] p-4 shadow-[inset_0_0.25rem_0.5rem_-0.125rem_rgba(0,0,0,0.25)] sm:p-5">
                 <div className="text-sm font-bold uppercase tracking-[0.18em] text-[#D0D1D4]">
-                  包含内容
+                  {t('instanceDetail.export.confirm.includeContent', { defaultValue: '包含内容' })}
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2.5">
                   {contentList.length > 0 ? (
@@ -254,7 +260,7 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
                       </span>
                     ))
                   ) : (
-                    <span className="text-sm font-bold text-[#C33636]">当前没有勾选任何导出内容。</span>
+                    <span className="text-sm font-bold text-[#C33636]">{t('instanceDetail.export.confirm.emptyIncludeContent', { defaultValue: '当前没有勾选任何导出内容。' })}</span>
                   )}
                 </div>
               </div>
@@ -266,7 +272,7 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
               <div className="flex flex-col gap-3 border-b-2 border-[#18181B] pb-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center text-sm font-bold text-[#D0D1D4]">
                   <Folder size={16} className="mr-2 text-[#B1B2B5]" />
-                  导出路径
+                  {t('instanceDetail.export.confirm.exportPath', { defaultValue: '导出路径' })}
                 </div>
                 <OreButton
                   size="sm"
@@ -274,23 +280,23 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
                   className="w-full sm:w-auto"
                   onClick={handleChangeOutputDir}
                 >
-                  更改路径
+                  {t('instanceDetail.export.confirm.changePath', { defaultValue: '更改路径' })}
                 </OreButton>
               </div>
 
               <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(14rem,18rem)]">
                 <div className="min-w-0 rounded-sm border border-[#2A2A2C] bg-[#141415] p-3 shadow-inner">
                   <div className="text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-[#8E8F92]">
-                    输出目录
+                    {t('instanceDetail.export.confirm.outputDir', { defaultValue: '输出目录' })}
                   </div>
                   <div className="mt-1 break-all text-sm leading-6 text-[#E6E8EB]" title={outputDir}>
-                    {outputDir || '正在获取默认路径...'}
+                    {outputDir || t('instanceDetail.export.confirm.fetchingPath', { defaultValue: '正在获取默认路径...' })}
                   </div>
                 </div>
 
                 <div className="min-w-0 rounded-sm border border-[#2A2A2C] bg-[#141415] p-3 shadow-inner">
                   <div className="text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-[#8E8F92]">
-                    输出文件
+                    {t('instanceDetail.export.confirm.outputFile', { defaultValue: '输出文件' })}
                   </div>
                   <div className="mt-1 break-all text-sm leading-6 text-[#D0D1D4]">
                     {outputFileName}
@@ -302,10 +308,10 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
             <div className="flex flex-col justify-between gap-4 rounded-sm border-2 border-[#18181B] bg-[#313233] p-4 shadow-[inset_0_0.25rem_0.5rem_-0.125rem_rgba(0,0,0,0.25)] sm:p-5">
               <div>
                 <div className="text-sm font-bold uppercase tracking-[0.18em] text-[#D0D1D4]">
-                  准备导出
+                  {t('instanceDetail.export.confirm.readyToExport', { defaultValue: '准备导出' })}
                 </div>
                 <p className="mt-2 text-xs leading-6 text-[#B1B2B5]">
-                  将根据当前参数生成整合包，并写入上方指定的导出目录。
+                  {t('instanceDetail.export.confirm.readyDesc', { defaultValue: '将根据当前参数生成整合包，并写入上方指定的导出目录。' })}
                 </p>
               </div>
 
@@ -317,7 +323,7 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
                 className="min-h-[3.5rem]"
               >
                 <Download size={20} className="mr-3" />
-                立即执行打包
+                {t('instanceDetail.export.confirm.startExport', { defaultValue: '立即执行打包' })}
               </OreButton>
             </div>
           </div>
@@ -348,7 +354,7 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
 
           <div className="w-full shrink-0 space-y-2 text-center">
             <h4 className="text-xl font-bold uppercase tracking-widest text-white ore-text-shadow">
-              {status === 'exporting' ? '正在执行打包流程...' : '导出完成'}
+              {status === 'exporting' ? t('instanceDetail.export.confirm.exporting', { defaultValue: '正在执行打包流程...' }) : t('instanceDetail.export.confirm.exportSuccess', { defaultValue: '导出完成' })}
             </h4>
             <p className="mx-auto max-w-[25rem] truncate text-xs uppercase tracking-widest text-[#B1B2B5]">
               {progress?.message || 'PREPARING EXPORT TASK...'}
@@ -394,10 +400,10 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
                 size="lg"
               >
                 <ExternalLink size={18} className="mr-2" />
-                打开所在目录
+                {t('instanceDetail.export.confirm.openDir', { defaultValue: '打开所在目录' })}
               </OreButton>
               <OreButton focusKey="export-success-back-btn" variant="primary" onClick={onBack} size="lg">
-                返回导出设置
+                {t('instanceDetail.export.confirm.backToSettings', { defaultValue: '返回导出设置' })}
               </OreButton>
             </motion.div>
           )}
@@ -409,7 +415,7 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
           <AlertTriangle size={64} className="shrink-0 text-white drop-shadow-lg" />
           <div className="shrink-0 space-y-2 overflow-y-auto pb-4">
             <h4 className="text-2xl font-bold uppercase tracking-widest text-white ore-text-shadow">
-              打包任务异常终止
+              {t('instanceDetail.export.confirm.exportError', { defaultValue: '打包任务异常终止' })}
             </h4>
             <p className="max-h-[9.375rem] max-w-md overflow-y-auto break-all border border-[#8B0000] bg-[#AD1D1D] p-4 text-left text-sm font-bold text-white shadow-inner custom-scrollbar">
               {errorMessage}
@@ -422,7 +428,7 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
             size="lg"
             className="ring-2 ring-white"
           >
-            返回并重试
+            {t('instanceDetail.export.confirm.backAndRetry', { defaultValue: '返回并重试' })}
           </OreButton>
         </div>
       )}

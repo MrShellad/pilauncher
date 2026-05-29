@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { useTranslation } from 'react-i18next';
+
 import { OreModal } from '../../../../../../../../ui/primitives/OreModal';
 import { OreButton } from '../../../../../../../../ui/primitives/OreButton';
 import { FocusBoundary } from '../../../../../../../../ui/focus/FocusBoundary';
@@ -30,6 +32,7 @@ export const ModMetadataSettingsModal: React.FC<ModMetadataSettingsModalProps> =
   onReidentifyMod,
   onSettingsUpdated
 }) => {
+  const { t } = useTranslation();
   const [metadataPlatformDraft, setMetadataPlatformDraft] = useState<ModPlatformPreference>('auto');
   const [updatePlatformDraft, setUpdatePlatformDraft] = useState<ModPlatformPreference>('auto');
   const [isSaving, setIsSaving] = useState(false);
@@ -81,7 +84,7 @@ export const ModMetadataSettingsModal: React.FC<ModMetadataSettingsModalProps> =
   };
 
   const toggleOptions = PLATFORM_TABS.map((tab) => ({
-    label: tab.label,
+    label: tab.id === 'auto' ? t('instanceDetail.mods.metadataSettings.auto', { defaultValue: '自动' }) : tab.label,
     value: tab.id
   }));
 
@@ -95,7 +98,7 @@ export const ModMetadataSettingsModal: React.FC<ModMetadataSettingsModalProps> =
         disabled={isReidentifying || isSaving}
       >
         <RefreshCw size={14} className={`mr-1.5 ${isReidentifying ? 'animate-spin' : ''}`} />
-        重新识别
+        {t('instanceDetail.mods.metadataSettings.reidentify', { defaultValue: '重新识别' })}
       </OreButton>
       <OreButton
         focusKey="metadata-save"
@@ -104,7 +107,7 @@ export const ModMetadataSettingsModal: React.FC<ModMetadataSettingsModalProps> =
         onClick={handleSave}
         disabled={isReidentifying || isSaving}
       >
-        {isSaving ? '保存中...' : '保存'}
+        {isSaving ? t('instanceDetail.mods.metadataSettings.saving', { defaultValue: '保存中...' }) : t('instanceDetail.mods.metadataSettings.save', { defaultValue: '保存' })}
       </OreButton>
       <OreButton
         focusKey="metadata-cancel"
@@ -113,7 +116,7 @@ export const ModMetadataSettingsModal: React.FC<ModMetadataSettingsModalProps> =
         onClick={onClose}
         disabled={isReidentifying || isSaving}
       >
-        取消
+        {t('instanceDetail.mods.metadataSettings.cancel', { defaultValue: '取消' })}
       </OreButton>
     </>
   );
@@ -122,7 +125,7 @@ export const ModMetadataSettingsModal: React.FC<ModMetadataSettingsModalProps> =
     <OreModal
       isOpen={isOpen}
       onClose={onClose}
-      title="MOD 元数据"
+      title={t('instanceDetail.mods.metadataSettings.title', { defaultValue: 'MOD 元数据' })}
       className="w-[95vw] max-w-xl"
       actionsClassName="!justify-center"
       defaultFocusKey="metadata-platform-0"
@@ -136,10 +139,10 @@ export const ModMetadataSettingsModal: React.FC<ModMetadataSettingsModalProps> =
       >
         <div className="rounded-sm border-[2px] border-[var(--ore-border-color)] bg-[var(--ore-color-background-surface-panel)] p-4">
           <div className="mb-2 flex items-center justify-between gap-3">
-            <h3 className="text-sm text-white">元数据平台</h3>
+            <h3 className="text-sm text-white">{t('instanceDetail.mods.metadataSettings.platform', { defaultValue: '元数据平台' })}</h3>
             {displayMod.manifestEntry?.metadataSettings?.metadataLocked && (
               <span className="rounded-sm border-[2px] border-[var(--ore-border-color)] bg-[#7AA2FF]/10 px-2 py-1 text-xs text-[#AFC4FF]">
-                已锁定
+                {t('instanceDetail.mods.metadataSettings.locked', { defaultValue: '已锁定' })}
               </span>
             )}
           </div>
@@ -154,10 +157,10 @@ export const ModMetadataSettingsModal: React.FC<ModMetadataSettingsModalProps> =
 
         <div className="rounded-sm border-[2px] border-[var(--ore-border-color)] bg-[var(--ore-color-background-surface-panel)] p-4">
           <div className="mb-2 flex items-center justify-between gap-3">
-            <h3 className="text-sm text-white">更新来源</h3>
+            <h3 className="text-sm text-white">{t('instanceDetail.mods.metadataSettings.updateSource', { defaultValue: '更新来源' })}</h3>
             {displayMod.manifestEntry?.metadataSettings?.updateLocked && (
               <span className="rounded-sm border-[2px] border-[var(--ore-border-color)] bg-[#7AA2FF]/10 px-2 py-1 text-xs text-[#AFC4FF]">
-                已锁定
+                {t('instanceDetail.mods.metadataSettings.locked', { defaultValue: '已锁定' })}
               </span>
             )}
           </div>

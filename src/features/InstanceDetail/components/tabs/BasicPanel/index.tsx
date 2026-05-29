@@ -1,6 +1,7 @@
 import React from 'react';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { useTranslation } from 'react-i18next';
 
 import { SettingsPageLayout } from '../../../../../ui/layout/SettingsPageLayout';
 import { FocusItem } from '../../../../../ui/focus/FocusItem';
@@ -29,6 +30,7 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
   onRepairFiles,
   onDelete,
 }) => {
+  const { t } = useTranslation();
   const { isSaving, setIsSaving, successMsg, triggerSuccess } = useBasicPanelStatus();
 
   return (
@@ -51,12 +53,12 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
         <div className="flex justify-end h-6 mb-2 pr-6 font-minecraft transition-opacity duration-300">
           {isSaving && (
             <span className="text-ore-text-muted text-sm flex items-center">
-              <Loader2 size="0.875rem" className="animate-spin mr-1.5" /> 正在保存...
+              <Loader2 size="0.875rem" className="animate-spin mr-1.5" /> {t('instanceDetail.basic.saving', '正在保存...')}
             </span>
           )}
           {successMsg && !isSaving && (
             <span className="text-ore-green text-sm flex items-center drop-shadow-[0_0_0.3125rem_rgba(56,133,39,0.5)]">
-              <CheckCircle2 size="0.875rem" className="mr-1.5" /> {successMsg}
+              <CheckCircle2 size="0.875rem" className="mr-1.5" /> {t(`instanceDetail.basic.successMessages.${successMsg}`, successMsg)}
             </span>
           )}
         </div>

@@ -31,7 +31,7 @@ export const useCustomLinksSection = ({
     setIsGlobalSaving(true);
     await onUpdateCustomButtons(customButtons);
     setIsGlobalSaving(false);
-    onSuccess('自定义链接已保存');
+    onSuccess('customLinksSaved');
   }, [customButtons, onSuccess, onUpdateCustomButtons, setIsGlobalSaving]);
 
   const handleAddButton = useCallback(() => {

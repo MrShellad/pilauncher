@@ -1066,7 +1066,7 @@
         "syncNow": "立即同步",
         "connectionTitle": "连接设置",
         "connectionDesc": "WebDAV 地址会作为 PiLauncherSync 的根入口，账号密码为空时按匿名访问处理。",
-"address": "WebDAV 地址",
+        "address": "WebDAV 地址",
         "addressProtocolError": "请输入 http:// 或 https:// 开头的 WebDAV 地址。",
         "defaultPort": "{{protocol}} 默认端口 {{port}}。",
         "username": "账号",
@@ -1714,6 +1714,367 @@
       "render": "渲染初始化时间",
       "total": "总计耗时",
       "wait": "Wait..."
+    }
+  },
+  "instanceDetail": {
+    "basic": {
+      "info": {
+        "title": "基本信息",
+        "nameLabel": "实例名称",
+        "nameDesc": "用于在列表中显示的自定义名称。",
+        "namePlaceholder": "输入实例名称",
+        "save": "保存",
+        "coverLabel": "实例封面",
+        "coverDesc": "支持 .png 或 .jpg 格式，建议比例 16:9。",
+        "changeCover": "更换封面"
+      },
+      "links": {
+        "title": "自定义链接管理",
+        "label": "快速链接",
+        "desc": "为整合包添加快速链接按钮（如 Wiki、社区、官网等），将展示在主页 and 概览页。留空标题时将使用平台名称。",
+        "placeholderTitle": "自定义标题",
+        "deleteLink": "删除链接",
+        "empty": "暂无自定义链接，点击下方添加",
+        "manageLabel": "管理链接",
+        "addLink": "添加链接",
+        "saveConfig": "保存配置"
+      },
+      "danger": {
+        "title": "危险区域",
+        "deleteLabel": "彻底删除实例",
+        "deleteDesc": "此操作不可逆，将永久删除该实例的所有本地文件与存档。",
+        "deleteBtn": "彻底删除",
+        "confirmTitle": "警告：彻底删除实例",
+        "confirmHeadlinePrefix": "您确定要彻底删除实例 ",
+        "confirmHeadlineSuffix": " 吗？",
+        "confirmDesc": "此操作无法撤销，与该实例相关的所有配置、模组以及游戏存档都会被永久清除。",
+        "confirmBtn": "强制删除"
+      },
+      "env": {
+        "title": "运行环境",
+        "label": "游戏与 Loader 版本",
+        "desc": "切换当前实例的 Minecraft、Fabric、Forge、NeoForge 或 Quilt 环境。",
+        "changeBtn": "更改版本",
+        "modalTitle": "切换实例环境",
+        "mcVersion": "Minecraft 版本",
+        "category": "分类",
+        "loadingVersions": "正在加载版本列表...",
+        "loaderVersion": "Loader 版本",
+        "vanillaNoNeedLoader": "原版实例不需要额外 Loader。",
+        "loaderHint": "Loader",
+        "bottomHint": "底部",
+        "vanillaEnv": "原版环境",
+        "findingCompatible": "正在查找兼容版本...",
+        "currentMc": "当前 Minecraft",
+        "versionTypes": {
+          "release": "正式版",
+          "snapshot": "快照",
+          "rc": "候选版",
+          "pre": "预览版",
+          "special": "特殊"
+        },
+        "fetchMcVersionsFailed": "获取 Minecraft 版本列表失败",
+        "fetchLoaderVersionsFailed": "获取 Loader 版本列表失败"
+      },
+      "maintenance": {
+        "title": "实例维护",
+        "label": "补全缺失文件",
+        "desc": "自动检查并重新下载缺失的核心文件、运行库或依赖资源。",
+        "btn": "校验补全"
+      },
+      "server": {
+        "title": "实例服务器",
+        "bindLabel": "绑定服务器",
+        "editHelp": "修改服务器信息后点击保存即可生效。",
+        "bindHelp": "当前实例已绑定到以下服务器，启动游戏时可自动连接。",
+        "placeholderName": "服务器名称",
+        "placeholderIp": "服务器地址 (IP 或域名)",
+        "placeholderPort": "端口",
+        "unbindBtn": "解除绑定",
+        "autoJoinLabel": "启动时自动进入服务器",
+        "autoJoinDesc": "开启后，启动游戏将自动连接 to 绑定的服务器，无需手动选择。",
+        "unbindHelpText": "当前实例未绑定任何服务器。你可以手动添加或在多人游戏页面中绑定。",
+        "addServerBtn": "添加服务器"
+      },
+      "tags": {
+        "title": "标签管理",
+        "addLabel": "添加标签",
+        "addDesc": "选择图标后输入标签名，也可以在输入框中选择已有标签；确认后立即保存。",
+        "placeholderInput": "输入标签名称或选择已有标签",
+        "currentLabel": "当前标签",
+        "currentDesc": "这些标签会出现在实例列表的标签筛选中。",
+        "empty": "暂无标签",
+        "removeTitle": "移除标签",
+        "dropdownOptions": {
+          "star": "收藏",
+          "tool": "工具",
+          "sword": "战斗",
+          "pickaxe": "采集",
+          "seedling": "生存",
+          "sparkles": "魔法",
+          "rocket": "科技"
+        }
+      },
+      "saving": "正在保存...",
+      "successMessages": {
+        "nameSaved": "实例名称已保存",
+        "tagsSaved": "实例标签已保存",
+        "customLinksSaved": "自定义链接配置已保存",
+        "environmentUpdated": "实例运行环境已更新",
+        "serverInfoSaved": "绑定的服务器信息已保存",
+        "serverUnbound": "服务器绑定已解除",
+        "autoJoinEnabled": "启动自动进入已启用",
+        "autoJoinDisabled": "启动自动进入已禁用"
+      }
+    },
+    "export": {
+      "basic": {
+        "openImagePickerFailed": "打开图片选择器失败，请检查系统权限",
+        "packName": "整合包名称",
+        "packNamePlaceholder": "例如：我的冒险整合包",
+        "version": "版本号",
+        "versionPlaceholder": "例如：1.0.0",
+        "author": "作者",
+        "authorPlaceholder": "填写作者名称",
+        "heroLogo": "Hero Logo",
+        "noLogoImage": "无 Logo 图片",
+        "changeImage": "更换图片",
+        "selectImage": "选择图片",
+        "description": "描述",
+        "descriptionPlaceholder": "简要介绍这个整合包的主题、玩法或定位。"
+      },
+      "confirm": {
+        "format": {
+          "zip": "标准 ZIP"
+        },
+        "customItem": "自定义{{type}}: {{name}}",
+        "customDir": "目录",
+        "customFile": "文件",
+        "manifest": {
+          "pipackForce": "PiPack 强制启用",
+          "zipDisabled": "标准 ZIP 不使用 Manifest",
+          "enabled": "已启用",
+          "disabled": "未启用"
+        },
+        "packName": "整合包名称",
+        "empty": "未填写",
+        "version": "版本号",
+        "author": "作者",
+        "exportFormat": "导出格式",
+        "manifestMode": "Manifest 模式",
+        "heroLogo": "Hero Logo",
+        "set": "已设置",
+        "notSet": "未设置",
+        "additionalPaths": "附加内容",
+        "itemsCount": "{{count}} 项",
+        "none": "无",
+        "summaryTitle": "参数摘要",
+        "description": "描述",
+        "noDescription": "未填写说明。",
+        "includeContent": "包含内容",
+        "emptyIncludeContent": "当前没有勾选任何导出内容。",
+        "exportPath": "导出路径",
+        "changePath": "更改路径",
+        "outputDir": "输出目录",
+        "fetchingPath": "正在获取默认路径...",
+        "outputFile": "输出文件",
+        "readyToExport": "准备导出",
+        "readyDesc": "将根据当前参数生成整合包，并写入上方指定的导出目录。",
+        "startExport": "立即执行打包",
+        "exporting": "正在执行打包流程...",
+        "exportSuccess": "导出完成",
+        "openDir": "打开所在目录",
+        "backToSettings": "返回导出设置",
+        "exportError": "打包任务异常终止",
+        "backAndRetry": "返回并重试"
+      },
+      "content": {
+        "toggles": {
+          "mods": "包含 mods 文件夹",
+          "config": "包含 config 文件夹",
+          "resourcePacksLabel": "资源包",
+          "resourcePacks": "包含 resourcepacks 文件夹",
+          "shaderPacksLabel": "光影包",
+          "shaderPacks": "包含 shaderpacks 文件夹",
+          "savesLabel": "存档",
+          "saves": "包含 saves 文件夹"
+        },
+        "directoryAlreadyAdded": "目录 [{{name}}] 已在附加列表中，请勿重复添加",
+        "openDirectoryPickerFailed": "打开目录选择器失败，请检查系统权限",
+        "fileAlreadyAdded": "文件 [{{names}}] 已在附加列表中，请勿重复添加",
+        "openFilePickerFailed": "打开文件选择器失败，请检查系统权限",
+        "additionalContent": "附加自定义内容",
+        "directory": "目录",
+        "file": "文件",
+        "noAdditionalPaths": "当前没有手动附加额外的文件或目录。"
+      },
+      "optimization": {
+        "manifestLockedZipTooltip": "由于您选择了 Standard ZIP 格式，Manifest 模式已固定为禁用。",
+        "manifestLockedPipackTooltip": "由于您选择了 PiPack 格式，Manifest 模式已固定为启用。"
+      },
+      "steps": {
+        "basic": "基础信息",
+        "content": "导出内容",
+        "optimization": "格式优化",
+        "confirm": "最终确认"
+      }
+    },
+    "java": {
+      "savingLocal": "正在保存到本地...",
+      "autoSaveSuccess": "自动保存成功"
+    },
+    "mods": {
+      "identifyingToast": "正在识别模组网络数据，请稍候...",
+      "batchFavoriteNoMatch": "所选模组均无法在 CurseForge 或 Modrinth 上找到匹配项目，禁止收藏。",
+      "matchSuccessToast": "模组识别成功，即将加入收藏。",
+      "matchFailedToast": "识别模组元数据失败，请重试",
+      "singleFavoriteNoMatch": "该模组无法在 CurseForge 或 Modrinth 上找到匹配项目，禁止收藏本地未知模组。",
+      "upgradeSnapshotHeadline": "建议先记录当前模组状态",
+      "creating": "创建中...",
+      "deleteConfirm": {
+        "title": "删除模组",
+        "confirmPrefix": "确定要删除",
+        "confirmSuffix": "吗？",
+        "description": "此操作将会把该模组从实例的 mods 文件夹中移除，删除后无法通过启动器撤销恢复该文件。",
+        "cancel": "取消",
+        "confirm": "确认删除"
+      },
+      "header": {
+        "sourceLocal": "本地",
+        "unknown": "未知",
+        "matching": "匹配中...",
+        "linked": "已链接至 {{source}}",
+        "unmatched": "未找到匹配项目",
+        "disabled": "已禁用",
+        "fileLabel": "文件: {{fileName}}",
+        "sizeLabel": "大小: {{size}}",
+        "sourceLabel": "来源: {{source}}",
+        "statusLabel": "状态: {{status}}"
+      },
+      "metadataSettings": {
+        "auto": "自动",
+        "reidentify": "重新识别",
+        "saving": "保存中...",
+        "save": "保存",
+        "cancel": "取消",
+        "title": "MOD 元数据",
+        "platform": "元数据平台",
+        "locked": "已锁定",
+        "updateSource": "更新来源"
+      },
+      "versionHistory": {
+        "actions": {
+          "install": "安装",
+          "upgrade": "升级",
+          "downgrade": "降级",
+          "reinstall": "重装"
+        },
+        "title": "版本历史 (当前实例)",
+        "versionInfo": "版本: {{versionNumber}} • {{date}} 发布",
+        "empty": "暂无在 {{platform}} 上的版本记录"
+      },
+      "globalMetadata": {
+        "platformOptions": {
+          "auto": {
+            "label": "自动",
+            "desc": "根据模组文件哈希自动匹配"
+          },
+          "modrinth": {
+            "desc": "仅从 Modrinth 平台获取"
+          },
+          "curseforge": {
+            "desc": "仅从 CurseForge 平台获取"
+          }
+        },
+        "title": "全局模组元数据设置",
+        "saving": "保存中...",
+        "save": "保存修改",
+        "cancel": "取消",
+        "platformLabel": "全局元数据平台",
+        "updateLabel": "全局更新来源",
+        "tip": "提示：此设置将应用于当前实例中的所有模组。如果您选择特定 platform，将锁定它们的元数据或更新来源。",
+        "maintenanceLabel": "高级维护操作",
+        "maintenanceDesc": "如果模组匹配信息出现偏差或无法获取更新，可清空并重新从云端检索匹配所有模组的数据。",
+        "reidentifyingProgress": "正在重新匹配模组云端数据... ({{current}}/{{total}})",
+        "reidentifyAllBtn": "重新识别所有模组数据"
+      },
+      "detail": {
+        "disable": "禁用",
+        "enable": "启用",
+        "delete": "删除",
+        "favorite": "收藏",
+        "metadata": "元数据",
+        "cancel": "取消"
+      },
+      "deleteDialog": {
+        "title": "删除模组",
+        "confirmLabel": "确认删除",
+        "cancelLabel": "取消",
+        "confirmationNote": "删除后无法通过启动器撤销。"
+      },
+      "actionDowngrade": "降级",
+      "actionReinstall": "重装",
+      "actionInstall": "安装",
+      "actionUpgrade": "升级",
+      "globalMetadataSettingsSaved": "全局元数据设置已保存",
+      "globalMetadataSettingsSaveFailed": "保存全局元数据设置失败",
+      "metadataResetStart": "元数据已重置，正在重新云端匹配所有模组...",
+      "cloudMatchComplete": "云端匹配完成",
+      "cloudMatchFailed": "重新匹配失败",
+      "emptySearch": "没有匹配当前搜索的模组。",
+      "emptyInstance": "当前实例还没有模组。"
+    },
+    "overview": {
+      "changeHeroLogoTitle": "点击更换 Hero Logo",
+      "addHeroLogo": "添加 Hero Logo",
+      "changeHeroLogo": "更换 Logo",
+      "startGame": "开始游戏",
+      "needOpenFolderHandler": "需要传入 onOpenFolder 才能打开目录",
+      "instanceFolder": "实例目录",
+      "customLinks": "自定义链接"
+    },
+    "resourcepacks": {
+      "title": "本地资源包",
+      "downloadBtn": "下载资源包",
+      "openFolderBtn": "打开资源包目录",
+      "directoryPack": "文件夹资源包",
+      "zipPack": "ZIP 资源包",
+      "directory": "文件夹",
+      "deleteTitle": "删除资源包",
+      "deleteDesc": "这会从当前实例中永久移除该资源包文件，删除后无法通过启动器撤销。",
+      "deleteConfirmBtn": "确认删除",
+      "deleteNote": "删除操作不可恢复，请确认当前实例确实不再需要该资源包。"
+    },
+    "saves": {
+      "title": "存档备份",
+      "restoreCenter": "恢复中心",
+      "openFolder": "打开目录",
+      "configsRestored": "\\n已同时恢复配置文件。"
+    },
+    "shader": {
+      "title": "本地光影包",
+      "subtitle": "使用前请确保实例已安装 OptiFine、Iris 或 Oculus。",
+      "downloadShader": "下载光影",
+      "openShaderFolder": "打开光影目录",
+      "folderShaderPack": "文件夹光影包",
+      "zipShaderPack": "ZIP 光影包",
+      "deleteShaderPack": "删除光影包",
+      "deleteConfirmHeadline": "确认删除 \"{{fileName}}\" 吗？",
+      "deleteConfirmDescription": "这会从当前实例中永久移除该光影包文件，删除后无法通过启动器撤销。",
+      "confirmDelete": "确认删除",
+      "cancel": "取消",
+      "deleteConfirmNote": "删除操作不可恢复，请确认当前实例确实不再需要该光影包。"
+    },
+    "loading": "加载中...",
+    "tabs": {
+      "overview": "概览",
+      "basic": "基础",
+      "java": "Java",
+      "saves": "存档",
+      "mods": "MOD",
+      "resourcepacks": "资源包",
+      "shaders": "光影",
+      "export": "导出"
     }
   }
 }

@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { OreConfirmDialog } from '../../../../../../../ui/primitives/OreConfirmDialog';
 
@@ -39,6 +40,7 @@ export const ModPanelDialogs: React.FC<ModPanelDialogsProps> = ({
   onReidentifyAllMods,
   onAddFavorite
 }) => {
+  const { t } = useTranslation();
   const currentGlobalSettings = React.useMemo(() => {
     if (instanceConfig?.globalMetadataSettings) {
       return instanceConfig.globalMetadataSettings;
@@ -87,16 +89,16 @@ export const ModPanelDialogs: React.FC<ModPanelDialogsProps> = ({
         isOpen={state.pendingDelete !== null}
         onClose={actions.closeDeleteConfirm}
         onConfirm={actions.confirmDelete}
-        title={state.pendingDelete?.title ?? '删除模组'}
+        title={state.pendingDelete?.title ?? t('instanceDetail.mods.deleteDialog.title', { defaultValue: '删除模组' })}
         headline={state.pendingDelete?.description}
-        confirmLabel="确认删除"
-        cancelLabel="取消"
+        confirmLabel={t('instanceDetail.mods.deleteDialog.confirmLabel', { defaultValue: '确认删除' })}
+        cancelLabel={t('instanceDetail.mods.deleteDialog.cancelLabel', { defaultValue: '取消' })}
         confirmVariant="danger"
         confirmFocusKey="mod-delete-confirm"
         cancelFocusKey="mod-delete-cancel"
         className="w-full max-w-lg"
         dialogIcon={<AlertTriangle size={24} className="text-red-400" />}
-        confirmationNote="删除后无法通过启动器撤销。"
+        confirmationNote={t('instanceDetail.mods.deleteDialog.confirmationNote', { defaultValue: '删除后无法通过启动器撤销。' })}
         confirmationNoteTone="danger"
       />
     </>

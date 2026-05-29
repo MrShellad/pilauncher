@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Image as ImageIcon, Info, Tag, Type, Upload, User } from 'lucide-react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
+import { useTranslation } from 'react-i18next';
 
 import { FocusItem } from '../../../../../ui/focus/FocusItem';
 import { useToastStore } from '../../../../../store/useToastStore';
@@ -15,6 +16,7 @@ interface ExportBasicStepProps {
 }
 
 export const ExportBasicStep: React.FC<ExportBasicStepProps> = ({ data, onChange }) => {
+  const { t } = useTranslation();
   const [isSelectingLogo, setIsSelectingLogo] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const addToast = useToastStore((s) => s.addToast);
@@ -37,7 +39,7 @@ export const ExportBasicStep: React.FC<ExportBasicStepProps> = ({ data, onChange
       }
     } catch (error) {
       console.error('Failed to open dialog', error);
-      addToast('error', '打开图片选择器失败，请检查系统权限');
+      addToast('error', t('instanceDetail.export.basic.openImagePickerFailed', { defaultValue: '打开图片选择器失败，请检查系统权限' }));
     } finally {
       setIsSelectingLogo(false);
     }
@@ -50,12 +52,12 @@ export const ExportBasicStep: React.FC<ExportBasicStepProps> = ({ data, onChange
           <div className="flex flex-col space-y-2">
             <label className="flex items-center text-sm font-bold text-[#D0D1D4]">
               <Type size={14} className="mr-2 text-[#B1B2B5]" />
-              整合包名称
+              {t('instanceDetail.export.basic.packName', { defaultValue: '整合包名称' })}
             </label>
             <OreInput
               value={data.name}
               onChange={(event) => onChange({ name: event.target.value })}
-              placeholder="例如：我的冒险整合包"
+              placeholder={t('instanceDetail.export.basic.packNamePlaceholder', { defaultValue: '例如：我的冒险整合包' })}
               className="w-full border-[#18181B] bg-[#1E1E1F]"
             />
           </div>
@@ -63,12 +65,12 @@ export const ExportBasicStep: React.FC<ExportBasicStepProps> = ({ data, onChange
           <div className="flex flex-col space-y-2">
             <label className="flex items-center text-sm font-bold text-[#D0D1D4]">
               <Tag size={14} className="mr-2 text-[#B1B2B5]" />
-              版本号
+              {t('instanceDetail.export.basic.version', { defaultValue: '版本号' })}
             </label>
             <OreInput
               value={data.version}
               onChange={(event) => onChange({ version: event.target.value })}
-              placeholder="例如：1.0.0"
+              placeholder={t('instanceDetail.export.basic.versionPlaceholder', { defaultValue: '例如：1.0.0' })}
               className="w-full border-[#18181B] bg-[#1E1E1F]"
             />
           </div>
@@ -76,12 +78,12 @@ export const ExportBasicStep: React.FC<ExportBasicStepProps> = ({ data, onChange
           <div className="flex flex-col space-y-2">
             <label className="flex items-center text-sm font-bold text-[#D0D1D4]">
               <User size={14} className="mr-2 text-[#B1B2B5]" />
-              作者
+              {t('instanceDetail.export.basic.author', { defaultValue: '作者' })}
             </label>
             <OreInput
               value={data.author}
               onChange={(event) => onChange({ author: event.target.value })}
-              placeholder="填写作者名称"
+              placeholder={t('instanceDetail.export.basic.authorPlaceholder', { defaultValue: '填写作者名称' })}
               className="w-full border-[#18181B] bg-[#1E1E1F]"
             />
           </div>
@@ -90,7 +92,7 @@ export const ExportBasicStep: React.FC<ExportBasicStepProps> = ({ data, onChange
         <div className="flex flex-col space-y-2">
           <label className="flex items-center text-sm font-bold text-[#D0D1D4]">
             <ImageIcon size={14} className="mr-2 text-[#B1B2B5]" />
-            Hero Logo
+            {t('instanceDetail.export.basic.heroLogo', { defaultValue: 'Hero Logo' })}
           </label>
           <div className="flex flex-col space-y-4">
             <div className="relative flex h-36 w-full items-center justify-center overflow-hidden rounded-sm border-2 border-[#18181B] bg-[#1E1E1F] shadow-[inset_2px_2px_rgba(255,255,255,0.05)]">
@@ -99,7 +101,7 @@ export const ExportBasicStep: React.FC<ExportBasicStepProps> = ({ data, onChange
               ) : (
                 <div className="flex flex-col items-center justify-center space-y-2 text-[#B1B2B5] opacity-50">
                   <ImageIcon size={28} />
-                  <span className="text-xs">无 Logo 图片</span>
+                  <span className="text-xs">{t('instanceDetail.export.basic.noLogoImage', { defaultValue: '无 Logo 图片' })}</span>
                 </div>
               )}
             </div>
@@ -111,7 +113,7 @@ export const ExportBasicStep: React.FC<ExportBasicStepProps> = ({ data, onChange
               className="w-full"
             >
               <Upload size={14} className="mr-2" />
-              {data.heroLogo ? '更换图片' : '选择图片'}
+              {data.heroLogo ? t('instanceDetail.export.basic.changeImage', { defaultValue: '更换图片' }) : t('instanceDetail.export.basic.selectImage', { defaultValue: '选择图片' })}
             </OreButton>
           </div>
         </div>
@@ -119,7 +121,7 @@ export const ExportBasicStep: React.FC<ExportBasicStepProps> = ({ data, onChange
         <div className="flex flex-col space-y-2 md:col-span-2">
           <label className="flex items-center text-sm font-bold text-[#D0D1D4]">
             <Info size={14} className="mr-2 text-[#B1B2B5]" />
-            描述
+            {t('instanceDetail.export.basic.description', { defaultValue: '描述' })}
           </label>
           <FocusItem
             onEnter={() => textareaRef.current?.focus()}
@@ -139,7 +141,7 @@ export const ExportBasicStep: React.FC<ExportBasicStepProps> = ({ data, onChange
                     }
                   }}
                   className="h-24 w-full resize-none rounded-sm border-2 border-[#18181B] bg-[#1E1E1F] p-3 text-sm text-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)] transition-all focus:border-white focus:outline-none font-minecraft"
-                  placeholder="简要介绍这个整合包的主题、玩法或定位。"
+                  placeholder={t('instanceDetail.export.basic.descriptionPlaceholder', { defaultValue: '简要介绍这个整合包的主题、玩法或定位。' })}
                 />
               </div>
             )}

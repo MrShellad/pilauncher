@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Check, Cpu, Loader2, RotateCw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { OreAccordion } from '../../../../../../ui/primitives/OreAccordion';
 import { OreButton } from '../../../../../../ui/primitives/OreButton';
@@ -33,6 +34,7 @@ export const EnvironmentSection: React.FC<EnvironmentSectionProps> = ({
   onUpdateEnvironment,
   onSuccess,
 }) => {
+  const { t } = useTranslation();
   const {
     normalizedCurrentLoader,
     currentLoaderLabel,
@@ -68,9 +70,9 @@ export const EnvironmentSection: React.FC<EnvironmentSectionProps> = ({
   const versionTypeOptions = React.useMemo<ToggleOption[]>(
     () => ENVIRONMENT_VERSION_TYPES.map((type) => ({
       value: type,
-      label: VERSION_TYPE_LABELS[type],
+      label: t(`instanceDetail.basic.env.versionTypes.${type}`, VERSION_TYPE_LABELS[type]),
     })),
-    [],
+    [t],
   );
 
   const loaderTypeOptions = React.useMemo<ToggleOption[]>(
@@ -91,10 +93,10 @@ export const EnvironmentSection: React.FC<EnvironmentSectionProps> = ({
   );
 
   return (
-    <SettingsSection title="运行环境" icon={<Cpu size="1.125rem" />}>
+    <SettingsSection title={t('instanceDetail.basic.env.title', '运行环境')} icon={<Cpu size="1.125rem" />}>
       <FormRow
-        label="游戏与 Loader 版本"
-        description="切换当前实例的 Minecraft、Fabric、Forge、NeoForge 或 Quilt 环境。"
+        label={t('instanceDetail.basic.env.label', '游戏与 Loader 版本')}
+        description={t('instanceDetail.basic.env.desc', '切换当前实例的 Minecraft、Fabric、Forge、NeoForge 或 Quilt 环境。')}
         control={
           <div className="flex w-full flex-col items-stretch gap-3 lg:w-[30rem]">
             <div className="grid grid-cols-2 gap-3">
@@ -121,7 +123,7 @@ export const EnvironmentSection: React.FC<EnvironmentSectionProps> = ({
               disabled={isInitializing || isGlobalSaving}
               className="w-full"
             >
-              更改版本
+              {t('instanceDetail.basic.env.changeBtn', '更改版本')}
             </OreButton>
           </div>
         }
@@ -130,7 +132,7 @@ export const EnvironmentSection: React.FC<EnvironmentSectionProps> = ({
       <OreModal
         isOpen={isOpen}
         onClose={closeModal}
-        title="切换实例环境"
+        title={t('instanceDetail.basic.env.modalTitle', '切换实例环境')}
         className="w-[min(76rem,94vw)] h-[82vh]"
         contentClassName="flex min-h-0 flex-1 flex-col overflow-hidden p-0"
         actions={
@@ -141,7 +143,7 @@ export const EnvironmentSection: React.FC<EnvironmentSectionProps> = ({
               onClick={closeModal}
               disabled={isGlobalSaving}
             >
-              取消
+              {t('common.cancel', '取消')}
             </OreButton>
             <OreButton
               focusKey="basic-env-apply"
@@ -150,7 +152,7 @@ export const EnvironmentSection: React.FC<EnvironmentSectionProps> = ({
               disabled={!canApply || isGlobalSaving}
             >
               {isGlobalSaving ? <Loader2 size="1rem" className="mr-2 animate-spin" /> : <Check size="1rem" className="mr-2" />}
-              应用
+              {t('common.apply', '应用')}
             </OreButton>
           </>
         }
@@ -159,14 +161,16 @@ export const EnvironmentSection: React.FC<EnvironmentSectionProps> = ({
           <div className="flex min-h-0 flex-col p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 className="text-lg text-white">Minecraft 版本</h3>
-                <p className="mt-1 text-xs text-ore-text-muted">当前选择: {gameVersion || '-'}</p>
+                <h3 className="text-lg text-white">{t('instanceDetail.basic.env.mcVersion', 'Minecraft 版本')}</h3>
+                <p className="mt-1 text-xs text-ore-text-muted">
+                  {t('instanceDetail.basic.env.currentSelect', '当前选择: {{version}}', { version: gameVersion || '-' })}
+                </p>
               </div>
               <div className="flex items-center gap-3">
                 <div className="hidden items-center gap-2 lg:flex">
-                  <GamepadActionHint button="LB" label="分类" />
-                  <GamepadActionHint button="RB" label="分类" />
-                  <GamepadActionHint button="X" label="刷新" />
+                  <GamepadActionHint button="LB" label={t('instanceDetail.basic.env.category', '分类')} />
+                  <GamepadActionHint button="RB" label={t('instanceDetail.basic.env.category', '分类')} />
+                  <GamepadActionHint button="X" label={t('common.refresh', '刷新')} />
                 </div>
                 <FocusItem focusKey="basic-env-refresh" disabled={isLoadingVersions}>
                   {({ ref, focused }) => (
@@ -183,7 +187,7 @@ export const EnvironmentSection: React.FC<EnvironmentSectionProps> = ({
                       }`}
                     >
                       <RotateCw size="1rem" className={isLoadingVersions ? 'animate-spin' : ''} />
-                      刷新
+                      {t('common.refresh', '刷新')}
                     </button>
                   )}
                 </FocusItem>
@@ -204,7 +208,7 @@ export const EnvironmentSection: React.FC<EnvironmentSectionProps> = ({
               {isLoadingVersions ? (
                 <div className="flex h-40 items-center justify-center text-ore-text-muted">
                   <Loader2 size="1.125rem" className="mr-2 animate-spin" />
-                  正在加载版本列表...
+                  {t('instanceDetail.basic.env.loadingVersions', '正在加载版本列表...')}
                 </div>
               ) : (
                 <div className="space-y-3 pb-4">
@@ -251,15 +255,17 @@ export const EnvironmentSection: React.FC<EnvironmentSectionProps> = ({
           <div className="flex min-h-0 flex-col p-5">
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h3 className="text-lg text-white">Loader 版本</h3>
+                <h3 className="text-lg text-white">{t('instanceDetail.basic.env.loaderVersion', 'Loader 版本')}</h3>
                 <p className="mt-1 text-xs text-ore-text-muted">
-                  {loaderType === 'Vanilla' ? '原版实例不需要额外 Loader。' : `当前选择: ${loaderType} ${loaderVersion || '-'}`}
+                  {loaderType === 'Vanilla'
+                    ? t('instanceDetail.basic.env.vanillaNoNeedLoader', '原版实例不需要额外 Loader。')
+                    : t('instanceDetail.basic.env.currentSelectLoader', '当前选择: {{loader}} {{version}}', { loader: loaderType, version: loaderVersion || '-' })}
                 </p>
               </div>
               <div className="hidden items-center gap-2 lg:flex">
-                <GamepadActionHint button="LT" label="Loader" />
-                <GamepadActionHint button="RT" label="Loader" />
-                <GamepadActionHint button="Y" label="底部" />
+                <GamepadActionHint button="LT" label={t('instanceDetail.basic.env.loaderHint', 'Loader')} />
+                <GamepadActionHint button="RT" label={t('instanceDetail.basic.env.loaderHint', 'Loader')} />
+                <GamepadActionHint button="Y" label={t('instanceDetail.basic.env.bottomHint', '底部')} />
               </div>
             </div>
 
@@ -286,18 +292,18 @@ export const EnvironmentSection: React.FC<EnvironmentSectionProps> = ({
                       }`}
                     >
                       <img src={vanillaIcon} className="mb-3 h-12 w-12 object-contain opacity-50 invert-[.3]" alt="Vanilla" />
-                      <span className="text-lg text-white">原版环境</span>
+                      <span className="text-lg text-white">{t('instanceDetail.basic.env.vanillaEnv', '原版环境')}</span>
                     </div>
                   )}
                 </FocusItem>
               ) : isLoadingLoaders ? (
                 <div className="flex h-40 items-center justify-center text-ore-text-muted">
                   <Loader2 size="1.125rem" className="mr-2 animate-spin" />
-                  正在查找兼容版本...
+                  {t('instanceDetail.basic.env.findingCompatible', '正在查找兼容版本...')}
                 </div>
               ) : loaderVersions.length === 0 ? (
                 <div className="flex h-40 items-center justify-center border-2 border-dashed border-ore-gray-border px-4 text-center text-ore-text-muted">
-                  没有找到兼容 {gameVersion || '当前 Minecraft'} 的 {loaderType} 版本
+                  {t('instanceDetail.basic.env.noCompatibleLoader', '没有找到兼容 {{mcVersion}} 的 {{loaderType}} 版本', { mcVersion: gameVersion || t('instanceDetail.basic.env.currentMc', '当前 Minecraft'), loaderType })}
                 </div>
               ) : (
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-2 pb-4">

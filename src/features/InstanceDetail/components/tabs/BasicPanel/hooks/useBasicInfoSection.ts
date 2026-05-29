@@ -37,7 +37,7 @@ export const useBasicInfoSection = ({
     try {
       setIsGlobalSaving(true);
       await onUpdateName(editName);
-      onSuccess('名称已保存');
+      onSuccess('nameSaved');
     } finally {
       setIsGlobalSaving(false);
     }

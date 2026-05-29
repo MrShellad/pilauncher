@@ -2,6 +2,8 @@
 import React, { useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { useTranslation } from 'react-i18next';
+
 import { OreModal } from '../../../../../../../../ui/primitives/OreModal';
 import { OreButton } from '../../../../../../../../ui/primitives/OreButton';
 import { FocusBoundary } from '../../../../../../../../ui/focus/FocusBoundary';
@@ -19,6 +21,8 @@ export const ModDeleteConfirmModal: React.FC<ModDeleteConfirmModalProps> = ({
   fileName,
   onConfirm
 }) => {
+  const { t } = useTranslation();
+
   // Set focus to cancel button when opened
   useEffect(() => {
     if (isOpen) {
@@ -30,7 +34,7 @@ export const ModDeleteConfirmModal: React.FC<ModDeleteConfirmModalProps> = ({
     <OreModal
       isOpen={isOpen}
       onClose={onClose}
-      title="删除模组"
+      title={t('instanceDetail.mods.deleteConfirm.title', { defaultValue: '删除模组' })}
       className="w-[95vw] max-w-md"
     >
       <FocusBoundary
@@ -45,21 +49,21 @@ export const ModDeleteConfirmModal: React.FC<ModDeleteConfirmModalProps> = ({
           </div>
           <div className="flex-1 mt-1">
             <h3 className="text-white font-minecraft text-base mb-2 relative">
-              确定要删除
+              {t('instanceDetail.mods.deleteConfirm.confirmPrefix', { defaultValue: '确定要删除' })}
               <span className="font-bold underline decoration-red-500/50 underline-offset-4 mx-1.5 inline-block text-base align-baseline leading-none break-all">
                 {fileName}
               </span>
-              吗？
+              {t('instanceDetail.mods.deleteConfirm.confirmSuffix', { defaultValue: '吗？' })}
             </h3>
-            <p className="text-gray-400 text-sm">此操作将会把该模组从实例的 mods 文件夹中移除，删除后无法通过启动器撤销恢复该文件。</p>
+            <p className="text-gray-400 text-sm">{t('instanceDetail.mods.deleteConfirm.description', { defaultValue: '此操作将会把该模组从实例的 mods 文件夹中移除，删除后无法通过启动器撤销恢复该文件。' })}</p>
           </div>
         </div>
         <div className="flex flex-col-reverse sm:flex-row justify-center gap-3 mt-auto">
           <OreButton focusKey="btn-delete-cancel" variant="secondary" size="auto" onClick={onClose} className="w-full sm:w-24">
-            取消
+            {t('instanceDetail.mods.deleteConfirm.cancel', { defaultValue: '取消' })}
           </OreButton>
           <OreButton focusKey="btn-delete-confirm" variant="danger" size="auto" onClick={onConfirm} className="w-full sm:w-36 font-bold">
-            确认删除
+            {t('instanceDetail.mods.deleteConfirm.confirm', { defaultValue: '确认删除' })}
           </OreButton>
         </div>
       </FocusBoundary>

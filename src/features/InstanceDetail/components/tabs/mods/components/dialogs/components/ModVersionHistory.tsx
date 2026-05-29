@@ -2,6 +2,8 @@
 import React from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import { Download } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+
 import { OreToggleButton } from '../../../../../../../../ui/primitives/OreToggleButton';
 import { OreButton } from '../../../../../../../../ui/primitives/OreButton';
 import { FocusItem } from '../../../../../../../../ui/focus/FocusItem';
@@ -27,13 +29,6 @@ interface ModVersionHistoryProps {
   modVersions: any[];
   onInstallVersion: (mod: ModMeta, version: OreProjectVersion, action: ModVersionInstallAction) => void;
 }
-
-const versionInstallLabels: Record<ModVersionInstallAction, string> = {
-  install: '安装',
-  upgrade: '升级',
-  downgrade: '降级',
-  reinstall: '重装'
-};
 
 const VersionListSkeleton = () => {
   return (
@@ -66,6 +61,15 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
   modVersions,
   onInstallVersion
 }) => {
+  const { t } = useTranslation();
+
+  const versionInstallLabels: Record<ModVersionInstallAction, string> = {
+    install: t('instanceDetail.mods.versionHistory.actions.install', { defaultValue: '安装' }),
+    upgrade: t('instanceDetail.mods.versionHistory.actions.upgrade', { defaultValue: '升级' }),
+    downgrade: t('instanceDetail.mods.versionHistory.actions.downgrade', { defaultValue: '降级' }),
+    reinstall: t('instanceDetail.mods.versionHistory.actions.reinstall', { defaultValue: '重装' })
+  };
+
   const currentFileId = getPlatformFileId(displayMod, activePlatform) || getPlatformFileId(mod, activePlatform);
   const currentVersionIndex = modVersions.findIndex((version) => {
     if (currentFileId && version.id === currentFileId) return true;
@@ -100,7 +104,7 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
   return (
     <div className="flex-1 flex flex-col min-h-0 border-t border-white/5 pt-4 font-minecraft">
       <div className="flex flex-col sm:flex-row items-center justify-between mb-3 gap-3 shrink-0">
-        <h3 className="font-minecraft text-white text-sm sm:text-base tracking-wide">版本历史 (当前实例)</h3>
+        <h3 className="font-minecraft text-white text-sm sm:text-base tracking-wide">{t('instanceDetail.mods.versionHistory.title', { defaultValue: '版本历史 (当前实例)' })}</h3>
         <OreToggleButton
           options={toggleOptions}
           value={activePlatform}
@@ -173,7 +177,7 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
                             {v.name}
                           </span>
                           <span className="text-xs text-ore-text-muted mt-0.5 truncate">
-                            版本: {v.version_number} • {new Date(v.date_published).toLocaleDateString()} 发布
+                            {t('instanceDetail.mods.versionHistory.versionInfo', { defaultValue: '版本: {{versionNumber}} • {{date}} 发布', versionNumber: v.version_number, date: new Date(v.date_published).toLocaleDateString() })}
                           </span>
                         </div>
                       </div>
@@ -196,7 +200,7 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
         </div>
       ) : (
         <div className="text-center text-ore-text-muted py-8 font-minecraft text-sm border-[2px] border-dashed border-[var(--ore-border-color)] bg-transparent rounded-sm flex items-center justify-center">
-          暂无在 {activePlatform} 上的版本记录
+          {t('instanceDetail.mods.versionHistory.empty', { defaultValue: '暂无在 {{platform}} 上的版本记录', platform: activePlatform })}
         </div>
       )}
     </div>

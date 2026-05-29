@@ -1,5 +1,6 @@
 import React from 'react';
 import { Server, Globe, Save, Pencil, Plus, Unplug } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { OreInput } from '../../../../../../ui/primitives/OreInput';
 import { OreButton } from '../../../../../../ui/primitives/OreButton';
@@ -23,6 +24,7 @@ export const ServerBindingSection: React.FC<ServerBindingSectionProps> = ({
   isGlobalSaving,
   setIsGlobalSaving,
 }) => {
+  const { t } = useTranslation();
   const {
     isEditingServer,
     editServer,
@@ -45,14 +47,18 @@ export const ServerBindingSection: React.FC<ServerBindingSectionProps> = ({
   });
 
   return (
-    <SettingsSection title="实例服务器" icon={<Server size="1.125rem" />}>
+    <SettingsSection title={t('instanceDetail.basic.server.title', '实例服务器')} icon={<Server size="1.125rem" />}>
       {serverBinding || isEditingServer ? (
         <>
           <FormRow
-            label="绑定服务器"
+            label={t('instanceDetail.basic.server.bindLabel', '绑定服务器')}
             description={
               <>
-                <span>{isEditingServer ? '修改服务器信息后点击保存即可生效。' : '当前实例已绑定到以下服务器，启动游戏时可自动连接。'}</span>
+                <span>
+                  {isEditingServer
+                    ? t('instanceDetail.basic.server.editHelp', '修改服务器信息后点击保存即可生效。')
+                    : t('instanceDetail.basic.server.bindHelp', '当前实例已绑定到以下服务器，启动游戏时可自动连接。')}
+                </span>
                 <div className="flex items-center gap-3 px-4 py-3 bg-[#141415] border-2 border-[#2A2A2C] rounded-sm mt-3 max-w-[20rem]">
                   <div className="w-10 h-10 rounded-sm bg-[#1E1E1F] border-2 border-[#2A2A2C] flex items-center justify-center flex-shrink-0">
                     <Globe size="1.25rem" className="text-emerald-400" />
@@ -80,7 +86,7 @@ export const ServerBindingSection: React.FC<ServerBindingSectionProps> = ({
                     value={editServer.name}
                     onChange={(e) => setEditServerName(e.target.value)}
                     disabled={isGlobalSaving || isInitializing}
-                    placeholder="服务器名称"
+                    placeholder={t('instanceDetail.basic.server.placeholderName', '服务器名称')}
                   />
                   <div className="flex items-center gap-2">
                     <OreInput
@@ -88,7 +94,7 @@ export const ServerBindingSection: React.FC<ServerBindingSectionProps> = ({
                       value={editServer.ip}
                       onChange={(e) => setEditServerIp(e.target.value)}
                       disabled={isGlobalSaving || isInitializing}
-                      placeholder="服务器地址 (IP 或域名)"
+                      placeholder={t('instanceDetail.basic.server.placeholderIp', '服务器地址 (IP 或域名)')}
                       containerClassName="flex-[3]"
                     />
                     <OreInput
@@ -96,7 +102,7 @@ export const ServerBindingSection: React.FC<ServerBindingSectionProps> = ({
                       value={editServer.port}
                       onChange={(e) => setEditServerPort(e.target.value)}
                       disabled={isGlobalSaving || isInitializing}
-                      placeholder="端口"
+                      placeholder={t('instanceDetail.basic.server.placeholderPort', '端口')}
                       containerClassName="flex-1"
                     />
                   </div>
@@ -107,7 +113,7 @@ export const ServerBindingSection: React.FC<ServerBindingSectionProps> = ({
                       onClick={handleSaveServer}
                       disabled={isGlobalSaving || isInitializing || !canSaveServer}
                     >
-                      <Save size="1rem" className="mr-1.5" /> 保存
+                      <Save size="1rem" className="mr-1.5" /> {t('common.save', '保存')}
                     </OreButton>
                     <OreButton
                       focusKey="basic-btn-cancel-edit-server"
@@ -115,7 +121,7 @@ export const ServerBindingSection: React.FC<ServerBindingSectionProps> = ({
                       onClick={cancelEditServer}
                       disabled={isGlobalSaving}
                     >
-                      取消
+                      {t('common.cancel', '取消')}
                     </OreButton>
                   </div>
                 </div>
@@ -127,7 +133,7 @@ export const ServerBindingSection: React.FC<ServerBindingSectionProps> = ({
                     onClick={startEditServer}
                     disabled={isGlobalSaving || isInitializing}
                   >
-                    <Pencil size="1rem" className="mr-1.5" /> 编辑
+                    <Pencil size="1rem" className="mr-1.5" /> {t('common.edit', '编辑')}
                   </OreButton>
                   <OreButton
                     focusKey="basic-btn-unbind-server"
@@ -135,7 +141,7 @@ export const ServerBindingSection: React.FC<ServerBindingSectionProps> = ({
                     onClick={handleUnbindServer}
                     disabled={isGlobalSaving || isInitializing}
                   >
-                    <Unplug size="1rem" className="mr-1.5" /> 解除绑定
+                    <Unplug size="1rem" className="mr-1.5" /> {t('instanceDetail.basic.server.unbindBtn', '解除绑定')}
                   </OreButton>
                 </div>
               )
@@ -144,8 +150,8 @@ export const ServerBindingSection: React.FC<ServerBindingSectionProps> = ({
 
           {!isEditingServer && (
             <FormRow
-              label="启动时自动进入服务器"
-              description="开启后，启动游戏将自动连接到绑定的服务器，无需手动选择。"
+              label={t('instanceDetail.basic.server.autoJoinLabel', '启动时自动进入服务器')}
+              description={t('instanceDetail.basic.server.autoJoinDesc', '开启后，启动游戏将自动连接到绑定的服务器，无需手动选择。')}
               control={
                 <OreSwitch
                   focusKey="basic-switch-auto-join"
@@ -159,8 +165,8 @@ export const ServerBindingSection: React.FC<ServerBindingSectionProps> = ({
         </>
       ) : (
         <FormRow
-          label="绑定服务器"
-          description="当前实例未绑定任何服务器。你可以手动添加或在多人游戏页面中绑定。"
+          label={t('instanceDetail.basic.server.bindLabel', '绑定服务器')}
+          description={t('instanceDetail.basic.server.unbindHelpText', '当前实例未绑定任何服务器。你可以手动添加或在多人游戏页面中绑定。')}
           control={
             <OreButton
               focusKey="basic-btn-add-server"
@@ -168,7 +174,7 @@ export const ServerBindingSection: React.FC<ServerBindingSectionProps> = ({
               onClick={startAddServer}
               disabled={isGlobalSaving || isInitializing}
             >
-              <Plus size="1rem" className="mr-1.5" /> 添加服务器
+              <Plus size="1rem" className="mr-1.5" /> {t('instanceDetail.basic.server.addServerBtn', '添加服务器')}
             </OreButton>
           }
         />

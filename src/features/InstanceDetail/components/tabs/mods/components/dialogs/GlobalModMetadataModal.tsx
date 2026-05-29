@@ -1,6 +1,7 @@
 // /src/features/InstanceDetail/components/tabs/mods/components/dialogs/GlobalModMetadataModal.tsx
 import React, { useState, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { OreModal } from '../../../../../../../ui/primitives/OreModal';
 import { OreButton } from '../../../../../../../ui/primitives/OreButton';
@@ -24,6 +25,7 @@ export const GlobalModMetadataModal: React.FC<GlobalModMetadataModalProps> = ({
   onSaveMetadataSettings,
   onReidentifyAllMods
 }) => {
+  const { t } = useTranslation();
   const [metadataPlatformDraft, setMetadataPlatformDraft] = useState<ModPlatformPreference>('auto');
   const [updatePlatformDraft, setUpdatePlatformDraft] = useState<ModPlatformPreference>('auto');
   const [isSaving, setIsSaving] = useState(false);
@@ -75,16 +77,16 @@ export const GlobalModMetadataModal: React.FC<GlobalModMetadataModalProps> = ({
   };
 
   const platformOptions = [
-    { label: '自动', value: 'auto', description: '根据模组文件哈希自动匹配' },
-    { label: 'Modrinth', value: 'modrinth', description: '仅从 Modrinth 平台获取' },
-    { label: 'CurseForge', value: 'curseforge', description: '仅从 CurseForge 平台获取' }
+    { label: t('instanceDetail.mods.globalMetadata.platformOptions.auto.label', { defaultValue: '自动' }), value: 'auto', description: t('instanceDetail.mods.globalMetadata.platformOptions.auto.desc', { defaultValue: '根据模组文件哈希自动匹配' }) },
+    { label: 'Modrinth', value: 'modrinth', description: t('instanceDetail.mods.globalMetadata.platformOptions.modrinth.desc', { defaultValue: '仅从 Modrinth 平台获取' }) },
+    { label: 'CurseForge', value: 'curseforge', description: t('instanceDetail.mods.globalMetadata.platformOptions.curseforge.desc', { defaultValue: '仅从 CurseForge 平台获取' }) }
   ];
 
   return (
     <OreModal
       isOpen={isOpen}
       onClose={onClose}
-      title="全局模组元数据设置"
+      title={t('instanceDetail.mods.globalMetadata.title', { defaultValue: '全局模组元数据设置' })}
       className="w-[95vw] max-w-xl"
       actionsClassName="!justify-center"
       defaultFocusKey="global-metadata-platform-0"
@@ -96,7 +98,7 @@ export const GlobalModMetadataModal: React.FC<GlobalModMetadataModalProps> = ({
             onClick={handleSave}
             disabled={isReidentifying || isSaving}
           >
-            {isSaving ? '保存中...' : '保存修改'}
+            {isSaving ? t('instanceDetail.mods.globalMetadata.saving', { defaultValue: '保存中...' }) : t('instanceDetail.mods.globalMetadata.save', { defaultValue: '保存修改' })}
           </OreButton>
           <OreButton
             focusKey="global-metadata-cancel"
@@ -104,7 +106,7 @@ export const GlobalModMetadataModal: React.FC<GlobalModMetadataModalProps> = ({
             onClick={onClose}
             disabled={isReidentifying || isSaving}
           >
-            取消
+            {t('instanceDetail.mods.globalMetadata.cancel', { defaultValue: '取消' })}
           </OreButton>
         </>
       }
@@ -113,7 +115,7 @@ export const GlobalModMetadataModal: React.FC<GlobalModMetadataModalProps> = ({
         {/* 主要设置区域 - 合并为一个卡片，逻辑分割 */}
         <div className="rounded-sm border border-[#2A2A2C] bg-[#1A1A1C] p-4 flex flex-col gap-4">
           <div>
-            <h3 className="text-xs font-minecraft font-bold text-gray-300 mb-2">全局元数据平台</h3>
+            <h3 className="text-xs font-minecraft font-bold text-gray-300 mb-2">{t('instanceDetail.mods.globalMetadata.platformLabel', { defaultValue: '全局元数据平台' })}</h3>
             <OreToggleButton
               options={platformOptions}
               value={metadataPlatformDraft}
@@ -123,7 +125,7 @@ export const GlobalModMetadataModal: React.FC<GlobalModMetadataModalProps> = ({
           </div>
 
           <div className="border-t border-[#2A2A2C] pt-3.5">
-            <h3 className="text-xs font-minecraft font-bold text-gray-300 mb-2">全局更新来源</h3>
+            <h3 className="text-xs font-minecraft font-bold text-gray-300 mb-2">{t('instanceDetail.mods.globalMetadata.updateLabel', { defaultValue: '全局更新来源' })}</h3>
             <OreToggleButton
               options={platformOptions}
               value={updatePlatformDraft}
@@ -135,15 +137,15 @@ export const GlobalModMetadataModal: React.FC<GlobalModMetadataModalProps> = ({
 
         {/* 提示信息区域 */}
         <div className="rounded-sm border border-ore-green/30 bg-ore-green/10 px-3 py-2 text-[11px] text-ore-green font-minecraft leading-relaxed">
-          提示：此设置将应用于当前实例中的所有模组。如果您选择特定平台，将锁定它们的元数据或更新来源。
+          {t('instanceDetail.mods.globalMetadata.tip', { defaultValue: '提示：此设置将应用于当前实例中的所有模组。如果您选择特定 platform，将锁定它们的元数据或更新来源。' })}
         </div>
 
         {/* 危险操作 / 维护区域 */}
         <div className="rounded-sm border border-red-900/40 bg-red-950/10 p-4 flex flex-col gap-3">
           <div>
-            <h4 className="text-xs font-minecraft font-bold text-red-300">高级维护操作</h4>
+            <h4 className="text-xs font-minecraft font-bold text-red-300">{t('instanceDetail.mods.globalMetadata.maintenanceLabel', { defaultValue: '高级维护操作' })}</h4>
             <p className="text-[11px] text-gray-400 mt-1 font-minecraft leading-relaxed">
-              如果模组匹配信息出现偏差或无法获取更新，可清空并重新从云端检索匹配所有模组的数据。
+              {t('instanceDetail.mods.globalMetadata.maintenanceDesc', { defaultValue: '如果模组匹配信息出现偏差或无法获取更新，可清空并重新从云端检索匹配所有模组的数据。' })}
             </p>
           </div>
           
@@ -153,7 +155,7 @@ export const GlobalModMetadataModal: React.FC<GlobalModMetadataModalProps> = ({
               label={
                 <span className="flex items-center gap-1.5 font-minecraft text-[11px] text-gray-300 normal-case tracking-normal">
                   <RefreshCw size={11} className="animate-spin text-ore-green" />
-                  正在重新匹配模组云端数据... ({progress ? `${progress.current}/${progress.total}` : '0/0'})
+                  {t('instanceDetail.mods.globalMetadata.reidentifyingProgress', { defaultValue: '正在重新匹配模组云端数据... ({{current}}/{{total}})', current: progress ? progress.current : 0, total: progress ? progress.total : 0 })}
                 </span>
               }
               className="pt-1 !px-0"
@@ -167,7 +169,7 @@ export const GlobalModMetadataModal: React.FC<GlobalModMetadataModalProps> = ({
               disabled={isSaving}
             >
               <RefreshCw size={14} className="mr-1.5" />
-              重新识别所有模组数据
+              {t('instanceDetail.mods.globalMetadata.reidentifyAllBtn', { defaultValue: '重新识别所有模组数据' })}
             </OreButton>
           )}
         </div>

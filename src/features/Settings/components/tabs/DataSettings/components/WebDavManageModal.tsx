@@ -526,10 +526,10 @@ const RadioButton: React.FC<RadioButtonProps> = ({
         ref={ref as React.RefObject<HTMLButtonElement>}
         type="button"
         onClick={onClick}
-        className={`flex h-10 items-center gap-2 border-2 px-3 text-left text-xs transition-colors ${
+        className={`flex h-10 items-center gap-2 border-2 px-3 text-left text-xs transition-colors outline-none focus:outline-none ${
           checked
-            ? 'border-ore-green bg-ore-green/15 text-white'
-            : 'border-[#2A2A2C] bg-[#242526] text-[#B1B2B5]'
+            ? 'border-ore-green bg-ore-green/15 text-white active:bg-ore-green/15'
+            : 'border-[#2A2A2C] bg-[#242526] text-[#B1B2B5] active:bg-[#242526]'
         } ${focused ? 'ring-2 ring-white' : ''}`}
       >
         <span className={`flex h-4 w-4 items-center justify-center rounded-full border ${checked ? 'border-ore-green' : 'border-[#777]'}`}>

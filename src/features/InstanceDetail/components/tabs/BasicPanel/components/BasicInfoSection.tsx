@@ -1,5 +1,6 @@
 import React from 'react';
 import { Image as ImageIcon, Save, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { OreInput } from '../../../../../../ui/primitives/OreInput';
 import { OreButton } from '../../../../../../ui/primitives/OreButton';
@@ -19,6 +20,7 @@ export const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
   isGlobalSaving,
   setIsGlobalSaving,
 }) => {
+  const { t } = useTranslation();
   const {
     editName,
     setEditName,
@@ -34,10 +36,10 @@ export const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
   });
 
   return (
-    <SettingsSection title="基本信息" icon={<ImageIcon size="1.125rem" />}>
+    <SettingsSection title={t('instanceDetail.basic.info.title', '基本信息')} icon={<ImageIcon size="1.125rem" />}>
       <FormRow
-        label="实例名称"
-        description="用于在列表中显示的自定义名称。"
+        label={t('instanceDetail.basic.info.nameLabel', '实例名称')}
+        description={t('instanceDetail.basic.info.nameDesc', '用于在列表中显示的自定义名称。')}
         className="!lg:items-center"
         control={
           <div className="flex w-full flex-col items-stretch gap-3 lg:w-[30rem]">
@@ -48,7 +50,7 @@ export const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
               onBlur={handleSaveName}
               onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
               disabled={isGlobalSaving || isInitializing}
-              placeholder="输入实例名称"
+              placeholder={t('instanceDetail.basic.info.namePlaceholder', '输入实例名称')}
               containerClassName="w-full"
             />
             <OreButton
@@ -58,15 +60,15 @@ export const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
               disabled={!isNameChanged || isGlobalSaving || isInitializing}
               className="w-full"
             >
-              <Save size="1rem" className="mr-2" /> 保存
+              <Save size="1rem" className="mr-2" /> {t('instanceDetail.basic.info.save', '保存')}
             </OreButton>
           </div>
         }
       />
 
       <FormRow
-        label="实例封面"
-        description="支持 .png 或 .jpg 格式，建议比例 16:9。"
+        label={t('instanceDetail.basic.info.coverLabel', '实例封面')}
+        description={t('instanceDetail.basic.info.coverDesc', '支持 .png 或 .jpg 格式，建议比例 16:9。')}
         control={
           <FocusItem
             focusKey="basic-btn-change-cover"
@@ -91,12 +93,12 @@ export const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
                 ) : (
                   <div className="flex flex-col items-center gap-2 text-ore-text-muted">
                     <ImageIcon size="1.5rem" className="opacity-60" />
-                    <span className="text-sm">更换封面</span>
+                    <span className="text-sm">{t('instanceDetail.basic.info.changeCover', '更换封面')}</span>
                   </div>
                 )}
                 {coverUrl && (
                   <div className="absolute inset-x-0 bottom-0 bg-black/65 px-4 py-2 text-left text-sm text-white">
-                    更换封面
+                    {t('instanceDetail.basic.info.changeCover', '更换封面')}
                   </div>
                 )}
                 {isGlobalSaving && (

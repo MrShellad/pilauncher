@@ -113,7 +113,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
               onClick={handleLogoClick}
               onMouseEnter={() => setLogoHovered(true)}
               onMouseLeave={() => setLogoHovered(false)}
-              title="点击更换 Hero Logo"
+              title={t('instanceDetail.overview.changeHeroLogoTitle', '点击更换 Hero Logo')}
             >
               {/* Logo 本体 */}
               {heroLogoUrl ? (
@@ -141,7 +141,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
                     className={`transition-colors duration-200 ${logoHovered ? 'text-ore-text' : 'text-ore-text-muted opacity-50'}`}
                   />
                   <span className={`text-xs font-minecraft transition-colors duration-200 ${logoHovered ? 'text-ore-text' : 'text-ore-text-muted opacity-50'}`}>
-                    添加 Hero Logo
+                    {t('instanceDetail.overview.addHeroLogo', '添加 Hero Logo')}
                   </span>
                 </div>
               )}
@@ -158,7 +158,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
                       className="absolute inset-0 flex flex-col items-center justify-center gap-1 pointer-events-none"
                     >
                       <ImagePlus size={20} className="text-ore-text drop-shadow" />
-                      <span className="text-xs font-minecraft text-ore-text drop-shadow">更换 Logo</span>
+                      <span className="text-xs font-minecraft text-ore-text drop-shadow">{t('instanceDetail.overview.changeHeroLogo', '更换 Logo')}</span>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -190,16 +190,16 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
             className="min-w-[140px] flex items-center gap-2"
           >
             <Play size={16} fill="currentColor" />
-            {isLaunching ? '启动中...' : '开始游戏'}
+            {isLaunching ? t('instanceCard.launching', '启动中...') : t('instanceDetail.overview.startGame', '开始游戏')}
           </OreButton>
 
           <OreButton
             focusKey="overview-btn-folder"
             variant="secondary"
             size="lg"
-            onClick={onOpenFolder || (() => alert('需要传入 onOpenFolder 才能打开目录'))}
+            onClick={onOpenFolder || (() => alert(t('instanceDetail.overview.needOpenFolderHandler', '需要传入 onOpenFolder 才能打开目录')))}
           >
-            <FolderOpen size={18} className="mr-2" /> 实例目录
+            <FolderOpen size={18} className="mr-2" /> {t('instanceDetail.overview.instanceFolder', '实例目录')}
           </OreButton>
         </div>
 
@@ -236,7 +236,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
 
           {/* 自定义链接管理 */}
           {data.customButtons && data.customButtons.length > 0 && (
-            <SettingsSection title="自定义链接">
+            <SettingsSection title={t('instanceDetail.overview.customLinks', '自定义链接')}>
               {/* ─── OreUI link-block 网格 ─────────────────────────── */}
               <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
                 {data.customButtons.map((btn, idx) => {

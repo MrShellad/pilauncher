@@ -316,11 +316,11 @@ export const useModPanelController = (instanceId: string) => {
   }, [setMods]);
 
   const getInstallActionLabel = useCallback((action: ModVersionInstallAction) => {
-    if (action === 'downgrade') return '降级';
-    if (action === 'reinstall') return '重装';
-    if (action === 'install') return '安装';
-    return '升级';
-  }, []);
+    if (action === 'downgrade') return t('instanceDetail.mods.actionDowngrade', '降级');
+    if (action === 'reinstall') return t('instanceDetail.mods.actionReinstall', '重装');
+    if (action === 'install') return t('instanceDetail.mods.actionInstall', '安装');
+    return t('instanceDetail.mods.actionUpgrade', '升级');
+  }, [t]);
 
   const executeUpgradeMod = useCallback(async (
     mod: ModMeta,
@@ -499,18 +499,18 @@ export const useModPanelController = (instanceId: string) => {
   const saveGlobalMetadataSettings = useCallback(async (settings: ModMetadataSettings) => {
     try {
       await modService.updateAllModsMetadataSettings(instanceId, settings);
-      addToast('success', '全局元数据设置已保存');
+      addToast('success', t('instanceDetail.mods.globalMetadataSettingsSaved', '全局元数据设置已保存'));
       void loadMods();
     } catch (error) {
       console.error(error);
-      addToast('error', '保存全局元数据设置失败');
+      addToast('error', t('instanceDetail.mods.globalMetadataSettingsSaveFailed', '保存全局元数据设置失败'));
     }
-  }, [instanceId, loadMods, addToast]);
+  }, [instanceId, loadMods, addToast, t]);
 
   const reidentifyAllMods = useCallback(async (onProgress?: (current: number, total: number) => void) => {
     try {
       await modService.resetAllModsPlatformMetadata(instanceId);
-      addToast('success', '元数据已重置，正在重新云端匹配所有模组...');
+      addToast('success', t('instanceDetail.mods.metadataResetStart', '元数据已重置，正在重新云端匹配所有模组...'));
       const clearedMods = mods.map((mod) => ({
         ...mod,
         manifestEntry: mod.manifestEntry
@@ -528,13 +528,13 @@ export const useModPanelController = (instanceId: string) => {
       }));
       const synced = await syncCloudMetadata(clearedMods, { force: true, onProgress });
       setMods(synced);
-      addToast('success', '云端匹配完成');
+      addToast('success', t('instanceDetail.mods.cloudMatchComplete', '云端匹配完成'));
     } catch (error) {
       console.error(error);
-      addToast('error', '重新匹配失败');
+      addToast('error', t('instanceDetail.mods.cloudMatchFailed', '重新匹配失败'));
       throw error;
     }
-  }, [instanceId, mods, syncCloudMetadata, setMods, addToast]);
+  }, [instanceId, mods, syncCloudMetadata, setMods, addToast, t]);
 
   const filteredMods = useMemo(() => {
     return filterModsByQuery(mods, searchQuery);
@@ -542,10 +542,10 @@ export const useModPanelController = (instanceId: string) => {
 
   const isBatchMode = selectedMods.size > 0;
   const isAllSelected = areAllModFilesSelected(mods, selectedMods);
-  const searchPlaceholder = `搜索 ${mods.length} 个项目...`;
+  const searchPlaceholder = t('instanceDetail.mods.searchPlaceholderCount', { count: mods.length, defaultValue: `搜索 ${mods.length} 个项目...` });
   const emptyMessage = searchQuery
-    ? '没有匹配当前搜索的模组。'
-    : '当前实例还没有模组。';
+    ? t('instanceDetail.mods.emptySearch', '没有匹配当前搜索的模组。')
+    : t('instanceDetail.mods.emptyInstance', '当前实例还没有模组。');
 
   return {
     state: {

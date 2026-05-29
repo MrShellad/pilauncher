@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { OreConfirmDialog } from '../../../../ui/primitives/OreConfirmDialog';
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
@@ -164,6 +165,7 @@ const resolveRealProject = async (mod: any): Promise<any | null> => {
 };
 
 export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
+  const { t } = useTranslation();
   const controller = useModPanelController(instanceId);
   const focusNavigation = useModPanelFocusNavigation(controller.state.isBatchMode);
   const [isTopBarCollapsed, setIsTopBarCollapsed] = useState(false);
@@ -181,7 +183,7 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
     if (selectedList.length === 0) return;
 
     setIsIdentifying(true);
-    addToast('info', '正在识别模组网络数据，请稍候...');
+    addToast('info', t('instanceDetail.mods.identifyingToast', '正在识别模组网络数据，请稍候...'));
 
     try {
       const resolvedProjects: any[] = [];
@@ -197,19 +199,19 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
       }));
 
       if (resolvedProjects.length === 0) {
-        addToast('error', '所选模组均无法在 CurseForge 或 Modrinth 上找到匹配项目，禁止收藏。');
+        addToast('error', t('instanceDetail.mods.batchFavoriteNoMatch', '所选模组均无法在 CurseForge 或 Modrinth 上找到匹配项目，禁止收藏。'));
       } else {
         if (failCount > 0) {
-          addToast('warning', `成功识别了 ${resolvedProjects.length} 个模组，有 ${failCount} 个本地未知模组由于无法匹配到真实数据而被忽略。`);
+          addToast('warning', t('instanceDetail.mods.batchFavoritePartialMatch', '成功识别了 {{resolvedCount}} 个模组，有 {{failCount}} 个本地未知模组由于无法匹配到真实数据而被忽略。', { resolvedCount: resolvedProjects.length, failCount }));
         } else {
-          addToast('success', '模组识别成功，即将加入收藏。');
+          addToast('success', t('instanceDetail.mods.matchSuccessToast', '模组识别成功，即将加入收藏。'));
         }
         setFavoriteProjects(resolvedProjects);
         setIsFavoriteModalOpen(true);
       }
     } catch (e) {
       console.error(e);
-      addToast('error', '识别模组元数据失败，请重试');
+      addToast('error', t('instanceDetail.mods.matchFailedToast', '识别模组元数据失败，请重试'));
     } finally {
       setIsIdentifying(false);
     }
@@ -218,20 +220,20 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   const handleSingleFavorite = useCallback(async (mod: any) => {
     if (isIdentifying) return;
     setIsIdentifying(true);
-    addToast('info', '正在识别模组网络数据，请稍候...');
+    addToast('info', t('instanceDetail.mods.identifyingToast', '正在识别模组网络数据，请稍候...'));
 
     try {
       const project = await resolveRealProject(mod);
       if (project) {
-        addToast('success', '模组识别成功，即将加入收藏。');
+        addToast('success', t('instanceDetail.mods.matchSuccessToast', '模组识别成功，即将加入收藏。'));
         setFavoriteProjects([project]);
         setIsFavoriteModalOpen(true);
       } else {
-        addToast('error', '该模组无法在 CurseForge 或 Modrinth 上找到匹配项目，禁止收藏本地未知模组。');
+        addToast('error', t('instanceDetail.mods.singleFavoriteNoMatch', '该模组无法在 CurseForge 或 Modrinth 上找到匹配项目，禁止收藏本地未知模组。'));
       }
     } catch (e) {
       console.error(e);
-      addToast('error', '识别模组元数据失败，请重试');
+      addToast('error', t('instanceDetail.mods.matchFailedToast', '识别模组元数据失败，请重试'));
     } finally {
       setIsIdentifying(false);
     }
@@ -305,15 +307,15 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         isOpen={controller.upgradeSnapshotDialog.isOpen}
         onClose={controller.upgradeSnapshotDialog.onClose}
         onConfirm={controller.upgradeSnapshotDialog.onConfirm}
-        title={`${controller.upgradeSnapshotDialog.actionLabel}前创建快照`}
-        headline="建议先记录当前模组状态"
+        title={t('instanceDetail.mods.upgradeSnapshotTitle', '{{action}}前创建快照', { action: controller.upgradeSnapshotDialog.actionLabel })}
+        headline={t('instanceDetail.mods.upgradeSnapshotHeadline', '建议先记录当前模组状态')}
         description={
           controller.upgradeSnapshotDialog.mod
-            ? `首次${controller.upgradeSnapshotDialog.actionLabel}模组前，可以创建一个快照，之后如果版本不稳定，可在历史快照中快速回退。即将${controller.upgradeSnapshotDialog.actionLabel}：${controller.upgradeSnapshotDialog.mod.fileName}`
+            ? t('instanceDetail.mods.upgradeSnapshotDesc', '首次{{action}}模组前，可以创建一个快照，之后如果版本不稳定，可在历史快照中快速回退。即将{{action}}：{{fileName}}', { action: controller.upgradeSnapshotDialog.actionLabel, fileName: controller.upgradeSnapshotDialog.mod.fileName })
             : undefined
         }
-        confirmLabel={controller.upgradeSnapshotDialog.isCreatingSnapshot ? '创建中...' : `创建快照并${controller.upgradeSnapshotDialog.actionLabel}`}
-        cancelLabel="取消"
+        confirmLabel={controller.upgradeSnapshotDialog.isCreatingSnapshot ? t('instanceDetail.mods.creating', '创建中...') : t('instanceDetail.mods.upgradeSnapshotConfirm', '创建快照并{{action}}', { action: controller.upgradeSnapshotDialog.actionLabel })}
+        cancelLabel={t('common.cancel', '取消')}
         confirmVariant="primary"
         tone="warning"
         confirmFocusKey="mod-upgrade-snapshot-confirm"
@@ -321,10 +323,10 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         isConfirming={controller.upgradeSnapshotDialog.isCreatingSnapshot}
         closeOnOutsideClick={!controller.upgradeSnapshotDialog.isCreatingSnapshot}
         className="w-full max-w-2xl"
-        confirmationNote={`这个提示只会在本实例本次进入页面后的第一次${controller.upgradeSnapshotDialog.actionLabel}时出现。`}
+        confirmationNote={t('instanceDetail.mods.upgradeSnapshotNote', '这个提示只会在本实例本次进入页面后的第一次{{action}}时出现。', { action: controller.upgradeSnapshotDialog.actionLabel })}
         confirmationNoteTone="info"
         tertiaryAction={{
-          label: `直接${controller.upgradeSnapshotDialog.actionLabel}`,
+          label: t('instanceDetail.mods.upgradeSnapshotSkip', '直接{{action}}', { action: controller.upgradeSnapshotDialog.actionLabel }),
           onClick: controller.upgradeSnapshotDialog.onSkip,
           variant: 'secondary',
           focusKey: 'mod-upgrade-snapshot-skip',

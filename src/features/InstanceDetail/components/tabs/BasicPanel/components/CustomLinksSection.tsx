@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link2, Plus, Save, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { getButtonIcon } from '../../../../../../ui/icons/SocialIcons';
 
 import { OreInput } from '../../../../../../ui/primitives/OreInput';
@@ -19,6 +20,7 @@ export const CustomLinksSection: React.FC<CustomLinksSectionProps> = ({
   isGlobalSaving,
   setIsGlobalSaving,
 }) => {
+  const { t } = useTranslation();
   const {
     customButtons,
     dropdownOptions,
@@ -34,10 +36,10 @@ export const CustomLinksSection: React.FC<CustomLinksSectionProps> = ({
   });
 
   return (
-    <SettingsSection title="自定义链接管理" icon={<Link2 size="1.125rem" />}>
+    <SettingsSection title={t('instanceDetail.basic.links.title', '自定义链接管理')} icon={<Link2 size="1.125rem" />}>
       <FormRow
-        label="快速链接"
-        description="为整合包添加快速链接按钮（如 Wiki、社区、官网等），将展示在主页和概览页。留空标题时将使用平台名称。"
+        label={t('instanceDetail.basic.links.label', '快速链接')}
+        description={t('instanceDetail.basic.links.desc', '为整合包添加快速链接按钮（如 Wiki、社区、官网等），将展示在主页 and 概览页。留空标题时将使用平台名称。')}
         vertical
         control={
           <div className="w-full space-y-3">
@@ -66,7 +68,7 @@ export const CustomLinksSection: React.FC<CustomLinksSectionProps> = ({
                       value={btn.label || ''}
                       onChange={(e) => handleChangeButton(idx, 'label', e.target.value)}
                       disabled={isGlobalSaving || isInitializing}
-                      placeholder="自定义标题"
+                      placeholder={t('instanceDetail.basic.links.placeholderTitle', '自定义标题')}
                     />
                   </div>
 
@@ -91,7 +93,7 @@ export const CustomLinksSection: React.FC<CustomLinksSectionProps> = ({
                             ? 'bg-red-500/20 text-red-400 ring-2 ring-red-400'
                             : 'text-ore-text-muted hover:text-white hover:bg-[#2A2A2C]'
                         } disabled:opacity-40`}
-                        title="删除链接"
+                        title={t('instanceDetail.basic.links.deleteLink', '删除链接')}
                       >
                         <X size="1.125rem" />
                       </button>
@@ -104,7 +106,7 @@ export const CustomLinksSection: React.FC<CustomLinksSectionProps> = ({
             {customButtons.length === 0 && (
               <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-[#1E1E1F] rounded-sm bg-[#141415]/20">
                 <Link2 size="1.5rem" className="text-ore-text-muted opacity-40 mb-2" />
-                <span className="text-sm text-ore-text-muted font-minecraft">暂无自定义链接，点击下方添加</span>
+                <span className="text-sm text-ore-text-muted font-minecraft">{t('instanceDetail.basic.links.empty', '暂无自定义链接，点击下方添加')}</span>
               </div>
             )}
           </div>
@@ -112,7 +114,7 @@ export const CustomLinksSection: React.FC<CustomLinksSectionProps> = ({
       />
 
       <FormRow
-        label="管理链接"
+        label={t('instanceDetail.basic.links.manageLabel', '管理链接')}
         control={
           <div className="flex items-center gap-3">
             <OreButton
@@ -121,7 +123,7 @@ export const CustomLinksSection: React.FC<CustomLinksSectionProps> = ({
               onClick={handleAddButton}
               disabled={isGlobalSaving || isInitializing}
             >
-              <Plus size="1rem" className="mr-1.5" /> 添加链接
+              <Plus size="1rem" className="mr-1.5" /> {t('instanceDetail.basic.links.addLink', '添加链接')}
             </OreButton>
             <OreButton
               focusKey="btn-save-links"
@@ -129,7 +131,7 @@ export const CustomLinksSection: React.FC<CustomLinksSectionProps> = ({
               onClick={handleSaveCustomButtons}
               disabled={isGlobalSaving || isInitializing || customButtons.length === 0}
             >
-              <Save size="1rem" className="mr-1.5" /> 保存配置
+              <Save size="1rem" className="mr-1.5" /> {t('instanceDetail.basic.links.saveConfig', '保存配置')}
             </OreButton>
           </div>
         }

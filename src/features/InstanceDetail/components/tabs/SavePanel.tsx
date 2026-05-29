@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { FolderOpen, HardDrive, History, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
@@ -15,6 +16,7 @@ import { SaveListRow } from './saves/SaveListRow';
 import { getActionFocusKey, useSavePanel } from './saves/useSavePanel';
 
 export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
+  const { t } = useTranslation();
   const { manager, state, actions } = useSavePanel(instanceId);
   const {
     saves,
@@ -53,10 +55,10 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
           <div>
             <h3 className="flex items-center font-minecraft text-white">
               <HardDrive size={18} className="mr-2 text-ore-green" />
-              存档备份
+              {t('instanceDetail.saves.title', '存档备份')}
             </h3>
             <p className="mt-1 text-sm text-ore-text-muted">
-              共发现 {saves.length} 个世界，已有 {backups.length} 个历史备份。
+              {t('instanceDetail.saves.summary', '共发现 {{worldCount}} 个世界，已有 {{backupCount}} 个历史备份。', { worldCount: saves.length, backupCount: backups.length })}
             </p>
           </div>
 
@@ -67,10 +69,10 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
               size="auto"
               className="!h-10 !min-h-10"
               onArrowPress={actions.handleTopArrow}
-              onClick={() => actions.openBackupList('恢复中心', null, 'save-btn-history')}
+              onClick={() => actions.openBackupList(t('instanceDetail.saves.restoreCenter', '恢复中心'), null, 'save-btn-history')}
             >
               <History size={16} className="mr-2" />
-              恢复中心
+              {t('instanceDetail.saves.restoreCenter', '恢复中心')}
             </OreButton>
 
             <OreButton
@@ -82,7 +84,7 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
               onClick={handleOpenFolder}
             >
               <FolderOpen size={16} className="mr-2" />
-              打开目录
+              {t('instanceDetail.saves.openFolder', '打开目录')}
             </OreButton>
           </div>
         </div>
@@ -129,7 +131,7 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
                   }}
                   onHistory={(idx, saveObj) => {
                     actions.openBackupList(
-                      `${saveObj.worldName} 的备份记录`,
+                      t('instanceDetail.saves.backupRecordOf', '{{name}} 的备份记录', { name: saveObj.worldName }),
                       saveObj.worldUuid || saveObj.folderName,
                       getActionFocusKey(idx, 'history')
                     );
@@ -194,12 +196,14 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
           onConfirmRestore={async ({ backupId, restoreConfigs }) => {
             const result = await restoreBackup(backupId, restoreConfigs);
             const guardText = result.guardBackupId
-              ? `\n已自动创建恢复前保护备份：${result.guardBackupId}`
+              ? t('instanceDetail.saves.autoCreatedGuardBackup', '\n已自动创建恢复前保护备份：{{id}}', { id: result.guardBackupId })
               : '';
             alert(
-              `已恢复世界“${result.restoredFolderName}”。${
-                result.restoredConfigs ? '\n已同时恢复配置文件。' : ''
-              }${guardText}`
+              t('instanceDetail.saves.restoredWorldMsg', '已恢复世界“{{name}}”。{{configsMsg}}{{guardText}}', {
+                name: result.restoredFolderName,
+                configsMsg: result.restoredConfigs ? t('instanceDetail.saves.configsRestored', '\n已同时恢复配置文件。') : '',
+                guardText
+              })
             );
             actions.setVerifyingBackup(null);
             actions.restoreSavePanelFocus();

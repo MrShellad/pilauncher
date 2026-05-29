@@ -6,6 +6,7 @@ import {
   doesFocusableExist,
   setFocus
 } from '@noriginmedia/norigin-spatial-navigation';
+import { useTranslation } from 'react-i18next';
 import { OreModal } from '../../../../../../../ui/primitives/OreModal';
 import { OreButton } from '../../../../../../../ui/primitives/OreButton';
 import { FocusBoundary } from '../../../../../../../ui/focus/FocusBoundary';
@@ -54,6 +55,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
   openMetadataSettingsOnOpen = false,
   onMetadataSettingsOpenHandled
 }) => {
+  const { t } = useTranslation();
   const [activePlatform, setActivePlatform] = useState<ModPlatformId>('modrinth');
   const [showMetadataSettings, setShowMetadataSettings] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -172,7 +174,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
         size="auto"
         onClick={() => onToggle(mod.fileName, !!displayMod?.isEnabled)}
       >
-        <Power size={14} className="mr-1.5" /> {displayMod?.isEnabled ? '禁用' : '启用'}
+        <Power size={14} className="mr-1.5" /> {displayMod?.isEnabled ? t('instanceDetail.mods.detail.disable', { defaultValue: '禁用' }) : t('instanceDetail.mods.detail.enable', { defaultValue: '启用' })}
       </OreButton>
       <OreButton
         focusKey="btn-mod-delete"
@@ -180,7 +182,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
         size="auto"
         onClick={() => setShowDeleteConfirm(true)}
       >
-        <Trash2 size={14} className="mr-1.5" /> 删除
+        <Trash2 size={14} className="mr-1.5" /> {t('instanceDetail.mods.detail.delete', { defaultValue: '删除' })}
       </OreButton>
       <OreButton
         focusKey="btn-mod-favorite"
@@ -188,7 +190,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
         size="auto"
         onClick={() => onAddFavorite?.(mod)}
       >
-        <Star size={14} className="mr-1.5" /> 收藏
+        <Star size={14} className="mr-1.5" /> {t('instanceDetail.mods.detail.favorite', { defaultValue: '收藏' })}
       </OreButton>
       <OreButton
         focusKey="btn-mod-metadata-settings"
@@ -196,7 +198,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
         size="auto"
         onClick={openMetadataSettings}
       >
-        <Settings2 size={14} className="mr-1.5" /> 元数据
+        <Settings2 size={14} className="mr-1.5" /> {t('instanceDetail.mods.detail.metadata', { defaultValue: '元数据' })}
       </OreButton>
       <OreButton
         focusKey="btn-mod-cancel"
@@ -204,7 +206,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
         size="auto"
         onClick={handleClose}
       >
-        取消
+        {t('instanceDetail.mods.detail.cancel', { defaultValue: '取消' })}
       </OreButton>
     </>
   );

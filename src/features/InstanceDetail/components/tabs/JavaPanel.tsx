@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { useTranslation } from 'react-i18next';
 
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { focusManager } from '../../../../ui/focus/FocusManager';
@@ -21,6 +22,7 @@ export const JavaPanel: React.FC<{ instanceId: string; isActive?: boolean }> = (
   instanceId,
   isActive = false
 }) => {
+  const { t } = useTranslation();
   const [config, setConfig] = useState<RuntimeConfig | null>(null);
   const [mcVersion, setMcVersion] = useState('');
   const [recommendedJavaMajor, setRecommendedJavaMajor] = useState('');
@@ -144,12 +146,12 @@ export const JavaPanel: React.FC<{ instanceId: string; isActive?: boolean }> = (
         <div className="flex justify-end h-6 mb-2 pr-6 font-minecraft transition-opacity duration-300">
           {isSaving && (
             <span className="text-ore-text-muted text-sm flex items-center">
-              <Loader2 size={14} className="animate-spin mr-1.5" /> 正在保存到本地...
+              <Loader2 size={14} className="animate-spin mr-1.5" /> {t('instanceDetail.java.savingLocal', '正在保存到本地...')}
             </span>
           )}
           {saveSuccess && !isSaving && (
             <span className="text-ore-green text-sm flex items-center drop-shadow-[0_0_5px_rgba(56,133,39,0.5)]">
-              <CheckCircle2 size={14} className="mr-1.5" /> 自动保存成功
+              <CheckCircle2 size={14} className="mr-1.5" /> {t('instanceDetail.java.autoSaveSuccess', '自动保存成功')}
             </span>
           )}
         </div>

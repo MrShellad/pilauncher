@@ -1715,5 +1715,366 @@
       "total": "Total Startup Time",
       "wait": "Wait..."
     }
+  },
+  "instanceDetail": {
+    "basic": {
+      "info": {
+        "title": "Basic Information",
+        "nameLabel": "Instance Name",
+        "nameDesc": "A custom name to display in the instances list.",
+        "namePlaceholder": "Enter instance name",
+        "save": "Save",
+        "coverLabel": "Instance Cover",
+        "coverDesc": "Supports .png or .jpg format. 16:9 ratio recommended.",
+        "changeCover": "Change Cover"
+      },
+      "links": {
+        "title": "Custom Links Management",
+        "label": "Quick Links",
+        "desc": "Add quick links (such as Wiki, Community, Website, etc.) for the modpack, which will display on the Home and Overview pages. If left blank, the platform name will be used.",
+        "placeholderTitle": "Custom Title",
+        "deleteLink": "Delete Link",
+        "empty": "No custom links yet, click below to add",
+        "manageLabel": "Manage Links",
+        "addLink": "Add Link",
+        "saveConfig": "Save Config"
+      },
+      "danger": {
+        "title": "Danger Zone",
+        "deleteLabel": "Permanently Delete Instance",
+        "deleteDesc": "This action is irreversible. All local files and saves for this instance will be permanently deleted.",
+        "deleteBtn": "Delete Permanently",
+        "confirmTitle": "Warning: Permanently Delete Instance",
+        "confirmHeadlinePrefix": "Are you sure you want to permanently delete instance ",
+        "confirmHeadlineSuffix": "?",
+        "confirmDesc": "This action cannot be undone. All configuration, mods, and game saves associated with this instance will be permanently cleared.",
+        "confirmBtn": "Force Delete"
+      },
+      "env": {
+        "title": "Running Environment",
+        "label": "Game & Loader Version",
+        "desc": "Switch the Minecraft, Fabric, Forge, NeoForge, or Quilt environment for this instance.",
+        "changeBtn": "Change Version",
+        "modalTitle": "Switch Instance Environment",
+        "mcVersion": "Minecraft Version",
+        "category": "Category",
+        "loadingVersions": "Loading version list...",
+        "loaderVersion": "Loader Version",
+        "vanillaNoNeedLoader": "Vanilla instance does not require an additional Loader.",
+        "loaderHint": "Loader",
+        "bottomHint": "Bottom",
+        "vanillaEnv": "Vanilla Environment",
+        "findingCompatible": "Finding compatible versions...",
+        "currentMc": "Current Minecraft",
+        "versionTypes": {
+          "release": "Release",
+          "snapshot": "Snapshot",
+          "rc": "Release Candidate",
+          "pre": "Pre-release",
+          "special": "Special"
+        },
+        "fetchMcVersionsFailed": "Failed to fetch Minecraft version list",
+        "fetchLoaderVersionsFailed": "Failed to fetch Loader version list"
+      },
+      "maintenance": {
+        "title": "Instance Maintenance",
+        "label": "Repair Missing Files",
+        "desc": "Automatically check and redownload missing core files, libraries, or asset files.",
+        "btn": "Verify & Repair"
+      },
+      "server": {
+        "title": "Instance Server",
+        "bindLabel": "Bind Server",
+        "editHelp": "Modify server information and click save to apply changes.",
+        "bindHelp": "The current instance has been bound to the following server, and will connect automatically when starting the game.",
+        "placeholderName": "Server Name",
+        "placeholderIp": "Server Address (IP or Domain)",
+        "placeholderPort": "Port",
+        "unbindBtn": "Unbind Server",
+        "autoJoinLabel": "Auto-join Server on Launch",
+        "autoJoinDesc": "When enabled, starting the game will automatically connect to the bound server without manual selection.",
+        "unbindHelpText": "No server is bound to this instance. You can add one manually or bind one from the multiplayer screen.",
+        "addServerBtn": "Add Server"
+      },
+      "tags": {
+        "title": "Tags Management",
+        "addLabel": "Add Tag",
+        "addDesc": "Select an icon and type the tag name, or choose from existing tags in the input box; confirm to save immediately.",
+        "placeholderInput": "Enter tag name or select existing tag",
+        "currentLabel": "Current Tags",
+        "currentDesc": "These tags will appear in the filter sidebar of the instances page.",
+        "empty": "No tags",
+        "removeTitle": "Remove Tag",
+        "dropdownOptions": {
+          "star": "Favorite",
+          "tool": "Tool",
+          "sword": "Combat",
+          "pickaxe": "Gather",
+          "seedling": "Survival",
+          "sparkles": "Magic",
+          "rocket": "Tech"
+        }
+      },
+      "saving": "Saving...",
+      "successMessages": {
+        "nameSaved": "Instance name saved successfully",
+        "tagsSaved": "Instance tags saved successfully",
+        "customLinksSaved": "Custom links saved successfully",
+        "environmentUpdated": "Instance environment updated successfully",
+        "serverInfoSaved": "Bound server info saved successfully",
+        "serverUnbound": "Server unbound successfully",
+        "autoJoinEnabled": "Auto-join on launch enabled",
+        "autoJoinDisabled": "Auto-join on launch disabled"
+      }
+    },
+    "export": {
+      "basic": {
+        "openImagePickerFailed": "Failed to open image picker, please check system permissions",
+        "packName": "Modpack Name",
+        "packNamePlaceholder": "e.g., My Adventure Modpack",
+        "version": "Version",
+        "versionPlaceholder": "e.g., 1.0.0",
+        "author": "Author",
+        "authorPlaceholder": "Enter author name",
+        "heroLogo": "Hero Logo",
+        "noLogoImage": "No Logo Image",
+        "changeImage": "Change Image",
+        "selectImage": "Select Image",
+        "description": "Description",
+        "descriptionPlaceholder": "Briefly introduce the theme, gameplay, or features of this modpack."
+      },
+      "confirm": {
+        "format": {
+          "zip": "Standard ZIP"
+        },
+        "customItem": "Custom {{type}}: {{name}}",
+        "customDir": "Directory",
+        "customFile": "File",
+        "manifest": {
+          "pipackForce": "PiPack (Forced)",
+          "zipDisabled": "Standard ZIP (No Manifest)",
+          "enabled": "Enabled",
+          "disabled": "Disabled"
+        },
+        "packName": "Modpack Name",
+        "empty": "Not specified",
+        "version": "Version",
+        "author": "Author",
+        "exportFormat": "Export Format",
+        "manifestMode": "Manifest Mode",
+        "heroLogo": "Hero Logo",
+        "set": "Set",
+        "notSet": "Not Set",
+        "additionalPaths": "Additional Content",
+        "itemsCount": "{{count}} item(s)",
+        "none": "None",
+        "summaryTitle": "Parameters Summary",
+        "description": "Description",
+        "noDescription": "No description specified.",
+        "includeContent": "Bundled Content",
+        "emptyIncludeContent": "No content selected for export.",
+        "exportPath": "Export Path",
+        "changePath": "Change Path",
+        "outputDir": "Output Directory",
+        "fetchingPath": "Retrieving default path...",
+        "outputFile": "Output File",
+        "readyToExport": "Ready to Export",
+        "readyDesc": "Generating the modpack package with the current parameters and writing it to the output directory specified above.",
+        "startExport": "Export Now",
+        "exporting": "Export task in progress...",
+        "exportSuccess": "Export Complete",
+        "openDir": "Open Output Folder",
+        "backToSettings": "Back to Settings",
+        "exportError": "Export Process Aborted",
+        "backAndRetry": "Back and Retry"
+      },
+      "content": {
+        "toggles": {
+          "mods": "Include mods folder",
+          "config": "Include config folder",
+          "resourcePacksLabel": "Resource Packs",
+          "resourcePacks": "Include resourcepacks folder",
+          "shaderPacksLabel": "Shader Packs",
+          "shaderPacks": "Include shaderpacks folder",
+          "savesLabel": "Saves",
+          "saves": "Include saves folder"
+        },
+        "directoryAlreadyAdded": "Directory [{{name}}] is already in the additional list",
+        "openDirectoryPickerFailed": "Failed to open directory picker, please check system permissions",
+        "fileAlreadyAdded": "File(s) [{{names}}] are already in the additional list",
+        "openFilePickerFailed": "Failed to open file picker, please check system permissions",
+        "additionalContent": "Additional Custom Content",
+        "directory": "Directory",
+        "file": "File",
+        "noAdditionalPaths": "No extra files or directories manually attached."
+      },
+      "optimization": {
+        "manifestLockedZipTooltip": "Since Standard ZIP format is selected, Manifest mode is locked to Disabled.",
+        "manifestLockedPipackTooltip": "Since PiPack format is selected, Manifest mode is locked to Enabled."
+      },
+      "steps": {
+        "basic": "Basic Info",
+        "content": "Export Content",
+        "optimization": "Format Optimization",
+        "confirm": "Final Confirmation"
+      }
+    },
+    "java": {
+      "savingLocal": "Saving to local configuration...",
+      "autoSaveSuccess": "Auto-save successful"
+    },
+    "mods": {
+      "identifyingToast": "Identifying mod network metadata, please wait...",
+      "batchFavoriteNoMatch": "None of the selected mods could be matched on CurseForge or Modrinth. Adding to favorites is disabled.",
+      "matchSuccessToast": "Mod identified successfully, adding to favorites...",
+      "matchFailedToast": "Failed to match mod metadata, please try again.",
+      "singleFavoriteNoMatch": "This mod could not be matched on CurseForge or Modrinth. Favoriting unknown local mods is disabled.",
+      "upgradeSnapshotHeadline": "It is recommended to record current mod state before upgrading",
+      "creating": "Creating snapshot...",
+      "deleteConfirm": {
+        "title": "Delete Mod",
+        "confirmPrefix": "Are you sure you want to delete ",
+        "confirmSuffix": "?",
+        "description": "This will permanently remove the mod file from the instance's mods folder. This operation cannot be undone.",
+        "cancel": "Cancel",
+        "confirm": "Confirm Delete"
+      },
+      "header": {
+        "sourceLocal": "Local",
+        "unknown": "Unknown",
+        "matching": "Matching...",
+        "linked": "Linked to {{source}}",
+        "unmatched": "Unmatched",
+        "disabled": "Disabled",
+        "fileLabel": "File: {{fileName}}",
+        "sizeLabel": "Size: {{size}}",
+        "sourceLabel": "Source: {{source}}",
+        "statusLabel": "Status: {{status}}"
+      },
+      "metadataSettings": {
+        "auto": "Auto",
+        "reidentify": "Reidentify",
+        "saving": "Saving...",
+        "save": "Save",
+        "cancel": "Cancel",
+        "title": "Mod Metadata",
+        "platform": "Metadata Platform",
+        "locked": "Locked",
+        "updateSource": "Update Source"
+      },
+      "versionHistory": {
+        "actions": {
+          "install": "Install",
+          "upgrade": "Upgrade",
+          "downgrade": "Downgrade",
+          "reinstall": "Reinstall"
+        },
+        "title": "Version History (Current Instance)",
+        "versionInfo": "Version: {{versionNumber}} • Published on {{date}}",
+        "empty": "No version history found on {{platform}}"
+      },
+      "globalMetadata": {
+        "platformOptions": {
+          "auto": {
+            "label": "Auto",
+            "desc": "Match automatically based on mod file hash"
+          },
+          "modrinth": {
+            "desc": "Retrieve metadata exclusively from Modrinth"
+          },
+          "curseforge": {
+            "desc": "Retrieve metadata exclusively from CurseForge"
+          }
+        },
+        "title": "Global Mod Metadata Settings",
+        "saving": "Saving...",
+        "save": "Save Changes",
+        "cancel": "Cancel",
+        "platformLabel": "Global Metadata Platform",
+        "updateLabel": "Global Update Source",
+        "tip": "Note: This setting will apply to all mods in the current instance. Selecting a specific platform will lock their metadata or update source.",
+        "maintenanceLabel": "Advanced Maintenance",
+        "maintenanceDesc": "If mod matching information deviates or updates cannot be fetched, you can clear cache and re-identify all mods from cloud metadata.",
+        "reidentifyingProgress": "Re-identifying mod cloud metadata... ({{current}}/{{total}})",
+        "reidentifyAllBtn": "Re-identify All Mods"
+      },
+      "detail": {
+        "disable": "Disable",
+        "enable": "Enable",
+        "delete": "Delete",
+        "favorite": "Favorite",
+        "metadata": "Metadata",
+        "cancel": "Cancel"
+      },
+      "deleteDialog": {
+        "title": "Delete Mod",
+        "confirmLabel": "Confirm Delete",
+        "cancelLabel": "Cancel",
+        "confirmationNote": "This action cannot be undone."
+      },
+      "actionDowngrade": "Downgrade",
+      "actionReinstall": "Reinstall",
+      "actionInstall": "Install",
+      "actionUpgrade": "Upgrade",
+      "globalMetadataSettingsSaved": "Global metadata settings saved",
+      "globalMetadataSettingsSaveFailed": "Failed to save global metadata settings",
+      "metadataResetStart": "Metadata reset started, re-matching all mods from cloud...",
+      "cloudMatchComplete": "Cloud matching complete",
+      "cloudMatchFailed": "Re-matching from cloud failed",
+      "emptySearch": "No mods match your current search query.",
+      "emptyInstance": "No mods installed in this instance yet."
+    },
+    "overview": {
+      "changeHeroLogoTitle": "Click to change Hero Logo",
+      "addHeroLogo": "Add Hero Logo",
+      "changeHeroLogo": "Change Logo",
+      "startGame": "Play",
+      "needOpenFolderHandler": "onOpenFolder must be passed to open the directory",
+      "instanceFolder": "Folder",
+      "customLinks": "Custom Links"
+    },
+    "resourcepacks": {
+      "title": "Local Resource Packs",
+      "downloadBtn": "Download Packs",
+      "openFolderBtn": "Open Folder",
+      "directoryPack": "Folder Pack",
+      "zipPack": "ZIP Pack",
+      "directory": "Folder",
+      "deleteTitle": "Delete Resource Pack",
+      "deleteDesc": "This will permanently remove the resource pack file from this instance. This action cannot be undone.",
+      "deleteConfirmBtn": "Confirm Delete",
+      "deleteNote": "This deletion is permanent. Please confirm you no longer need this resource pack."
+    },
+    "saves": {
+      "title": "Saves Backup",
+      "restoreCenter": "Recovery Center",
+      "openFolder": "Open Folder",
+      "configsRestored": "\nConfig files restored simultaneously."
+    },
+    "shader": {
+      "title": "Local Shaders",
+      "subtitle": "Ensure the instance has OptiFine, Iris, or Oculus installed before enabling.",
+      "downloadShader": "Download Shaders",
+      "openShaderFolder": "Open Folder",
+      "folderShaderPack": "Folder Shader Pack",
+      "zipShaderPack": "ZIP Shader Pack",
+      "deleteShaderPack": "Delete Shader",
+      "deleteConfirmHeadline": "Are you sure you want to delete \"{{fileName}}\"?",
+      "deleteConfirmDescription": "This will permanently remove the shader pack file from this instance. This action cannot be undone.",
+      "confirmDelete": "Confirm Delete",
+      "cancel": "Cancel",
+      "deleteConfirmNote": "This deletion is permanent. Please confirm you no longer need this shader pack."
+    },
+    "loading": "Loading...",
+    "tabs": {
+      "overview": "Overview",
+      "basic": "Settings",
+      "java": "Java",
+      "saves": "Saves",
+      "mods": "Mods",
+      "resourcepacks": "Resource Packs",
+      "shaders": "Shaders",
+      "export": "Export"
+    }
   }
 }

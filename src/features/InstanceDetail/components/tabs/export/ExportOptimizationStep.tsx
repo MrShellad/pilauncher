@@ -177,8 +177,8 @@ export const ExportOptimizationStep: React.FC<ExportOptimizationStepProps> = ({
               className="cursor-help flex items-center"
               title={
                 data.format === 'zip'
-                  ? '由于您选择了 Standard ZIP 格式，Manifest 模式已固定为禁用。'
-                  : '由于您选择了 PiPack 格式，Manifest 模式已固定为启用。'
+                  ? t('instanceDetail.export.optimization.manifestLockedZipTooltip', { defaultValue: '由于您选择了 Standard ZIP 格式，Manifest 模式已固定为禁用。' })
+                  : t('instanceDetail.export.optimization.manifestLockedPipackTooltip', { defaultValue: '由于您选择了 PiPack 格式，Manifest 模式已固定为启用。' })
               }
             >
               <Lock size={14} className="text-[#FFE866]/80" />

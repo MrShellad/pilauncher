@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { useTranslation } from 'react-i18next';
 import {
   doesFocusableExist,
   getCurrentFocusKey,
@@ -49,6 +50,7 @@ export const useEnvironmentSection = ({
   onUpdateEnvironment,
   onSuccess,
 }: UseEnvironmentSectionOptions) => {
+  const { t } = useTranslation();
   const {
     currentGameVersionValue,
     normalizedCurrentLoader,
@@ -95,12 +97,12 @@ export const useEnvironmentSection = ({
       return data;
     } catch (error) {
       console.error('Failed to fetch Minecraft versions:', error);
-      setErrorText('获取 Minecraft 版本列表失败');
+      setErrorText(t('instanceDetail.basic.env.fetchMcVersionsFailed', '获取 Minecraft 版本列表失败'));
       return null;
     } finally {
       setIsLoadingVersions(false);
     }
-  }, []);
+  }, [t]);
 
   const focusWhenAvailable = useCallback((getFocusKey: () => string | null) => {
     let attempts = 0;
@@ -175,7 +177,7 @@ export const useEnvironmentSection = ({
           console.error('Failed to fetch loader versions:', error);
           setLoaderVersions([]);
           setLoaderVersion(null);
-          setErrorText('获取 Loader 版本列表失败');
+          setErrorText(t('instanceDetail.basic.env.fetchLoaderVersionsFailed', '获取 Loader 版本列表失败'));
         }
       } finally {
         if (!cancelled) setIsLoadingLoaders(false);
@@ -186,7 +188,7 @@ export const useEnvironmentSection = ({
     return () => {
       cancelled = true;
     };
-  }, [focusWhenAvailable, isOpen, loaderType, gameVersion, normalizedCurrentLoader, normalizedCurrentLoaderVersion]);
+  }, [focusWhenAvailable, isOpen, loaderType, gameVersion, normalizedCurrentLoader, normalizedCurrentLoaderVersion, t]);
 
   const filteredVersionGroups = useMemo(
     () => getFilteredEnvironmentVersionGroups(versionGroups, versionType),
@@ -317,10 +319,10 @@ export const useEnvironmentSection = ({
       setErrorText('');
       await onUpdateEnvironment(createEnvironmentUpdate(gameVersion, loaderType, targetLoaderVersion));
       setIsOpen(false);
-      onSuccess('实例环境已更新');
+      onSuccess('environmentUpdated');
     } catch (error) {
       console.error('Failed to update instance environment:', error);
-      setErrorText(`更新实例环境失败: ${String(error)}`);
+      setErrorText(t('instanceDetail.basic.env.applyFailed', '更新实例环境失败: {{error}}', { error: String(error) }));
     } finally {
       setIsGlobalSaving(false);
     }
@@ -332,6 +334,7 @@ export const useEnvironmentSection = ({
     onUpdateEnvironment,
     setIsGlobalSaving,
     targetLoaderVersion,
+    t,
   ]);
 
   const currentLoaderLabel = getCurrentLoaderLabel(

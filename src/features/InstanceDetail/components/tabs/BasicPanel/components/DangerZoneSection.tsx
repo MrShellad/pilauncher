@@ -1,5 +1,6 @@
 import React from 'react';
 import { Trash2, AlertTriangle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { OreButton } from '../../../../../../ui/primitives/OreButton';
 import { SettingsSection } from '../../../../../../ui/layout/SettingsSection';
@@ -15,6 +16,7 @@ export const DangerZoneSection: React.FC<DangerZoneSectionProps> = ({
   isGlobalSaving,
   setIsGlobalSaving,
 }) => {
+  const { t } = useTranslation();
   const {
     isDeleteModalOpen,
     openDeleteModal,
@@ -24,10 +26,10 @@ export const DangerZoneSection: React.FC<DangerZoneSectionProps> = ({
 
   return (
     <>
-      <SettingsSection title="危险区域" icon={<AlertTriangle size="1.125rem" />} danger>
+      <SettingsSection title={t('instanceDetail.basic.danger.title', '危险区域')} icon={<AlertTriangle size="1.125rem" />} danger>
         <FormRow
-          label="彻底删除实例"
-          description="此操作不可逆，将永久删除该实例的所有本地文件与存档。"
+          label={t('instanceDetail.basic.danger.deleteLabel', '彻底删除实例')}
+          description={t('instanceDetail.basic.danger.deleteDesc', '此操作不可逆，将永久删除该实例的所有本地文件与存档。')}
           control={
             <OreButton
               focusKey="basic-btn-delete-instance"
@@ -36,7 +38,7 @@ export const DangerZoneSection: React.FC<DangerZoneSectionProps> = ({
               disabled={isGlobalSaving || isInitializing}
               className="w-40"
             >
-              <Trash2 size="1rem" className="mr-2" /> 彻底删除
+              <Trash2 size="1rem" className="mr-2" /> {t('instanceDetail.basic.danger.deleteBtn', '彻底删除')}
             </OreButton>
           }
         />
@@ -46,15 +48,17 @@ export const DangerZoneSection: React.FC<DangerZoneSectionProps> = ({
         isOpen={isDeleteModalOpen}
         onClose={closeDeleteModal}
         onConfirm={confirmDelete}
-        title="警告：彻底删除实例"
+        title={t('instanceDetail.basic.danger.confirmTitle', '警告：彻底删除实例')}
         headline={
-          <>
-            您确定要彻底删除实例 <span className="font-bold text-red-400">"{instanceName}"</span> 吗？
-          </>
+          <span>
+            {t('instanceDetail.basic.danger.confirmHeadlinePrefix', '您确定要彻底删除实例 ')}
+            <span className="font-bold text-red-400">"{instanceName}"</span>
+            {t('instanceDetail.basic.danger.confirmHeadlineSuffix', ' 吗？')}
+          </span>
         }
-        description="此操作无法撤销，与该实例相关的所有配置、模组以及游戏存档都会被永久清除。"
-        confirmLabel="强制删除"
-        cancelLabel="取消"
+        description={t('instanceDetail.basic.danger.confirmDesc', '此操作无法撤销，与该实例相关的所有配置、模组以及游戏存档都会被永久清除。')}
+        confirmLabel={t('instanceDetail.basic.danger.confirmBtn', '强制删除')}
+        cancelLabel={t('common.cancel', '取消')}
         confirmVariant="danger"
         confirmFocusKey="basic-modal-btn-confirm"
         cancelFocusKey="basic-modal-btn-cancel"

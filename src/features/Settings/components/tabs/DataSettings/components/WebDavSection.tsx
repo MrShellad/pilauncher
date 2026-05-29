@@ -56,7 +56,7 @@ export const WebDavSection: React.FC<WebDavSectionProps> = ({
             onClick={onOpen}
             focusKey="settings-data-webdav"
             onArrowPress={onArrowPress}
-            className="w-[200px] justify-center whitespace-nowrap"
+            className="w-[240px] justify-center whitespace-nowrap"
           >
             <CloudCog size={16} className="mr-1.5" />
             {configured ? t('settings.data.webdav.manage') : t('settings.data.webdav.configure')}
@@ -74,7 +74,7 @@ export const WebDavSection: React.FC<WebDavSectionProps> = ({
             onClick={onOpenManage}
             focusKey="settings-data-webdav-manage"
             onArrowPress={onArrowPress}
-            className="w-[200px] justify-center whitespace-nowrap"
+            className="w-[240px] justify-center whitespace-nowrap"
           >
             <HardDrive size={16} className="mr-1.5" />
             {t('settings.data.webdav.manageBackups')}
@@ -87,7 +87,7 @@ export const WebDavSection: React.FC<WebDavSectionProps> = ({
         description={t('settings.data.webdav.autoSyncIntervalDesc')}
         vertical={false}
         control={
-          <div className="w-[200px]">
+          <div className="w-[240px]">
             <OreDropdown
               options={autoSyncIntervalOptions}
               value={autoSyncInterval}

@@ -102,7 +102,7 @@ const Instances: React.FC = () => {
     >
       <div className="mb-4 flex w-full flex-wrap items-center justify-between gap-4 lg:mb-5">
         {/* 左侧组：视图切换、搜索、排序、标签 */}
-        <div className="flex flex-row items-center gap-3 flex-wrap">
+        <div className="flex flex-row items-center gap-3 flex-wrap sm:flex-nowrap">
           <FocusItem focusKey="view-toggle" onEnter={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}>
             {({ ref, focused }) => (
               <button
@@ -118,7 +118,7 @@ const Instances: React.FC = () => {
             )}
           </FocusItem>
 
-          <div className="w-[180px] lg:w-[220px]">
+          <div className="flex-1 min-w-[140px] max-w-[220px]">
             <OreInput
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -130,7 +130,7 @@ const Instances: React.FC = () => {
             />
           </div>
 
-          <div className="w-[140px] flex-shrink-0">
+          <div className="w-[180px] flex-shrink-0">
             <OreDropdown
               options={[
                 { label: t('instancesPage.sortOptions.lastPlayed', '最近游玩'), value: "lastPlayed" },
@@ -168,7 +168,7 @@ const Instances: React.FC = () => {
         </div>
 
         {/* 右侧组：操作按钮 */}
-        <div className="flex flex-row items-center gap-3 flex-wrap p-2 -m-2">
+        <div className="flex flex-row items-center gap-3 flex-wrap sm:flex-nowrap p-2 -m-2">
           <FocusItem focusKey="action-new" onEnter={handleCreate}>
             {({ ref, focused }) => (
               <div

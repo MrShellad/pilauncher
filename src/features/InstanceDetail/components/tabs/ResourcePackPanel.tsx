@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { useTranslation } from 'react-i18next';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { DownloadCloud, FolderOpen, Loader2, Package, Trash2 } from 'lucide-react';
 
@@ -25,6 +26,7 @@ interface PendingDeleteState {
 }
 
 export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
+  const { t } = useTranslation();
   const { items, isLoading, toggleItem, deleteItem, openFolder, formatSize } = useResourceManager(instanceId, 'resourcePack');
   const setActiveTab = useLauncherStore((state) => state.setActiveTab);
   const setInstanceDownloadTarget = useLauncherStore((state) => state.setInstanceDownloadTarget);
@@ -182,10 +184,10 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
             <div>
               <h3 className="flex items-center font-minecraft text-white">
                 <Package size={18} className="mr-2 text-ore-green" />
-                本地资源包
+                {t('instanceDetail.resourcepacks.title', '本地资源包')}
               </h3>
               <p className="mt-1 text-sm text-ore-text-muted">
-                共 {items.length} 个资源包，支持拖拽 zip 到列表安装。
+                {t('instanceDetail.resourcepacks.summary', '共 {{count}} 个资源包，支持拖拽 zip 到列表安装。', { count: items.length })}
               </p>
             </div>
 
@@ -202,7 +204,7 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
                 }}
               >
                 <DownloadCloud size={16} className="mr-2" />
-                下载资源包
+                {t('instanceDetail.resourcepacks.downloadBtn', '下载资源包')}
               </OreButton>
 
               <OreButton
@@ -214,7 +216,7 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
                 onClick={openFolder}
               >
                 <FolderOpen size={16} className="mr-2" />
-                打开资源包目录
+                {t('instanceDetail.resourcepacks.openFolderBtn', '打开资源包目录')}
               </OreButton>
             </div>
           </div>
@@ -251,9 +253,9 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
                           inactive={!item.isEnabled}
                           selected={item.isEnabled}
                           title={item.fileName.replace('.zip', '').replace('.disabled', '')}
-                          description={item.isDirectory ? '文件夹资源包' : 'ZIP 资源包'}
+                          description={item.isDirectory ? t('instanceDetail.resourcepacks.directoryPack', '文件夹资源包') : t('instanceDetail.resourcepacks.zipPack', 'ZIP 资源包')}
                           metaItems={[
-                            item.fileName, item.isDirectory ? '文件夹' : formatSize(item.fileSize),
+                            item.fileName, item.isDirectory ? t('instanceDetail.resourcepacks.directory', '文件夹') : formatSize(item.fileSize),
                           ]}
                           leading={
                             iconUrl ? (
@@ -282,7 +284,7 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
                                   event.stopPropagation();
                                   setPendingDelete({ fileName: item.fileName, rowIndex: index });
                                 }}
-                                title="删除资源包"
+                                title={t('instanceDetail.resourcepacks.deleteTitle', '删除资源包')}
                               >
                                 <Trash2 size={16} />
                               </OreButton>
@@ -303,17 +305,17 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
         isOpen={pendingDelete !== null}
         onClose={handleCloseDeleteConfirm}
         onConfirm={handleConfirmDelete}
-        title="删除资源包"
-        headline={pendingDelete ? `确认删除 "${pendingDelete.fileName}" 吗？` : undefined}
-        description="这会从当前实例中永久移除该资源包文件，删除后无法通过启动器撤销。"
-        confirmLabel="确认删除"
-        cancelLabel="取消"
+        title={t('instanceDetail.resourcepacks.deleteTitle', '删除资源包')}
+        headline={pendingDelete ? t('instanceDetail.resourcepacks.deleteHeadline', '确认删除 "{{name}}" 吗？', { name: pendingDelete.fileName }) : undefined}
+        description={t('instanceDetail.resourcepacks.deleteDesc', '这会从当前实例中永久移除该资源包文件，删除后无法通过启动器撤销。')}
+        confirmLabel={t('instanceDetail.resourcepacks.deleteConfirmBtn', '确认删除')}
+        cancelLabel={t('common.cancel', '取消')}
         confirmVariant="danger"
         tone="danger"
         cancelFocusKey="resourcepack-delete-cancel"
         confirmFocusKey="resourcepack-delete-confirm"
         className="w-full max-w-lg"
-        confirmationNote="删除操作不可恢复，请确认当前实例确实不再需要该资源包。"
+        confirmationNote={t('instanceDetail.resourcepacks.deleteNote', '删除操作不可恢复，请确认当前实例确实不再需要该资源包。')}
         confirmationNoteTone="danger"
       />
     </>

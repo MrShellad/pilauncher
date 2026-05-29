@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { DownloadCloud, FolderOpen, Image as ImageIcon, Loader2, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { useLauncherStore } from '../../../../store/useLauncherStore';
 import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
@@ -24,6 +25,7 @@ interface PendingDeleteState {
 }
 
 export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
+  const { t } = useTranslation();
   const { items, isLoading, toggleItem, deleteItem, openFolder, formatSize } = useResourceManager(instanceId, 'shader');
   const setActiveTab = useLauncherStore((state) => state.setActiveTab);
   const setInstanceDownloadTarget = useLauncherStore((state) => state.setInstanceDownloadTarget);
@@ -181,10 +183,10 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
             <div>
               <h3 className="flex items-center font-minecraft text-white">
                 <ImageIcon size={18} className="mr-2 text-ore-green" />
-                本地光影包
+                {t('instanceDetail.shader.title', { defaultValue: '本地光影包' })}
               </h3>
               <p className="mt-1 text-sm text-ore-text-muted">
-                使用前请确保实例已安装 OptiFine、Iris 或 Oculus。
+                {t('instanceDetail.shader.subtitle', { defaultValue: '使用前请确保实例已安装 OptiFine、Iris 或 Oculus。' })}
               </p>
             </div>
 
@@ -201,7 +203,7 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
                 }}
               >
                 <DownloadCloud size={16} className="mr-2" />
-                下载光影
+                {t('instanceDetail.shader.downloadShader', { defaultValue: '下载光影' })}
               </OreButton>
 
               <OreButton
@@ -213,7 +215,7 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
                 onClick={openFolder}
               >
                 <FolderOpen size={16} className="mr-2" />
-                打开光影目录
+                {t('instanceDetail.shader.openShaderFolder', { defaultValue: '打开光影目录' })}
               </OreButton>
             </div>
           </div>
@@ -238,41 +240,41 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
                   {({ ref, focused }) => (
                     <div ref={ref as React.RefObject<HTMLDivElement>}>
                       <OreAssetRow
-                        focusable={false}
-                        focused={focused}
-                        operationActive={operationRowIndex === index}
-                        inactive={!item.isEnabled}
-                        selected={item.isEnabled}
-                        title={item.fileName.replace('.zip', '').replace('.disabled', '')}
-                        description={item.isDirectory ? '文件夹光影包' : 'ZIP 光影包'}
-                        metaItems={[item.fileName, formatSize(item.fileSize)]}
-                        leading={<ImageIcon size={28} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />}
-                        trailingClassName="flex items-center space-x-2"
-                        trailing={
-                          <>
-                            <OreSwitch
-                              focusKey={getActionFocusKey(index, 'toggle')}
-                              checked={item.isEnabled}
-                              onArrowPress={(direction) => handleActionArrow(index, 'toggle', direction)}
-                              onChange={() => toggleItem(item.fileName, item.isEnabled)}
-                            />
+                          focusable={false}
+                          focused={focused}
+                          operationActive={operationRowIndex === index}
+                          inactive={!item.isEnabled}
+                          selected={item.isEnabled}
+                          title={item.fileName.replace('.zip', '').replace('.disabled', '')}
+                          description={item.isDirectory ? t('instanceDetail.shader.folderShaderPack', { defaultValue: '文件夹光影包' }) : t('instanceDetail.shader.zipShaderPack', { defaultValue: 'ZIP 光影包' })}
+                          metaItems={[item.fileName, formatSize(item.fileSize)]}
+                          leading={<ImageIcon size={28} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />}
+                          trailingClassName="flex items-center space-x-2"
+                          trailing={
+                            <>
+                              <OreSwitch
+                                focusKey={getActionFocusKey(index, 'toggle')}
+                                checked={item.isEnabled}
+                                onArrowPress={(direction) => handleActionArrow(index, 'toggle', direction)}
+                                onChange={() => toggleItem(item.fileName, item.isEnabled)}
+                              />
 
-                            <OreButton
-                              focusKey={getActionFocusKey(index, 'delete')}
-                              variant="danger"
-                              size="auto"
-                              className="!h-10 !min-h-10 !min-w-10 !w-10 !px-0"
-                              onArrowPress={(direction) => handleActionArrow(index, 'delete', direction)}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setPendingDelete({ fileName: item.fileName, rowIndex: index });
-                              }}
-                              title="删除光影包"
-                            >
-                              <Trash2 size={16} />
-                            </OreButton>
-                          </>
-                        }
+                              <OreButton
+                                focusKey={getActionFocusKey(index, 'delete')}
+                                variant="danger"
+                                size="auto"
+                                className="!h-10 !min-h-10 !min-w-10 !w-10 !px-0"
+                                onArrowPress={(direction) => handleActionArrow(index, 'delete', direction)}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setPendingDelete({ fileName: item.fileName, rowIndex: index });
+                                }}
+                                title={t('instanceDetail.shader.deleteShaderPack', { defaultValue: '删除光影包' })}
+                              >
+                                <Trash2 size={16} />
+                              </OreButton>
+                            </>
+                          }
                       />
                     </div>
                   )}
@@ -287,17 +289,17 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
         isOpen={pendingDelete !== null}
         onClose={handleCloseDeleteConfirm}
         onConfirm={handleConfirmDelete}
-        title="删除光影包"
-        headline={pendingDelete ? `确认删除 "${pendingDelete.fileName}" 吗？` : undefined}
-        description="这会从当前实例中永久移除该光影包文件，删除后无法通过启动器撤销。"
-        confirmLabel="确认删除"
-        cancelLabel="取消"
+        title={t('instanceDetail.shader.deleteShaderPack', { defaultValue: '删除光影包' })}
+        headline={pendingDelete ? t('instanceDetail.shader.deleteConfirmHeadline', { defaultValue: '确认删除 "{{fileName}}" 吗？', fileName: pendingDelete.fileName }) : undefined}
+        description={t('instanceDetail.shader.deleteConfirmDescription', { defaultValue: '这会从当前实例中永久移除该光影包文件，删除后无法通过启动器撤销。' })}
+        confirmLabel={t('instanceDetail.shader.confirmDelete', { defaultValue: '确认删除' })}
+        cancelLabel={t('instanceDetail.shader.cancel', { defaultValue: '取消' })}
         confirmVariant="danger"
         tone="danger"
         cancelFocusKey="shader-delete-cancel"
         confirmFocusKey="shader-delete-confirm"
         className="w-full max-w-lg"
-        confirmationNote="删除操作不可恢复，请确认当前实例确实不再需要该光影包。"
+        confirmationNote={t('instanceDetail.shader.deleteConfirmNote', { defaultValue: '删除操作不可恢复，请确认当前实例确实不再需要该光影包。' })}
         confirmationNoteTone="danger"
       />
     </>
