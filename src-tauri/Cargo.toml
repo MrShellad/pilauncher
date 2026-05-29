@@ -68,3 +68,6 @@ lighty-loaders = "0.8.6"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
+
+[patch.crates-io]
+dispatch2 = { path = "./dispatch2-0.3.1" }
