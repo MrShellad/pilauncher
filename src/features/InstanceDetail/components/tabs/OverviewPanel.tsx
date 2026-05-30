@@ -79,7 +79,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
           ========================================== */}
       <FocusItem focusKey="overview-guard-top" onFocus={() => setFocus('overview-btn-play')}>
         {({ ref }) => (
-          <div ref={ref as any} className="relative w-full h-[280px] bg-black overflow-hidden flex-shrink-0 outline-none">
+          <div ref={ref as any} className="relative w-full h-[clamp(10rem,18vw,21.25rem)] bg-black overflow-hidden flex-shrink-0 outline-none">
             <AnimatePresence initial={false}>
               <motion.img
                 key={currentImage}
@@ -101,8 +101,9 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
                 ==================================================== */}
             <div
               className={`
-                absolute bottom-4 left-6
-                w-[500px] h-[100px]
+                absolute bottom-[clamp(0.75rem,1.2vw,1rem)] left-[clamp(1rem,2vw,1.5rem)]
+                w-[clamp(16rem,30vw,31.25rem)]
+                h-[clamp(3.75rem,8vw,6.25rem)]
                 flex items-center justify-center
                 cursor-pointer select-none
                 overflow-hidden
@@ -140,7 +141,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
                     size={20}
                     className={`transition-colors duration-200 ${logoHovered ? 'text-ore-text' : 'text-ore-text-muted opacity-50'}`}
                   />
-                  <span className={`text-xs font-minecraft transition-colors duration-200 ${logoHovered ? 'text-ore-text' : 'text-ore-text-muted opacity-50'}`}>
+                  <span className={`text-base font-minecraft transition-colors duration-200 ${logoHovered ? 'text-ore-text' : 'text-ore-text-muted opacity-50'}`}>
                     {t('instanceDetail.overview.addHeroLogo', '添加 Hero Logo')}
                   </span>
                 </div>
@@ -158,7 +159,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
                       className="absolute inset-0 flex flex-col items-center justify-center gap-1 pointer-events-none"
                     >
                       <ImagePlus size={20} className="text-ore-text drop-shadow" />
-                      <span className="text-xs font-minecraft text-ore-text drop-shadow">{t('instanceDetail.overview.changeHeroLogo', '更换 Logo')}</span>
+                      <span className="text-base font-minecraft text-ore-text drop-shadow">{t('instanceDetail.overview.changeHeroLogo', '更换 Logo')}</span>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -171,7 +172,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
       {/* ==========================================
           操作栏：实例名 + 开始游戏按钮 + 最后游玩日期
           ========================================== */}
-      <div className="flex items-center justify-between px-6 md:px-12 py-4 bg-ore-nav-active border-b-2 border-ore-gray-border flex-shrink-0 z-10 relative"
+      <div className="flex flex-col-reverse md:flex-row md:items-center md:justify-between px-6 md:px-12 py-4 bg-ore-nav-active border-b-2 border-ore-gray-border flex-shrink-0 z-10 relative gap-4"
         style={{ boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.06)' }}
       >
 
@@ -181,42 +182,43 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
         </FocusItem>
 
         {/* 左侧：开始游戏 + 实例目录 */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-3 w-full md:w-auto">
           <OreButton
             focusKey="overview-btn-play"
             variant="primary"
-            size="lg"
+            size="auto"
             onClick={handlePlayClick}
-            className="min-w-[140px] flex items-center gap-2"
+            className="flex-1 md:flex-initial md:w-auto md:min-w-[15rem] h-12 md:h-14 px-6 md:px-10 text-base md:text-xl flex items-center justify-center gap-2.5"
           >
-            <Play size={16} fill="currentColor" />
+            <Play className="w-5 h-5 md:w-6 md:h-6" fill="currentColor" />
             {isLaunching ? t('instanceCard.launching', '启动中...') : t('instanceDetail.overview.startGame', '开始游戏')}
           </OreButton>
 
           <OreButton
             focusKey="overview-btn-folder"
             variant="secondary"
-            size="lg"
+            size="auto"
             onClick={onOpenFolder || (() => alert(t('instanceDetail.overview.needOpenFolderHandler', '需要传入 onOpenFolder 才能打开目录')))}
+            className="flex-1 md:flex-initial md:w-auto md:min-w-[13.5rem] h-12 md:h-14 px-6 md:px-10 text-base md:text-lg flex items-center justify-center"
           >
-            <FolderOpen size={18} className="mr-2" /> {t('instanceDetail.overview.instanceFolder', '实例目录')}
+            <FolderOpen className="w-5 h-5 md:w-6 md:h-6 mr-2" /> {t('instanceDetail.overview.instanceFolder', '实例目录')}
           </OreButton>
         </div>
 
         {/* 右侧：实例名 + 最后游玩日期 */}
-        <div className="flex flex-col items-end overflow-hidden pl-4">
-          <h1 className="text-xl md:text-2xl text-ore-text font-minecraft ore-text-shadow truncate max-w-[420px]">
+        <div className="flex flex-col items-start md:items-end overflow-hidden w-full md:w-auto pl-0 md:pl-4">
+          <h1 className="text-xl md:text-2xl text-ore-text font-minecraft ore-text-shadow truncate w-full text-left md:text-right max-w-full md:max-w-[420px]">
             {data.name}
           </h1>
-          <div className="flex items-center gap-4 mt-1">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-1.5 w-full md:w-auto">
             {data.playTime !== undefined && data.playTime > 0 && (
-              <div className="flex items-center gap-1 text-ore-text-muted text-xs font-minecraft">
-                <Clock size={12} />
+              <div className="flex items-center gap-1.5 text-ore-text-muted text-base font-minecraft">
+                <Clock size={16} />
                 <span>{formatPlayTime(data.playTime, t)}</span>
               </div>
             )}
-            <div className="flex items-center gap-1 text-ore-text-muted text-xs font-minecraft">
-              <Calendar size={12} />
+            <div className="flex items-center gap-1.5 text-ore-text-muted text-base font-minecraft">
+              <Calendar size={16} />
               <span>{data.lastPlayed ? formatRelativeTime(data.lastPlayed, t) : t('home.neverPlayed', { defaultValue: '从未游玩' })}</span>
             </div>
           </div>
@@ -231,7 +233,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
       {/* ==========================================
           内容区
           ========================================== */}
-      <div className="flex-1 p-6 md:p-8">
+      <div className="flex-1 p-4 sm:p-6 md:p-8">
         <div className="max-w-4xl mx-auto space-y-8 pb-12">
 
           {/* 自定义链接管理 */}
@@ -346,7 +348,7 @@ const OreLinkBlock: React.FC<OreLinkBlockProps> = ({ icon, label, onClick }) => 
 
       {/* 标签文字 */}
       <span
-        className="font-minecraft text-sm truncate w-full text-center leading-tight relative z-20 ore-text-shadow transition-colors duration-150"
+        className="font-minecraft text-base truncate w-full text-center leading-tight relative z-20 ore-text-shadow transition-colors duration-150"
         style={{ color: hovered ? '#FFFFFF' : '#D0D1D4' }}
       >
         {label}

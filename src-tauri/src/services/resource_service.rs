@@ -16,6 +16,7 @@ struct ModrinthRawProject {
     id: String,
     title: String,
     description: String,
+    body: String,
     client_side: String,
     server_side: String,
     downloads: i32,
@@ -103,6 +104,7 @@ impl ResourceService {
             title: raw.title,
             author: "Unknown".to_string(),
             description: raw.description,
+            body: raw.body,
             icon_url: raw.icon_url,
             client_side: raw.client_side,
             server_side: raw.server_side,
@@ -262,17 +264,75 @@ impl ResourceService {
         let temp_target_path = target_file_path.with_extension("download");
         let candidate_urls = vec![url.to_string()];
 
+        let initial_downloaded = tokio::fs::metadata(&temp_target_path)
+            .await
+            .map(|metadata| metadata.len())
+            .unwrap_or(0);
+        let total_hint = probe_download_total_bytes(&client, url).await;
+        let displayed_total = total_hint.unwrap_or(0);
+
         let _ = app.emit(
             "resource-download-progress",
             ResourceProgressPayload {
                 task_id: file_name.to_string(),
                 file_name: file_name.to_string(),
                 stage: "DOWNLOADING_MOD".to_string(),
-                current: 0,
-                total: 100,
+                current: initial_downloaded,
+                total: displayed_total,
                 message: format!("正在下载: {}", file_name),
             },
         );
+
+        let progress_app = app.clone();
+        let progress_file_name = file_name.to_string();
+        let downloaded_bytes = Arc::new(std::sync::atomic::AtomicU64::new(initial_downloaded));
+        let last_progress_emit = Arc::new(std::sync::Mutex::new(
+            std::time::Instant::now()
+                .checked_sub(std::time::Duration::from_millis(250))
+                .unwrap_or_else(std::time::Instant::now),
+        ));
+        let progress_total = displayed_total;
+
+        let on_bytes: Arc<dyn Fn(u64) + Send + Sync> = {
+            let downloaded_bytes = Arc::clone(&downloaded_bytes);
+            let last_progress_emit = Arc::clone(&last_progress_emit);
+
+            Arc::new(move |bytes| {
+                let current = downloaded_bytes
+                    .fetch_add(bytes, std::sync::atomic::Ordering::Relaxed)
+                    .saturating_add(bytes);
+                let now = std::time::Instant::now();
+                let mut last_emit = match last_progress_emit.try_lock() {
+                    Ok(guard) => guard,
+                    Err(_) => return,
+                };
+
+                if now.duration_since(*last_emit) < std::time::Duration::from_millis(250)
+                    && (progress_total == 0 || current < progress_total)
+                {
+                    return;
+                }
+
+                *last_emit = now;
+                let total = if progress_total > 0 {
+                    progress_total.max(current)
+                } else {
+                    0
+                };
+
+                let _ = progress_app.emit(
+                    "resource-download-progress",
+                    ResourceProgressPayload {
+                        task_id: progress_file_name.clone(),
+                        file_name: progress_file_name.clone(),
+                        stage: "DOWNLOADING_MOD".to_string(),
+                        current,
+                        total,
+                        message: format!("正在下载: {}", progress_file_name),
+                    },
+                );
+            })
+        };
 
         let no_cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let download_result = download_file(
@@ -283,7 +343,7 @@ impl ResourceService {
             std::time::Duration::from_secs(dl_settings.timeout.max(1)),
             &no_cancel,
             rate_limiter,
-            None,
+            Some(on_bytes),
         )
         .await
         .map_err(|e| format!("下载失败: {}", e))?;
@@ -307,4 +367,50 @@ impl ResourceService {
 
         Ok(())
     }
+}
+
+async fn probe_download_total_bytes(client: &reqwest::Client, url: &str) -> Option<u64> {
+    if let Ok(Ok(response)) = tokio::time::timeout(
+        std::time::Duration::from_secs(8),
+        client.head(url).header(reqwest::header::ACCEPT_ENCODING, "identity").send(),
+    )
+    .await
+    {
+        if response.status().is_success() {
+            if let Some(total) = response.content_length().filter(|total| *total > 0) {
+                return Some(total);
+            }
+        }
+    }
+
+    if let Ok(Ok(response)) = tokio::time::timeout(
+        std::time::Duration::from_secs(8),
+        client
+            .get(url)
+            .header(reqwest::header::ACCEPT_ENCODING, "identity")
+            .header(reqwest::header::RANGE, "bytes=0-0")
+            .send(),
+    )
+    .await
+    {
+        if response.status().as_u16() == 206 {
+            return parse_total_size_from_content_range(response.headers());
+        }
+
+        if response.status().is_success() {
+            return response.content_length().filter(|total| *total > 0);
+        }
+    }
+
+    None
+}
+
+fn parse_total_size_from_content_range(headers: &reqwest::header::HeaderMap) -> Option<u64> {
+    let value = headers.get(reqwest::header::CONTENT_RANGE)?.to_str().ok()?;
+    let (_, total_part) = value.rsplit_once('/')?;
+    if total_part == "*" {
+        return None;
+    }
+
+    total_part.parse().ok()
 }

@@ -15,6 +15,7 @@
 @import './ui/primitives/CreatableCombobox.css';
 @import './ui/primitives/OreToggleButton.css';
 @import './ui/primitives/OreTag.css';
+@import './ui/primitives/OreTooltip.css';
 @import './ui/primitives/AccountCard.css';
 @import './ui/primitives/DownloadDetailModal.css';
 @import './ui/primitives/SaveRestoreModal.css';

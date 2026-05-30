@@ -11,6 +11,7 @@ import { focusManager } from '../ui/focus/FocusManager';
 import { useInputAction } from '../ui/focus/InputDriver';
 import { NewspaperIcon } from '../ui/icons/NewspaperIcon';
 import { OreButton } from '../ui/primitives/OreButton';
+import { OreOverlayScrollArea } from '../ui/primitives/OreOverlayScrollArea';
 
 const INITIAL_VISIBLE_COUNT = 6;
 const LOAD_MORE_STEP = 4;
@@ -19,7 +20,6 @@ const News: React.FC = () => {
   const { i18n } = useTranslation();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
-  const pendingFocusKeyRef = useRef<string | null>(null);
   const hasInitialFocusRef = useRef(false);
   const setActiveTab = useLauncherStore((state) => state.setActiveTab);
   const { rawItems, isLoading, isRefreshing, error, ensureSessionRefresh, refreshNews, markAllRead } = useNewsStore();
@@ -115,90 +115,11 @@ const News: React.FC = () => {
   const visibleItems = items.slice(0, visibleCount);
   const hasMore = visibleCount < items.length;
   const resolvedError = error ? `${pageCopy.error}: ${error}` : null;
-  const focusSequence = useMemo(() => {
-    const seq = ['btn-news-refresh', 'btn-news-back'];
-    if (resolvedError) {
-      seq.push('btn-news-error-retry');
-    }
-    seq.push(
-      ...visibleItems.flatMap((item) => {
-        const focusSegment = getNewsFocusKeySegment(item.id);
-        return [`news-create-${focusSegment}`, `news-official-${focusSegment}`, `news-wiki-${focusSegment}`];
-      })
-    );
-    return seq;
-  }, [visibleItems, resolvedError]);
-
-  useEffect(() => {
-    const pendingFocusKey = pendingFocusKeyRef.current;
-    if (!pendingFocusKey) return;
-
-    let attempts = 0;
-    let timerId: ReturnType<typeof setTimeout> | null = null;
-    let isDisposed = false;
-
-    const tryFocus = () => {
-      if (isDisposed) return;
-      if (doesFocusableExist(pendingFocusKey)) {
-        focusManager.focus(pendingFocusKey);
-        pendingFocusKeyRef.current = null;
-        return;
-      }
-
-      attempts += 1;
-      if (attempts < 10) {
-        timerId = setTimeout(tryFocus, 60);
-      }
-    };
-
-    timerId = setTimeout(tryFocus, 50);
-    return () => {
-      isDisposed = true;
-      if (timerId) clearTimeout(timerId);
-    };
-  }, [focusSequence, visibleCount]);
-
   const handleNearEndFocus = (index: number) => {
     if (!hasMore) return;
     if (index < visibleItems.length - 2) return;
 
     setVisibleCount((prev) => Math.min(prev + LOAD_MORE_STEP, items.length));
-  };
-
-  const moveLinearFocus = (focusKey: string, direction: string) => {
-    const isForward = direction === 'right' || direction === 'down';
-    const isBackward = direction === 'left' || direction === 'up';
-
-    if (!isForward && !isBackward) {
-      return true;
-    }
-
-    const currentIndex = focusSequence.indexOf(focusKey);
-    if (currentIndex < 0) {
-      return true;
-    }
-
-    const nextIndex = currentIndex + (isForward ? 1 : -1);
-    if (nextIndex < 0) {
-      return false;
-    }
-
-    const nextFocusKey = focusSequence[nextIndex];
-    if (nextFocusKey) {
-      focusManager.focus(nextFocusKey);
-      return false;
-    }
-
-    if (isForward && hasMore) {
-      const nextItem = items[visibleCount];
-      if (nextItem) {
-        pendingFocusKeyRef.current = `news-official-${getNewsFocusKeySegment(nextItem.id)}`;
-        setVisibleCount((prev) => Math.min(prev + LOAD_MORE_STEP, items.length));
-      }
-      return false;
-    }
-
-    return false;
   };
 
   return (
@@ -207,10 +128,10 @@ const News: React.FC = () => {
       trapFocus
       className="flex h-full w-full overflow-hidden"
     >
-      <div
+      <OreOverlayScrollArea
         ref={scrollRef}
-        className="h-full w-full overflow-y-auto custom-scrollbar px-5 py-6 sm:px-7 sm:py-8 lg:px-8 lg:py-8"
-        style={{ scrollbarGutter: 'stable both-edges' }}
+        className="h-full w-full"
+        viewportClassName="px-5 py-6 sm:px-7 sm:py-8 lg:px-8 lg:py-8"
       >
         <div className="mx-auto flex w-full max-w-[1380px] flex-col gap-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -234,7 +155,6 @@ const News: React.FC = () => {
                 size="auto"
                 className="!h-11 gap-2 !px-4 !text-white !m-0"
                 onClick={() => void refreshNews({ background: rawItems.length > 0 })}
-                onArrowPress={(direction) => moveLinearFocus('btn-news-refresh', direction)}
                 autoScroll={false}
               >
                 <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
@@ -248,7 +168,6 @@ const News: React.FC = () => {
                 size="auto"
                 className="!h-11 gap-2 !px-4 !m-0"
                 onClick={() => setActiveTab('home')}
-                onArrowPress={(direction) => moveLinearFocus('btn-news-back', direction)}
                 autoScroll={false}
               >
                 <ArrowLeft size={18} />
@@ -270,7 +189,6 @@ const News: React.FC = () => {
                 size="auto"
                 className="!h-9 !min-w-[6.25rem] self-start sm:self-auto !px-4 !text-white"
                 onClick={() => void refreshNews({ background: rawItems.length > 0 })}
-                onArrowPress={(direction) => moveLinearFocus('btn-news-error-retry', direction)}
                 autoScroll={false}
               >
                 <span>{pageCopy.refresh || '重试'}</span>
@@ -347,9 +265,6 @@ const News: React.FC = () => {
                         setActiveTab('new-instance');
                       }}
                       onActionFocus={() => handleNearEndFocus(index)}
-                      onCreateInstanceArrowPress={(direction) => moveLinearFocus(`news-create-${focusSegment}`, direction)}
-                      onOfficialArrowPress={(direction) => moveLinearFocus(`news-official-${focusSegment}`, direction)}
-                      onWikiArrowPress={(direction) => moveLinearFocus(`news-wiki-${focusSegment}`, direction)}
                     />
                   );
                 })}
@@ -366,7 +281,7 @@ const News: React.FC = () => {
             </>
           )}
         </div>
-      </div>
+      </OreOverlayScrollArea>
     </FocusBoundary>
   );
 };

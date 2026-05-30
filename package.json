@@ -21,6 +21,7 @@
     "framer-motion": "^12.34.3",
     "i18next": "^25.8.13",
     "lucide-react": "^0.575.0",
+    "marked": "^18.0.4",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

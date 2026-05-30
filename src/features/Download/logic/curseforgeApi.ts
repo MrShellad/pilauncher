@@ -329,6 +329,7 @@ const mapProjectDetail = (mod: CurseForgeMod): OreProjectDetail => {
     title: mod.name,
     author: mod.authors?.[0]?.name || 'Unknown',
     description: mod.summary || '',
+    body: mod.summary || '',
     icon_url: mod.logo?.url || mod.logo?.thumbnailUrl || null,
     client_side: environment.client_side,
     server_side: environment.server_side,

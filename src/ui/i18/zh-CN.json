@@ -204,6 +204,19 @@
       "scanningMods": "正在读取实例 MOD 缓存...",
       "confirmAndDeploy": "确认并部署"
     },
+    "versionChangelog": {
+      "title": "版本更新日志",
+      "translate": "翻译",
+      "translating": "正在翻译",
+      "showOriginal": "显示原文",
+      "showTranslation": "显示翻译",
+      "translateFailed": "翻译失败: {{message}}",
+      "translationActive": "翻译预览",
+      "modeTranslatedOnly": "译文",
+      "modeBilingual": "双语对照",
+      "machineTranslated": "由腾讯云 TMT 自动翻译",
+      "noChangelog": "该版本暂无更新日志。"
+    },
     "tags": {
       "clientSide": "客户端",
       "optimization": "性能优化",
@@ -1191,6 +1204,14 @@
     "actionNew": "新建实例",
     "actionFolder": "选择启动器库",
     "actionDetect": "自动探测",
+    "actionImportExternal": "导入外部实例",
+    "importModal": {
+      "title": "导入外部/第三方实例",
+      "manualTitle": "手动选择目录",
+      "manualDesc": "选择本地已有启动器（如 PCL2、HMCL）的实例路径进行关联",
+      "detectTitle": "自动探测实例",
+      "detectDesc": "智能扫描系统常见路径下的第三方实例并一键导入"
+    },
     "tagFilterModal": {
       "title": "标签筛选",
       "description": "选择下方的标签来筛选显示的实例列表。",
@@ -1380,6 +1401,13 @@
       "subtitle": "为了继续使用 PiLauncher，您必须阅读并同意以下条款",
       "updateWarning": "由于用户协议或隐私政策发生了变更，请您重新阅读并同意后方可继续使用。",
       "agree": "我已阅读并完全同意"
+    },
+    "donate": {
+      "title": "支持 PiLauncher 开发",
+      "description": "PiLauncher 是一款完全免费且开源的启动器。正是因为有了赞助者的支持，我们才能持续改进它。如果您觉得本项目对您有所帮助，欢迎支持我们！",
+      "scanOrClick": "扫码或点击下方按钮前往爱发电赞助",
+      "btnDonate": "前往爱发电赞助",
+      "btnFinish": "进入启动器"
     }
   },
   "nav": {

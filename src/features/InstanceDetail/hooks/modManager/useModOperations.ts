@@ -228,6 +228,11 @@ export const useModOperations = ({
       setMods((current) => current.map((item) => (
         item.fileName === oldFileName ? { ...item, isUpdatingMod: false } : item
       )));
+      useDownloadStore.getState().addOrUpdateTask({
+        id: targetFileName,
+        stage: 'ERROR',
+        message: `下载失败: ${error}`
+      });
       throw error;
     }
   }, [instanceId, loadMods, setMods]);

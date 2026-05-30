@@ -42,6 +42,13 @@ export const useLibraryResourceDetail = () => {
       current: 0,
       total: 100,
       message: t('libraryPage.messages.connectingDownload'),
+      retryAction: 'download_resource',
+      retryPayload: {
+        url: version.download_url,
+        fileName: version.file_name,
+        instanceId: targetInstanceId,
+        subFolder,
+      },
     });
 
     try {

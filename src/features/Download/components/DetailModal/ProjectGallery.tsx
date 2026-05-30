@@ -1,11 +1,10 @@
 import React from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, Image as ImageIcon } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Image as ImageIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import type { ModrinthProject, OreProjectDetail } from '../../../InstanceDetail/logic/modrinthApi';
 import { useInputAction } from '../../../../ui/focus/InputDriver';
-import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { ControlHint } from '../../../../ui/components/ControlHint';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreMotionTokens } from '../../../../style/tokens/motion';
@@ -14,8 +13,7 @@ interface ProjectGalleryProps {
   project: ModrinthProject;
   details: OreProjectDetail | null;
   isScrolled: boolean;
-  showGallery: boolean;
-  onToggleGallery: () => void;
+  onOpenDescriptionModal: () => void;
   controlsEnabled?: boolean;
 }
 
@@ -23,8 +21,7 @@ export const ProjectGallery: React.FC<ProjectGalleryProps> = ({
   project,
   details,
   isScrolled,
-  showGallery,
-  onToggleGallery,
+  onOpenDescriptionModal,
   controlsEnabled = true
 }) => {
   const { t } = useTranslation();
@@ -35,8 +32,8 @@ export const ProjectGallery: React.FC<ProjectGalleryProps> = ({
   const hasGallery = galleryUrls.length > 0;
 
   useInputAction('ACTION_Y', () => {
-    if (!controlsEnabled || !hasGallery) return;
-    onToggleGallery();
+    if (!controlsEnabled) return;
+    onOpenDescriptionModal();
   });
 
   return (
@@ -58,83 +55,33 @@ export const ProjectGallery: React.FC<ProjectGalleryProps> = ({
             <p className="line-clamp-2 text-[13px] leading-5 text-white/90">{description}</p>
           </div>
 
-          {hasGallery && (
-            <div className="flex shrink-0 items-center justify-end">
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <div className="hidden items-center gap-2 intent-gamepad:flex">
-                  <ControlHint label="Y" variant="face" tone="yellow" />
-                  <span className="font-minecraft text-[10px] uppercase tracking-[0.14em] text-[var(--ore-downloadDetail-hintText)]">
-                    {t('download.actions.togglePreview', { defaultValue: 'Toggle Preview' })}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 intent-gamepad:hidden">
-                  <ControlHint label="Y" variant="keyboard" tone="neutral" />
-                  <span className="font-minecraft text-[10px] uppercase tracking-[0.14em] text-[var(--ore-downloadDetail-hintText)]">
-                    {t('download.actions.togglePreview', { defaultValue: 'Toggle Preview' })}
-                  </span>
-                </div>
-                <OreButton
-                  size="sm"
-                  variant="secondary"
-                  className="!h-8 min-w-[132px] px-3 text-[11px]"
-                  onClick={onToggleGallery}
-                >
-                  <ImageIcon size={14} className="mr-1.5" />
-                  {showGallery
-                    ? t('download.actions.hidePreview', { defaultValue: 'Hide Preview' })
-                    : t('download.actions.previewCount', {
-                        defaultValue: 'Preview {{count}}',
-                        count: galleryUrls.length
-                      })}
-                  <motion.span
-                    initial={false}
-                    animate={showGallery ? 'open' : 'closed'}
-                    variants={OreMotionTokens.downloadDetailChevron}
-                    className="ml-1.5 inline-flex"
-                  >
-                    <ChevronDown size={14} />
-                  </motion.span>
-                </OreButton>
+          <div className="flex shrink-0 items-center justify-end">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <div className="hidden items-center gap-2 intent-gamepad:flex">
+                <ControlHint label="Y" variant="face" tone="yellow" />
+                <span className="font-minecraft text-[10px] uppercase tracking-[0.14em] text-[var(--ore-downloadDetail-hintText)]">
+                  {t('download.actions.details', { defaultValue: 'Details & Screenshots' })}
+                </span>
               </div>
+              <div className="flex items-center gap-2 intent-gamepad:hidden">
+                <ControlHint label="Y" variant="keyboard" tone="neutral" />
+                <span className="font-minecraft text-[10px] uppercase tracking-[0.14em] text-[var(--ore-downloadDetail-hintText)]">
+                  {t('download.actions.details', { defaultValue: 'Details & Screenshots' })}
+                </span>
+              </div>
+              <OreButton
+                size="sm"
+                variant="secondary"
+                className="!h-8 min-w-[132px] px-3 text-[11px]"
+                onClick={onOpenDescriptionModal}
+              >
+                <ImageIcon size={14} className="mr-1.5" />
+                {t('download.actions.details', { defaultValue: 'Details' })}
+                {hasGallery && ` (${galleryUrls.length})`}
+              </OreButton>
             </div>
-          )}
+          </div>
         </div>
-
-        <AnimatePresence initial={false}>
-          {hasGallery && showGallery && !isScrolled && (
-            <motion.div
-              key="gallery-preview-strip"
-              initial="hidden"
-              animate="visible"
-              exit="hidden"
-              variants={OreMotionTokens.downloadDetailPreview}
-              className="overflow-hidden"
-            >
-              <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-1">
-                {galleryUrls.map((url, index) => (
-                  <FocusItem
-                    key={index}
-                    focusKey={`download-gallery-image-${index}`}
-                  >
-                    {({ ref, focused }) => (
-                      <img
-                        ref={ref}
-                        src={url}
-                        alt={`preview-${index}`}
-                        className={`h-20 w-auto shrink-0 border-[2px] object-cover lg:h-24 transition-all duration-150 ${
-                          focused
-                            ? 'border-white scale-[1.03] shadow-[0_0_1rem_rgba(255,255,255,0.25)] z-10'
-                            : 'border-[var(--ore-downloadDetail-divider)]'
-                        }`}
-                        style={{ boxShadow: 'var(--ore-downloadDetail-imageShadow)' }}
-                      />
-                    )}
-                  </FocusItem>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     </motion.div>
   );

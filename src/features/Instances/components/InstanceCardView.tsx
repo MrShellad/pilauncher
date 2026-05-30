@@ -1,11 +1,12 @@
 // src/features/Instances/components/InstanceCardView.tsx
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { motion, type Variants, AnimatePresence } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import { Settings, Loader2, Menu } from 'lucide-react';
 import type { InstanceItem } from '../../../hooks/pages/Instances/useInstances';
 import { useGameLaunch } from '../../../hooks/useGameLaunch';
 
 import { FocusItem } from '../../../ui/focus/FocusItem';
+import { OreTooltip } from '../../../ui/primitives/OreTooltip';
 import { OreMotionTokens } from '../../../style/tokens/motion';
 import { useAccountStore } from '../../../store/useAccountStore';
 import { useInputMode } from '../../../ui/focus/FocusProvider';
@@ -89,49 +90,41 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
               if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
             };
           }, [focused]);
-
           return (
             <>
               <CardFocusHandler focused={focused} onAction={onClick} />
 
-              <motion.div
-                ref={ref}
-                layoutId={`instance-container-${instance.id}`}
-                tabIndex={-1}
-                onClick={handlePlayClick}
-                // 保留原生键盘支持，作为鼠标/纯键盘模式下的兜底
-                onKeyDown={(e) => {
-                  if (e.key.toLowerCase() === 'm' || e.key === 'ContextMenu') {
-                    e.stopPropagation();
-                    onClick();
-                  }
-                }}
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-                initial="rest"
-                animate={focused ? "hover" : "rest"}
-                whileHover="hover"
-                className={`
-                  relative flex h-[16.5rem] min-w-[19.5rem] w-[clamp(19.5rem,21vw,25rem)] flex-col rounded-[0.25rem] cursor-pointer select-none group
-                  transition-all duration-200
-                  border-[0.25rem] ${focused ? 'border-white shadow-[0_0_1.5rem_rgba(255,255,255,0.22)] z-50' : 'border-transparent shadow-[0_0.5rem_1rem_rgba(0,0,0,0.35)]'}
-                `}
+              <OreTooltip
+                content={instance.name}
+                placement="top"
+                align="center"
+                visible={showTooltip}
+                portal={true}
               >
-                <AnimatePresence>
-                  {showTooltip && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 5 }}
-                      className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-[100] w-[90%] max-w-[280px] bg-black/95 text-[#EAB308] border-2 border-white px-3 py-2 text-[1.05rem] font-minecraft shadow-2xl pointer-events-none text-center break-words"
-                    >
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-x-[6px] border-t-[6px] border-x-transparent border-t-white" />
-                      {instance.name}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <div className="flex h-full flex-col overflow-hidden rounded-[0.125rem] border-[0.1875rem] border-[#111214] border-b-[0.375rem] bg-[#202226]">
+                <motion.div
+                  ref={ref}
+                  layoutId={`instance-container-${instance.id}`}
+                  tabIndex={-1}
+                  onClick={handlePlayClick}
+                  // 保留原生键盘支持，作为鼠标/纯键盘模式下的兜底
+                  onKeyDown={(e) => {
+                    if (e.key.toLowerCase() === 'm' || e.key === 'ContextMenu') {
+                      e.stopPropagation();
+                      onClick();
+                    }
+                  }}
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                  initial="rest"
+                  animate={focused ? "hover" : "rest"}
+                  whileHover="hover"
+                  className={`
+                    relative flex h-[16.5rem] min-w-[19.5rem] w-[clamp(19.5rem,21vw,25rem)] flex-col rounded-[0.25rem] cursor-pointer select-none group
+                    transition-all duration-200
+                    border-[0.25rem] ${focused ? 'border-white shadow-[0_0_1.5rem_rgba(255,255,255,0.22)] z-50' : 'border-transparent shadow-[0_0.5rem_1rem_rgba(0,0,0,0.35)]'}
+                  `}
+                >
+                  <div className="flex h-full flex-col overflow-hidden rounded-[0.125rem] border-[0.1875rem] border-[#111214] border-b-[0.375rem] bg-[#202226]">
 
                   <div className="relative w-full h-[61.8%] overflow-hidden border-b-[0.1875rem] border-black bg-[#111214]">
                     {instance.coverUrl ? (
@@ -177,7 +170,7 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                             className="w-3.5 h-3.5 opacity-80 invert brightness-0"
                             onError={(e) => { e.currentTarget.style.display = 'none'; }}
                           />
-                          {instance.loader}
+                          {instance.loader.toUpperCase()}
                         </span>
                       )}
                     </div>
@@ -216,6 +209,12 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
 
                     {instance.playTime > 0 && (
                       <div className="mt-1 flex items-center min-w-0 truncate font-minecraft text-[clamp(1.01rem,1.02vw,1.05rem)] leading-normal text-gray-400 opacity-75">
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" className="mr-1.5 flex-shrink-0">
+                          {/* Outer border */}
+                          <path d="M4 1h4v1H4V1zm4 1h2v1H8V2zM2 2h2v1H2V2zM1 3h1v6H1V3zm10 0h1v6h-1V3zM2 9h2v1H2V9zm6 0h2v1H8V9zm-4 1h4v1H4v-1z" />
+                          {/* Clock Hands */}
+                          <path d="M5 5h2v2H5V5zm1-3h1v3H6V2zm1 3h2v1H7V5z" />
+                        </svg>
                         <span className="truncate">{formatPlayTime(instance.playTime, t)}</span>
                       </div>
                     )}
@@ -223,9 +222,10 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
 
                 </div>
               </motion.div>
-            </>
-          );
-        }}
+            </OreTooltip>
+          </>
+        );
+      }}
       </FocusItem>
       <NoAccountModal
         isOpen={showNoAccountModal}

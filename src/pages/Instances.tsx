@@ -6,7 +6,6 @@ import {
   List,
   Loader2,
   Plus,
-  RefreshCw,
 } from 'lucide-react';
 
 import { InstanceListView } from '../features/Instances/components/InstanceListView';
@@ -63,6 +62,7 @@ const Instances: React.FC = () => {
 
   const [isDirModalOpen, setIsDirModalOpen] = useState(false);
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
+  const [isImportOptionModalOpen, setIsImportOptionModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>(() => {
     return (localStorage.getItem('ore-instance-view-mode') as 'list' | 'grid') || 'grid';
   });
@@ -196,7 +196,7 @@ const Instances: React.FC = () => {
             )}
           </FocusItem>
 
-          <FocusItem focusKey="action-folder" onEnter={() => setIsDirModalOpen(true)}>
+          <FocusItem focusKey="action-import-external" onEnter={() => setIsImportOptionModalOpen(true)}>
             {({ ref, focused }) => (
               <div
                 ref={ref}
@@ -209,45 +209,18 @@ const Instances: React.FC = () => {
                   variant="secondary"
                   size="auto"
                   className="!h-[40px] !min-w-0 !px-0 !m-0"
-                  onClick={() => setIsDirModalOpen(true)}
-                  tabIndex={-1}
-                >
-                  <span className="flex h-full min-w-[clamp(10.8rem,18vw,18rem)] items-center justify-center whitespace-nowrap px-3">
-                    <FolderPlus className="mr-[clamp(0.35rem,0.6vw,0.6rem)] h-[clamp(0.9rem,1.1vw,1.25rem)] w-[clamp(0.9rem,1.1vw,1.25rem)] flex-shrink-0" />
-                    <span className="font-minecraft text-[clamp(0.9rem,0.84rem+0.4vw,1.15rem)] tracking-wider">
-                      {t('instancesPage.actionFolder', '选择启动器库')}
-                    </span>
-                  </span>
-                </OreButton>
-              </div>
-            )}
-          </FocusItem>
-
-          <FocusItem focusKey="action-detect" onEnter={() => void refreshImportSources()}>
-            {({ ref, focused }) => (
-              <div
-                ref={ref}
-                className={`flex-shrink-0 rounded-sm transition-shadow duration-150 ${focused
-                    ? 'outline outline-2 outline-offset-[4px] outline-white'
-                    : 'outline outline-2 outline-offset-[4px] outline-transparent'
-                  }`}
-              >
-                <OreButton
-                  variant="secondary"
-                  size="auto"
-                  className="!h-[40px] !min-w-0 !px-0 !m-0"
-                  onClick={() => void refreshImportSources()}
+                  onClick={() => setIsImportOptionModalOpen(true)}
                   disabled={isDetectingSources || isImporting}
                   tabIndex={-1}
                 >
-                  <span className="flex h-full min-w-[clamp(9.8rem,16vw,16.2rem)] items-center justify-center whitespace-nowrap px-3">
+                  <span className="flex h-full min-w-[clamp(10.8rem,18vw,18rem)] items-center justify-center whitespace-nowrap px-3">
                     {isDetectingSources ? (
                       <Loader2 className="mr-[clamp(0.35rem,0.6vw,0.6rem)] h-[clamp(0.9rem,1.1vw,1.25rem)] w-[clamp(0.9rem,1.1vw,1.25rem)] animate-spin flex-shrink-0" />
                     ) : (
-                      <RefreshCw className="mr-[clamp(0.35rem,0.6vw,0.6rem)] h-[clamp(0.9rem,1.1vw,1.25rem)] w-[clamp(0.9rem,1.1vw,1.25rem)] flex-shrink-0" />
+                      <FolderPlus className="mr-[clamp(0.35rem,0.6vw,0.6rem)] h-[clamp(0.9rem,1.1vw,1.25rem)] w-[clamp(0.9rem,1.1vw,1.25rem)] flex-shrink-0" />
                     )}
                     <span className="font-minecraft text-[clamp(0.9rem,0.84rem+0.4vw,1.15rem)] tracking-wider">
-                      {t('instancesPage.actionDetect', '自动探测')}
+                      {t('instancesPage.actionImportExternal', '导入外部实例')}
                     </span>
                   </span>
                 </OreButton>
@@ -316,6 +289,81 @@ const Instances: React.FC = () => {
         closeImportModal={closeImportModal}
         confirmDownloadMissing={confirmDownloadMissing}
       />
+
+      {isImportOptionModalOpen && (
+        <OreModal
+          isOpen={isImportOptionModalOpen}
+          onClose={() => setIsImportOptionModalOpen(false)}
+          title={t('instancesPage.importModal.title', '导入第三方实例')}
+          className="w-[min(600px,95vw)]"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 text-white">
+            <FocusItem
+              focusKey="import-option-manual"
+              onEnter={() => {
+                setIsImportOptionModalOpen(false);
+                setIsDirModalOpen(true);
+              }}
+            >
+              {({ ref, focused }) => (
+                <div
+                  ref={ref as any}
+                  onClick={() => {
+                    setIsImportOptionModalOpen(false);
+                    setIsDirModalOpen(true);
+                  }}
+                  className={`
+                    flex flex-col items-center justify-center p-6 text-center cursor-pointer select-none
+                    border-2 border-ore-gray-border bg-[#2B2C2E] transition-all duration-150 rounded-sm
+                    hover:bg-[#3C3D3F] hover:scale-[1.02]
+                    ${focused ? 'outline outline-2 outline-white scale-[1.02] shadow-[0_0_15px_rgba(255,255,255,0.15)] z-10' : ''}
+                  `}
+                >
+                  <FolderPlus size={36} className="text-[#6CC349] mb-3" />
+                  <h3 className="font-minecraft font-bold text-lg mb-2 text-white ore-text-shadow">
+                    {t('instancesPage.importModal.manualTitle', '手动选择目录')}
+                  </h3>
+                  <p className="font-minecraft text-xs text-gray-400 leading-relaxed min-h-[40px]">
+                    {t('instancesPage.importModal.manualDesc', '选择本地已有启动器（如 PCL2、HMCL）的实例路径进行关联')}
+                  </p>
+                </div>
+              )}
+            </FocusItem>
+
+            <FocusItem
+              focusKey="import-option-detect"
+              onEnter={() => {
+                setIsImportOptionModalOpen(false);
+                void refreshImportSources();
+              }}
+            >
+              {({ ref, focused }) => (
+                <div
+                  ref={ref as any}
+                  onClick={() => {
+                    setIsImportOptionModalOpen(false);
+                    void refreshImportSources();
+                  }}
+                  className={`
+                    flex flex-col items-center justify-center p-6 text-center cursor-pointer select-none
+                    border-2 border-ore-gray-border bg-[#2B2C2E] transition-all duration-150 rounded-sm
+                    hover:bg-[#3C3D3F] hover:scale-[1.02]
+                    ${focused ? 'outline outline-2 outline-white scale-[1.02] shadow-[0_0_15px_rgba(255,255,255,0.15)] z-10' : ''}
+                  `}
+                >
+                  <Search size={36} className="text-[#6CC349] mb-3" />
+                  <h3 className="font-minecraft font-bold text-lg mb-2 text-white ore-text-shadow">
+                    {t('instancesPage.importModal.detectTitle', '自动探测实例')}
+                  </h3>
+                  <p className="font-minecraft text-xs text-gray-400 leading-relaxed min-h-[40px]">
+                    {t('instancesPage.importModal.detectDesc', '智能扫描系统常见路径下的第三方实例并一键导入')}
+                  </p>
+                </div>
+              )}
+            </FocusItem>
+          </div>
+        </OreModal>
+      )}
 
       {isTagModalOpen && (
         <OreModal

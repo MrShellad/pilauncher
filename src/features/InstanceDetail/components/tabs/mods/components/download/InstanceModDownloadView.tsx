@@ -476,6 +476,7 @@ export const InstanceModDownloadView: React.FC<{
       console.error('下载异常:', error);
       useDownloadStore.getState().addOrUpdateTask({
         id: version.file_name,
+        stage: 'ERROR',
         message: `下载失败: ${error}`
       });
     }

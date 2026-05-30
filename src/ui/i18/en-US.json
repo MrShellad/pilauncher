@@ -204,6 +204,19 @@
       "scanningMods": "Scanning instance MOD cache...",
       "confirmAndDeploy": "Confirm & Deploy"
     },
+    "versionChangelog": {
+      "title": "Version Changelog",
+      "translate": "Translate",
+      "translating": "Translating",
+      "showOriginal": "Show Original",
+      "showTranslation": "Show Translation",
+      "translateFailed": "Translation failed: {{message}}",
+      "translationActive": "Translation Preview",
+      "modeTranslatedOnly": "Translation",
+      "modeBilingual": "Bilingual",
+      "machineTranslated": "Machine translated by TMT",
+      "noChangelog": "No changelog available for this version."
+    },
     "tags": {
       "clientSide": "Client-side",
       "optimization": "Optimization",
@@ -1191,6 +1204,14 @@
     "actionNew": "New Instance",
     "actionFolder": "Select Directory",
     "actionDetect": "Auto Detect",
+    "actionImportExternal": "Import External",
+    "importModal": {
+      "title": "Import Third-Party Instances",
+      "manualTitle": "Select Directory",
+      "manualDesc": "Manually select instance folder from existing third-party launchers",
+      "detectTitle": "Auto Detect",
+      "detectDesc": "Scan common system paths to import third-party instances automatically"
+    },
     "tagFilterModal": {
       "title": "Tag Filter",
       "description": "Select tags below to filter the instance list.",
@@ -1380,6 +1401,13 @@
       "subtitle": "To continue using PiLauncher, you must read and agree to the following terms",
       "updateWarning": "Due to changes in the EULA or Privacy Policy, you must read and agree again before continuing.",
       "agree": "I have read and fully agree"
+    },
+    "donate": {
+      "title": "Sponsor PiLauncher Development",
+      "description": "PiLauncher is a completely free and open-source launcher. It is only with the support of our sponsors that we can continue to maintain and improve it. If you find this project helpful, please consider supporting us!",
+      "scanOrClick": "Scan the QR code or click below to support us on AfDian",
+      "btnDonate": "Support on AfDian",
+      "btnFinish": "Enter Launcher"
     }
   },
   "nav": {

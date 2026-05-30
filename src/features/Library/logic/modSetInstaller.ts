@@ -270,6 +270,11 @@ export const installTrackerToInstance = async (
     } catch (error) {
       failed += 1;
       console.error(`[ModSetInstaller] Failed to install ${key}`, error);
+      useDownloadStore.getState().addOrUpdateTask({
+        id: version.file_name,
+        stage: 'ERROR',
+        message: i18n.t('libraryPage.messages.downloadFailed', { error: String(error) }),
+      });
     } finally {
       installingProjectKeys.delete(key);
     }

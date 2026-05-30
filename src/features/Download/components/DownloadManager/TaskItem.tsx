@@ -211,7 +211,7 @@ export const TaskItem = ({
       useDownloadStore.getState().addOrUpdateTask({
         id: task.id,
         stage: 'ERROR',
-        message: `重试指令发送失败: ${error}`,
+        message: `重试失败: ${error}`,
       });
     });
   };

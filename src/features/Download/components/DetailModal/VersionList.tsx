@@ -1,7 +1,6 @@
 import React from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
-import { CheckCircle2, Clock3, Download, Languages, Loader2, RotateCcw } from 'lucide-react';
+import { CheckCircle2, Clock3, Download, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useInputAction } from '../../../../ui/focus/InputDriver';
 
@@ -9,8 +8,8 @@ import type { OreProjectVersion } from '../../../InstanceDetail/logic/modrinthAp
 import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { OreButton } from '../../../../ui/primitives/OreButton';
-import { OreModal } from '../../../../ui/primitives/OreModal';
 import { formatDate } from '../../../../utils/formatters';
+import { VersionChangelogModal } from './VersionChangelogModal';
 
 interface VersionListProps {
   versions: OreProjectVersion[];
@@ -24,17 +23,6 @@ interface VersionListProps {
   observerTarget: React.Ref<HTMLDivElement>;
 }
 
-type ChangelogTranslationState =
-  | { status: 'loading' }
-  | { status: 'translated'; text: string; source: string; target: string; chunks: number }
-  | { status: 'error'; error: string };
-
-interface ChangelogTranslationResponse {
-  translatedText: string;
-  source: string;
-  target: string;
-  chunks: number;
-}
 
 export const VersionList: React.FC<VersionListProps> = ({
   versions,
@@ -49,8 +37,6 @@ export const VersionList: React.FC<VersionListProps> = ({
 }) => {
   const { t } = useTranslation();
   const [selectedVersion, setSelectedVersion] = React.useState<OreProjectVersion | null>(null);
-  const [translations, setTranslations] = React.useState<Record<string, ChangelogTranslationState>>({});
-  const [showTranslatedChangelog, setShowTranslatedChangelog] = React.useState<Record<string, boolean>>({});
   const getVersionRowFocusKey = (idx: number) => `download-modal-version-row-${idx}`;
   const isVersionInstalled = (version: OreProjectVersion) =>
     installedVersionIds.includes(version.id) ||
@@ -85,133 +71,6 @@ export const VersionList: React.FC<VersionListProps> = ({
   const handleVersionEnter = (version: OreProjectVersion) => {
     setSelectedVersion(version);
   };
-
-  const handleTranslateChangelog = React.useCallback(async () => {
-    if (!selectedVersion?.changelog?.trim()) return;
-
-    const versionId = selectedVersion.id;
-    const current = translations[versionId];
-    if (current?.status === 'translated') {
-      setShowTranslatedChangelog((prev) => ({
-        ...prev,
-        [versionId]: !prev[versionId],
-      }));
-      return;
-    }
-
-    setTranslations((prev) => ({
-      ...prev,
-      [versionId]: { status: 'loading' },
-    }));
-    setShowTranslatedChangelog((prev) => ({
-      ...prev,
-      [versionId]: true,
-    }));
-
-    try {
-      const result = await invoke<ChangelogTranslationResponse>('translate_changelog_tmt', {
-        text: selectedVersion.changelog,
-        source: 'auto',
-        target: 'zh',
-      });
-
-      setTranslations((prev) => ({
-        ...prev,
-        [versionId]: {
-          status: 'translated',
-          text: result.translatedText,
-          source: result.source,
-          target: result.target,
-          chunks: result.chunks,
-        },
-      }));
-    } catch (error) {
-      setTranslations((prev) => ({
-        ...prev,
-        [versionId]: {
-          status: 'error',
-          error: error instanceof Error ? error.message : String(error),
-        },
-      }));
-      setShowTranslatedChangelog((prev) => ({
-        ...prev,
-        [versionId]: false,
-      }));
-    }
-  }, [selectedVersion, translations]);
-
-  const renderChangelog = (body?: string | null) => {
-    if (!body?.trim()) {
-      return (
-        <p className="font-minecraft text-[0.8125rem] leading-[1.55] text-[#E6E8EB]">
-          {t('download.empty.noChangelog', { defaultValue: 'No changelog available for this version.' })}
-        </p>
-      );
-    }
-
-    return (
-      <div className="space-y-[0.375rem]">
-        {body.split('\n').map((line, index) => {
-          const trimmedLine = line.trim();
-          if (trimmedLine.startsWith('### ')) {
-            return (
-              <h3 key={index} className="pt-[0.625rem] font-minecraft text-[0.875rem] font-bold leading-[1.35] text-white first:pt-0">
-                {trimmedLine.replace(/^###\s+/, '')}
-              </h3>
-            );
-          }
-          if (trimmedLine.startsWith('## ')) {
-            return (
-              <h2 key={index} className="pt-[0.75rem] font-minecraft text-[1rem] font-bold leading-[1.35] text-[#6CC349] first:pt-0">
-                {trimmedLine.replace(/^##\s+/, '')}
-              </h2>
-            );
-          }
-          if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ')) {
-            return (
-              <div key={index} className="flex items-start gap-[0.5rem] font-minecraft text-[0.8125rem] leading-[1.55] text-[#E6E8EB]">
-                <span className="mt-[0.0625rem] text-[#6CC349]">-</span>
-                <span className="min-w-0 break-words">{trimmedLine.replace(/^[-*]\s+/, '')}</span>
-              </div>
-            );
-          }
-          if (!trimmedLine) {
-            return <div key={index} className="h-[0.25rem]" />;
-          }
-          return (
-            <p key={index} className="whitespace-pre-wrap break-words font-minecraft text-[0.8125rem] leading-[1.55] text-[#E6E8EB]">
-              {line}
-            </p>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const selectedTranslation = selectedVersion ? translations[selectedVersion.id] : undefined;
-  const selectedHasChangelog = !!selectedVersion?.changelog?.trim();
-  const selectedIsShowingTranslation =
-    !!selectedVersion &&
-    showTranslatedChangelog[selectedVersion.id] &&
-    selectedTranslation?.status === 'translated';
-  const selectedChangelogText =
-    selectedIsShowingTranslation && selectedTranslation?.status === 'translated'
-      ? selectedTranslation.text
-      : selectedVersion?.changelog;
-  const selectedCanTranslate =
-    !!selectedVersion && selectedHasChangelog && selectedTranslation?.status !== 'loading';
-  const selectedTranslateLabel =
-    selectedIsShowingTranslation
-      ? t('download.versionChangelog.showOriginal', { defaultValue: 'Show Original' })
-      : selectedTranslation?.status === 'translated'
-        ? t('download.versionChangelog.showTranslation', { defaultValue: 'Show Translation' })
-        : t('download.versionChangelog.translate', { defaultValue: 'Translate' });
-  const selectedDefaultFocusKey =
-    selectedVersion
-      ? 'download-version-changelog-download'
-      : selectedHasChangelog
-        ? 'download-version-changelog-translate'
-        : 'download-version-changelog-close';
 
   return (
     <>
@@ -273,13 +132,13 @@ export const VersionList: React.FC<VersionListProps> = ({
 
                     <div className="flex min-w-0 flex-1 flex-col pl-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate font-minecraft text-[15px] leading-5 text-black">{version.name}</span>
-                        <span className="border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] px-2 py-0.5 font-mono text-[10px] text-white">
+                        <span className="truncate font-minecraft text-[0.9375rem] leading-5 text-black">{version.name}</span>
+                        <span className="border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] px-2 py-0.5 font-mono text-[0.625rem] text-white">
                           {version.version_number}
                         </span>
                       </div>
 
-                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-minecraft uppercase tracking-[0.08em] text-[#313233]">
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.625rem] font-minecraft uppercase tracking-[0.08em] text-[#313233]">
                         <span className="inline-flex items-center gap-1">
                           <Clock3 size={11} />
                           {formatDate(version.date_published)}
@@ -337,103 +196,16 @@ export const VersionList: React.FC<VersionListProps> = ({
         )}
       </FocusBoundary>
 
-      <OreModal
+      <VersionChangelogModal
         isOpen={!!selectedVersion}
+        version={selectedVersion}
         onClose={() => setSelectedVersion(null)}
-        title={t('download.versionChangelog.title', { defaultValue: 'Version Changelog' })}
-        className="w-[min(42rem,calc(100vw-2rem))]"
-        contentClassName="max-h-[70vh] overflow-y-auto custom-scrollbar p-[1rem] bg-[var(--ore-modal-bg)]"
-        defaultFocusKey={selectedDefaultFocusKey}
-        actions={
-          <div className="flex w-full items-center justify-end gap-[0.75rem]">
-            {selectedVersion && selectedHasChangelog && (
-              <OreButton
-                focusKey="download-version-changelog-translate"
-                variant="secondary"
-                size="sm"
-                className="gap-[0.5rem]"
-                disabled={!selectedCanTranslate}
-                onClick={() => {
-                  void handleTranslateChangelog();
-                }}
-              >
-                {selectedTranslation?.status === 'loading' ? (
-                  <Loader2 size={14} className="shrink-0 animate-spin" />
-                ) : selectedIsShowingTranslation ? (
-                  <RotateCcw size={14} className="shrink-0" />
-                ) : (
-                  <Languages size={14} className="shrink-0" />
-                )}
-                {selectedTranslation?.status === 'loading'
-                  ? t('download.versionChangelog.translating', { defaultValue: 'Translating' })
-                  : selectedTranslateLabel}
-              </OreButton>
-            )}
-            {selectedVersion && (
-              <OreButton
-                focusKey="download-version-changelog-download"
-                variant={isVersionInstalled(selectedVersion) ? 'secondary' : 'primary'}
-                size="sm"
-                className="gap-[0.5rem]"
-                onClick={() => {
-                  onDownload(selectedVersion);
-                  setSelectedVersion(null);
-                }}
-              >
-                {isVersionInstalled(selectedVersion) ? <CheckCircle2 size={14} className="shrink-0" /> : <Download size={14} className="shrink-0" />}
-                {isVersionInstalled(selectedVersion)
-                  ? t('download.status.alreadyInInstance', { defaultValue: 'Already in instance' })
-                  : t('download.actions.downloadVersion', { defaultValue: 'Download Version' })}
-              </OreButton>
-            )}
-            <OreButton
-              focusKey="download-version-changelog-close"
-              variant="secondary"
-              size="sm"
-              onClick={() => setSelectedVersion(null)}
-            >
-              {t('common.close', { defaultValue: 'Close' })}
-            </OreButton>
-          </div>
-        }
-      >
-        {selectedVersion && (
-          <div className="flex flex-col gap-[0.875rem]">
-            <div
-              className="border-[0.125rem] border-[#1E1E1F] bg-[#D0D1D4] px-[0.875rem] py-[0.75rem]"
-              style={{ boxShadow: 'inset 0 -0.25rem 0 #8C8D90, inset 0.125rem 0.125rem 0 rgba(255,255,255,0.72)' }}
-            >
-              <div className="font-minecraft text-[1rem] font-bold leading-[1.35] text-[#111214]">{selectedVersion.name}</div>
-              <div className="mt-[0.375rem] flex flex-wrap items-center gap-x-[0.75rem] gap-y-[0.375rem] font-minecraft text-[0.625rem] uppercase tracking-[0.08em] text-[#313233]">
-                <span>{selectedVersion.version_number}</span>
-                <span>{formatDate(selectedVersion.date_published)}</span>
-                <span>{selectedVersion.loaders.join(', ') || t('download.loader.universal', { defaultValue: 'Universal' })}</span>
-              </div>
-            </div>
-
-            {selectedTranslation?.status === 'error' && (
-              <div className="border-[0.125rem] border-red-500/70 bg-red-950/40 px-[0.875rem] py-[0.625rem] font-minecraft text-[0.75rem] leading-[1.5] text-red-100">
-                {t('download.versionChangelog.translateFailed', {
-                  defaultValue: 'Translation failed: {{message}}',
-                  message: selectedTranslation.error,
-                })}
-              </div>
-            )}
-
-            {selectedIsShowingTranslation && selectedTranslation?.status === 'translated' && (
-              <div className="border-[0.125rem] border-[#6D6D6E] bg-[#313233] px-[0.875rem] py-[0.5rem] font-minecraft text-[0.6875rem] uppercase tracking-[0.08em] text-[#B9FF8A]">
-                {t('download.versionChangelog.machineTranslated', {
-                  defaultValue: 'Machine translated by TMT',
-                })}
-              </div>
-            )}
-
-            <div className="max-h-[24rem] overflow-y-auto custom-scrollbar border-[0.125rem] border-[#6D6D6E] bg-[#1E1E1F] p-[0.875rem] shadow-[inset_0_0.125rem_0_rgba(255,255,255,0.08)]">
-              {renderChangelog(selectedChangelogText)}
-            </div>
-          </div>
-        )}
-      </OreModal>
+        onDownload={(version) => {
+          onDownload(version);
+          setSelectedVersion(null);
+        }}
+        isInstalled={selectedVersion ? isVersionInstalled(selectedVersion) : false}
+      />
     </>
   );
 };

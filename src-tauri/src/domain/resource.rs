@@ -10,6 +10,7 @@ pub struct OreProjectDetail {
     pub title: String,
     pub author: String,
     pub description: String,
+    pub body: String,
     pub icon_url: Option<String>,
     pub client_side: String,
     pub server_side: String,

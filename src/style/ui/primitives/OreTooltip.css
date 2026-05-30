@@ -1,0 +1,197 @@
+@tailwind components;
+/* /src/style/ui/primitives/OreTooltip.css */
+
+@layer components {
+  /* =========================================================================
+     1. Core bubble & content styling
+     ========================================================================= */
+  
+  /* Outer pixel-clipped container */
+  .ore-tooltip-bubble {
+    @apply relative inline-block p-[2px] transition-all select-none pointer-events-none;
+    background-color: var(--ore-border-color, #1E1E1F);
+    
+    /* Pixelated corner clip-path: trims 4px stepped corner */
+    clip-path: polygon(
+      4px 0, calc(100% - 4px) 0,
+      calc(100% - 4px) 2px, calc(100% - 2px) 2px,
+      calc(100% - 2px) 4px, 100% 4px,
+      100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px),
+      calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px),
+      calc(100% - 4px) 100%, 4px 100%,
+      4px calc(100% - 2px), 2px calc(100% - 2px),
+      2px calc(100% - 4px), 0 calc(100% - 4px),
+      0 4px, 2px 4px,
+      2px 2px, 4px 2px
+    );
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+  }
+
+  /* Inner colored box containing text */
+  .ore-tooltip-content {
+    @apply px-3 py-1.5 font-minecraft text-[0.875rem] text-white tracking-wide text-center break-words;
+    background-color: var(--ore-color-background-info-default, #2E6BE5);
+    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.4);
+    
+    /* Inner pixel clip-path to match outer border */
+    clip-path: polygon(
+      2px 0, calc(100% - 2px) 0,
+      calc(100% - 2px) 2px, 100% 2px,
+      100% calc(100% - 2px), calc(100% - 2px) calc(100% - 2px),
+      calc(100% - 2px) 100%, 2px 100%,
+      2px calc(100% - 2px), 0 calc(100% - 2px),
+      0 2px, 2px 2px
+    );
+  }
+
+  /* Small pixelated pointer arrow */
+  .ore-tooltip-arrow {
+    @apply absolute pointer-events-none z-[101];
+  }
+
+  /* =========================================================================
+     2. Non-portal (inline relative) positioning layout
+     ========================================================================= */
+
+  .ore-tooltip-container-inline {
+    @apply relative inline-block;
+  }
+
+  .ore-tooltip-bubble-inline {
+    @apply absolute z-[100] pointer-events-none;
+  }
+
+  /* Placements for inline absolute tooltips */
+  
+  /* Top placements */
+  .ore-tooltip-bubble-inline.placement-top {
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    @apply mb-2;
+  }
+  .ore-tooltip-bubble-inline.placement-top.align-start {
+    left: 0;
+    transform: none;
+  }
+  .ore-tooltip-bubble-inline.placement-top.align-end {
+    left: auto;
+    right: 0;
+    transform: none;
+  }
+
+  /* Bottom placements */
+  .ore-tooltip-bubble-inline.placement-bottom {
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    @apply mt-2;
+  }
+  .ore-tooltip-bubble-inline.placement-bottom.align-start {
+    left: 0;
+    transform: none;
+  }
+  .ore-tooltip-bubble-inline.placement-bottom.align-end {
+    left: auto;
+    right: 0;
+    transform: none;
+  }
+
+  /* Left placements */
+  .ore-tooltip-bubble-inline.placement-left {
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    @apply mr-2;
+  }
+  .ore-tooltip-bubble-inline.placement-left.align-start {
+    top: 0;
+    transform: none;
+  }
+  .ore-tooltip-bubble-inline.placement-left.align-end {
+    top: auto;
+    bottom: 0;
+    transform: none;
+  }
+
+  /* Right placements */
+  .ore-tooltip-bubble-inline.placement-right {
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    @apply ml-2;
+  }
+  .ore-tooltip-bubble-inline.placement-right.align-start {
+    top: 0;
+    transform: none;
+  }
+  .ore-tooltip-bubble-inline.placement-right.align-end {
+    top: auto;
+    bottom: 0;
+    transform: none;
+  }
+
+  /* =========================================================================
+     3. Static Arrow Positioning for non-portal mode
+     ========================================================================= */
+
+  /* Top placement arrows */
+  .placement-top .ore-tooltip-arrow-inline {
+    bottom: -8px;
+  }
+  .placement-top.align-center .ore-tooltip-arrow-inline {
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .placement-top.align-start .ore-tooltip-arrow-inline {
+    left: 14px;
+  }
+  .placement-top.align-end .ore-tooltip-arrow-inline {
+    right: 14px;
+  }
+
+  /* Bottom placement arrows */
+  .placement-bottom .ore-tooltip-arrow-inline {
+    top: -8px;
+  }
+  .placement-bottom.align-center .ore-tooltip-arrow-inline {
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .placement-bottom.align-start .ore-tooltip-arrow-inline {
+    left: 14px;
+  }
+  .placement-bottom.align-end .ore-tooltip-arrow-inline {
+    right: 14px;
+  }
+
+  /* Left placement arrows */
+  .placement-left .ore-tooltip-arrow-inline {
+    right: -8px;
+  }
+  .placement-left.align-center .ore-tooltip-arrow-inline {
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .placement-left.align-start .ore-tooltip-arrow-inline {
+    top: 14px;
+  }
+  .placement-left.align-end .ore-tooltip-arrow-inline {
+    bottom: 14px;
+  }
+
+  /* Right placement arrows */
+  .placement-right .ore-tooltip-arrow-inline {
+    left: -8px;
+  }
+  .placement-right.align-center .ore-tooltip-arrow-inline {
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .placement-right.align-start .ore-tooltip-arrow-inline {
+    top: 14px;
+  }
+  .placement-right.align-end .ore-tooltip-arrow-inline {
+    bottom: 14px;
+  }
+}

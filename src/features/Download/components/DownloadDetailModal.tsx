@@ -12,6 +12,7 @@ import { ProjectGallery } from './DetailModal/ProjectGallery';
 import { ProjectHeader } from './DetailModal/ProjectHeader';
 import { VersionFilters } from './DetailModal/VersionFilters';
 import { VersionList } from './DetailModal/VersionList';
+import { ProjectDescriptionModal } from './DetailModal/ProjectDescriptionModal';
 
 interface DownloadDetailModalProps {
   project: ModrinthProject | null;
@@ -38,7 +39,7 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
   source,
   directInstallInstanceId
 }) => {
-  const [showGallery, setShowGallery] = useState(false);
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
   const [visibleCount, setVisibleCount] = useState(15);
   const [isScrolled, setIsScrolled] = useState(false);
   const [pendingVersion, setPendingVersion] = useState<OreProjectVersion | null>(null);
@@ -73,7 +74,7 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
   } = useDownloadDetail(project, instanceConfig, source, searchMcVersion, searchLoader, activeTab);
   useEffect(() => {
     if (!project) return;
-    setShowGallery(false);
+    setShowDescriptionModal(false);
     setIsScrolled(false);
   }, [project]);
 
@@ -127,21 +128,9 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
   const displayVersions = strictlyFilteredVersions.slice(0, visibleCount);
   const currentDisplayLoader = directInstallInstanceId ? searchLoader : (activeLoader || searchLoader);
   const currentDisplayVersion = directInstallInstanceId ? searchMcVersion : (activeVersion || searchMcVersion);
-  const galleryCount = details?.gallery_urls?.length ?? project?.gallery_urls?.length ?? 0;
   const controlsEnabled = !pendingVersion;
 
-  const handleToggleGallery = useCallback(() => {
-    if (!galleryCount || !controlsEnabled) return;
-    if (document.querySelector('.ore-dropdown-panel')) return;
 
-    setShowGallery((prev) => {
-      const next = !prev;
-      if (next) {
-        scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-      return next;
-    });
-  }, [controlsEnabled, galleryCount]);
 
   useEffect(() => {
     if (!project || didAutoFocusModalRef.current) return;
@@ -182,8 +171,7 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
           project={project}
           details={details}
           isScrolled={isScrolled}
-          showGallery={showGallery}
-          onToggleGallery={handleToggleGallery}
+          onOpenDescriptionModal={() => setShowDescriptionModal(true)}
           controlsEnabled={controlsEnabled}
         />
 
@@ -262,6 +250,12 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
           source={source}
         />
       )}
+      <ProjectDescriptionModal
+        isOpen={showDescriptionModal}
+        project={project}
+        details={details}
+        onClose={() => setShowDescriptionModal(false)}
+      />
     </>
   );
 };

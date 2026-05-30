@@ -1,8 +1,10 @@
 // src/features/Setup/components/SetupWizard.tsx
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Heart } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { QRCodeSVG } from 'qrcode.react';
 
 import { useSetupWizard } from '../../../hooks/useSetupWizard';
 import { DirectoryBrowserModal } from '../../../ui/components/DirectoryBrowserModal';
@@ -11,6 +13,9 @@ import { DirectoryStep } from './step/DirectoryStep';
 import { JavaDownloadStep } from './step/JavaDownloadStep';
 import { SteamIntegrationStep } from './step/SteamIntegrationStep';
 import { LegalAgreementStep } from './step/LegalAgreementStep';
+import { OreModal } from '../../../ui/primitives/OreModal';
+import { OreButton } from '../../../ui/primitives/OreButton';
+import { openExternalLink } from '../../../utils/openExternalLink';
 
 const getDefaultFocusKey = (step: 'directory' | 'java_download' | 'steam_integration' | 'legal_agreement') => {
   if (step === 'directory') return 'setup-btn-browse';
@@ -33,6 +38,9 @@ export const SetupWizard: React.FC = () => {
     handleSelectPath, handleConfirmDirectory, handleDownloadJava, handleSkipJava,
     handleRegisterSteam, setGamepadModeSettings, finishSteamIntegration, finalizeSetup
   } = useSetupWizard();
+
+  const { t } = useTranslation();
+  const [showDonateModal, setShowDonateModal] = useState(false);
 
   const lastFocusBeforeWizardRef = useRef<string | null>(null);
   const hasCapturedPreviousFocusRef = useRef(false);
@@ -155,7 +163,7 @@ export const SetupWizard: React.FC = () => {
 
               {step === 'legal_agreement' && (
                 <LegalAgreementStep
-                  onAgree={finalizeSetup}
+                  onAgree={() => setShowDonateModal(true)}
                 />
               )}
 
@@ -184,6 +192,60 @@ export const SetupWizard: React.FC = () => {
           />
         )}
       </AnimatePresence>
+
+      <OreModal
+        isOpen={showDonateModal}
+        onClose={() => {
+          setShowDonateModal(false);
+          finalizeSetup();
+        }}
+        title={t('setup.donate.title')}
+        hideCloseButton
+        closeOnOutsideClick={false}
+        defaultFocusKey="setup-donate-finish"
+        wrapperClassName="z-[10000]"
+        className="w-[440px]"
+        actions={
+          <div className="flex w-full gap-3">
+            <OreButton
+              focusKey="setup-donate-link"
+              variant="secondary"
+              onClick={() => void openExternalLink('https://ifdian.net/u/f60602b4004811eea0bf52540025c377')}
+              size="full"
+              className="flex-1"
+            >
+              <Heart size={16} className="mr-2 text-red-500 fill-red-500" />
+              {t('setup.donate.btnDonate')}
+            </OreButton>
+            <OreButton
+              focusKey="setup-donate-finish"
+              variant="primary"
+              onClick={() => {
+                setShowDonateModal(false);
+                finalizeSetup();
+              }}
+              size="full"
+              className="flex-1"
+            >
+              {t('setup.donate.btnFinish')}
+            </OreButton>
+          </div>
+        }
+      >
+        <div className="flex flex-col items-center text-center p-2 font-minecraft">
+          <p className="text-sm leading-relaxed text-ore-text-muted mb-6">
+            {t('setup.donate.description')}
+          </p>
+
+          <div className="bg-white p-3 rounded-lg border-2 border-white/10 shadow-[0_0_20px_rgba(148,108,230,0.25)] mb-3 relative scale-100 transition-transform">
+            <QRCodeSVG value="https://ifdian.net/u/f60602b4004811eea0bf52540025c377" size={130} />
+          </div>
+
+          <span className="text-xs text-ore-text-muted mb-2">
+            {t('setup.donate.scanOrClick')}
+          </span>
+        </div>
+      </OreModal>
     </>
   );
 };

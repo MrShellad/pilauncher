@@ -124,10 +124,11 @@ fn create_tmt_authorization(
         .ok_or_else(|| "Invalid request timestamp.".to_string())?
         .format("%Y-%m-%d")
         .to_string();
-    let signed_headers = "content-type;host";
+    let signed_headers = "content-type;host;x-tc-action";
     let canonical_headers = format!(
-        "content-type:application/json; charset=utf-8\nhost:{}\n",
-        host
+        "content-type:application/json; charset=utf-8\nhost:{}\nx-tc-action:{}\n",
+        host,
+        TMT_ACTION.to_lowercase()
     );
     let hashed_request_payload = sha256_hex(payload);
     let canonical_request = format!(

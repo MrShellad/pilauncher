@@ -23,15 +23,11 @@ interface NewsCardProps {
   createInstanceLabel?: string;
   createInstanceFocusKey?: string;
   onActionFocus?: () => void;
-  onCreateInstanceArrowPress?: (direction: string) => boolean | void;
-  onOfficialArrowPress?: (direction: string) => boolean | void;
-  onWikiArrowPress?: (direction: string) => boolean | void;
   onClose?: () => void;
 }
 
 export const NewsCard: React.FC<NewsCardProps> = ({
   date,
-  version,
   tag,
   title,
   summary,
@@ -47,9 +43,6 @@ export const NewsCard: React.FC<NewsCardProps> = ({
   createInstanceLabel,
   createInstanceFocusKey,
   onActionFocus,
-  onCreateInstanceArrowPress,
-  onOfficialArrowPress,
-  onWikiArrowPress,
   onClose,
 }) => {
   const { t } = useTranslation();
@@ -83,7 +76,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
     >
       <div className="relative h-[15.5rem] overflow-hidden border-b-[3px] border-[#1E1E1F] bg-[#1E1E1F] lg:h-[16rem]">
         <div
-          className="absolute inset-0 transition-transform duration-500 group-hover:scale-[1.06]"
+          className="absolute inset-0 transition-all duration-500 ease-out group-hover:scale-[1.05] group-hover:translate-y-[-3px] group-focus-within:scale-[1.05] group-focus-within:translate-y-[-3px]"
           style={{
             backgroundColor: '#1E1E1F',
             backgroundImage: coverImageUrl
@@ -107,11 +100,10 @@ export const NewsCard: React.FC<NewsCardProps> = ({
           }}
         />
 
-        <div className="absolute left-4 top-4 border border-white/20 bg-black/55 px-3 py-1 text-xs font-minecraft tracking-[0.2em] text-white">
-          {date}
-        </div>
-        <div className={`absolute ${onClose ? 'right-14' : 'right-4'} top-4 border border-[#6fd08c]/40 bg-[#1f3a28]/85 px-3 py-1 text-xs font-minecraft tracking-[0.2em] text-[#9be7b0] transition-all`}>
-          {tag}
+        <div className="absolute left-4 top-4 border border-white/20 bg-black/55 px-3 py-1 text-xs font-minecraft tracking-[0.2em] text-white flex items-center gap-1.5">
+          <span>{date}</span>
+          <span className="text-white/40 font-bold">·</span>
+          <span className="text-[#9be7b0]">{tag}</span>
         </div>
 
         {onClose && (
@@ -129,9 +121,6 @@ export const NewsCard: React.FC<NewsCardProps> = ({
         )}
 
         <div className="absolute bottom-4 left-4 right-4">
-          <div className="mb-2 text-[0.72rem] font-minecraft tracking-[0.3em] text-white/70">
-            {version}
-          </div>
           <h3
             className="font-minecraft text-[1.55rem] leading-tight text-white ore-text-shadow"
             style={{
@@ -146,36 +135,20 @@ export const NewsCard: React.FC<NewsCardProps> = ({
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-5 bg-[#2a2b2d] p-5">
-        <p className="min-h-[4.75rem] font-minecraft text-sm leading-6 text-ore-text-muted">
+      <div className="flex flex-1 flex-col gap-4 bg-[#2a2b2d] p-5">
+        <p className="min-h-[3.5rem] font-minecraft text-sm leading-6 text-ore-text-muted">
           {summary}
         </p>
 
         <div className="mt-auto flex flex-col gap-3">
-          {onCreateInstance && (
-            <OreButton
-              focusKey={createInstanceFocusKey}
-              variant="primary"
-              size="auto"
-              className="w-full !h-[var(--home-news-action-h)] gap-[clamp(0.4rem,0.5vw,0.75rem)] !text-[length:var(--home-news-action-font)] !text-white [&_svg]:!text-white ore-text-shadow"
-              onClick={onCreateInstance}
-              onFocus={onActionFocus}
-              onArrowPress={onCreateInstanceArrowPress}
-              autoScroll
-            >
-              <Plus size="var(--home-news-action-icon)" />
-              <span className="truncate whitespace-nowrap">{resolvedCreateInstanceLabel}</span>
-            </OreButton>
-          )}
           <div className="flex gap-3">
             <OreButton
               focusKey={officialFocusKey}
               variant="secondary"
               size="auto"
-              className="flex-1 !min-w-0 !h-[var(--home-news-action-h)] gap-[clamp(0.4rem,0.5vw,0.75rem)] !text-[length:var(--home-news-action-font)] !text-[#111214] [&_svg]:!text-[#111214]"
+              className="flex-1 !min-w-0 !m-0 !h-[var(--home-news-action-h)] gap-[clamp(0.4rem,0.5vw,0.75rem)] !text-[length:var(--home-news-action-font)] !text-[#111214] [&_svg]:!text-[#111214]"
               onClick={() => void openExternalLink(officialUrl)}
               onFocus={onActionFocus}
-              onArrowPress={onOfficialArrowPress}
               autoScroll
             >
               <ExternalLink size="var(--home-news-action-icon)" />
@@ -186,16 +159,30 @@ export const NewsCard: React.FC<NewsCardProps> = ({
               focusKey={wikiFocusKey}
               variant="secondary"
               size="auto"
-              className="flex-1 !min-w-0 !h-[var(--home-news-action-h)] gap-[clamp(0.4rem,0.5vw,0.75rem)] !text-[length:var(--home-news-action-font)] !text-[#111214] [&_svg]:!text-[#111214]"
+              className="flex-1 !min-w-0 !m-0 !h-[var(--home-news-action-h)] gap-[clamp(0.4rem,0.5vw,0.75rem)] !text-[length:var(--home-news-action-font)] !text-[#111214] [&_svg]:!text-[#111214]"
               onClick={() => void openExternalLink(wikiUrl)}
               onFocus={onActionFocus}
-              onArrowPress={onWikiArrowPress}
               autoScroll
             >
               <BookOpen size="var(--home-news-action-icon)" />
               <span className="truncate whitespace-nowrap">{wikiLabel}</span>
             </OreButton>
           </div>
+
+          {onCreateInstance && (
+            <OreButton
+              focusKey={createInstanceFocusKey}
+              variant="primary"
+              size="auto"
+              className="w-full !m-0 !h-[var(--home-news-action-h)] gap-[clamp(0.4rem,0.5vw,0.75rem)] !text-[length:var(--home-news-action-font)] !text-white [&_svg]:!text-white ore-text-shadow"
+              onClick={onCreateInstance}
+              onFocus={onActionFocus}
+              autoScroll
+            >
+              <Plus size="var(--home-news-action-icon)" />
+              <span className="truncate whitespace-nowrap">{resolvedCreateInstanceLabel}</span>
+            </OreButton>
+          )}
         </div>
       </div>
     </motion.article>

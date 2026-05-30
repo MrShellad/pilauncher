@@ -256,7 +256,14 @@ const ResourceDownloadPage: React.FC = () => {
         stage: 'DOWNLOADING_MOD',
         current: 0,
         total: 100,
-        message: t('download.progress.connecting', { defaultValue: 'Connecting...' })
+        message: t('download.progress.connecting', { defaultValue: 'Connecting...' }),
+        retryAction: 'download_resource',
+        retryPayload: {
+          url: targetVersion.download_url,
+          fileName: targetVersion.file_name,
+          instanceId: targetInstanceId,
+          subFolder
+        }
       });
 
       try {
@@ -288,6 +295,7 @@ const ResourceDownloadPage: React.FC = () => {
         console.error(`下载 ${targetVersion.file_name} 失败:`, error);
         useDownloadStore.getState().addOrUpdateTask({
           id: targetVersion.file_name,
+          stage: 'ERROR',
           message: t('download.progress.failed', {
             defaultValue: 'Download failed: {{error}}',
             error: String(error)

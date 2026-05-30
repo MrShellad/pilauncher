@@ -94,6 +94,7 @@ export interface OreProjectDetail {
   title: string;
   author: string;
   description: string;
+  body?: string;
   icon_url: string | null;
   client_side: string;
   server_side: string;
