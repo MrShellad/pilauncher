@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Languages, Loader2, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +14,9 @@ import { OreOverlayScrollArea } from '../../../../ui/primitives/OreOverlayScroll
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { openExternalLink } from '../../../../utils/openExternalLink';
 import { useIsSponsor } from '../../../../hooks/useIsSponsor';
+import { OreToggleButton } from '../../../../ui/primitives/OreToggleButton';
+import { useInputAction } from '../../../../ui/focus/InputDriver';
+import { useSettingsStore } from '../../../../store/useSettingsStore';
 
 interface ProjectDescriptionModalProps {
   isOpen: boolean;
@@ -44,10 +47,60 @@ export const ProjectDescriptionModal: React.FC<ProjectDescriptionModalProps> = (
   const { t } = useTranslation();
   const isSponsor = useIsSponsor();
   const [translation, setTranslation] = useState<TranslationState | null>(null);
+  const { tmtSecretId, tmtSecretKey } = useSettingsStore((state) => state.settings.general);
   const [showTranslation, setShowTranslation] = useState(false);
   const [translationMode, setTranslationMode] = useState<TranslationMode>('translated_only');
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isGalleryCollapsed, setIsGalleryCollapsed] = useState(false);
+  const viewportRef = useRef<HTMLDivElement>(null);
+
+  // Trigger action navigation (LT / RT bumpers & triggers)
+  useInputAction('TAB_LEFT', useCallback(() => {
+    if (isOpen) setTranslationMode('translated_only');
+  }, [isOpen]));
+  useInputAction('PAGE_LEFT', useCallback(() => {
+    if (isOpen) setTranslationMode('translated_only');
+  }, [isOpen]));
+  useInputAction('TAB_RIGHT', useCallback(() => {
+    if (isOpen) setTranslationMode('bilingual');
+  }, [isOpen]));
+  useInputAction('PAGE_RIGHT', useCallback(() => {
+    if (isOpen) setTranslationMode('bilingual');
+  }, [isOpen]));
+
+  // Right Stick Scrolling handler
+  useEffect(() => {
+    const handleControllerScroll = (e: CustomEvent<{ deltaY: number }>) => {
+      if (!isOpen || !viewportRef.current) return;
+      viewportRef.current.scrollTop += e.detail.deltaY;
+    };
+    window.addEventListener('ore-controller-scroll', handleControllerScroll as EventListener);
+    return () => {
+      window.removeEventListener('ore-controller-scroll', handleControllerScroll as EventListener);
+    };
+  }, [isOpen]);
+
+  const handleScrollArrow = useCallback((direction: string) => {
+    const viewport = viewportRef.current;
+    if (!viewport) return true;
+
+    const scrollAmount = 40;
+    if (direction === 'up') {
+      if (viewport.scrollTop > 0) {
+        viewport.scrollTop = Math.max(0, viewport.scrollTop - scrollAmount);
+        return false;
+      }
+      return true;
+    } else if (direction === 'down') {
+      const maxScroll = viewport.scrollHeight - viewport.clientHeight;
+      if (viewport.scrollTop < maxScroll - 1) {
+        viewport.scrollTop = Math.min(maxScroll, viewport.scrollTop + scrollAmount);
+        return false;
+      }
+      return true;
+    }
+    return true;
+  }, []);
 
   const rawDescription = details?.body || details?.description || project.description || '';
   const galleryUrls = details?.gallery_urls ?? project.gallery_urls ?? [];
@@ -60,6 +113,7 @@ export const ProjectDescriptionModal: React.FC<ProjectDescriptionModalProps> = (
   // Reset states when modal is opened for a different project
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTranslation(null);
       setShowTranslation(false);
       setActiveImageIndex(0);
@@ -108,15 +162,44 @@ export const ProjectDescriptionModal: React.FC<ProjectDescriptionModalProps> = (
     setShowTranslation(true);
 
     try {
+      const markdownImageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+      const htmlImageRegex = /<img[^>]*>/gi;
+
+      const placeholders: string[] = [];
+      let textToTranslate = rawDescription;
+
+      // Replace HTML images
+      textToTranslate = textToTranslate.replace(htmlImageRegex, (match) => {
+        const placeholder = `__HTML_IMG_PL_${placeholders.length}__`;
+        placeholders.push(match);
+        return placeholder;
+      });
+
+      // Replace Markdown images
+      textToTranslate = textToTranslate.replace(markdownImageRegex, (match) => {
+        const placeholder = `__MD_IMG_PL_${placeholders.length}__`;
+        placeholders.push(match);
+        return placeholder;
+      });
+
       const result = await invoke<TranslationResponse>('translate_changelog_tmt', {
-        text: rawDescription,
+        text: textToTranslate,
         source: 'auto',
         target: 'zh',
+        secretId: tmtSecretId || null,
+        secretKey: tmtSecretKey || null,
+      });
+
+      let translatedText = result.translatedText;
+      placeholders.forEach((original, index) => {
+        const mdRegex = new RegExp(`__MD_IMG_PL_${index}__`, 'gi');
+        const htmlRegex = new RegExp(`__HTML_IMG_PL_${index}__`, 'gi');
+        translatedText = translatedText.replace(mdRegex, original).replace(htmlRegex, original);
       });
 
       setTranslation({
         status: 'translated',
-        text: result.translatedText,
+        text: translatedText,
         source: result.source,
         target: result.target,
       });
@@ -127,7 +210,7 @@ export const ProjectDescriptionModal: React.FC<ProjectDescriptionModalProps> = (
       });
       setShowTranslation(false);
     }
-  }, [rawDescription, translation]);
+  }, [rawDescription, translation, tmtSecretId, tmtSecretKey]);
 
   const cleanLine = (line: string) => {
     const trimmed = line.trim();
@@ -282,29 +365,30 @@ export const ProjectDescriptionModal: React.FC<ProjectDescriptionModalProps> = (
     <OreModal
       isOpen={isOpen}
       onClose={onClose}
+      hideCloseButton
       title={project.title}
       className="w-[min(54rem,calc(100vw-2rem))]"
       contentClassName="p-[1rem] bg-[var(--ore-modal-bg)] overflow-hidden flex flex-col min-h-0"
       defaultFocusKey={defaultFocusKey}
       actions={
-        <div className="flex w-full items-center justify-center gap-[0.75rem]">
+        <div className="flex w-full flex-wrap items-center justify-center gap-[0.75rem]">
           {rawDescription.trim() && isSponsor && (
             <OreButton
               focusKey="desc-modal-btn-translate"
               variant="secondary"
-              size="sm"
-              className="gap-[0.5rem] !m-0"
+              size="md"
+              className="flex-1 max-w-[16rem] gap-[0.5rem] !m-0"
               disabled={translation?.status === 'loading'}
               onClick={() => {
                 void handleTranslateDescription();
               }}
             >
               {translation?.status === 'loading' ? (
-                <Loader2 size={14} className="shrink-0 animate-spin" />
+                <Loader2 size={16} className="shrink-0 animate-spin" />
               ) : showTranslation ? (
-                <RotateCcw size={14} className="shrink-0" />
+                <RotateCcw size={16} className="shrink-0" />
               ) : (
-                <Languages size={14} className="shrink-0" />
+                <Languages size={16} className="shrink-0" />
               )}
               {translation?.status === 'loading'
                 ? t('download.versionChangelog.translating', { defaultValue: 'Translating' })
@@ -314,8 +398,8 @@ export const ProjectDescriptionModal: React.FC<ProjectDescriptionModalProps> = (
           <OreButton
             focusKey="desc-modal-btn-close"
             variant="secondary"
-            size="sm"
-            className="!m-0"
+            size="md"
+            className="flex-1 max-w-[16rem] !m-0"
             onClick={onClose}
           >
             {t('common.close', { defaultValue: 'Close' })}
@@ -344,7 +428,7 @@ export const ProjectDescriptionModal: React.FC<ProjectDescriptionModalProps> = (
               <img
                 src={galleryUrls[activeImageIndex]}
                 alt={`Screenshot ${activeImageIndex + 1}`}
-                className="max-w-full max-h-full object-contain shadow-lg"
+                className="w-full h-full object-cover shadow-lg"
               />
 
               {/* Prev / Next controls */}
@@ -352,7 +436,7 @@ export const ProjectDescriptionModal: React.FC<ProjectDescriptionModalProps> = (
                 <FocusItem focusKey="desc-gallery-btn-prev" onEnter={prevImage} focusable={!isGalleryCollapsed}>
                   {({ ref, focused }) => (
                     <button
-                      ref={ref as any}
+                      ref={ref as React.RefObject<HTMLButtonElement>}
                       type="button"
                       onClick={prevImage}
                       className={`p-1.5 rounded bg-black/60 border text-white transition-all cursor-pointer ${
@@ -369,7 +453,7 @@ export const ProjectDescriptionModal: React.FC<ProjectDescriptionModalProps> = (
                 <FocusItem focusKey="desc-gallery-btn-next" onEnter={nextImage} focusable={!isGalleryCollapsed}>
                   {({ ref, focused }) => (
                     <button
-                      ref={ref as any}
+                      ref={ref as React.RefObject<HTMLButtonElement>}
                       type="button"
                       onClick={nextImage}
                       className={`p-1.5 rounded bg-black/60 border text-white transition-all cursor-pointer ${
@@ -394,7 +478,7 @@ export const ProjectDescriptionModal: React.FC<ProjectDescriptionModalProps> = (
                 >
                   {({ ref, focused }) => (
                     <img
-                      ref={ref as any}
+                      ref={ref as React.RefObject<HTMLImageElement>}
                       src={url}
                       alt={`Thumbnail ${index + 1}`}
                       onClick={() => setActiveImageIndex(index)}
@@ -423,91 +507,98 @@ export const ProjectDescriptionModal: React.FC<ProjectDescriptionModalProps> = (
 
         {/* Translation Control Bar */}
         {isSponsor && translation?.status === 'translated' && showTranslation && (
-          <div className="flex items-center justify-between border-[0.125rem] border-[#6D6D6E] bg-[#2A2B2D] px-[0.75rem] py-[0.4rem] flex-shrink-0 mb-[0.875rem]">
-            <span className="font-minecraft text-[0.7rem] text-[#E6E8EB] flex items-center gap-1.5">
+          <div className="flex items-center justify-between border-[0.125rem] border-[#6D6D6E] bg-[#2A2B2D] px-[0.75rem] py-[0.4rem] flex-shrink-0 mb-[0.875rem] gap-[1rem]">
+            <span className="font-minecraft text-[0.7rem] text-[#E6E8EB] flex items-center gap-1.5 shrink-0">
               <Languages size={12} className="text-[#B9FF8A]" />
               <span>{t('download.versionChangelog.translationActive', { defaultValue: 'TRANSLATION PREVIEW' })}</span>
             </span>
 
-            <div className="flex items-center gap-1 bg-[#1E1E1F] border border-[#6D6D6E] p-0.5">
-              <button
-                type="button"
-                onClick={() => setTranslationMode('translated_only')}
-                className={`px-3 py-0.5 font-minecraft text-[0.6875rem] tracking-[0.04em] uppercase transition-colors cursor-pointer select-none outline-none ${
-                  translationMode === 'translated_only'
-                    ? 'bg-[#B9FF8A] text-[#1E1E1F] font-bold'
-                    : 'text-white/60 hover:text-white'
-                }`}
-              >
-                {t('download.versionChangelog.modeTranslatedOnly', { defaultValue: 'Translation' })}
-              </button>
-              <button
-                type="button"
-                onClick={() => setTranslationMode('bilingual')}
-                className={`px-3 py-0.5 font-minecraft text-[0.6875rem] tracking-[0.04em] uppercase transition-colors cursor-pointer select-none outline-none ${
-                  translationMode === 'bilingual'
-                    ? 'bg-[#B9FF8A] text-[#1E1E1F] font-bold'
-                    : 'text-white/60 hover:text-white'
-                }`}
-              >
-                {t('download.versionChangelog.modeBilingual', { defaultValue: 'Bilingual' })}
-              </button>
-            </div>
+            <OreToggleButton
+              options={[
+                {
+                  label: t('download.versionChangelog.modeTranslatedOnly', { defaultValue: 'Translation' }),
+                  value: 'translated_only',
+                },
+                {
+                  label: t('download.versionChangelog.modeBilingual', { defaultValue: 'Bilingual' }),
+                  value: 'bilingual',
+                },
+              ]}
+              value={translationMode}
+              onChange={(val) => setTranslationMode(val as TranslationMode)}
+              size="sm"
+              className="w-[15rem]"
+              focusKeyPrefix="desc-modal-toggle"
+            />
           </div>
         )}
 
         {/* Description Text Area with OreOverlayScrollArea */}
-        <div className="relative border-[0.125rem] border-[#6D6D6E] bg-[#1E1E1F] shadow-[inset_0_0.125rem_0_rgba(255,255,255,0.08)] flex-1 min-h-0 flex flex-col">
-          
-          {/* Translation Source Overlay Badge */}
-          {isSponsor && showTranslation && translation?.status === 'translated' && (
-            <div 
-              className="absolute top-2.5 right-3 z-30 pointer-events-none select-none border border-[#B9FF8A]/35 bg-[#313233]/90 px-2 py-0.5 font-minecraft text-[0.625rem] uppercase tracking-[0.08em] text-[#B9FF8A] flex items-center gap-1.5 shadow-md"
-              style={{ backdropFilter: 'blur(4px)' }}
+        <FocusItem
+          focusKey="desc-modal-scrollarea"
+          onArrowPress={handleScrollArrow}
+        >
+          {({ ref: focusRef, focused }) => (
+            <div
+              ref={focusRef as React.RefObject<HTMLDivElement>}
+              className={`relative border-[0.125rem] bg-[#1E1E1F] shadow-[inset_0_0.125rem_0_rgba(255,255,255,0.08)] flex-1 min-h-0 flex flex-col transition-all ${
+                focused
+                  ? 'border-white outline outline-[2px] outline-[var(--ore-focus-ringFallback)] outline-offset-[-2px] z-10'
+                  : 'border-[#6D6D6E]'
+              }`}
             >
-              <Languages size={10} className="text-[#B9FF8A]" />
-              <span>{t('download.versionChangelog.machineTranslated', { defaultValue: 'Translated by TMT' })}</span>
+              {/* Translation Source Overlay Badge */}
+              {isSponsor && showTranslation && translation?.status === 'translated' && (
+                <div 
+                  className="absolute top-2.5 right-3 z-30 pointer-events-none select-none border border-[#B9FF8A]/35 bg-[#313233]/90 px-2 py-0.5 font-minecraft text-[0.625rem] uppercase tracking-[0.08em] text-[#B9FF8A] flex items-center gap-1.5 shadow-md"
+                  style={{ backdropFilter: 'blur(4px)' }}
+                >
+                  <Languages size={10} className="text-[#B9FF8A]" />
+                  <span>{t('download.versionChangelog.machineTranslated', { defaultValue: 'Translated by TMT' })}</span>
+                </div>
+              )}
+
+              <div 
+                style={{ 
+                  height: scrollAreaHeight,
+                  transition: 'height 0.35s cubic-bezier(0.25, 1, 0.5, 1)' 
+                }} 
+                className="w-full relative min-h-0 flex flex-col overflow-hidden"
+              >
+                <OreOverlayScrollArea
+                  ref={viewportRef}
+                  className="h-full w-full"
+                  viewportClassName="p-[0.875rem]"
+                  contentSafePaddingRight={18}
+                  onScroll={handleScroll}
+                  onClick={handleContentClick}
+                >
+                  {renderDescriptionContent()}
+                </OreOverlayScrollArea>
+              </div>
+
+              <style dangerouslySetInnerHTML={{ __html: `
+                .markdown-content h1 { font-size: 1.5rem; font-weight: bold; margin-top: 1rem; margin-bottom: 0.5rem; color: white; }
+                .markdown-content h2 { font-size: 1.25rem; font-weight: bold; margin-top: 0.875rem; margin-bottom: 0.5rem; color: #6CC349; }
+                .markdown-content h3 { font-size: 1.1rem; font-weight: bold; margin-top: 0.75rem; margin-bottom: 0.375rem; color: white; }
+                .markdown-content p { margin-bottom: 0.625rem; line-height: 1.5; color: #E6E8EB; }
+                .markdown-content ul { margin-left: 1.25rem; margin-bottom: 0.625rem; list-style-type: disc; }
+                .markdown-content ol { margin-left: 1.25rem; margin-bottom: 0.625rem; list-style-type: decimal; }
+                .markdown-content li { margin-bottom: 0.25rem; color: #E6E8EB; }
+                .markdown-content a { color: #B9FF8A; text-decoration: underline; cursor: pointer; }
+                .markdown-content a:hover { color: white; }
+                .markdown-content code { background-color: #2b2b2d; padding: 0.125rem 0.25rem; border-radius: 2px; font-family: monospace; font-size: 0.875rem; color: #e6e8eb; }
+                .markdown-content pre { background-color: #1a1a1c; padding: 0.75rem; border-radius: 4px; overflow-x: auto; margin-bottom: 0.75rem; border: 1px solid #2b2b2d; }
+                .markdown-content pre code { background-color: transparent; padding: 0; }
+                .markdown-content img { max-width: 100%; height: auto; border-radius: 2px; margin-bottom: 0.75rem; }
+                .markdown-content blockquote { border-left: 4px solid #6cc349; padding-left: 0.75rem; color: #a0a0a0; margin-bottom: 0.75rem; }
+                .markdown-content table { width: 100%; border-collapse: collapse; margin-bottom: 0.75rem; }
+                .markdown-content th, .markdown-content td { border: 1px solid #2b2b2d; padding: 0.5rem; text-align: left; }
+                .markdown-content th { background-color: #1a1a1c; font-weight: bold; }
+              ` }} />
             </div>
           )}
-
-          <div 
-            style={{ 
-              height: scrollAreaHeight,
-              transition: 'height 0.35s cubic-bezier(0.25, 1, 0.5, 1)' 
-            }} 
-            className="w-full relative min-h-0 flex flex-col overflow-hidden"
-          >
-            <OreOverlayScrollArea
-              className="h-full w-full"
-              viewportClassName="p-[0.875rem]"
-              contentSafePaddingRight={18}
-              onScroll={handleScroll}
-              onClick={handleContentClick}
-            >
-              {renderDescriptionContent()}
-            </OreOverlayScrollArea>
-          </div>
-
-          <style dangerouslySetInnerHTML={{ __html: `
-            .markdown-content h1 { font-size: 1.5rem; font-weight: bold; margin-top: 1rem; margin-bottom: 0.5rem; color: white; }
-            .markdown-content h2 { font-size: 1.25rem; font-weight: bold; margin-top: 0.875rem; margin-bottom: 0.5rem; color: #6CC349; }
-            .markdown-content h3 { font-size: 1.1rem; font-weight: bold; margin-top: 0.75rem; margin-bottom: 0.375rem; color: white; }
-            .markdown-content p { margin-bottom: 0.625rem; line-height: 1.5; color: #E6E8EB; }
-            .markdown-content ul { margin-left: 1.25rem; margin-bottom: 0.625rem; list-style-type: disc; }
-            .markdown-content ol { margin-left: 1.25rem; margin-bottom: 0.625rem; list-style-type: decimal; }
-            .markdown-content li { margin-bottom: 0.25rem; color: #E6E8EB; }
-            .markdown-content a { color: #B9FF8A; text-decoration: underline; cursor: pointer; }
-            .markdown-content a:hover { color: white; }
-            .markdown-content code { background-color: #2b2b2d; padding: 0.125rem 0.25rem; border-radius: 2px; font-family: monospace; font-size: 0.875rem; color: #e6e8eb; }
-            .markdown-content pre { background-color: #1a1a1c; padding: 0.75rem; border-radius: 4px; overflow-x: auto; margin-bottom: 0.75rem; border: 1px solid #2b2b2d; }
-            .markdown-content pre code { background-color: transparent; padding: 0; }
-            .markdown-content img { max-width: 100%; height: auto; border-radius: 2px; margin-bottom: 0.75rem; }
-            .markdown-content blockquote { border-left: 4px solid #6cc349; padding-left: 0.75rem; color: #a0a0a0; margin-bottom: 0.75rem; }
-            .markdown-content table { width: 100%; border-collapse: collapse; margin-bottom: 0.75rem; }
-            .markdown-content th, .markdown-content td { border: 1px solid #2b2b2d; padding: 0.5rem; text-align: left; }
-            .markdown-content th { background-color: #1a1a1c; font-weight: bold; }
-          ` }} />
-        </div>
+        </FocusItem>
       </div>
     </OreModal>
   );

@@ -23,6 +23,8 @@ import { WebDavSection } from './components/WebDavSection';
 import { WebDavSettingsModal } from './components/WebDavSettingsModal';
 import { WebDavManageModal } from './components/WebDavManageModal';
 import { ManageInstancesModal } from './components/ManageInstancesModal';
+import { TranslationSection } from './components/TranslationSection';
+import { TranslationSettingsModal } from './components/TranslationSettingsModal';
 import { useCoreDirectory } from './hooks/useCoreDirectory';
 import { useLogCleaner } from './hooks/useLogCleaner';
 import { useRemoteLogs } from './hooks/useRemoteLogs';
@@ -47,6 +49,7 @@ export const DataSettings: React.FC = () => {
   const [removeDirTarget, setRemoveDirTarget] = useState<string | null>(null);
   const [isManageOpen, setIsManageOpen] = useState(false);
   const [isInstancesManageOpen, setIsInstancesManageOpen] = useState(false);
+  const [isTranslationOpen, setIsTranslationOpen] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -87,7 +90,8 @@ export const DataSettings: React.FC = () => {
       'settings-data-manage-instances',
       'settings-data-webdav',
       'settings-data-webdav-manage',
-      'settings-data-webdav-auto-sync'
+      'settings-data-webdav-auto-sync',
+      'settings-data-translation-api'
     ];
     const thirdPartyFocus = thirdPartyDirs.map((_, idx) => `settings-data-remove-dir-${idx}`);
     return [...baseFocus, ...thirdPartyFocus];
@@ -101,7 +105,8 @@ export const DataSettings: React.FC = () => {
     !remoteLogs.isOpen &&
     !webDavSync.isOpen &&
     !isManageOpen &&
-    !isInstancesManageOpen;
+    !isInstancesManageOpen &&
+    !isTranslationOpen;
 
   const { handleLinearArrow } = useLinearNavigation(
     focusOrder,
@@ -209,6 +214,22 @@ export const DataSettings: React.FC = () => {
         }}
       />
 
+      <TranslationSettingsModal
+        isOpen={isTranslationOpen}
+        onClose={() => {
+          setIsTranslationOpen(false);
+          setTimeout(() => setFocus('settings-data-translation-api'), 50);
+        }}
+        secretId={settings.general.tmtSecretId || ''}
+        secretKey={settings.general.tmtSecretKey || ''}
+        service={settings.general.translationService || 'tencent'}
+        onSave={(data) => {
+          updateGeneralSetting('tmtSecretId', data.tmtSecretId);
+          updateGeneralSetting('tmtSecretKey', data.tmtSecretKey);
+          updateGeneralSetting('translationService', data.translationService);
+        }}
+      />
+
       <SettingsSection title={t('settings.data.sections.privacy')} icon={<BarChart3 size={18} />}>
         <FormRow
           label={t('settings.data.telemetryUpload.label')}
@@ -251,6 +272,11 @@ export const DataSettings: React.FC = () => {
             autoSyncInterval: value,
           });
         }}
+        onArrowPress={handleLinearArrow}
+      />
+
+      <TranslationSection
+        onOpen={() => setIsTranslationOpen(true)}
         onArrowPress={handleLinearArrow}
       />
     </SettingsPageLayout>

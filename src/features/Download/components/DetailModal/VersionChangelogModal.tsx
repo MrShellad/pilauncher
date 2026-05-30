@@ -1,4 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { FocusItem } from '../../../../ui/focus/FocusItem';
+import { OreToggleButton } from '../../../../ui/primitives/OreToggleButton';
+import { useInputAction } from '../../../../ui/focus/InputDriver';
+import { useSettingsStore } from '../../../../store/useSettingsStore';
+
 import { invoke } from '@tauri-apps/api/core';
 import { CheckCircle2, Download, Languages, Loader2, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -41,9 +46,60 @@ export const VersionChangelogModal: React.FC<VersionChangelogModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const isSponsor = useIsSponsor();
+  const { tmtSecretId, tmtSecretKey } = useSettingsStore((state) => state.settings.general);
+
   const [translations, setTranslations] = useState<Record<string, ChangelogTranslationState>>({});
   const [showTranslatedChangelog, setShowTranslatedChangelog] = useState<Record<string, boolean>>({});
   const [translationMode, setTranslationMode] = useState<TranslationMode>('translated_only');
+  const viewportRef = useRef<HTMLDivElement>(null);
+
+  // Trigger action navigation (LT / RT bumpers & triggers)
+  useInputAction('TAB_LEFT', useCallback(() => {
+    if (isOpen && version) setTranslationMode('translated_only');
+  }, [isOpen, version]));
+  useInputAction('PAGE_LEFT', useCallback(() => {
+    if (isOpen && version) setTranslationMode('translated_only');
+  }, [isOpen, version]));
+  useInputAction('TAB_RIGHT', useCallback(() => {
+    if (isOpen && version) setTranslationMode('bilingual');
+  }, [isOpen, version]));
+  useInputAction('PAGE_RIGHT', useCallback(() => {
+    if (isOpen && version) setTranslationMode('bilingual');
+  }, [isOpen, version]));
+
+  // Right Stick Scrolling handler
+  useEffect(() => {
+    const handleControllerScroll = (e: CustomEvent<{ deltaY: number }>) => {
+      if (!isOpen || !viewportRef.current) return;
+      viewportRef.current.scrollTop += e.detail.deltaY;
+    };
+    window.addEventListener('ore-controller-scroll', handleControllerScroll as EventListener);
+    return () => {
+      window.removeEventListener('ore-controller-scroll', handleControllerScroll as EventListener);
+    };
+  }, [isOpen]);
+
+  const handleScrollArrow = useCallback((direction: string) => {
+    const viewport = viewportRef.current;
+    if (!viewport) return true;
+
+    const scrollAmount = 40;
+    if (direction === 'up') {
+      if (viewport.scrollTop > 0) {
+        viewport.scrollTop = Math.max(0, viewport.scrollTop - scrollAmount);
+        return false; // Consume event (do not move focus)
+      }
+      return true; // Let focus escape up
+    } else if (direction === 'down') {
+      const maxScroll = viewport.scrollHeight - viewport.clientHeight;
+      if (viewport.scrollTop < maxScroll - 1) {
+        viewport.scrollTop = Math.min(maxScroll, viewport.scrollTop + scrollAmount);
+        return false; // Consume event (do not move focus)
+      }
+      return true; // Let focus escape down
+    }
+    return true;
+  }, []);
 
   const versionId = version?.id;
 
@@ -69,17 +125,46 @@ export const VersionChangelogModal: React.FC<VersionChangelogModalProps> = ({
     }));
 
     try {
+      const markdownImageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+      const htmlImageRegex = /<img[^>]*>/gi;
+
+      const placeholders: string[] = [];
+      let textToTranslate = version.changelog;
+
+      // Replace HTML images
+      textToTranslate = textToTranslate.replace(htmlImageRegex, (match) => {
+        const placeholder = `__HTML_IMG_PL_${placeholders.length}__`;
+        placeholders.push(match);
+        return placeholder;
+      });
+
+      // Replace Markdown images
+      textToTranslate = textToTranslate.replace(markdownImageRegex, (match) => {
+        const placeholder = `__MD_IMG_PL_${placeholders.length}__`;
+        placeholders.push(match);
+        return placeholder;
+      });
+
       const result = await invoke<ChangelogTranslationResponse>('translate_changelog_tmt', {
-        text: version.changelog,
+        text: textToTranslate,
         source: 'auto',
         target: 'zh',
+        secretId: tmtSecretId || null,
+        secretKey: tmtSecretKey || null,
+      });
+
+      let translatedText = result.translatedText;
+      placeholders.forEach((original, index) => {
+        const mdRegex = new RegExp(`__MD_IMG_PL_${index}__`, 'gi');
+        const htmlRegex = new RegExp(`__HTML_IMG_PL_${index}__`, 'gi');
+        translatedText = translatedText.replace(mdRegex, original).replace(htmlRegex, original);
       });
 
       setTranslations((prev) => ({
         ...prev,
         [versionId]: {
           status: 'translated',
-          text: result.translatedText,
+          text: translatedText,
           source: result.source,
           target: result.target,
           chunks: result.chunks,
@@ -98,7 +183,8 @@ export const VersionChangelogModal: React.FC<VersionChangelogModalProps> = ({
         [versionId]: false,
       }));
     }
-  }, [version, versionId, translations]);
+  }, [version, versionId, translations, tmtSecretId, tmtSecretKey]);
+
 
   const cleanLine = (line: string) => {
     const trimmed = line.trim();
@@ -274,29 +360,30 @@ export const VersionChangelogModal: React.FC<VersionChangelogModalProps> = ({
     <OreModal
       isOpen={isOpen && !!version}
       onClose={onClose}
+      hideCloseButton
       title={t('download.versionChangelog.title', { defaultValue: 'Version Changelog' })}
       className="w-[min(54rem,calc(100vw-2rem))]"
       contentClassName="p-[1rem] bg-[var(--ore-modal-bg)] overflow-hidden flex flex-col min-h-0"
       defaultFocusKey={selectedDefaultFocusKey}
       actions={
-        <div className="flex w-full items-center justify-center gap-[0.75rem]"> {/* Centered buttons */}
+        <div className="flex w-full flex-wrap items-center justify-center gap-[0.75rem]"> {/* Centered buttons */}
           {version && selectedHasChangelog && isSponsor && (
             <OreButton
               focusKey="download-version-changelog-translate"
               variant="secondary"
-              size="sm"
-              className="gap-[0.5rem] !m-0"
+              size="md"
+              className="flex-1 max-w-[16rem] gap-[0.5rem] !m-0"
               disabled={!selectedCanTranslate}
               onClick={() => {
                 void handleTranslateChangelog();
               }}
             >
               {selectedTranslation?.status === 'loading' ? (
-                <Loader2 size={14} className="shrink-0 animate-spin" />
+                <Loader2 size={16} className="shrink-0 animate-spin" />
               ) : selectedIsShowingTranslation ? (
-                <RotateCcw size={14} className="shrink-0" />
+                <RotateCcw size={16} className="shrink-0" />
               ) : (
-                <Languages size={14} className="shrink-0" />
+                <Languages size={16} className="shrink-0" />
               )}
               {selectedTranslation?.status === 'loading'
                 ? t('download.versionChangelog.translating', { defaultValue: 'Translating' })
@@ -307,13 +394,13 @@ export const VersionChangelogModal: React.FC<VersionChangelogModalProps> = ({
             <OreButton
               focusKey="download-version-changelog-download"
               variant={isInstalled ? 'secondary' : 'primary'}
-              size="sm"
-              className="gap-[0.5rem] !m-0"
+              size="md"
+              className="flex-1 max-w-[16rem] gap-[0.5rem] !m-0"
               onClick={() => {
                 onDownload(version);
               }}
             >
-              {isInstalled ? <CheckCircle2 size={14} className="shrink-0" /> : <Download size={14} className="shrink-0" />}
+              {isInstalled ? <CheckCircle2 size={16} className="shrink-0" /> : <Download size={16} className="shrink-0" />}
               {isInstalled
                 ? t('download.status.alreadyInInstance', { defaultValue: 'Already in instance' })
                 : t('download.actions.downloadVersion', { defaultValue: 'Download Version' })}
@@ -322,8 +409,8 @@ export const VersionChangelogModal: React.FC<VersionChangelogModalProps> = ({
           <OreButton
             focusKey="download-version-changelog-close"
             variant="secondary"
-            size="sm"
-            className="!m-0"
+            size="md"
+            className="flex-1 max-w-[16rem] !m-0"
             onClick={onClose}
           >
             {t('common.close', { defaultValue: 'Close' })}
@@ -358,61 +445,68 @@ export const VersionChangelogModal: React.FC<VersionChangelogModalProps> = ({
 
           {/* Translation Control Bar */}
           {isSponsor && selectedTranslation?.status === 'translated' && selectedIsShowingTranslation && (
-            <div className="flex items-center justify-between border-[0.125rem] border-[#6D6D6E] bg-[#2A2B2D] px-[0.75rem] py-[0.4rem]">
-              <span className="font-minecraft text-[0.7rem] text-[#E6E8EB] flex items-center gap-1.5">
+            <div className="flex items-center justify-between border-[0.125rem] border-[#6D6D6E] bg-[#2A2B2D] px-[0.75rem] py-[0.4rem] gap-[1rem]">
+              <span className="font-minecraft text-[0.7rem] text-[#E6E8EB] flex items-center gap-1.5 shrink-0">
                 <Languages size={12} className="text-[#B9FF8A]" />
                 <span>{t('download.versionChangelog.translationActive', { defaultValue: 'TRANSLATION PREVIEW' })}</span>
               </span>
 
-              <div className="flex items-center gap-1 bg-[#1E1E1F] border border-[#6D6D6E] p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setTranslationMode('translated_only')}
-                  className={`px-3 py-0.5 font-minecraft text-[0.6875rem] tracking-[0.04em] uppercase transition-colors cursor-pointer select-none outline-none ${
-                    translationMode === 'translated_only'
-                      ? 'bg-[#B9FF8A] text-[#1E1E1F] font-bold'
-                      : 'text-white/60 hover:text-white'
-                  }`}
-                >
-                  {t('download.versionChangelog.modeTranslatedOnly', { defaultValue: 'Translation' })}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTranslationMode('bilingual')}
-                  className={`px-3 py-0.5 font-minecraft text-[0.6875rem] tracking-[0.04em] uppercase transition-colors cursor-pointer select-none outline-none ${
-                    translationMode === 'bilingual'
-                      ? 'bg-[#B9FF8A] text-[#1E1E1F] font-bold'
-                      : 'text-white/60 hover:text-white'
-                  }`}
-                >
-                  {t('download.versionChangelog.modeBilingual', { defaultValue: 'Bilingual' })}
-                </button>
-              </div>
+              <OreToggleButton
+                options={[
+                  {
+                    label: t('download.versionChangelog.modeTranslatedOnly', { defaultValue: 'Translation' }),
+                    value: 'translated_only',
+                  },
+                  {
+                    label: t('download.versionChangelog.modeBilingual', { defaultValue: 'Bilingual' }),
+                    value: 'bilingual',
+                  },
+                ]}
+                value={translationMode}
+                onChange={(val) => setTranslationMode(val as TranslationMode)}
+                size="sm"
+                className="w-[15rem]"
+                focusKeyPrefix="download-version-changelog-toggle"
+              />
             </div>
           )}
 
           {/* Changelog Display Box using OreOverlayScrollArea */}
-          <div className="relative border-[0.125rem] border-[#6D6D6E] bg-[#1E1E1F] shadow-[inset_0_0.125rem_0_rgba(255,255,255,0.08)]">
-            
-            {/* Translation Source Overlay Badge */}
-            {isSponsor && selectedIsShowingTranslation && selectedTranslation?.status === 'translated' && (
-              <div 
-                className="absolute top-2.5 right-3 z-30 pointer-events-none select-none border border-[#B9FF8A]/35 bg-[#313233]/90 px-2 py-0.5 font-minecraft text-[0.625rem] uppercase tracking-[0.08em] text-[#B9FF8A] flex items-center gap-1.5 shadow-md transition-all duration-300"
-                style={{ backdropFilter: 'blur(4px)' }}
+          <FocusItem
+            focusKey="download-version-changelog-scrollarea"
+            onArrowPress={handleScrollArrow}
+          >
+            {({ ref: focusRef, focused }) => (
+              <div
+                ref={focusRef as React.RefObject<HTMLDivElement>}
+                className={`relative border-[0.125rem] bg-[#1E1E1F] shadow-[inset_0_0.125rem_0_rgba(255,255,255,0.08)] transition-all ${
+                  focused
+                    ? 'border-white outline outline-[2px] outline-[var(--ore-focus-ringFallback)] outline-offset-[-2px] z-10'
+                    : 'border-[#6D6D6E]'
+                }`}
               >
-                <Languages size={10} className="text-[#B9FF8A]" />
-                <span>{t('download.versionChangelog.machineTranslated', { defaultValue: 'Translated by TMT' })}</span>
+                {/* Translation Source Overlay Badge */}
+                {isSponsor && selectedIsShowingTranslation && selectedTranslation?.status === 'translated' && (
+                  <div 
+                    className="absolute top-2.5 right-3 z-30 pointer-events-none select-none border border-[#B9FF8A]/35 bg-[#313233]/90 px-2 py-0.5 font-minecraft text-[0.625rem] uppercase tracking-[0.08em] text-[#B9FF8A] flex items-center gap-1.5 shadow-md transition-all duration-300"
+                    style={{ backdropFilter: 'blur(4px)' }}
+                  >
+                    <Languages size={10} className="text-[#B9FF8A]" />
+                    <span>{t('download.versionChangelog.machineTranslated', { defaultValue: 'Translated by TMT' })}</span>
+                  </div>
+                )}
+
+                <OreOverlayScrollArea
+                  ref={viewportRef}
+                  className="h-[min(26rem,45vh)] w-full"
+                  viewportClassName="p-[0.875rem]"
+                  contentSafePaddingRight={18}
+                >
+                  {renderChangelog(selectedChangelogText)}
+                </OreOverlayScrollArea>
               </div>
             )}
-
-            <OreOverlayScrollArea
-              className="h-[min(26rem,45vh)] w-full"
-              viewportClassName="p-[0.875rem]"
-              contentSafePaddingRight={18}
-            >
-              {renderChangelog(selectedChangelogText)}
-            </OreOverlayScrollArea>
-          </div>
+          </FocusItem>
         </div>
       )}
     </OreModal>

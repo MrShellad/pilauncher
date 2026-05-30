@@ -94,9 +94,27 @@ export const TitleBar: React.FC = () => {
       setTimeout(() => setPressingRB(false), 150);
     }
 
-    let nextIndex = currentIndex + direction;
-    if (nextIndex < 0) nextIndex = navTabs.length - 1;
-    if (nextIndex >= navTabs.length) nextIndex = 0;
+    const allIndex = allNavTabs.findIndex((tab) => tab.id === visibleActiveTab);
+    let nextIndex = -1;
+
+    if (allIndex !== -1) {
+      const len = allNavTabs.length;
+      for (let i = 1; i <= len; i++) {
+        const checkIdx = (allIndex + i * direction + len * 2) % len;
+        const targetTab = allNavTabs[checkIdx];
+        const foundInNav = navTabs.findIndex((t) => t.id === targetTab.id);
+        if (foundInNav !== -1) {
+          nextIndex = foundInNav;
+          break;
+        }
+      }
+    }
+
+    if (nextIndex === -1) {
+      nextIndex = currentIndex + direction;
+      if (nextIndex < 0) nextIndex = navTabs.length - 1;
+      if (nextIndex >= navTabs.length) nextIndex = 0;
+    }
 
     setActiveTab(navTabs[nextIndex].id as any);
   };

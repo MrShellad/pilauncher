@@ -78,13 +78,23 @@ fn read_config_value(key: &str) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
-fn load_tmt_config() -> Result<TmtConfig, String> {
+fn load_tmt_config(
+    secret_id_opt: Option<String>,
+    secret_key_opt: Option<String>,
+) -> Result<TmtConfig, String> {
     let api_url = read_config_value("TMT_API_URL")
         .ok_or_else(|| "TMT_API_URL is not configured in .env or environment.".to_string())?;
-    let secret_id = read_config_value("TMT_SECRET_ID")
-        .ok_or_else(|| "TMT_SECRET_ID is not configured in .env or environment.".to_string())?;
-    let secret_key = read_config_value("TMT_SECRET_KEY")
-        .ok_or_else(|| "TMT_SECRET_KEY is not configured in .env or environment.".to_string())?;
+    
+    let secret_id = secret_id_opt
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| read_config_value("TMT_SECRET_ID"))
+        .ok_or_else(|| "TMT_SECRET_ID is not configured in .env, environment, or settings.".to_string())?;
+        
+    let secret_key = secret_key_opt
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| read_config_value("TMT_SECRET_KEY"))
+        .ok_or_else(|| "TMT_SECRET_KEY is not configured in .env, environment, or settings.".to_string())?;
+
     let region = read_config_value("TMT_REGION")
         .ok_or_else(|| "TMT_REGION is not configured in .env or environment.".to_string())?;
     let project_id = read_config_value("TMT_PROJECT_ID")
@@ -270,13 +280,15 @@ pub async fn translate_changelog_tmt(
     text: String,
     source: Option<String>,
     target: Option<String>,
+    secret_id: Option<String>,
+    secret_key: Option<String>,
 ) -> Result<TranslateTextResponse, String> {
     let source_text = text.trim();
     if source_text.is_empty() {
         return Err("No changelog text to translate.".to_string());
     }
 
-    let config = load_tmt_config()?;
+    let config = load_tmt_config(secret_id, secret_key)?;
     let endpoint =
         Url::parse(&config.api_url).map_err(|error| format!("Invalid TMT_API_URL: {}", error))?;
     if endpoint.scheme() != "https" {

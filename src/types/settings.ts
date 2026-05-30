@@ -38,8 +38,11 @@ export interface GeneralSettings {
   webDav: WebDavSettings;
   lastAgreedLegalDate: string;
   linuxDisableDmabuf: boolean;
+  tmtSecretId?: string;
+  tmtSecretKey?: string;
+  translationService?: string;
 }
-
+// ...
 export interface AppearanceSettings {
   backgroundImage: string | null;
   backgroundBlur: number;
@@ -150,6 +153,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
     },
     lastAgreedLegalDate: '',
     linuxDisableDmabuf: false,
+    tmtSecretId: '',
+    tmtSecretKey: '',
+    translationService: 'tencent',
   },
   appearance: {
     backgroundImage: null,
