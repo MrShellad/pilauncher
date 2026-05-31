@@ -5,6 +5,7 @@ import type { LucideIcon } from 'lucide-react';
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { useInputAction } from '../../../ui/focus/InputDriver';
+import { GamepadButtonIcon } from '../../../ui/components/GamepadButtonIcon';
 import { ControlHint } from '../../../ui/components/ControlHint';
 import type { TabType } from '../hooks/useResourceDownload';
 
@@ -56,11 +57,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, tabs, onTabChan
     <div className="z-20 flex w-full flex-shrink-0 border-t-[2px] border-[#1E1E1F] bg-[#48494A] px-4 py-3 shadow-[inset_0_2px_0_rgba(255,255,255,0.12)]">
       <div className="mx-auto flex w-full max-w-[1500px] items-center gap-3">
         <div className="hidden min-w-[180px] items-center gap-2 lg:flex">
-          <div className="hidden items-center gap-2 intent-gamepad:flex">
-            <ControlHint label="LT" variant="trigger" tone="dark" />
+          <div className="hidden items-center gap-2 [.intent-controller_&]:flex">
+            <GamepadButtonIcon button="LT" size="lg" />
             <span className="font-minecraft text-xs uppercase tracking-[0.18em] text-[#E6E8EB]">上一类</span>
           </div>
-          <div className="flex items-center gap-2 intent-gamepad:hidden">
+          <div className="flex items-center gap-2 [.intent-controller_&]:hidden">
             <ControlHint label="PgUp" variant="keyboard" tone="neutral" />
             <span className="font-minecraft text-xs uppercase tracking-[0.18em] text-[#E6E8EB]">上一类</span>
           </div>
@@ -135,11 +136,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, tabs, onTabChan
         </FocusBoundary>
 
         <div className="hidden min-w-[180px] items-center justify-end gap-2 lg:flex">
-          <div className="hidden items-center gap-2 intent-gamepad:flex">
+          <div className="hidden items-center gap-2 [.intent-controller_&]:flex">
             <span className="font-minecraft text-xs uppercase tracking-[0.18em] text-[#E6E8EB]">下一类</span>
-            <ControlHint label="RT" variant="trigger" tone="dark" />
+            <GamepadButtonIcon button="RT" size="lg" />
           </div>
-          <div className="flex items-center gap-2 intent-gamepad:hidden">
+          <div className="flex items-center gap-2 [.intent-controller_&]:hidden">
             <span className="font-minecraft text-xs uppercase tracking-[0.18em] text-[#E6E8EB]">下一类</span>
             <ControlHint label="PgDn" variant="keyboard" tone="neutral" />
           </div>

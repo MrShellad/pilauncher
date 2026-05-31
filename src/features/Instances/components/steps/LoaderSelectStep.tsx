@@ -10,8 +10,8 @@ import { useCustomInstance } from '../../../../hooks/pages/Instances/useCustomIn
 import { LOADER_TYPES as SHARED_LOADER_TYPES } from '../../logic/environmentSelection';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { useInputAction } from '../../../../ui/focus/InputDriver';
+import { GamepadButtonIcon } from '../../../../ui/components/GamepadButtonIcon';
 import {
-  GamepadBtn,
   STEP_ACTIONS_CLASS,
   STEP_CARD_BASE_CLASS,
   STEP_CONTROL_GROUP_CLASS,
@@ -89,8 +89,7 @@ export const LoaderSelectStep: React.FC<StepProps> = ({
           </OreButton>
           <OreButton variant="primary" size="auto" onClick={handleNextStep}>
             <span className="flex items-center">
-              {/* ✅ Y 键 UI 提示 */}
-              <GamepadBtn text="Y" color="#FACC15" shadow="drop-shadow-[0_0_0.25rem_rgba(250,204,21,0.5)]" />
+              <GamepadButtonIcon button="Y" size="md" />
               <span className="ml-[0.375rem] flex items-center">下一步 <ArrowRight size="1.125rem" className="ml-[0.25rem]" /></span>
             </span>
           </OreButton>
@@ -111,8 +110,8 @@ export const LoaderSelectStep: React.FC<StepProps> = ({
           />
           {/* ✅ LT / RT 键 UI 提示 */}
           <div className={STEP_HINT_CLASS}>
-            <GamepadBtn text="LT" color="#5A5B5C" shadow="drop-shadow-[0_0_0.125rem_rgba(255,255,255,0.22)]" fontSize="10" />
-            <GamepadBtn text="RT" color="#5A5B5C" shadow="drop-shadow-[0_0_0.125rem_rgba(255,255,255,0.22)]" fontSize="10" />
+            <GamepadButtonIcon button="LT" size="lg" />
+            <GamepadButtonIcon button="RT" size="lg" />
             <span className="ml-[0.375rem] mt-[0.125rem] tracking-wider">切换分类</span>
           </div>
         </div>

@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Blocks, Check, CheckCircle2, Clock3, Download, Heart, Loader2, Monitor, Server, Tags } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { VirtuosoGrid } from 'react-virtuoso';
+import { motion, useReducedMotion } from 'framer-motion';
 import fabricIcon from '../../../../../../../assets/icons/tags/loaders/fabric.svg';
 import forgeIcon from '../../../../../../../assets/icons/tags/loaders/forge.svg';
 import neoforgeIcon from '../../../../../../../assets/icons/tags/loaders/neoforge.svg';
@@ -42,6 +43,7 @@ interface ResourceGridProps {
   scrollContainerId?: string;
   onScrollTopChange?: (scrollTop: number) => void;
   onClickAuthor?: (author: string) => void;
+  selectedProjectId?: string;
 }
 
 interface ResourceCardProps {
@@ -58,6 +60,8 @@ interface ResourceCardProps {
   onToggleSelection?: (project: ModrinthProject) => void;
   isNearBottom: boolean;
   onClickAuthor?: (author: string) => void;
+  shouldAnimateLayout?: boolean;
+  selectedProjectId?: string;
 }
 
 interface ResourceGridItem {
@@ -98,7 +102,14 @@ const ResourceGridFooter: React.FC<{ context?: ResourceGridContext }> = ({ conte
   );
 };
 
-const RESOURCE_GRID_COMPONENTS = { Footer: ResourceGridFooter };
+const ResourceGridHeader: React.FC = () => {
+  return <div className="col-span-full h-[1.5rem] w-full" />;
+};
+
+const RESOURCE_GRID_COMPONENTS = {
+  Header: ResourceGridHeader,
+  Footer: ResourceGridFooter
+};
 
 const prettifyLoader = (loader: string) => {
   if (!loader) return 'Vanilla';
@@ -163,13 +174,17 @@ const ResourceCard = React.memo(({
   isSelected = false,
   onToggleSelection,
   isNearBottom,
-  onClickAuthor
+  onClickAuthor,
+  shouldAnimateLayout = false,
+  selectedProjectId
 }: ResourceCardProps) => {
   const { t, i18n } = useTranslation();
   const cardRef = useRef<HTMLDivElement | null>(null);
   const { features, followerCount, loaders, supportsClient, supportsServer } = viewModel;
   const focusKey = `download-grid-item-${index}`;
   const authorLabel = project.author || t('download.meta.unknownAuthor', { defaultValue: 'Unknown' });
+  const shouldReduceMotion = useReducedMotion();
+  const isSelectedForTransition = project.id && selectedProjectId ? project.id === selectedProjectId : false;
 
   const timeAgo = (dateStr?: string) => {
     if (!dateStr) return t('download.time.unknown', { defaultValue: 'Unknown time' });
@@ -215,8 +230,9 @@ const ResourceCard = React.memo(({
         };
 
         return (
-          <div
+          <motion.div
             ref={setCardNode}
+            layout={shouldAnimateLayout}
             onClick={() => {
               if (isSelectionMode) {
                 onToggleSelection?.(project);
@@ -249,12 +265,19 @@ const ResourceCard = React.memo(({
               project: project.title
             })}
             className={`
-              group relative flex min-h-[8.5rem] w-full overflow-hidden border-[0.125rem] border-[#1E1E1F] text-left outline-none transition-none cursor-pointer
+              group relative flex min-h-[8.5rem] w-full overflow-hidden border-[0.125rem] border-[#1E1E1F]
+              text-left transition-none cursor-pointer
               ${focused
-                ? 'z-20 bg-[#DDE0E3] brightness-[1.01] outline outline-[0.1875rem] outline-offset-[0.0625rem] outline-white'
-                : 'bg-[#C6C8CB] hover:bg-[#D7DADF]'}
+                ? 'z-20 bg-[#DDE0E3] brightness-[1.01] outline outline-[4px] outline-[#F5C542] outline-offset-0'
+                : 'bg-[#C6C8CB] hover:bg-[#D7DADF] outline-none'}
               ${isSelected ? 'border-[#1D4D13]' : ''}
             `}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+            animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
+            transition={shouldReduceMotion ? { duration: 0 } : {
+              layout: { type: 'spring', stiffness: 300, damping: 30 },
+              default: { duration: 0.2, ease: 'easeOut', delay: Math.min(index, 10) * 0.035 }
+            }}
             style={{
               contain: 'layout paint',
               boxShadow: isInstalled
@@ -267,13 +290,27 @@ const ResourceCard = React.memo(({
 
             <div className="flex w-full items-stretch gap-[0.875rem] p-[0.875rem] pl-[1.125rem] pr-[1rem]">
               <div className="flex w-[4.75rem] shrink-0 flex-col items-center justify-between">
-                <div className="relative flex h-[4.75rem] w-[4.75rem] shrink-0 items-center justify-center overflow-hidden border-[0.125rem] border-[#1E1E1F] bg-[#48494A] shadow-[inset_0_-4px_0_#313233,inset_2px_2px_0_rgba(255,255,255,0.15)]">
+                <motion.div
+                  layoutId={isSelectedForTransition ? `project-icon-container-${project.id}` : undefined}
+                  className="relative flex h-[4.75rem] w-[4.75rem] shrink-0 items-center justify-center overflow-hidden border-[0.125rem] border-[#1E1E1F] bg-[#48494A] shadow-[inset_0_-4px_0_#313233,inset_2px_2px_0_rgba(255,255,255,0.15)]"
+                >
                   {project.icon_url ? (
-                    <img src={project.icon_url} alt="" loading="lazy" className="h-full w-full object-cover" />
+                    <motion.img
+                      layoutId={isSelectedForTransition ? `project-icon-image-${project.id}` : undefined}
+                      src={project.icon_url}
+                      alt=""
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
-                    <Blocks className="h-[2.25rem] w-[2.25rem] text-white/75" />
+                    <motion.div
+                      layoutId={isSelectedForTransition ? `project-icon-placeholder-${project.id}` : undefined}
+                      className="flex h-full w-full items-center justify-center"
+                    >
+                      <Blocks className="h-[2.25rem] w-[2.25rem] text-white/75" />
+                    </motion.div>
                   )}
-                </div>
+                </motion.div>
 
                 <div className="flex h-[1.375rem] w-full items-center justify-center gap-[0.25rem] overflow-hidden">
                   {loaders.map((loader) => {
@@ -404,7 +441,7 @@ const ResourceCard = React.memo(({
                 </span>
               </>
             )}
-          </div>
+          </motion.div>
         );
       }}
     </FocusItem>
@@ -430,9 +467,11 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   getProjectKey = (project) => project.id || project.project_id || project.slug || project.title,
   scrollContainerId,
   onScrollTopChange,
-  onClickAuthor
+  onClickAuthor,
+  selectedProjectId
 }) => {
   const scrollContainerRef = useRef<HTMLElement | null>(null);
+  const virtuosoRef = useRef<any>(null);
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
   const loadMoreLockRef = useRef(false);
   const latestRef = useRef({
@@ -441,6 +480,71 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
     isLoadingMore,
     onLoadMore
   });
+
+  const [shouldAnimateLayout, setShouldAnimateLayout] = useState(false);
+  const reflowTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isDoubleColumn, setIsDoubleColumn] = useState(() => window.innerWidth > 1920);
+  const lastFocusedIndexRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const double = window.innerWidth > 1920;
+      if (double !== isDoubleColumn) {
+        setShouldAnimateLayout(true);
+        if (reflowTimeoutRef.current) {
+          clearTimeout(reflowTimeoutRef.current);
+        }
+        reflowTimeoutRef.current = setTimeout(() => {
+          setShouldAnimateLayout(false);
+        }, 800);
+
+        const currentFocus = getCurrentFocusKey();
+        if (currentFocus && currentFocus.startsWith('download-grid-item-')) {
+          const index = parseInt(currentFocus.replace('download-grid-item-', ''), 10);
+          if (!isNaN(index)) {
+            lastFocusedIndexRef.current = index;
+          }
+        }
+        setIsDoubleColumn(double);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (reflowTimeoutRef.current) {
+        clearTimeout(reflowTimeoutRef.current);
+      }
+    };
+  }, [isDoubleColumn]);
+
+  useEffect(() => {
+    if (lastFocusedIndexRef.current !== null) {
+      const targetIndex = lastFocusedIndexRef.current;
+      lastFocusedIndexRef.current = null;
+
+      const focusKey = `download-grid-item-${targetIndex}`;
+      
+      const timer = setTimeout(() => {
+        if (doesFocusableExist(focusKey)) {
+          setFocus(focusKey);
+        } else {
+          virtuosoRef.current?.scrollToIndex({
+            index: targetIndex,
+            align: 'smart'
+          });
+          
+          setTimeout(() => {
+            if (doesFocusableExist(focusKey)) {
+              setFocus(focusKey);
+            }
+          }, 80);
+        }
+      }, 80);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isDoubleColumn]);
 
   useEffect(() => {
     latestRef.current = { hasMore, isLoading, isLoadingMore, onLoadMore };
@@ -484,75 +588,86 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
     : `MC ${lockedMcVersion}`;
 
   return (
-    <OreOverlayScrollArea
-      id={scrollContainerId}
-      ref={(node) => {
-        scrollContainerRef.current = node;
-        setScrollElement(node);
-      }}
-      className="min-h-0 flex-1"
-      viewportClassName="overscroll-contain scroll-smooth"
-      contentClassName="min-h-full"
-      safeInsetTop={10}
-      safeInsetBottom={12}
-      safeInsetRight={8}
-      contentSafePaddingRight={18}
-      onScroll={(e) => {
-        const el = e.currentTarget;
-        onScrollTopChange?.(el.scrollTop);
+    <div
+      className="h-full min-h-0 flex-1 overflow-hidden"
+      style={{
+        maskImage: 'linear-gradient(to bottom, transparent 0%, black 1.5rem)',
+        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 1.5rem)'
       }}
     >
-      <FocusBoundary
-        id="instance-download-results-grid"
-        defaultFocusKey="download-grid-item-0"
-        className="min-h-full"
+      <OreOverlayScrollArea
+        id={scrollContainerId}
+        ref={(node) => {
+          scrollContainerRef.current = node;
+          setScrollElement(node);
+        }}
+        className="h-full min-h-0"
+        viewportClassName="overscroll-contain scroll-smooth"
+        contentClassName="min-h-full"
+        safeInsetTop={10}
+        safeInsetBottom={12}
+        safeInsetRight={8}
+        contentSafePaddingRight={18}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          onScrollTopChange?.(el.scrollTop);
+        }}
       >
-        <div className="min-h-full px-[0.875rem] pb-[1.25rem] pt-[0.875rem] sm:px-[1rem] sm:pb-[1.5rem] sm:pt-[1rem]">
-          {emptyLoading ? (
-            <div className="grid grid-cols-1 gap-[0.75rem] pb-[1.5rem]">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <ResourceCardSkeleton key={i} />
-              ))}
-            </div>
-          ) : results.length === 0 ? (
-            <div className="flex min-h-[22.5rem] flex-col items-center justify-center gap-3 px-6 text-center">
-              <Blocks className="h-10 w-10 text-white/35" />
-              <div className="font-minecraft text-base text-white">{emptyStateText}</div>
-              <div className="text-xs text-gray-400">
-                搜索结果已锁定为 {envText}，不会混入不匹配的结果。
+        <FocusBoundary
+          id="instance-download-results-grid"
+          defaultFocusKey="download-grid-item-0"
+          className="min-h-full"
+        >
+          <div className="min-h-full px-[0.875rem] pb-[1.25rem] pt-0 sm:px-[1rem] sm:pb-[1.5rem] sm:pt-0">
+            {emptyLoading ? (
+              <div className="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] pb-[1.5rem] pt-[1.5rem]">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <ResourceCardSkeleton key={i} />
+                ))}
               </div>
-            </div>
-          ) : (
-            <VirtuosoGrid<ResourceGridItem, ResourceGridContext>
-              data={resourceItems}
-              context={{ hasMore, isLoadingMore }}
-              customScrollParent={scrollElement ?? undefined}
-              computeItemKey={(index, item) => `${getProjectKey(item.project)}-${index}`}
-              listClassName="grid grid-cols-1 gap-[0.75rem] pb-[1.5rem]"
-              components={RESOURCE_GRID_COMPONENTS}
-              increaseViewportBy={{ top: 240, bottom: 520 }}
-              endReached={triggerLoadMore}
-              itemContent={(index, { project, viewModel, isInstalled }) => (
-                <ResourceCard
-                  project={project}
-                  viewModel={viewModel}
-                  index={index}
-                  isInstalled={isInstalled}
-                  hasMore={hasMore}
-                  canLoadMore={canLoadMore}
-                  onLoadMore={triggerLoadMore}
-                  onSelectProject={onSelectProject}
-                  isSelectionMode={isSelectionMode}
-                  isSelected={selectedProjectIds?.has(getProjectKey(project)) ?? false}
-                  onToggleSelection={onToggleProjectSelection}
-                  isNearBottom={index >= results.length - 6}
-                  onClickAuthor={onClickAuthor}
-                />
-              )}
-            />
-          )}
-        </div>
-      </FocusBoundary>
-    </OreOverlayScrollArea>
+            ) : results.length === 0 ? (
+              <div className="flex min-h-[22.5rem] flex-col items-center justify-center gap-3 px-6 text-center">
+                <Blocks className="h-10 w-10 text-white/35" />
+                <div className="font-minecraft text-base text-white">{emptyStateText}</div>
+                <div className="text-xs text-gray-400">
+                  搜索结果已锁定为 {envText}，不会混入不匹配的结果。
+                </div>
+              </div>
+            ) : (
+              <VirtuosoGrid<ResourceGridItem, ResourceGridContext>
+                ref={virtuosoRef}
+                data={resourceItems}
+                context={{ hasMore, isLoadingMore }}
+                customScrollParent={scrollElement ?? undefined}
+                computeItemKey={(index, item) => `${getProjectKey(item.project)}-${index}`}
+                listClassName="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] pb-[1.5rem] pt-0"
+                components={RESOURCE_GRID_COMPONENTS}
+                increaseViewportBy={{ top: 240, bottom: 520 }}
+                endReached={triggerLoadMore}
+                itemContent={(index, { project, viewModel, isInstalled }) => (
+                  <ResourceCard
+                    project={project}
+                    viewModel={viewModel}
+                    index={index}
+                    isInstalled={isInstalled}
+                    hasMore={hasMore}
+                    canLoadMore={canLoadMore}
+                    onLoadMore={triggerLoadMore}
+                    onSelectProject={onSelectProject}
+                    isSelectionMode={isSelectionMode}
+                    isSelected={selectedProjectIds?.has(getProjectKey(project)) ?? false}
+                    onToggleSelection={onToggleProjectSelection}
+                    isNearBottom={index >= results.length - 6}
+                    onClickAuthor={onClickAuthor}
+                    shouldAnimateLayout={shouldAnimateLayout}
+                    selectedProjectId={selectedProjectId}
+                  />
+                )}
+              />
+            )}
+          </div>
+        </FocusBoundary>
+      </OreOverlayScrollArea>
+    </div>
   );
 };

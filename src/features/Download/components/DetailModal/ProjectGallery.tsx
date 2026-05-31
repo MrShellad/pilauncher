@@ -57,13 +57,13 @@ export const ProjectGallery: React.FC<ProjectGalleryProps> = ({
 
           <div className="flex shrink-0 items-center justify-end">
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <div className="hidden items-center gap-2 intent-gamepad:flex">
+              <div className="hidden items-center gap-2 [.intent-controller_&]:flex">
                 <ControlHint label="Y" variant="face" tone="yellow" />
                 <span className="font-minecraft text-[10px] uppercase tracking-[0.14em] text-[var(--ore-downloadDetail-hintText)]">
                   {t('download.actions.details', { defaultValue: 'Details & Screenshots' })}
                 </span>
               </div>
-              <div className="flex items-center gap-2 intent-gamepad:hidden">
+              <div className="flex items-center gap-2 [.intent-controller_&]:hidden">
                 <ControlHint label="Y" variant="keyboard" tone="neutral" />
                 <span className="font-minecraft text-[10px] uppercase tracking-[0.14em] text-[var(--ore-downloadDetail-hintText)]">
                   {t('download.actions.details', { defaultValue: 'Details & Screenshots' })}

@@ -3,7 +3,7 @@ import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navi
 import { RotateCcw, Search, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { ControlHint } from '../../../ui/components/ControlHint';
+import { GamepadButtonIcon } from '../../../ui/components/GamepadButtonIcon';
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { useInputAction } from '../../../ui/focus/InputDriver';
@@ -287,12 +287,12 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     <FocusBoundary
       id="download-filter-bar"
       defaultFocusKey="download-search-input"
-      className={`flex-shrink-0 border-b-[0.125rem] border-[#1E1E1F] bg-[#313233] px-[var(--filter-shell-px)] py-[var(--filter-shell-py)] shadow-[inset_0_0.125rem_0_rgba(255,255,255,0.08)] ${scaleClassName}`}
+      className={`flex-shrink-0 border-b-[0.125rem] border-[#1E1E1F] bg-[#313233] px-[var(--filter-shell-px)] pt-[var(--filter-shell-py)] pb-[1rem] shadow-[inset_0_0.125rem_0_rgba(255,255,255,0.08)] ${scaleClassName}`}
     >
       <div className="mx-auto flex w-full max-w-[93.75rem] flex-col gap-[var(--filter-section-gap)] min-[2560px]:max-w-[106.25rem] min-[3840px]:max-w-[137.5rem]">
         <div className="flex min-h-[var(--filter-control-h)] items-center justify-center gap-[var(--filter-col-gap)]">
           <div className="shrink-0 items-center flex">
-            <ControlHint label="LT" variant="trigger" tone="dark" className={controlHintClassName} />
+            <GamepadButtonIcon button="LT" size="lg" className={controlHintClassName} />
           </div>
 
           <div className="flex min-w-0 flex-1 items-center justify-center">
@@ -335,7 +335,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           </div>
 
           <div className="shrink-0 items-center flex">
-            <ControlHint label="RT" variant="trigger" tone="dark" className={controlHintClassName} />
+            <GamepadButtonIcon button="RT" size="lg" className={controlHintClassName} />
           </div>
         </div>
 

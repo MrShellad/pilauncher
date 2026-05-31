@@ -35,7 +35,15 @@ const ResourceGridFooter: React.FC<{ context?: ResourceGridContext }> = ({ conte
   );
 };
 
-const RESOURCE_GRID_COMPONENTS = { Footer: ResourceGridFooter, Scroller: VirtuosoScroller };
+const ResourceGridHeader: React.FC = () => {
+  return <div className="col-span-full h-[1.5rem] w-full" />;
+};
+
+const RESOURCE_GRID_COMPONENTS = {
+  Header: ResourceGridHeader,
+  Footer: ResourceGridFooter,
+  Scroller: VirtuosoScroller
+};
 
 const ResourceCardSkeleton = () => {
   return (
@@ -98,6 +106,7 @@ interface ResourceGridProps {
   onScrollTopChange?: (scrollTop: number) => void;
   categoryOptions?: FilterOption[];
   onClickAuthor?: (author: string) => void;
+  selectedProjectId?: string;
 }
 
 export const ResourceGrid: React.FC<ResourceGridProps> = ({
@@ -116,13 +125,17 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   scrollContainerId,
   onScrollTopChange,
   categoryOptions,
-  onClickAuthor
+  onClickAuthor,
+  selectedProjectId
 }) => {
   const scrollContainerRef = useRef<HTMLElement | null>(null);
   const virtuosoRef = useRef<any>(null);
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
   const loadMoreLockRef = useRef(false);
   const latestLoadMoreRef = useRef({ hasMore, isLoading, isLoadingMore, onLoadMore });
+
+  const [shouldAnimateLayout, setShouldAnimateLayout] = useState(false);
+  const reflowTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isDoubleColumn, setIsDoubleColumn] = useState(() => window.innerWidth > 1920);
   const lastFocusedIndexRef = useRef<number | null>(null);
@@ -131,6 +144,14 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
     const handleResize = () => {
       const double = window.innerWidth > 1920;
       if (double !== isDoubleColumn) {
+        setShouldAnimateLayout(true);
+        if (reflowTimeoutRef.current) {
+          clearTimeout(reflowTimeoutRef.current);
+        }
+        reflowTimeoutRef.current = setTimeout(() => {
+          setShouldAnimateLayout(false);
+        }, 800);
+
         const currentFocus = getCurrentFocusKey();
         if (currentFocus && currentFocus.startsWith('download-grid-item-')) {
           const index = parseInt(currentFocus.replace('download-grid-item-', ''), 10);
@@ -143,7 +164,12 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
     };
 
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (reflowTimeoutRef.current) {
+        clearTimeout(reflowTimeoutRef.current);
+      }
+    };
   }, [isDoubleColumn]);
 
   useEffect(() => {
@@ -228,8 +254,8 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
       <div
         className="h-full min-h-0 flex-1 overflow-hidden"
         style={{
-          maskImage: 'linear-gradient(to bottom, transparent 0%, black 2rem)',
-          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 2rem)'
+          maskImage: 'linear-gradient(to bottom, transparent 0%, black 1.5rem)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 1.5rem)'
         }}
       >
         <VirtuosoScroller
@@ -251,7 +277,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
             defaultFocusKey="download-grid-item-0"
             className="min-h-full"
           >
-            <div className="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] pb-[1.5rem] px-[0.875rem] pt-[2.5rem] sm:px-[1rem] sm:pt-[2.5rem]">
+            <div className="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] pb-[1.5rem] px-[0.875rem] pt-[1.5rem] sm:px-[1rem] sm:pt-[1.5rem]">
               {Array.from({ length: 6 }).map((_, i) => (
                 <ResourceCardSkeleton key={i} />
               ))}
@@ -266,8 +292,8 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
     <div
       className="h-full min-h-0 flex-1 overflow-hidden"
       style={{
-        maskImage: 'linear-gradient(to bottom, transparent 0%, black 2rem)',
-        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 2rem)'
+        maskImage: 'linear-gradient(to bottom, transparent 0%, black 1.5rem)',
+        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 1.5rem)'
       }}
     >
       <FocusBoundary
@@ -288,7 +314,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
           context={{ hasMore, isLoadingMore }}
           scrollerRef={handleScrollerRef}
           computeItemKey={(_, item) => getProjectKey(item.project)}
-          listClassName="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] px-[1rem] pb-[1.5rem] pt-[2.5rem]"
+          listClassName="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] px-[1rem] pb-[1.5rem] pt-0"
           components={RESOURCE_GRID_COMPONENTS}
           increaseViewportBy={{ top: 240, bottom: 520 }}
           endReached={triggerLoadMore}
@@ -308,6 +334,8 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
               isNearBottom={index >= results.length - 6}
               categoryOptions={categoryOptions}
               onClickAuthor={onClickAuthor}
+              shouldAnimateLayout={shouldAnimateLayout}
+              selectedProjectId={selectedProjectId}
             />
           )}
         />

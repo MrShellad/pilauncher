@@ -70,6 +70,19 @@ const ResourceDownloadPage: React.FC = () => {
   } = useResourceDownload(instanceId);
 
   const [selectedProject, setSelectedProject] = useState<ModrinthProject | null>(null);
+  const [selectedProjectIdForTransition, setSelectedProjectIdForTransition] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (selectedProject) {
+      setSelectedProjectIdForTransition(selectedProject.id || (selectedProject as any).project_id);
+    } else {
+      const timer = setTimeout(() => {
+        setSelectedProjectIdForTransition(undefined);
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedProject]);
+
   const [isFavoriteModalOpen, setIsFavoriteModalOpen] = useState(false);
   const [isBatchInstanceModalOpen, setIsBatchInstanceModalOpen] = useState(false);
   const selectedProjectIds = useDownloadSelectionStore((state) => state.selectedProjectIds);
@@ -451,6 +464,7 @@ const ResourceDownloadPage: React.FC = () => {
           setCategory('');
           setQuery(author);
         }}
+        selectedProjectId={selectedProjectIdForTransition}
       />
 
       {selectionEnabled && (

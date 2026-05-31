@@ -15,6 +15,7 @@ import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { FocusItem } from '../ui/focus/FocusItem';
 import { focusManager } from '../ui/focus/FocusManager';
 import { useInputAction } from '../ui/focus/InputDriver';
+import { GamepadButtonIcon } from '../ui/components/GamepadButtonIcon';
 
 // 引入本地 JSON
 import localSponsorData from '../assets/config/sponsor.json';
@@ -51,15 +52,6 @@ const MAIN_CARD_BASE_CLASS =
 const MAIN_CARD_FOCUS_CLASS =
   'outline outline-[0.25rem] outline-offset-[0.25rem] z-20';
 
-// 🎮 手柄按键 SVG 图标组件
-const GamepadBtn = ({ text, color, shadow, fontSize = "13" }: { text: string, color: string, shadow: string, fontSize?: string }) => (
-  <svg width="1.375rem" height="1.375rem" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline-block flex-shrink-0">
-    <circle cx="12" cy="12" r="10" fill={color} className={shadow} />
-    <text x="12" y="16.5" fontSize={fontSize} fontWeight="900" fontFamily="system-ui, sans-serif" fill="#1E1E1F" textAnchor="middle">
-      {text}
-    </text>
-  </svg>
-);
 
 export default function NewInstance() {
   const [view, setView] = useState<CreationView>(() => {
@@ -304,7 +296,7 @@ export default function NewInstance() {
               <ArrowLeft size="1.125rem" className="mr-[0.5rem]" />
               返回创建菜单
               <div className="ml-[0.75rem] flex items-center text-[0.625rem] text-ore-text-muted/60">
-                <GamepadBtn text="B" color="#EF4444" shadow="drop-shadow-[0_0_0.125rem_rgba(239,68,68,0.5)]" fontSize="11" />
+                <GamepadButtonIcon button="B" size="sm" />
               </div>
             </button>
             

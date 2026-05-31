@@ -21,7 +21,7 @@ import { OreToggleButton, type ToggleOption } from '../ui/primitives/OreToggleBu
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { focusManager } from '../ui/focus/FocusManager';
 import { useInputAction } from '../ui/focus/InputDriver';
-import { ControlHint } from '../ui/components/ControlHint';
+import { GamepadButtonIcon } from '../ui/components/GamepadButtonIcon';
 
 
 
@@ -148,7 +148,7 @@ export const Settings: React.FC = () => {
             }`}
             onClick={() => handleSwitchTab(-1)}
           >
-            <ControlHint label="LT" variant="trigger" tone={pressingLT ? 'green' : 'neutral'} />
+            <GamepadButtonIcon button="LT" tone={pressingLT ? 'green' : 'dark'} size="lg" />
           </div>
 
           <div className="min-w-0 overflow-hidden">
@@ -173,7 +173,7 @@ export const Settings: React.FC = () => {
             }`}
             onClick={() => handleSwitchTab(1)}
           >
-            <ControlHint label="RT" variant="trigger" tone={pressingRT ? 'green' : 'neutral'} />
+            <GamepadButtonIcon button="RT" tone={pressingRT ? 'green' : 'dark'} size="lg" />
           </div>
         </div>
       </div>

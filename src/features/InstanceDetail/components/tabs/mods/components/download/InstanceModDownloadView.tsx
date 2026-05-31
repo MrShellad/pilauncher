@@ -34,34 +34,11 @@ import { OreOverlayScrollArea } from '../../../../../../../ui/primitives/OreOver
 import { InstanceFilterBar } from './InstanceFilterBar';
 import { ResourceGrid } from './ResourceGrid';
 import { useInstanceDownloadSelectionStore } from '../../hooks/useInstanceDownloadSelectionStore';
+import { GamepadButtonIcon } from '../../../../../../../ui/components/GamepadButtonIcon';
 
 const INSTANCE_DOWNLOAD_ACTION_BAR_FOCUS_PREFIX = 'instance-download-actions';
 const INSTANCE_DOWNLOAD_GRID_FOCUS_PREFIX = 'download-grid-item-';
 
-const GamepadBtn = ({ text, color }: { text: string; color: string }) => (
-  <svg
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className="inline-block flex-shrink-0"
-    aria-hidden="true"
-  >
-    <circle cx="12" cy="12" r="10" fill={color} className="drop-shadow-[0_0_4px_rgba(250,204,21,0.45)]" />
-    <text
-      x="12"
-      y="16.5"
-      fontSize="13"
-      fontWeight="900"
-      fontFamily="system-ui, sans-serif"
-      fill="#1E1E1F"
-      textAnchor="middle"
-    >
-      {text}
-    </text>
-  </svg>
-);
 
 interface MissingDependencyInfo {
   id: string;
@@ -262,6 +239,19 @@ export const InstanceModDownloadView: React.FC<{
   } = useResourceDownload(instanceId, { lockInstanceEnvironment: true });
 
   const [selectedProject, setSelectedProject] = useState<ModrinthProject | null>(null);
+  const [selectedProjectIdForTransition, setSelectedProjectIdForTransition] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (selectedProject) {
+      setSelectedProjectIdForTransition(selectedProject.id || (selectedProject as any).project_id);
+    } else {
+      const timer = setTimeout(() => {
+        setSelectedProjectIdForTransition(undefined);
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedProject]);
+
   const [syncStep, setSyncStep] = useState(0);
   const [pendingDependencyVersion, setPendingDependencyVersion] = useState<OreProjectVersion | null>(null);
   const [pendingDependencyEntries, setPendingDependencyEntries] = useState<OreProjectDependency[]>([]);
@@ -283,6 +273,7 @@ export const InstanceModDownloadView: React.FC<{
   const clearDownloadSelection = useInstanceDownloadSelectionStore((state) => state.clearSelection);
   const pendingDepIdsRef = React.useRef<Set<string>>(new Set());
   const lastListFocusBeforeActionBarRef = React.useRef<string>('download-grid-item-0');
+  const lastFocusBeforeModalRef = React.useRef<string>('inst-filter-search');
 
   const isHintVisible = resultsScrollTop > 48;
   const targetMc = resolvedMcVersion || resolveInstanceGameVersion(instanceConfig);
@@ -832,7 +823,7 @@ export const InstanceModDownloadView: React.FC<{
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border-2 border-[#1E1E1F] bg-black/20 shadow-inner">
         {isHintVisible && (
           <div className="pointer-events-none absolute right-4 top-4 z-50 flex items-center gap-2 rounded-sm border border-white/10 bg-black/85 px-3 py-2 text-xs font-minecraft tracking-wider text-gray-200 shadow-lg">
-            <GamepadBtn text="Y" color="#FACC15" />
+             <GamepadButtonIcon button="Y" size="sm" />
             <span className="mt-[0.0625rem]">{yHintText}</span>
           </div>
         )}
@@ -847,7 +838,13 @@ export const InstanceModDownloadView: React.FC<{
           lockedMcVersion={targetMc}
           lockedLoaderType={targetLoader}
           onLoadMore={loadMore}
-          onSelectProject={setSelectedProject}
+          onSelectProject={(project) => {
+            const currentFocus = getCurrentFocusKey();
+            if (currentFocus && currentFocus !== 'SN:ROOT') {
+              lastFocusBeforeModalRef.current = currentFocus;
+            }
+            setSelectedProject(project);
+          }}
           selectedProjectIds={selectedProjectIds}
           isSelectionMode={isSelectionMode}
           onToggleProjectSelection={handleToggleProjectSelection}
@@ -858,6 +855,7 @@ export const InstanceModDownloadView: React.FC<{
             setCategory('');
             setQuery(author);
           }}
+          selectedProjectId={selectedProjectIdForTransition}
         />
 
         <ContextualActionBar
@@ -875,7 +873,18 @@ export const InstanceModDownloadView: React.FC<{
         instanceConfig={instanceConfig}
         onClose={() => {
           setSelectedProject(null);
-          setTimeout(() => setFocus('download-grid-item-0'), 50);
+          setTimeout(() => {
+            const lastFocus = lastFocusBeforeModalRef.current;
+            if (lastFocus && doesFocusableExist(lastFocus)) {
+              setFocus(lastFocus);
+              return;
+            }
+            if (doesFocusableExist('download-grid-item-0')) {
+              setFocus('download-grid-item-0');
+              return;
+            }
+            setFocus('inst-filter-search');
+          }, 50);
         }}
         onDownload={handleDetailDownload}
         installedVersionIds={installedVersionIds}

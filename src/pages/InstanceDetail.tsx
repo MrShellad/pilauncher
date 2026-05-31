@@ -1,5 +1,5 @@
 // /src/pages/InstanceDetail.tsx
-import React, { useEffect, useMemo, useCallback } from 'react';
+import React, { useEffect, useMemo, useCallback, useState } from 'react';
 import {
   LayoutTemplate,
   Settings,
@@ -21,6 +21,7 @@ import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { focusManager } from '../ui/focus/FocusManager';
 import { useInputAction } from '../ui/focus/InputDriver';
 import { OreToggleButton, type ToggleOption } from '../ui/primitives/OreToggleButton';
+import { GamepadButtonIcon } from '../ui/components/GamepadButtonIcon';
 
 import { OverviewPanel } from '../features/InstanceDetail/components/tabs/OverviewPanel';
 import { BasicPanel } from '../features/InstanceDetail/components/tabs/BasicPanel';
@@ -70,11 +71,14 @@ const InstanceDetail: React.FC = () => {
 
   const { ref: pageFocusRef, focusKey } = useFocusable();
 
+  const [pressingLT, setPressingLT] = useState(false);
+  const [pressingRT, setPressingRT] = useState(false);
+
   const tabFallbackFocusKeys = useMemo<Record<DetailTab, string | undefined>>(
     () => ({
       overview: 'overview-btn-play',
       basic: 'basic-input-name',
-      java: 'java-entry-point', // ✅ 核心修复 1：将旧的 java-loading-anchor 修正为现在的 java-entry-point
+      java: 'java-entry-point', // ✅ 核心修复 1：将旧 of java-loading-anchor 修正为现在的 java-entry-point
       saves: 'save-btn-history',
       mods: 'mod-btn-history',
       resourcepacks: 'btn-open-resourcepack-folder',
@@ -141,21 +145,28 @@ const InstanceDetail: React.FC = () => {
 
   const isModalOpen = useCallback(() => !!document.querySelector('.fixed.inset-0'), []);
 
-  useInputAction('PAGE_LEFT', () => {
-    if (isModalOpen()) return;
-    if (isTextEntryActive()) return;
-    const currentIndex = TABS.findIndex((t) => t.id === activeTab);
-    const prevIndex = (currentIndex - 1 + TABS.length) % TABS.length;
-    handleTabSelect(TABS[prevIndex].id);
-  });
+  const handleSwitchTab = useCallback(
+    (direction: -1 | 1) => {
+      if (isModalOpen()) return;
+      if (isTextEntryActive()) return;
 
-  useInputAction('PAGE_RIGHT', () => {
-    if (isModalOpen()) return;
-    if (isTextEntryActive()) return;
-    const currentIndex = TABS.findIndex((t) => t.id === activeTab);
-    const nextIndex = (currentIndex + 1) % TABS.length;
-    handleTabSelect(TABS[nextIndex].id);
-  });
+      if (direction === -1) {
+        setPressingLT(true);
+        setTimeout(() => setPressingLT(false), 150);
+      } else {
+        setPressingRT(true);
+        setTimeout(() => setPressingRT(false), 150);
+      }
+
+      const currentIndex = TABS.findIndex((t) => t.id === activeTab);
+      const nextIndex = (currentIndex + direction + TABS.length) % TABS.length;
+      handleTabSelect(TABS[nextIndex].id);
+    },
+    [activeTab, isModalOpen, isTextEntryActive, handleTabSelect]
+  );
+
+  useInputAction('PAGE_LEFT', () => handleSwitchTab(-1));
+  useInputAction('PAGE_RIGHT', () => handleSwitchTab(1));
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -195,8 +206,13 @@ const InstanceDetail: React.FC = () => {
         <div className="flex flex-col flex-shrink-0 z-20 border-b-[0.1875rem] border-[#18181B] bg-[#1E1E1F] shadow-md">
           <div className="w-full bg-[#18181B] px-[clamp(1rem,2vw,2rem)] py-[clamp(0.75rem,1.6vh,1.25rem)]">
             <div className="mx-auto grid w-full max-w-[120rem] grid-cols-[minmax(0,1fr)] items-center gap-[clamp(0.625rem,1.4vw,1.25rem)] md:grid-cols-[clamp(4rem,5vw,5.25rem)_minmax(0,1fr)_clamp(4rem,5vw,5.25rem)]">
-              <div className="hidden md:flex justify-center text-gray-500 font-minecraft text-xs items-center bg-black/30 px-2.5 py-1.5 rounded-sm border-b-2 border-white/5 shadow-inner">
-                <span className="text-gray-300 font-bold mx-1">LT</span> / <span className="text-gray-300 font-bold mx-1">;</span>
+              <div
+                className={`hidden md:flex cursor-pointer items-center justify-center transition-transform duration-150 ${
+                  pressingLT ? 'scale-75' : 'scale-90 hover:scale-100 active:scale-75'
+                }`}
+                onClick={() => handleSwitchTab(-1)}
+              >
+                <GamepadButtonIcon button="LT" tone={pressingLT ? 'green' : 'dark'} size="lg" />
               </div>
 
               <div className="min-w-0 overflow-x-auto custom-scrollbar">
@@ -213,8 +229,13 @@ const InstanceDetail: React.FC = () => {
                 </div>
               </div>
 
-              <div className="hidden md:flex justify-center text-gray-500 font-minecraft text-xs items-center bg-black/30 px-2.5 py-1.5 rounded-sm border-b-2 border-white/5 shadow-inner">
-                <span className="text-gray-300 font-bold mx-1">RT</span> / <span className="text-gray-300 font-bold mx-1">'</span>
+              <div
+                className={`hidden md:flex cursor-pointer items-center justify-center transition-transform duration-150 ${
+                  pressingRT ? 'scale-75' : 'scale-90 hover:scale-100 active:scale-75'
+                }`}
+                onClick={() => handleSwitchTab(1)}
+              >
+                <GamepadButtonIcon button="RT" tone={pressingRT ? 'green' : 'dark'} size="lg" />
               </div>
             </div>
           </div>

@@ -1,33 +1,3 @@
-interface GamepadBtnProps {
-  text: string;
-  color: string;
-  shadow: string;
-  fontSize?: string;
-}
-
-export const GamepadBtn = ({ text, color, shadow, fontSize = '13' }: GamepadBtnProps) => (
-  <svg
-    width="1.375rem"
-    height="1.375rem"
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className="inline-block flex-shrink-0"
-  >
-    <circle cx="12" cy="12" r="10" fill={color} className={shadow} />
-    <text
-      x="12"
-      y="16.5"
-      fontSize={fontSize}
-      fontWeight="900"
-      fontFamily="system-ui, sans-serif"
-      fill="#1E1E1F"
-      textAnchor="middle"
-    >
-      {text}
-    </text>
-  </svg>
-);
 
 export const STEP_PAGE_CLASS =
   'mx-auto flex h-full min-h-0 w-full flex-col px-[clamp(0.75rem,2vw,1.5rem)] pt-[1rem]';

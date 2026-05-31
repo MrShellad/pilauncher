@@ -564,7 +564,7 @@ export const DirectoryBrowserModal: React.FC<DirectoryBrowserModalProps> = ({
                               exit={{ opacity: 0, x: 5 }}
                               className="flex items-center gap-2 pl-2 text-xs text-ore-green/80"
                             >
-                              <span className="hidden items-center gap-1.5 intent-gamepad:flex">
+                              <span className="hidden items-center gap-1.5 [.intent-controller_&]:flex">
                                 <Gamepad2 size={14} /> <GamepadButtonIcon button="A" />
                                 {node.is_file
                                   ? ` ${t('directoryBrowser.actions.select')}`

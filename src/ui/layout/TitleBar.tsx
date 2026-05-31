@@ -7,7 +7,7 @@ import { useLauncherStore } from '../../store/useLauncherStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { OreSegmentedControl, type TabItem } from '../primitives/OreSegmentedControl';
 import { useInputAction } from '../focus/InputDriver';
-import { ControlHint } from '../components/ControlHint';
+import { GamepadButtonIcon } from '../components/GamepadButtonIcon';
 import { OreConfirmDialog } from '../primitives/OreConfirmDialog';
 
 export const TitleBar: React.FC = () => {
@@ -149,7 +149,7 @@ export const TitleBar: React.FC = () => {
             onPointerUp={() => setPressingLB(false)}
             onPointerLeave={() => setPressingLB(false)}
           >
-            <ControlHint label="LB" variant="bumper" tone={pressingLB ? 'green' : 'neutral'} />
+            <GamepadButtonIcon button="LB" tone={pressingLB ? 'green' : 'dark'} size="lg" />
           </div>
 
           <OreSegmentedControl
@@ -167,7 +167,7 @@ export const TitleBar: React.FC = () => {
             onPointerUp={() => setPressingRB(false)}
             onPointerLeave={() => setPressingRB(false)}
           >
-            <ControlHint label="RB" variant="bumper" tone={pressingRB ? 'green' : 'neutral'} />
+            <GamepadButtonIcon button="RB" tone={pressingRB ? 'green' : 'dark'} size="lg" />
           </div>
         </div>
 

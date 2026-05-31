@@ -18,8 +18,8 @@ import { VERSION_TYPES as SHARED_VERSION_TYPES } from '../../logic/environmentSe
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { useInputAction } from '../../../../ui/focus/InputDriver';
 import { getCurrentFocusKey } from '@noriginmedia/norigin-spatial-navigation';
+import { GamepadButtonIcon } from '../../../../ui/components/GamepadButtonIcon';
 import {
-  GamepadBtn,
   STEP_CARD_BASE_CLASS,
   STEP_CONTROL_GROUP_CLASS,
   STEP_FOCUS_RING_CLASS,
@@ -99,8 +99,7 @@ export const VersionSelectStep: React.FC<StepProps> = ({
         </div>
         <OreButton variant="primary" size="auto" onClick={handleNextStep} disabled={!gameVersion}>
           <span className="flex items-center">
-            {/* ✅ Y 键 UI 提示 */}
-            <GamepadBtn text="Y" color="#FACC15" shadow="drop-shadow-[0_0_0.25rem_rgba(250,204,21,0.5)]" />
+            <GamepadButtonIcon button="Y" size="md" />
             <span className="ml-[0.375rem] flex items-center">下一步 <ArrowRight size="1.125rem" className="ml-[0.25rem]" /></span>
           </span>
         </OreButton>
@@ -120,8 +119,8 @@ export const VersionSelectStep: React.FC<StepProps> = ({
           />
           {/* ✅ LT / RT 键 UI 提示 */}
           <div className={STEP_HINT_CLASS}>
-            <GamepadBtn text="LT" color="#5A5B5C" shadow="drop-shadow-[0_0_0.125rem_rgba(255,255,255,0.22)]" fontSize="10" />
-            <GamepadBtn text="RT" color="#5A5B5C" shadow="drop-shadow-[0_0_0.125rem_rgba(255,255,255,0.22)]" fontSize="10" />
+            <GamepadButtonIcon button="LT" size="lg" />
+            <GamepadButtonIcon button="RT" size="lg" />
             <span className="ml-[0.375rem] mt-[0.125rem] tracking-wider">切换分类</span>
           </div>
         </div>
@@ -130,13 +129,13 @@ export const VersionSelectStep: React.FC<StepProps> = ({
         <div className={`${STEP_CONTROL_GROUP_CLASS} justify-end`}>
           {/* ✅ Start 键 UI 提示 */}
           <div className={STEP_HINT_CLASS}>
-            <GamepadBtn text="≡" color="#5A5B5C" shadow="drop-shadow-[0_0_0.125rem_rgba(255,255,255,0.22)]" />
+            <GamepadButtonIcon button="MENU" size="sm" />
             <span className="ml-[0.375rem] mt-[0.125rem] tracking-wider">查看 Wiki</span>
           </div>
 
           {/* ✅ X 键 UI 提示 */}
           <div className={STEP_HINT_CLASS}>
-            <GamepadBtn text="X" color="#60A5FA" shadow="drop-shadow-[0_0_0.25rem_rgba(96,165,250,0.5)]" />
+            <GamepadButtonIcon button="X" size="sm" />
             <span className="ml-[0.375rem] mt-[0.125rem] tracking-wider">刷新列表</span>
           </div>
           <button 

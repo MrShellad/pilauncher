@@ -51,6 +51,8 @@ export interface ResourceCardProps {
   isNearBottom: boolean;
   categoryOptions?: FilterOption[];
   onClickAuthor?: (author: string) => void;
+  shouldAnimateLayout?: boolean;
+  selectedProjectId?: string;
 }
 
 function useTimeAgo() {
@@ -87,7 +89,9 @@ export const ResourceCard = React.memo(({
   onToggleSelection,
   isNearBottom,
   categoryOptions,
-  onClickAuthor
+  onClickAuthor,
+  shouldAnimateLayout = false,
+  selectedProjectId
 }: ResourceCardProps) => {
   const { t, i18n } = useTranslation();
   const timeAgo = useTimeAgo();
@@ -99,6 +103,7 @@ export const ResourceCard = React.memo(({
   const focusKey = `download-grid-item-${index}`;
   const authorLabel = project.author || t('download.meta.unknownAuthor', { defaultValue: 'Unknown' });
   const summary = project.description?.trim() || t('download.empty.noDescription', { defaultValue: 'No description provided yet.' });
+  const isSelectedForTransition = project.id && selectedProjectId ? project.id === selectedProjectId : false;
 
   return (
     <FocusItem
@@ -133,7 +138,7 @@ export const ResourceCard = React.memo(({
         return (
           <motion.div
             ref={setCardNode}
-            layout
+            layout={shouldAnimateLayout}
             onClick={() => {
               if (isSelectionMode) {
                 onToggleSelection?.(project);
@@ -191,12 +196,12 @@ export const ResourceCard = React.memo(({
             <div className="flex w-full items-stretch gap-[0.875rem] p-[0.875rem] pr-[1rem]">
               <div className="flex w-[4.75rem] shrink-0 flex-col items-center justify-between">
                 <motion.div
-                  layoutId={`project-icon-container-${project.id}`}
+                  layoutId={isSelectedForTransition ? `project-icon-container-${project.id}` : undefined}
                   className="relative flex h-[4.75rem] w-[4.75rem] shrink-0 items-center justify-center overflow-hidden border-[0.125rem] border-[#1E1E1F] bg-[#48494A] shadow-[inset_0_-0.25rem_0_#313233,inset_0.125rem_0.125rem_0_rgba(255,255,255,0.15)]"
                 >
                   {project.icon_url ? (
                     <motion.img
-                      layoutId={`project-icon-image-${project.id}`}
+                      layoutId={isSelectedForTransition ? `project-icon-image-${project.id}` : undefined}
                       src={project.icon_url}
                       alt=""
                       loading="lazy"
@@ -204,7 +209,7 @@ export const ResourceCard = React.memo(({
                     />
                   ) : (
                     <motion.div
-                      layoutId={`project-icon-placeholder-${project.id}`}
+                      layoutId={isSelectedForTransition ? `project-icon-placeholder-${project.id}` : undefined}
                       className="flex h-full w-full items-center justify-center"
                     >
                       <Blocks className="h-[2.25rem] w-[2.25rem] text-white/75" />

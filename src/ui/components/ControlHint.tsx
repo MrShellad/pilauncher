@@ -3,10 +3,13 @@ import React from 'react';
 type ControlHintVariant = 'keyboard' | 'bumper' | 'trigger' | 'face';
 type ControlHintTone = 'neutral' | 'dark' | 'green' | 'red' | 'yellow' | 'blue';
 
-interface ControlHintProps {
+export type ControlHintSize = 'sm' | 'md' | 'lg';
+
+export interface ControlHintProps {
   label: string;
   variant?: ControlHintVariant;
   tone?: ControlHintTone;
+  size?: ControlHintSize;
   className?: string;
 }
 
@@ -19,11 +22,11 @@ const palettes: Record<ControlHintTone, { fill: string; shade: string; stroke: s
     highlight: 'rgba(255,255,255,0.75)'
   },
   dark: {
-    fill: '#313233',
+    fill: '#48494A',
     shade: '#1E1E1F',
-    stroke: '#111111',
-    text: '#FFFFFF',
-    highlight: 'rgba(255,255,255,0.18)'
+    stroke: '#141516',
+    text: '#F2F2F2',
+    highlight: 'rgba(255,255,255,0.16)'
   },
   green: {
     fill: '#3C8527',
@@ -65,12 +68,21 @@ export const ControlHint: React.FC<ControlHintProps> = ({
   label,
   variant = 'keyboard',
   tone = 'neutral',
+  size = 'lg',
   className = ''
 }) => {
   const palette = palettes[tone];
   const width = measureWidth(label, variant);
-  const height = variant === 'trigger' ? 30 : 28;
+  
+  const baseHeight = variant === 'trigger' ? 30 : 28;
   const textY = variant === 'trigger' ? 17 : 16;
+
+  let heightRem = '1.75rem';
+  if (variant === 'trigger') {
+    heightRem = '1.875rem'; // Unified to the size used in the resource download page
+  } else {
+    heightRem = size === 'sm' ? '1.25rem' : size === 'md' ? '1.5rem' : '1.75rem';
+  }
 
   const renderShape = () => {
     if (variant === 'face') {
@@ -87,13 +99,13 @@ export const ControlHint: React.FC<ControlHintProps> = ({
       return (
         <>
           <path
-            d={`M7 2h${width - 14}l5 6v${height - 8}H2V8l5-6Z`}
+            d={`M7 2h${width - 14}l5 6v21H2V8l5-6Z`}
             fill={palette.fill}
             stroke={palette.stroke}
             strokeWidth="2"
             strokeLinejoin="round"
           />
-          <path d={`M2 ${height - 8}h${width - 4}v6H2Z`} fill={palette.shade} opacity="0.95" />
+          <path d={`M2 22h${width - 4}v6H2Z`} fill={palette.shade} opacity="0.95" />
           <path d={`M8 7h${width - 16}`} fill="none" stroke={palette.highlight} strokeWidth="2" strokeLinecap="round" />
         </>
       );
@@ -103,13 +115,13 @@ export const ControlHint: React.FC<ControlHintProps> = ({
       return (
         <>
           <path
-            d={`M6 4h${width - 12}l4 4v12H2V8l4-4Z`}
+            d={`M6 4h${width - 12}l4 4v18H2V8l4-4Z`}
             fill={palette.fill}
             stroke={palette.stroke}
             strokeWidth="2"
             strokeLinejoin="round"
           />
-          <path d={`M2 19h${width - 4}v5H2Z`} fill={palette.shade} opacity="0.95" />
+          <path d={`M2 20h${width - 4}v5H2Z`} fill={palette.shade} opacity="0.95" />
           <path d={`M7 8h${width - 14}`} fill="none" stroke={palette.highlight} strokeWidth="2" strokeLinecap="round" />
         </>
       );
@@ -117,8 +129,8 @@ export const ControlHint: React.FC<ControlHintProps> = ({
 
     return (
       <>
-        <rect x="1" y="1" width={width - 2} height={height - 2} rx="4" fill={palette.fill} stroke={palette.stroke} strokeWidth="2" />
-        <path d={`M1 ${height - 8}h${width - 2}v7H1Z`} fill={palette.shade} opacity="0.95" />
+        <rect x="1" y="1" width={width - 2} height={26} rx="4" fill={palette.fill} stroke={palette.stroke} strokeWidth="2" />
+        <path d={`M1 20h${width - 2}v7H1Z`} fill={palette.shade} opacity="0.95" />
         <path d={`M6 7h${width - 12}`} fill="none" stroke={palette.highlight} strokeWidth="2" strokeLinecap="round" />
       </>
     );
@@ -126,7 +138,13 @@ export const ControlHint: React.FC<ControlHintProps> = ({
 
   return (
     <span className={`inline-flex items-center justify-center ${className}`} aria-hidden="true">
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="h-7 w-auto overflow-visible drop-shadow-[0_1px_0_rgba(0,0,0,0.45)]">
+      <svg
+        width={width}
+        height={baseHeight}
+        viewBox={`0 0 ${width} ${baseHeight}`}
+        className="w-auto overflow-visible drop-shadow-[0_1px_0_rgba(0,0,0,0.45)]"
+        style={{ height: heightRem }}
+      >
         {renderShape()}
         <text
           x={variant === 'face' ? 14 : width / 2}
@@ -134,7 +152,12 @@ export const ControlHint: React.FC<ControlHintProps> = ({
           textAnchor="middle"
           dominantBaseline="middle"
           fill={palette.text}
-          style={{ fontFamily: '"Minecraft Ten", "Minecraft Seven", sans-serif', fontSize: variant === 'face' ? 12 : 11, fontWeight: 700, letterSpacing: '0.04em' }}
+          style={{
+            fontFamily: 'var(--ore-font-family-minecraft), "Minecraft Ten", "Minecraft Seven", sans-serif',
+            fontSize: variant === 'face' ? 12 : 11,
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+          }}
         >
           {label}
         </text>
