@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { VirtuosoGrid } from 'react-virtuoso';
+import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { VirtuosoScroller } from '../../../ui/primitives/OreOverlayScrollArea';
 
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
@@ -118,9 +119,60 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   onClickAuthor
 }) => {
   const scrollContainerRef = useRef<HTMLElement | null>(null);
+  const virtuosoRef = useRef<any>(null);
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
   const loadMoreLockRef = useRef(false);
   const latestLoadMoreRef = useRef({ hasMore, isLoading, isLoadingMore, onLoadMore });
+
+  const [isDoubleColumn, setIsDoubleColumn] = useState(() => window.innerWidth > 1920);
+  const lastFocusedIndexRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const double = window.innerWidth > 1920;
+      if (double !== isDoubleColumn) {
+        const currentFocus = getCurrentFocusKey();
+        if (currentFocus && currentFocus.startsWith('download-grid-item-')) {
+          const index = parseInt(currentFocus.replace('download-grid-item-', ''), 10);
+          if (!isNaN(index)) {
+            lastFocusedIndexRef.current = index;
+          }
+        }
+        setIsDoubleColumn(double);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isDoubleColumn]);
+
+  useEffect(() => {
+    if (lastFocusedIndexRef.current !== null) {
+      const targetIndex = lastFocusedIndexRef.current;
+      lastFocusedIndexRef.current = null;
+
+      const focusKey = `download-grid-item-${targetIndex}`;
+      
+      const timer = setTimeout(() => {
+        if (doesFocusableExist(focusKey)) {
+          setFocus(focusKey);
+        } else {
+          virtuosoRef.current?.scrollToIndex({
+            index: targetIndex,
+            align: 'smart'
+          });
+          
+          setTimeout(() => {
+            if (doesFocusableExist(focusKey)) {
+              setFocus(focusKey);
+            }
+          }, 80);
+        }
+      }, 80);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isDoubleColumn]);
 
   useEffect(() => {
     latestLoadMoreRef.current = { hasMore, isLoading, isLoadingMore, onLoadMore };
@@ -173,39 +225,58 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
 
   if (isLoading) {
     return (
-      <VirtuosoScroller
-        id={scrollContainerId}
-        ref={(node: HTMLDivElement | null) => {
-          scrollContainerRef.current = node;
-        }}
-        className="h-full min-h-0 flex-1 scroll-smooth"
-        onScroll={(e: React.UIEvent<HTMLDivElement>) => {
-          onScrollTopChange?.(e.currentTarget.scrollTop);
+      <div
+        className="h-full min-h-0 flex-1 overflow-hidden"
+        style={{
+          maskImage: 'linear-gradient(to bottom, transparent 0%, black 2rem)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 2rem)'
         }}
       >
-        <FocusBoundary
-          id="download-results-grid"
-          defaultFocusKey="download-grid-item-0"
-          className="min-h-full"
+        <VirtuosoScroller
+          id={scrollContainerId}
+          ref={(node: HTMLDivElement | null) => {
+            scrollContainerRef.current = node;
+          }}
+          className="h-full min-h-0 flex-1 scroll-smooth"
+          onScroll={(e: React.UIEvent<HTMLDivElement>) => {
+            onScrollTopChange?.(e.currentTarget.scrollTop);
+          }}
+          style={{
+            height: '100%',
+            overflowY: 'auto'
+          }}
         >
-          <div className="grid grid-cols-1 gap-[0.75rem] pb-[1.5rem] px-[0.875rem] pt-[0.875rem] sm:px-[1rem] sm:pt-[1rem]">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <ResourceCardSkeleton key={i} />
-            ))}
-          </div>
-        </FocusBoundary>
-      </VirtuosoScroller>
+          <FocusBoundary
+            id="download-results-grid"
+            defaultFocusKey="download-grid-item-0"
+            className="min-h-full"
+          >
+            <div className="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] pb-[1.5rem] px-[0.875rem] pt-[2.5rem] sm:px-[1rem] sm:pt-[2.5rem]">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <ResourceCardSkeleton key={i} />
+              ))}
+            </div>
+          </FocusBoundary>
+        </VirtuosoScroller>
+      </div>
     );
   }
 
   return (
-    <div className="h-full min-h-0 flex-1 overflow-hidden">
+    <div
+      className="h-full min-h-0 flex-1 overflow-hidden"
+      style={{
+        maskImage: 'linear-gradient(to bottom, transparent 0%, black 2rem)',
+        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 2rem)'
+      }}
+    >
       <FocusBoundary
         id="download-results-grid"
         defaultFocusKey="download-grid-item-0"
         className="h-full min-h-0"
       >
         <VirtuosoGrid<ResourceGridItem, ResourceGridContext>
+          ref={virtuosoRef}
           id={scrollContainerId}
           className="h-full custom-scrollbar"
           style={{
@@ -217,7 +288,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
           context={{ hasMore, isLoadingMore }}
           scrollerRef={handleScrollerRef}
           computeItemKey={(_, item) => getProjectKey(item.project)}
-          listClassName="grid grid-cols-1 gap-[0.75rem] px-[1rem] pb-[1.5rem] pt-[1.5rem]"
+          listClassName="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] px-[1rem] pb-[1.5rem] pt-[2.5rem]"
           components={RESOURCE_GRID_COMPONENTS}
           increaseViewportBy={{ top: 240, bottom: 520 }}
           endReached={triggerLoadMore}

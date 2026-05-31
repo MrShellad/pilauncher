@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { Blocks, Clock3, Download, ExternalLink, Heart, Monitor, Server } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
@@ -61,16 +62,27 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({ project, details }
       className="flex flex-shrink-0 gap-3 border-b-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-surface)] px-4 py-2.5"
       style={{ boxShadow: 'var(--ore-downloadDetail-headerShadow)' }}
     >
-      <div
+      <motion.div
+        layoutId={`project-icon-container-${project.id}`}
         className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)]"
         style={{ boxShadow: 'var(--ore-downloadDetail-sectionShadow)' }}
       >
         {project.icon_url ? (
-          <img src={project.icon_url} alt="" className="h-full w-full object-cover" />
+          <motion.img
+            layoutId={`project-icon-image-${project.id}`}
+            src={project.icon_url}
+            alt=""
+            className="h-full w-full object-cover"
+          />
         ) : (
-          <Blocks size={28} className="text-white/75" />
+          <motion.div
+            layoutId={`project-icon-placeholder-${project.id}`}
+            className="flex h-full w-full items-center justify-center"
+          >
+            <Blocks size={28} className="text-white/75" />
+          </motion.div>
         )}
-      </div>
+      </motion.div>
 
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">

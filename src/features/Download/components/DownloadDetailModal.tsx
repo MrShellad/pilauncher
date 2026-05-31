@@ -61,6 +61,21 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const didAutoFocusModalRef = useRef(false);
 
+  const [lastProject, setLastProject] = useState<ModrinthProject | null>(null);
+
+  useEffect(() => {
+    if (project) {
+      setLastProject(project);
+    } else {
+      const timer = setTimeout(() => {
+        setLastProject(null);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [project]);
+
+  const displayProject = project || lastProject;
+
   const {
     details,
     versions,
@@ -71,8 +86,8 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
     setActiveVersion,
     loaderOptions,
     availableVersions
-  } = useDownloadDetail(project, instanceConfig, source, searchMcVersion, searchLoader, activeTab);
-  useEffect(() => {
+  } = useDownloadDetail(displayProject, instanceConfig, source, searchMcVersion, searchLoader, activeTab);
+  useEffect(() => {
     if (!project) return;
     setShowDescriptionModal(false);
     setIsScrolled(false);
@@ -84,7 +99,7 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
 
   useEffect(() => {
     didAutoFocusModalRef.current = false;
-  }, [project?.id]);
+  }, [displayProject?.id]);
 
   useEffect(() => {
     return () => {
@@ -154,7 +169,7 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
     setTimeout(tryFocus, 150);
   }, [directInstallInstanceId, displayVersions.length, isLoadingVersions, project]);
 
-  if (!project) return null;
+  if (!displayProject) return null;
 
   return (
     <>
@@ -166,9 +181,9 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
         className="ore-download-detail-modal border-[0.1875rem] border-[#1E1E1F]"
         contentClassName="ore-download-detail-modal__content flex flex-1 min-h-0 flex-col overflow-hidden bg-[#313233] p-0"
       >
-        <ProjectHeader project={project} details={details} />
+        <ProjectHeader project={displayProject} details={details} />
         <ProjectGallery
-          project={project}
+          project={displayProject}
           details={details}
           isScrolled={isScrolled}
           onOpenDescriptionModal={() => setShowDescriptionModal(true)}
@@ -222,7 +237,7 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
         <ModpackCreateModal
           isOpen={!!pendingVersion}
           version={pendingVersion}
-          project={project}
+          project={displayProject}
           onClose={() => setPendingVersion(null)}
           onConfirm={(instanceName) => {
             if (pendingVersion) onDownload(pendingVersion, instanceName, false);
@@ -234,7 +249,7 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
         <InstanceSelectModal
           isOpen={!!pendingVersion && !directInstallInstanceId}
           version={pendingVersion}
-          projectId={project.id || (project as any).project_id}
+          projectId={displayProject.id || (displayProject as any).project_id}
           onClose={() => setPendingVersion(null)}
           onConfirm={(instanceIds, autoInstallDeps) => {
             const version = pendingVersion;
@@ -252,7 +267,7 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
       )}
       <ProjectDescriptionModal
         isOpen={showDescriptionModal}
-        project={project}
+        project={displayProject}
         details={details}
         onClose={() => setShowDescriptionModal(false)}
       />

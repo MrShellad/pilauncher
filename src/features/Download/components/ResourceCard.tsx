@@ -133,6 +133,7 @@ export const ResourceCard = React.memo(({
         return (
           <motion.div
             ref={setCardNode}
+            layout
             onClick={() => {
               if (isSelectionMode) {
                 onToggleSelection?.(project);
@@ -166,18 +167,17 @@ export const ResourceCard = React.memo(({
             })}
             className={`
               group relative flex min-h-[8.5rem] w-full overflow-hidden border-[0.125rem] border-[#1E1E1F]
-              text-left outline-none transition-none cursor-pointer
+              text-left transition-none cursor-pointer
               ${focused
-                ? 'z-20 bg-[#DDE0E3] brightness-[1.01]'
-                : 'bg-[#C6C8CB] hover:bg-[#D7DADF]'}
+                ? 'z-20 bg-[#DDE0E3] brightness-[1.01] outline outline-[4px] outline-[#F5C542] outline-offset-0'
+                : 'bg-[#C6C8CB] hover:bg-[#D7DADF] outline-none'}
               ${isSelected ? 'border-[#1D4D13]' : ''}
             `}
             initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
             animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
-            transition={{
-              duration: 0.2,
-              ease: 'easeOut',
-              delay: shouldReduceMotion ? 0 : Math.min(index, 10) * 0.035
+            transition={shouldReduceMotion ? { duration: 0 } : {
+              layout: { type: 'spring', stiffness: 300, damping: 30 },
+              default: { duration: 0.2, ease: 'easeOut', delay: Math.min(index, 10) * 0.035 }
             }}
             style={{
               contain: 'layout paint',
@@ -190,13 +190,27 @@ export const ResourceCard = React.memo(({
 
             <div className="flex w-full items-stretch gap-[0.875rem] p-[0.875rem] pr-[1rem]">
               <div className="flex w-[4.75rem] shrink-0 flex-col items-center justify-between">
-                <div className="relative flex h-[4.75rem] w-[4.75rem] shrink-0 items-center justify-center overflow-hidden border-[0.125rem] border-[#1E1E1F] bg-[#48494A] shadow-[inset_0_-0.25rem_0_#313233,inset_0.125rem_0.125rem_0_rgba(255,255,255,0.15)]">
+                <motion.div
+                  layoutId={`project-icon-container-${project.id}`}
+                  className="relative flex h-[4.75rem] w-[4.75rem] shrink-0 items-center justify-center overflow-hidden border-[0.125rem] border-[#1E1E1F] bg-[#48494A] shadow-[inset_0_-0.25rem_0_#313233,inset_0.125rem_0.125rem_0_rgba(255,255,255,0.15)]"
+                >
                   {project.icon_url ? (
-                    <img src={project.icon_url} alt="" loading="lazy" className="h-full w-full object-cover" />
+                    <motion.img
+                      layoutId={`project-icon-image-${project.id}`}
+                      src={project.icon_url}
+                      alt=""
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
-                    <Blocks className="h-[2.25rem] w-[2.25rem] text-white/75" />
+                    <motion.div
+                      layoutId={`project-icon-placeholder-${project.id}`}
+                      className="flex h-full w-full items-center justify-center"
+                    >
+                      <Blocks className="h-[2.25rem] w-[2.25rem] text-white/75" />
+                    </motion.div>
                   )}
-                </div>
+                </motion.div>
 
                 <div className="flex h-[1.375rem] w-full items-center justify-center gap-[0.25rem] overflow-hidden">
                   {loaders.slice(0, 3).map((loader) => {
@@ -316,9 +330,6 @@ export const ResourceCard = React.memo(({
                 </div>
               </div>
             </div>
-            {focused && (
-              <span className="pointer-events-none absolute inset-0 z-30 border-[0.1875rem] border-[#F5C542]" />
-            )}
             {isSelected && (
               <>
                 <span className="pointer-events-none absolute inset-0 z-20 bg-[#1D4D13]/32" />
