@@ -1,0 +1,2115 @@
+{
+  "home": {
+    "selectInstance": "インスタンスの選択",
+    "neverPlayed": "ゲームをプレイしたことがない",
+    "playTime": "ゲーム時間",
+    "playTimeUnit": "H",
+    "playTimeZero": "0時間",
+    "playTimeHoursMinutes": "{{hours}}時間 {{minutes}}分",
+    "playTimeHoursOnly": "{{hours}}時間",
+    "playTimeMinutesOnly": "{{minutes}}分",
+    "lastPlayed": "最後にプレイした時間",
+    "notification": "お知らせとニュース",
+    "addAccount": "アカウントを追加",
+    "profile": "ファイル",
+    "launchGame": "ゲームを開始する",
+    "instanceDetail": "インスタンスの詳細",
+    "wardrobe": "ロッカールーム",
+    "selectInstanceModal": {
+      "title": "起動インスタンスの選択",
+      "empty": "まだインスタンスが作成されていません",
+      "emptyHint": "最初のゲーム環境を作成またはインポートするには、「インスタンス管理」ページに移動してください。",
+      "searchPlaceholder": "タイトル、ローダー、または MC バージョンを検索...",
+      "noResults": "一致するインスタンスが見つかりませんでした",
+      "resultCount": "{{count}} インスタンスが見つかりました"
+    },
+    "noAccount": {
+      "title": "インスタンスを起動できません",
+      "headline": "ゲームアカウントが検出されません",
+      "description": "Minecraft を起動するには、少なくとも有効なゲーム アカウントが必要です。 <br /> 設定ページに移動して Microsoft アカウントを追加してください。",
+      "cancel": "キャンセル",
+      "add": "に追加"
+    },
+    "noInstance": {
+      "title": "ゲームを開始できません",
+      "headline": "まだインスタンスが作成されていません",
+      "description": "ゲームを開始するには、まずゲーム インスタンスを作成またはインポートする必要があります。 <br />「リソースのダウンロード」に移動して統合パッケージを見つけるか、既存の統合パッケージをローカルにインポートできます。",
+      "importModpack": "統合パッケージをインポートする",
+      "downloadResource": "リソースのダウンロード"
+    },
+    "sidebar": {
+      "airdrop": "エアドロップ",
+      "targetDevice": "ターゲットデバイス",
+      "transferInstance": "インスタンスのパッケージ化",
+      "transferSave": "アーカイブを抽出する",
+      "selectInstanceToSend": "送信するインスタンスを選択してください",
+      "selectInstanceToExtract": "インスタンスから抽出",
+      "selectPlaceholder": "-- 選択してください --",
+      "selectSave": "ワールドアーカイブを選択",
+      "pushing": "梱包して発送…",
+      "startTransfer": "送信開始",
+      "pushSuccess": "プッシュ成功！",
+      "pushFailed": "プッシュに失敗しました",
+      "transferConsole": "トランスポートコンソール",
+      "transferConsoleHint": "ここでインスタンスまたはアーカイブのクロスデバイス転送を実行するには、左側の信頼できるデバイス リストでオンライン デバイスをクリックします。",
+      "trustRequestTitle": "✨友達申請頂きました",
+      "trustRequestMessage": "デバイス <strong class=\"text-ore-green\">{{deviceName}}</strong> はあなたとの LAN 信頼関係の確立を要求しています",
+      "trustRequestHint": "合意後、両当事者は端末間でゲームインスタンスとアーカイブを相互に転送し、互いのリアルタイムのゲームステータスを確認できるようになります。これが認識できるデバイスであることを確認してください。",
+      "rejectTrust": "拒否して無視する",
+      "acceptTrust": "受け入れて信頼する"
+    }
+  },
+  "instanceCard": {
+    "noCover": "カバーなし",
+    "launching": "起動...",
+    "details": "詳細"
+  },
+  "multiplayer": {
+    "title": "オンラインセンター",
+    "description": "コミュニティ サーバー ディレクトリとテラコッタ オンライン ポータル。",
+    "onlineServers": "コミュニティサーバー",
+    "piHub": "テラコッタオンライン"
+  },
+  "instanceExport": {
+    "optimization": {
+      "formats": {
+        "zip": {
+          "label": "標準ZIP",
+          "desc": "最高の互換性と選択したファイルの完全なパッケージ化。"
+        },
+        "curseforge": {
+          "label": "カースフォージ",
+          "desc": "CurseForge スタイルの統合パッケージをmanifest.json とともにエクスポートします。"
+        },
+        "mrpack": {
+          "label": "モドリンス (mrpack)",
+          "desc": "Modrinth 互換の mrpack 統合パッケージをエクスポートします。"
+        },
+        "pipack": {
+          "label": "パイパック",
+          "desc": "PiLauncher 独自のスマート統合パッケージは、混合ソース Mod リカバリをサポートしています。"
+        }
+      },
+      "manifest": {
+        "title": "マニフェストモード",
+        "primary": "すべての Mod ファイルを圧縮パッケージに入れるのではなく、ソース プラットフォームの参照を記録することを優先します。",
+        "fallback": "ソース プラットフォームから復元できない MOD は、カバー ファイルとして圧縮パッケージに自動的に保持されます。",
+        "pipackLocked": "PiPack は常に「pi_manifest.json」に書き込み、ソース プラットフォームから復元できない MOD のみをパッケージ化します。"
+      }
+    }
+  },
+  "download": {
+    "tabs": {
+      "modpack": "統合パッケージ",
+      "mod": "モジュール",
+      "resourcepack": "リソースパック",
+      "shader": "光と影"
+    },
+    "source": {
+      "modrinth": "モドリンス",
+      "curseforge": "カースフォージ"
+    },
+    "filters": {
+      "source": "ソース",
+      "keyword": "キーワード",
+      "gameVersion": "ゲームバージョン",
+      "loader": "ローダ",
+      "loaderAll": "すべてのローダー",
+      "category": "分類",
+      "categoryAll": "すべてのカテゴリ",
+      "versionAll": "すべてのバージョン",
+      "sort": "選別",
+      "versionFilters": "バージョンフィルター",
+      "moreHistory": "より歴史的なバージョン",
+      "snapshots": "スナップショット/プレビュー"
+    },
+    "sort": {
+      "relevance": "総合仕分け",
+      "downloads": "ダウンロード",
+      "updated": "最新のアップデート"
+    },
+    "actions": {
+      "togglePreview": "プレビューの展開/折りたたみ",
+      "search": "検索",
+      "reset": "リセット",
+      "details": "詳細",
+      "downloadVersion": "このバージョンをダウンロード",
+      "hidePreview": "プレビューを折りたたむ",
+      "previewCount": "{{count}} をプレビューする",
+      "cycleLoader": "スイッチローダー",
+      "clearSelection": "現在のグループフィルターをクリア",
+      "clearHistory": "過去のバージョンフィルターをクリア",
+      "clearSnapshots": "スナップショットフィルターのクリア",
+      "openProject": "{{project}} を見る"
+    },
+    "status": {
+      "installed": "インストール済み",
+      "loadingEnv": "環境を読み込んでいます...",
+      "loadingVersions": "バージョンリストを同期中...",
+      "alreadyInInstance": "インスタンス内にすでに存在します",
+      "selected": "選択済み"
+    },
+    "progress": {
+      "connecting": "接続を確立しています...",
+      "failed": "ダウンロードに失敗しました: {{error}}"
+    },
+    "placeholders": {
+      "search": "リソースまたは著者を検索..."
+    },
+    "empty": {
+      "noDescription": "このリソースにはまだ説明がありません。",
+      "noFilesMatch": "{{version}} + {{loader}} に一致する利用可能なファイルはありません。"
+    },
+    "meta": {
+      "author": "著者",
+      "unknownAuthor": "未知",
+      "byAuthor": "著者:{{author}}",
+      "description": "リソースの説明",
+      "matchedFiles": "{{count}} 一致するファイルが見つかりました",
+      "current": "現在"
+    },
+    "env": {
+      "client": "クライアント",
+      "server": "サーバ",
+      "required": "必須",
+      "optional": "オプション"
+    },
+    "loader": {
+      "universal": "ユニバーサル",
+      "noneAvailable": "使用可能なローダーがありません"
+    },
+    "curseforge": {
+      "apiKeyMissing": "`VITE_CURSEFORGE_API_KEY` が設定されておらず、CurseForge インターフェイスは利用できません。"
+    },
+    "instanceSelect": {
+      "unknownDependency": "不明なプレフィックス ({{id}})",
+      "checkingDeps": "依存関係以前の環境を分析しています...",
+      "missingDepsPrefix": "選択したインスタンスがありません",
+      "missingDepsSuffix": "必要なプレフィックス:",
+      "autoDownloadDeps": "プレモジュールを自動的にダウンロードして完了します",
+      "depCheckStatusEmpty": "選択したインスタンスの事前チェック結果がここに表示されます",
+      "depCheckStatusIdle": "インスタンスを選択すると、ここで事前依存関係が分析されます。",
+      "title": "インストール先の選択",
+      "headerTitle": "対象インスタンスの確認",
+      "headerSubtitle": "導入の準備をします。",
+      "envRequirement": "環境要件:",
+      "matchingInstances": "互換性のあるインスタンスが一致しています...",
+      "noMatchingInstancesTitle": "一致するインスタンスが見つかりませんでした",
+      "noMatchingInstancesDesc": "この Mod の実行環境は、既存のインスタンスと互換性がありません。まず一致するインスタンスを作成してください。",
+      "unknownVersion": "不明なバージョン",
+      "unknownLoader": "不明なローダー",
+      "selectedStatus": "選択済み",
+      "alreadyInstalled": "すでに存在します",
+      "selectedCount": "{{count}} インスタンスが選択されました",
+      "pleaseSelectInstance": "少なくとも 1 つのインスタンスを選択してください",
+      "scanningMods": "インスタンス MOD キャッシュを読み取り中...",
+      "confirmAndDeploy": "確認して展開する"
+    },
+    "versionChangelog": {
+      "title": "バージョン更新ログ",
+      "translate": "翻訳する",
+      "translating": "翻訳中",
+      "showOriginal": "元のテキストを表示",
+      "showTranslation": "翻訳を表示",
+      "translateFailed": "翻訳に失敗しました: {{message}}",
+      "translationActive": "翻訳プレビュー",
+      "modeTranslatedOnly": "翻訳",
+      "modeBilingual": "バイリンガル比較",
+      "machineTranslated": "Tencent Cloud TMT による自動翻訳",
+      "noChangelog": "このバージョンの更新ログはまだありません。"
+    },
+    "tags": {
+      "clientSide": "クライアント",
+      "optimization": "パフォーマンスの最適化",
+      "technology": "科学技術",
+      "magic": "魔法",
+      "utility": "ユーティリティツール",
+      "decoration": "飾る",
+      "loader": {
+        "fabric": "ファブリック",
+        "forge": "フォージ",
+        "neoforge": "ネオフォージ",
+        "quilt": "キルト",
+        "liteloader": "ライトローダー"
+      }
+    },
+    "time": {
+      "unknown": "不明な時間",
+      "today": "今日",
+      "daysAgo": "{{count}}日前",
+      "monthsAgo": "{{count}} か月前",
+      "yearsAgo": "{{count}}年前"
+    },
+    "categories": {
+      "8x_minus": "8倍以下",
+      "16x": "16倍",
+      "32x": "32倍",
+      "48x": "48倍",
+      "64x": "64倍",
+      "128x": "128倍",
+      "256x": "256倍",
+      "512x_plus": "512x以上",
+      "adventure": "アドベンチャー",
+      "adventure_and_rpg": "アドベンチャーとRPG",
+      "addons": "補助コンテンツ",
+      "api_and_library": "APIとプレライブラリ",
+      "applied_energistics_2": "応用エネルギー2",
+      "armor_tools_and_weapons": "鎧、道具、武器",
+      "atmosphere": "雰囲気",
+      "audio": "オーディオ",
+      "biomes": "コミュニティ",
+      "blocks": "ブロック",
+      "bloom": "投光器",
+      "bukkit_plugins": "Bukkit プラグイン",
+      "cartoon": "漫画のスタイル",
+      "challenging": "高い難易度",
+      "colored_lighting": "カラー照明",
+      "combat": "ファインティング",
+      "core_shaders": "コアシェーダ",
+      "cosmetic": "外観装飾",
+      "cosmetic_armor": "外観防具",
+      "cursed": "面白い",
+      "decoration": "飾る",
+      "dimensions": "寸法",
+      "economy": "経済",
+      "education": "教育する",
+      "entities": "実在物",
+      "environment": "環境",
+      "equipment": "装置",
+      "fantasy": "ファンタジースタイル",
+      "farming": "農業",
+      "foliage": "植生",
+      "food": "食べ物",
+      "fonts": "フォント",
+      "game_mechanics": "ゲームの仕組み",
+      "gui": "インタフェース",
+      "high": "高い稼働率",
+      "items": "もの",
+      "kitchen_sink": "包括的な",
+      "library": "プレライブラリ",
+      "lightweight": "軽量",
+      "locale": "ローカリゼーション",
+      "low": "低パフォーマンスの使用状況",
+      "magic": "魔法",
+      "magic_blood_magic": "血の魔法",
+      "management": "管理",
+      "map": "地図",
+      "map_and_information": "地図と情報",
+      "map_information": "地図と情報",
+      "mc_creator": "Mクリエイター",
+      "mc_food": "食べ物",
+      "medium": "中程度のパフォーマンスの使用法",
+      "minigame": "ミニゲーム",
+      "miscellaneous": "その他",
+      "mobs": "生物学",
+      "mods": "モジュール",
+      "modded": "MODのサポート",
+      "modded_world": "モッドワールド",
+      "models": "モデル",
+      "multiplayer": "複数人",
+      "optimization": "パフォーマンスの最適化",
+      "ores_and_resources": "鉱物と資源",
+      "path_tracing": "パストレース",
+      "pbr": "PBR",
+      "potato": "ポテトマシン",
+      "processing": "加工・生産ライン",
+      "quests": "タスク",
+      "realistic": "現実的な",
+      "redstone": "赤い石",
+      "reflections": "反射",
+      "resource_packs": "リソースパック",
+      "screenshot": "へのスクリーンショット",
+      "semi_realistic": "半現実的",
+      "server_utility": "サーバーツール",
+      "shaders": "光と影",
+      "shadows": "影",
+      "simplistic": "シンプルなスタイル",
+      "social": "社会的接触",
+      "storage": "倉庫保管",
+      "structures": "構造",
+      "technology": "科学技術",
+      "texture_packs": "テクスチャパック",
+      "themed": "テーマスタイル",
+      "transportation": "交通機関",
+      "tweaks": "微調整",
+      "utility": "ユーティリティツール",
+      "utility_qol": "実用性とQoL",
+      "vanilla_like": "オリジナルスタイル",
+      "world_gen": "世界世代",
+      "worldgen": "世界世代",
+      "automation": "オートメーション",
+      "blood_magic": "血の魔法",
+      "bug_fixes": "バグ修正",
+      "buildcraft": "ビルドクラフト",
+      "crafttweaker": "クラフトツイーカー",
+      "create": "作成する",
+      "creativemode": "クリエイティブモード",
+      "energy": "エネルギー",
+      "energy_fluid_and_item_transport": "エネルギー、流体、アイテムの伝達",
+      "farmer_s_delight": "農家の楽しみ",
+      "forestry": "林業",
+      "galacticraft": "ギャラクティクラフト",
+      "genetics": "遺伝学",
+      "horror": "恐れ",
+      "industrial_craft": "工芸品",
+      "integrated_dynamics": "統合ダイナミクス",
+      "kubejs": "KubeJS",
+      "mcreator": "Mクリエイター",
+      "modjam_2025": "モッドジャム 2025",
+      "performance": "パフォーマンス",
+      "player_transport": "選手の輸送",
+      "refined_storage": "絶妙な収納力",
+      "skyblock": "空島",
+      "thaumcraft": "謎の年齢",
+      "thermal_expansion": "熱膨張",
+      "tinker_s_construct": "職人魂",
+      "twilight_forest": "黄昏の森",
+      "twitch_integration": "Twitchの統合",
+      "combat_pvp": "戦闘 / PvP",
+      "expert": "専門家",
+      "exploration": "探検する",
+      "extra_large": "特大",
+      "ftb_official_pack": "FTB公式統合パッケージ",
+      "hardcore": "ハードコア",
+      "map_based": "マップゲームプレイ",
+      "mini_game": "ミニゲーム",
+      "rlcraft": "RLCクラフト",
+      "sci_fi": "SF",
+      "small_light": "小型・軽量",
+      "tech": "科学技術",
+      "vanilla_plus": "オリジナル強化",
+      "512x_and_higher": "512x以上",
+      "animated": "アニメーション",
+      "data_packs": "パケット",
+      "font_packs": "フォントパッケージ",
+      "medieval": "中世",
+      "mod_support": "MODのサポート",
+      "modern": "モダンな",
+      "photo_realistic": "現実的な",
+      "steampunk": "スチームパンク",
+      "traditional": "伝統",
+      "vanilla": "オリジナル"
+    }
+  },
+  "modSnapshots": {
+    "title": "Mod スナップショットのタイムライン",
+    "empty": "現在、スナップショット レコードはありません。",
+    "emptySelection": "まず左側でスナップショットのバージョンを選択してください。",
+    "loadingDiff": "最後のスナップショットとの差を計算しています...",
+    "noChanges": "このバージョンには、以前のバージョンと比較してファイルレベルの変更はありません。",
+    "triggers": {
+      "userManual": "手動スナップショット",
+      "rollback": "フォールバックターゲット",
+      "rollbackGuard": "フォールバック保護",
+      "auto": "自動スナップショット",
+      "unknown": "出所不明"
+    },
+    "timeline": {
+      "title": "バージョン履歴",
+      "current": "現在の状況",
+      "versionLabel": "バージョン #{{index}}",
+      "modCount": "{{count}} モジュール"
+    },
+    "tags": {
+      "current": "現在",
+      "history": "歴史",
+      "latestState": "最新の状況",
+      "initialState": "初期状態",
+      "added": "新しい",
+      "removed": "取り除く",
+      "updated": "更新する",
+      "contentUpdated": "コンテンツの更新",
+      "stateChanged": "ステータス変更",
+      "enabled": "有効",
+      "disabled": "無効"
+    },
+    "sections": {
+      "added": "{{count}} 新しいモジュールが追加されました",
+      "removed": "{{count}} MOD を削除しました",
+      "updated": "{{count}} モジュールを更新しました",
+      "stateChanged": "{{count}} モジュールの有効ステータスを変更しました"
+    },
+    "labels": {
+      "untitled": "スナップショットのステータス",
+      "noMessage": "備考はありません",
+      "createdAt": "作成時間: {{value}}"
+    },
+    "summary": {
+      "compareWithPrevious": "現在のスナップショットと以前のバージョンの違いを比較します。",
+      "initialSnapshot": "これは現在の履歴の中で最も古いスナップショットであり、以下はこのバージョンで記録された MOD ステータスを示しています。"
+    },
+    "messages": {
+      "manualSnapshot": "手動スナップショット ({{count}} モジュール)",
+      "createSuccess": "スナップショットが正常に作成され、{{count}} モジュールが記録されました。",
+      "createFailed": "スナップショットの作成に失敗しました。ログを確認してください。",
+      "historyLoadFailed": "履歴スナップショットの読み取りに失敗しました。ログを確認してください。",
+      "rollbackSuccess": "選択したスナップショットにロールバックされました。",
+      "rollbackFailed": "スナップショットのロールバックに失敗しました。ログを確認してください。"
+    },
+    "actions": {
+      "rollback": "このスナップショットにロールバックします",
+      "rollingBack": "ロールバック中..."
+    },
+    "states": {
+      "enabled": "有効にする",
+      "disabled": "無効にする"
+    },
+    "descriptions": {
+      "initialEnabled": "この MOD は、このスナップショットで初めて文書化されました。",
+      "initialDisabled": "この MOD はこのスナップショットに初めて記録され、現在は無効になっています。",
+      "added": "MOD は選択したスナップショットに初めて表示されます。",
+      "removed": "MOD は前のスナップショットには存在していましたが、現在のスナップショットには表示されなくなりました。",
+      "updated": "MODのファイル内容が変更されました。",
+      "stateChanged": "{{from}} -> {{to}}"
+    },
+    "meta": {
+      "file": "ファイル:{{fileName}}",
+      "sha1": "SHA1:{{hash}}",
+      "version": "バージョン: {{version}}",
+      "project": "プロジェクト: {{modId}}",
+      "oldFile": "古いファイル: {{fileName}}",
+      "newFile": "新しいファイル: {{fileName}}",
+      "oldSha1": "古い SHA1: {{hash}}",
+      "newSha1": "新しい SHA1: {{hash}}"
+    }
+  },
+  "saves": {
+    "triggers": {
+      "manual": "手動バックアップ",
+      "autoExit": "終了時のバックアップ",
+      "autoInterval": "定期的なバックアップ",
+      "restoreGuard": "復元前の保護",
+      "legacy": "レガシースナップショット",
+      "unknown": "出所不明"
+    },
+    "restoreModal": {
+      "title": "アーカイブバックアップを復元する",
+      "hero": {
+        "verifyingTitle": "バックアップ環境の確認",
+        "safeTitle": "安全に復元できる",
+        "warningTitle": "復元前に注意すべき相違点",
+        "verifyingDescription": "Minecraft のバージョン、ローダー、MOD 環境、および現在のインスタンスの構成ステータスをバックアップと比較します。",
+        "defaultDescription": "復元では、ターゲットのスナップショットを上書きする前に、現在のワールドの保護されたバックアップが作成されます。"
+      },
+      "sections": {
+        "targetWorld": "ターゲットワールド",
+        "backupInfo": "バックアップ情報",
+        "gameEnvironment": "ゲーム環境",
+        "restoreStrategy": "回復戦略"
+      },
+      "labels": {
+        "folder": "フォルダ",
+        "unknownLoader": "不明なローダー",
+        "mcVersion": "MCバージョン",
+        "loaderVersion": "ローダーのバージョン",
+        "mods": "MOD",
+        "configs": "構成",
+        "matches": "一貫性のある",
+        "differs": "一貫性のない",
+        "safeSnapshot": "セキュリティスナップショット",
+        "unsafeSnapshot": "非安全なスナップショット",
+        "includesConfigSnapshot": "構成スナップショットが含まれています"
+      },
+      "strategy": {
+        "primary": "復元する前に、現在のワールドの保護バックアップが作成されます。",
+        "secondary": "ワールドデータ {{worldSize}}、構成データ {{configSize}}。"
+      },
+      "toggle": {
+        "title": "設定ファイルも復元します",
+        "description": "これは、現在のインスタンスの `config` および `defaultconfigs` をオーバーライドします。ワールドと構成を完全にロールバックする必要がある場合にオンにします。"
+      },
+      "actions": {
+        "cancel": "キャンセル",
+        "confirm": "回復の確認",
+        "proceed": "回復を続ける"
+      },
+      "metrics": {
+        "modCount": "{{count}} MOD"
+      },
+      "hints": {
+        "scrollInfo": "右ジョイスティックのスクロール詳細"
+      },
+      "warnings": {
+        "title": "リスクリマインダー",
+        "minecraftMismatch": "Minecraft のバージョンは一貫性がありません: 現在の {{current}}、バックアップ {{backup}}。",
+        "loaderMismatch": "ローダーのバージョンが一貫していません: 現在の {{current}}、バックアップ {{backup}}。",
+        "modEnvironmentDiffers": "Mod 環境には違いがあります: 現在の {{current}} とバックアップ {{backup}}。",
+        "missingMod": "不足しているモジュール: {{fileName}}",
+        "changedMod": "Mod ファイルが変更されました: {{fileName}}",
+        "extraMod": "ローカル追加 Mod: {{fileName}}",
+        "configSnapshotDiffers": "構成スナップショットは現在のインスタンスとは異なります。完全なロールバックが必要な場合は、回復構成ファイルを有効にしてください。",
+        "unsafeSnapshot": "このスナップショットは安全でないスナップショットとしてマークされており、ワールドの実行中に作成されたと考えられます。"
+      },
+      "errors": {
+        "verifyFailed": "リカバリチェックを完了できません: {{error}}",
+        "backupNotFound": "バックアップ スナップショットが見つかりませんでした。"
+      }
+    }
+  },
+  "settings": {
+    "general": {
+      "sections": {
+        "basic": "ベース",
+        "window": "ウィンドウとアプリケーション",
+        "danger": "危険な作業"
+      },
+      "deviceName": {
+        "label": "デバイス名",
+        "description": "LAN ディスカバリと相互接続送信に使用される ID 表示識別子。",
+        "placeholder": "デバイス名を入力してください"
+      },
+      "language": {
+        "label": "ランチャーインターフェース言語",
+        "description": "ランチャーで表示される言語を変更します。一部の変更を完全に有効にするには、再起動が必要になる場合があります。",
+        "options": {
+          "zhCN": "簡体字中国語",
+          "zhHK": "繁体字中国語 (香港)",
+          "zhTW": "繁体字中国語 (台湾)",
+          "enUS": "英語",
+          "ja": "日本語",
+          "ko": "韓国人",
+          "ru": "ロシア"
+        }
+      },
+      "checkUpdate": {
+        "label": "アップデートを確認する",
+        "description": "PiLauncher のアプリ内アップデートで新しいバージョンを確認し、アプリ内から直接ダウンロードしてインストールします。",
+        "checking": "チェック中...",
+        "upToDate": "すでに最新バージョン",
+        "error": "チェックに失敗しました",
+        "check": "アップデートを確認する"
+      },
+      "checkUpdateOnStart": {
+        "label": "起動時にアップデートを確認する",
+        "description": "ランチャーを開くたびに、新しいアプリのバージョンを事前に確認します。"
+      },
+      "performanceProfile": {
+        "label": "パフォーマンスモード",
+        "description": "Steam Deck などの低電力ハンドヘルドデバイスには省電力モードを使用することをお勧めします。バッテリー セーバー モードに切り替えると、バックグラウンド、ログ記録、およびダウンロードの同時実行のオーバーヘッドが自動的に削減されます。",
+        "options": {
+          "auto": "自動",
+          "quality": "画質優先",
+          "balanced": "バランスの取れた",
+          "batterySaver": "節電"
+        }
+      },
+      "closeBehavior": {
+        "label": "「閉じる」ボタンの動作",
+        "description": "メインインターフェイスの右上隅にある閉じるボタンをクリックしたときの応答方法。",
+        "options": {
+          "tray": "システムトレイに最小化する",
+          "exit": "アプリを完全に終了する"
+        }
+      },
+      "preventTouchAction": {
+        "label": "タッチ操作をブロックする",
+        "description": "ピンチによるズーム、プルダウンによる更新、システム レベルのジェスチャの競合など、Web ページ上のデフォルトのタッチ動作をグローバルに無効にします。"
+      },
+      "toggleFullscreen": {
+        "label": "全画面表示を切り替える",
+        "description": "全画面モードを手動で開始または終了します。連続ダブルクリックによるちらつきを避けるために、短い間隔が追加されています。",
+        "exit": "全画面表示を終了する",
+        "enter": "全画面表示に移動"
+      },
+      "exitApp": {
+        "label": "アプリケーションを終了する",
+        "description": "PiLauncher の現在のアプリケーション プロセスを閉じます。終了する前に確認プロンプトが表示されます。"
+      },
+      "linuxDisableDmabuf": {
+        "label": "Linux レンダリング互換モード (DMABUF)",
+        "description": "一部の Linux ディストリビューション (Kali など) でのちらつきや黒い画面の問題を修正するには、WebKit の DMABUF レンダリングを無効にします。変更後は手動で再起動する必要があります。"
+      },
+      "resetSettings": {
+        "label": "デフォルト設定を復元する",
+        "description": "インスタンスデータを削除せずに、ランチャーのすべての設定を初期状態にリセットします。"
+      },
+      "exitConfirm": {
+        "title": "終了を確認してください",
+        "headline": "PiLauncher を終了する",
+        "description": "確認後、現在のアプリケーションは直接終了します。ダウンロード、インストール、またはその他のバックグラウンド タスクがまだある場合は、それらも停止されます。",
+        "confirm": "終了を確認してください",
+        "cancel": "キャンセル"
+      },
+      "resetConfirm": {
+        "title": "デフォルト設定を復元する",
+        "headline": "リセット設定の確認",
+        "description": "これにより、ランチャー設定が復元されますが、インスタンス、アーカイブ、ダウンロードは削除されません。",
+        "confirm": "リセットの確認",
+        "cancel": "キャンセル"
+      }
+    },
+    "java": {
+      "sections": {
+        "autoDownload": "自動的にダウンロードして取得します",
+        "environment": "環境構成",
+        "memory": "グローバルメモリとパラメータ"
+      },
+      "autoDownloadDesc": "必要な Java バージョンとダウンロード ソースを選択し、[ダウンロード] をクリックすると、ローカルの <code class=\"bg-black/30 px-1 rounded ml-1\">runtime/Java</code> ディレクトリに自動的にインストールされます。",
+      "targetVersion": "対象となるJavaのバージョン",
+      "provider": "ダウンロードソース",
+      "btnDownload": "ワンクリックでダウンロード",
+      "downloading": "ダウンロード中...",
+      "autoDetect": "Java環境の自動検出",
+      "autoDetectDesc": "オンにすると、ランチャーの起動時に 1 回スキャンされ、バージョン管理された Java パスが自動的にバックフィルされます。",
+      "globalPath": "グローバル Java ランタイム パス (基礎となる)",
+      "globalPathDesc": "デフォルトの Java パス。バージョン マッピングがオフになっている場合、または手動で設定されている場合に使用できます。",
+      "btnTest": "テスト",
+      "majorConfig": "バージョン管理されたグローバル構成 (推奨)",
+      "missingAuth": "Java環境がありません",
+      "memoryDesc": "デフォルトでは、新しいインスタンスはここでメモリとパラメータ設定を継承します。インスタンスで独立した構成が有効になっている場合は、インスタンスの設定が優先されます。",
+      "memoryMode": "メモリ割り当てモード",
+      "memoryLoading": "システムの物理メモリを読み取り中...",
+      "memoryEffective": "現時点で発効予定",
+      "memoryTarget": "ターゲットキャップ",
+      "memoryRecommended": "推奨値",
+      "memorySafeLimit": "安全な値",
+      "memoryHardLimit": "ハードキャップ",
+      "memoryAvailable": "現在利用可能",
+      "memoryTotal": "システム合計",
+      "memoryProfile": "GCギア",
+      "memoryApplyRecommended": "アプリケーションの推奨事項",
+      "memoryModes": {
+        "auto": "自動モード",
+        "manual": "マニュアルモード",
+        "force": "強制モード"
+      },
+      "memoryModeDescriptions": {
+        "auto": "ドキュメントのルールに従ってメモリ割り当てを自動的に計算し、推奨値と安全な値の小さい方をリアルタイムで取得します。",
+        "manual": "指定したターゲット メモリを使用しますが、現在利用可能なメモリが不十分な場合は、安全な範囲まで自動的に低下します。",
+        "force": "安全値を無視して、目標に従って割り当ててみてください。使用可能なメモリの現在のハード上限を超える可能性がありますが、それでもデバイスの合計メモリによって制限されます。"
+      },
+      "memoryProfiles": {
+        "small-heap": "小規模ヒープの最適化",
+        "standard-g1gc": "標準 G1GC",
+        "large-heap": "多くの地域調整"
+      },
+      "memoryWarnings": {
+        "hardLimitTitle": "現在ハードキャップに達しています",
+        "hardLimitBody": "{{requested}} を設定しましたが、現在のシステムのハード制限は {{limit}} のみです。今回は、最大 {{effective}} までにのみ有効になります。",
+        "safeLimitTitle": "現在は安全値により制限されています",
+        "safeLimitBody": "{{requested}} を設定しますが、システムとバックグラウンドプロセスのためのマージンを残すために、今回は {{effective}} (安全な値 {{limit}}) に減らされます。",
+        "forceModeBody": "強制モードでは安全値が無視され、使用可能なメモリの現在のハード制限 {{limit}} を超えることが許可されます。システムに十分なヘッドルームがあることを確認してください。",
+        "manualModeBody": "手動モードでは、設定した {{requested}} が優先され、現時点では {{effective}} が有効になることが期待されています。利用可能なメモリが不足すると、自動的に安全な範囲まで下がります。",
+        "autoModeBody": "自動モードは最小値 (推奨値 {{recommended}}、安全値 {{safeLimit}}) に基づいて計算され、今回は {{effective}} を使用することが予想されます。"
+      },
+      "maxMemory": "グローバル最大メモリ割り当て",
+      "maxMemoryDesc": "ゲームで利用可能な最大 RAM を動的に調整します。",
+      "jvmArgs": "グローバル JVM 追加パラメータ",
+      "jvmArgsDesc": "高度なオプション。グローバル設定を継承するインスタンスに適用されます。",
+      "jvmArgsResetDefault": "デフォルトに戻す",
+      "versions": {
+        "8": "Java 8 (MC 1.7 ～ 1.16 用)",
+        "16": "Java 16 (MC 1.17 用)",
+        "17": "Java 17 (MC 1.18 ～ 1.20 用)",
+        "21": "Java 21 (MC 1.21以降の場合)",
+        "25": "Java 25 (新しいバージョンおよびスナップショット用)"
+      },
+      "majorDescriptions": {
+        "8": "1.16.5 以前に適用されます",
+        "16": "1.17 / 1.17.1 専用",
+        "17": "1.18 ～ 1.20.4 に適用",
+        "21": "バージョン 1.20.5 以降に適用されます",
+        "25": "新しいスナップショットを使用して 26.1 以降で動作します"
+      },
+      "providers": {
+        "adoptium": "Adoptium公式ソース",
+        "zulu": "アズール・ズールー語源",
+        "tuna": "清華大学のオープンソース ソフトウェア ミラー",
+        "aks": "マイクロソフトのソース"
+      },
+      "testTargets": {
+        "global": "グローバルJava"
+      },
+      "selector": {
+        "placeholder": "「Java パスの選択...」をクリックします。",
+        "select": "選ぶ",
+        "modalTitle": "Java ランタイムを選択します",
+        "rescan": "マシンを再スキャンする",
+        "rescanning": "走査...",
+        "manualBrowse": "ディレクトリを手動で参照します...",
+        "scanningDisk": "Java 環境用のディープ スキャン ディスク...",
+        "notFound": "利用可能な Java 環境が検出されませんでした。ディレクトリを手動で参照してください。",
+        "managed": "ランチャー内",
+        "delete": "消去",
+        "deleteConfirmTitle": "Javaの削除を確認する",
+        "deleteConfirmDesc": "ランチャーによって runtime/java に自動的にダウンロードされた Java のみが削除され、外部からインストールされた Java は削除されません。",
+        "confirmDelete": "削除の確認"
+      },
+      "testDialog": {
+        "title": "Javaのテスト",
+        "missingPathHeadline": "{{target}} パスが構成されていません",
+        "missingPathDesc": "テストする前に、実行可能な Java パスを選択してください。",
+        "successTitle": "Java テストに合格しました",
+        "successHeadline": "{{target}} は利用可能です",
+        "successDesc": "バージョン: {{version}}",
+        "pathLabel": "パス: {{path}}",
+        "failedTitle": "Java テストが失敗しました",
+        "failedHeadline": "{{target}} は利用できません",
+        "failedDesc": "現在のパスは Java ランタイムとして使用できません。",
+        "confirm": "知っていた",
+        "cancel": "閉鎖"
+      }
+    },
+    "appearance": {
+      "sections": {
+        "background": "静的な背景",
+        "dynamicBackground": "ダイナミックな背景",
+        "typography": "レイアウトと特殊効果",
+        "navigation": "ナビゲーションと動作"
+      },
+      "btnChangeBg": "画像を変更する",
+      "btnRemoveBg": "背景を削除する",
+      "noBg": "背景なし",
+      "selectLocalInfo": "クリックしてローカル画像を選択します",
+      "bgBlur": "背景ぼかし",
+      "bgBlurDesc": "メインインターフェースの背景画像のぼかし効果を調整します。",
+      "panoramaEnabled": "パノラマ背景を有効にする",
+      "panoramaEnabledDesc": "有効にすると、base_path/config/background の下にある有効なパノラマ ディレクトリが最初に使用されます。",
+      "panoramaSpeed": "パノラマ回転速度",
+      "panoramaSpeedDesc": "パノラマ背景の自動回転速度を制御します。画像をフリーズするには 0 に設定します。",
+      "panoramaDirection": "パノラマ回転方向",
+      "panoramaDirectionDesc": "現在{{dir}}です。",
+      "clockwise": "時計回りに",
+      "counterclockwise": "反時計回り",
+      "maskColor": "マスクカラー",
+      "maskColorDesc": "テキストを読みやすくするために背景画像をオーバーレイする色。",
+      "maskOpacity": "マスクの透明度",
+      "maskOpacityDesc": "カラーマスクの透明度レベルを調整します。値が大きいほど、背景が暗くなります。",
+      "fontFamily": "ランチャーのグローバルフォント",
+      "fontFamilyDesc": "グローバルインターフェースのメインフォントを変更します。サポートされていない文字が見つかった場合は、デフォルトの Minecraft フォントにフォールバックします。",
+      "maskGradient": "下部の黒のグラデーションを有効にする",
+      "maskGradientDesc": "ランチャーの下部に黒のグラデーションを追加して、テキストとナビゲーションの読みやすさを向上させます。",
+      "customColor": "カスタムカラー",
+      "defaultFont": "デフォルト (Minecraft)",
+      "showInstances": "「インスタンス」を表示",
+      "showInstancesDesc": "上部のナビゲーション バーにインスタンス エントリを表示する",
+      "showMultiplayer": "「オンライン」を表示",
+      "showMultiplayerDesc": "上部のナビゲーション バーにオンライン ポータルを表示する",
+      "showDownloads": "「ダウンロード」を表示",
+      "showDownloadsDesc": "上部のナビゲーション バーにダウンロード入口を表示します",
+      "showLibrary": "「コレクション」を表示",
+      "showLibraryDesc": "上部のナビゲーション バーにコレクション エントリを表示する",
+      "skipExitConfirm": "終了確認をスキップする",
+      "skipExitConfirmDesc": "ウィンドウを閉じるときに、確認ダイアログボックスが表示されなくなり、アプリケーションが直接終了します（終了動作が「終了」の場合のみ有効）。"
+    },
+    "handheld": {
+      "sections": {
+        "handheld": "ハンドヘルドコンソール"
+      }
+    },
+    "game": {
+      "sections": {
+        "window": "ウィンドウとレンダリング",
+        "behavior": "ランチャーの動作"
+      },
+      "windowTitle": "カスタムゲームタイトル",
+      "windowTitleDesc": "Minecraft ゲームウィンドウの上部に表示されるテキスト名を変更します。",
+      "fullscreen": "全画面モード",
+      "fullscreenDesc": "ゲームを開始すると、そのまま専用フルスクリーン状態になります。ゲームが頻繁に途切れたりフリーズしたりする場合は、このオプションをオフにしてボーダーレス ウィンドウを使用することをお勧めします。",
+      "resolution": "解像度の開始",
+      "resolutionDesc": "ゲームの初期ウィンドウのサイズを設定します (これは全画面モードでの UI スケーリングにのみ影響します)。サポートされていない特大解像度は、モニターに基づいて自動的に非表示になります。",
+      "showLog": "ゲームログパネル",
+      "showLogDesc": "ゲーム起動時にログが出力されるコンソールパネルを展開します。終了後、ゲームがロードされるまでブロックジャンプアニメーションが表示されます。",
+      "preLaunchCheck": "開始前の整合性チェック",
+      "preLaunchCheckDesc": "起動する前に、ゲーム ファイル、現在のプラットフォームの適応、Java のバージョンを確認します。重大な問題が見つかった場合は起動を阻止します。",
+      "steamDeckKeymap": "Steam Deck ゲームモードのキーマッピング",
+      "steamDeckKeymapDesc": "Steam 入力によって出力されたキーボード/マウス レイアウトをランチャー コントローラー ナビゲーションとして認識し、推奨される Minecraft Java Edition ハンドヘルド レイアウトと一致します。",
+      "steamDeckMap": {
+        "confirm": "スペース/確認",
+        "cancel": "Esc / リターン",
+        "move": "モバイルランチャーのフォーカス",
+        "pointer": "マウスポインタ",
+        "actionX": "二次的な操作",
+        "actionY": "素早い操作",
+        "scroll": "スクロールまたはフォーカスを上下に移動します",
+        "mouseButtons": "Minecraft での左クリックと右クリック"
+      },
+      "visibility": "ゲーム実行中の視認性",
+      "visibilityDesc": "Minecraft インスタンスが正常に起動して実行されている場合に、メインのランチャー インターフェイスがどのように処理されるか。",
+      "resolutions": {
+        "standard": "854x480",
+        "hd": "1280x720",
+        "laptop": "1366x768",
+        "widescreen": "1600×900",
+        "fhd": "1080p",
+        "qhd": "2K",
+        "uhd": "4K",
+        "native": "ネイティブ",
+        "nativeDesc": "自動的に検出されるディスプレイの物理解像度"
+      },
+      "visibilityOptions": {
+        "keep": {
+          "label": "窓を開けたままにしておく",
+          "desc": "ランチャーはそのまま残るため、ログを表示したり、他のインスタンスを管理したりできます。"
+        },
+        "minimize": {
+          "label": "トレイに自動的に最小化",
+          "desc": "メインインターフェイスを非表示にしてシステムリソースを解放し、ゲーム終了後に自動的に復元します。"
+        },
+        "close": {
+          "label": "ランチャーを直接終了する",
+          "desc": "パフォーマンスを最大限に節約しますが、ゲーム終了後にランチャーを再度開く必要があります。"
+        }
+      }
+    },
+    "download": {
+      "sections": {
+        "source": "コンポーネントのダウンロード ソース",
+        "speed": "速度と同時実行性",
+        "faultTolerance": "フォールトトレランスと検証",
+        "proxy": "プロキシサーバー",
+        "diagnostics": "ネットワークの診断とテスト"
+      },
+      "metaSource": "Minecraft バージョンのメタデータ ソース",
+      "metaSourceDesc": "version_manifest_v2 バージョン リストを取得するために使用されます。",
+      "autoLatency": "動的速度測定と自動切り替え",
+      "autoLatencyDesc": "ダウンロード前に利用可能なノードのレイテンシを自動的に検出し、レイテンシの低いノードを優先します。",
+      "speedUnit": "速度表示ユニット",
+      "speedUnitDesc": "2 つの表示モード: MB/s と Mbps。",
+      "speedLimit": "グローバルなダウンロード速度制限",
+      "speedLimitDesc": "速度制限がない場合は 0 に設定します。",
+      "concurrency": "同時タスクの最大数",
+      "concurrencyDesc": "同時実行性が高いほど速度は速くなりますが、ネットワークとシステムへの負荷も増加します。",
+      "chunkedEnable": "単一ファイルを分割してダウンロードする",
+      "chunkedEnableDesc": "Range をサポートする大きなファイルのマルチ接続ダウンロードを有効にし、同時ファイルの数に影響を与えることなく単一ファイルの速度を向上させます。",
+      "chunkedThreads": "チャンク化されたスレッドの数",
+      "chunkedThreadsDesc": "1 つのファイルに対して同時に確立されるダウンロード接続の数。",
+      "chunkedThreshold": "チャンクしきい値",
+      "chunkedThresholdDesc": "このサイズ (MB 単位) までのファイルに対してのみ、チャンク ダウンロードを有効にします。",
+      "timeout": "接続タイムアウト",
+      "timeoutDesc": "この時間を過ぎてもサーバーから応答が受信されない場合は、自動的に中断して再試行します。",
+      "retry": "失敗した再試行の数",
+      "retryDesc": "1 つのファイルのダウンロードが失敗した後の自動再試行の回数。",
+      "verifyHash": "ダウンロード後の検証（ハッシュ）",
+      "verifyHashDesc": "ダウンロードが完了すると、ファイルが破損していないことを確認するために整合性チェックが実行されます。",
+      "proxyMode": "プロキシモード",
+      "proxyModeDesc": "ダウンロードと API リクエストにのみ影響し、ゲーム接続には影響しません。",
+      "proxyHost": "ホストアドレス (ホスト)",
+      "proxyPort": "ポート",
+      "diagTitle": "ネットワークの可用性チェック",
+      "diagDesc": "DNS、TCP、TLS、HTTP レベルなど、ランチャーに必要なコア ドメイン名の接続品質をテストします。",
+      "btnDiag": "総合的な診断を開始する",
+      "diaging": "テスト中...",
+      "systemStatus": "システムとネットワークのステータス",
+      "scanQr": "上の QR コードをスキャンして\\nBase64 診断レポート データを取得します",
+      "analyzing": "ネットワーク パケットを詳細にキャプチャし、接続を分析します...",
+      "clickToTest": "上のボタンをクリックしてネットワーク接続のテストを開始してください",
+      "sources": {
+        "vanilla": "オリジナルのコアのダウンロード ソース",
+        "forge": "ダウンロードソースを鍛造する",
+        "fabric": "ファブリックのダウンロード ソース",
+        "neoforge": "NeoForge のダウンロード ソース",
+        "quilt": "キルトのダウンロードソース"
+      },
+      "proxyOptions": {
+        "none": "直結"
+      }
+    },
+    "account": {
+      "sections": {
+        "identities": "アイデンティティ ストア"
+      },
+      "btnAddMs": "Microsoft 正規版を追加",
+      "btnAddOffline": "オフラインアカウントを追加",
+      "noAccount": "現在接続されているゲームアカウントはありません",
+      "noMcTip": "本物の Minecraft ライセンスをまだ持っていませんか?公式チャンネルを通じてゲームを安全に入手",
+      "buyMc": "Minecraft公式サイトから入手",
+      "buyMs": "Microsoft ストア (Windows ストア)",
+      "delConfirmTitle": "アカウント削除の確認",
+      "delConfirmDesc": "このアカウントを削除してもよろしいですか?これにより、ランチャーから ID が削除されるだけで、ローカルに保存されたゲーム データは削除されません。",
+      "cancel": "操作をキャンセルする",
+      "confirmDel": "削除の確認",
+      "btnAddAuthlib": "サードパーティのスキン サイト",
+      "card": {
+        "unknownPlayer": "未知のプレイヤー",
+        "typeMicrosoft": "マイクロソフトアカウント",
+        "typeAuthlib": "スキンステーションアカウント",
+        "typeOffline": "オフラインアカウント",
+        "current": "現在使用中",
+        "switchable": "切り替え可能",
+        "noteMicrosoft": "あなたのアイデンティティとアバターは自動的に同期されます。",
+        "noteAuthlib": "カスタム スキン ステーション認証サービスを使用します。",
+        "noteOffline": "オフラインアカウント",
+        "uploadSkin": "カスタムスキンをアップロードする",
+        "editName": "名前の編集",
+        "removeAccount": "アカウントを削除する",
+        "inUse": "使用中",
+        "setCurrent": "現在のアイデンティティとして設定"
+      },
+      "actions": {
+        "cancel": "キャンセル"
+      },
+      "microsoft": {
+        "title": "Microsoft アカウントのログイン",
+        "requesting": "Microsoft にセキュリティ コードを要求しています...",
+        "hint": "以下の QR コードをスキャンして認証ページを開くか、コードをコピーしてブラウザで続行します。",
+        "codeLabel": "このコードをスキャンして入力してください",
+        "copyAndOpen": "コピーしてブラウザを開く",
+        "waitingAuth": "ブラウザの認証を待っています...",
+        "polling": "バックグラウンドで認証とトークン交換を待機しているため、このウィンドウを閉じないでください...",
+        "loginFailed": "ログインに失敗しました: {{error}}",
+        "failedMarker": "ログインに失敗しました"
+      },
+      "offline": {
+        "editTitle": "オフラインアカウントを構成する",
+        "createTitle": "オフラインアカウントを作成する",
+        "confirmEdit": "変更を確認する",
+        "confirmCreate": "アカウントを作成する",
+        "playerName": "プレイヤー名(ID)",
+        "placeholder": "例: スティーブ_123",
+        "rule": "ルール: 3 ～ 16 文字の文字、数字、アンダースコアのみがサポートされます。",
+        "randomName": "ランダムな名前",
+        "warningTitle": "警告します:",
+        "warningLine1": "名前を変更すると、関連付けられている UUID も変更されます。",
+        "warningLine2": "シングルプレイヤー セーブとオフライン サーバーはあなたを新しいプレイヤーとして認識し、古いバックパックと進行状況は直接継承されません。",
+        "errors": {
+          "invalidName": "無効なユーザー名です。 3 ～ 16 文字の文字、数字、またはアンダースコアのみがサポートされます。",
+          "duplicateName": "ゲーム ID はすでに存在します。名前を変更してください。"
+        }
+      },
+      "authlib": {
+        "title": "サードパーティのスキンサイトへのログイン",
+        "loggingIn": "ログインする",
+        "login": "ログイン",
+        "hint": "authlib-injector / Yggdrasil 互換のスキン ステーション API を使用します。スキン ステーションから提供される API ルート アドレス (https://example.com/api/yggdrasil など) を入力してください。",
+        "apiRoot": "APIアドレス",
+        "username": "アカウント",
+        "usernamePlaceholder": "メールまたはスキンサイトのユーザー名",
+        "password": "パスワード",
+        "passwordPlaceholder": "スキンステーションのパスワード",
+        "errors": {
+          "missingApiRoot": "サードパーティスキンサイトのYggdrasil APIアドレスを入力してください。",
+          "missingCredentials": "アカウント番号とパスワードを入力してください。"
+        }
+      }
+    },
+    "data": {
+      "sections": {
+        "core": "コアデータディレクトリ",
+        "thirdParty": "インポートされたインスタンスのディレクトリ",
+        "privacy": "プライバシーとテレメトリ",
+        "instances": "インスタンス管理"
+      },
+      "telemetryUpload": {
+        "label": "設置テレメトリ データをアップロードする",
+        "description": "デフォルトで有効になっています。ランチャーは、最大 3 日ごとにインストール テレメトリをアップロードします。これには、インストール ID、プラットフォーム、メモリ容量、グラフィックス カード名、ランチャーのバージョン、およびインストール量分析と互換性テストのための最初のインストール時間のみが含まれます。"
+      },
+      "coreLocation": "コアデータの保存場所",
+      "currentLoc": "現在の場所: {{path}}\\nゲーム インスタンス、ログ、ランチャー構成などのコア データを新しいディレクトリに完全に移行します。",
+      "btnModify": "ディレクトリを変更して移行する",
+      "renameDir": "データフォルダーの名前を変更する",
+      "renameDirDesc": "現在のデータ フォルダーの名前に満足できない場合は、ステップの選択や識別を容易にするために、フォルダーの名前を直接変更できます。",
+      "btnRename": "フォルダーの名前を変更する",
+      "cleanLogs": "ランチャーのログをクリーンアップする",
+      "cleanLogsDesc": "log/ ディレクトリ内のすべてのログ ファイルをクリアして、ディスク領域を解放します。現在のパス: {{path}}",
+      "btnCleanLogs": "ログをクリアする",
+      "removeConfirmTitle": "削除確認",
+      "removeConfirmHeadline": "この関連付けられたディレクトリを削除してもよろしいですか?",
+      "removeConfirmDesc1": "この操作により、外部ディレクトリとの関連付けが解除され、同時に PiLauncher 内の対応するインスタンス キャッシュ データがクリアされます。",
+      "removeConfirmDesc2": "元のディレクトリ内のファイルとアーカイブはまったく影響を受けません。",
+      "btnCancel": "キャンセル",
+      "btnRemove": "削除の確認",
+      "cleanLogsTitle": "ログをクリアする",
+      "cleanLogsConfirmTitle": "この操作により、ゲームの起動ログや診断レコードを含む、logs/ ディレクトリ内のすべてのログ ファイルが削除されます。",
+      "cleanLogsConfirmDesc": "クリーニング後は元に戻すことはできません。最初に必要な診断パッケージをエクスポートすることをお勧めします。現在のパス: {{path}}",
+      "btnConfirmClean": "クリーンアップの確認",
+      "btnDone": "仕上げる",
+      "cleaning": "クリーンアップ中です、お待ちください...",
+      "cleanSuccess": "クリーンアップが完了しました",
+      "cleanSuccessDesc": "{{count}} ログ エントリが正常に消去されました",
+      "cleanFailed": "クリーンアップに失敗しました",
+      "renameModalTitle": "ディレクトリの名前を変更する",
+      "renameModalDesc": "変更が成功すると、ランチャーが自動的に終了して新しい名前が適用されます。",
+      "renameModalPlaceholder": "新しいフォルダ名...",
+      "btnConfirmRename": "名前変更の確認",
+      "noThirdParty": "インポートする外部ディレクトリはまだありません。",
+      "thirdPartyList": "関連するサードパーティのフォルダー",
+      "thirdPartyListDesc1": "これらのフォルダー内のインスタンスは、ランチャーの起動時に自動的にスキャンされます。関連付けを削除しても、ローカル ファイルとデータは削除されません。",
+      "thirdPartyListDesc2": "これらの外部フォルダー内のゲーム インスタンスも PiLauncher によってロードされます。 [削除] をクリックすると関連付けが解除されるだけで、ローカル ファイルは損傷しません。",
+      "removedCountSuccess": "{{count}} 関連のインポートされたインスタンス データは関連付けが解除され、クリーンアップされました。",
+      "success": "操作は成功しました",
+      "failed": "削除に失敗しました: {{error}}",
+      "error": "間違い",
+      "manageInstances": {
+        "label": "ローカルインスタンス管理",
+        "description": "統一された方法でローカル インスタンスを表示し、迅速に削除します。",
+        "btn": "ローカルインスタンスを管理する",
+        "modalTitle": "ローカルインスタンス管理",
+        "searchPlaceholder": "インスタンス名、バージョン、ローダー、または ID を検索します...",
+        "deleteConfirmTitle": "インスタンスの削除",
+        "deleteConfirmHeadline": "インスタンスを完全に削除してもよろしいですか?",
+        "deleteConfirmDesc": "この操作は元に戻すことができません。インスタンスのすべての設定ファイル、MOD、およびシングルプレイヤーの保存は永久にクリアされます。"
+      },
+      "migrateConfirm": "現在のディレクトリにあるすべてのゲーム データ (インスタンス、設定など) を新しいディレクトリに完全に移動しますか?\n\n［はい］を選択すると全データを移動します\n[いいえ]を選択すると、基本設定ファイル(settings.json)のみをコピーし、古いデータを残します。",
+      "migrateTitle": "データ移行の確認",
+      "migrateSuccess": "データ ディレクトリの移行は成功しました。ゲームが正しく動作することを確認するには、PiLauncher が終了します。ランチャーを再起動してください。",
+      "migrateSuccessTitle": "移行が成功しました",
+      "migrateError": "ディレクトリの変更中にエラーが発生しました: {{error}}",
+      "migrateErrorTitle": "移行に失敗しました",
+      "renameSuccess": "名前変更が成功しました!すべてが正しく動作していることを確認するには、ランチャーが終了します。再起動してください。",
+      "renameError": "名前の変更に失敗しました: {{error}}",
+      "renameSuccessTitle": "成功",
+      "renameErrorTitle": "間違い",
+      "remoteLogs": {
+        "title": "リモートログ履歴",
+        "description": "LogShare.CN にアップロードされたログを表示し、保存された削除トークンを使用してリモート ログを削除します。",
+        "manage": "リモートログを管理する",
+        "refresh": "リフレッシュする",
+        "logId": "ログID",
+        "createdAt": "生成時間",
+        "expiresAt": "有効期限",
+        "action": "操作する",
+        "loading": "リモートログ履歴を読み取っています...",
+        "empty": "現在、リモート ログは記録されていません。",
+        "delete": "消去",
+        "deleteTitle": "リモートログを削除する",
+        "deleteHeadline": "このリモート ログを削除してもよろしいですか?",
+        "deleteDesc": "削除する場合、ローカルに保存されたトークンを使用して LogShare.CN が要求され、成功後にローカル履歴がクリアされます。",
+        "successTitle": "正常に削除されました",
+        "successHeadline": "リモートログが削除されました",
+        "successDesc": "地元の歴史も整理されました。",
+        "deleteFailed": "リモート ログの削除に失敗しました: {{error}}",
+        "deleteFailedTitle": "削除に失敗しました"
+      },
+      "webdav": {
+        "title": "WebDAV同期",
+        "configuredDesc": "リモート ポータルが設定されました。ライブラリのコレクションを同期したり、ローカルのスキン リソースをバックアップしたりできます。",
+        "unconfiguredDesc": "WebDAV アドレス、アカウント、同期されたコンテンツを構成します。 https:// はデフォルトで 443 を使用し、http:// はデフォルトで 80 を使用します。",
+        "manage": "WebDAVの管理",
+        "configure": "WebDAVの構成",
+        "manageBackups": "クラウドバックアップを管理する",
+        "manageBackupsDesc": "WebDAV クラウドに保存されているアーカイブ ファイルとスキン バックアップ ファイルをダウンロードまたは削除します。",
+        "close": "閉鎖",
+        "save": "保存",
+        "syncing": "同期中...",
+        "syncNow": "今すぐ同期する",
+        "connectionTitle": "接続設定",
+        "connectionDesc": "WebDAV アドレスは、PiLauncherSync のルート エントリとして使用されます。アカウントのパスワードが空の場合、匿名アクセスとして扱われます。",
+        "address": "WebDAVアドレス",
+        "addressProtocolError": "http:// または https:// で始まる WebDAV アドレスを入力してください。",
+        "defaultPort": "{{protocol}} デフォルトのポート {{port}}。",
+        "username": "アカウント",
+        "usernamePlaceholder": "アカウントを使用しない場合は空白のままにしてください",
+        "password": "パスワード",
+        "passwordPlaceholder": "パスワードを使用しない場合は空白のままにします",
+        "autoSyncInterval": "自動同期頻度",
+        "autoSyncIntervalDesc": "バックグラウンドでローカル データを自動的に同期およびバックアップする時間間隔。",
+        "intervals": {
+          "3h": "3時間",
+          "12h": "12時間",
+          "1d": "1日",
+          "3d": "3日間",
+          "5d": "5日間",
+          "7d": "7日間",
+          "off": "閉鎖"
+        },
+        "backupItems": "バックアップコンテンツを同期する",
+        "backupDesc": "WebDAV に同期するローカル データを選択します。項目をオフにすると、手動同期では処理されなくなります。",
+        "libraryFavorites": "図書館蔵書",
+        "skinAssets": "スキンリソース",
+        "saveBackups": "アーカイブバックアップ",
+        "remoteDirPrefix": "リモートディレクトリ:",
+        "operationDesc": "追記型の操作ログを利用して、複数機器のオフライン補完配信をサポートします。",
+        "skinBackupDesc": "ローカル構成/スキンのスナップショット バックアップを生成し、リモート エンドが新しい場合はローカル構成/スキンに復元します。",
+        "saveBackupDesc": "マークされたローカル バックアップ/保存ディレクトリを元の構造に従って WebDAV に同期します。双方向同期モードでは、リモート エンドが新しい場合、ロールバック プロセスを使用してローカル エンドに復元します。",
+        "enableSync": "同期を有効にする",
+        "saveBackupMode": "アーカイブバックアップモード",
+        "saveBackupModeBackup": "バックアップのみ",
+        "saveBackupModeSync": "双方向同期",
+        "saveBackupModeBackupDesc": "マークされたローカル アーカイブ バックアップのみがアップロードされ、リモート エンドはローカル アーカイブ バックアップを上書きしません。",
+        "saveBackupModeSyncDesc": "ローカルの変更をアップロードし、新しいリモート バックアップをローカルに復元できるようにします。",
+        "noItemsEnabled": "少なくとも 1 つの WebDAV 同期項目を有効にしてください。",
+        "snapshotUpdated": "更新されました",
+        "snapshotUnchanged": "更新されていません",
+        "favoriteResult": "ライブラリ: {{uploaded}} オペレーションのアップロード、{{downloaded}} オペレーションのダウンロード、{{total}} オペレーションに基づく {{favorites}} コレクションの再構築、{{snapshot}} のスナップショット、{{compacted}} の古いオペレーションの圧縮。",
+        "skinResult": "スキン リソース: {{action}}、アップロード {{uploaded}} ファイル、ダウンロード {{downloaded}} ファイル、ローカル {{local}} ファイル、リモート {{remote}} ファイル。",
+        "skinRestored": "リモートから復元されました",
+        "skinUploaded": "リモートバックアップが更新されました",
+        "skinUnchanged": "アップデートは必要ありません",
+        "saveBackupResult": "アーカイブ バックアップ: {{action}}、{{verified}} の検証、{{uploaded}} ファイルのアップロード、{{downloaded}} ファイルのダウンロード、ローカル {{localBackups}} バックアップ/{{local}} ファイル、リモート {{remoteBackups}} バックアップ/{{remote}} ファイル。",
+        "saveBackupsRestored": "リモートから復元されました",
+        "saveBackupsUploaded": "リモートバックアップが更新されました",
+        "saveBackupsUnchanged": "アップデートは必要ありません",
+        "verified": "合格",
+        "unverified": "失敗した"
+      }
+    },
+    "about": {
+      "sections": {
+        "product": "製品情報",
+        "support": "注意とサポート",
+        "sponsors": "スポンサー"
+      },
+      "productDesc": "ハンドヘルド コンソールとコントローラー用に最適化された、クロスプラットフォームの Minecraft ランチャー。",
+      "scanOrA": "QRコードをスキャンするか、Aを押してアクセスしてください",
+      "thanks": "スポンサーの皆様に感謝します",
+      "thanksDesc": "PiLauncher が今後も改善を続けることができるのは、皆様のご支援のおかげです。私たちをサポートしたい場合は、上記の AiDianfa を通じてスポンサーすることができます。",
+      "emptySeat": "空席待ち中…",
+      "links": {
+        "github": {
+          "title": "プロジェクトGitHub",
+          "desc": "オープンソース アドレス。PR と問題の送信を歓迎します"
+        },
+        "bilibili": {
+          "title": "著者ビリビリ",
+          "desc": "著者をフォローして最新の開発ニュースを入手してください"
+        },
+        "afdian": {
+          "title": "ラブ発電",
+          "desc": "このプロジェクトの開発とサポートの継続的なメンテナンスをスポンサーします。"
+        }
+      },
+      "anonymous": "匿名",
+      "openSource": {
+        "button": "オープンソースプロジェクト",
+        "title": "オープンソースプロジェクト",
+        "headline": "PiLauncher が使用する主なオープンソース プロジェクト",
+        "description": "ここにリストされているのは、ロック ファイル内の推移的な依存関係を除く、{{count}} の直接依存関係とエコロジカル統合プロジェクトです。",
+        "open": "開ける",
+        "groups": {
+          "frontend": "フロントエンドとインターフェース",
+          "backend": "デスクトップとランタイム",
+          "ecosystem": "マインクラフトの生態"
+        }
+      }
+    },
+    "tabs": {
+      "general": "従来の",
+      "appearance": "インタフェース",
+      "handheld": "ハンドヘルドコンソール",
+      "game": "ゲーム",
+      "java": "ジャワ",
+      "download": "ダウンロード",
+      "account": "アカウント",
+      "data": "データ",
+      "about": "について"
+    },
+    "developing": "設定モジュールは開発中です...",
+    "update": {
+      "title": "新しいバージョンが見つかりました",
+      "noChangelog": "更新履歴はまだありません。",
+      "later": "後でリマインダー",
+      "installing": "ダウンロードしてインストールしています...",
+      "installNow": "今すぐアップデートしてください",
+      "externalAcknowledge": "知っていた",
+      "latestVersion": "最新バージョン",
+      "changelog": "変更ログ",
+      "notice": "「今すぐ更新」をクリックすると、自動的にダウンロードされ、インストールされます。インストールが完了するとランチャーが再起動します。",
+      "flatpakNotice": "Flatpak パッケージ バージョンは、アプリ内でのアップデートのダウンロードをサポートしていません。Discover または Flathub を通じて PiLauncher をアップデートしてください。"
+    }
+  },
+  "instancesPage": {
+    "viewToggleList": "リストビューに切り替える",
+    "viewToggleGrid": "グリッドビューに切り替える",
+    "searchPlaceholder": "例を検索...",
+    "sortOptions": {
+      "lastPlayed": "最近訪問した",
+      "createdAt": "作成時間"
+    },
+    "tagsBtn": "ラベル",
+    "actionNew": "新しいインスタンスを作成する",
+    "actionFolder": "ランチャーライブラリを選択",
+    "actionDetect": "自動検出",
+    "actionImportExternal": "外部インスタンスをインポートする",
+    "importModal": {
+      "title": "外部/サードパーティのインスタンスをインポートする",
+      "manualTitle": "ディレクトリを手動で選択する",
+      "manualDesc": "関連付ける既存のローカル イニシエータ (PCL2、HMCL など) のインスタンス パスを選択します",
+      "detectTitle": "インスタンスを自動的に検出する",
+      "detectDesc": "システム内の共通パスにあるサードパーティのインスタンスをインテリジェントにスキャンし、ワンクリックでインポートします"
+    },
+    "tagFilterModal": {
+      "title": "タグフィルター",
+      "description": "以下のタグを選択して、表示されるインスタンスのリストをフィルターします。",
+      "empty": "現在使用可能なタグはありません",
+      "clear": "クリア",
+      "done": "仕上げる"
+    }
+  },
+  "directoryBrowser": {
+    "title": {
+      "directory": "ディレクトリの選択",
+      "fileOrDirectory": "ファイルまたはディレクトリを選択してください",
+      "modpackArchive": "統合パッケージファイルの選択"
+    },
+    "actions": {
+      "newFolder": "新しいフォルダーを作成する",
+      "cancel": "キャンセル",
+      "select": "選ぶ",
+      "open": "開ける",
+      "selectCurrentDirectory": "現在のディレクトリを選択"
+    },
+    "menu": {
+      "currentDirectory": "現在のディレクトリ",
+      "sort": "選別"
+    },
+    "sort": {
+      "foldersFirst": "フォルダーの優先順位",
+      "filesFirst": "最初にファイルを作成する"
+    },
+    "status": {
+      "loading": "読む..."
+    },
+    "roots": {
+      "thisPc": "このコンピュータ"
+    },
+    "fileCategories": {
+      "file": "書類",
+      "minecraft": "マインクラフト",
+      "archives": "圧縮パッケージ",
+      "images": "写真",
+      "configs": "構成",
+      "executables": "実行可能ファイル",
+      "documents": "書類"
+    },
+    "empty": {
+      "noMatchingItems": "一致するアイテムはありません",
+      "noSubdirectories": "サブディレクトリなし"
+    },
+    "hints": {
+      "openConfirm": "開く/確認する",
+      "cancel": "キャンセル",
+      "upForward": "上級 / フォワード",
+      "actions": "メニュー",
+      "listFooter": "リスト/下部",
+      "keyboard": "Enter で開き、Esc でキャンセル",
+      "doubleClick": "ダブルクリックして開きます"
+    }
+  },
+  "localImport": {
+    "step1": {
+      "title": "ローカル統合パッケージをインポートする",
+      "reading": "メタデータを読み取り中...",
+      "supportPrefix": "サポート",
+      "separator": "",
+      "supportSuffix": "形式。",
+      "autoPrepare": "ランチャーはメタデータを自動的に解析し、実行環境を準備します。"
+    },
+    "step2": {
+      "parsed": "解決済み: {{name}}"
+    },
+    "meta": {
+      "source": "ソース",
+      "author": "著者",
+      "pack": "統合パッケージ",
+      "gameVersion": "ゲームバージョン",
+      "loader": "ローダ"
+    },
+    "fields": {
+      "instanceName": "インスタンス名",
+      "installPath": "インストールパス"
+    },
+    "warning": {
+      "requiresPrefix": "このパッケージに必要なものは、",
+      "with": "マッチ",
+      "autoRestore": "不足しているランタイムおよび参照 MOD は、インポート時に自動的に復元されます。"
+    },
+    "actions": {
+      "selectArchive": "統合パッケージファイルの選択",
+      "selectArchiveNative": "システムファイルセレクター",
+      "selectArchiveBrowser": "内蔵ディレクトリブラウザ",
+      "change": "変化",
+      "cancel": "キャンセル",
+      "startImport": "インポートを開始する",
+      "importing": "インポート中..."
+    },
+    "status": {
+      "loadingInstancesDir": "インスタンス ディレクトリを読み取り中...",
+      "baseDirMissing": "ベース ディレクトリはまだ設定されていません。",
+      "defaultDirReadFailed": "デフォルトのディレクトリを読み取れません。"
+    },
+    "errors": {
+      "unsupportedArchive": "サポートされている modpack ファイルを選択してください: .zip、.mrpack、または .pipack。",
+      "parseFailed": "統合パッケージの解析に失敗しました: {{error}}",
+      "importFailed": "インポートに失敗しました: {{error}}"
+    }
+  },
+  "wardrobe": {
+    "title": "ワードローブ",
+    "skinTab": "肌",
+    "capeTab": "マント",
+    "refresh": "リフレッシュする",
+    "emptyAccount": "まず設定でゲームアカウントを追加してください。",
+    "microsoftRequired": "Cloak の切り替えには、正規の Microsoft アカウントでログインする必要があります。",
+    "noCapes": "現在のアカウントで利用できるクロークはありません。",
+    "activeBadge": "アクティブ化された",
+    "uploadCard": {
+      "title": "ローカルアップロード",
+      "subtitle": "アップロード後にアセットライブラリに入る"
+    },
+    "hints": {
+      "openDialog": "ポップアップウィンドウを開く",
+      "preview": "プレビュー",
+      "switchTab": "スキン/マントを切り替える",
+      "rotate": "ターンキャラクター",
+      "refresh": "リフレッシュする"
+    },
+    "skinMenu": {
+      "titleDefault": "スキンアセット",
+      "filePrefix": "書類：",
+      "activeSkin": "現在使用中のスキン。",
+      "applySkinHint": "「適用」をクリックしてこのスキンに切り替えます。",
+      "modelLabel": "モデル",
+      "modelClassic": "クラシック",
+      "modelClassicDesc": "標準的な腕幅。",
+      "modelSlim": "スリム",
+      "modelSlimDesc": "スリムな腕幅。",
+      "noteLabel": "述べる",
+      "notePlaceholder": "このスキンに名前を付けます",
+      "noteDescription": "設定すると、このメモがカードのタイトルに置き換わります。",
+      "applyAction": "肌を塗る",
+      "deleteAction": "皮を取り除く",
+      "onlineProfileNote": "これはオンラインでアクティベートされたアーカイブ スキンです。プレビューとモデルの切り替えのみが利用可能です。",
+      "activeLibraryNote": "現在アクティブなアーカイブされたスキンは削除できません。"
+    },
+    "capeMenu": {
+      "titleDefault": "クロークアセット",
+      "activeCape": "現在このマントを使用しています",
+      "applyCapeHint": "このマントを装備してもよろしいですか?",
+      "unequipAction": "現在のマントを削除する",
+      "applyAction": "マントを装備する",
+      "cancelAction": "キャンセル"
+    }
+  },
+  "setup": {
+    "directory": {
+      "title": "データディレクトリを初期化する",
+      "desc1": "ゲームコアとインスタンスを保存するには専用のフォルダーが必要です。",
+      "desc2": "データを復元するには、<1> の新しい空のディレクトリ </1> を使用することも、<3> 既存の古い PiLauncher ディレクトリ </3> を選択することもできます。",
+      "desc3": "注意: パスに漢字を含めないでください。",
+      "placeholder": "参照ボタンをクリックして純粋な英語のディレクトリを選択してください ->",
+      "browse": "ブラウズ",
+      "confirm": "確認して次のステップへ"
+    },
+    "java": {
+      "title": "Java環境が検出されない",
+      "desc1": "お使いのコンピュータには Java がインストールされていないようです。",
+      "desc2": "プレイしたい Minecraft のバージョンを選択してください。対応するランタイムが自動的にダウンロードされ、設定されます。",
+      "targetVersion": "対象の Minecraft バージョン:",
+      "provider": "ダウンロード元（プロバイダー）：",
+      "skip": "スキップして後で手動でインストールする",
+      "download": "自動ダウンロード"
+    },
+    "steam": {
+      "title": "Steamライブラリの統合",
+      "desc1": "システム上の Steam の存在を検出します。",
+      "desc2": "PiLauncher を Steam 以外のゲームとして登録して、ライブラリ モードまたはビッグ スクリーン モードで直接起動しますか?",
+      "success": "登録が成功しました！ショートカットを有効にするには、Steam を再起動してください。",
+      "gamepadModeDesc": "現在ゲームモードであることが検出されます。デフォルトで全画面 (ゲームパッド) モードで起動し、コントローラー UI が閉じられたときにプログラムを終了しますか?",
+      "enableGamepadAndFinish": "全画面表示を有効にして終了",
+      "finish": "直接完了",
+      "skip": "必要ありません、スキップしてください",
+      "registering": "登録中...",
+      "register": "Steamに登録する"
+    },
+    "legal": {
+      "title": "ユーザー使用許諾契約書",
+      "subtitle": "PiLauncher の使用を続けるには、次の規約を読んで同意する必要があります",
+      "updateWarning": "ユーザー規約やプライバシーポリシーの変更に伴い、ご利用を続ける前に再度お読みいただき、同意していただくようお願いいたします。",
+      "agree": "読んで完全に同意します"
+    },
+    "donate": {
+      "title": "PiLauncher開発をサポート",
+      "description": "PiLauncher は完全に無料のオープンソース ランチャーです。スポンサーのサポートのおかげで、私たちはそれを改善し続けることができます。このプロジェクトが役立つと思われた場合は、ぜひサポートしてください。",
+      "scanOrClick": "QRコードをスキャンするか、下のボタンをクリックしてAipowerスポンサーシップにアクセスしてください",
+      "btnDonate": "iPower にアクセスしてスポンサーを獲得してください",
+      "btnFinish": "ランチャーを入力してください"
+    }
+  },
+  "nav": {
+    "home": "フロントページ",
+    "instances": "例",
+    "multiplayer": "オンライン",
+    "downloads": "ダウンロード",
+    "library": "集める",
+    "settings": "設定"
+  },
+  "titlebar": {
+    "exit": {
+      "title": "終了を確認してください",
+      "headline": "PiLauncher を終了する",
+      "description": "現在の閉じるボタンの動作は「アプリの終了」に設定されています。確認後、現在の申請プロセスは直接終了します。"
+    }
+  },
+  "common": {
+    "confirm_exit": "終了を確認してください",
+    "cancel": "キャンセル",
+    "ok": "もちろん",
+    "finish": "仕上げる"
+  },
+  "libraryPage": {
+    "hints": {
+      "switchSection": "Y でサイドバー/リストを切り替えます",
+      "contextMenu": "X操作メニュー",
+      "switchTab": "LT/RT切り替えタブ"
+    },
+    "views": {
+      "all": "全部集める",
+      "mod": "モジュール",
+      "modSet": "モッドセット",
+      "modpack": "統合パッケージ",
+      "external": "外部リソース"
+    },
+    "filters": {
+      "all": "全て",
+      "modpack": "統合パッケージ",
+      "mod": "モジュール",
+      "server": "サーバ",
+      "updated": "更新可能"
+    },
+    "sort": {
+      "manual": "順序を設定する",
+      "recent": "最新のアップデート",
+      "name": "名前 A ～ Z",
+      "source": "ソース"
+    },
+    "toolbar": {
+      "back": "戻る",
+      "visibleCount": "{{count}} アイテムを表示しています",
+      "highlights": "集中",
+      "editCollection": "コレクションの編集",
+      "editModSet": "モッドセットの編集",
+      "editModpack": "パッケージの編集",
+      "cloudSync": "ライブラリクラウド同期",
+      "deleteModSet": "MODセットを削除する",
+      "deploy": "ワンクリックで導入",
+      "deployTitle": "現在のモジュールセットをデプロイします",
+      "deployDisabled": "現在の MODセットについて利用可能なバージョン間の追跡情報はありません",
+      "searchPlaceholder": "名前、作成者、バージョン、ローダーを検索..."
+    },
+    "context": {
+      "detail": "MODの詳細を表示",
+      "tags": "タグを個別に追加する",
+      "deleteFavorite": "お気に入りから削除",
+      "removeFromTag": "現在のラベルから削除",
+      "removeFromModSet": "MODセットから削除されました",
+      "removeFromModpack": "modpackから削除されました",
+      "removeFromCollection": "現在のコレクションから削除"
+    },
+    "empty": {
+      "loadingTitle": "コレクションをロードしています",
+      "noMatchTitle": "一致するアイテムはありません",
+      "emptyTitle": "まだお気に入りはありません",
+      "loadingDesc": "コレクション、タグ、MODセットを読み込みます。",
+      "noMatchDesc": "別のキーワード、タイプ、またはコレクションでフィルタリングしてみてください。",
+      "emptyDesc": "ダウンロード センターにアクセスしてリソースを検索すると、収集されたリソースがここに表示されます。",
+      "actionDownload": "リソースのダウンロードに移動",
+      "actionDownloadDesc": "ダウンロード センターからリソースを検索して保存します"
+    },
+    "item": {
+      "ready": "準備ができて",
+      "noSummary": "まだ紹介はありません。",
+      "installed": "インストール済み",
+      "version": "バージョン",
+      "byAuthor": "{{author}} 著",
+      "updated": "更新可能",
+      "pinned": "上にピン留めする",
+      "archived": "アーカイブ",
+      "unknownDate": "日付不明"
+    },
+    "types": {
+      "modpack": "統合パッケージ",
+      "mod": "モジュール",
+      "resourcepack": "リソースパック",
+      "shader": "光と影",
+      "server": "サーバ"
+    },
+    "sortMode": {
+      "moveUp": "上に移動",
+      "moveDown": "下に移動"
+    },
+    "tagModal": {
+      "title": "タグを追加",
+      "done": "仕上げる",
+      "hint": "このリソースに個別に関連付けるタグを選択します。",
+      "empty": "まだタグがありません。最初に左側のタグ システムでタグを作成してください。",
+      "pending": "処理",
+      "added": "追加した",
+      "add": "に追加"
+    },
+    "deleteFavorite": {
+      "title": "お気に入りを削除",
+      "confirm": "削除の確認",
+      "deleting": "削除中...",
+      "desc": "「{{title}}」はコレクションから削除されます。タグまたはモジュール セットにも存在する場合は、それらのセットからも削除されます。"
+    },
+    "deleteModSet": {
+      "title": "MODセットを削除する",
+      "confirm": "削除の確認",
+      "deleting": "削除中...",
+      "desc": "Modset \"{{name}}\" とそのクロスバージョン追跡レコードは削除されます。",
+      "removeMods": "選択したモジュールもコレクションから削除します",
+      "removeDesc": "オフにすると、モジュール セットのみが削除されます。オンにすると、チェックしたモジュールは「すべてのコレクション」、タグ、その他のコレクションからも削除されます。",
+      "selected": "{{selected}}/{{total}} モジュールが選択されました",
+      "selectAll": "すべて選択",
+      "invert": "対抗選挙",
+      "empty": "現在の MOD セットには削除可能な MOD はありません。"
+    },
+    "messages": {
+      "operationFailed": "操作が失敗しました: {{error}}",
+      "reorderFailed": "保存の並べ替えに失敗しました: {{error}}",
+      "connectingDownload": "リソースのダウンロードに接続しています...",
+      "downloadFailed": "ダウンロードに失敗しました: {{error}}"
+    },
+    "backup": {
+      "importPreviewFailed": "インポート プレビューが失敗しました: {{error}}",
+      "exportDone": "エクスポートが完了しました: {{path}}",
+      "exportFailed": "エクスポートに失敗しました: {{error}}",
+      "importDone": "インポートが完了しました: {{starred}} コレクション、{{collections}} コレクション、および {{relations}} 関係が追加されました。",
+      "importFailed": "インポートに失敗しました: {{error}}",
+      "webdavMissingAddress": "WebDAV アドレスはまだ設定されていません。「設定 - データ」に移動して設定を完了してください。",
+      "webdavSyncDisabled": "ライブラリの同期は現在有効になっていません。最初に WebDAV 設定で有効にしてください。"
+    },
+    "sidebar": {
+      "tagSystem": "ラベリングシステム",
+      "manageTags": "タグを管理する",
+      "noTags": "まだタグがありません",
+      "newTag": "新しいラベル",
+      "tagNamePlaceholder": "ラベル名を入力してください",
+      "saveTag": "ラベルを保存",
+      "tagColor": "ラベルの色",
+      "duplicateTag": "同じ名前のラベルがすでに存在します",
+      "tagResourceCount": "{{count}} リソース",
+      "saveChanges": "変更を保存する",
+      "renameTag": "ラベル名の変更",
+      "deleteTag": "タグの削除",
+      "confirmDelete": "削除の確認",
+      "confirmShort": "確認する"
+    },
+    "metadata": {
+      "title": "編集{{type}}",
+      "save": "保存",
+      "name": "名前",
+      "nameRequired": "名前を空にすることはできません。",
+      "clearCover": "クリアカバー",
+      "changeCover": "カバーを変更する",
+      "hint": "名前を変更するか、左側のアイコンをクリックしてカバーを変更します。",
+      "hintModSet": "名前を変更するか、左側のアイコンをクリックしてカバーを変更します。バージョン間の追跡情報もここで変更できます。",
+      "trackingTitle": "クロスバージョン追跡",
+      "trackingDesc": "変更後、現在の一致結果はクリアされ、新しいターゲット環境に従ってすべてのモジュールが再チェックされます。",
+      "minecraftVersion": "マインクラフトのバージョン",
+      "selectVersion": "バージョンの選択"
+    },
+    "cloud": {
+      "title": "ライブラリクラウド同期",
+      "operations": "図書館運営",
+      "description": "ローカル バックアップは引き続き保持されます。 WebDAV は、複数のデバイスのステータスを積極的に統合することを容易にするために、明示的な同期エントリをここに提供します。",
+      "export": "ライブラリのエクスポート",
+      "import": "ライブラリのインポート",
+      "syncing": "同期中...",
+      "syncNow": "WebDAV を今すぐ同期する",
+      "history": "同期録音",
+      "recentCount": "最近の{{count}}アイテム",
+      "emptyHistory": "レコードの手動同期はまだありません。最初の WebDAV 同期が完了すると、そのトレースがここに残ります。",
+      "success": "同期が成功しました",
+      "failed": "同期に失敗しました",
+      "resultLine1": "{{uploaded}} アイテムをアップロード / {{downloaded}} アイテムをダウンロード、現在 {{favorites}} アイテムを収集しています",
+      "resultLine2": "合計操作 {{total}} アイテム、スナップショット {{snapshot}}",
+      "snapshotUpdated": "更新されました",
+      "snapshotUnchanged": "更新されていません",
+      "compacted": "、{{count}} の古い操作を圧縮します",
+      "unknownError": "不明なエラー"
+    },
+    "importPreview": {
+      "title": "ライブラリのインポート",
+      "confirm": "インポートの確認",
+      "description": "インポートは現在のライブラリにマージされ、既存のデータは消去されません。",
+      "mergeTags": "同じ名前のタグを結合する",
+      "starredItems": "コレクションリソース",
+      "collections": "集める",
+      "relations": "関係を設定する",
+      "trackers": "トラッカー",
+      "newDuplicate": "{{added}} 新規 / {{duplicate}} 重複",
+      "newMerged": "{{added}} 新しい / {{merged}} タグをマージ",
+      "importableTotal": "{{importable}} インポート可能 / {{total}} 合計"
+    },
+    "tracker": {
+      "title": "Modset のクロスバージョン追跡 ({{count}})",
+      "empty": "追跡可能な MODセットはまだありません。まずダウンロード ページでバッチを収集し、バージョン追跡を有効にしてください。",
+      "readyCount": "{{ready}}/{{total}} の準備が完了しました",
+      "install": "MODセットをインストールする",
+      "noInstallable": "インストール可能なバージョンがありません",
+      "checkNow": "今すぐチェック",
+      "remove": "追跡を削除する",
+      "deployableCount": "{{ready}}/{{total}} モジュールをデプロイ可能",
+      "close": "閉鎖",
+      "confirmDeploy": "導入の確認",
+      "deployingShort": "導入中...",
+      "targetEnv": "ターゲット環境: MC {{version}} | {{loader}}",
+      "notReadyWarning": "この追跡はまだ完全に準備ができていないため、今回はバージョンが一致するモジュールのみがインストールされます。",
+      "installExisting": "既存のインスタンスにインストールする",
+      "loadingTargets": "互換性のあるインスタンスが一致しています...",
+      "compatibleCount": "{{count}} 互換性のあるインスタンスが見つかりました",
+      "unknownVersion": "不明なバージョン",
+      "unknownLoader": "不明なローダー",
+      "createNew": "新しいインスタンスを作成してインストールする",
+      "createNewDesc": "ターゲット環境の追跡を使用して MC/Loader インスタンスを自動的に作成します",
+      "newInstanceName": "新しいインスタンス名",
+      "newInstanceNamePlaceholder": "新しいインスタンス名を入力してください",
+      "loadTargetsFailed": "互換性のあるインスタンスの読み取りに失敗しました: {{error}}",
+      "creatingInstance": "インスタンスを作成しています...",
+      "deploying": "MODセットを導入中...",
+      "downloading": "モジュールと事前依存関係をダウンロードしています...",
+      "result": "デプロイメントが完了しました: {{installed}} はインストールされ、{{skipped}} はスキップされ、{{failed}} は失敗しました。",
+      "installFailed": "デプロイメントに失敗しました: {{error}}",
+      "checkFailed": "チェックに失敗しました",
+      "noLoaderVersion": "{{version}} / {{loader}} に利用可能なローダー バージョンが見つかりません"
+    }
+  },
+  "gameLog": {
+    "share": {
+      "noLogs": "アップロードするログ コンテンツはまだありません。",
+      "success": "ログは LogShare.CN にアップロードされました",
+      "copied": "共有リンクがコピーされました"
+    },
+    "view": {
+      "waiting": "標準出力を待っています...",
+      "copied": "コピーしました！",
+      "copyLine": "この行をコピーします",
+      "scrollHint": "ログを上下にスクロールする"
+    },
+    "shareDialog": {
+      "issueFallback": "質問{{index}}",
+      "title": "ログ共有",
+      "copied": "コピーされました",
+      "copyLink": "リンクをコピー",
+      "openPage": "ページを開く",
+      "finish": "仕上げる",
+      "uploading": "アップロード中...",
+      "upload": "アップロードログ",
+      "uploadInfo": "現在、{{count}}行ログのアップロードを準備中です。サイズ検証とオプションの感度解除は、アップロード前にバックエンドで実行されます。",
+      "sanitizeTitle": "機密情報の非感作",
+      "sanitizeDesc": "共通トークン、認証ヘッダー、およびネイティブ ユーザー パスを置き換えます。",
+      "aiTitle": "AI診断を依頼する",
+      "aiDesc": "アップロードが成功すると、プルのインテリジェントな診断が付加されますが、これは通常の共有よりも時間がかかる場合があります。",
+      "analyzing": "分析結果をアップロードして取得しています...",
+      "uploadSuccess": "アップロード成功",
+      "sanitized": "鈍感になった",
+      "unsanitized": "減感作されていない",
+      "historyInfo": "リモート ログ削除の認証情報が記録されており、有効期限はその後のデータ管理に使用されます。",
+      "historyError": "履歴の保存に失敗しました: {{error}}",
+      "insights": "基本的な洞察",
+      "softwareType": "ソフトウェアの種類",
+      "unidentified": "認識されない",
+      "version": "バージョン",
+      "insightsError": "インサイトの取得に失敗しました: {{error}}",
+      "aiDiagnosis": "AI診断",
+      "aiAnalysisError": "AI 診断の取得に失敗しました: {{error}}"
+    },
+    "launchAnimation": {
+      "prepare": "ゲームを開始する",
+      "init": "ゲームを初期化する",
+      "core": "ロードコア",
+      "resource": "リソースをロードする",
+      "sound": "ほぼ完成",
+      "atlas": "リソースのセグメント化",
+      "ready": "メインメニュー",
+      "readyDesc": "ゲームは正常に起動されました",
+      "ariaLabel": "ゲーム開始",
+      "prepareFallback": "始める準備ができています",
+      "envFallback": "ゲーム環境の準備",
+      "killProcess": "終了プロセス",
+      "killWarnTitle": "セキュリティ警告",
+      "killWarnHeadline": "ゲームを強制終了してもよろしいですか?",
+      "killWarnDesc": "プロセスを強制的に終了すると、現在のゲーム ワールドの保存ファイルが破損したり、保存されていないデータが失われる可能性があります。この機能は、ゲームが完全に応答しない (フリーズする) 場合にのみ使用してください。",
+      "killConfirm": "強制終了",
+      "killCancel": "待ってください"
+    },
+    "sidebar": {
+      "title": "コンソールとログ",
+      "initializing": "初期化中",
+      "running": "ランニング",
+      "crashed": "クラッシュした",
+      "telemetry": "パフォーマンステレメトリ",
+      "pipelineWait": "ログ パイプラインを確立して仮想マシンを起動します。お待ちください...",
+      "autoDiag": "自動診断レポート",
+      "linesCaptured": "{{count}} ラインがキャプチャされました",
+      "copied": "コピーされました",
+      "copyAll": "すべてコピーする",
+      "packing": "パッキング...",
+      "diagPack": "診断パッケージ",
+      "killProcess": "終了プロセス",
+      "hidePanel": "パネルを非表示にする",
+      "closePanel": "パネルを閉じる",
+      "exportSuccessTitle": "正常に生成されました",
+      "exportSuccessHeadline": "完全な診断パッケージが正常に生成されました",
+      "openFolder": "ディレクトリを開きます",
+      "exportFailTitle": "ビルドに失敗しました",
+      "exportFailHeadline": "診断パッケージをパッケージ化するときに例外が発生しました",
+      "killWarnTitle": "セキュリティ警告",
+      "killWarnHeadline": "ゲームを強制終了してもよろしいですか?",
+      "killWarnDesc": "プロセスを強制的に終了すると、現在のゲーム ワールドの保存ファイルが破損したり、保存されていないデータが失われる可能性があります。この機能は、ゲームが完全に応答しない (フリーズする) 場合にのみ使用してください。",
+      "killConfirm": "強制終了",
+      "killCancel": "キャンセル"
+    },
+    "telemetry": {
+      "jvm": "JVMの起動時間",
+      "mod": "MODのロード時間",
+      "resource": "リソースの読み込み時間",
+      "render": "レンダリングの初期化時間",
+      "total": "費やした合計時間",
+      "wait": "待って..."
+    }
+  },
+  "instanceDetail": {
+    "basic": {
+      "info": {
+        "title": "基本情報",
+        "nameLabel": "インスタンス名",
+        "nameDesc": "リストに表示するカスタム名。",
+        "namePlaceholder": "インスタンス名を入力してください",
+        "save": "保存",
+        "coverLabel": "表紙例",
+        "coverDesc": ".png または .jpg 形式をサポートしており、推奨比率は 16:9 です。",
+        "changeCover": "カバーを変更する"
+      },
+      "links": {
+        "title": "カスタムリンク管理",
+        "label": "クイックリンク",
+        "desc": "クイック リンク ボタン (Wiki、コミュニティ、公式 Web サイトなど) を統合パッケージに追加します。これは、ホームページと概要ページに表示されます。タイトルを空白のままにすると、プラットフォーム名が使用されます。",
+        "placeholderTitle": "カスタムタイトル",
+        "deleteLink": "リンクを削除する",
+        "empty": "カスタム リンクはまだありません。下をクリックして追加してください",
+        "manageLabel": "リンクの管理",
+        "addLink": "リンクを追加",
+        "saveConfig": "設定の保存"
+      },
+      "danger": {
+        "title": "危険区域",
+        "deleteLabel": "インスタンスを完全に削除します",
+        "deleteDesc": "この操作は元に戻すことができず、インスタンスのすべてのローカル ファイルとアーカイブが完全に削除されます。",
+        "deleteBtn": "完全に削除",
+        "confirmTitle": "警告: インスタンスを完全に削除します",
+        "confirmHeadlinePrefix": "インスタンスを完全に削除してもよろしいですか?",
+        "confirmHeadlineSuffix": "?",
+        "confirmDesc": "この操作は元に戻すことができず、このインスタンスに関連するすべての設定、モジュール、およびゲームの保存は完全にクリアされます。",
+        "confirmBtn": "強制削除"
+      },
+      "env": {
+        "title": "動作環境",
+        "label": "ゲームとローダーのバージョン",
+        "desc": "現在のインスタンスの Minecraft、Fabric、Forge、NeoForge、または Quilt 環境を切り替えます。",
+        "changeBtn": "バージョンを変更する",
+        "modalTitle": "インスタンス環境の切り替え",
+        "mcVersion": "マインクラフトのバージョン",
+        "category": "分類",
+        "loadingVersions": "バージョンリストを読み込んでいます...",
+        "loaderVersion": "ローダーのバージョン",
+        "vanillaNoNeedLoader": "元のインスタンスには追加のローダーは必要ありません。",
+        "loaderHint": "ローダ",
+        "bottomHint": "底",
+        "vanillaEnv": "元の環境",
+        "findingCompatible": "互換性のあるバージョンを探しています...",
+        "currentMc": "現在のマインクラフト",
+        "versionTypes": {
+          "release": "正式版",
+          "snapshot": "スナップショット",
+          "rc": "候補バージョン",
+          "pre": "プレビュー版",
+          "special": "特別"
+        },
+        "fetchMcVersionsFailed": "Minecraft のバージョン リストの取得に失敗しました",
+        "fetchLoaderVersionsFailed": "ローダーのバージョンリストの取得に失敗しました"
+      },
+      "maintenance": {
+        "title": "インスタンスのメンテナンス",
+        "label": "不足しているファイルを完了する",
+        "desc": "不足しているコア ファイル、ランタイム ライブラリ、または依存リソースを自動的に確認して再ダウンロードします。",
+        "btn": "チェック完了"
+      },
+      "server": {
+        "title": "インスタンスサーバー",
+        "bindLabel": "バインドサーバー",
+        "editHelp": "サーバー情報を変更した後、「保存」をクリックして有効にします。",
+        "bindHelp": "現在のインスタンスは次のサーバーにバインドされており、ゲームの開始時に自動的に接続できます。",
+        "placeholderName": "サーバー名",
+        "placeholderIp": "サーバーアドレス (IP またはドメイン名)",
+        "placeholderPort": "ポート",
+        "unbindBtn": "バインドを解除する",
+        "autoJoinLabel": "起動時に自動的にサーバーに入る",
+        "autoJoinDesc": "オンにした後、ゲームを開始すると、手動で選択することなく、バインドされているサーバーに自動的に接続されます。",
+        "unbindHelpText": "現在のインスタンスはどのサーバーにもバインドされていません。手動で追加することも、マルチプレイヤー ページでバインドすることもできます。",
+        "addServerBtn": "サーバーの追加"
+      },
+      "tags": {
+        "title": "タグ管理",
+        "addLabel": "タグを追加",
+        "addDesc": "アイコンを選択した後、ラベル名を入力するか、入力ボックスで既存のラベルを選択します。確認後すぐに保存してください。",
+        "placeholderInput": "ラベル名を入力するか、既存のラベルを選択します",
+        "currentLabel": "現在のラベル",
+        "currentDesc": "これらのタグは、インスタンス リストのタグ フィルターに表示されます。",
+        "empty": "まだタグがありません",
+        "removeTitle": "タグを削除する",
+        "dropdownOptions": {
+          "star": "集める",
+          "tool": "道具",
+          "sword": "ファインティング",
+          "pickaxe": "コレクション",
+          "seedling": "生き残る",
+          "sparkles": "魔法",
+          "rocket": "科学技術"
+        }
+      },
+      "saving": "保存中...",
+      "successMessages": {
+        "nameSaved": "インスタンス名が保存されました",
+        "tagsSaved": "インスタンスラベルが保存されました",
+        "customLinksSaved": "カスタムリンク設定が保存されました",
+        "environmentUpdated": "インスタンスの実行環境が更新されました",
+        "serverInfoSaved": "バインドされたサーバー情報が保存されました",
+        "serverUnbound": "サーバーバインディングがリリースされました",
+        "autoJoinEnabled": "起動時の自動入力が有効になっています",
+        "autoJoinDisabled": "起動時の自動入力が無効になっています"
+      }
+    },
+    "export": {
+      "basic": {
+        "openImagePickerFailed": "画像ピッカーを開けませんでした。システム権限を確認してください。",
+        "packName": "統合パッケージ名",
+        "packNamePlaceholder": "例: My Adventure 統合パック",
+        "version": "バージョン番号",
+        "versionPlaceholder": "例: 1.0.0",
+        "author": "著者",
+        "authorPlaceholder": "著者名を記入してください",
+        "heroLogo": "ヒーローのロゴ",
+        "noLogoImage": "ロゴ画像はありません",
+        "changeImage": "画像を変更する",
+        "selectImage": "画像を選択",
+        "description": "説明する",
+        "descriptionPlaceholder": "この Modpack のテーマ、ゲームプレイ、または位置付けを簡単に紹介します。"
+      },
+      "confirm": {
+        "format": {
+          "zip": "標準ZIP"
+        },
+        "customItem": "カスタム {{type}}: {{name}}",
+        "customDir": "目次",
+        "customFile": "書類",
+        "manifest": {
+          "pipackForce": "PiPack 強制有効化",
+          "zipDisabled": "標準 ZIP はマニフェストを使用しません",
+          "enabled": "有効",
+          "disabled": "有効になっていません"
+        },
+        "packName": "統合パッケージ名",
+        "empty": "未記入",
+        "version": "バージョン番号",
+        "author": "著者",
+        "exportFormat": "エクスポート形式",
+        "manifestMode": "マニフェストモード",
+        "heroLogo": "ヒーローのロゴ",
+        "set": "すでに設定されています",
+        "notSet": "設定されていません",
+        "additionalPaths": "追加コンテンツ",
+        "itemsCount": "{{count}} アイテム",
+        "none": "なし",
+        "summaryTitle": "パラメータの概要",
+        "description": "説明する",
+        "noDescription": "説明が記入されていません。",
+        "includeContent": "コンテンツが含まれています",
+        "emptyIncludeContent": "現在、エクスポートはチェックされていません。",
+        "exportPath": "エクスポートパス",
+        "changePath": "パスを変更する",
+        "outputDir": "出力ディレクトリ",
+        "fetchingPath": "デフォルトのパスを取得しています...",
+        "outputFile": "出力ファイル",
+        "readyToExport": "エクスポートの準備をする",
+        "readyDesc": "統合パッケージは現在のパラメータに基づいて生成され、上で指定したエクスポート ディレクトリに書き込まれます。",
+        "startExport": "すぐにパッケージングを実行する",
+        "exporting": "パッケージング処理を実行しています...",
+        "exportSuccess": "エクスポートが完了しました",
+        "openDir": "ディレクトリを開きます",
+        "backToSettings": "エクスポート設定に戻る",
+        "exportError": "パッケージ化タスクが異常終了しました",
+        "backAndRetry": "戻って再試行してください"
+      },
+      "content": {
+        "toggles": {
+          "mods": "modsフォルダーが含まれています",
+          "config": "設定フォルダーが含まれています",
+          "resourcePacksLabel": "リソースパック",
+          "resourcePacks": "リソースパックフォルダーが含まれています",
+          "shaderPacksLabel": "光と影のパッケージ",
+          "shaderPacks": "シェーダーパックフォルダーが含まれています",
+          "savesLabel": "アーカイブ",
+          "saves": "保存フォルダーが含まれています"
+        },
+        "directoryAlreadyAdded": "ディレクトリ [{{name}}] は既に追加リストに含まれています。再度追加しないでください。",
+        "openDirectoryPickerFailed": "ディレクトリ セレクターを開けませんでした。システムの権限を確認してください。",
+        "fileAlreadyAdded": "ファイル [{{names}}] は既に追加リストに含まれています。再度追加しないでください。",
+        "openFilePickerFailed": "ファイルピッカーを開けませんでした。システム権限を確認してください。",
+        "additionalContent": "カスタムコンテンツを添付する",
+        "directory": "目次",
+        "file": "書類",
+        "noAdditionalPaths": "現在、追加のファイルやディレクトリを手動で添付することはできません。"
+      },
+      "optimization": {
+        "manifestLockedZipTooltip": "標準 ZIP 形式を選択したため、マニフェスト モードは無効に固定されています。",
+        "manifestLockedPipackTooltip": "PiPack 形式を選択したため、マニフェスト モードは有効に固定されています。"
+      },
+      "steps": {
+        "basic": "基本情報",
+        "content": "コンテンツのエクスポート",
+        "optimization": "フォーマットの最適化",
+        "confirm": "最終確認"
+      }
+    },
+    "java": {
+      "savingLocal": "ローカルに保存中...",
+      "autoSaveSuccess": "自動保存に成功しました"
+    },
+    "mods": {
+      "identifyingToast": "モジュール ネットワーク データを認識中です。お待​​ちください...",
+      "batchFavoriteNoMatch": "選択した MOD はいずれも CurseForge または Modrinth で一致するアイテムを見つけることができず、収集は禁止されています。",
+      "matchSuccessToast": "モジュールは正常に認識され、すぐにコレクションに追加されます。",
+      "matchFailedToast": "モジュールのメタデータを識別できませんでした。もう一度お試しください。",
+      "singleFavoriteNoMatch": "この MOD は CurseForge または Modrinth で一致するアイテムを見つけることができません。ローカルの未知のMODのお気に入りは禁止されています。",
+      "upgradeSnapshotHeadline": "最初に現在のモジュールのステータスを記録することをお勧めします",
+      "creating": "作成...",
+      "deleteConfirm": {
+        "title": "MODの削除",
+        "confirmPrefix": "削除を確認してください",
+        "confirmSuffix": "?",
+        "description": "この操作により、インスタンスの mods フォルダーから mod が削除されます。ファイルを削除すると、ランチャーの取り消しを使用してファイルを復元することはできません。",
+        "cancel": "キャンセル",
+        "confirm": "削除の確認"
+      },
+      "header": {
+        "sourceLocal": "地元",
+        "unknown": "未知",
+        "matching": "マッチング...",
+        "linked": "{{source}} にリンクされています",
+        "unmatched": "一致するアイテムが見つかりませんでした",
+        "disabled": "無効",
+        "fileLabel": "ファイル: {{fileName}}",
+        "sizeLabel": "サイズ: {{size}}",
+        "sourceLabel": "出典: {{source}}",
+        "statusLabel": "ステータス: {{status}}"
+      },
+      "metadataSettings": {
+        "auto": "自動",
+        "reidentify": "再識別",
+        "saving": "保存中...",
+        "save": "保存",
+        "cancel": "キャンセル",
+        "title": "MODメタデータ",
+        "platform": "メタデータプラットフォーム",
+        "locked": "ロックされた",
+        "updateSource": "アップデート元"
+      },
+      "versionHistory": {
+        "actions": {
+          "install": "インストール",
+          "upgrade": "アップグレード",
+          "downgrade": "ダウングレード",
+          "reinstall": "再インストール"
+        },
+        "title": "バージョン履歴 (現在のインスタンス)",
+        "versionInfo": "バージョン: {{versionNumber}} • {{date}} がリリースされました",
+        "empty": "現在、{{platform}} にはバージョン レコードがありません。"
+      },
+      "globalMetadata": {
+        "platformOptions": {
+          "auto": {
+            "label": "自動",
+            "desc": "モジュールファイルのハッシュに基づく自動マッチング"
+          },
+          "modrinth": {
+            "desc": "Modrinth プラットフォームからのみ利用可能"
+          },
+          "curseforge": {
+            "desc": "CurseForge プラットフォームからのみ利用可能"
+          }
+        },
+        "title": "グローバルモジュールメタデータ設定",
+        "saving": "保存中...",
+        "save": "変更を保存する",
+        "cancel": "キャンセル",
+        "platformLabel": "グローバルメタデータプラットフォーム",
+        "updateLabel": "グローバルアップデートソース",
+        "tip": "ヒント: この設定は、現在のインスタンス内のすべての MOD に適用されます。特定のプラットフォームを選択すると、そのメタデータまたはアップデート ソースがロックされます。",
+        "maintenanceLabel": "高度なメンテナンス作業",
+        "maintenanceDesc": "モジュールのマッチング情報に不一致があった場合やアップデートが取得できない場合は、全モジュールのマッチング情報をクリアしてクラウドから再度取得することができます。",
+        "reidentifyingProgress": "モジュール クラウド データを再照合しています... ({{current}}/{{total}})",
+        "reidentifyAllBtn": "すべてのモジュールデータを再識別する"
+      },
+      "detail": {
+        "disable": "無効にする",
+        "enable": "有効にする",
+        "delete": "消去",
+        "favorite": "集める",
+        "metadata": "メタデータ",
+        "cancel": "キャンセル"
+      },
+      "deleteDialog": {
+        "title": "MODの削除",
+        "confirmLabel": "削除の確認",
+        "cancelLabel": "キャンセル",
+        "confirmationNote": "ランチャーから削除を元に戻すことはできません。"
+      },
+      "actionDowngrade": "ダウングレード",
+      "actionReinstall": "再インストール",
+      "actionInstall": "インストール",
+      "actionUpgrade": "アップグレード",
+      "globalMetadataSettingsSaved": "グローバルメタデータ設定が保存されました",
+      "globalMetadataSettingsSaveFailed": "グローバルメタデータ設定の保存に失敗しました",
+      "metadataResetStart": "メタデータがリセットされ、クラウド内のすべての MOD が再照合されました...",
+      "cloudMatchComplete": "クラウドマッチング完了",
+      "cloudMatchFailed": "再戦失敗",
+      "emptySearch": "現在の検索に一致する MOD はありません。",
+      "emptyInstance": "現在のインスタンスにはまだ MOD がありません。"
+    },
+    "overview": {
+      "changeHeroLogoTitle": "クリックしてヒーローのロゴを変更します",
+      "addHeroLogo": "ヒーローロゴを追加",
+      "changeHeroLogo": "ロゴの変更",
+      "startGame": "ゲームを開始する",
+      "needOpenFolderHandler": "ディレクトリを開くには onOpenFolder を渡す必要があります",
+      "instanceFolder": "インスタンスディレクトリ",
+      "customLinks": "カスタムリンク"
+    },
+    "resourcepacks": {
+      "title": "ローカルリソースパック",
+      "downloadBtn": "リソースパックをダウンロードする",
+      "openFolderBtn": "リソースパッケージディレクトリを開きます",
+      "directoryPack": "フォルダーリソースパック",
+      "zipPack": "ZIP リソース パッケージ",
+      "directory": "フォルダ",
+      "deleteTitle": "リソースパックを削除する",
+      "deleteDesc": "これにより、リソース パック ファイルが現在のインスタンスから永久に削除され、ランチャーから元に戻すことはできません。",
+      "deleteConfirmBtn": "削除の確認",
+      "deleteNote": "削除操作は元に戻せません。リソース パッケージが現在のインスタンスに必要なくなったことを確認してください。"
+    },
+    "saves": {
+      "title": "アーカイブバックアップ",
+      "restoreCenter": "リカバリーセンター",
+      "openFolder": "ディレクトリを開く",
+      "configsRestored": "\\n同時に設定ファイルも復元されました。"
+    },
+    "shader": {
+      "title": "ローカル照明パッケージ",
+      "subtitle": "使用する前に、インスタンスに OptiFine、Iris、または Oculus がインストールされていることを確認してください。",
+      "downloadShader": "光と影 ダウンロード",
+      "openShaderFolder": "光と影のカタログを開く",
+      "folderShaderPack": "フォルダー光と影のパッケージ",
+      "zipShaderPack": "光と影のZIPパッケージ",
+      "deleteShaderPack": "光と影のパッケージを削除する",
+      "deleteConfirmHeadline": "「{{fileName}}」を削除してもよろしいですか?",
+      "deleteConfirmDescription": "これにより、シャドウ パック ファイルが現在のインスタンスから永久に削除され、ランチャーから元に戻すことはできません。",
+      "confirmDelete": "削除の確認",
+      "cancel": "キャンセル",
+      "deleteConfirmNote": "削除操作は元に戻せません。現在のインスタンスにライティング パッケージが必要なくなったことを確認してください。"
+    },
+    "loading": "読み込み中...",
+    "tabs": {
+      "overview": "概要",
+      "basic": "ベース",
+      "java": "ジャワ",
+      "saves": "アーカイブ",
+      "mods": "MOD",
+      "resourcepacks": "リソースパック",
+      "shaders": "光と影",
+      "export": "輸出"
+    }
+  }
+}

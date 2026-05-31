@@ -72,22 +72,14 @@ export const useEnvironmentSection = ({
   const [isLoadingLoaders, setIsLoadingLoaders] = useState(false);
   const [errorText, setErrorText] = useState('');
   const lastContentFocusKeyRef = useRef<string | null>(null);
+  const lastFocusBeforeModalRef = useRef<string | null>(null);
   const lastListAreaRef = useRef<'versions' | 'loaders'>('versions');
   const pendingLoaderFocusRef = useRef(false);
 
-  const openModal = useCallback(() => setIsOpen(true), []);
-
-  const closeModal = useCallback(() => {
-    if (!isGlobalSaving) setIsOpen(false);
-  }, [isGlobalSaving]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    setGameVersion(currentGameVersionValue);
-    setLoaderType(normalizedCurrentLoader);
-    setLoaderVersion(normalizedCurrentLoaderVersion);
-    setErrorText('');
-  }, [isOpen, currentGameVersionValue, normalizedCurrentLoader, normalizedCurrentLoaderVersion]);
+  const filteredVersionGroups = useMemo(
+    () => getFilteredEnvironmentVersionGroups(versionGroups, versionType),
+    [versionGroups, versionType],
+  );
 
   const fetchVersions = useCallback(async (force = false) => {
     try {
@@ -122,11 +114,64 @@ export const useEnvironmentSection = ({
     window.setTimeout(tryFocus, 0);
   }, []);
 
+  const focusVersionList = useCallback((groups = filteredVersionGroups) => {
+    lastListAreaRef.current = 'versions';
+    focusWhenAvailable(() => getFirstVersionFocusKey(groups));
+  }, [filteredVersionGroups, focusWhenAvailable]);
+
+  const focusLoaderList = useCallback((
+    targetLoaderType = loaderType,
+    versions = loaderVersions,
+  ) => {
+    lastListAreaRef.current = 'loaders';
+    focusWhenAvailable(() => getFirstLoaderFocusKey(targetLoaderType, versions));
+  }, [focusWhenAvailable, loaderType, loaderVersions]);
+
+  const openModal = useCallback(() => {
+    const currentFocus = getCurrentFocusKey();
+    if (currentFocus && currentFocus !== 'SN:ROOT') {
+      lastFocusBeforeModalRef.current = currentFocus;
+    }
+    setIsOpen(true);
+  }, []);
+
+  const closeModal = useCallback(() => {
+    if (!isGlobalSaving) {
+      setIsOpen(false);
+      setTimeout(() => {
+        const candidates = [
+          lastFocusBeforeModalRef.current,
+          'basic-btn-edit-environment'
+        ];
+        const nextFocus = candidates.find((focusKey): focusKey is string => typeof focusKey === 'string' && doesFocusableExist(focusKey));
+        if (nextFocus) {
+          setFocus(nextFocus);
+        }
+      }, 100);
+    }
+  }, [isGlobalSaving]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setGameVersion(currentGameVersionValue);
+    setLoaderType(normalizedCurrentLoader);
+    setLoaderVersion(normalizedCurrentLoaderVersion);
+    setErrorText('');
+
+    if (versionGroups.length > 0) {
+      focusVersionList(getFilteredEnvironmentVersionGroups(versionGroups, versionType));
+    }
+  }, [isOpen, currentGameVersionValue, normalizedCurrentLoader, normalizedCurrentLoaderVersion, versionGroups, versionType, focusVersionList]);
+
   useEffect(() => {
     if (isOpen && versionGroups.length === 0) {
-      void fetchVersions(false);
+      void fetchVersions(false).then((data) => {
+        if (data) {
+          focusVersionList(getFilteredEnvironmentVersionGroups(data, versionType));
+        }
+      });
     }
-  }, [fetchVersions, isOpen, versionGroups.length]);
+  }, [fetchVersions, isOpen, versionGroups.length, versionType, focusVersionList]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -190,11 +235,6 @@ export const useEnvironmentSection = ({
     };
   }, [focusWhenAvailable, isOpen, loaderType, gameVersion, normalizedCurrentLoader, normalizedCurrentLoaderVersion, t]);
 
-  const filteredVersionGroups = useMemo(
-    () => getFilteredEnvironmentVersionGroups(versionGroups, versionType),
-    [versionGroups, versionType],
-  );
-
   const targetLoaderVersion = getTargetLoaderVersion(loaderType, loaderVersion);
   const environmentChanged = hasEnvironmentChanged({
     gameVersion,
@@ -220,19 +260,6 @@ export const useEnvironmentSection = ({
     setLoaderType(type);
     if (type === 'Vanilla') setLoaderVersion('Vanilla');
   }, []);
-
-  const focusVersionList = useCallback((groups = filteredVersionGroups) => {
-    lastListAreaRef.current = 'versions';
-    focusWhenAvailable(() => getFirstVersionFocusKey(groups));
-  }, [filteredVersionGroups, focusWhenAvailable]);
-
-  const focusLoaderList = useCallback((
-    targetLoaderType = loaderType,
-    versions = loaderVersions,
-  ) => {
-    lastListAreaRef.current = 'loaders';
-    focusWhenAvailable(() => getFirstLoaderFocusKey(targetLoaderType, versions));
-  }, [focusWhenAvailable, loaderType, loaderVersions]);
 
   useEffect(() => {
     if (!isOpen || isLoadingLoaders || !pendingLoaderFocusRef.current) return;
@@ -310,6 +337,11 @@ export const useEnvironmentSection = ({
     if (isOpen && !isLoadingVersions) void handleRefreshVersions(true);
   });
   useInputAction('ACTION_Y', toggleFooterFocus);
+  useInputAction('CANCEL', () => {
+    if (isOpen) {
+      closeModal();
+    }
+  });
 
   const handleApply = useCallback(async () => {
     if (!canApply) return;

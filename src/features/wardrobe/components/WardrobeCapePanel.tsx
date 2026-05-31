@@ -33,6 +33,7 @@ const CapeCardItem = React.memo(({
   onOpenCapeMenu,
   onPreview,
 }: CapeCardItemProps) => {
+  const { t } = useTranslation();
   const isComponentFocusedRef = React.useRef(false);
 
   useInputAction('ACTION_Y', () => {
@@ -61,7 +62,7 @@ const CapeCardItem = React.memo(({
             onClick={() => onOpenCapeMenu(cape)}
             onContextMenu={handleContextMenu}
           >
-            {isActive && <span className="wardrobe-card-active-badge">ACTIVE</span>}
+            {isActive && <span className="wardrobe-card-active-badge">{t('wardrobe.activeBadge')}</span>}
             <span className="wardrobe-cape-card__art">
               <WardrobeCapeCardPreview
                 capeUrl={cape.url}

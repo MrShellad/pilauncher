@@ -77,7 +77,7 @@ const Home: React.FC = () => {
           onClick={() => setActiveTab('wardrobe')}
           autoScroll={false}
         >
-          更衣室
+          {t('home.wardrobe')}
         </OreButton>
       </div>
 

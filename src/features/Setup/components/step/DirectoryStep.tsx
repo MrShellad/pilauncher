@@ -21,7 +21,12 @@ export const DirectoryStep: React.FC<DirectoryStepProps> = ({ basePath, setBaseP
 
   const languageOptions = [
     { label: '简体中文', value: 'zh-CN' },
+    { label: '繁體中文 (香港)', value: 'zh-HK' },
+    { label: '繁體中文 (台灣)', value: 'zh-TW' },
     { label: 'English', value: 'en-US' },
+    { label: '日本語', value: 'ja' },
+    { label: '한국어', value: 'ko' },
+    { label: 'Русский', value: 'ru' },
   ];
 
   return (

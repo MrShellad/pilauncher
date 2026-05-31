@@ -7,6 +7,7 @@ import { OreAccordion } from '../../../../../../ui/primitives/OreAccordion';
 import { OreButton } from '../../../../../../ui/primitives/OreButton';
 import { OreModal } from '../../../../../../ui/primitives/OreModal';
 import { OreToggleButton, type ToggleOption } from '../../../../../../ui/primitives/OreToggleButton';
+import { OreOverlayScrollArea } from '../../../../../../ui/primitives/OreOverlayScrollArea';
 import { GamepadActionHint } from '../../../../../../ui/components/GamepadButtonIcon';
 import { FocusItem } from '../../../../../../ui/focus/FocusItem';
 import { SettingsSection } from '../../../../../../ui/layout/SettingsSection';
@@ -82,7 +83,7 @@ export const EnvironmentSection: React.FC<EnvironmentSectionProps> = ({
         <span className="flex items-center justify-center gap-2">
           <img
             src={LOADER_ICON_MAP[type]}
-            className={`h-4 w-4 object-contain ${loaderType === type ? 'brightness-0' : 'brightness-0 invert'}`}
+            className={`h-4 w-4 object-contain ${loaderType === type ? 'brightness-0 invert' : 'brightness-0'}`}
             alt=""
           />
           <span>{type}</span>
@@ -204,52 +205,54 @@ export const EnvironmentSection: React.FC<EnvironmentSectionProps> = ({
               buttonClassName="text-xs"
             />
 
-            <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar pr-1">
-              {isLoadingVersions ? (
-                <div className="flex h-40 items-center justify-center text-ore-text-muted">
-                  <Loader2 size="1.125rem" className="mr-2 animate-spin" />
-                  {t('instanceDetail.basic.env.loadingVersions', '正在加载版本列表...')}
-                </div>
-              ) : (
-                <div className="space-y-3 pb-4">
-                  {filteredVersionGroups.map((group, groupIndex) => (
-                    <OreAccordion key={group.group_name} title={group.group_name} defaultExpanded={groupIndex === 0}>
-                      <div className="grid grid-cols-[repeat(auto-fill,minmax(8.75rem,1fr))] gap-2 p-2">
-                        {group.versions.map((version) => (
-                          <FocusItem
-                            key={version.id}
-                            focusKey={`basic-env-version-${version.id}`}
-                            onEnter={() => setGameVersion(version.id)}
-                          >
-                            {({ ref, focused }) => (
-                              <motion.div
-                                ref={ref as React.RefObject<HTMLDivElement>}
-                                whileHover={OreMotionTokens.buttonHover}
-                                whileTap={OreMotionTokens.buttonTap}
-                                onClick={() => setGameVersion(version.id)}
-                                className={`relative cursor-pointer border-2 p-3 outline-none ${
-                                  gameVersion === version.id
-                                    ? 'border-ore-green bg-ore-green/20'
-                                    : 'border-ore-gray-border bg-[#1E1E1F] hover:border-white/60'
-                                } ${
-                                  focused
-                                    ? 'z-20 outline outline-[0.1875rem] outline-ore-focus outline-offset-[0.125rem] drop-shadow-ore-glow brightness-110'
-                                    : ''
-                                }`}
-                              >
-                                {gameVersion === version.id && <Check size="0.875rem" className="absolute right-2 top-2 text-ore-green" />}
-                                <div className="truncate pr-5 text-sm font-bold text-white">{version.id}</div>
-                                <div className="mt-2 truncate text-[0.625rem] text-ore-text-muted">{version.release_time}</div>
-                              </motion.div>
-                            )}
-                          </FocusItem>
-                        ))}
-                      </div>
-                    </OreAccordion>
-                  ))}
-                </div>
-              )}
-            </div>
+            {isLoadingVersions ? (
+              <div className="flex h-40 flex-1 items-center justify-center text-ore-text-muted">
+                <Loader2 size="1.125rem" className="mr-2 animate-spin" />
+                {t('instanceDetail.basic.env.loadingVersions', '正在加载版本列表...')}
+              </div>
+            ) : (
+              <OreOverlayScrollArea
+                className="min-h-0 flex-1 -mx-2"
+                contentClassName="space-y-3 pl-2 pt-2 pb-4"
+                contentSafePaddingRight={8}
+              >
+                {filteredVersionGroups.map((group, groupIndex) => (
+                  <OreAccordion key={group.group_name} title={group.group_name} defaultExpanded={groupIndex === 0}>
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(8.75rem,1fr))] gap-2 p-2">
+                      {group.versions.map((version) => (
+                        <FocusItem
+                          key={version.id}
+                          focusKey={`basic-env-version-${version.id}`}
+                          onEnter={() => setGameVersion(version.id)}
+                        >
+                          {({ ref, focused }) => (
+                            <motion.div
+                              ref={ref as React.RefObject<HTMLDivElement>}
+                              whileHover={OreMotionTokens.buttonHover}
+                              whileTap={OreMotionTokens.buttonTap}
+                              onClick={() => setGameVersion(version.id)}
+                              className={`relative cursor-pointer border-2 p-3 outline-none ${
+                                gameVersion === version.id
+                                  ? 'border-ore-green bg-ore-green/20'
+                                  : 'border-ore-gray-border bg-[#1E1E1F] hover:border-white/60'
+                              } ${
+                                focused
+                                  ? 'z-20 outline outline-[0.1875rem] outline-ore-focus outline-offset-[0.125rem] drop-shadow-ore-glow brightness-110'
+                                  : ''
+                              }`}
+                            >
+                              {gameVersion === version.id && <Check size="0.875rem" className="absolute right-2 top-2 text-ore-green" />}
+                              <div className="truncate pr-5 text-sm font-bold text-white">{version.id}</div>
+                              <div className="mt-2 truncate text-[0.625rem] text-ore-text-muted">{version.release_time}</div>
+                            </motion.div>
+                          )}
+                        </FocusItem>
+                      ))}
+                    </div>
+                  </OreAccordion>
+                ))}
+              </OreOverlayScrollArea>
+            )}
           </div>
 
           <div className="flex min-h-0 flex-col p-5">
@@ -279,65 +282,71 @@ export const EnvironmentSection: React.FC<EnvironmentSectionProps> = ({
               buttonClassName="text-xs"
             />
 
-            <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar">
-              {loaderType === 'Vanilla' ? (
-                <FocusItem focusKey="basic-env-loader-vanilla-card">
-                  {({ ref, focused }) => (
-                    <div
-                      ref={ref as React.RefObject<HTMLDivElement>}
-                      className={`flex h-48 flex-col items-center justify-center border-2 border-dashed text-ore-text-muted outline-none ${
-                        focused
-                          ? 'border-ore-focus outline outline-[0.1875rem] outline-ore-focus outline-offset-[0.125rem] drop-shadow-ore-glow brightness-110'
-                          : 'border-ore-gray-border'
-                      }`}
-                    >
-                      <img src={vanillaIcon} className="mb-3 h-12 w-12 object-contain opacity-50 invert-[.3]" alt="Vanilla" />
-                      <span className="text-lg text-white">{t('instanceDetail.basic.env.vanillaEnv', '原版环境')}</span>
-                    </div>
-                  )}
-                </FocusItem>
-              ) : isLoadingLoaders ? (
-                <div className="flex h-40 items-center justify-center text-ore-text-muted">
-                  <Loader2 size="1.125rem" className="mr-2 animate-spin" />
-                  {t('instanceDetail.basic.env.findingCompatible', '正在查找兼容版本...')}
-                </div>
-              ) : loaderVersions.length === 0 ? (
-                <div className="flex h-40 items-center justify-center border-2 border-dashed border-ore-gray-border px-4 text-center text-ore-text-muted">
-                  {t('instanceDetail.basic.env.noCompatibleLoader', '没有找到兼容 {{mcVersion}} 的 {{loaderType}} 版本', { mcVersion: gameVersion || t('instanceDetail.basic.env.currentMc', '当前 Minecraft'), loaderType })}
-                </div>
-              ) : (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-2 pb-4">
-                  {loaderVersions.map((version) => (
-                    <FocusItem
-                      key={version}
-                      focusKey={`basic-env-loader-${version}`}
-                      onEnter={() => setLoaderVersion(version)}
-                    >
-                      {({ ref, focused }) => (
-                        <motion.div
-                          ref={ref as React.RefObject<HTMLDivElement>}
-                          whileHover={OreMotionTokens.buttonHover}
-                          whileTap={OreMotionTokens.buttonTap}
-                          onClick={() => setLoaderVersion(version)}
-                          className={`cursor-pointer border-2 p-3 outline-none ${
-                            loaderVersion === version
-                              ? 'border-ore-green bg-ore-green/20'
-                              : 'border-ore-gray-border bg-[#1E1E1F] hover:border-white/60'
-                          } ${
-                            focused
-                              ? 'z-20 outline outline-[0.1875rem] outline-ore-focus outline-offset-[0.125rem] drop-shadow-ore-glow brightness-110'
-                              : ''
-                          }`}
-                        >
-                          <div className="truncate text-sm font-bold text-white">{version}</div>
-                          <div className="mt-2 truncate text-[0.625rem] text-ore-text-muted">{gameVersion}</div>
-                        </motion.div>
-                      )}
-                    </FocusItem>
-                  ))}
-                </div>
-              )}
-            </div>
+            {isLoadingLoaders ? (
+              <div className="flex h-40 flex-1 items-center justify-center text-ore-text-muted">
+                <Loader2 size="1.125rem" className="mr-2 animate-spin" />
+                {t('instanceDetail.basic.env.findingCompatible', '正在查找兼容版本...')}
+              </div>
+            ) : (
+              <OreOverlayScrollArea
+                className="min-h-0 flex-1 -mx-2"
+                contentClassName="pl-2 pt-2 pb-4"
+                contentSafePaddingRight={8}
+              >
+                {loaderType === 'Vanilla' ? (
+                  <FocusItem focusKey="basic-env-loader-vanilla-card">
+                    {({ ref, focused }) => (
+                      <div
+                        ref={ref as React.RefObject<HTMLDivElement>}
+                        className={`flex h-48 flex-col items-center justify-center border-2 border-dashed text-ore-text-muted outline-none ${
+                          focused
+                            ? 'border-ore-focus outline outline-[0.1875rem] outline-ore-focus outline-offset-[0.125rem] drop-shadow-ore-glow brightness-110'
+                            : 'border-ore-gray-border'
+                        }`}
+                      >
+                        <img src={vanillaIcon} className="mb-3 h-12 w-12 object-contain opacity-50 invert-[.3]" alt="Vanilla" />
+                        <span className="text-lg text-white">{t('instanceDetail.basic.env.vanillaEnv', '原版环境')}</span>
+                      </div>
+                    )}
+                  </FocusItem>
+                ) : loaderVersions.length === 0 ? (
+                  <div className="flex h-40 items-center justify-center border-2 border-dashed border-ore-gray-border px-4 text-center text-ore-text-muted">
+                    {t('instanceDetail.basic.env.noCompatibleLoader', '没有找到兼容 {{mcVersion}} 的 {{loaderType}} 版本', { mcVersion: gameVersion || t('instanceDetail.basic.env.currentMc', '当前 Minecraft'), loaderType })}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-2 pb-4">
+                    {loaderVersions.map((version) => (
+                      <FocusItem
+                        key={version}
+                        focusKey={`basic-env-loader-${version}`}
+                        onEnter={() => setLoaderVersion(version)}
+                      >
+                        {({ ref, focused }) => (
+                          <motion.div
+                            ref={ref as React.RefObject<HTMLDivElement>}
+                            whileHover={OreMotionTokens.buttonHover}
+                            whileTap={OreMotionTokens.buttonTap}
+                            onClick={() => setLoaderVersion(version)}
+                            className={`cursor-pointer border-2 p-3 outline-none ${
+                              loaderVersion === version
+                                ? 'border-ore-green bg-ore-green/20'
+                                : 'border-ore-gray-border bg-[#1E1E1F] hover:border-white/60'
+                            } ${
+                              focused
+                                ? 'z-20 outline outline-[0.1875rem] outline-ore-focus outline-offset-[0.125rem] drop-shadow-ore-glow brightness-110'
+                                : ''
+                            }`}
+                          >
+                            <div className="truncate text-sm font-bold text-white">{version}</div>
+                            <div className="mt-2 truncate text-[0.625rem] text-ore-text-muted">{gameVersion}</div>
+                          </motion.div>
+                        )}
+                      </FocusItem>
+                    ))}
+                  </div>
+                )}
+              </OreOverlayScrollArea>
+            )}
           </div>
         </div>
 

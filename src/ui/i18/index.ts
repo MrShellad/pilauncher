@@ -5,6 +5,11 @@ import { initReactI18next } from 'react-i18next';
 // 引入你刚才创建的 JSON 翻译文件
 import zhCN from './zh-CN.json';
 import enUS from './en-US.json';
+import zhTW from './zh-TW.json';
+import zhHK from './zh-HK.json';
+import ja from './ja.json';
+import ko from './ko.json';
+import ru from './ru.json';
 
 // 组装资源对象
 const resources = {
@@ -13,6 +18,21 @@ const resources = {
   },
   'en-US': {
     translation: enUS,
+  },
+  'zh-TW': {
+    translation: zhTW,
+  },
+  'zh-HK': {
+    translation: zhHK,
+  },
+  'ja': {
+    translation: ja,
+  },
+  'ko': {
+    translation: ko,
+  },
+  'ru': {
+    translation: ru,
   },
 };
 

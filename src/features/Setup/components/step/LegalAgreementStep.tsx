@@ -17,7 +17,7 @@ export const LegalAgreementStep: React.FC<LegalAgreementStepProps> = ({ onAgree 
   const isUpdate = lastAgreedDate !== '' && lastAgreedDate !== CURRENT_EULA_DATE;
 
   const EulaComponent = useMemo(() => {
-    return i18n.language === 'zh-CN' ? EulaZh : EulaEn;
+    return ['zh-CN', 'zh-TW', 'zh-HK'].includes(i18n.language) ? EulaZh : EulaEn;
   }, [i18n.language]);
 
   return (
