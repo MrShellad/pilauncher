@@ -129,7 +129,7 @@ export const JavaPanel: React.FC<JavaPanelProps> = ({
   }
 
   return (
-    <SettingsPageLayout>
+    <SettingsPageLayout width="wide">
       <div className="relative flex flex-col w-full h-full overflow-x-hidden">
         <FocusItem focusKey="java-guard-top" onFocus={() => setFocus('java-entry-point')}>
           {({ ref }) => (

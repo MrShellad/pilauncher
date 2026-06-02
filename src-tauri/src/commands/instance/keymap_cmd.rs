@@ -154,6 +154,146 @@ pub async fn initialize_default_keybindings<R: Runtime>(
     Ok(())
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyboardLocalizationMetadata {
+    pub authors: Vec<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub version: String,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyboardLocalization {
+    pub metadata: KeyboardLocalizationMetadata,
+    pub keys: std::collections::HashMap<String, String>,
+    pub actions: std::collections::HashMap<String, String>,
+}
+
+#[tauri::command]
+pub async fn get_keyboard_localization<R: Runtime>(
+    app: AppHandle<R>,
+    lang: String,
+) -> Result<KeyboardLocalization, String> {
+    let base_path_str = match crate::services::config_service::ConfigService::get_base_path(&app) {
+        Ok(Some(p)) => p,
+        _ => return Err("未配置基础目录".to_string()),
+    };
+
+    let i18n_dir = PathBuf::from(base_path_str)
+        .join("config")
+        .join("keyboard")
+        .join("i18");
+
+    if !i18n_dir.exists() {
+        fs::create_dir_all(&i18n_dir).map_err(|e| format!("创建 i18 目录失败: {}", e))?;
+    }
+
+    let file_path = i18n_dir.join(format!("{}.json", lang));
+
+    if !file_path.exists() {
+        if lang == "zh-CN" {
+            // Generate default zh-CN
+            let default_loc = get_default_zh_cn_localization();
+            let json_str = serde_json::to_string_pretty(&default_loc)
+                .map_err(|e| format!("序列化默认翻译失败: {}", e))?;
+            fs::write(&file_path, json_str).map_err(|e| format!("写入默认翻译文件失败: {}", e))?;
+            return Ok(default_loc);
+        } else {
+            // Check if zh-CN exists or try to generate it, then fall back to it
+            let zh_cn_path = i18n_dir.join("zh-CN.json");
+            if !zh_cn_path.exists() {
+                let default_loc = get_default_zh_cn_localization();
+                if let Ok(json_str) = serde_json::to_string_pretty(&default_loc) {
+                    let _ = fs::write(&zh_cn_path, json_str);
+                }
+            }
+            // Read zh-CN as fallback
+            let content = fs::read_to_string(&zh_cn_path)
+                .map_err(|e| format!("读取默认翻译文件失败: {}", e))?;
+            let loc: KeyboardLocalization = serde_json::from_str(&content)
+                .map_err(|e| format!("解析默认翻译文件失败: {}", e))?;
+            return Ok(loc);
+        }
+    }
+
+    let content = fs::read_to_string(&file_path)
+        .map_err(|e| format!("读取翻译文件失败: {}", e))?;
+    let loc: KeyboardLocalization = serde_json::from_str(&content)
+        .map_err(|e| format!("解析翻译文件失败: {}", e))?;
+
+    Ok(loc)
+}
+
+fn get_default_zh_cn_localization() -> KeyboardLocalization {
+    let mut keys = std::collections::HashMap::new();
+    keys.insert("key.mouse.left".to_string(), "鼠标左键".to_string());
+    keys.insert("key.mouse.right".to_string(), "鼠标右键".to_string());
+    keys.insert("key.mouse.middle".to_string(), "鼠标中键".to_string());
+    keys.insert("key.keyboard.space".to_string(), "空格键".to_string());
+    keys.insert("key.keyboard.left.shift".to_string(), "左 Shift".to_string());
+    keys.insert("key.keyboard.right.shift".to_string(), "右 Shift".to_string());
+    keys.insert("key.keyboard.left.control".to_string(), "左 Ctrl".to_string());
+    keys.insert("key.keyboard.right.control".to_string(), "右 Ctrl".to_string());
+    keys.insert("key.keyboard.left.alt".to_string(), "左 Alt".to_string());
+    keys.insert("key.keyboard.right.alt".to_string(), "右 Alt".to_string());
+    keys.insert("key.keyboard.escape".to_string(), "Esc".to_string());
+    keys.insert("key.keyboard.enter".to_string(), "回车键".to_string());
+    keys.insert("key.keyboard.tab".to_string(), "Tab 键".to_string());
+    keys.insert("key.keyboard.backspace".to_string(), "退格键".to_string());
+    keys.insert("key.keyboard.caps.lock".to_string(), "大写锁定".to_string());
+    keys.insert("key.keyboard.num.lock".to_string(), "数字锁定".to_string());
+    keys.insert("key.keyboard.scroll.lock".to_string(), "滚动锁定".to_string());
+    keys.insert("key.keyboard.up".to_string(), "方向键上".to_string());
+    keys.insert("key.keyboard.down".to_string(), "方向键下".to_string());
+    keys.insert("key.keyboard.left".to_string(), "方向键左".to_string());
+    keys.insert("key.keyboard.right".to_string(), "方向键右".to_string());
+
+    let mut actions = std::collections::HashMap::new();
+    actions.insert("key.forward".to_string(), "向前移动".to_string());
+    actions.insert("key.left".to_string(), "向左移动".to_string());
+    actions.insert("key.back".to_string(), "向后移动".to_string());
+    actions.insert("key.right".to_string(), "向右移动".to_string());
+    actions.insert("key.jump".to_string(), "跳跃".to_string());
+    actions.insert("key.sneak".to_string(), "潜行".to_string());
+    actions.insert("key.sprint".to_string(), "疾跑".to_string());
+    actions.insert("key.drop".to_string(), "丢弃物品".to_string());
+    actions.insert("key.inventory".to_string(), "打开/关闭背包".to_string());
+    actions.insert("key.chat".to_string(), "打开聊天栏".to_string());
+    actions.insert("key.playerlist".to_string(), "显示玩家列表".to_string());
+    actions.insert("key.screenshot".to_string(), "截图".to_string());
+    actions.insert("key.togglePerspective".to_string(), "切换视角".to_string());
+    actions.insert("key.smoothCamera".to_string(), "电影级摄像机".to_string());
+    actions.insert("key.swapHands".to_string(), "副手物品交换".to_string());
+    actions.insert("key.use".to_string(), "使用物品/放置方块".to_string());
+    actions.insert("key.attack".to_string(), "攻击/毁坏".to_string());
+    actions.insert("key.pickItem".to_string(), "选取方块".to_string());
+    actions.insert("key.fullscreen".to_string(), "切换全屏".to_string());
+    actions.insert("key.spectatorOutlines".to_string(), "高亮显示玩家 (旁观)".to_string());
+    
+    for i in 1..=9 {
+        actions.insert(format!("key.hotbar.{}", i), format!("快捷栏第{}格", i));
+    }
+    
+    actions.insert("key.saveToolbarActivator".to_string(), "保存快捷栏激活键".to_string());
+    actions.insert("key.loadToolbarActivator".to_string(), "加载快捷栏激活键".to_string());
+    actions.insert("key.advancements".to_string(), "打开进度界面".to_string());
+    actions.insert("key.command".to_string(), "打开命令栏".to_string());
+    actions.insert("key.socialInteractions".to_string(), "多人联机社交交互".to_string());
+
+    KeyboardLocalization {
+        metadata: KeyboardLocalizationMetadata {
+            authors: vec!["Antigravity".to_string(), "MrShellad".to_string()],
+            created_at: "2026-06-03".to_string(),
+            updated_at: "2026-06-03".to_string(),
+            version: "1.0.0".to_string(),
+        },
+        keys,
+        actions,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -168,6 +308,15 @@ mod tests {
                 .unwrap_or_default()
                 .as_nanos()
         ))
+    }
+
+    #[test]
+    fn test_get_default_zh_cn_localization() {
+        let loc = get_default_zh_cn_localization();
+        assert_eq!(loc.metadata.version, "1.0.0");
+        assert!(loc.metadata.authors.contains(&"Antigravity".to_string()));
+        assert_eq!(loc.keys.get("key.keyboard.space").unwrap(), "空格键");
+        assert_eq!(loc.actions.get("key.forward").unwrap(), "向前移动");
     }
 
     #[test]

@@ -91,6 +91,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         instance::keymap_cmd::get_instance_keybindings,
         instance::keymap_cmd::save_instance_keybindings,
         instance::keymap_cmd::initialize_default_keybindings,
+        instance::keymap_cmd::get_keyboard_localization,
         instance::mod_cmd::get_instance_mods,
         instance::mod_cmd::get_instance_mod_manifest_cache,
         instance::snapshot_cmd::take_snapshot,
