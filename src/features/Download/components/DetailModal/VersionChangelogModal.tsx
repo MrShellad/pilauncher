@@ -422,11 +422,11 @@ export const VersionChangelogModal: React.FC<VersionChangelogModalProps> = ({
         <div className="flex flex-col gap-[0.875rem]">
           {/* Metadata Area */}
           <div
-            className="border-[0.125rem] border-[#1E1E1F] bg-[#D0D1D4] px-[0.875rem] py-[0.75rem]"
-            style={{ boxShadow: 'inset 0 -0.25rem 0 #8C8D90, inset 0.125rem 0.125rem 0 rgba(255,255,255,0.72)' }}
+            className="border-[0.125rem] border-[#1E1E1F] bg-[var(--ore-downloadDetail-rowBg)] px-[0.875rem] py-[0.75rem]"
+            style={{ boxShadow: 'var(--ore-downloadDetail-rowShadow)' }}
           >
-            <div className="font-minecraft text-[1rem] font-bold leading-[1.35] text-[#111214]">{version.name}</div>
-            <div className="mt-[0.375rem] flex flex-wrap items-center gap-x-[0.75rem] gap-y-[0.375rem] font-minecraft text-[0.625rem] uppercase tracking-[0.08em] text-[#313233]">
+            <div className="font-minecraft text-[1rem] font-bold leading-[1.35] text-[var(--ore-downloadDetail-rowText)]">{version.name}</div>
+            <div className="mt-[0.375rem] flex flex-wrap items-center gap-x-[0.75rem] gap-y-[0.375rem] font-minecraft text-[0.625rem] uppercase tracking-[0.08em] text-[var(--ore-downloadDetail-rowMutedText)]">
               <span>{version.version_number}</span>
               <span>{formatDate(version.date_published)}</span>
               <span>{version.loaders.join(', ') || t('download.loader.universal', { defaultValue: 'Universal' })}</span>

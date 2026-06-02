@@ -97,6 +97,19 @@ html, body {
     --ore-library-resourceCard-shadowUninstalled: #2E2E2E;
     --ore-library-resourceCard-infoChipBg: #9EB5E6;
     --ore-library-resourceCard-infoChipDepth: #6C83B3;
+
+    /* downloadDetail Dark Mode Overrides */
+    --ore-downloadDetail-rowBg: #494949;
+    --ore-downloadDetail-rowShadow: inset 0 -4px 0 #2E2E2E, inset 2px 2px 0 rgba(255, 255, 255, 0.08);
+    --ore-downloadDetail-rowText: #F2F2F2;
+    --ore-downloadDetail-rowMutedText: #C6C8CB;
+    --ore-downloadDetail-loaderMeta: #D7CF9A;
+    --ore-downloadDetail-versionMeta: #8FED6B;
+    --ore-downloadDetail-installedBg: rgba(108, 195, 73, 0.24);
+    --ore-downloadDetail-installedShadow: inset 0 -4px 0 #3C8527, inset 2px 2px 0 rgba(255, 255, 255, 0.12);
+    --ore-downloadDetail-idleAccent: #1E1E1F;
+    --ore-downloadDetail-installedAccent: #3C8527;
+    --ore-downloadDetail-chipShadow: inset 0 -2px 0 #2E2E2E;
   }
 }
 
@@ -122,5 +135,18 @@ html, body {
   --ore-library-resourceCard-shadowUninstalled: #2E2E2E;
   --ore-library-resourceCard-infoChipBg: #9EB5E6;
   --ore-library-resourceCard-infoChipDepth: #6C83B3;
+
+  /* downloadDetail Dark Mode Overrides */
+  --ore-downloadDetail-rowBg: #494949;
+  --ore-downloadDetail-rowShadow: inset 0 -4px 0 #2E2E2E, inset 2px 2px 0 rgba(255, 255, 255, 0.08);
+  --ore-downloadDetail-rowText: #F2F2F2;
+  --ore-downloadDetail-rowMutedText: #C6C8CB;
+  --ore-downloadDetail-loaderMeta: #D7CF9A;
+  --ore-downloadDetail-versionMeta: #8FED6B;
+  --ore-downloadDetail-installedBg: rgba(108, 195, 73, 0.24);
+  --ore-downloadDetail-installedShadow: inset 0 -4px 0 #3C8527, inset 2px 2px 0 rgba(255, 255, 255, 0.12);
+  --ore-downloadDetail-idleAccent: #1E1E1F;
+  --ore-downloadDetail-installedAccent: #3C8527;
+  --ore-downloadDetail-chipShadow: inset 0 -2px 0 #2E2E2E;
 }
 

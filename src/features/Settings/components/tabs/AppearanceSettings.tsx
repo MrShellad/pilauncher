@@ -190,6 +190,7 @@ export const AppearanceSettings: React.FC = () => {
   const focusOrder = useMemo(() => {
     const keys: string[] = ['settings-appearance-theme'];
 
+    // --- 1. 静态背景 Section ---
     if (appearance.backgroundImage) {
       keys.push('btn-bg-change', 'btn-bg-remove');
     } else {
@@ -197,7 +198,11 @@ export const AppearanceSettings: React.FC = () => {
     }
 
     keys.push('settings-appearance-blur');
+    PREDEFINED_COLORS.forEach((_, idx) => keys.push(`color-preset-${idx}`));
+    keys.push('color-custom');
+    keys.push('settings-appearance-opacity');
 
+    // --- 2. 动态背景 Section ---
     if (hasMicrosoftAccount) {
       keys.push('settings-appearance-panorama-enabled');
       if (panoramaSets.length > 0) keys.push('settings-appearance-panorama-set');
@@ -205,16 +210,22 @@ export const AppearanceSettings: React.FC = () => {
       keys.push('settings-appearance-panorama-speed');
       keys.push('settings-appearance-panorama-direction');
     }
-    if (appearance.customLogo) {
-      keys.push('settings-appearance-logo-scale');
+
+    // --- 3. 自定义 Logo Section ---
+    if (isDonor) {
+      if (appearance.customLogo) {
+        keys.push('btn-logo-change', 'btn-logo-remove');
+        keys.push('settings-appearance-logo-scale');
+      } else {
+        keys.push('btn-logo-add');
+      }
     }
 
-    PREDEFINED_COLORS.forEach((_, idx) => keys.push(`color-preset-${idx}`));
-    keys.push('color-custom');
-    keys.push('settings-appearance-opacity');
+    // --- 4. 排版与个性化 Section ---
     keys.push('settings-appearance-font');
     keys.push('settings-appearance-gradient');
 
+    // --- 5. 导航与行为 Section ---
     keys.push(
       'settings-appearance-nav-instances',
       'settings-appearance-nav-multiplayer',
@@ -224,7 +235,7 @@ export const AppearanceSettings: React.FC = () => {
     );
 
     return keys;
-  }, [appearance.backgroundImage, hasMicrosoftAccount, panoramaSets.length]);
+  }, [appearance.backgroundImage, appearance.customLogo, hasMicrosoftAccount, panoramaSets.length, isDonor]);
 
   const { handleLinearArrow } = useLinearNavigation(focusOrder);
 
@@ -236,14 +247,16 @@ export const AppearanceSettings: React.FC = () => {
           label={t('settings.appearance.theme', '界面主题')}
           description={t('settings.appearance.themeDesc', '切换启动器在浅色模式、深色模式或跟随系统默认主题之间的显示效果。')}
           control={
-            <OreDropdown
-              focusKey="settings-appearance-theme"
-              onArrowPress={handleLinearArrow}
-              options={themeOptions}
-              value={appearance.theme || 'system'}
-              onChange={(val) => updateAppearanceSetting('theme', val as any)}
-              className="w-56 shrink-0"
-            />
+            <div className="relative focus-within:z-50 w-[240px]">
+              <OreDropdown
+                focusKey="settings-appearance-theme"
+                onArrowPress={handleLinearArrow}
+                options={themeOptions}
+                value={appearance.theme || 'system'}
+                onChange={(val) => updateAppearanceSetting('theme', val as any)}
+                className="w-full"
+              />
+            </div>
           }
         />
         <div className="p-6">
@@ -553,17 +566,56 @@ export const AppearanceSettings: React.FC = () => {
                     style={{ transform: `scale(${(appearance.customLogoScale ?? 100) / 100})` }}
                   />
                   <div className="absolute inset-0 z-10 flex items-center justify-center gap-4 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-                    <OreButton variant="secondary" size="sm" onClick={handleSelectCustomLogo}>更换 Logo</OreButton>
-                    <OreButton variant="danger" size="sm" onClick={handleRemoveCustomLogo}>移除 Logo</OreButton>
+                    <OreButton
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleSelectCustomLogo}
+                      focusKey="btn-logo-change"
+                      onArrowPress={handleLinearArrow}
+                    >
+                      更换 Logo
+                    </OreButton>
+                    <OreButton
+                      variant="danger"
+                      size="sm"
+                      onClick={handleRemoveCustomLogo}
+                      focusKey="btn-logo-remove"
+                      onArrowPress={handleLinearArrow}
+                    >
+                      移除 Logo
+                    </OreButton>
                   </div>
                 </>
               ) : (
-                <div onClick={handleSelectCustomLogo} className="flex h-full w-full cursor-pointer flex-col items-center justify-center outline-none transition-all hover:border-ore-green hover:bg-white/5">
-                  <div className="flex flex-col items-center opacity-60 transition-opacity group-hover:opacity-100">
-                    <ImageIcon size={32} className="mb-2" />
-                    <span className="font-minecraft text-sm">选择自定义 Logo</span>
-                  </div>
-                </div>
+                <FocusItem
+                  focusKey="btn-logo-add"
+                  onEnter={handleSelectCustomLogo}
+                  onArrowPress={handleLinearArrow}
+                >
+                  {({ ref, focused }) => (
+                    <div
+                      ref={ref as any}
+                      tabIndex={-1}
+                      onClick={handleSelectCustomLogo}
+                      className={`flex h-full w-full cursor-pointer flex-col items-center justify-center outline-none transition-all ${
+                        focused
+                          ? 'border-white bg-white/10 ring-2 ring-inset ring-white'
+                          : 'hover:border-ore-green hover:bg-white/5'
+                      }`}
+                    >
+                      <div
+                        className={`flex flex-col items-center transition-opacity ${
+                          focused
+                            ? 'text-white opacity-100'
+                            : 'text-ore-text-muted opacity-60 group-hover:opacity-100'
+                        }`}
+                      >
+                        <ImageIcon size={32} className="mb-2" />
+                        <span className="font-minecraft text-sm">选择自定义 Logo</span>
+                      </div>
+                    </div>
+                  )}
+                </FocusItem>
               )}
             </div>
           </div>
@@ -597,16 +649,18 @@ export const AppearanceSettings: React.FC = () => {
           control={
             <div className="flex items-center space-x-2">
               {isLoadingFonts && <Type size={16} className="animate-pulse text-ore-text-muted" />}
-              <OreDropdown
-                focusKey="settings-appearance-font"
-                onArrowPress={handleLinearArrow}
-                options={fontOptions}
-                value={appearance.fontFamily}
-                onChange={(val) => updateAppearanceSetting('fontFamily', val)}
-                disabled={isLoadingFonts}
-                searchable={true}
-                className="w-56 shrink-0"
-              />
+              <div className="relative focus-within:z-50 w-[240px]">
+                <OreDropdown
+                  focusKey="settings-appearance-font"
+                  onArrowPress={handleLinearArrow}
+                  options={fontOptions}
+                  value={appearance.fontFamily}
+                  onChange={(val) => updateAppearanceSetting('fontFamily', val)}
+                  disabled={isLoadingFonts}
+                  searchable={true}
+                  className="w-full"
+                />
+              </div>
             </div>
           }
         />

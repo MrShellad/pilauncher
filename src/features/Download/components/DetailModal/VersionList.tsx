@@ -24,6 +24,42 @@ interface VersionListProps {
 }
 
 
+const VersionRowSkeleton = () => {
+  return (
+    <div
+      className="group relative flex items-center justify-between gap-3 overflow-hidden border-[2px] border-[var(--ore-downloadDetail-divider)] px-4 py-3 bg-[var(--ore-downloadDetail-rowBg)]/50 animate-pulse"
+      style={{
+        boxShadow: 'var(--ore-downloadDetail-rowShadow)',
+      }}
+    >
+      <div className="absolute inset-y-0 left-0 w-2 bg-[var(--ore-downloadDetail-idleAccent)]/40" />
+
+      <div className="flex min-w-0 flex-1 flex-col pl-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Version name placeholder */}
+          <div className="h-[1.125rem] w-40 bg-[var(--ore-downloadDetail-rowText)]/20 rounded-sm" />
+          {/* Version number badge placeholder */}
+          <div className="h-[1.25rem] w-16 bg-[var(--ore-downloadDetail-rowText)]/15 border-[2px] border-[var(--ore-downloadDetail-divider)] rounded-sm" />
+        </div>
+
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+          {/* Date placeholder */}
+          <div className="h-[0.75rem] w-16 bg-[var(--ore-downloadDetail-rowMutedText)]/20 rounded-sm" />
+          {/* Loader placeholder */}
+          <div className="h-[0.75rem] w-12 bg-[var(--ore-downloadDetail-loaderMeta)]/20 rounded-sm" />
+          {/* Game version placeholder */}
+          <div className="h-[0.75rem] w-20 bg-[var(--ore-downloadDetail-versionMeta)]/20 rounded-sm" />
+        </div>
+      </div>
+
+      <div className="ml-2 flex-shrink-0">
+        {/* Button placeholder */}
+        <div className="h-10 w-[13.5rem] bg-[var(--ore-downloadDetail-rowText)]/10 border-[2px] border-[var(--ore-downloadDetail-divider)] rounded-sm" />
+      </div>
+    </div>
+  );
+};
+
 export const VersionList: React.FC<VersionListProps> = ({
   versions,
   isLoadingVersions,
@@ -76,11 +112,10 @@ export const VersionList: React.FC<VersionListProps> = ({
     <>
       <FocusBoundary id="download-modal-versions-list" className="flex min-h-full flex-col gap-2.5 p-3">
         {isLoadingVersions ? (
-          <div className="flex flex-col items-center justify-center py-16 text-ore-green">
-            <Loader2 className="mb-4 animate-spin" size={32} />
-            <span className="font-minecraft text-sm text-[var(--ore-downloadDetail-labelText)]">
-              {t('download.status.loadingVersions', { defaultValue: 'Syncing version list...' })}
-            </span>
+          <div className="flex flex-col gap-2.5">
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <VersionRowSkeleton key={idx} />
+            ))}
           </div>
         ) : versions.length === 0 ? (
           <div
@@ -132,13 +167,13 @@ export const VersionList: React.FC<VersionListProps> = ({
 
                     <div className="flex min-w-0 flex-1 flex-col pl-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate font-minecraft text-[0.9375rem] leading-5 text-black">{version.name}</span>
+                        <span className="truncate font-minecraft text-[0.9375rem] leading-5 text-[var(--ore-downloadDetail-rowText)]">{version.name}</span>
                         <span className="border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] px-2 py-0.5 font-mono text-[0.625rem] text-white">
                           {version.version_number}
                         </span>
                       </div>
 
-                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.625rem] font-minecraft uppercase tracking-[0.08em] text-[#313233]">
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.625rem] font-minecraft uppercase tracking-[0.08em] text-[var(--ore-downloadDetail-rowMutedText)]">
                         <span className="inline-flex items-center gap-1">
                           <Clock3 size={11} />
                           {formatDate(version.date_published)}

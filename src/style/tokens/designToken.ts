@@ -127,6 +127,8 @@ export const OreTokens = {
     hintText: '#E6E8EB',
     rowBg: '#D0D1D4',
     rowShadow: 'inset 0 -4px 0 #58585A, inset 2px 2px 0 rgba(255, 255, 255, 0.68)',
+    rowText: '#000000',
+    rowMutedText: '#313233',
     installedBg: 'rgba(108, 195, 73, 0.7)',
     installedShadow: 'inset 0 -4px 0 #3C8527, inset 2px 2px 0 rgba(255, 255, 255, 0.18)',
     idleAccent: '#48494A',
@@ -134,6 +136,7 @@ export const OreTokens = {
     loaderMeta: '#6B4F00',
     versionMeta: '#24563C',
     imageShadow: 'inset 0 -4px 0 rgba(0, 0, 0, 0.25)',
+    chipShadow: 'inset 0 -2px 0 #8C8D90',
   },
 
   library: {

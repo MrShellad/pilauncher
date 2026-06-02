@@ -60,7 +60,7 @@ export const Settings: React.FC = () => {
 
   const tabFallbackFocusKeys = useMemo<Record<string, string | undefined>>(() => ({
     general:    'settings-device-name',
-    appearance: 'color-preset-0',
+    appearance: 'settings-appearance-theme',
     game:       'settings-game-window-title',
     java:       'settings-java-autodetect',
     download:   INITIAL_DOWNLOAD_FOCUS_KEY,

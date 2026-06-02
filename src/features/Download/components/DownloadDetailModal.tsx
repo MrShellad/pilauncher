@@ -5,6 +5,7 @@ import type { ModrinthProject, OreProjectVersion } from '../../InstanceDetail/lo
 import { useDownloadDetail } from '../hooks/useDownloadDetail';
 import type { DownloadInstanceConfig, DownloadSource } from '../hooks/useResourceDownload';
 import { OreModal } from '../../../ui/primitives/OreModal';
+import { OreOverlayScrollArea } from '../../../ui/primitives/OreOverlayScrollArea';
 
 import { InstanceSelectModal } from './DetailModal/InstanceSelectModal';
 import { ModpackCreateModal } from './DetailModal/ModpackCreateModal';
@@ -203,14 +204,15 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
           />
         )}
 
-        <div
+        <OreOverlayScrollArea
           ref={scrollContainerRef}
           className={`
-            relative z-10 flex-1 w-full overflow-y-auto custom-scrollbar bg-[#313233]
-            shadow-[inset_0_0.625rem_1.25rem_-0.625rem_rgba(0,0,0,0.55)]
+            relative z-10 flex-1 w-full bg-[#313233] min-h-0
             ${directInstallInstanceId ? 'border-t-[0.125rem] border-[#1E1E1F]' : ''}
           `}
+          viewportClassName="shadow-[inset_0_0.625rem_1.25rem_-0.625rem_rgba(0,0,0,0.55)]"
           onScroll={handleScroll}
+          contentSafePaddingRight={6}
         >
           <VersionList
             versions={strictlyFilteredVersions}
@@ -230,7 +232,7 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
             visibleCount={visibleCount}
             observerTarget={observerTarget}
           />
-        </div>
+        </OreOverlayScrollArea>
       </OreModal>
 
       {activeTab === 'modpack' ? (

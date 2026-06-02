@@ -73,12 +73,16 @@ export const useDownloadDetail = (
       .finally(() => setIsLoadingDetails(false));
   }, [instanceConfig, project, searchLoader, searchMcVersion, source]);
 
+  // NOTE: Remove or comment out the strict details metadata check to prevent incorrect clearing
+  // of preferred version filters, as metadata lists from details are frequently out of sync on CurseForge/Modrinth.
+  /*
   useEffect(() => {
     if (!details) return;
 
     if (activeLoader && !details.loaders.includes(activeLoader)) setActiveLoader('');
     if (activeVersion && !details.game_versions.includes(activeVersion)) setActiveVersion('');
   }, [activeLoader, activeVersion, details]);
+  */
 
   useEffect(() => {
     if (!project) return;
@@ -86,6 +90,7 @@ export const useDownloadDetail = (
     const projectId = getProjectId(project);
     if (!projectId) return;
 
+    let active = true;
     setIsLoadingVersions(true);
 
     const request = source === 'curseforge'
@@ -93,9 +98,21 @@ export const useDownloadDetail = (
       : fetchModrinthVersions(projectId, activeVersion, activeLoader);
 
     request
-      .then((data) => setVersions(data || []))
+      .then((data) => {
+        if (active) {
+          setVersions(data || []);
+        }
+      })
       .catch(console.error)
-      .finally(() => setIsLoadingVersions(false));
+      .finally(() => {
+        if (active) {
+          setIsLoadingVersions(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, [activeLoader, activeVersion, project, source]);
 
   const loaderOptions = useMemo<ToggleOption[]>(() => {

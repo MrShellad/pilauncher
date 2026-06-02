@@ -34,7 +34,7 @@ const renderEnvChip = (
         text-[9px] font-minecraft uppercase tracking-[0.14em]
         ${isRequired
           ? 'bg-[#6CC349] text-black shadow-[inset_0_-2px_0_#3C8527]'
-          : 'bg-[var(--ore-downloadDetail-rowBg)] text-black shadow-[inset_0_-2px_0_#8C8D90]'}
+          : 'bg-[var(--ore-downloadDetail-rowBg)] text-[var(--ore-downloadDetail-rowText)] shadow-[var(--ore-downloadDetail-chipShadow)]'}
       `}
     >
       <Icon size={10} />
