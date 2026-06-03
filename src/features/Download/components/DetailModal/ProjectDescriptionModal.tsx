@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Languages, Loader2, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { setFocus, getCurrentFocusKey } from '@noriginmedia/norigin-spatial-navigation';
 import { marked } from 'marked';
 
@@ -420,7 +420,7 @@ export const ProjectDescriptionModal: React.FC<ProjectDescriptionModalProps> = (
               borderWidth: isGalleryCollapsed ? 0 : '0.125rem',
               padding: isGalleryCollapsed ? 0 : '0.5rem',
             }}
-            transition={{ duration: 0.35, ease: [0.25, 1, 0.5, 1] }}
+            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
             className="relative flex flex-col items-center border-[#1E1E1F] bg-[#1a1a1c] rounded-[2px] overflow-hidden"
           >
             {/* Main Image View */}
@@ -558,11 +558,9 @@ export const ProjectDescriptionModal: React.FC<ProjectDescriptionModalProps> = (
                 </div>
               )}
 
-              <div 
-                style={{ 
-                  height: scrollAreaHeight,
-                  transition: 'height 0.35s cubic-bezier(0.25, 1, 0.5, 1)' 
-                }} 
+              <motion.div 
+                animate={{ height: scrollAreaHeight }}
+                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                 className="w-full relative min-h-0 flex flex-col overflow-hidden"
               >
                 <OreOverlayScrollArea
@@ -575,7 +573,7 @@ export const ProjectDescriptionModal: React.FC<ProjectDescriptionModalProps> = (
                 >
                   {renderDescriptionContent()}
                 </OreOverlayScrollArea>
-              </div>
+              </motion.div>
 
               <style dangerouslySetInnerHTML={{ __html: `
                 .markdown-content h1 { font-size: 1.5rem; font-weight: bold; margin-top: 1rem; margin-bottom: 0.5rem; color: white; }

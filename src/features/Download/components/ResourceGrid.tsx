@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { VirtuosoGrid } from 'react-virtuoso';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { VirtuosoScroller } from '../../../ui/primitives/OreOverlayScrollArea';
+import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import type { InstalledModIndex, ModMeta } from '../../InstanceDetail/logic/modService';
@@ -252,97 +253,110 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
     }));
   }, [installedModIndex, installedMods, results]);
 
-  if (isLoading) {
-    return (
-      <div
-        className="h-full min-h-0 flex-1 overflow-hidden"
-        style={{
-          maskImage: 'linear-gradient(to bottom, transparent 0%, black 1.5rem)',
-          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 1.5rem)'
-        }}
-      >
-        <VirtuosoScroller
-          id={scrollContainerId}
-          ref={(node: HTMLDivElement | null) => {
-            scrollContainerRef.current = node;
-          }}
-          className="h-full min-h-0 flex-1 scroll-smooth"
-          onScroll={(e: React.UIEvent<HTMLDivElement>) => {
-            onScrollTopChange?.(e.currentTarget.scrollTop);
-          }}
+  return (
+    <AnimatePresence mode="wait">
+      {isLoading ? (
+        <motion.div
+          key="skeleton"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+          className="h-full min-h-0 flex-1 overflow-hidden"
           style={{
-            height: '100%',
-            overflowY: 'auto'
+            maskImage: 'linear-gradient(to bottom, transparent 0%, black 1.5rem)',
+            WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 1.5rem)'
+          }}
+        >
+          <VirtuosoScroller
+            id={scrollContainerId}
+            ref={(node: HTMLDivElement | null) => {
+              scrollContainerRef.current = node;
+            }}
+            className="h-full min-h-0 flex-1 scroll-smooth"
+            onScroll={(e: React.UIEvent<HTMLDivElement>) => {
+              onScrollTopChange?.(e.currentTarget.scrollTop);
+            }}
+            style={{
+              height: '100%',
+              overflowY: 'auto'
+            }}
+          >
+            <FocusBoundary
+              id="download-results-grid"
+              defaultFocusKey="download-grid-item-0"
+              className="min-h-full"
+            >
+              <div className="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] pb-[1.5rem] px-[0.875rem] pt-[1.5rem] sm:px-[1rem] sm:pt-[1.5rem]">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <ResourceCardSkeleton key={i} />
+                ))}
+              </div>
+            </FocusBoundary>
+          </VirtuosoScroller>
+        </motion.div>
+      ) : (
+        <motion.div
+          key="grid"
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -15 }}
+          transition={{ duration: 0.22, ease: 'easeOut' }}
+          className="h-full min-h-0 flex-1 overflow-hidden"
+          style={{
+            maskImage: 'linear-gradient(to bottom, transparent 0%, black 1.5rem)',
+            WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 1.5rem)'
           }}
         >
           <FocusBoundary
             id="download-results-grid"
             defaultFocusKey="download-grid-item-0"
-            className="min-h-full"
+            className="h-full min-h-0"
           >
-            <div className="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] pb-[1.5rem] px-[0.875rem] pt-[1.5rem] sm:px-[1rem] sm:pt-[1.5rem]">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <ResourceCardSkeleton key={i} />
-              ))}
-            </div>
+            <LayoutGroup id="resource-download-grid-group">
+              <VirtuosoGrid<ResourceGridItem, ResourceGridContext>
+                ref={virtuosoRef}
+                id={scrollContainerId}
+                className="h-full custom-scrollbar"
+                style={{
+                  height: '100%',
+                  overflowY: 'auto',
+                  overscrollBehaviorY: 'contain'
+                }}
+                data={resourceItems}
+                context={{ hasMore, isLoadingMore }}
+                scrollerRef={handleScrollerRef}
+                computeItemKey={(_, item) => getProjectKey(item.project)}
+                listClassName="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] px-[1rem] pb-[1.5rem] pt-0"
+                components={RESOURCE_GRID_COMPONENTS}
+                increaseViewportBy={{ top: 240, bottom: 520 }}
+                endReached={triggerLoadMore}
+                itemContent={(index, { project, viewModel, isInstalled }) => (
+                  <ResourceCard
+                    project={project}
+                    viewModel={viewModel}
+                    index={index}
+                    isInstalled={isInstalled}
+                    hasMore={hasMore}
+                    canLoadMore={canLoadMore}
+                    onLoadMore={triggerLoadMore}
+                    onSelectProject={onSelectProject}
+                    isSelectionMode={isSelectionMode}
+                    isSelected={selectedProjectIds?.has(getProjectKey(project)) ?? false}
+                    onToggleSelection={onToggleProjectSelection}
+                    isNearBottom={index >= results.length - 6}
+                    categoryOptions={categoryOptions}
+                    onClickAuthor={onClickAuthor}
+                    shouldAnimateLayout={shouldAnimateLayout}
+                    selectedProjectId={selectedProjectId}
+                  />
+                )}
+              />
+            </LayoutGroup>
           </FocusBoundary>
-        </VirtuosoScroller>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="h-full min-h-0 flex-1 overflow-hidden"
-      style={{
-        maskImage: 'linear-gradient(to bottom, transparent 0%, black 1.5rem)',
-        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 1.5rem)'
-      }}
-    >
-      <FocusBoundary
-        id="download-results-grid"
-        defaultFocusKey="download-grid-item-0"
-        className="h-full min-h-0"
-      >
-        <VirtuosoGrid<ResourceGridItem, ResourceGridContext>
-          ref={virtuosoRef}
-          id={scrollContainerId}
-          className="h-full custom-scrollbar"
-          style={{
-            height: '100%',
-            overflowY: 'auto',
-            overscrollBehaviorY: 'contain'
-          }}
-          data={resourceItems}
-          context={{ hasMore, isLoadingMore }}
-          scrollerRef={handleScrollerRef}
-          computeItemKey={(_, item) => getProjectKey(item.project)}
-          listClassName="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] px-[1rem] pb-[1.5rem] pt-0"
-          components={RESOURCE_GRID_COMPONENTS}
-          increaseViewportBy={{ top: 240, bottom: 520 }}
-          endReached={triggerLoadMore}
-          itemContent={(index, { project, viewModel, isInstalled }) => (
-            <ResourceCard
-              project={project}
-              viewModel={viewModel}
-              index={index}
-              isInstalled={isInstalled}
-              hasMore={hasMore}
-              canLoadMore={canLoadMore}
-              onLoadMore={triggerLoadMore}
-              onSelectProject={onSelectProject}
-              isSelectionMode={isSelectionMode}
-              isSelected={selectedProjectIds?.has(getProjectKey(project)) ?? false}
-              onToggleSelection={onToggleProjectSelection}
-              isNearBottom={index >= results.length - 6}
-              categoryOptions={categoryOptions}
-              onClickAuthor={onClickAuthor}
-              shouldAnimateLayout={shouldAnimateLayout}
-              selectedProjectId={selectedProjectId}
-            />
-          )}
-        />
-      </FocusBoundary>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
+
 };

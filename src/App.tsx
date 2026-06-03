@@ -1,10 +1,11 @@
 import React, { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { initGamepadModRegistry } from './services/gamepadModService';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 
 import { useLauncherStore } from './store/useLauncherStore';
 import { useNewsStore } from './store/useNewsStore';
 import { useSettingsStore } from './store/useSettingsStore';
+import { useGameLogStore } from './store/useGameLogStore';
 import { useTerracottaSession } from './features/multiplayer/hooks/useTerracottaSession';
 import { useDownloadSelectionStore } from './features/Download/stores/useDownloadSelectionStore';
 import { OreMotionTokens } from './style/tokens/motion';
@@ -139,6 +140,8 @@ const App: React.FC = () => {
 
   // Whether to show the log sidebar (default true for backwards-compat)
   const showGameLog = game?.showGameLog ?? true;
+  const isCrashed = useGameLogStore((s) => s.gameState === 'crashed');
+  const shouldShowSidebar = showGameLog || isCrashed;
 
   useLayoutEffect(() => {
     injectDesignTokens();
@@ -391,7 +394,7 @@ const App: React.FC = () => {
         {/* Always-mounted event listener — feeds logs into the store */}
         <GameLogService />
         {/* Game log UI: sidebar when enabled, progress animation when disabled */}
-        {showGameLog ? <GameLogSidebar /> : <LaunchingAnimation />}
+        {shouldShowSidebar ? <GameLogSidebar /> : <LaunchingAnimation />}
 
         <StartupNewsModal />
         <StartupArticlePushModal />

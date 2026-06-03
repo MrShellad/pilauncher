@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Check, Cpu, Loader2, RotateCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 

@@ -1,6 +1,6 @@
 // src/features/Instances/components/InstanceCardView.tsx
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { motion, type Variants } from 'framer-motion';
+import { motion, type Variants } from 'motion/react';
 import { Settings, Loader2, Menu } from 'lucide-react';
 import type { InstanceItem } from '../../../hooks/pages/Instances/useInstances';
 import { useGameLaunch } from '../../../hooks/useGameLaunch';

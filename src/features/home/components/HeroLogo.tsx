@@ -1,6 +1,6 @@
 // /src/features/home/components/HeroLogo.tsx
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { useSettingsStore } from '../../../store/useSettingsStore';
 import { useAccountStore } from '../../../store/useAccountStore';

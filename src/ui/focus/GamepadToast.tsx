@@ -1,6 +1,6 @@
 // src/ui/focus/GamepadToast.tsx
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { invoke } from '@tauri-apps/api/core';
 import { Gamepad2 } from 'lucide-react';
 

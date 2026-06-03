@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { Terminal, Loader2, AlertTriangle, Bug, Activity, Check, Share2, ChevronRight, Power, Copy, FolderOpen, X } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';

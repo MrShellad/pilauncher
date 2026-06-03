@@ -1,7 +1,7 @@
 // src/ui/primitives/OreTooltip.tsx
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 
 // Merge refs utility to allow wrapping components that also use refs
 export function useMergeRefs<T>(...refs: (React.Ref<T> | undefined)[]) {

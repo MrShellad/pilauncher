@@ -1,7 +1,7 @@
 // src/ui/primitives/OreModal.tsx
 import React, { useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { doesFocusableExist, getCurrentFocusKey } from '@noriginmedia/norigin-spatial-navigation';
 import { X } from 'lucide-react';
 

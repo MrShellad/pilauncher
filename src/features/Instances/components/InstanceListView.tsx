@@ -1,6 +1,6 @@
 // /src/features/Instances/components/InstanceListView.tsx
 import React from 'react';
-import { motion, type Variants } from 'framer-motion';
+import { motion, type Variants } from 'motion/react';
 import { Play, Pencil, Loader2 } from 'lucide-react';
 import type { InstanceItem } from '../../../hooks/pages/Instances/useInstances';
 import { OreMotionTokens } from '../../../style/tokens/motion'; 

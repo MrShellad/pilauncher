@@ -26,7 +26,7 @@ import { OreButton } from '../ui/primitives/OreButton';
 import { Filter, Tags, Search } from 'lucide-react';
 import { InstanceCardView } from '../features/Instances/components/InstanceCardView';
 import { OreOverlayScrollArea } from '../ui/primitives/OreOverlayScrollArea';
-import { LayoutGroup } from 'framer-motion';
+import { LayoutGroup } from 'motion/react';
 
 const Instances: React.FC = () => {
   const { t } = useTranslation();

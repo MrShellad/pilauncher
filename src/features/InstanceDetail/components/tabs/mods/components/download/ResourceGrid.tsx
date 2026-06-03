@@ -3,7 +3,7 @@ import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/
 import { Blocks, Check, CheckCircle2, Clock3, Download, Heart, Loader2, Monitor, Server, Tags } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { VirtuosoGrid } from 'react-virtuoso';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'motion/react';
 import fabricIcon from '../../../../../../../assets/icons/tags/loaders/fabric.svg';
 import forgeIcon from '../../../../../../../assets/icons/tags/loaders/forge.svg';
 import neoforgeIcon from '../../../../../../../assets/icons/tags/loaders/neoforge.svg';

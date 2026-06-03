@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Blocks, Clock3, Download, ExternalLink, Heart, Monitor, Server } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { FocusItem } from '../../../../ui/focus/FocusItem';

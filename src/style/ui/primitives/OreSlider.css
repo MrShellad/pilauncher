@@ -46,7 +46,6 @@
   .ore-slider-thumb {
     @apply absolute w-[28px] h-[28px] border-[2px] z-10;
     top: 50%;
-    transform: translate(-50%, -50%); /* 纭繚鎺ㄩ挳涓績鐐规案杩滃榻愯建閬撹繘搴?*/
     border-color: var(--ore-border-color);
     background-color: var(--ore-btn-secondary-bg);
     /* 涓ユ牸杩樺師 oreui 鐨勬寜閽骇鍒珛浣撳厜褰?*/

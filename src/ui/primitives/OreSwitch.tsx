@@ -1,6 +1,6 @@
-// /src/ui/primitives/OreSwitch.tsx
 import React from 'react';
 import { FocusItem } from '../focus/FocusItem';
+import { motion } from 'motion/react';
 
 interface OreSwitchProps {
   checked: boolean;
@@ -38,8 +38,8 @@ export const OreSwitch: React.FC<OreSwitchProps> = ({
           aria-checked={checked}
           aria-disabled={disabled}
           aria-label={ariaLabel || label}
-          // ✅ 核心修复：添加 is-on 状态类名，将内外光影和滑块位移全权交给 CSS 处理
-          className={`ore-switch-wrapper ${checked ? 'is-on' : ''} ${disabled ? 'disabled' : ''} ${focused ? 'is-focused' : ''} ${className}`}
+          // We remove 'is-on' class name to let motion handle the left layout transitions
+          className={`ore-switch-wrapper ${disabled ? 'disabled' : ''} ${focused ? 'is-focused' : ''} ${className}`}
           onClick={(e) => {
             e.stopPropagation();
             if (!disabled) onChange(!checked);
@@ -67,8 +67,13 @@ export const OreSwitch: React.FC<OreSwitchProps> = ({
 
           {/* 开关滑轨 */}
           <div className="ore-switch-track">
-            {/* 物理推钮 (无需 inline style，全由 CSS 驱动) */}
-            <div className="ore-switch-thumb" />
+            {/* 物理推钮 (使用 transform 进行 GPU 加速平移，避免 animate left 引起的 reflow 抖动) */}
+            <motion.div 
+              className="ore-switch-thumb"
+              animate={{ x: checked ? 30 : 0 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              style={{ transition: 'none', willChange: 'transform' }}
+            />
           </div>
         </div>
       )}

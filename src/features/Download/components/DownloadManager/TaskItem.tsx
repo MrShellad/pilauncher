@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import {
   AlertTriangle,
@@ -19,6 +19,7 @@ import { ControlHint } from '../../../../ui/components/ControlHint';
 import { useInputAction } from '../../../../ui/focus/InputDriver';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreProgressBar } from '../../../../ui/primitives/OreProgressBar';
+import { OreOverlayScrollArea } from '../../../../ui/primitives/OreOverlayScrollArea';
 
 const INSTANCE_PIPELINE = [
   { label: '下载', key: 0 },
@@ -372,9 +373,13 @@ export const TaskItem = ({
         transition={LOG_CONTAINER_TRANSITION}
         className="overflow-hidden"
       >
-        <div className="custom-scrollbar max-h-[12rem] overflow-y-auto rounded-[0.1875rem] border border-[#2A2A2C] bg-[#141415] p-[0.5rem] font-mono text-[0.75rem] leading-[1.5]">
+        <OreOverlayScrollArea
+          className="max-h-[12rem] rounded-[0.1875rem] border border-[#2A2A2C] bg-[#141415]"
+          contentClassName="p-[0.5rem] font-mono text-[0.75rem] leading-[1.5]"
+          contentSafePaddingRight={12}
+        >
           {task.logs.map((log, index) => renderLogLine(log, index))}
-        </div>
+        </OreOverlayScrollArea>
       </motion.div>
     </motion.div>
   );

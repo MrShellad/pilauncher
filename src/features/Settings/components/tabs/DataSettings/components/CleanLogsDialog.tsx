@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 
 import { OreButton } from '../../../../../../ui/primitives/OreButton';

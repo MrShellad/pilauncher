@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { AlertTriangle, BoxSelect, CheckCircle2, CheckSquare, Loader2, Monitor, Square } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { motion } from 'motion/react';
 
 import { useInputAction } from '../../../../ui/focus/InputDriver';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
@@ -420,7 +421,7 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
             </div>
           </div>
         ) : (
-          instances.map((instance) => {
+          instances.map((instance, idx) => {
             const isSelected = selectedIds.includes(instance.id);
 
             return (
@@ -431,9 +432,17 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
                 onArrowPress={handleLinearFocus}
               >
                 {({ ref, focused }) => (
-                  <div
+                  <motion.div
                     ref={ref as any}
                     onClick={() => handleInstanceClick(instance.id)}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      type: 'spring',
+                      stiffness: 400,
+                      damping: 30,
+                      delay: idx * 0.02
+                    }}
                     className={`
                       relative flex cursor-pointer items-center gap-[0.75rem] overflow-hidden border-[0.125rem] p-[0.75rem] transition-none
                       ${isSelected ? 'border-[#1D4D13] bg-[#6CC349]' : alreadyInstalledInstanceIds.has(instance.id) ? 'border-[#D6A02A] bg-[#3A300F] hover:border-[#F5C542]' : 'border-[#1E1E1F] bg-[#D0D1D4] hover:bg-[#B1B2B5]'}
@@ -486,7 +495,7 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
                         </div>
                       </div>
                     ) : null}
-                  </div>
+                  </motion.div>
                 )}
               </FocusItem>
             );

@@ -1,6 +1,6 @@
-// src/ui/primitives/OreSlider.tsx
 import React, { useRef, useState, useCallback } from 'react';
 import { FocusItem } from '../focus/FocusItem';
+import { motion } from 'motion/react';
 
 interface OreSliderProps {
   value: number;
@@ -133,22 +133,29 @@ export const OreSlider: React.FC<OreSliderProps> = ({
           >
             {/* 底层凹陷轨道 */}
             <div className="ore-slider-track">
-              <div 
-                className={`ore-slider-fill ${fillColorClass} ${isDragging ? 'transition-none' : 'transition-[width] duration-100 ease-linear'}`}
-                style={{ width: `${percentage}%` }}
+              <motion.div 
+                className={`ore-slider-fill ${fillColorClass}`}
+                animate={{ width: `${percentage}%` }}
+                transition={isDragging ? { duration: 0 } : { type: 'spring', stiffness: 350, damping: 30 }}
+                style={{ transition: 'none' }}
               />
             </div>
 
             {/* 物理滑块 */}
-            <div 
+            <motion.div 
               className={`
                 ore-slider-thumb 
                 ${thumbColorClass}
-                ${isDragging ? 'active transition-none' : 'transition-[left] duration-100 ease-linear'}
+                ${isDragging ? 'active' : ''}
               `}
-              style={{ left: `${percentage}%` }}
+              animate={{ left: `${percentage}%` }}
+              transition={isDragging ? { duration: 0 } : { type: 'spring', stiffness: 350, damping: 30 }}
+              style={{ transition: 'none', x: '-50%', y: '-50%' }}
+              whileHover={disabled ? undefined : { scale: 1.15 }}
+              whileTap={disabled ? undefined : { scale: 1.25 }}
             />
           </div>
+
         )}
       </FocusItem>
     </div>

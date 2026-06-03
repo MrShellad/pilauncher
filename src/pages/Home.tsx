@@ -11,6 +11,8 @@ import { LaunchControls } from '../features/home/components/LaunchControls';
 import { InstanceSelectModal } from '../features/home/components/InstanceSelectModal';
 import { SkinViewerPlaceholder } from '../features/home/components/SkinViewerPlaceholder';
 import { OreButton } from '../ui/primitives/OreButton';
+import { motion } from 'motion/react';
+import { OreMotionTokens } from '../style/tokens/motion';
 
 const Home: React.FC = () => {
   // ✅ 修复 1：移除 playTime 和 lastPlayed 解构，只保留 handleLaunch
@@ -68,7 +70,12 @@ const Home: React.FC = () => {
       <h1 className="sr-only">{t('nav.home', '首页')}</h1>
       {/* ✅ 修复 3：将提取出的数据传给 PlayStats */}
       <PlayStats instanceId={currentId} playTime={playTime} lastPlayed={lastPlayed} />
-      <div className="absolute bottom-[clamp(1rem,3vh,3rem)] right-[var(--home-panel-edge)] z-20 flex w-[var(--home-skin-w)] flex-col items-center gap-[clamp(0.75rem,1.4vh,1.5rem)]">
+      <motion.div
+        initial={OreMotionTokens.homeRightPanel.initial}
+        animate={OreMotionTokens.homeRightPanel.animate}
+        transition={OreMotionTokens.homeRightPanel.transition}
+        className="absolute bottom-[clamp(1rem,3vh,3rem)] right-[var(--home-panel-edge)] z-20 flex w-[var(--home-skin-w)] flex-col items-center gap-[clamp(0.75rem,1.4vh,1.5rem)]"
+      >
         <SkinViewerPlaceholder className="relative flex h-[var(--home-skin-h)] w-full cursor-grab items-center justify-center active:cursor-grabbing" />
         <OreButton
           focusKey="btn-wardrobe"
@@ -80,13 +87,25 @@ const Home: React.FC = () => {
         >
           {t('home.wardrobe')}
         </OreButton>
-      </div>
+      </motion.div>
 
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
+      <motion.div
+        initial={OreMotionTokens.homeTopPanel.initial}
+        animate={OreMotionTokens.homeTopPanel.animate}
+        transition={OreMotionTokens.homeTopPanel.transition}
+        className="absolute top-2 left-1/2 z-10"
+        style={{ x: "-50%" }}
+      >
         <HeroLogo instanceId={currentId || null} />
-      </div>
+      </motion.div>
 
-      <div className="pointer-events-none absolute bottom-[clamp(5.5rem,13vh,12rem)] left-1/2 z-20 flex w-full -translate-x-1/2 justify-center">
+      <motion.div
+        initial={OreMotionTokens.homeBottomPanel.initial}
+        animate={OreMotionTokens.homeBottomPanel.animate}
+        transition={OreMotionTokens.homeBottomPanel.transition}
+        className="pointer-events-none absolute bottom-[clamp(5.5rem,13vh,12rem)] left-1/2 z-20 flex w-full justify-center"
+        style={{ x: "-50%" }}
+      >
         <LaunchControls
           instanceId={currentId}
           instanceName={currentInstanceName}
@@ -94,7 +113,7 @@ const Home: React.FC = () => {
           onSettings={handleSettingsClick}
           onSelectInstance={() => setIsModalOpen(true)}
         />
-      </div>
+      </motion.div>
 
       <InstanceSelectModal
         isOpen={isModalOpen}

@@ -1,6 +1,6 @@
 // /src/pages/Settings.tsx
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { Settings as SettingsIcon, Monitor, Gamepad2, Coffee, Download, Users, Archive, Wrench, Info } from 'lucide-react';
 import { doesFocusableExist } from '@noriginmedia/norigin-spatial-navigation';
 

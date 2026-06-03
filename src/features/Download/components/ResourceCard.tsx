@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'motion/react';
 import { Blocks, Check, CheckCircle2, Clock3, Download, Heart, Monitor, Server, Tags } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -179,10 +179,19 @@ export const ResourceCard = React.memo(({
               ${isSelected ? 'border-[var(--ore-library-resourceCard-borderSelected)]' : ''}
             `}
             initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
-            animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
+            animate={
+              shouldReduceMotion
+                ? undefined
+                : shouldAnimateLayout
+                ? { opacity: [0.3, 1] }
+                : { opacity: 1, y: 0 }
+            }
             transition={shouldReduceMotion ? { duration: 0 } : {
-              layout: { type: 'spring', stiffness: 300, damping: 30 },
-              default: { duration: 0.2, ease: 'easeOut', delay: Math.min(index, 10) * 0.035 }
+              layout: { type: 'spring', stiffness: 220, damping: 28 },
+              default: { duration: 0.2, ease: 'easeOut', delay: Math.min(index, 10) * 0.035 },
+              opacity: shouldAnimateLayout 
+                ? { duration: 0.45, ease: 'easeOut', delay: Math.min(index, 8) * 0.045 }
+                : { duration: 0.2, ease: 'easeOut', delay: Math.min(index, 10) * 0.035 }
             }}
             style={{
               contain: 'layout paint',

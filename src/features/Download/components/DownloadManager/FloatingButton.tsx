@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { Download } from 'lucide-react';
 
 import { FocusItem } from '../../../../ui/focus/FocusItem';
@@ -24,9 +24,10 @@ export const FloatingButton = ({ isOpen, onClick, activeCount, hasTasks, progres
             <motion.button
               key={pulseKey}
               ref={ref as any}
-              initial={{ scale: 0, boxShadow: '0 0 0 rgba(108,195,73,0)' }}
+              initial={{ scale: 0, opacity: 0, boxShadow: '0 0 0 rgba(108,195,73,0)' }}
               animate={{
                 scale: pulseKey > 0 ? [0.82, 1.16, 1] : 1,
+                opacity: 1,
                 boxShadow: pulseKey > 0
                   ? [
                       '0 0 0 rgba(108,195,73,0)',
@@ -35,8 +36,12 @@ export const FloatingButton = ({ isOpen, onClick, activeCount, hasTasks, progres
                     ]
                   : '0 0 0 rgba(108,195,73,0)'
               }}
-              exit={{ scale: 0 }}
-              transition={{ duration: pulseKey > 0 ? 0.58 : 0.2, ease: [0.16, 1, 0.3, 1] }}
+              exit={{ scale: 0, opacity: 0, transition: { duration: 0.12, ease: 'easeIn' } }}
+              transition={
+                pulseKey > 0
+                  ? { duration: 0.58, ease: [0.16, 1, 0.3, 1] }
+                  : { type: 'spring', stiffness: 500, damping: 24 }
+              }
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={onClick}

@@ -42,8 +42,6 @@
     @apply absolute w-[28px] h-[28px] border-[2px] z-10;
     top: -4px;
     left: -2px;
-    /* 淇濈暀鍘熸眮鍘熷懗鐨勪笣婊戝洖寮规洸绾?*/
-    transition: left 125ms cubic-bezier(0.34, 1.56, 0.64, 1);
     border-color: var(--ore-border-color);
     background-color: var(--ore-btn-secondary-bg);
     /* 鍏ㄩ潰浣跨敤 CSS Token 鏇夸唬 theme() */

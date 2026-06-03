@@ -1,6 +1,6 @@
 // src/features/Instances/components/steps/VersionSelectStep.tsx
 import React, { useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreAccordion } from '../../../../ui/primitives/OreAccordion';
 import { OreOverlayScrollArea } from '../../../../ui/primitives/OreOverlayScrollArea';

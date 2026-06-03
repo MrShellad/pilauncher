@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { Download } from 'lucide-react';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
@@ -8,6 +8,7 @@ import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreSwitch } from '../../../../ui/primitives/OreSwitch';
 import { ControlHint } from '../../../../ui/components/ControlHint';
 import { OreMotionTokens } from '../../../../style/tokens/motion';
+import { OreOverlayScrollArea } from '../../../../ui/primitives/OreOverlayScrollArea';
 import { TaskItem } from './TaskItem';
 
 export const TaskPanel = ({
@@ -70,8 +71,9 @@ export const TaskPanel = ({
               </div>
             </div>
 
-            <motion.div
-              className="custom-scrollbar max-h-[75vh] space-y-[clamp(0.75rem,1.5vw,1rem)] overflow-y-auto overflow-x-hidden bg-[var(--ore-downloadDetail-base)] p-[clamp(0.75rem,1.5vw,1rem)]"
+            <OreOverlayScrollArea
+              className="max-h-[75vh] bg-[var(--ore-downloadDetail-base)]"
+              contentClassName="space-y-[clamp(0.75rem,1.5vw,1rem)] p-[clamp(0.75rem,1.5vw,1rem)]"
               style={{ boxShadow: 'var(--ore-downloadDetail-listShadow)' }}
             >
               {taskList.map((task: DownloadTask) => (
@@ -89,7 +91,7 @@ export const TaskPanel = ({
                   />
                 </motion.div>
               ))}
-            </motion.div>
+            </OreOverlayScrollArea>
 
             <div
               className="flex shrink-0 items-center justify-between gap-[0.75rem] border-t-[0.125rem] border-[var(--ore-border-color)] bg-[var(--ore-modal-footer-bg)] px-[1rem] py-[0.625rem]"

@@ -1,6 +1,6 @@
 // /src/features/Instances/components/CustomInstanceView.tsx
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { useCustomInstance } from '../../../hooks/pages/Instances/useCustomInstance';
 import { OreMotionTokens } from '../../../style/tokens/motion'; 
 import { VersionSelectStep } from './steps/VersionSelectStep';

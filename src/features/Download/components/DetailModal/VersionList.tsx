@@ -2,6 +2,7 @@ import React from 'react';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { CheckCircle2, Clock3, Download, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { motion } from 'motion/react';
 import { useInputAction } from '../../../../ui/focus/InputDriver';
 
 import type { OreProjectVersion } from '../../../InstanceDetail/logic/modrinthApi';
@@ -141,9 +142,17 @@ export const VersionList: React.FC<VersionListProps> = ({
                   onArrowPress={handleVersionArrow(idx)}
               >
                 {({ ref, focused }) => (
-                  <div
+                  <motion.div
                     ref={ref as any}
                     onClick={() => handleVersionEnter(version)}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      type: 'spring',
+                      stiffness: 400,
+                      damping: 30,
+                      delay: idx * 0.02
+                    }}
                     className={`
                       group relative flex items-center justify-between gap-3 overflow-hidden border-[2px]
                       border-[var(--ore-downloadDetail-divider)] px-4 py-3
@@ -216,7 +225,7 @@ export const VersionList: React.FC<VersionListProps> = ({
                         </OreButton>
                       )}
                     </div>
-                  </div>
+                  </motion.div>
                 )}
                 </FocusItem>
               );

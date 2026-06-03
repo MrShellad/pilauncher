@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Image as ImageIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 

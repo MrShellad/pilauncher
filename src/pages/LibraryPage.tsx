@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Columns3, Eye, Pencil, Tags, Trash2, XCircle } from 'lucide-react';
 import { AddLibraryResourceModal } from '../features/Library/components/modals/AddLibraryResourceModal';
 import { ManageLinkageModal } from '../features/Library/components/modals/ManageLinkageModal';

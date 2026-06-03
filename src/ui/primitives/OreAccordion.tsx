@@ -1,6 +1,6 @@
 // /src/ui/primitives/OreAccordion.tsx
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown } from 'lucide-react';
 
 // ✅ 引入空间导航焦点组件

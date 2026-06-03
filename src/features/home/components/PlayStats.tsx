@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
+import { motion } from 'motion/react';
+import { OreMotionTokens } from '../../../style/tokens/motion';
 import { getButtonIcon } from '../../../ui/icons/SocialIcons';
 import { NewspaperIcon } from '../../../ui/icons/NewspaperIcon';
 import { OreButton } from '../../../ui/primitives/OreButton';
@@ -117,7 +119,12 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ instanceId, playTime, last
 
   return (
     <>
-      <div className="absolute bottom-[clamp(1.5rem,5vh,5rem)] left-[var(--home-panel-edge)] z-30 flex flex-col gap-[clamp(1.25rem,2.4vh,3rem)]">
+      <motion.div
+        initial={OreMotionTokens.homeLeftPanel.initial}
+        animate={OreMotionTokens.homeLeftPanel.animate}
+        transition={OreMotionTokens.homeLeftPanel.transition}
+        className="absolute bottom-[clamp(1.5rem,5vh,5rem)] left-[var(--home-panel-edge)] z-30 flex flex-col gap-[clamp(1.25rem,2.4vh,3rem)]"
+      >
 
         <div className="mb-[clamp(0.375rem,0.8vh,1rem)] flex flex-col gap-[clamp(0.75rem,1.3vh,1.5rem)]">
           {piConfig?.wiki && (() => {
@@ -202,7 +209,7 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ instanceId, playTime, last
             {lastPlayed ? formatRelativeTime(lastPlayed, t) : t('home.neverPlayed', { defaultValue: '从未进行游戏' })}
           </span>
         </div>
-      </div>
+      </motion.div>
 
       <MicrosoftAuthModal {...msAuthState} isOpen={msAuthState.isLoginModalOpen} onClose={() => msAuthState.setIsLoginModalOpen(false)} />
       <MicrosoftAccountSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />

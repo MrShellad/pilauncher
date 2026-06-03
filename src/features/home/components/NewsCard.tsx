@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { BookOpen, ExternalLink, Plus, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { OreButton } from '../../../ui/primitives/OreButton';

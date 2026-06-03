@@ -1,5 +1,5 @@
 // /src/style/tokens/motion.ts
-import type { TargetAndTransition, Variants } from "framer-motion"; // 引入 Variants 类型
+import type { TargetAndTransition, Variants } from "motion"; // 引入 Variants 类型
 
 export const OreMotionTokens = {
   // 按钮交互动画 (保持不变)
@@ -187,44 +187,78 @@ export const OreMotionTokens = {
     }
   } as Variants,
 
-  // ================= 下载任务管理器动画 =================
   downloadPanelContainer: {
-    hidden: { opacity: 0, x: 50, scale: 0.98 },
+    hidden: { 
+      opacity: 0, 
+      x: 30, 
+      y: 30, 
+      scale: 0.94, 
+      originX: 1, 
+      originY: 1 
+    },
     visible: {
       opacity: 1,
       x: 0,
+      y: 0,
       scale: 1,
       transition: {
-        type: 'tween',
-        ease: 'linear',
-        duration: 0.15,
+        type: 'spring',
+        stiffness: 420,
+        damping: 28,
         when: 'beforeChildren',
-        staggerChildren: 0.05
+        staggerChildren: 0.04,
+        delayChildren: 0.08
       }
     },
     exit: {
       opacity: 0,
-      x: 50,
-      scale: 0.98,
+      x: 25,
+      y: 25,
+      scale: 0.95,
       transition: { 
         type: 'tween',
-        ease: 'linear',
-        duration: 0.15 
+        ease: 'easeIn',
+        duration: 0.12 
       }
     }
   } as Variants,
 
   downloadPanelItem: {
-    hidden: { opacity: 0, x: 20 },
+    hidden: { opacity: 0, y: 15 },
     visible: { 
       opacity: 1, 
-      x: 0, 
+      y: 0, 
       transition: { 
-        type: 'tween', 
-        ease: 'linear', 
-        duration: 0.1 
+        type: 'spring', 
+        stiffness: 350, 
+        damping: 25 
       } 
     }
-  } as Variants
+  } as Variants,
+
+  // ================= 首页区域入场动画 =================
+  homeLeftPanel: {
+    initial: { x: -120, opacity: 0 },
+    animate: { x: 0, opacity: 1 },
+    transition: { type: "spring" as const, stiffness: 90, damping: 14, delay: 0.25 }
+  },
+
+  homeRightPanel: {
+    initial: { x: 120, opacity: 0 },
+    animate: { x: 0, opacity: 1 },
+    transition: { type: "spring" as const, stiffness: 90, damping: 14, delay: 0.3 }
+  },
+
+  homeTopPanel: {
+    initial: { y: -80, opacity: 0, x: "-50%" },
+    animate: { y: 0, opacity: 1, x: "-50%" },
+    transition: { type: "spring" as const, stiffness: 90, damping: 14, delay: 0.2 }
+  },
+
+  homeBottomPanel: {
+    initial: { y: 100, opacity: 0, x: "-50%" },
+    animate: { y: 0, opacity: 1, x: "-50%" },
+    transition: { type: "spring" as const, stiffness: 160, damping: 18, delay: 0.18 }
+  }
 
 };

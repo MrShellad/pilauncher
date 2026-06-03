@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { Check, ChevronDown, Search } from 'lucide-react';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
 import { createPortal } from 'react-dom';

@@ -1,6 +1,6 @@
 // /src/features/InstanceDetail/components/tabs/OverviewPanel.tsx
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { FolderOpen, Play, ImagePlus, Clock, Calendar } from 'lucide-react';
 import { getButtonIcon, getButtonLabel } from '../../../../ui/icons/SocialIcons';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
