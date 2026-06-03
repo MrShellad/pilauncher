@@ -27,6 +27,7 @@ export const InstanceListView: React.FC<InstanceListViewProps> = ({ instance, on
       role="listitem"
       aria-label={`${instance.name} - Minecraft ${instance.version} ${instance.loader}`}
       layoutId={`instance-container-${instance.id}`}
+      layout
       className="relative flex w-full min-h-[88px] flex-none flex-row bg-[#4B4C50] border-2 border-b-[4px] border-[#1E1E1F] overflow-hidden shadow-md"
     >
       

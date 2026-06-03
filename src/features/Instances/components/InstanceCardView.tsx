@@ -106,6 +106,7 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                   role="listitem"
                   aria-label={`${instance.name} - Minecraft ${instance.version} ${instance.loader || 'Vanilla'}`}
                   layoutId={`instance-container-${instance.id}`}
+                  layout
                   tabIndex={tabIndex}
                   onClick={handlePlayClick}
                   // 保留原生键盘支持，作为鼠标/纯键盘模式下的兜底
