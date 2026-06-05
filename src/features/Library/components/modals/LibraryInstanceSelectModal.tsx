@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Check, Columns3, Loader2, Save } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { Virtuoso } from 'react-virtuoso';
 
 import { OreModal } from '../../../../ui/primitives/OreModal';
 import { OreButton } from '../../../../ui/primitives/OreButton';
-import { OreOverlayScrollArea } from '../../../../ui/primitives/OreOverlayScrollArea';
+import { VirtuosoScroller } from '../../../../ui/primitives/OreOverlayScrollArea';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
-import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
 import type { LibraryResourceViewModel } from '../../logic/libraryItems';
 
 interface LibraryInstanceSelectModalProps {
@@ -23,6 +23,34 @@ interface InstanceItem {
   loader: string;
   coverPath?: string;
 }
+
+const ModalScroller = React.forwardRef<HTMLDivElement, any>((props, ref) => (
+  <VirtuosoScroller
+    {...props}
+    ref={ref}
+    contentSafePaddingRight={0}
+  />
+));
+ModalScroller.displayName = 'ModalScroller';
+
+const ModalList = React.forwardRef<HTMLDivElement, any>((props, ref) => (
+  <div
+    {...props}
+    ref={ref}
+    className={`max-w-[36rem] mx-auto px-4 ${props.className || ''}`}
+  />
+));
+ModalList.displayName = 'ModalList';
+
+const ModalHeader = () => <div className="h-4" />;
+const ModalFooter = () => <div className="h-2" />;
+
+const VIRTUOSO_COMPONENTS = {
+  Scroller: ModalScroller,
+  List: ModalList,
+  Header: ModalHeader,
+  Footer: ModalFooter,
+};
 
 export const LibraryInstanceSelectModal: React.FC<LibraryInstanceSelectModalProps> = ({
   isOpen,
@@ -42,13 +70,27 @@ export const LibraryInstanceSelectModal: React.FC<LibraryInstanceSelectModalProp
   }, [isOpen, resource]);
 
   const loadData = async () => {
+    if (!resource) return;
     setIsLoading(true);
     setErrorMsg(null);
     try {
       // 1. Load instances
       const list = await invoke<InstanceItem[]>('get_all_instances', { forceRefresh: false });
-      setInstances(list);
-      setSelectedIds(new Set());
+
+      // 2. Load linked instances
+      const linkedIds = await invoke<string[]>('get_library_resource_mappings', {
+        resourceId: resource.id,
+      });
+      const linkedSet = new Set(linkedIds);
+      setSelectedIds(linkedSet);
+
+      // Sort: linked ones at the top
+      const sortedList = [...list].sort((a, b) => {
+        const aLinked = linkedSet.has(a.id) ? 1 : 0;
+        const bLinked = linkedSet.has(b.id) ? 1 : 0;
+        return bLinked - aLinked;
+      });
+      setInstances(sortedList);
     } catch (e) {
       console.error(e);
       setErrorMsg(`数据加载失败: ${String(e)}`);
@@ -83,9 +125,10 @@ export const LibraryInstanceSelectModal: React.FC<LibraryInstanceSelectModalProp
       onClose={onClose}
       title={`选择${typeText}应用实例`}
       defaultFocusKey="btn-instance-confirm"
-      className="h-[min(38rem,calc(100vh-2rem))] w-[40rem] max-w-[calc(100vw-2rem)] border-[0.1875rem] border-[var(--ore-color-border-primary-default)] bg-[var(--ore-modal-bg)] shadow-[var(--ore-shadow-modal-default)]"
-      contentClassName="min-h-0 overflow-visible p-0 flex flex-col h-full bg-[var(--ore-color-background-surface-panel)]"
-      actionsClassName="!justify-center py-4 bg-[var(--ore-color-background-surface-raised)] border-t-[3px] border-[var(--ore-color-border-primary-default)]"
+      hideCloseButton={true}
+      className="h-[min(38rem,calc(100vh-2rem))] w-[46rem] max-w-[calc(100vw-2rem)] border-[0.1875rem] border-[var(--ore-color-border-primary-default)] bg-[#313233] shadow-[var(--ore-shadow-modal-default)]"
+      contentClassName="min-h-0 overflow-visible p-0 flex flex-col h-full bg-[#313233]"
+      actionsClassName="!justify-center py-4 bg-[#313233] border-t-[3px] border-[var(--ore-color-border-primary-default)]"
       actions={
         <div className="w-full flex flex-col items-center">
           {errorMsg && (
@@ -98,7 +141,7 @@ export const LibraryInstanceSelectModal: React.FC<LibraryInstanceSelectModalProp
               focusKey="btn-instance-cancel" 
               variant="secondary" 
               onClick={onClose} 
-              size="auto"
+              size="md"
             >
               取消
             </OreButton>
@@ -107,7 +150,7 @@ export const LibraryInstanceSelectModal: React.FC<LibraryInstanceSelectModalProp
               variant="primary"
               onClick={handleSave}
               disabled={isLoading || selectedIds.size === 0}
-              size="auto"
+              size="md"
             >
               <Save size={14} className="mr-2" />
               确认并去选择版本
@@ -116,7 +159,7 @@ export const LibraryInstanceSelectModal: React.FC<LibraryInstanceSelectModalProp
         </div>
       }
     >
-      <div className="shrink-0 border-b-[3px] border-[var(--ore-color-border-primary-default)] bg-[var(--ore-color-background-surface-panel)] px-6 py-4 border-l-4 border-[var(--ore-color-background-success-default)]">
+      <div className="shrink-0 border-b-[3px] border-[var(--ore-color-border-primary-default)] bg-[#313233] px-6 py-4">
         <div className="flex items-center gap-3">
           <Columns3 size={20} className="text-[var(--ore-color-background-success-default)]" />
           <div>
@@ -128,18 +171,26 @@ export const LibraryInstanceSelectModal: React.FC<LibraryInstanceSelectModalProp
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 bg-[var(--ore-color-background-surface-deep)]">
-        <OreOverlayScrollArea className="h-full">
-          <div className="p-4 space-y-2">
-            {isLoading ? (
-              <div className="flex h-48 flex-col items-center justify-center text-sm text-[var(--ore-color-text-muted-default)] font-minecraft">
-                <Loader2 className="animate-spin mb-3 text-[var(--ore-color-background-success-default)]" size={24} />
-                正在加载实例列表...
-              </div>
-            ) : instances.length > 0 ? (
-              instances.map((instance) => {
-                const checked = selectedIds.has(instance.id);
-                return (
+      <div className="flex-1 min-h-0 bg-[#313233]">
+        {isLoading ? (
+          <div className="flex h-full flex-col items-center justify-center text-sm text-[var(--ore-color-text-muted-default)] font-minecraft">
+            <Loader2 className="animate-spin mb-3 text-[var(--ore-color-background-success-default)]" size={24} />
+            正在加载实例列表...
+          </div>
+        ) : instances.length > 0 ? (
+          <Virtuoso
+            className="h-full custom-scrollbar"
+            style={{
+              height: '100%',
+              overflowY: 'auto',
+            }}
+            data={instances}
+            components={VIRTUOSO_COMPONENTS}
+            computeItemKey={(_, item) => item.id}
+            itemContent={(_, instance) => {
+              const checked = selectedIds.has(instance.id);
+              return (
+                <div className="pb-2">
                   <FocusItem
                     key={instance.id}
                     focusKey={`lib-instance-item-${instance.id}`}
@@ -160,14 +211,14 @@ export const LibraryInstanceSelectModal: React.FC<LibraryInstanceSelectModalProp
                             {instance.coverPath ? (
                               <img src={instance.coverPath} alt="" className="h-full w-full object-cover" />
                             ) : (
-                              <div className="text-[11px] font-minecraft text-[var(--ore-color-text-success-default)] font-bold">
+                              <div className="text-[0.6875rem] font-minecraft text-[var(--ore-color-text-success-default)] font-bold">
                                 {instance.name.slice(0, 2).toUpperCase()}
                               </div>
                             )}
                           </div>
                           <div className="min-w-0">
                             <div className="truncate font-bold font-minecraft text-[var(--ore-color-text-primary-default)] text-sm tracking-wide">{instance.name}</div>
-                            <div className="text-[10px] text-[var(--ore-color-text-muted-default)] mt-1 font-minecraft">
+                            <div className="text-[0.625rem] text-[var(--ore-color-text-muted-default)] mt-1 font-minecraft">
                               MC版本: <span className="text-[var(--ore-color-text-secondary-default)]">{instance.version}</span> | 加载器: <span className="text-[var(--ore-color-text-secondary-default)]">{instance.loader || 'Vanilla'}</span>
                             </div>
                           </div>
@@ -185,15 +236,15 @@ export const LibraryInstanceSelectModal: React.FC<LibraryInstanceSelectModalProp
                       </div>
                     )}
                   </FocusItem>
-                );
-              })
-            ) : (
-              <div className="flex h-48 flex-col items-center justify-center text-sm text-[var(--ore-color-text-muted-default)] text-center p-6 border-2 border-dashed border-[var(--ore-color-border-primary-default)] rounded-[2px] font-minecraft">
-                暂无可用游戏实例，请先在实例页创建实例。
-              </div>
-            )}
+                </div>
+              );
+            }}
+          />
+        ) : (
+          <div className="flex h-48 flex-col items-center justify-center text-sm text-[var(--ore-color-text-muted-default)] text-center p-6 border-2 border-dashed border-[var(--ore-color-border-primary-default)] rounded-[2px] font-minecraft max-w-[36rem] mx-auto my-4">
+            暂无可用游戏实例，请先在实例页创建实例。
           </div>
-        </OreOverlayScrollArea>
+        )}
       </div>
     </OreModal>
   );

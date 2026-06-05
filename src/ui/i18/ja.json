@@ -1478,7 +1478,7 @@
       "searchPlaceholder": "名前、作成者、バージョン、ローダーを検索..."
     },
     "context": {
-      "detail": "MODの詳細を表示",
+      "detail": "{{type}}の詳細を表示",
       "tags": "タグを個別に追加する",
       "deleteFavorite": "お気に入りから削除",
       "removeFromTag": "現在のラベルから削除",

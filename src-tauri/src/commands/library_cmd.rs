@@ -243,3 +243,12 @@ pub async fn delete_webdav_save_backup(
 ) -> Result<WebDavSaveBackupDeleteResult, String> {
     WebDavSyncService::delete_remote_save_backup(&config, &backup_id).await
 }
+
+#[tauri::command]
+pub async fn delete_webdav_keymap(
+    config: WebDavSyncConfig,
+    filename: String,
+) -> Result<(), String> {
+    WebDavSyncService::delete_webdav_keymap(&config, &filename).await
+}
+

@@ -70,6 +70,7 @@ export const OreSwitch: React.FC<OreSwitchProps> = ({
             {/* 物理推钮 (使用 transform 进行 GPU 加速平移，避免 animate left 引起的 reflow 抖动) */}
             <motion.div 
               className="ore-switch-thumb"
+              initial={false}
               animate={{ x: checked ? 30 : 0 }}
               transition={{ type: 'spring', stiffness: 500, damping: 30 }}
               style={{ transition: 'none', willChange: 'transform' }}

@@ -11,6 +11,7 @@ mod skins;
 mod snapshot;
 mod state;
 mod util;
+mod keymaps;
 
 
 use crate::domain::library::{
@@ -178,6 +179,7 @@ impl WebDavSyncService {
         }
         
         library::sync_library_files(app, pool, &client, config).await?;
+        keymaps::sync_keyboard_profiles(app, &client, config).await?;
 
         sync_meta.favorites.last_sync_at = util::now_millis();
         local_store::write_sync_meta(app, &sync_meta)?;
@@ -241,4 +243,12 @@ impl WebDavSyncService {
     ) -> Result<WebDavSaveBackupDeleteResult, String> {
         save_backups::delete_remote_save_backup(config, backup_id).await
     }
+
+    pub async fn delete_webdav_keymap(
+        config: &WebDavSyncConfig,
+        filename: &str,
+    ) -> Result<(), String> {
+        keymaps::delete_webdav_keymap(config, filename).await
+    }
 }
+

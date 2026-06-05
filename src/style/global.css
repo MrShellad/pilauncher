@@ -52,7 +52,6 @@ html, body {
 }
 
 .mod-list-scrollport {
-  scrollbar-gutter: stable;
   padding-right: 2px;
 }
 

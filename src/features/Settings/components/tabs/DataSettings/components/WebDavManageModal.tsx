@@ -16,6 +16,7 @@ import {
   Package,
   Sparkles,
   Palette,
+  Keyboard,
 } from 'lucide-react';
 
 
@@ -66,12 +67,27 @@ const makeInstanceLabel = (instance: InstanceOption) =>
     ? `${instance.name} (${[instance.version, instance.loader].filter(Boolean).join(' / ')})`
     : instance.name;
 
+interface KeyboardProfile {
+  name: string;
+  author: string;
+  createdAt: string;
+  updatedAt: string;
+  description: string;
+  version: string;
+}
+
+interface KeyboardProfileListItem {
+  filename: string;
+  profile: KeyboardProfile;
+}
+
 export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, onClose }) => {
   const { settings, updateGeneralSetting } = useSettingsStore();
   const webDav = settings.general.webDav;
-  const [activeTab, setActiveTab] = useState<'saves' | 'skins' | 'favorites'>('saves');
+  const [activeTab, setActiveTab] = useState<'saves' | 'skins' | 'favorites' | 'keymaps'>('saves');
   const [remoteBackups, setRemoteBackups] = useState<WebDavRemoteSaveBackup[]>([]);
   const [starredItems, setStarredItems] = useState<any[]>([]);
+  const [userProfiles, setUserProfiles] = useState<KeyboardProfileListItem[]>([]);
   const tabs = useMemo<ToggleOption[]>(
     () => [
       {
@@ -93,6 +109,15 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
         ),
       },
       {
+        value: 'keymaps',
+        label: (
+          <div className="flex items-center justify-center gap-2">
+            <Keyboard size={16} />
+            <span>按键配置 ({userProfiles.length})</span>
+          </div>
+        ),
+      },
+      {
         value: 'skins',
         label: (
           <div className="flex items-center justify-center gap-2">
@@ -102,7 +127,7 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
         ),
       },
     ],
-    [remoteBackups.length, starredItems.length]
+    [remoteBackups.length, starredItems.length, userProfiles.length]
   );
   const [instances, setInstances] = useState<InstanceOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -173,6 +198,48 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
     }
   }, []);
 
+  const loadUserProfiles = useCallback(async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const list = await invoke<KeyboardProfileListItem[]>('list_user_profiles');
+      setUserProfiles(list);
+    } catch (caught) {
+      setError(String(caught));
+      setUserProfiles([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const handleDeleteUserProfile = useCallback(async (item: KeyboardProfileListItem) => {
+    const confirmed = window.confirm(`确定要删除按键配置「${item.profile.name || item.filename}」吗？\n这会同时从本地和 WebDAV 云端删除此配置。`);
+    if (!confirmed) return;
+
+    setIsLoading(true);
+    setError('');
+    try {
+      await invoke('delete_user_profile', { filename: item.filename });
+      
+      if (configured) {
+        const configParam = {
+          baseUrl: webDav.address,
+          username: webDav.username,
+          password: webDav.password,
+          deviceId: settings.general.deviceId,
+          saveBackupMode: webDav.saveBackupMode || 'backup',
+        };
+        await invoke('delete_webdav_keymap', { config: configParam, filename: item.filename });
+      }
+
+      await loadUserProfiles();
+    } catch (caught) {
+      setError(String(caught));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [configured, webDav, settings.general.deviceId, loadUserProfiles]);
+
   const handleSyncFavorites = useCallback(async () => {
     if (!configured) {
       setError('尚未配置 WebDAV。');
@@ -195,25 +262,31 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
         lastSyncTime: Date.now(),
       });
 
-      await loadFavorites();
+      if (activeTab === 'keymaps') {
+        await loadUserProfiles();
+      } else {
+        await loadFavorites();
+      }
       
       alert(
-        `收藏同步成功！\n上传操作数: ${result.uploadedOperations}\n下载操作数: ${result.downloadedOperations}\n合并项数: ${result.mergedFavorites.length}\n总操作数: ${result.totalOperations}`
+        `同步成功！\n上传操作数: ${result.uploadedOperations}\n下载操作数: ${result.downloadedOperations}\n合并项数: ${result.mergedFavorites.length}\n总操作数: ${result.totalOperations}`
       );
     } catch (caught) {
       setError(String(caught));
     } finally {
       setIsSyncingFavorites(false);
     }
-  }, [configured, webDav, settings.general.deviceId, updateGeneralSetting, loadFavorites]);
+  }, [configured, webDav, settings.general.deviceId, updateGeneralSetting, loadFavorites, activeTab, loadUserProfiles]);
 
   const handleRefresh = useCallback(async () => {
     if (activeTab === 'saves') {
       await loadBackups();
     } else if (activeTab === 'favorites') {
       await loadFavorites();
+    } else if (activeTab === 'keymaps') {
+      await loadUserProfiles();
     }
-  }, [activeTab, loadBackups, loadFavorites]);
+  }, [activeTab, loadBackups, loadFavorites, loadUserProfiles]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -225,8 +298,10 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
       void loadBackups();
     } else if (activeTab === 'favorites') {
       void loadFavorites();
+    } else if (activeTab === 'keymaps') {
+      void loadUserProfiles();
     }
-  }, [isOpen, activeTab, loadBackups, loadFavorites, loadInstances]);
+  }, [isOpen, activeTab, loadBackups, loadFavorites, loadInstances, loadUserProfiles]);
 
   const openDownload = useCallback(
     (backup: WebDavRemoteSaveBackup) => {
@@ -308,6 +383,7 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
       'webdav-manage-tab-0',
       'webdav-manage-tab-1',
       'webdav-manage-tab-2',
+      'webdav-manage-tab-3',
       'webdav-manage-refresh',
     ];
     const itemKeys =
@@ -318,6 +394,11 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
           ])
         : activeTab === 'favorites'
         ? ['webdav-manage-fav-sync']
+        : activeTab === 'keymaps'
+        ? [
+            'webdav-manage-keymap-sync',
+            ...userProfiles.map((item) => `webdav-manage-keymap-delete-${item.filename}`),
+          ]
         : [];
     const downloadKeys = pendingDownload
       ? [
@@ -359,15 +440,7 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
       )}
     >
       <div className="flex flex-col gap-4">
-        <div className="flex items-start gap-3 border-2 border-ore-green/30 bg-[#2b3528]/80 p-3 text-sm text-ore-text-muted">
-          <AlertCircle size={18} className="mt-0.5 shrink-0 text-ore-green" />
-          <div className="min-w-0">
-            <div className="mb-0.5 font-minecraft font-bold text-white">云端备份文件</div>
-            <p className="text-xs text-[#B1B2B5]">
-              可将 WebDAV 存档备份下载到本地实例备份中心，也可以下载后立即恢复到 saves。
-            </p>
-          </div>
-        </div>
+
 
         {error && (
           <div className="border-2 border-red-500/40 bg-red-950/30 px-3 py-2 text-sm text-red-100">
@@ -382,7 +455,7 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
           <OreToggleButton
             options={tabs}
             value={activeTab}
-            onChange={(val) => setActiveTab(val as 'saves' | 'skins' | 'favorites')}
+            onChange={(val) => setActiveTab(val as 'saves' | 'skins' | 'favorites' | 'keymaps')}
             focusKeyPrefix="webdav-manage-tab"
             onArrowPress={handleLinearArrow}
             className="flex-1 ore-tab-nav-toggle"
@@ -458,7 +531,7 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
                 </div>
               </div>
 
-              {isLoading ? (
+              {(isLoading && starredItems.length === 0) ? (
                 <div className="flex items-center justify-center py-12 text-ore-green">
                   <Loader2 size={32} className="animate-spin" />
                 </div>
@@ -467,7 +540,12 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
                   暂无收藏项。
                 </div>
               ) : (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 relative">
+                  {isLoading && (
+                    <div className="absolute inset-0 bg-[#242526]/50 flex items-center justify-center z-10">
+                      <Loader2 size={24} className="animate-spin text-ore-green" />
+                    </div>
+                  )}
                   <div className="px-1 text-xs font-bold text-[#8E8F93] font-minecraft">收藏项列表</div>
                   {starredItems.map((item) => {
                     const isCustom = item.source === 'custom';
@@ -524,7 +602,122 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
                 </div>
               )}
             </div>
-          ) : isLoading ? (
+          ) : activeTab === 'keymaps' ? (
+            <div className="flex flex-col gap-3 font-minecraft">
+              <div className="flex flex-col gap-3 border-2 border-[#1E1E1F] bg-[#242526] p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-white">按键配置同步</h3>
+                    <p className="mt-1 text-xs text-[#B1B2B5]">
+                      同步本地自定义键盘映射预设与 WebDAV 云端。
+                    </p>
+                  </div>
+                  <OreButton
+                    variant="primary"
+                    onClick={handleSyncFavorites}
+                    disabled={isSyncingFavorites || isLoading || !configured}
+                    focusKey="webdav-manage-keymap-sync"
+                    onArrowPress={handleLinearArrow}
+                  >
+                    {isSyncingFavorites ? (
+                      <Loader2 size={14} className="mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw size={14} className="mr-2" />
+                    )}
+                    立即同步
+                  </OreButton>
+                </div>
+
+                <div className="mt-2 grid grid-cols-2 gap-4 border-t border-[#1E1E1F] pt-3 text-xs text-[#B1B2B5]">
+                  <div>
+                    <span className="text-[#8E8F93]">云端保存路径：</span>
+                    <span className="font-mono text-white">PiLauncherSync/keyboard/user</span>
+                  </div>
+                  <div>
+                    <span className="text-[#8E8F93]">本地配置路径：</span>
+                    <span className="font-mono text-white">config/keyboard/user</span>
+                  </div>
+                  <div>
+                    <span className="text-[#8E8F93]">本地配置总数：</span>
+                    <span className="text-white font-bold">{userProfiles.length} 个</span>
+                  </div>
+                  <div>
+                    <span className="text-[#8E8F93]">自动同步状态：</span>
+                    <span className={webDav.syncFavorites ? 'text-ore-green font-bold' : 'text-yellow-500'}>
+                      {webDav.syncFavorites ? '已开启' : '未开启'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {(isLoading && userProfiles.length === 0) ? (
+                <div className="flex items-center justify-center py-12 text-ore-green">
+                  <Loader2 size={32} className="animate-spin" />
+                </div>
+              ) : userProfiles.length === 0 ? (
+                <div className="border-2 border-[#1E1E1F] bg-[#242526] p-6 text-center text-sm text-[#B1B2B5]">
+                  暂无自定义按键配置预设。
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2 relative">
+                  {isLoading && (
+                    <div className="absolute inset-0 bg-[#242526]/50 flex items-center justify-center z-10">
+                      <Loader2 size={24} className="animate-spin text-ore-green" />
+                    </div>
+                  )}
+                  <div className="px-1 text-xs font-bold text-[#8E8F93] font-minecraft">按键配置列表</div>
+                  {userProfiles.map((item) => {
+                    return (
+                      <div
+                        key={item.filename}
+                        className="flex items-center justify-between border-2 border-[#1E1E1F] bg-[#242526] p-3 transition-colors hover:border-ore-green/30"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[#1E1E1F] bg-black/20 text-[#5DADEC]">
+                            <Keyboard size={20} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-bold text-white">
+                              {item.profile.name || item.filename}
+                            </div>
+                            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[#B1B2B5]">
+                              {item.profile.author && <span>作者: {item.profile.author}</span>}
+                              {item.profile.version && <span>版本: {item.profile.version}</span>}
+                              {item.profile.updatedAt && (
+                                <span className="flex items-center gap-1">
+                                  <Clock size={12} />
+                                  {item.profile.updatedAt}
+                                </span>
+                              )}
+                            </div>
+                            {item.profile.description && (
+                              <div className="mt-1 truncate text-xs text-[#8E8F93]">
+                                {item.profile.description}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="ml-4 flex shrink-0 items-center gap-2">
+                          <OreButton
+                            variant="danger"
+                            size="sm"
+                            onClick={() => void handleDeleteUserProfile(item)}
+                            focusKey={`webdav-manage-keymap-delete-${item.filename}`}
+                            onArrowPress={handleLinearArrow}
+                            disabled={isLoading}
+                          >
+                            <Trash2 size={14} className="mr-1" />
+                            删除
+                          </OreButton>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : (isLoading && remoteBackups.length === 0) ? (
             <div className="flex items-center justify-center py-12 text-ore-green">
               <Loader2 size={32} className="animate-spin" />
             </div>
@@ -533,64 +726,71 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
               未找到 WebDAV 存档备份。
             </div>
           ) : (
-            remoteBackups.map((backup) => {
-              const busy = busyBackupId === backup.backupId;
-              return (
-                <div
-                  key={backup.backupId}
-                  className="flex items-center justify-between border-2 border-[#1E1E1F] bg-[#242526] p-3 transition-colors hover:border-ore-green/30"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[#1E1E1F] bg-black/20 text-[#5DADEC]">
-                      <FileArchive size={20} />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="truncate font-minecraft text-sm font-bold text-white">
-                        {backup.metadata.world.name || backup.metadata.world.folderName}
-                      </div>
-                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[#B1B2B5]">
-                        <span>{backup.metadata.backupMode}</span>
-                        <span>{backup.metadata.game.mcVersion}</span>
-                        <span>{formatLoader(backup)}</span>
-                        <span>{formatSize(backup.totalSize || backup.metadata.files.totalSize)}</span>
-                        <span className="flex items-center gap-1">
-                          <Clock size={12} />
-                          {formatDate(backup.metadata.createdAt)}
-                        </span>
-                      </div>
-                      <div className="mt-1 truncate text-[11px] text-[#8E8F93]">
-                        {backup.remotePrefix}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="ml-4 flex shrink-0 items-center gap-2">
-                    <OreButton
-                      variant="primary"
-                      size="sm"
-                      onClick={() => openDownload(backup)}
-                      focusKey={`webdav-manage-download-${backup.backupId}`}
-                      onArrowPress={handleLinearArrow}
-                      disabled={!!busyBackupId}
-                    >
-                      {busy ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Download size={14} className="mr-1" />}
-                      下载
-                    </OreButton>
-                    <OreButton
-                      variant="danger"
-                      size="sm"
-                      onClick={() => void handleDelete(backup)}
-                      focusKey={`webdav-manage-delete-${backup.backupId}`}
-                      onArrowPress={handleLinearArrow}
-                      disabled={!!busyBackupId}
-                    >
-                      <Trash2 size={14} className="mr-1" />
-                      删除
-                    </OreButton>
-                  </div>
+            <div className="flex flex-col gap-2 relative">
+              {isLoading && (
+                <div className="absolute inset-0 bg-[#242526]/50 flex items-center justify-center z-10">
+                  <Loader2 size={24} className="animate-spin text-ore-green" />
                 </div>
-              );
-            })
+              )}
+              {remoteBackups.map((backup) => {
+                const busy = busyBackupId === backup.backupId;
+                return (
+                  <div
+                    key={backup.backupId}
+                    className="flex items-center justify-between border-2 border-[#1E1E1F] bg-[#242526] p-3 transition-colors hover:border-ore-green/30"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[#1E1E1F] bg-black/20 text-[#5DADEC]">
+                        <FileArchive size={20} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate font-minecraft text-sm font-bold text-white">
+                          {backup.metadata.world.name || backup.metadata.world.folderName}
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[#B1B2B5]">
+                          <span>{backup.metadata.backupMode}</span>
+                          <span>{backup.metadata.game.mcVersion}</span>
+                          <span>{formatLoader(backup)}</span>
+                          <span>{formatSize(backup.totalSize || backup.metadata.files.totalSize)}</span>
+                          <span className="flex items-center gap-1">
+                            <Clock size={12} />
+                            {formatDate(backup.metadata.createdAt)}
+                          </span>
+                        </div>
+                        <div className="mt-1 truncate text-[11px] text-[#8E8F93]">
+                          {backup.remotePrefix}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="ml-4 flex shrink-0 items-center gap-2">
+                      <OreButton
+                        variant="primary"
+                        size="sm"
+                        onClick={() => openDownload(backup)}
+                        focusKey={`webdav-manage-download-${backup.backupId}`}
+                        onArrowPress={handleLinearArrow}
+                        disabled={!!busyBackupId}
+                      >
+                        {busy ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Download size={14} className="mr-1" />}
+                        下载
+                      </OreButton>
+                      <OreButton
+                        variant="danger"
+                        size="sm"
+                        onClick={() => void handleDelete(backup)}
+                        focusKey={`webdav-manage-delete-${backup.backupId}`}
+                        onArrowPress={handleLinearArrow}
+                        disabled={!!busyBackupId}
+                      >
+                        <Trash2 size={14} className="mr-1" />
+                        删除
+                      </OreButton>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </FocusBoundary>
 

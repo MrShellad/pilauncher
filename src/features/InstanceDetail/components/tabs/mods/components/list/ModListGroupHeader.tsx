@@ -1,5 +1,6 @@
 import React from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
+import { motion } from 'motion/react';
 
 import { type ModGroupId, type ModListGroup, type ModListTheme } from '../../modListShared';
 
@@ -61,9 +62,13 @@ export const ModListGroupHeader: React.FC<ModListGroupHeaderProps> = ({
         className="h-6 w-[3px] shrink-0 rounded-full"
         style={{ backgroundColor: accentColor, filter: focused || !collapsed ? 'brightness(1.1)' : undefined }}
       />
-      <span className={`transition-colors ${chevronClass}`}>
-        {collapsed ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
-      </span>
+      <motion.span
+        className={`inline-block transition-colors ${chevronClass}`}
+        animate={{ rotate: collapsed ? 0 : 90 }}
+        transition={{ duration: 0.18, ease: 'easeOut' }}
+      >
+        <ChevronRight size={15} />
+      </motion.span>
       <span className={`text-[1.0625rem] font-semibold ${titleClass}`}>{group.label}</span>
       <span className={`rounded-[6px] border px-2 py-0.5 text-[1.0625rem] font-semibold transition-colors ${countClass}`}>
         {group.mods.length}

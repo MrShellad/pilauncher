@@ -247,6 +247,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         library_cmd::list_webdav_save_backups,
         library_cmd::download_webdav_save_backup,
         library_cmd::delete_webdav_save_backup,
+        library_cmd::delete_webdav_keymap,
         wiki_cmd::get_wiki_url,
         logshare_cmd::share_minecraft_log,
         logshare_cmd::analyse_minecraft_log,

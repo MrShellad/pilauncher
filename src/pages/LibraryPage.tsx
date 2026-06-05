@@ -422,7 +422,7 @@ const LibraryPage: React.FC = () => {
 
   const handleOpenDetail = () => {
     if (!contextMenu?.item) return;
-    handleOpenItem(contextMenu.item);
+    openResourceDetail(contextMenu.item);
     setContextMenu(null);
   };
 
@@ -461,7 +461,7 @@ const LibraryPage: React.FC = () => {
       if (toDetailProject(resItem)) {
         contextMenuActions.push({
           id: 'detail',
-          label: t('libraryPage.context.detail'),
+          label: t('libraryPage.context.detail', { type: t(`libraryPage.types.${resItem.type}`, { defaultValue: 'Mod' }) }),
           icon: Eye,
           group: 'primary',
           onSelect: handleOpenDetail,

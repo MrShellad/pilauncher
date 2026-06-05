@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 
 import { FocusItem } from '../../../../../../../ui/focus/FocusItem';
 import type { ModIconSnapshot } from '../../../../../logic/modIconService';
@@ -72,7 +73,12 @@ const ModRowItemComponent: React.FC<ModRowItemProps> = ({
       autoScroll={false}
     >
       {({ ref, focused, hasFocusedChild }) => (
-        <div ref={ref as React.RefObject<HTMLDivElement>}>
+        <motion.div
+          ref={ref as any}
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+        >
           <ModRowView
             mod={mod}
             iconSnapshot={iconSnapshot}
@@ -127,7 +133,7 @@ const ModRowItemComponent: React.FC<ModRowItemProps> = ({
               />
             )}
           />
-        </div>
+        </motion.div>
       )}
     </FocusItem>
   );

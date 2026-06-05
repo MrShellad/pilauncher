@@ -105,7 +105,7 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
   onBatchDisable,
   onBatchDelete,
   onBatchFavorite,
-  onExitBatchMode,
+  onExitBatchMode: _onExitBatchMode,
   onOpenModMetadataSettings,
   onCheckModUpdates,
   isCheckingModUpdates,
@@ -206,18 +206,6 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
             >
               <Wand2 size={14} className="mr-1.5" />
               清理名称
-            </OreButton>
-            <OreButton
-              focusKey="mod-btn-download"
-              variant="primary"
-              size="auto"
-              onClick={onOpenDownload}
-              onArrowPress={onHeaderArrowPress}
-              className={MOD_LIST_HEADER_CLASSES.oreButton}
-              style={LIST_CONTROL_TEXT_STYLE}
-            >
-              <DownloadCloud size={14} className="mr-1.5" />
-              下载 MOD
             </OreButton>
             <div className="mx-0.5 h-5 w-px bg-white/15" />
             <OreButton
@@ -381,19 +369,6 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
                 <Star size={14} className="mr-1.5" />
                 收藏
               </OreButton>
-
-              <OreButton
-                focusKey="mod-btn-batch-exit"
-                size="auto"
-                variant="secondary"
-                onClick={onExitBatchMode}
-                onArrowPress={onHeaderArrowPress}
-                className={`${MOD_LIST_HEADER_CLASSES.oreButton} shrink-0`}
-                style={LIST_CONTROL_TEXT_STYLE}
-              >
-                <X size={15} className="mr-1.5" />
-                退出多选
-              </OreButton>
             </div>
           )}
 
@@ -409,6 +384,18 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
           >
             <RefreshCw size={14} className={`mr-1.5 ${isCheckingModUpdates ? 'animate-spin' : ''}`} />
             {isCheckingModUpdates ? '检查中...' : '检查更新'}
+          </OreButton>
+          <OreButton
+            focusKey="mod-btn-download"
+            variant="primary"
+            size="auto"
+            onClick={onOpenDownload}
+            onArrowPress={onHeaderArrowPress}
+            className={MOD_LIST_HEADER_CLASSES.oreButton}
+            style={LIST_CONTROL_TEXT_STYLE}
+          >
+            <DownloadCloud size={14} className="mr-1.5" />
+            下载 MOD
           </OreButton>
         </div>
       </div>

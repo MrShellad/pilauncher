@@ -1499,7 +1499,7 @@
       "searchPlaceholder": "Search name, author, version, Loader..."
     },
     "context": {
-      "detail": "View Mod Details",
+      "detail": "View {{type}} Details",
       "tags": "Add Tag",
       "deleteFavorite": "Remove from Favorites",
       "removeFromTag": "Remove from Current Tag",

@@ -1504,7 +1504,7 @@
       "searchPlaceholder": "搜索名称、作者、版本、Loader..."
     },
     "context": {
-      "detail": "查看 Mod 详情",
+      "detail": "查看{{type}}详情",
       "tags": "单独添加标签",
       "deleteFavorite": "从收藏中删除",
       "removeFromTag": "从当前标签移除",

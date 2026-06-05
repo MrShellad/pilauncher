@@ -135,6 +135,36 @@ export const ModAccordionVirtualList: React.FC<ModAccordionVirtualListProps> = (
     );
   };
 
+  const VirtuosoItem = useMemo(() => {
+    const Component = ({ children, item, style, ...props }: any) => {
+      const isGroupHead = item?.type === 'group';
+      const itemStyle = isGroupHead
+        ? {
+            ...style,
+            position: 'sticky' as const,
+            top: 0,
+            zIndex: 40,
+            width: '100%'
+          }
+        : {
+            ...style,
+            width: '100%'
+          };
+
+      return (
+        <div
+          {...props}
+          style={itemStyle}
+          className={isGroupHead ? (listTheme === 'light' ? 'bg-[#A9ABAE]' : 'bg-[#111318]') : undefined}
+        >
+          {children}
+        </div>
+      );
+    };
+    Component.displayName = 'VirtuosoItem';
+    return Component;
+  }, [listTheme]);
+
   return (
     <Virtuoso
       ref={virtuosoRef}
@@ -155,31 +185,7 @@ export const ModAccordionVirtualList: React.FC<ModAccordionVirtualListProps> = (
       itemContent={renderEntry}
       components={{
         Scroller: ModListOverlayScroller,
-        Item: ({ children, item, style, ...props }) => {
-          const isGroupHead = item?.type === 'group';
-          const itemStyle = isGroupHead
-            ? {
-                ...style,
-                position: 'sticky' as const,
-                top: 0,
-                zIndex: 40,
-                width: '100%'
-              }
-            : {
-                ...style,
-                width: '100%'
-              };
-
-          return (
-            <div
-              {...props}
-              style={itemStyle}
-              className={isGroupHead ? (listTheme === 'light' ? 'bg-[#A9ABAE]' : 'bg-[#111318]') : undefined}
-            >
-              {children}
-            </div>
-          );
-        }
+        Item: VirtuosoItem
       }}
     />
   );

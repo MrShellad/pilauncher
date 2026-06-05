@@ -23,3 +23,6 @@ pub(crate) const LIBRARY_DIR: &str = "PiLauncherSync/library";
 pub(crate) const LIBRARY_SHADERS_DIR: &str = "PiLauncherSync/library/shaders";
 pub(crate) const LIBRARY_RESOURCEPACKS_DIR: &str = "PiLauncherSync/library/resourcepacks";
 
+pub(crate) const KEYBOARD_DIR: &str = "PiLauncherSync/keyboard";
+pub(crate) const KEYBOARD_USER_DIR: &str = "PiLauncherSync/keyboard/user";
+

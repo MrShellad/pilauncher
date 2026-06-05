@@ -1479,7 +1479,7 @@
       "searchPlaceholder": "搜尋名稱、作者、版本、Loader..."
     },
     "context": {
-      "detail": "看 Mod 詳情",
+      "detail": "查看{{type}}詳情",
       "tags": "單獨添加標籤",
       "deleteFavorite": "從收藏中刪除",
       "removeFromTag": "從目前標籤移除",

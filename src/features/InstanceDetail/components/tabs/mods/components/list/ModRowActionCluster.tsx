@@ -25,12 +25,12 @@ interface ModRowActionClusterProps {
 export const ModRowActionCluster: React.FC<ModRowActionClusterProps> = ({
   fileName,
   isEnabled,
-  isSelected,
+  isSelected: _isSelected,
   canUpgrade,
   isUpdating,
   updateVersionName,
   isActionLocked,
-  viewMode,
+  viewMode: _viewMode,
   getActionFocusKey,
   onActionArrow,
   onPreventLockedAction,
@@ -38,10 +38,9 @@ export const ModRowActionCluster: React.FC<ModRowActionClusterProps> = ({
   onToggleMod,
   onDeleteMod
 }) => {
-  const compactActions = viewMode === 'compact';
-  const secondaryActionsClass = compactActions && !isSelected
-    ? 'pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100'
-    : 'opacity-100';
+  const actionVisibilityClass = isEnabled
+    ? 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-opacity duration-150'
+    : 'opacity-100 pointer-events-auto';
 
   return (
     <div className={`flex items-center gap-3 transition-opacity ${isActionLocked ? 'opacity-80' : 'opacity-100'}`}>
@@ -70,7 +69,7 @@ export const ModRowActionCluster: React.FC<ModRowActionClusterProps> = ({
         </OreButton>
       )}
 
-      <div className="flex items-center justify-center" onClick={(event) => event.stopPropagation()}>
+      <div className={`flex items-center justify-center ${actionVisibilityClass}`} onClick={(event) => event.stopPropagation()}>
         <OreSwitch
           focusKey={getActionFocusKey(fileName, 'toggle')}
           checked={isEnabled}
@@ -97,7 +96,7 @@ export const ModRowActionCluster: React.FC<ModRowActionClusterProps> = ({
           event.stopPropagation();
           onDeleteMod(fileName);
         }}
-        className={`!h-8 !min-h-8 !min-w-8 !w-8 !px-0 ${secondaryActionsClass}`}
+        className={`!h-8 !min-h-8 !min-w-8 !w-8 !px-0 ${actionVisibilityClass}`}
       >
         <Trash2 size={18} />
       </OreButton>

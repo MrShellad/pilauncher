@@ -1478,7 +1478,7 @@
       "searchPlaceholder": "이름, 작성자, 버전, 로더 검색..."
     },
     "context": {
-      "detail": "모드 세부정보 보기",
+      "detail": "{{type}} 세부정보 보기",
       "tags": "개별적으로 태그 추가",
       "deleteFavorite": "즐겨찾기에서 제거",
       "removeFromTag": "현재 라벨에서 삭제",
