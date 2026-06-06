@@ -49,6 +49,29 @@
   </categories>
 
   <releases>
+    <release version="0.1.40" date="2026-06-07">
+      <description>
+        <p xml:lang="zh_CN">新增光影资源收藏支持，深度优化 Windows 平台下的文件链接创建逻辑，并美化了资源下载与新闻页面的动画效果及加载体验。</p>
+        <ul xml:lang="zh_CN">
+          <li>[新功能] 资源下载支持直接收藏光影包，方便管理和快速下载常用光影。</li>
+          <li>[优化] 重构 Windows 文件链接创建逻辑，优先采用目录联接（Junction）和硬链接，不再需要管理员权限，并彻底解决 Minecraft 与 Java 无法识别文件符号链接的兼容性问题。</li>
+          <li>[优化] 优化资源下载页面，引入平滑的页面过渡动画与全新的骨架屏加载效果，消除界面加载闪烁。</li>
+          <li>[优化] 美化新闻列表页面，引入流畅的卡片载入动画与渐变投影，优化无障碍加载体验。</li>
+          <li>[优化] 改进 3D 皮肤预览器的渲染效率与性能表现，减少运行卡顿。</li>
+          <li>[优化] 调整下载默认配置，默认关闭分块下载以提升资源下载的兼容性与稳定性。</li>
+        </ul>
+        <p>Added support for favoriting shader resources, optimized file linking logic on Windows, and enhanced animations and loading transitions for the download and news pages.</p>
+        <ul>
+          <li>[New] Added support for favoriting shader packs directly in the download section.</li>
+          <li>[Optimization] Refactored Windows file linking logic to prioritize directory junctions and hard links, eliminating the need for admin rights and solving compatibility issues where Java/Minecraft failed to recognize file symlinks.</li>
+          <li>[Optimization] Optimized the resource download page with smooth layout transition animations and a new shimmer skeleton loader.</li>
+          <li>[Optimization] Refreshed the news page with smooth card entry animations, gradient shadow styling, and improved loading experience.</li>
+          <li>[Optimization] Optimized 3D skin viewer rendering efficiency to deliver a smoother visual performance.</li>
+          <li>[Optimization] Disabled chunked downloads by default to improve general download compatibility and stability.</li>
+        </ul>
+      </description>
+    </release>
+
     <release version="0.1.39" date="2026-06-05">
       <description>
         <p xml:lang="zh_CN">新增游戏库与按键配置的云端同步、手柄键位管理以及多实例下载，并全面优化了列表性能、无障碍体验与暗黑模式样式。</p>
@@ -77,6 +100,8 @@
         </ul>
       </description>
     </release>
+
+    <release version="0.1.38" date="2026-05-31">
       <description>
         <p xml:lang="zh_CN">新增版本更新日志弹窗与翻译 API 配置，优化更新提示与项目图标动画效果。</p>
         <ul xml:lang="zh_CN">
