@@ -49,6 +49,26 @@
   </categories>
 
   <releases>
+    <release version="0.1.41" date="2026-06-10">
+      <description>
+        <p xml:lang="zh_CN">新增已删除实例的友好提示，优化第三方登录与皮肤站的开启逻辑，并进一步提升了局域网联机安全性与设置页面的流畅度。</p>
+        <ul xml:lang="zh_CN">
+          <li>[新功能] 新增已选中实例被删除时的友好提示与重新选择引导，避免因实例缺失导致启动异常。</li>
+          <li>[优化] 优化设置页面加载性能，系统字体在后台异步预加载，使页面打开更加流畅。</li>
+          <li>[优化] 优化局域网在线信任设备的安全校验机制，提升局域网安全性。</li>
+          <li>[优化] 优化资源下载页面的分类切换逻辑，切换标签时自动重置版本与加载器筛选。</li>
+          <li>[优化] 优化实例选择弹窗的滚动条显示效果。</li>
+        </ul>
+        <p>Added friendly reminders for deleted instances, optimized the activation logic for third-party logins/skin stations, and improved LAN multiplayer security and Settings page responsiveness.</p>
+        <ul>
+          <li>[New] Added friendly notifications and re-selection guidance when a selected game instance is deleted to prevent startup errors.</li>
+          <li>[Optimization] Improved Settings page loading by preloading system fonts asynchronously in the background, making the UI smoother to open.</li>
+          <li>[Optimization] Enhanced the security verification mechanism for trusted devices on the local network to improve LAN multiplayer security.</li>
+          <li>[Optimization] Refined tab-switching logic in the download center, automatically resetting version and loader filters when changing tabs.</li>
+          <li>[Optimization] Enhanced the scrollbar experience within the instance selection modal.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.40" date="2026-06-07">
       <description>
         <p xml:lang="zh_CN">新增光影资源收藏支持，深度优化 Windows 平台下的文件链接创建逻辑，并美化了资源下载与新闻页面的动画效果及加载体验。</p>
