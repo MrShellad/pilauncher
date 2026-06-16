@@ -155,6 +155,7 @@ export const useModOperations = ({
           .catch((err) => console.error('Failed to update mod cache:', err));
       }
 
+      const targetVersionName = version?.version_number || version?.name || mod.updateVersionName || '';
       await modService.updateModManifest(
         instanceId,
         targetFileName,
@@ -162,7 +163,7 @@ export const useModOperations = ({
         platform,
         projectId,
         targetVersionId,
-        undefined,
+        targetVersionName || undefined,
         oldFileName !== targetFileName ? oldFileName : undefined
       );
       if (platform) {

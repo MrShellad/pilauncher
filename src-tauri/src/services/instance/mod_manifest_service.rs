@@ -185,7 +185,7 @@ impl ModManifestService {
         let file_state = build_file_state(target_path)?;
         let hash = compute_file_hash(target_path)?;
         let mut entry = build_manifest_entry(
-            build_manifest_source(source_kind, platform, project_id, file_id),
+            build_manifest_source(source_kind, platform.clone(), project_id.clone(), file_id.clone()),
             hash,
             file_state,
         );
@@ -226,6 +226,19 @@ impl ModManifestService {
                 if entry.metadata_settings.is_none() {
                     entry.metadata_settings = old_entry.metadata_settings.clone();
                 }
+            }
+        }
+
+        if let (Some(p), Some(pid), Some(fid)) = (platform.as_deref(), project_id.as_ref(), file_id.as_ref()) {
+            let platform_key = p.trim().to_ascii_lowercase();
+            if !platform_key.is_empty() {
+                entry.matched_platforms.insert(
+                    platform_key,
+                    ModPlatformMatch {
+                        project_id: Some(pid.clone()),
+                        file_id: Some(fid.clone()),
+                    },
+                );
             }
         }
 
