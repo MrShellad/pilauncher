@@ -189,6 +189,7 @@ export const SetupWizard: React.FC = () => {
             isOpen={showBrowser}
             onClose={() => setShowBrowser(false)}
             onSelect={handleSelectPath}
+            initialPath={basePath}
           />
         )}
       </AnimatePresence>

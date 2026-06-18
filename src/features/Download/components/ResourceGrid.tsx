@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
 import { VirtuosoGrid } from 'react-virtuoso';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { VirtuosoScroller } from '../../../ui/primitives/OreOverlayScrollArea';
@@ -44,16 +43,7 @@ const ResourceGridFooter: React.FC<{ context?: ResourceGridContext }> = ({ conte
     );
   }
 
-  if (context.isLoadingMore) return null;
-
-  return (
-    <div className="col-span-full flex h-16 items-center justify-center">
-      <Loader2
-        size={24}
-        className="text-ore-green opacity-60"
-      />
-    </div>
-  );
+  return null;
 };
 
 const ResourceGridHeader: React.FC = () => {
@@ -166,7 +156,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   const virtuosoRef = useRef<any>(null);
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
   const loadMoreLockRef = useRef(false);
-  const latestLoadMoreRef = useRef({ hasMore, isLoading, isLoadingMore, onLoadMore });
+  const latestLoadMoreRef = useRef({ hasMore, isLoading, isLoadingMore, loadMoreFailed, onLoadMore });
 
   const [shouldAnimateLayout, setShouldAnimateLayout] = useState(false);
   const reflowTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -235,8 +225,8 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   }, [isDoubleColumn]);
 
   useEffect(() => {
-    latestLoadMoreRef.current = { hasMore, isLoading, isLoadingMore, onLoadMore };
-  }, [hasMore, isLoading, isLoadingMore, onLoadMore]);
+    latestLoadMoreRef.current = { hasMore, isLoading, isLoadingMore, loadMoreFailed, onLoadMore };
+  }, [hasMore, isLoading, isLoadingMore, loadMoreFailed, onLoadMore]);
 
   useEffect(() => {
     if (isLoading || isLoadingMore) return;
@@ -261,11 +251,18 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
 
   const canLoadMore = useCallback(() => {
     const latest = latestLoadMoreRef.current;
-    if (!latest.hasMore || latest.isLoading || latest.isLoadingMore || loadMoreLockRef.current) {
+    if (
+      !latest.hasMore ||
+      latest.isLoading ||
+      latest.isLoadingMore ||
+      latest.loadMoreFailed ||
+      results.length === 0 ||
+      loadMoreLockRef.current
+    ) {
       return false;
     }
     return true;
-  }, []);
+  }, [results.length]);
 
   const triggerLoadMore = useCallback(() => {
     if (!canLoadMore()) return;
@@ -387,17 +384,14 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
         {isLoading && (
           <motion.div
             key="skeleton-overlay"
-            initial={{ opacity: 1, ["--wipe" as any]: "-120%" }}
+            initial={{ opacity: 1 }}
             exit={{ 
-              ["--wipe" as any]: "120%",
+              opacity: 0,
               pointerEvents: "none"
             }}
             transition={{ 
-              ["--wipe" as any]: { duration: 0.7, ease: "easeInOut" }
-            }}
-            style={{
-              maskImage: 'linear-gradient(to right, transparent var(--wipe), black calc(var(--wipe) + 100%))',
-              WebkitMaskImage: 'linear-gradient(to right, transparent var(--wipe), black calc(var(--wipe) + 100%))'
+              duration: 0.25,
+              ease: "easeInOut"
             }}
             className="absolute inset-0 z-30 bg-[#313233] px-[1rem] pt-0 overflow-y-auto custom-scrollbar"
           >

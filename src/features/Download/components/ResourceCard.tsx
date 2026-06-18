@@ -1,4 +1,5 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
+import { useIconCacheStore } from '../logic/iconCache';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { motion, useReducedMotion } from 'motion/react';
 import { Blocks, Check, CheckCircle2, Clock3, Download, Globe2, Heart, Monitor, Package, Server, Tags } from 'lucide-react';
@@ -98,6 +99,15 @@ export const ResourceCard = React.memo(({
   const shouldReduceMotion = useReducedMotion();
   const cardRef = useRef<HTMLDivElement | null>(null);
 
+  const cachedIconUrl = useIconCacheStore((state) => project.icon_url ? state.cachedUrls[project.icon_url] || '' : '');
+  const loadIcon = useIconCacheStore((state) => state.loadIcon);
+
+  useEffect(() => {
+    if (project.icon_url) {
+      void loadIcon(project.icon_url);
+    }
+  }, [project.icon_url, loadIcon]);
+
   const { features, followerCount, loaders, supportsClient, supportsServer } = viewModel;
 
   const focusKey = `download-grid-item-${index}`;
@@ -188,10 +198,10 @@ export const ResourceCard = React.memo(({
             }
             transition={shouldReduceMotion ? { duration: 0 } : {
               layout: { type: 'spring', stiffness: 220, damping: 28 },
-              default: { duration: 0.2, ease: 'easeOut', delay: Math.min(index, 10) * 0.035 },
+              default: { duration: 0.3, ease: 'easeOut', delay: index < 8 ? index * 0.05 : 0 },
               opacity: shouldAnimateLayout 
                 ? { duration: 0.45, ease: 'easeOut', delay: Math.min(index, 8) * 0.045 }
-                : { duration: 0.2, ease: 'easeOut', delay: Math.min(index, 10) * 0.035 }
+                : { duration: 0.3, ease: 'easeOut', delay: index < 8 ? index * 0.05 : 0 }
             }}
             style={{
               contain: 'layout paint',
@@ -210,7 +220,7 @@ export const ResourceCard = React.memo(({
                   {project.icon_url ? (
                     <motion.img
                       layoutId={isSelectedForTransition ? `project-icon-image-${project.id}` : undefined}
-                      src={project.icon_url}
+                      src={cachedIconUrl || project.icon_url}
                       alt=""
                       loading="lazy"
                       className="h-full w-full object-cover"

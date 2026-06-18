@@ -36,6 +36,7 @@ export const useModListState = (instanceId: string) => {
         if (existing) {
           return {
             ...newMod,
+            version: newMod.version || existing.version,
             networkInfo: newMod.networkInfo || existing.networkInfo,
             networkIconUrl: newMod.networkIconUrl || existing.networkIconUrl || existing.networkInfo?.icon_url,
             isFetchingNetwork: newMod.isFetchingNetwork ?? existing.isFetchingNetwork,
@@ -94,13 +95,15 @@ export const useModListState = (instanceId: string) => {
     }, LOADING_EXIT_DELAY_MS);
   }, []);
 
-  const prepareModScan = useCallback((requestId: string, context: ModScanContext) => {
+  const prepareModScan = useCallback((requestId: string, context: ModScanContext, silent = false) => {
     if (loadingExitTimerRef.current) {
       clearTimeout(loadingExitTimerRef.current);
       loadingExitTimerRef.current = null;
     }
 
-    setIsLoading(true);
+    if (!silent) {
+      setIsLoading(true);
+    }
     pendingScanModsRef.current = [];
     activeModScanRequestRef.current = requestId;
     modScanContextRef.current = context;
@@ -114,12 +117,14 @@ export const useModListState = (instanceId: string) => {
     return activeModScanRequestRef.current === requestId;
   }, []);
 
-  const finishModScan = useCallback((requestId: string) => {
+  const finishModScan = useCallback((requestId: string, silent = false) => {
     if (activeModScanRequestRef.current === requestId) {
       activeModScanRequestRef.current = null;
       modScanContextRef.current = null;
     }
-    finishLoadingSmoothly();
+    if (!silent) {
+      finishLoadingSmoothly();
+    }
   }, [finishLoadingSmoothly]);
 
   useEffect(() => {

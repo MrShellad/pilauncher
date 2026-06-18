@@ -13,6 +13,7 @@ export type ModSortOrder = 'asc' | 'desc';
 export interface LoadModsOptions {
   checkUpdates?: boolean;
   forceUpdateCheck?: boolean;
+  silent?: boolean;
 }
 
 export interface ModUpdateCacheEntry {

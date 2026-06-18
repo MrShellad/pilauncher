@@ -73,8 +73,12 @@ export function useDirectoryBrowser(
         if (isMounted) setNodes(nextNodes);
       } catch (e: any) {
         if (isMounted) {
-          setError(String(e));
-          setNodes([]);
+          if (currentPath) {
+            setCurrentPath('');
+          } else {
+            setError(String(e));
+            setNodes([]);
+          }
         }
       } finally {
         if (isMounted) setLoading(false);

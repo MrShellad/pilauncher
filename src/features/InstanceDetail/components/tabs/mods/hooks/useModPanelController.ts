@@ -148,7 +148,7 @@ export const useModPanelController = (instanceId: string) => {
 
       isRefreshing = true;
       try {
-        await loadMods();
+        await loadMods({ silent: true });
       } finally {
         isRefreshing = false;
         if (refreshAgain && !disposed) {
@@ -501,7 +501,7 @@ export const useModPanelController = (instanceId: string) => {
       await modService.updateAllModsMetadataSettings(instanceId, settings);
       addToast('success', t('instanceDetail.mods.globalMetadataSettingsSaved', '全局元数据设置已保存'));
       if (!skipReload) {
-        void loadMods();
+        void loadMods({ silent: true });
       }
     } catch (error) {
       console.error(error);

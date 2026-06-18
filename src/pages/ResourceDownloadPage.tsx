@@ -18,6 +18,7 @@ import { ShimmerOverlay } from '../features/Download/components/ShimmerOverlay';
 import { fetchCurseForgeVersions } from '../features/Download/logic/curseforgeApi';
 import { useResourceDownload, type DownloadSource, type TabType } from '../features/Download/hooks/useResourceDownload';
 import { useDownloadSelectionStore } from '../features/Download/stores/useDownloadSelectionStore';
+import { useIconCacheStore } from '../features/Download/logic/iconCache';
 import { fetchModrinthVersions, type ModrinthProject, type OreProjectVersion } from '../features/InstanceDetail/logic/modrinthApi';
 import { getInstalledProjectIds, getInstalledVersionIds, modService } from '../features/InstanceDetail/logic/modService';
 import { useDownloadStore } from '../store/useDownloadStore';
@@ -274,6 +275,9 @@ const ResourceDownloadPage: React.FC = () => {
       lastFocusBeforeModalRef.current = currentFocus;
     }
     setSelectedProject(project);
+    if (project.icon_url) {
+      void useIconCacheStore.getState().refreshIcon(project.icon_url);
+    }
   }, []);
 
   const handleToggleProjectSelection = useCallback((project: ModrinthProject) => {

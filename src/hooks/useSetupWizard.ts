@@ -32,9 +32,19 @@ export const useSetupWizard = () => {
     if (!hasHydrated) return;
 
     invoke<string | null>('get_base_directory')
-      .then((res) => {
+      .then(async (res) => {
         const { settings } = useSettingsStore.getState();
         const eulaNeedsUpdate = settings.general.lastAgreedLegalDate !== CURRENT_EULA_DATE;
+
+        let pathVal = res || '';
+        if (!pathVal) {
+          try {
+            pathVal = await invoke<string>('get_default_data_directory');
+          } catch (e) {
+            console.error('Failed to get default data directory:', e);
+          }
+        }
+        setBasePath(pathVal);
 
         if (!res || eulaNeedsUpdate) {
           setNeedsSetup(true);

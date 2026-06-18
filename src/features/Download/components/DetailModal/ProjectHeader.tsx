@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useIconCacheStore } from '../../logic/iconCache';
 import { motion } from 'motion/react';
 import { Blocks, Clock3, Download, ExternalLink, Heart, Monitor, Server } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -48,6 +49,15 @@ const renderEnvChip = (
 
 export const ProjectHeader: React.FC<ProjectHeaderProps> = ({ project, details }) => {
   const { t } = useTranslation();
+  const cachedIconUrl = useIconCacheStore((state) => project.icon_url ? state.cachedUrls[project.icon_url] || '' : '');
+  const loadIcon = useIconCacheStore((state) => state.loadIcon);
+
+  useEffect(() => {
+    if (project.icon_url) {
+      void loadIcon(project.icon_url);
+    }
+  }, [project.icon_url, loadIcon]);
+
   const author = project.author || details?.author || t('download.meta.unknownAuthor', { defaultValue: 'Unknown' });
 
   const handleOpenWeb = () => {
@@ -70,7 +80,7 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({ project, details }
         {project.icon_url ? (
           <motion.img
             layoutId={`project-icon-image-${project.id}`}
-            src={project.icon_url}
+            src={cachedIconUrl || project.icon_url}
             alt=""
             className="h-full w-full object-cover"
           />

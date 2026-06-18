@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Info, Radar, Save, Search, Tag } from 'lucide-react';
+import { useIconCacheStore } from '../logic/iconCache';
 
 import { useLibraryStore } from '../../../stores/useLibraryStore';
 import type { Collection, CollectionItem, StarredItem } from '../../../types/library';
@@ -511,25 +512,42 @@ export const FavoritePlaceholderModal: React.FC<FavoritePlaceholderModalProps> =
             contentSafePaddingRight={20}
           >
             {projects.map((project) => (
-              <div
+              <FavoriteProjectItem
                 key={`${project.source || 'modrinth'}:${normalizeProjectId(project)}`}
-                className="flex items-center gap-3 border-2 border-[#1E1E1F] bg-[#D0D1D4] p-2 text-[#111214] shadow-[inset_0_-0.1875rem_0_#58585A,inset_0.125rem_0.125rem_0_rgba(255,255,255,0.68)]"
-              >
-                <div className="h-10 w-10 shrink-0 overflow-hidden border-2 border-[#1E1E1F] bg-[#48494A]">
-                  {project.icon_url ? (
-                    <img src={project.icon_url} alt="" className="h-full w-full object-cover" />
-                  ) : null}
-                </div>
-                <div className="min-w-0">
-                  <div className="truncate font-minecraft text-sm">{project.title}</div>
-                  <div className="truncate text-xs text-[#48494A]">{project.author || project.source || 'Unknown'}</div>
-                </div>
-              </div>
+                project={project}
+              />
             ))}
           </OreOverlayScrollArea>
         </aside>
       </div>
       </div>
     </OreModal>
+  );
+};
+
+const FavoriteProjectItem: React.FC<{ project: ModrinthProject }> = ({ project }) => {
+  const cachedIconUrl = useIconCacheStore((state) => project.icon_url ? state.cachedUrls[project.icon_url] || '' : '');
+  const loadIcon = useIconCacheStore((state) => state.loadIcon);
+
+  useEffect(() => {
+    if (project.icon_url) {
+      void loadIcon(project.icon_url);
+    }
+  }, [project.icon_url, loadIcon]);
+
+  return (
+    <div
+      className="flex items-center gap-3 border-2 border-[#1E1E1F] bg-[#D0D1D4] p-2 text-[#111214] shadow-[inset_0_-0.1875rem_0_#58585A,inset_0.125rem_0.125rem_0_rgba(255,255,255,0.68)]"
+    >
+      <div className="h-10 w-10 shrink-0 overflow-hidden border-2 border-[#1E1E1F] bg-[#48494A]">
+        {project.icon_url ? (
+          <img src={cachedIconUrl || project.icon_url} alt="" className="h-full w-full object-cover" />
+        ) : null}
+      </div>
+      <div className="min-w-0">
+        <div className="truncate font-minecraft text-sm">{project.title}</div>
+        <div className="truncate text-xs text-[#48494A]">{project.author || project.source || 'Unknown'}</div>
+      </div>
+    </div>
   );
 };

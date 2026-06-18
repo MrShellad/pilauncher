@@ -2,6 +2,7 @@
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
+use tauri::{AppHandle, Manager, Runtime};
 
 #[derive(serde::Serialize)]
 pub struct DirNode {
@@ -257,4 +258,10 @@ pub async fn open_path_in_file_manager(path: String) -> Result<(), String> {
         .map_err(|e| format!("打开目录失败: {}", e))?;
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn get_default_data_directory<R: Runtime>(app: AppHandle<R>) -> Result<String, String> {
+    let path = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().to_string())
 }

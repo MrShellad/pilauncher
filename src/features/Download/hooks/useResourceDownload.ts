@@ -148,6 +148,7 @@ export const useResourceDownload = (
 
   const isFirstMount = useRef(true);
   const isRestoringRef = useRef(false);
+  const searchVersionRef = useRef(0);
   const resolvedInstanceMcVersion = resolveInstanceGameVersion(instanceConfig);
   const resolvedInstanceLoaderType = resolveInstanceLoaderType(instanceConfig);
   const effectiveMcVersion = lockInstanceEnvironment && resolvedInstanceMcVersion
@@ -371,6 +372,8 @@ export const useResourceDownload = (
   const executeSearch = useCallback(async (currentOffset: number, isLoadMore = false, queryOverride?: string) => {
     if (!isEnvLoaded) return;
 
+    const currentSearchVersion = ++searchVersionRef.current;
+
     if (isLoadMore) {
       setIsLoadingMore(true);
     } else {
@@ -391,6 +394,8 @@ export const useResourceDownload = (
         const maxAttempts = 5;
 
         while (attempt < maxAttempts && !success) {
+          if (currentSearchVersion !== searchVersionRef.current) return;
+
           try {
             const timeoutPromise = new Promise<never>((_, reject) =>
               setTimeout(() => reject(new Error('TIMEOUT')), 8000)
@@ -430,6 +435,8 @@ export const useResourceDownload = (
           }
         }
       } else {
+        if (currentSearchVersion !== searchVersionRef.current) return;
+
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('TIMEOUT')), 8000)
         );
@@ -459,11 +466,14 @@ export const useResourceDownload = (
         data = await Promise.race([fetchPromise, timeoutPromise]);
       }
 
+      if (currentSearchVersion !== searchVersionRef.current) return;
+
       if (isLoadMore) setResults((prev) => [...prev, ...data.hits]);
       else setResults(data.hits);
 
       setHasMore(currentOffset + data.hits.length < data.total_hits);
     } catch (error) {
+      if (currentSearchVersion !== searchVersionRef.current) return;
       console.error(error);
       if (!isLoadMore) {
         setResults([]);
@@ -472,8 +482,10 @@ export const useResourceDownload = (
         setLoadMoreFailed(true);
       }
     } finally {
-      setIsLoading(false);
-      setIsLoadingMore(false);
+      if (currentSearchVersion === searchVersionRef.current) {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+      }
     }
   }, [activeTab, category, effectiveLoaderType, effectiveMcVersion, isEnvLoaded, committedQuery, sort, source]);
 
@@ -553,6 +565,12 @@ export const useResourceDownload = (
     setActiveTab(tab);
     setMcVersion('');
     setLoaderType('');
+    setCategory('');
+  }, []);
+
+  const handleSourceChange = useCallback((newSource: DownloadSource) => {
+    setSource(newSource);
+    setCategory('');
   }, []);
 
   const restoreState = useCallback((
@@ -592,7 +610,7 @@ export const useResourceDownload = (
     sort,
     setSort,
     source,
-    setSource,
+    setSource: handleSourceChange,
     results,
     offset,
     hasMore,

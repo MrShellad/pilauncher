@@ -54,7 +54,7 @@ export const useModManager = (instanceId: string) => {
     cancelUpdateCheck();
 
     const requestId = `${instanceId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    prepareModScan(requestId, {});
+    prepareModScan(requestId, {}, options.silent);
 
     try {
       const config = await modService.getInstanceDetail(instanceId);
@@ -89,7 +89,7 @@ export const useModManager = (instanceId: string) => {
     } catch (error) {
       console.error(error);
     } finally {
-      finishModScan(requestId);
+      finishModScan(requestId, options.silent);
     }
   }, [
     cancelUpdateCheck,

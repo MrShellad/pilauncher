@@ -502,15 +502,52 @@ impl ModManagerService {
                                 )
                             });
                             entry.file_state = Some(current_file_state);
-                            entry.mod_id = meta.mod_id.clone();
-                            entry.name = meta.name.clone();
-                            entry.version = meta.version.clone();
-                            entry.description = meta.description.clone();
-                            entry.icon_rel_path = extracted_icon_rel_path.clone();
-                            entry.curseforge_fingerprint = meta.curseforge_fingerprint;
+                            
+                            if meta.mod_id.is_none() {
+                                meta.mod_id = entry.mod_id.clone();
+                            } else {
+                                entry.mod_id = meta.mod_id.clone();
+                            }
+
+                            if meta.name.is_none() {
+                                meta.name = entry.name.clone();
+                            } else {
+                                entry.name = meta.name.clone();
+                            }
+
+                            if meta.version.is_none() {
+                                meta.version = entry.version.clone();
+                            } else {
+                                entry.version = meta.version.clone();
+                            }
+
+                            if meta.description.is_none() {
+                                meta.description = entry.description.clone();
+                            } else {
+                                entry.description = meta.description.clone();
+                            }
+
+                            if extracted_icon_rel_path.is_none() {
+                                extracted_icon_rel_path = entry.icon_rel_path.clone();
+                            } else {
+                                entry.icon_rel_path = extracted_icon_rel_path.clone();
+                            }
+
+                            if meta.curseforge_fingerprint.is_none() {
+                                meta.curseforge_fingerprint = entry.curseforge_fingerprint;
+                            } else {
+                                entry.curseforge_fingerprint = meta.curseforge_fingerprint;
+                            }
+
+                            if meta.icon_absolute_path.is_none() {
+                                if let Some(ref rel) = extracted_icon_rel_path {
+                                    meta.icon_absolute_path = Some(shared_mods_dir_clone.join(rel).to_string_lossy().replace('\\', "/"));
+                                }
+                            }
+
                             meta.manifest_entry = Some(entry);
 
-                            let db_icon_val = extracted_icon_rel_path.or_else(|| meta.network_icon_url.clone());
+                            let db_icon_val = extracted_icon_rel_path.clone().or_else(|| meta.network_icon_url.clone());
                             (base_name, meta, db_icon_val)
                         }));
                     }

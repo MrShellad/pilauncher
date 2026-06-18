@@ -15,6 +15,7 @@ import {
   useResourceDownload,
   type DownloadSource
 } from '../../../../../../Download/hooks/useResourceDownload';
+import { useIconCacheStore } from '../../../../../../Download/logic/iconCache';
 import { fetchCurseForgeVersions, getCurseForgeProjectDetails } from '../../../../../../Download/logic/curseforgeApi';
 import {
   fetchModrinthVersions,
@@ -1002,6 +1003,9 @@ export const InstanceModDownloadView: React.FC<{
                 lastFocusBeforeModalRef.current = currentFocus;
               }
               setSelectedProject(project);
+              if (project.icon_url) {
+                void useIconCacheStore.getState().refreshIcon(project.icon_url);
+              }
             }}
             selectedProjectIds={selectedProjectIds}
             isSelectionMode={isSelectionMode}

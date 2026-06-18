@@ -9,11 +9,12 @@ import {
   type ModVersionInstallAction
 } from '../../logic/modService';
 import type { OreProjectVersion } from '../../logic/modrinthApi';
+import type { LoadModsOptions } from './modManagerShared';
 
 interface UseModOperationsOptions {
   instanceId: string;
   setMods: Dispatch<SetStateAction<ModMeta[]>>;
-  loadMods: () => Promise<void>;
+  loadMods: (options?: LoadModsOptions) => Promise<void>;
 }
 
 const getActionText = (action: ModVersionInstallAction) => {
@@ -249,7 +250,7 @@ export const useModOperations = ({
         return next;
       });
 
-      await loadMods();
+      await loadMods({ silent: true });
     } catch (error) {
       setMods((current) => current.map((item) => (
         item.fileName === oldFileName ? { ...item, isUpdatingMod: false } : item

@@ -179,6 +179,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         fs_cmd::create_valid_dir,
         fs_cmd::get_parent_dir,
         fs_cmd::open_path_in_file_manager,
+        fs_cmd::get_default_data_directory,
         auth_cmd::refresh_microsoft_token,
         auth_cmd::login_authlib,
         auth_cmd::get_or_fetch_account_avatar,

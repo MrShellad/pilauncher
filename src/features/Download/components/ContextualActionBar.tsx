@@ -48,8 +48,8 @@ export const ContextualActionBar: React.FC<ContextualActionBarProps> = ({
         isVisible ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'
       }`}
     >
-      <div className={`pointer-events-auto flex max-w-[calc(100vw-3rem)] flex-wrap items-center gap-3 border-[0.1875rem] border-[#1E1E1F] bg-[#313233] px-4 py-3 shadow-[0_1rem_2.25rem_rgba(0,0,0,0.42),inset_0_0.125rem_0_rgba(255,255,255,0.14),inset_0_-0.25rem_0_rgba(0,0,0,0.28)] transition-all duration-200 ${
-        isVisible ? 'scale-100' : 'scale-95'
+      <div className={`flex max-w-[calc(100vw-3rem)] flex-wrap items-center gap-3 border-[0.1875rem] border-[#1E1E1F] bg-[#313233] px-4 py-3 shadow-[0_1rem_2.25rem_rgba(0,0,0,0.42),inset_0_0.125rem_0_rgba(255,255,255,0.14),inset_0_-0.25rem_0_rgba(0,0,0,0.28)] transition-all duration-200 ${
+        isVisible ? 'pointer-events-auto scale-100' : 'pointer-events-none scale-95'
       }`}>
         <div className="flex h-10 min-w-[10rem] items-center gap-3 border-2 border-[#1E1E1F] bg-[#1E1E1F] px-3 text-white shadow-[inset_0_0.125rem_0_rgba(255,255,255,0.08)]">
           <Layers3 size={18} className="text-[#6CC349]" />

@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
-import { Blocks, Check, CheckCircle2, Clock3, Download, Heart, Loader2, Monitor, Server, Tags } from 'lucide-react';
+import { Blocks, Check, CheckCircle2, Clock3, Download, Heart, Monitor, Server, Tags } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { VirtuosoGrid } from 'react-virtuoso';
 import { motion, useReducedMotion, AnimatePresence } from 'motion/react';
 import { ShimmerOverlay } from '../../../../../../Download/components/ShimmerOverlay';
+import { useIconCacheStore } from '../../../../../../Download/logic/iconCache';
 import fabricIcon from '../../../../../../../assets/icons/tags/loaders/fabric.svg';
 import forgeIcon from '../../../../../../../assets/icons/tags/loaders/forge.svg';
 import neoforgeIcon from '../../../../../../../assets/icons/tags/loaders/neoforge.svg';
@@ -112,16 +113,7 @@ const ResourceGridFooter: React.FC<{ context?: ResourceGridContext }> = ({ conte
     );
   }
 
-  if (context.isLoadingMore) return null;
-
-  return (
-    <div className="col-span-full flex h-16 items-center justify-center">
-      <Loader2
-        size={24}
-        className="text-ore-green opacity-60"
-      />
-    </div>
-  );
+  return null;
 };
 
 const ResourceGridHeader: React.FC = () => {
@@ -217,6 +209,15 @@ const ResourceCard = React.memo(({
   const shouldReduceMotion = useReducedMotion();
   const isSelectedForTransition = project.id && selectedProjectId ? project.id === selectedProjectId : false;
 
+  const cachedIconUrl = useIconCacheStore((state) => project.icon_url ? state.cachedUrls[project.icon_url] || '' : '');
+  const loadIcon = useIconCacheStore((state) => state.loadIcon);
+
+  useEffect(() => {
+    if (project.icon_url) {
+      void loadIcon(project.icon_url);
+    }
+  }, [project.icon_url, loadIcon]);
+
   const timeAgo = (dateStr?: string) => {
     if (!dateStr) return t('download.time.unknown', { defaultValue: 'Unknown time' });
 
@@ -307,7 +308,7 @@ const ResourceCard = React.memo(({
             animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
             transition={shouldReduceMotion ? { duration: 0 } : {
               layout: { type: 'spring', stiffness: 300, damping: 30 },
-              default: { duration: 0.2, ease: 'easeOut', delay: Math.min(index, 10) * 0.035 }
+              default: { duration: 0.3, ease: 'easeOut', delay: index < 8 ? index * 0.05 : 0 }
             }}
             style={{
               contain: 'layout paint',
@@ -327,7 +328,7 @@ const ResourceCard = React.memo(({
                   {project.icon_url ? (
                     <motion.img
                       layoutId={isSelectedForTransition ? `project-icon-image-${project.id}` : undefined}
-                      src={project.icon_url}
+                      src={cachedIconUrl || project.icon_url}
                       alt=""
                       loading="lazy"
                       className="h-full w-full object-cover"
@@ -511,6 +512,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
     hasMore,
     isLoading,
     isLoadingMore,
+    loadMoreFailed,
     onLoadMore
   });
 
@@ -580,8 +582,8 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   }, [isDoubleColumn]);
 
   useEffect(() => {
-    latestRef.current = { hasMore, isLoading, isLoadingMore, onLoadMore };
-  }, [hasMore, isLoading, isLoadingMore, onLoadMore]);
+    latestRef.current = { hasMore, isLoading, isLoadingMore, loadMoreFailed, onLoadMore };
+  }, [hasMore, isLoading, isLoadingMore, loadMoreFailed, onLoadMore]);
 
   useEffect(() => {
     if (isLoading || isLoadingMore) return;
@@ -590,11 +592,18 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
 
   const canLoadMore = useCallback(() => {
     const latest = latestRef.current;
-    if (!latest.hasMore || latest.isLoading || latest.isLoadingMore || loadMoreLockRef.current) {
+    if (
+      !latest.hasMore ||
+      latest.isLoading ||
+      latest.isLoadingMore ||
+      latest.loadMoreFailed ||
+      results.length === 0 ||
+      loadMoreLockRef.current
+    ) {
       return false;
     }
     return true;
-  }, []);
+  }, [results.length]);
 
   const triggerLoadMore = useCallback(() => {
     if (!canLoadMore()) return;
@@ -739,17 +748,14 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
         {emptyLoading && (
           <motion.div
             key="skeleton-overlay"
-            initial={{ opacity: 1, ["--wipe" as any]: "-120%" }}
+            initial={{ opacity: 1 }}
             exit={{ 
-              ["--wipe" as any]: "120%",
+              opacity: 0,
               pointerEvents: "none"
             }}
             transition={{ 
-              ["--wipe" as any]: { duration: 0.7, ease: "easeInOut" }
-            }}
-            style={{
-              maskImage: 'linear-gradient(to right, transparent var(--wipe), black calc(var(--wipe) + 100%))',
-              WebkitMaskImage: 'linear-gradient(to right, transparent var(--wipe), black calc(var(--wipe) + 100%))'
+              duration: 0.25,
+              ease: "easeInOut"
             }}
             className="absolute inset-0 z-30 bg-[#313233] px-[1rem] pt-0 overflow-y-auto custom-scrollbar"
           >

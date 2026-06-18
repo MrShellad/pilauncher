@@ -2,10 +2,11 @@ import { listen } from '@tauri-apps/api/event';
 import { useCallback, useEffect, useState } from 'react';
 
 import { modService, type SnapshotProgressEvent } from '../../logic/modService';
+import type { LoadModsOptions } from './modManagerShared';
 
 interface UseModSnapshotsOptions {
   instanceId: string;
-  loadMods: () => Promise<void>;
+  loadMods: (options?: LoadModsOptions) => Promise<void>;
 }
 
 export const useModSnapshots = ({ instanceId, loadMods }: UseModSnapshotsOptions) => {
