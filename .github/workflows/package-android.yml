@@ -13,6 +13,21 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
 
+      - name: Generate .env File
+        run: |
+          echo "MICROSOFT_CLIENT_ID=${{ secrets.MICROSOFT_CLIENT_ID }}" >> .env
+          echo "VITE_CURSEFORGE_API_KEY=${{ secrets.VITE_CURSEFORGE_API_KEY }}" >> .env
+          echo "VITE_ONLINE_SERVERS_API_URL=${{ secrets.VITE_ONLINE_SERVERS_API_URL }}" >> .env
+          echo "DONORS_API_URL=${{ secrets.DONORS_API_URL }}" >> .env
+          echo "DONORS_API_KEY=${{ secrets.DONORS_API_KEY }}" >> .env
+          echo "CLIENT_INSTALLATION_TRACK_API_URL=${{ secrets.CLIENT_INSTALLATION_TRACK_API_URL }}" >> .env
+          echo "CLIENT_INSTALLATION_TRACK_API_KEY=${{ secrets.CLIENT_INSTALLATION_TRACK_API_KEY }}" >> .env
+          echo "TMT_API_URL=${{ secrets.TMT_API_URL }}" >> .env
+          echo "TMT_PROJECT_ID=${{ secrets.TMT_PROJECT_ID }}" >> .env
+          echo "TMT_REGION=${{ secrets.TMT_REGION }}" >> .env
+          echo "TMT_SECRET_ID=${{ secrets.TMT_SECRET_ID }}" >> .env
+          echo "TMT_SECRET_KEY=${{ secrets.TMT_SECRET_KEY }}" >> .env
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -66,6 +81,9 @@ jobs:
           DONORS_API_KEY: ${{ secrets.DONORS_API_KEY }}
           CLIENT_INSTALLATION_TRACK_API_URL: ${{ secrets.CLIENT_INSTALLATION_TRACK_API_URL }}
           CLIENT_INSTALLATION_TRACK_API_KEY: ${{ secrets.CLIENT_INSTALLATION_TRACK_API_KEY }}
+
+      - name: Initialize Android Project
+        run: pnpm tauri android init
 
       - name: Build Android App (APK)
         env:

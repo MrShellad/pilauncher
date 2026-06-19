@@ -13,6 +13,21 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
 
+      - name: Generate .env File
+        run: |
+          echo "MICROSOFT_CLIENT_ID=${{ secrets.MICROSOFT_CLIENT_ID }}" >> .env
+          echo "VITE_CURSEFORGE_API_KEY=${{ secrets.VITE_CURSEFORGE_API_KEY }}" >> .env
+          echo "VITE_ONLINE_SERVERS_API_URL=${{ secrets.VITE_ONLINE_SERVERS_API_URL }}" >> .env
+          echo "DONORS_API_URL=${{ secrets.DONORS_API_URL }}" >> .env
+          echo "DONORS_API_KEY=${{ secrets.DONORS_API_KEY }}" >> .env
+          echo "CLIENT_INSTALLATION_TRACK_API_URL=${{ secrets.CLIENT_INSTALLATION_TRACK_API_URL }}" >> .env
+          echo "CLIENT_INSTALLATION_TRACK_API_KEY=${{ secrets.CLIENT_INSTALLATION_TRACK_API_KEY }}" >> .env
+          echo "TMT_API_URL=${{ secrets.TMT_API_URL }}" >> .env
+          echo "TMT_PROJECT_ID=${{ secrets.TMT_PROJECT_ID }}" >> .env
+          echo "TMT_REGION=${{ secrets.TMT_REGION }}" >> .env
+          echo "TMT_SECRET_ID=${{ secrets.TMT_SECRET_ID }}" >> .env
+          echo "TMT_SECRET_KEY=${{ secrets.TMT_SECRET_KEY }}" >> .env
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
@@ -77,6 +92,9 @@ jobs:
         env:
           APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
 
+      - name: Initialize iOS Project
+        run: pnpm tauri ios init
+
       - name: Build Signed iOS App (IPA)
         if: env.APPLE_CERTIFICATE_BASE64 != ''
         env:
@@ -101,11 +119,24 @@ jobs:
           CLIENT_INSTALLATION_TRACK_API_URL: ${{ secrets.CLIENT_INSTALLATION_TRACK_API_URL }}
           CLIENT_INSTALLATION_TRACK_API_KEY: ${{ secrets.CLIENT_INSTALLATION_TRACK_API_KEY }}
           APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          TAURI_APPLE_DEVELOPMENT_TEAM: "ABC123XYZ0"
         # Excludes code signing variables to compile an unsigned app
-        run: pnpm tauri ios build --no-bundle --ci -- --code-sign-identity="" --development-team="" --provisioning-profile-specifier=""
+        run: pnpm tauri ios build --no-sign --ci
+
+      - name: Package IPA
+        run: |
+          APP_DIR=$(find src-tauri/gen/apple/build -name "*.app" -type d | head -n 1)
+          if [ -z "$APP_DIR" ]; then
+            echo "Error: No .app directory found!"
+            exit 1
+          fi
+          echo "Found .app at: $APP_DIR"
+          mkdir -p Payload
+          cp -r "$APP_DIR" Payload/
+          zip -r pilauncher.ipa Payload
 
       - name: Upload iOS App Artifact
         uses: actions/upload-artifact@v4
         with:
           name: pilauncher-ios-app
-          path: src-tauri/gen/apple/build/Build/Products/Debug-iphoneos/*.app
+          path: pilauncher.ipa

@@ -51,10 +51,8 @@ fn main() {
         .filter(|value| !value.trim().is_empty())
         .or_else(|| read_env_value(&root_env_path, CLIENT_ID_KEY))
         .unwrap_or_else(|| {
-            panic!(
-                "missing {CLIENT_ID_KEY}; define it in {} or in the build environment",
-                root_env_path.display()
-            )
+            println!("cargo:warning=MICROSOFT_CLIENT_ID is not set in the build environment or .env; using dummy client ID.");
+            "00000000-0000-0000-0000-000000000000".to_string()
         });
 
     println!("cargo:rustc-env={CLIENT_ID_KEY}={client_id}");

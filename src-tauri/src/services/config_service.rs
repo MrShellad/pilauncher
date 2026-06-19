@@ -347,8 +347,19 @@ impl ConfigService {
                 let is_old_dir = target.join("instances").exists()
                     || target.join("config").join("settings.json").exists();
 
-                // 如果既不为空，又不是旧目录，则拦截
-                if !is_old_dir {
+                // 检测是否为默认的数据目录，沙盒平台下默认数据目录可能预置了系统文件或非空
+                let is_default_dir = if let Ok(default_dir) = app.path().app_data_dir() {
+                    if let (Ok(p1), Ok(p2)) = (default_dir.canonicalize(), target.canonicalize()) {
+                        p1 == p2
+                    } else {
+                        default_dir == target
+                    }
+                } else {
+                    false
+                };
+
+                // 如果既不为空，又不是旧目录，也不是默认数据目录，则拦截
+                if !is_old_dir && !is_default_dir {
                     return Err(
                         "所选目录不为空，且未检测到旧版 PiLauncher 数据！请选择空目录。"
                             .to_string(),
