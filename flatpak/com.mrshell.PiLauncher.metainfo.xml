@@ -49,6 +49,20 @@
   </categories>
 
   <releases>
+    <release version="0.1.43" date="2026-06-19">
+      <description>
+        <p xml:lang="zh_CN">全新引入首次启动设置向导，并优化了模组的元数据处理和信息同步体验。</p>
+        <ul xml:lang="zh_CN">
+          <li>[新功能] 全新引入首次启动设置向导（Setup Wizard），自动引导新用户进行核心游戏路径选择、Java 运行环境检测与绑定、Steam 库导入以及用户协议确认，大幅简化首次配置流程。</li>
+          <li>[优化] 优化模组元数据处理和交互，提升了模组信息的识别与多平台元数据同步稳定性。</li>
+        </ul>
+        <p>Introduced an initial Setup Wizard for first-time startup, and improved mod metadata handling and synchronization experience.</p>
+        <ul>
+          <li>[New] Introduced an initial Setup Wizard for first-time startup to guide users through selecting game directory, auto-detecting/binding Java, integrating Steam libraries, and confirming user agreements.</li>
+          <li>[Optimization] Refined mod metadata processing and UI interaction, improving the stability of metadata identification and synchronization.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.42" date="2026-06-15">
       <description>
         <p xml:lang="zh_CN">新增资源下载页浏览历史返回功能，优化翻页加载稳定性与模组信息保留机制，并改善多处交互体验。</p>
