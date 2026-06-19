@@ -10,7 +10,7 @@ pub mod services;
 
 
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", not(target_os = "android")))]
 fn apply_linux_compat_env_vars() {
     use std::fs;
     use std::path::PathBuf;
@@ -71,13 +71,19 @@ fn apply_linux_compat_env_vars() {
 pub fn run() {
     let _ = lighty_core::app_state::AppState::init("PiLauncher");
 
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", not(target_os = "android")))]
     apply_linux_compat_env_vars();
 
     let lan_state = Arc::new(services::lan::http_api::SharedLanState::new());
 
-    let mut builder = tauri::Builder::default()
-        .plugin(tauri_plugin_updater::Builder::new().build())
+    let mut builder = tauri::Builder::default();
+
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    }
+
+    builder = builder
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
         .manage(lan_state.clone());

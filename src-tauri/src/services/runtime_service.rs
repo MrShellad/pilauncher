@@ -368,6 +368,9 @@ pub fn scan_java_environments(cache_file: &Path) -> Result<Vec<JavaInstall>, Str
     #[cfg(target_os = "linux")]
     let base_dirs = vec!["/usr/lib/jvm", "/usr/java", "/opt/jdk"];
 
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    let base_dirs: Vec<&str> = vec![];
+
     for dir in base_dirs {
         if Path::new(dir).exists() {
             for entry in WalkDir::new(dir)

@@ -6,7 +6,7 @@
   "build": {
     "frontendDist": "../build",
     "devUrl": "http://127.0.0.1:5173",
-    "beforeDevCommand": "pnpm exec vite --host 127.0.0.1 --port 5173 --strictPort",
+    "beforeDevCommand": "pnpm exec vite --host --port 5173 --strictPort",
     "beforeBuildCommand": "pnpm run build"
   },
   "app": {

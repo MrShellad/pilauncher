@@ -1,0 +1,86 @@
+name: Package Android
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Android APK
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10.26.0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Setup Android NDK
+        run: |
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;26.1.10909125"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Validate Build Secrets
+        run: |
+          required_env=(
+            "DONORS_API_URL"
+            "DONORS_API_KEY"
+            "CLIENT_INSTALLATION_TRACK_API_URL"
+            "CLIENT_INSTALLATION_TRACK_API_KEY"
+          )
+          missing=()
+          for var in "${required_env[@]}"; do
+            val="${!var}"
+            if [ -z "$val" ]; then
+              missing+=("$var")
+            fi
+          done
+          if [ ${#missing[@]} -ne 0 ]; then
+            echo "::error::Missing required build secrets: ${missing[*]}"
+            exit 1
+          fi
+        env:
+          DONORS_API_URL: ${{ secrets.DONORS_API_URL }}
+          DONORS_API_KEY: ${{ secrets.DONORS_API_KEY }}
+          CLIENT_INSTALLATION_TRACK_API_URL: ${{ secrets.CLIENT_INSTALLATION_TRACK_API_URL }}
+          CLIENT_INSTALLATION_TRACK_API_KEY: ${{ secrets.CLIENT_INSTALLATION_TRACK_API_KEY }}
+
+      - name: Build Android App (APK)
+        env:
+          MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
+          VITE_CURSEFORGE_API_KEY: ${{ secrets.VITE_CURSEFORGE_API_KEY }}
+          VITE_ONLINE_SERVERS_API_URL: ${{ secrets.VITE_ONLINE_SERVERS_API_URL }}
+          DONORS_API_URL: ${{ secrets.DONORS_API_URL }}
+          DONORS_API_KEY: ${{ secrets.DONORS_API_KEY }}
+          CLIENT_INSTALLATION_TRACK_API_URL: ${{ secrets.CLIENT_INSTALLATION_TRACK_API_URL }}
+          CLIENT_INSTALLATION_TRACK_API_KEY: ${{ secrets.CLIENT_INSTALLATION_TRACK_API_KEY }}
+        # Defaulting to ARM64 for performance, you can omit '--target aarch64' to compile all ABIs
+        run: pnpm tauri android build --debug --apk --target aarch64 --ci
+
+      - name: Upload Android APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pilauncher-android-apk
+          path: src-tauri/gen/android/app/build/outputs/apk/universal/debug/*.apk
