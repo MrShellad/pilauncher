@@ -4,7 +4,6 @@ use std::sync::{
     Arc,
 };
 use tauri::{AppHandle, Emitter, Runtime};
-use tauri_plugin_updater::UpdaterExt;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UpdateInfo {
@@ -19,6 +18,10 @@ pub struct UpdateInfo {
     pub package_format: String,
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+use tauri_plugin_updater::UpdaterExt;
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[derive(Debug, Deserialize)]
 struct ApiUpdateResponse {
     version: String,
@@ -28,8 +31,10 @@ struct ApiUpdateResponse {
     signature: Option<String>,
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 const UPDATE_TASK_ID: &str = "launcher-update";
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[derive(Debug, Serialize, Clone)]
 struct UpdateProgressPayload {
     task_id: String,
@@ -41,6 +46,7 @@ struct UpdateProgressPayload {
     message: String,
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn emit_update_progress<R: Runtime>(
     app: &AppHandle<R>,
     version: &str,
@@ -69,6 +75,7 @@ fn emit_update_progress<R: Runtime>(
     );
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 pub async fn check_update<R: Runtime>(
     app: AppHandle<R>,
@@ -144,6 +151,7 @@ pub async fn check_update<R: Runtime>(
     })
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 pub async fn install_update<R: Runtime>(
     app: AppHandle<R>,
@@ -290,6 +298,7 @@ pub async fn install_update<R: Runtime>(
     Ok(())
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn extract_platform_assets(
     update: &ApiUpdateResponse,
     target: &str,
@@ -334,6 +343,7 @@ fn extract_platform_assets(
     )
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn build_check_endpoint(
     current_version: &str,
     target: &str,
@@ -351,6 +361,7 @@ fn build_check_endpoint(
     )
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn build_install_endpoint(uuid: &str, region: &str, expected_version: Option<&str>) -> String {
     let mut endpoint = format!(
         "https://pil.nav4ai.net/api/updater?version={{{{current_version}}}}&target={{{{target}}}}&arch={{{{arch}}}}&uuid={}&region={}&format=dynamic",
@@ -366,6 +377,7 @@ fn build_install_endpoint(uuid: &str, region: &str, expected_version: Option<&st
     endpoint
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn get_target() -> String {
     #[cfg(target_os = "windows")]
     return "windows".to_string();
@@ -375,6 +387,7 @@ fn get_target() -> String {
     return "linux".to_string();
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn get_arch() -> String {
     #[cfg(target_arch = "x86_64")]
     return "x86_64".to_string();
@@ -384,6 +397,7 @@ fn get_arch() -> String {
     return std::env::consts::ARCH.to_string();
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn current_package_format() -> String {
     if is_flatpak_runtime() {
         return "flatpak".to_string();
@@ -392,6 +406,7 @@ fn current_package_format() -> String {
     "native".to_string()
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn is_flatpak_runtime() -> bool {
     #[cfg(target_os = "linux")]
     {
@@ -402,4 +417,34 @@ fn is_flatpak_runtime() -> bool {
     {
         false
     }
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+#[tauri::command]
+pub async fn check_update<R: Runtime>(
+    app: AppHandle<R>,
+    _uuid: String,
+    _region: String,
+) -> Result<UpdateInfo, String> {
+    let current_version = app.package_info().version.to_string();
+    Ok(UpdateInfo {
+        available: false,
+        version: current_version,
+        body: String::new(),
+        url: String::new(),
+        signature: String::new(),
+        can_install: false,
+        package_format: "mobile".to_string(),
+    })
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+#[tauri::command]
+pub async fn install_update<R: Runtime>(
+    _app: AppHandle<R>,
+    _uuid: String,
+    _region: String,
+    _expected_version: Option<String>,
+) -> Result<(), String> {
+    Err("In-app updates are not supported on mobile platforms.".to_string())
 }

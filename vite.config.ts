@@ -178,6 +178,16 @@ export default defineConfig({
     }
   },
   server: {
+    host: process.env.TAURI_DEV_HOST || '0.0.0.0',
+    port: 5173,
+    strictPort: true,
+    hmr: process.env.TAURI_DEV_HOST
+      ? {
+          protocol: 'ws',
+          host: process.env.TAURI_DEV_HOST,
+          port: 5173,
+        }
+      : undefined,
     watch: {
       ignored: ['**/flatpak/**']
     }

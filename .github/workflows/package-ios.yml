@@ -1,0 +1,111 @@
+name: Package iOS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build iOS Application
+    permissions:
+      contents: write
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10.26.0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,x86_64-apple-ios
+
+      - name: Setup Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Validate Build Secrets
+        run: |
+          required_env=(
+            "DONORS_API_URL"
+            "DONORS_API_KEY"
+            "CLIENT_INSTALLATION_TRACK_API_URL"
+            "CLIENT_INSTALLATION_TRACK_API_KEY"
+          )
+          missing=()
+          for var in "${required_env[@]}"; do
+            val="${!var}"
+            if [ -z "$val" ]; then
+              missing+=("$var")
+            fi
+          done
+          if [ ${#missing[@]} -ne 0 ]; then
+            echo "::error::Missing required build secrets: ${missing[*]}"
+            exit 1
+          fi
+        env:
+          DONORS_API_URL: ${{ secrets.DONORS_API_URL }}
+          DONORS_API_KEY: ${{ secrets.DONORS_API_KEY }}
+          CLIENT_INSTALLATION_TRACK_API_URL: ${{ secrets.CLIENT_INSTALLATION_TRACK_API_URL }}
+          CLIENT_INSTALLATION_TRACK_API_KEY: ${{ secrets.CLIENT_INSTALLATION_TRACK_API_KEY }}
+
+      - name: Import Apple Code Signing Certificates
+        if: env.APPLE_CERTIFICATE_BASE64 != ''
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASS }}
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASS: ${{ secrets.APPLE_CERTIFICATE_PASS }}
+
+      - name: Import Apple Provisioning Profile
+        if: env.APPLE_PROVISIONING_PROFILE_BASE64 != ''
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+        env:
+          APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+
+      - name: Build Signed iOS App (IPA)
+        if: env.APPLE_CERTIFICATE_BASE64 != ''
+        env:
+          MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
+          VITE_CURSEFORGE_API_KEY: ${{ secrets.VITE_CURSEFORGE_API_KEY }}
+          VITE_ONLINE_SERVERS_API_URL: ${{ secrets.VITE_ONLINE_SERVERS_API_URL }}
+          DONORS_API_URL: ${{ secrets.DONORS_API_URL }}
+          DONORS_API_KEY: ${{ secrets.DONORS_API_KEY }}
+          CLIENT_INSTALLATION_TRACK_API_URL: ${{ secrets.CLIENT_INSTALLATION_TRACK_API_URL }}
+          CLIENT_INSTALLATION_TRACK_API_KEY: ${{ secrets.CLIENT_INSTALLATION_TRACK_API_KEY }}
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+        run: pnpm tauri ios build --ci
+
+      - name: Build Unsigned iOS App (For Simulator / TrollStore Testing)
+        if: env.APPLE_CERTIFICATE_BASE64 == ''
+        env:
+          MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
+          VITE_CURSEFORGE_API_KEY: ${{ secrets.VITE_CURSEFORGE_API_KEY }}
+          VITE_ONLINE_SERVERS_API_URL: ${{ secrets.VITE_ONLINE_SERVERS_API_URL }}
+          DONORS_API_URL: ${{ secrets.DONORS_API_URL }}
+          DONORS_API_KEY: ${{ secrets.DONORS_API_KEY }}
+          CLIENT_INSTALLATION_TRACK_API_URL: ${{ secrets.CLIENT_INSTALLATION_TRACK_API_URL }}
+          CLIENT_INSTALLATION_TRACK_API_KEY: ${{ secrets.CLIENT_INSTALLATION_TRACK_API_KEY }}
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+        # Excludes code signing variables to compile an unsigned app
+        run: pnpm tauri ios build --no-bundle --ci -- --code-sign-identity="" --development-team="" --provisioning-profile-specifier=""
+
+      - name: Upload iOS App Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pilauncher-ios-app
+          path: src-tauri/gen/apple/build/Build/Products/Debug-iphoneos/*.app
