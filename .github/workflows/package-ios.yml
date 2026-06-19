@@ -105,7 +105,7 @@ jobs:
           CLIENT_INSTALLATION_TRACK_API_KEY: ${{ secrets.CLIENT_INSTALLATION_TRACK_API_KEY }}
           APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
         # Excludes code signing variables to compile an unsigned app
-        run: pnpm tauri ios build --ci -- --code-sign-identity="" --development-team="" --provisioning-profile-specifier=""
+        run: pnpm tauri ios build --ci -- CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_STYLE=Manual
 
       - name: Upload iOS App Artifact
         uses: actions/upload-artifact@v4
