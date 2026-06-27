@@ -78,6 +78,7 @@ export const ModpackView: React.FC = () => {
       />
 
       <ResourceGrid
+        key={`${downloadState.source}-${downloadState.activeTab}`}
         results={downloadState.results}
         installedMods={[]}
         isLoading={downloadState.isLoading}

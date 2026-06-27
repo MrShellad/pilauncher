@@ -96,10 +96,17 @@ export const getNewsItemTimestamp = (item: MinecraftUpdateApiItem) => {
   return Number.isNaN(value) ? 0 : value;
 };
 
-const resolveWikiUrl = (item: MinecraftUpdateApiItem, locale: NewsLocale) =>
-  locale === 'zh'
-    ? item.wikiZh || item.wikiEn || item.article
-    : item.wikiEn || item.wikiZh || item.article;
+const resolveWikiUrl = (item: MinecraftUpdateApiItem, locale: NewsLocale) => {
+  const url =
+    locale === 'zh'
+      ? item.wikiZh || item.wikiEn || item.article
+      : item.wikiEn || item.wikiZh || item.article;
+
+  if (locale === 'zh' && url.includes('zh.minecraft.wiki/w/')) {
+    return url.replace(/-rc(\d+)/i, '-rc-$1').replace(/-pre(\d+)/i, '-pre-$1');
+  }
+  return url;
+};
 
 const resolveCoverUrl = (cover: string) => {
   const trimmed = String(cover || '').trim();

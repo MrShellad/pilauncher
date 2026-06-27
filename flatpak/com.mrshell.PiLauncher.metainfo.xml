@@ -49,6 +49,22 @@
   </categories>
 
   <releases>
+    <release version="0.1.44" date="2026-06-27">
+      <description>
+        <p xml:lang="zh_CN">优化资源下载源切换体验，修复中文 Wiki 网址在 RC 和预发布版本下的拼接错误，并改进了搜索结果列表滚动行为。</p>
+        <ul xml:lang="zh_CN">
+          <li>[新功能] 当搜索结果或下载源发生变更时，资源网格列表将自动滚动并重置回顶部。</li>
+          <li>[优化] 修复了资源下载源（如 Modrinth 与 CurseForge）或分类切换时组件状态未正确重置的问题。</li>
+          <li>[修复] 修复新闻和版本详情中中文 Wiki 网址在 RC 候选版（如 26.2-rc-1）和预发布版下的拼接错误，确保链接可正确访问。</li>
+        </ul>
+        <p>Optimized download source switching experience, fixed Chinese Wiki URL splicing errors for RC and pre-release versions, and improved search grid scrolling behavior.</p>
+        <ul>
+          <li>[New] The resource grid now automatically scrolls back to the top when search results or download sources change.</li>
+          <li>[Optimization] Fixed state retention issues when switching download sources (e.g., Modrinth and CurseForge) or categories.</li>
+          <li>[Fix] Fixed Chinese Wiki URL formatting bugs for RC (e.g., 26.2-rc-1) and pre-release versions in news and details to ensure correct link routing.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.43" date="2026-06-19">
       <description>
         <p xml:lang="zh_CN">全新引入首次启动设置向导，并优化了模组的元数据处理和信息同步体验。</p>

@@ -616,6 +616,7 @@ const ResourceDownloadPage: React.FC = () => {
           />
 
           <ResourceGrid
+            key={`${source}-${activeTab}`}
             results={results}
             installedMods={installedMods}
             installedModIndex={installedModIndex}

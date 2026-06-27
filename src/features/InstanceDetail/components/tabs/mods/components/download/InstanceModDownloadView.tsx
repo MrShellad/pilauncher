@@ -988,6 +988,7 @@ export const InstanceModDownloadView: React.FC<{
           )}
 
           <ResourceGrid
+            key={`${source}-${resourceTab}`}
             results={results}
             installedMods={installedMods}
             isLoading={isLoading && results.length === 0}
