@@ -421,6 +421,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             <OreDropdown
               focusKey="filter-mc-version"
               onArrowPress={handleFilterArrow('filter-mc-version')}
+              searchable
               options={translatedMcVersionOptions}
               value={mcVersion || ''}
               onChange={setMcVersion}

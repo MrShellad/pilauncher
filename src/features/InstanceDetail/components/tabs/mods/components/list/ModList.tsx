@@ -47,6 +47,7 @@ export interface ModListProps {
   onExitBatchMode: () => void;
   onOpenModMetadataSettings: () => void;
   onCheckModUpdates: () => void;
+  onUpdateAllMods?: () => void;
   isCheckingModUpdates: boolean;
   emptyMessage?: string;
   onNavigateOut?: (direction: 'up' | 'down') => boolean;
@@ -89,6 +90,7 @@ export const ModList: React.FC<ModListProps> = ({
   onExitBatchMode,
   onOpenModMetadataSettings,
   onCheckModUpdates,
+  onUpdateAllMods,
   isCheckingModUpdates,
   emptyMessage = '当前没有可用模组。',
   onNavigateOut,
@@ -176,6 +178,8 @@ export const ModList: React.FC<ModListProps> = ({
         onOpenModMetadataSettings={onOpenModMetadataSettings}
         onCheckModUpdates={onCheckModUpdates}
         isCheckingModUpdates={isCheckingModUpdates}
+        isUpdatingAny={mods.some((m) => m.isUpdatingMod)}
+        onUpdateAllMods={onUpdateAllMods}
         onQuickFilterChange={controller.controls.onQuickFilterChange}
         onViewModeChange={controller.controls.onViewModeChange}
         listTheme={listTheme}

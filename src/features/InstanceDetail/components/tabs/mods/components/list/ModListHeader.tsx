@@ -53,6 +53,8 @@ export interface ModListHeaderProps {
   onOpenModMetadataSettings: () => void;
   onCheckModUpdates: () => void;
   isCheckingModUpdates: boolean;
+  isUpdatingAny?: boolean;
+  onUpdateAllMods?: () => void;
   onQuickFilterChange: (filter: ModQuickFilter) => void;
   onViewModeChange: (viewMode: ModListViewMode) => void;
   listTheme: ModListTheme;
@@ -92,6 +94,7 @@ const LIST_CONTROL_TEXT_STYLE: React.CSSProperties = {
 };
 
 export const ModListHeader: React.FC<ModListHeaderProps> = ({
+  stats,
   isBatchMode,
   searchQuery,
   searchPlaceholder,
@@ -109,6 +112,8 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
   onOpenModMetadataSettings,
   onCheckModUpdates,
   isCheckingModUpdates,
+  isUpdatingAny,
+  onUpdateAllMods,
   onQuickFilterChange,
   onViewModeChange,
   listTheme,
@@ -376,7 +381,7 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
             focusKey="mod-btn-check-updates"
             variant="purple"
             size="auto"
-            disabled={isCheckingModUpdates}
+            disabled={isCheckingModUpdates || isUpdatingAny}
             onClick={onCheckModUpdates}
             onArrowPress={onHeaderArrowPress}
             className={MOD_LIST_HEADER_CLASSES.oreButton}
@@ -385,6 +390,21 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
             <RefreshCw size={14} className={`mr-1.5 ${isCheckingModUpdates ? 'animate-spin' : ''}`} />
             {isCheckingModUpdates ? '检查中...' : '检查更新'}
           </OreButton>
+          {stats.updates > 0 && (
+            <OreButton
+              focusKey="mod-btn-update-all"
+              variant="primary"
+              size="auto"
+              disabled={isCheckingModUpdates || isUpdatingAny}
+              onClick={onUpdateAllMods}
+              onArrowPress={onHeaderArrowPress}
+              className={MOD_LIST_HEADER_CLASSES.oreButton}
+              style={LIST_CONTROL_TEXT_STYLE}
+            >
+              <ArrowUpCircle size={14} className="mr-1.5" />
+              一键更新 ({stats.updates})
+            </OreButton>
+          )}
           <OreButton
             focusKey="mod-btn-download"
             variant="primary"

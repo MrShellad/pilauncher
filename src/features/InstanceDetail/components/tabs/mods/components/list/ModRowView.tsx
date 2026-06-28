@@ -293,9 +293,18 @@ export const ModRowView: React.FC<ModRowViewProps> = ({
   return (
     <div
       onClick={onClick}
-      className={`group relative grid min-h-[4rem] cursor-pointer select-none grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-[15px] overflow-hidden border-b px-3 py-1 text-left ${borderClass} ${rowBackgroundClass} ${activeClass}`}
+      className={`group relative grid min-h-[4rem] cursor-pointer select-none grid-cols-[2.875rem_36px_minmax(0,1fr)_auto] items-center gap-[15px] overflow-hidden border-b px-3 py-1 text-left ${borderClass} ${rowBackgroundClass} ${activeClass}`}
     >
       <div className={`absolute inset-y-0 left-0 ${isActive ? 'w-1.5' : 'w-1'} ${accentClass}`} />
+
+      <div
+        className="flex items-center justify-center"
+        onClick={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
+        onKeyDown={(event) => event.stopPropagation()}
+      >
+        {leading}
+      </div>
 
       <ModIconBox
         iconUrl={iconUrl}

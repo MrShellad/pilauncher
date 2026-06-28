@@ -65,13 +65,34 @@ export const VersionFilters: React.FC<VersionFiltersProps> = ({
         return;
       }
 
+      const matchNewMajor = version.match(/^(\d+)/);
+      if (matchNewMajor) {
+        const firstNum = parseInt(matchNewMajor[1], 10);
+        if (firstNum >= 26) {
+          const major = String(firstNum);
+          if (!groups[major]) groups[major] = [];
+          groups[major].push(version);
+          return;
+        }
+      }
+
       snapshotVersions.push(version);
     });
 
+    const getGroupScore = (group: string): number => {
+      if (group.startsWith('1.')) {
+        const sub = parseInt(group.split('.')[1] || '0', 10);
+        return sub;
+      }
+      const val = parseInt(group, 10);
+      if (!isNaN(val)) {
+        return val + 1000;
+      }
+      return 0;
+    };
+
     const sortedMajors = Object.keys(groups).sort((a, b) => {
-      const numA = parseInt(a.split('.')[1] || '0', 10);
-      const numB = parseInt(b.split('.')[1] || '0', 10);
-      return numB - numA;
+      return getGroupScore(b) - getGroupScore(a);
     });
 
     const pinnedMajors = sortedMajors.slice(0, 4);

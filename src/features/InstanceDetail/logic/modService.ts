@@ -36,6 +36,7 @@ export interface ModManifestEntry {
   curseforgeFingerprint?: number;
   matchedPlatforms?: Record<string, ModPlatformMatch>;
   metadataSettings?: ModMetadataSettings;
+  dependencies?: string[];
 }
 
 export interface ModMeta {
@@ -62,6 +63,7 @@ export interface ModMeta {
   isCheckingUpdate?: boolean;
   isUpdatingMod?: boolean;
   cacheKey?: string;
+  dependencies?: string[];
 }
 
 export type ModVersionInstallAction = 'install' | 'upgrade' | 'downgrade' | 'reinstall';

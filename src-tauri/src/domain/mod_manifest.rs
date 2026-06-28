@@ -112,6 +112,8 @@ pub struct ModManifestEntry {
     pub matched_platforms: HashMap<String, ModPlatformMatch>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub metadata_settings: Option<ModMetadataSettings>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dependencies: Option<Vec<String>>,
 }
 
 pub type ModManifest = HashMap<String, ModManifestEntry>;
@@ -147,6 +149,8 @@ pub struct RawModManifestEntry {
     pub matched_platforms: HashMap<String, ModPlatformMatch>,
     #[serde(default)]
     pub metadata_settings: Option<ModMetadataSettings>,
+    #[serde(default)]
+    pub dependencies: Option<Vec<String>>,
 }
 
 pub type RawModManifest = HashMap<String, RawModManifestEntry>;
@@ -315,6 +319,7 @@ pub fn build_manifest_entry(
         curseforge_fingerprint: None,
         matched_platforms: HashMap::new(),
         metadata_settings: None,
+        dependencies: None,
     }
 }
 
@@ -436,6 +441,7 @@ fn copy_cached_metadata_from_raw(raw: Option<&RawModManifestEntry>, entry: &mut 
     entry.curseforge_fingerprint = raw.curseforge_fingerprint;
     entry.matched_platforms = raw.matched_platforms.clone();
     entry.metadata_settings = raw.metadata_settings.clone();
+    entry.dependencies = raw.dependencies.clone();
 }
 
 pub fn merge_cached_metadata(target: &mut ModManifestEntry, source: &ModManifestEntry) {
@@ -447,6 +453,9 @@ pub fn merge_cached_metadata(target: &mut ModManifestEntry, source: &ModManifest
     }
     if target.version.is_none() {
         target.version = source.version.clone();
+    }
+    if target.dependencies.is_none() {
+        target.dependencies = source.dependencies.clone();
     }
     if target.description.is_none() {
         target.description = source.description.clone();

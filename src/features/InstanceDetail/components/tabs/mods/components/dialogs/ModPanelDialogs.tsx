@@ -53,6 +53,7 @@ export const ModPanelDialogs: React.FC<ModPanelDialogsProps> = ({
     <>
       <ModDetailModal
         mod={state.selectedMod}
+        allMods={mods}
         instanceConfig={instanceConfig}
         onClose={actions.closeModDetail}
         onToggle={actions.toggleSelectedMod}

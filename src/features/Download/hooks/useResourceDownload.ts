@@ -16,7 +16,7 @@ import {
   searchCurseForge,
   type CurseForgeCategoryOption
 } from '../logic/curseforgeApi';
-import { getCachedModrinthCategories } from '../logic/modrinthTags';
+import { getCachedModrinthCategories, getCachedModrinthMcVersions } from '../logic/modrinthTags';
 
 export type TabType = 'mod' | 'resourcepack' | 'shader' | 'modpack';
 export type DownloadSource = 'modrinth' | 'curseforge';
@@ -299,13 +299,19 @@ export const useResourceDownload = (
       });
 
       if (source !== 'curseforge') {
-        const modrinthCategories = await getCachedModrinthCategories(activeTab, configuredModrinthCategories).catch((error) => {
+        const categoriesTask = getCachedModrinthCategories(activeTab, configuredModrinthCategories).catch((error) => {
           console.error('Failed to load Modrinth categories:', error);
           return configuredModrinthCategories;
         });
+        const versionsTask = getCachedModrinthMcVersions().catch((error) => {
+          console.error('Failed to load Modrinth game versions:', error);
+          return getDefaultVersions();
+        });
+
+        const [modrinthCategories, modrinthMcVersions] = await Promise.all([categoriesTask, versionsTask]);
 
         if (!cancelled) {
-          setMcVersionOptions(getDefaultVersions());
+          setMcVersionOptions(modrinthMcVersions.length > 0 ? modrinthMcVersions : getDefaultVersions());
           setCategoryOptions(modrinthCategories.length > 0 ? modrinthCategories : configuredModrinthCategories);
         }
         return;
@@ -503,6 +509,11 @@ export const useResourceDownload = (
     }
 
     setOffset(0);
+    setResults([]);
+    setIsLoading(true);
+    setHasMore(true);
+    setLoadMoreFailed(false);
+
     const searchTimer = setTimeout(() => {
       void executeSearch(0, false);
     }, INITIAL_SEARCH_DELAY_MS);

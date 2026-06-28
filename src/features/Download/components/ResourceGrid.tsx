@@ -27,14 +27,15 @@ interface ResourceGridContext {
 }
 
 const ResourceGridFooter: React.FC<{ context?: ResourceGridContext }> = ({ context }) => {
-  if (!context?.hasMore) return null;
+  if (!context) return null;
+  const { hasMore, isLoadingMore, loadMoreFailed, onRetryLoadMore } = context;
 
-  if (context.loadMoreFailed) {
+  if (loadMoreFailed) {
     return (
       <div className="col-span-full flex h-16 items-center justify-center gap-3">
         <span className="text-sm text-red-400 font-minecraft font-bold">加载失败，请重试</span>
         <button
-          onClick={context.onRetryLoadMore}
+          onClick={onRetryLoadMore}
           className="rounded-sm border border-ore-green/30 bg-ore-green/10 px-3 py-1.5 text-xs font-minecraft font-bold tracking-wider text-ore-green hover:bg-ore-green/20 hover:text-white transition-colors cursor-pointer active:scale-95"
         >
           手动继续加载
@@ -43,7 +44,28 @@ const ResourceGridFooter: React.FC<{ context?: ResourceGridContext }> = ({ conte
     );
   }
 
-  return null;
+  if (!hasMore && !isLoadingMore) return null;
+
+  return (
+    <div className="col-span-full overflow-hidden w-full">
+      <AnimatePresence mode="popLayout">
+        {isLoadingMore && (
+          <motion.div
+            key="loadmore-skeletons"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            className="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] w-full pt-[0.75rem] px-[1rem]"
+          >
+            {Array.from({ length: 2 }).map((_, i) => (
+              <ResourceCardSkeleton key={`loadmore-skeleton-${i}`} />
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 };
 
 const ResourceGridHeader: React.FC = () => {
@@ -283,44 +305,12 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   const resourceItems = useMemo(() => {
     const installedLookup = installedModIndex || installedMods;
 
-    const items: ResourceGridItem[] = results.map((project) => ({
+    return results.map((project) => ({
       project,
       viewModel: buildProjectViewModel(project),
-      isInstalled: checkIsInstalled(project, installedLookup),
-      isSkeleton: false
+      isInstalled: checkIsInstalled(project, installedLookup)
     }));
-
-    if (isLoadingMore) {
-      // Append 4 skeleton items at the bottom when loading more
-      for (let i = 0; i < 4; i++) {
-        items.push({
-          project: {
-            id: `skeleton-${i}`,
-            slug: `skeleton-${i}`,
-            title: '',
-            description: '',
-            icon_url: '',
-            author: '',
-            downloads: 0,
-            date_modified: '',
-            client_side: '',
-            server_side: ''
-          },
-          viewModel: {
-            loaders: [],
-            features: [],
-            followerCount: 0,
-            supportsClient: false,
-            supportsServer: false
-          },
-          isInstalled: false,
-          isSkeleton: true
-        });
-      }
-    }
-
-    return items;
-  }, [installedModIndex, installedMods, results, isLoadingMore]);
+  }, [installedModIndex, installedMods, results]);
 
   return (
     <div
@@ -332,9 +322,12 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
     >
       <motion.div
         key="grid"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.22, ease: 'easeOut' }}
+        initial={{ opacity: 0, y: 12 }}
+        animate={{
+          opacity: isLoading ? 0 : 1,
+          y: isLoading ? 12 : 0
+        }}
+        transition={{ duration: 0.35, ease: 'easeOut' }}
         className="h-full w-full"
       >
         <FocusBoundary
@@ -355,36 +348,31 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
               data={resourceItems}
               context={{ hasMore, isLoadingMore, loadMoreFailed, onRetryLoadMore }}
               scrollerRef={handleScrollerRef}
-              computeItemKey={(_, item) => item.isSkeleton ? item.project.id : getProjectKey(item.project)}
+              computeItemKey={(_, item) => getProjectKey(item.project)}
               listClassName="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] px-[1rem] pb-[1.5rem] pt-0"
               components={RESOURCE_GRID_COMPONENTS}
               increaseViewportBy={{ top: 240, bottom: 520 }}
               endReached={triggerLoadMore}
-              itemContent={(index, item) => {
-                if (item.isSkeleton) {
-                  return <ResourceCardSkeleton key={item.project.id} />;
-                }
-                return (
-                  <ResourceCard
-                    project={item.project}
-                    viewModel={item.viewModel}
-                    index={index}
-                    isInstalled={item.isInstalled}
-                    hasMore={hasMore}
-                    canLoadMore={canLoadMore}
-                    onLoadMore={triggerLoadMore}
-                    onSelectProject={onSelectProject}
-                    isSelectionMode={isSelectionMode}
-                    isSelected={selectedProjectIds?.has(getProjectKey(item.project)) ?? false}
-                    onToggleSelection={onToggleProjectSelection}
-                    isNearBottom={index >= results.length - 6}
-                    categoryOptions={categoryOptions}
-                    onClickAuthor={onClickAuthor}
-                    shouldAnimateLayout={shouldAnimateLayout}
-                    selectedProjectId={selectedProjectId}
-                  />
-                );
-              }}
+              itemContent={(index, item) => (
+                <ResourceCard
+                  project={item.project}
+                  viewModel={item.viewModel}
+                  index={index}
+                  isInstalled={item.isInstalled}
+                  hasMore={hasMore}
+                  canLoadMore={canLoadMore}
+                  onLoadMore={triggerLoadMore}
+                  onSelectProject={onSelectProject}
+                  isSelectionMode={isSelectionMode}
+                  isSelected={selectedProjectIds?.has(getProjectKey(item.project)) ?? false}
+                  onToggleSelection={onToggleProjectSelection}
+                  isNearBottom={index >= results.length - 6}
+                  categoryOptions={categoryOptions}
+                  onClickAuthor={onClickAuthor}
+                  shouldAnimateLayout={shouldAnimateLayout}
+                  selectedProjectId={selectedProjectId}
+                />
+              )}
             />
           </LayoutGroup>
         </FocusBoundary>

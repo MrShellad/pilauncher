@@ -1,6 +1,7 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 
 import { useDownloadStore } from '../../../../store/useDownloadStore';
+import { useToastStore } from '../../../../store/useToastStore';
 import {
   buildLockedModMetadataSettings,
   modService,
@@ -17,6 +18,52 @@ interface UseModOperationsOptions {
   loadMods: (options?: LoadModsOptions) => Promise<void>;
 }
 
+const getDependentMods = (mods: ModMeta[], parentMod: ModMeta): ModMeta[] => {
+  const identifiers = new Set<string>();
+  if (parentMod.modId) identifiers.add(parentMod.modId.toLowerCase());
+  if (parentMod.manifestEntry?.source?.projectId) identifiers.add(parentMod.manifestEntry.source.projectId.toLowerCase());
+  if (parentMod.name) identifiers.add(parentMod.name.toLowerCase());
+  
+  const cleanFileName = parentMod.fileName.replace(/\.jar$/, '').replace(/\.disabled$/, '').split('-')[0].toLowerCase();
+  if (cleanFileName) identifiers.add(cleanFileName);
+
+  const dependentMods: ModMeta[] = [];
+  const visited = new Set<string>();
+  
+  const findDependents = (currentIdentifiers: Set<string>) => {
+    let foundNew = false;
+    for (const mod of mods) {
+      if (!mod.isEnabled || visited.has(mod.fileName)) continue;
+      
+      const modDeps = (mod.dependencies || mod.manifestEntry?.dependencies) as any[] | undefined;
+      if (!modDeps) continue;
+      
+      const hasDependency = modDeps.some(dep => {
+        const depId = typeof dep === 'string' 
+          ? dep.toLowerCase() 
+          : dep.project_id?.toLowerCase();
+        return depId && currentIdentifiers.has(depId);
+      });
+      
+      if (hasDependency) {
+        dependentMods.push(mod);
+        visited.add(mod.fileName);
+        
+        if (mod.modId) identifiers.add(mod.modId.toLowerCase());
+        if (mod.manifestEntry?.source?.projectId) identifiers.add(mod.manifestEntry.source.projectId.toLowerCase());
+        
+        foundNew = true;
+      }
+    }
+    if (foundNew) {
+      findDependents(identifiers);
+    }
+  };
+  
+  findDependents(identifiers);
+  return dependentMods;
+};
+
 const getActionText = (action: ModVersionInstallAction) => {
   if (action === 'downgrade') return '降级';
   if (action === 'reinstall') return '重装';
@@ -31,16 +78,48 @@ export const useModOperations = ({
 }: UseModOperationsOptions) => {
   const toggleMod = useCallback(async (fileName: string, currentEnabled: boolean) => {
     try {
-      setMods((prev) => prev.map((mod) => (
-        mod.fileName === fileName
-          ? {
-              ...mod,
-              isEnabled: !currentEnabled,
-              fileName: currentEnabled ? `${fileName}.disabled` : fileName.replace('.disabled', '')
-            }
-          : mod
-      )));
-      await modService.toggleMod(instanceId, fileName, !currentEnabled);
+      let filesToToggle = [fileName];
+      let dependentFileNames: string[] = [];
+      let parentModName = '';
+
+      if (currentEnabled) {
+        setMods((prev) => {
+          const parentMod = prev.find(m => m.fileName === fileName);
+          if (parentMod) {
+            parentModName = parentMod.networkInfo?.title || parentMod.name || parentMod.fileName;
+            const dependents = getDependentMods(prev, parentMod);
+            dependentFileNames = dependents.map(d => d.fileName);
+            filesToToggle = [fileName, ...dependentFileNames];
+          }
+          
+          return prev.map((mod) => (
+            filesToToggle.includes(mod.fileName)
+              ? {
+                  ...mod,
+                  isEnabled: false,
+                  fileName: mod.fileName.endsWith('.disabled') ? mod.fileName : `${mod.fileName}.disabled`
+                }
+              : mod
+          ));
+        });
+      } else {
+        setMods((prev) => prev.map((mod) => (
+          mod.fileName === fileName
+            ? {
+                ...mod,
+                isEnabled: true,
+                fileName: fileName.replace('.disabled', '')
+              }
+            : mod
+        )));
+      }
+
+      const nextEnabled = !currentEnabled;
+      await Promise.all(filesToToggle.map((f) => modService.toggleMod(instanceId, f, nextEnabled)));
+
+      if (dependentFileNames.length > 0) {
+        useToastStore.getState().addToast('info', `由于禁用了 ${parentModName}，已自动禁用其相关联的 ${dependentFileNames.length} 个模组。`);
+      }
     } catch (error) {
       console.error(error);
       void loadMods();
@@ -49,17 +128,52 @@ export const useModOperations = ({
 
   const toggleMods = useCallback(async (fileNames: string[], enable: boolean) => {
     try {
-      setMods((prev) => prev.map((mod) => {
-        if (fileNames.includes(mod.fileName) && mod.isEnabled !== enable) {
-          return {
-            ...mod,
-            isEnabled: enable,
-            fileName: enable ? mod.fileName.replace('.disabled', '') : `${mod.fileName}.disabled`
-          };
-        }
-        return mod;
-      }));
-      await Promise.all(fileNames.map((fileName) => modService.toggleMod(instanceId, fileName, enable)));
+      let filesToToggle = [...fileNames];
+      let dependentFileNames: string[] = [];
+
+      if (!enable) {
+        setMods((prev) => {
+          const dependentsSet = new Set<string>();
+          for (const fileName of fileNames) {
+            const parentMod = prev.find(m => m.fileName === fileName);
+            if (parentMod) {
+              const dependents = getDependentMods(prev, parentMod);
+              dependents.forEach(d => dependentsSet.add(d.fileName));
+            }
+          }
+          fileNames.forEach(f => dependentsSet.delete(f));
+          dependentFileNames = Array.from(dependentsSet);
+          filesToToggle = [...fileNames, ...dependentFileNames];
+          
+          return prev.map((mod) => {
+            if (filesToToggle.includes(mod.fileName) && mod.isEnabled !== enable) {
+              return {
+                ...mod,
+                isEnabled: enable,
+                fileName: enable ? mod.fileName.replace('.disabled', '') : (mod.fileName.endsWith('.disabled') ? mod.fileName : `${mod.fileName}.disabled`)
+              };
+            }
+            return mod;
+          });
+        });
+      } else {
+        setMods((prev) => prev.map((mod) => {
+          if (fileNames.includes(mod.fileName) && mod.isEnabled !== enable) {
+            return {
+              ...mod,
+              isEnabled: enable,
+              fileName: enable ? mod.fileName.replace('.disabled', '') : (mod.fileName.endsWith('.disabled') ? mod.fileName : `${mod.fileName}.disabled`)
+            };
+          }
+          return mod;
+        }));
+      }
+
+      await Promise.all(filesToToggle.map((fileName) => modService.toggleMod(instanceId, fileName, enable)));
+
+      if (dependentFileNames.length > 0) {
+        useToastStore.getState().addToast('info', `已自动禁用依赖它们的 ${dependentFileNames.length} 个相关联的模组。`);
+      }
     } catch (error) {
       console.error(error);
       void loadMods();

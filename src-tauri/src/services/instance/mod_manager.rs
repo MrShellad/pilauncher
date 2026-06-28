@@ -31,6 +31,7 @@ pub struct ModMetadata {
     pub modified_at: u64, // 新增：记录文件修改时间的时间戳
     pub manifest_entry: Option<ModManifestEntry>,
     pub cache_key: Option<String>,
+    pub dependencies: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -302,7 +303,8 @@ impl ModManagerService {
                                 is_enabled,
                                 modified_at: current_file_state.modified_at,
                                 cache_key: Some(cache_key.clone()),
-                                manifest_entry: Some(entry),
+                                manifest_entry: Some(entry.clone()),
+                                dependencies: entry.dependencies.clone(),
                             };
 
                             if let Ok(Some(row)) = sqlx::query_as::<_, ModCacheInfo>(
@@ -545,6 +547,12 @@ impl ModManagerService {
                                 }
                             }
 
+                            if meta.dependencies.is_none() {
+                                meta.dependencies = entry.dependencies.clone();
+                            } else {
+                                entry.dependencies = meta.dependencies.clone();
+                            }
+
                             meta.manifest_entry = Some(entry);
 
                             let db_icon_val = extracted_icon_rel_path.clone().or_else(|| meta.network_icon_url.clone());
@@ -715,8 +723,9 @@ impl ModManagerService {
                 file_size: file_state.size,
                 is_enabled: !file_name.ends_with(".disabled"),
                 modified_at: file_state.modified_at,
-                manifest_entry: Some(entry),
+                manifest_entry: Some(entry.clone()),
                 cache_key: Some(cache_key),
+                dependencies: entry.dependencies.clone(),
             });
         }
 
@@ -984,6 +993,7 @@ impl ModManagerService {
             modified_at,
             manifest_entry: None,
             cache_key: None,
+            dependencies: None,
         };
 
         if let Ok(file) = File::open(jar_path) {
@@ -998,6 +1008,15 @@ impl ModManagerService {
                             meta.mod_id = json["id"].as_str().map(|s| s.to_string());
                             meta.version = json["version"].as_str().map(|s| s.to_string());
                             meta.description = json["description"].as_str().map(|s| s.to_string());
+                            if let Some(depends) = json.get("depends").and_then(|d| d.as_object()) {
+                                let deps: Vec<String> = depends.keys()
+                                    .filter(|k| *k != "minecraft" && *k != "fabricloader" && *k != "fabric" && *k != "java")
+                                    .cloned()
+                                    .collect();
+                                if !deps.is_empty() {
+                                    meta.dependencies = Some(deps);
+                                }
+                            }
                             parsed = true;
                         }
                     }
@@ -1014,6 +1033,25 @@ impl ModManagerService {
                                     meta.version = quilt_loader["version"].as_str().map(|s| s.to_string());
                                     if let Some(metadata) = quilt_loader.get("metadata") {
                                         meta.description = metadata["description"].as_str().map(|s| s.to_string());
+                                    }
+                                    if let Some(depends) = quilt_loader.get("depends").and_then(|d| d.as_array()) {
+                                        let mut deps = Vec::new();
+                                        for dep in depends {
+                                            if let Some(dep_obj) = dep.as_object() {
+                                                if let Some(id) = dep_obj.get("id").and_then(|i| i.as_str()) {
+                                                    if id != "minecraft" && id != "quilt_loader" && id != "java" {
+                                                        deps.push(id.to_string());
+                                                    }
+                                                }
+                                            } else if let Some(id) = dep.as_str() {
+                                                if id != "minecraft" && id != "quilt_loader" && id != "java" {
+                                                    deps.push(id.to_string());
+                                                }
+                                            }
+                                        }
+                                        if !deps.is_empty() {
+                                            meta.dependencies = Some(deps);
+                                        }
                                     }
                                     parsed = true;
                                 }
@@ -1058,6 +1096,26 @@ impl ModManagerService {
                                         }
                                     }
                                 }
+                                if let Ok(dep_re) =
+                                    regex::Regex::new(r#"modId\s*=\s*(?:"|')([^"']+)(?:"|')"#)
+                                {
+                                    let mut deps = Vec::new();
+                                    for caps in dep_re.captures_iter(&contents) {
+                                        let dep_id = caps[1].to_string();
+                                        if dep_id != "forge"
+                                            && dep_id != "neoforge"
+                                            && dep_id != "minecraft"
+                                            && dep_id != "java"
+                                            && Some(&dep_id) != meta.mod_id.as_ref()
+                                            && !deps.contains(&dep_id)
+                                        {
+                                            deps.push(dep_id);
+                                        }
+                                    }
+                                    if !deps.is_empty() {
+                                        meta.dependencies = Some(deps);
+                                    }
+                                }
                                 parsed = true;
                                 break;
                             }
@@ -1085,6 +1143,29 @@ impl ModManagerService {
                                         meta.description = first_mod["description"]
                                             .as_str()
                                             .map(|s| s.to_string());
+
+                                        let mut deps = Vec::new();
+                                        if let Some(reqs) = first_mod["requiredMods"].as_array() {
+                                            for r in reqs {
+                                                if let Some(s) = r.as_str() {
+                                                    if s != "minecraft" && s != "forge" {
+                                                        deps.push(s.to_string());
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        if let Some(reqs) = first_mod["dependencies"].as_array() {
+                                            for r in reqs {
+                                                if let Some(s) = r.as_str() {
+                                                    if s != "minecraft" && s != "forge" && !deps.contains(&s.to_string()) {
+                                                        deps.push(s.to_string());
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        if !deps.is_empty() {
+                                            meta.dependencies = Some(deps);
+                                        }
                                     }
                                 }
                             }

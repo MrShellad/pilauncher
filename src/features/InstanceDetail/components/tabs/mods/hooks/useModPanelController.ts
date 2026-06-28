@@ -269,6 +269,61 @@ export const useModPanelController = (instanceId: string) => {
     void checkModUpdates();
   }, [checkModUpdates]);
 
+  const handleUpdateAllMods = useCallback(async () => {
+    const modsToUpdate = mods.filter((m) => m.hasUpdate && !m.isUpdatingMod);
+    if (modsToUpdate.length === 0) {
+      return;
+    }
+
+    setIsPreparingUpgradeSnapshot(true);
+    try {
+      await takeSnapshot(
+        'MOD_UPDATE',
+        t('modPanel.beforeUpdateAllSnapshotMessage', {
+          count: modsToUpdate.length,
+          defaultValue: `一键更新 ${modsToUpdate.length} 个模组前的快照`
+        })
+      );
+      addToast('success', t('modPanel.updateAllSnapshotSuccess', {
+        defaultValue: '成功创建更新前快照。开始批量更新...'
+      }));
+      await syncHistoryAfterSnapshot();
+    } catch (error) {
+      console.error(error);
+      addToast('warning', t('modPanel.updateAllSnapshotFailed', {
+        defaultValue: '创建更新前快照失败，将直接开始更新。'
+      }));
+    } finally {
+      setIsPreparingUpgradeSnapshot(false);
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const mod of modsToUpdate) {
+      try {
+        await upgradeMod(mod);
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to upgrade mod ${mod.name || mod.fileName}:`, error);
+        failCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      addToast('success', t('modPanel.updateAllSuccess', {
+        count: successCount,
+        defaultValue: `成功更新了 ${successCount} 个模组。`
+      }));
+    }
+    if (failCount > 0) {
+      addToast('error', t('modPanel.updateAllFailed', {
+        count: failCount,
+        defaultValue: `${failCount} 个模组更新失败。`
+      }));
+    }
+  }, [mods, upgradeMod, takeSnapshot, addToast, t, syncHistoryAfterSnapshot]);
+
   const handleMetadataResolved = useCallback((updatedMod: ModMeta) => {
     setMods((current) => {
       let changed = false;
@@ -598,6 +653,7 @@ export const useModPanelController = (instanceId: string) => {
       onExitBatchMode: exitBatchMode,
       onOpenModMetadataSettings: openGlobalMetadata,
       onCheckModUpdates: handleCheckModUpdates,
+      onUpdateAllMods: handleUpdateAllMods,
       emptyMessage
     },
     cleanupDialog: {

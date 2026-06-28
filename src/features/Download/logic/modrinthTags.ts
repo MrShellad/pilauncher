@@ -107,3 +107,35 @@ export const getCachedModrinthCategories = async (
   await writeSessionCache(cacheKey, categories);
   return mergeConfiguredCategoryMetadata(categories, configuredOptions);
 };
+
+interface ModrinthGameVersionTag {
+  version: string;
+  version_type: 'release' | 'snapshot';
+  date: string;
+  major: boolean;
+}
+
+export const getCachedModrinthMcVersions = async (): Promise<FilterOption[]> => {
+  const cacheKey = 'modrinth_mc_versions';
+  const cached = await readSessionCache<FilterOption[]>(cacheKey);
+  if (cached?.length) {
+    return cached;
+  }
+
+  try {
+    const data = await modrinthFetch<ModrinthGameVersionTag[]>('/tag/game_version');
+    const versions = data
+      .filter((v) => v.version_type === 'release')
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .map((v) => ({ label: v.version, value: v.version }));
+    
+    if (versions.length > 0) {
+      await writeSessionCache(cacheKey, versions);
+      return versions;
+    }
+  } catch (error) {
+    console.error('Failed to fetch game versions from Modrinth:', error);
+  }
+
+  return [];
+};
