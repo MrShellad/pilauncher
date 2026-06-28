@@ -3,7 +3,7 @@ use crate::error::{AppError, AppResult};
 use crate::services::config_service::{ConfigService, DownloadSettings};
 use crate::services::deployment_cancel::is_cancelled;
 use crate::services::downloader::dependencies::scheduler::sha1_file;
-use crate::services::downloader::logging::resolve_logs_dir;
+use crate::services::downloader::logging::{resolve_logs_dir, log_download_event, DownloadLogLevel};
 use serde::Deserialize;
 use serde_json::Value;
 use std::env;
@@ -280,7 +280,9 @@ fn append_neoforge_bmcl_installer_urls(
 }
 
 #[allow(dead_code)]
-async fn resolve_neoforge_installer_urls(
+async fn resolve_neoforge_installer_urls<R: Runtime>(
+    app: &AppHandle<R>,
+    instance_id: &str,
     client: &reqwest::Client,
     dl_settings: &DownloadSettings,
     mc_version: &str,
@@ -289,6 +291,8 @@ async fn resolve_neoforge_installer_urls(
     cancel: &Arc<AtomicBool>,
 ) -> AppResult<Vec<String>> {
     neoforge::resolve_installer_urls(
+        app,
+        instance_id,
         client,
         dl_settings,
         mc_version,
@@ -299,7 +303,9 @@ async fn resolve_neoforge_installer_urls(
     .await
 }
 
-async fn send_from_candidates(
+async fn send_from_candidates<R: Runtime>(
+    app: &AppHandle<R>,
+    instance_id: &str,
     client: &reqwest::Client,
     urls: &[String],
     max_attempts: u32,
@@ -314,21 +320,72 @@ async fn send_from_candidates(
                 return Err(AppError::Cancelled);
             }
 
+            log_download_event(
+                app,
+                instance_id,
+                "LOADER_CORE",
+                DownloadLogLevel::Info,
+                &format!("Fetching loader resource (attempt {}/{}) from: {}", round, attempts, url),
+                None,
+                true,
+            )
+            .await;
+
             match tokio::time::timeout(Duration::from_secs(15), client.get(url).send()).await {
-                Ok(Ok(response)) if response.status().is_success() => return Ok(response),
+                Ok(Ok(response)) if response.status().is_success() => {
+                    log_download_event(
+                        app,
+                        instance_id,
+                        "LOADER_CORE",
+                        DownloadLogLevel::Info,
+                        &format!("Successfully fetched loader resource from {}. Status: {}", url, response.status()),
+                        None,
+                        true,
+                    )
+                    .await;
+                    return Ok(response);
+                }
                 Ok(Ok(response)) => {
-                    errors.push(format!(
-                        "[attempt {}] {} -> {}",
-                        round,
-                        url,
-                        response.status()
-                    ));
+                    let err_msg = format!("[attempt {}] {} -> {}", round, url, response.status());
+                    log_download_event(
+                        app,
+                        instance_id,
+                        "LOADER_CORE",
+                        DownloadLogLevel::Warn,
+                        &format!("Failed fetching loader resource from {}, HTTP status: {}", url, response.status()),
+                        Some(&err_msg),
+                        true,
+                    )
+                    .await;
+                    errors.push(err_msg);
                 }
                 Ok(Err(err)) => {
-                    errors.push(format!("[attempt {}] {} -> {}", round, url, err));
+                    let err_msg = format!("[attempt {}] {} -> {}", round, url, err);
+                    log_download_event(
+                        app,
+                        instance_id,
+                        "LOADER_CORE",
+                        DownloadLogLevel::Warn,
+                        &format!("Network error fetching loader resource from {}", url),
+                        Some(&err_msg),
+                        true,
+                    )
+                    .await;
+                    errors.push(err_msg);
                 }
                 Err(_) => {
-                    errors.push(format!("[attempt {}] {} -> timeout (15s)", round, url));
+                    let err_msg = format!("[attempt {}] {} -> timeout (15s)", round, url);
+                    log_download_event(
+                        app,
+                        instance_id,
+                        "LOADER_CORE",
+                        DownloadLogLevel::Warn,
+                        &format!("Timeout fetching loader resource from {}", url),
+                        Some(&err_msg),
+                        true,
+                    )
+                    .await;
+                    errors.push(err_msg);
                 }
             }
         }
@@ -341,29 +398,45 @@ async fn send_from_candidates(
         detail
     };
 
-    Err(AppError::Generic(format!(
+    let final_err = format!(
         "Failed to download loader resource from all candidate sources: {}",
         detail
-    )))
+    );
+    log_download_event(
+        app,
+        instance_id,
+        "LOADER_CORE",
+        DownloadLogLevel::Error,
+        &final_err,
+        None,
+        true,
+    )
+    .await;
+
+    Err(AppError::Generic(final_err))
 }
 
-async fn download_text_from_candidates(
+async fn download_text_from_candidates<R: Runtime>(
+    app: &AppHandle<R>,
+    instance_id: &str,
     client: &reqwest::Client,
     urls: &[String],
     max_attempts: u32,
     cancel: &Arc<AtomicBool>,
 ) -> AppResult<String> {
-    let response = send_from_candidates(client, urls, max_attempts, cancel).await?;
+    let response = send_from_candidates(app, instance_id, client, urls, max_attempts, cancel).await?;
     Ok(response.text().await?)
 }
 
-async fn download_bytes_from_candidates(
+async fn download_bytes_from_candidates<R: Runtime>(
+    app: &AppHandle<R>,
+    instance_id: &str,
     client: &reqwest::Client,
     urls: &[String],
     max_attempts: u32,
     cancel: &Arc<AtomicBool>,
 ) -> AppResult<Vec<u8>> {
-    let response = send_from_candidates(client, urls, max_attempts, cancel).await?;
+    let response = send_from_candidates(app, instance_id, client, urls, max_attempts, cancel).await?;
     Ok(response.bytes().await?.to_vec())
 }
 
@@ -416,6 +489,17 @@ fn spawn_installer_stream_reader<R, T>(
                 Some(prefix) => format!("{}{}", prefix, trimmed),
                 None => trimmed.to_string(),
             };
+
+            log_download_event(
+                &app,
+                &instance_id,
+                "LOADER_CORE",
+                DownloadLogLevel::Info,
+                &message,
+                None,
+                false,
+            )
+            .await;
 
             emit_loader_progress(&app, &instance_id, String::new(), 50, 100, message);
         }

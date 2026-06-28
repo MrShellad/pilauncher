@@ -199,6 +199,9 @@ pub fn download_and_import_modpack<R: Runtime>(
                 &no_cancel,
                 rate_limiter.clone(),
                 None,
+                Some(&app),
+                Some(&instance_id),
+                Some("DOWNLOADING_MODPACK"),
             )
             .await
             {

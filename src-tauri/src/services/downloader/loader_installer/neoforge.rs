@@ -115,7 +115,9 @@ pub(super) fn append_bmcl_installer_urls(
     }
 }
 
-pub(super) async fn resolve_installer_urls(
+pub(super) async fn resolve_installer_urls<R: Runtime>(
+    app: &AppHandle<R>,
+    instance_id: &str,
     client: &reqwest::Client,
     dl_settings: &DownloadSettings,
     mc_version: &str,
@@ -129,7 +131,7 @@ pub(super) async fn resolve_installer_urls(
 
     if !list_urls.is_empty() {
         let list_text =
-            match download_text_from_candidates(client, &list_urls, max_attempts, cancel).await {
+            match download_text_from_candidates(app, instance_id, client, &list_urls, max_attempts, cancel).await {
                 Ok(text) => text,
                 Err(AppError::Cancelled) => return Err(AppError::Cancelled),
                 Err(_) => String::new(),
@@ -211,6 +213,8 @@ pub(super) async fn install<R: Runtime>(
     );
 
     let installer_urls = resolve_installer_urls(
+        app,
+        instance_id,
         &client,
         &dl_settings,
         mc_version,
@@ -225,7 +229,7 @@ pub(super) async fn install<R: Runtime>(
             return Err(AppError::Cancelled);
         }
         let installer_bytes =
-            download_bytes_from_candidates(&client, &installer_urls, max_attempts, cancel).await?;
+            download_bytes_from_candidates(app, instance_id, &client, &installer_urls, max_attempts, cancel).await?;
         tokio::fs::write(&installer_path, installer_bytes).await?;
     }
 

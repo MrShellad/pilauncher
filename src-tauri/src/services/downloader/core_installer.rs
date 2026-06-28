@@ -4,6 +4,7 @@ use crate::services::config_service::{ConfigService, DownloadSettings};
 use crate::services::deployment_cancel::is_cancelled;
 use crate::services::downloader::dependencies::scheduler::sha1_file;
 use crate::services::downloader::transfer::{download_file, DownloadRateLimiter, DownloadTuning};
+use crate::services::downloader::logging::{log_download_event, DownloadLogLevel};
 use std::fs;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -42,7 +43,9 @@ fn read_cached_manifest(manifest_path: &Path) -> Option<serde_json::Value> {
     serde_json::from_str(&content).ok()
 }
 
-async fn fetch_manifest_with_retry(
+async fn fetch_manifest_with_retry<R: Runtime>(
+    app: &AppHandle<R>,
+    instance_id: &str,
     client: &reqwest::Client,
     manifest_urls: &[String],
     manifest_path: &Path,
@@ -53,8 +56,29 @@ async fn fetch_manifest_with_retry(
 
     for attempt in 1..=attempts {
         for manifest_url in manifest_urls {
+            log_download_event(
+                app,
+                instance_id,
+                "VANILLA_CORE",
+                DownloadLogLevel::Info,
+                &format!("Fetching version manifest (attempt {}/{}) from: {}", attempt, attempts, manifest_url),
+                None,
+                true,
+            )
+            .await;
+
             match tokio::time::timeout(Duration::from_secs(15), client.get(manifest_url).send()).await {
                 Ok(Ok(resp)) if resp.status().is_success() => {
+                    log_download_event(
+                        app,
+                        instance_id,
+                        "VANILLA_CORE",
+                        DownloadLogLevel::Info,
+                        &format!("Successfully fetched version manifest from {}. Status: {}", manifest_url, resp.status()),
+                        None,
+                        true,
+                    )
+                    .await;
                     let manifest_text = resp.text().await?;
                     if let Some(parent) = manifest_path.parent() {
                         let _ = fs::create_dir_all(parent);
@@ -63,20 +87,64 @@ async fn fetch_manifest_with_retry(
                     return Ok(manifest_text);
                 }
                 Ok(Ok(resp)) if resp.status().as_u16() == 429 || resp.status().is_server_error() => {
-                    last_error = Some(format!("{} from {}", resp.status(), manifest_url));
+                    let err = format!("{} from {}", resp.status(), manifest_url);
+                    log_download_event(
+                        app,
+                        instance_id,
+                        "VANILLA_CORE",
+                        DownloadLogLevel::Warn,
+                        &format!("Server error fetching version manifest from {}, HTTP status: {}", manifest_url, resp.status()),
+                        Some(&err),
+                        true,
+                    )
+                    .await;
+                    last_error = Some(err);
                 }
                 Ok(Ok(resp)) => {
+                    let err_msg = format!("Failed to fetch version list: {}", resp.status());
+                    log_download_event(
+                        app,
+                        instance_id,
+                        "VANILLA_CORE",
+                        DownloadLogLevel::Error,
+                        &err_msg,
+                        None,
+                        true,
+                    )
+                    .await;
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::Other,
-                        format!("Failed to fetch version list: {}", resp.status()),
+                        err_msg,
                     )
                     .into());
                 }
                 Ok(Err(err)) => {
-                    last_error = Some(format!("{} from {}", err, manifest_url));
+                    let err_str = format!("{} from {}", err, manifest_url);
+                    log_download_event(
+                        app,
+                        instance_id,
+                        "VANILLA_CORE",
+                        DownloadLogLevel::Warn,
+                        &format!("Network error fetching version manifest from {}", manifest_url),
+                        Some(&err_str),
+                        true,
+                    )
+                    .await;
+                    last_error = Some(err_str);
                 }
                 Err(_) => {
-                    last_error = Some(format!("Timeout (15s) from {}", manifest_url));
+                    let err_str = format!("Timeout (15s) from {}", manifest_url);
+                    log_download_event(
+                        app,
+                        instance_id,
+                        "VANILLA_CORE",
+                        DownloadLogLevel::Warn,
+                        &format!("Timeout fetching version manifest from {}", manifest_url),
+                        Some(&err_str),
+                        true,
+                    )
+                    .await;
+                    last_error = Some(err_str);
                 }
             }
         }
@@ -86,17 +154,31 @@ async fn fetch_manifest_with_retry(
         }
     }
 
+    let final_err = format!(
+        "Failed to fetch version list: {}",
+        last_error.unwrap_or_else(|| "unknown error".to_string())
+    );
+    log_download_event(
+        app,
+        instance_id,
+        "VANILLA_CORE",
+        DownloadLogLevel::Error,
+        &final_err,
+        None,
+        true,
+    )
+    .await;
+
     Err(std::io::Error::new(
         std::io::ErrorKind::Other,
-        format!(
-            "Failed to fetch version list: {}",
-            last_error.unwrap_or_else(|| "unknown error".to_string())
-        ),
+        final_err,
     )
     .into())
 }
 
-async fn fetch_text_from_candidates(
+async fn fetch_text_from_candidates<R: Runtime>(
+    app: &AppHandle<R>,
+    instance_id: &str,
     client: &reqwest::Client,
     urls: &[String],
     max_attempts: u32,
@@ -111,11 +193,73 @@ async fn fetch_text_from_candidates(
                 return Err(AppError::Cancelled);
             }
 
+            log_download_event(
+                app,
+                instance_id,
+                "VANILLA_CORE",
+                DownloadLogLevel::Info,
+                &format!("Fetching candidate file (attempt {}/{}) from: {}", attempt, attempts, url),
+                None,
+                true,
+            )
+            .await;
+
             match tokio::time::timeout(Duration::from_secs(15), client.get(url).send()).await {
-                Ok(Ok(resp)) if resp.status().is_success() => return Ok(resp.text().await?),
-                Ok(Ok(resp)) => last_error = Some(format!("{} from {}", resp.status(), url)),
-                Ok(Err(err)) => last_error = Some(format!("{} from {}", err, url)),
-                Err(_) => last_error = Some(format!("Timeout (15s) from {}", url)),
+                Ok(Ok(resp)) if resp.status().is_success() => {
+                    log_download_event(
+                        app,
+                        instance_id,
+                        "VANILLA_CORE",
+                        DownloadLogLevel::Info,
+                        &format!("Successfully fetched candidate file from {}. Status: {}", url, resp.status()),
+                        None,
+                        true,
+                    )
+                    .await;
+                    return Ok(resp.text().await?);
+                }
+                Ok(Ok(resp)) => {
+                    let err = format!("{} from {}", resp.status(), url);
+                    log_download_event(
+                        app,
+                        instance_id,
+                        "VANILLA_CORE",
+                        DownloadLogLevel::Warn,
+                        &format!("Failed fetching candidate file from {}, HTTP status: {}", url, resp.status()),
+                        Some(&err),
+                        true,
+                    )
+                    .await;
+                    last_error = Some(err);
+                }
+                Ok(Err(err)) => {
+                    let err_str = format!("{} from {}", err, url);
+                    log_download_event(
+                        app,
+                        instance_id,
+                        "VANILLA_CORE",
+                        DownloadLogLevel::Warn,
+                        &format!("Network error fetching candidate file from {}", url),
+                        Some(&err_str),
+                        true,
+                    )
+                    .await;
+                    last_error = Some(err_str);
+                }
+                Err(_) => {
+                    let err_str = format!("Timeout (15s) from {}", url);
+                    log_download_event(
+                        app,
+                        instance_id,
+                        "VANILLA_CORE",
+                        DownloadLogLevel::Warn,
+                        &format!("Timeout fetching candidate file from {}", url),
+                        Some(&err_str),
+                        true,
+                    )
+                    .await;
+                    last_error = Some(err_str);
+                }
             }
         }
 
@@ -124,12 +268,24 @@ async fn fetch_text_from_candidates(
         }
     }
 
+    let final_err = format!(
+        "Failed to fetch text from all candidate sources: {}",
+        last_error.unwrap_or_else(|| "unknown error".to_string())
+    );
+    log_download_event(
+        app,
+        instance_id,
+        "VANILLA_CORE",
+        DownloadLogLevel::Error,
+        &final_err,
+        None,
+        true,
+    )
+    .await;
+
     Err(std::io::Error::new(
         std::io::ErrorKind::Other,
-        format!(
-            "Failed to fetch text from all candidate sources: {}",
-            last_error.unwrap_or_else(|| "unknown error".to_string())
-        ),
+        final_err,
     )
     .into())
 }
@@ -148,6 +304,17 @@ pub async fn install_vanilla_core<R: Runtime>(
     global_mc_root: &Path,
     cancel: &Arc<AtomicBool>,
 ) -> AppResult<()> {
+    log_download_event(
+        app,
+        instance_id,
+        "VANILLA_CORE",
+        DownloadLogLevel::Info,
+        &format!("Starting installation of Vanilla core version {}", version_id),
+        None,
+        true,
+    )
+    .await;
+
     let dl_settings = ConfigService::get_download_settings(app);
     let client = build_download_client(&dl_settings)?;
     let max_attempts = dl_settings.retry_count.max(1);
@@ -203,6 +370,8 @@ pub async fn install_vanilla_core<R: Runtime>(
 
         if version_url.is_none() {
             let manifest_text = fetch_manifest_with_retry(
+                app,
+                instance_id,
                 &client,
                 &manifest_url,
                 &manifest_cache_path,
@@ -243,7 +412,7 @@ pub async fn install_vanilla_core<R: Runtime>(
 
         let version_json_urls = build_vanilla_version_json_urls(&version_url, &dl_settings);
         let version_json_text =
-            fetch_text_from_candidates(&client, &version_json_urls, max_attempts, cancel).await?;
+            fetch_text_from_candidates(app, instance_id, &client, &version_json_urls, max_attempts, cancel).await?;
         fs::write(&json_path, &version_json_text)?;
     }
 
@@ -261,13 +430,43 @@ pub async fn install_vanilla_core<R: Runtime>(
 
     if jar_path.exists() {
         if let Some(ref exp) = expected_sha1 {
+            log_download_event(
+                app,
+                instance_id,
+                "VANILLA_CORE",
+                DownloadLogLevel::Info,
+                &format!("Checking local cache of client JAR: {}", jar_path.display()),
+                None,
+                true,
+            )
+            .await;
             if let Ok(actual) = sha1_file(&jar_path).await {
                 if actual == *exp {
+                    log_download_event(
+                        app,
+                        instance_id,
+                        "VANILLA_CORE",
+                        DownloadLogLevel::Info,
+                        "Client JAR matches expected SHA-1. Reusing cached file.",
+                        None,
+                        true,
+                    )
+                    .await;
                     return Ok(());
                 }
             }
             let _ = fs::remove_file(&jar_path);
         } else {
+            log_download_event(
+                app,
+                instance_id,
+                "VANILLA_CORE",
+                DownloadLogLevel::Info,
+                "No expected SHA-1 found, reusing cached client JAR.",
+                None,
+                true,
+            )
+            .await;
             return Ok(());
         }
     }
@@ -380,12 +579,25 @@ pub async fn install_vanilla_core<R: Runtime>(
             cancel,
             rate_limiter.clone(),
             Some(on_bytes),
+            Some(app),
+            Some(instance_id),
+            Some("VANILLA_CORE"),
         )
         .await
         {
             Ok(result) => result,
             Err(err) => {
                 last_error = Some(err.to_string());
+                log_download_event(
+                    app,
+                    instance_id,
+                    "VANILLA_CORE",
+                    DownloadLogLevel::Warn,
+                    &format!("Failed downloading client JAR from candidate URLs (attempt {}/{}): {}", attempt, max_attempts, err),
+                    None,
+                    true,
+                )
+                .await;
                 if attempt < max_attempts {
                     tokio::time::sleep(Duration::from_millis(
                         RETRY_DELAY_MS * (1u64 << attempt.min(5)),
@@ -403,23 +615,29 @@ pub async fn install_vanilla_core<R: Runtime>(
                 let _ = fs::remove_file(&temp_jar_path);
                 if dl_settings.auto_check_latency && candidate_urls.len() > 1 {
                     let failed_url = candidate_urls.remove(0);
-                    let _ = app.emit(
-                        "instance-deployment-progress",
-                        DownloadProgressEvent {
-                            instance_id: instance_id.to_string(),
-                            stage: "VANILLA_CORE".to_string(),
-                            file_name: format!("{}.jar", version_id),
-                            current: 45,
-                            total: 100,
-                            message: format!(
-                                "Source verification failed, switching mirror: {}",
-                                failed_url
-                            ),
-                        },
-                    );
+                    log_download_event(
+                        app,
+                        instance_id,
+                        "VANILLA_CORE",
+                        DownloadLogLevel::Warn,
+                        &format!("SHA-1 mismatch on {}, switching mirror", format!("{}.jar", version_id)),
+                        Some(&format!("sha1 mismatch: failed_source={} next_source={} expected={} got={}", failed_url, candidate_urls[0], exp, actual)),
+                        true,
+                    )
+                    .await;
                     continue;
                 }
                 if attempt < max_attempts {
+                    log_download_event(
+                        app,
+                        instance_id,
+                        "VANILLA_CORE",
+                        DownloadLogLevel::Warn,
+                        &format!("SHA-1 check failed for {}, retrying ({}/{})", format!("{}.jar", version_id), attempt, max_attempts),
+                        None,
+                        true,
+                    )
+                    .await;
                     tokio::time::sleep(Duration::from_millis(
                         RETRY_DELAY_MS * (1u64 << attempt.min(5)),
                     ))
@@ -463,16 +681,37 @@ pub async fn install_vanilla_core<R: Runtime>(
     }
 
     if !success {
+        let reason = last_error.unwrap_or_else(|| "unknown error".to_string());
+        log_download_event(
+            app,
+            instance_id,
+            "VANILLA_CORE",
+            DownloadLogLevel::Error,
+            &format!("Failed to install Vanilla core after {} attempts: {}", max_attempts, reason),
+            None,
+            true,
+        )
+        .await;
         return Err(std::io::Error::new(
             std::io::ErrorKind::Other,
             format!(
-                "Failed to download game core after {} attempts{}",
-                max_attempts,
-                last_error.map(|e| format!(": {}", e)).unwrap_or_default()
+                "Failed to download game core after {} attempts: {}",
+                max_attempts, reason
             ),
         )
         .into());
     }
+
+    log_download_event(
+        app,
+        instance_id,
+        "VANILLA_CORE",
+        DownloadLogLevel::Info,
+        &format!("Vanilla core installation completed successfully for version: {}", version_id),
+        None,
+        true,
+    )
+    .await;
 
     Ok(())
 }

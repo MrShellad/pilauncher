@@ -1709,6 +1709,9 @@ impl ModManagerService {
                 &no_cancel,
                 rate_limiter,
                 None,
+                Some(app),
+                Some(instance_id),
+                Some("DOWNLOADING_MOD"),
             )
             .await
             .map_err(|e| e.to_string())?;

@@ -213,6 +213,9 @@ pub async fn run_downloads<R: Runtime>(
                         &cancel,
                         rate_limiter.clone(),
                         Some(on_bytes),
+                        Some(&app),
+                        Some(&instance_id),
+                        Some(stage_name),
                     )
                     .await
                     {

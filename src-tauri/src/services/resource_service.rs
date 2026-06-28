@@ -351,6 +351,9 @@ impl ResourceService {
             &no_cancel,
             rate_limiter,
             Some(on_bytes),
+            Some(app),
+            Some(instance_id),
+            Some("DOWNLOADING_RESOURCE"),
         )
         .await
         .map_err(|e| format!("下载失败: {}", e))?;

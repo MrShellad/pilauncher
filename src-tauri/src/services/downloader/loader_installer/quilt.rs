@@ -48,7 +48,7 @@ pub(super) async fn install<R: Runtime>(
 
         let meta_urls = profile_urls(&dl_settings, mc_version, loader_version);
         let raw_json_text =
-            download_text_from_candidates(&client, &meta_urls, max_attempts, cancel).await?;
+            download_text_from_candidates(app, instance_id, &client, &meta_urls, max_attempts, cancel).await?;
 
         // Use lighty-loaders to parse and build the version manifest
         let info = SimpleVersionInfo {

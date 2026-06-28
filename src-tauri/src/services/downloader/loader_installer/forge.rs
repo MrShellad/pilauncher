@@ -70,7 +70,7 @@ pub(super) async fn install<R: Runtime>(
             return Err(AppError::Cancelled);
         }
         let installer_bytes =
-            download_bytes_from_candidates(&client, &installer_urls, max_attempts, cancel).await?;
+            download_bytes_from_candidates(app, instance_id, &client, &installer_urls, max_attempts, cancel).await?;
         tokio::fs::write(&installer_path, installer_bytes).await?;
     }
 

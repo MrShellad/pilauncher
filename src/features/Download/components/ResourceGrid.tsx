@@ -233,12 +233,15 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
     loadMoreLockRef.current = false;
   }, [isLoading, isLoadingMore]);
 
-  // Reset scroll to top when results change for a new search
+  const prevIsLoadingRef = useRef(isLoading);
+
+  // Reset scroll to top when a fresh search completes
   useEffect(() => {
-    if (!isLoadingMore && results.length > 0 && scrollElement) {
+    if (prevIsLoadingRef.current && !isLoading && results.length > 0 && scrollElement) {
       scrollElement.scrollTop = 0;
     }
-  }, [results, isLoadingMore, scrollElement]);
+    prevIsLoadingRef.current = isLoading;
+  }, [isLoading, results.length, scrollElement]);
 
   useEffect(() => {
     if (!scrollElement || !onScrollTopChange) return;

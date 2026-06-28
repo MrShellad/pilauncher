@@ -1,3 +1,5 @@
+use tauri::{AppHandle, Runtime};
+use crate::services::downloader::logging::{log_download_event, DownloadLogLevel};
 use crate::error::{AppError, AppResult};
 use crate::services::deployment_cancel::is_cancelled;
 use futures::stream::{iter, StreamExt};
@@ -34,6 +36,7 @@ pub struct DownloadOutcome {
     pub downloaded_bytes: u64,
     pub total_bytes: u64,
     pub used_chunked: bool,
+    pub resolved_url: String,
 }
 
 struct DownloadRateLimiterState {
@@ -120,7 +123,7 @@ async fn write_chunk_at_offset(
     Ok(())
 }
 
-async fn download_single_stream(
+async fn download_single_stream<R: Runtime>(
     client: &Client,
     url: &str,
     temp_path: &Path,
@@ -128,6 +131,9 @@ async fn download_single_stream(
     cancel: &Arc<AtomicBool>,
     rate_limiter: Option<Arc<DownloadRateLimiter>>,
     on_bytes: Option<&Arc<dyn Fn(u64) + Send + Sync>>,
+    app: Option<&AppHandle<R>>,
+    instance_id: Option<&str>,
+    stage: Option<&str>,
 ) -> AppResult<DownloadOutcome> {
     if let Some(parent) = temp_path.parent() {
         tokio::fs::create_dir_all(parent).await?;
@@ -139,13 +145,54 @@ async fn download_single_stream(
         Err(_) => 0,
     };
 
+    if existing_len > 0 {
+        if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
+            log_download_event(
+                app,
+                inst_id,
+                stg,
+                DownloadLogLevel::Info,
+                &format!("Resuming download from offset {} bytes for {}", existing_len, url),
+                None,
+                false,
+            )
+            .await;
+        }
+    }
+
     let mut request = client.get(url).header(ACCEPT_ENCODING, "identity");
     if existing_len > 0 {
         request = request.header(RANGE, format!("bytes={}-", existing_len));
     }
 
+    if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
+        log_download_event(
+            app,
+            inst_id,
+            stg,
+            DownloadLogLevel::Info,
+            &format!("Sending single-stream HTTP request to URL: {}", url),
+            None,
+            false,
+        )
+        .await;
+    }
+
     let mut response = request.send().await?;
     let status = response.status().as_u16();
+
+    if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
+        log_download_event(
+            app,
+            inst_id,
+            stg,
+            DownloadLogLevel::Info,
+            &format!("Response received from {}. Status: {}, Content-Length: {:?}", url, status, response.content_length()),
+            None,
+            false,
+        )
+        .await;
+    }
 
     // Determine resume offset based on server response
     let resume_offset = if existing_len > 0 && status == 206 {
@@ -165,6 +212,18 @@ async fn download_single_stream(
             .send()
             .await?;
         if !response.status().is_success() {
+            if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
+                log_download_event(
+                    app,
+                    inst_id,
+                    stg,
+                    DownloadLogLevel::Warn,
+                    &format!("HTTP {} from {} when retrying without Range", response.status(), url),
+                    None,
+                    false,
+                )
+                .await;
+            }
             return Err(AppError::Generic(format!(
                 "HTTP {} from {}",
                 response.status(),
@@ -173,6 +232,18 @@ async fn download_single_stream(
         }
         0
     } else if !response.status().is_success() {
+        if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
+            log_download_event(
+                app,
+                inst_id,
+                stg,
+                DownloadLogLevel::Warn,
+                &format!("HTTP {} from {} (request failed)", response.status(), url),
+                None,
+                false,
+            )
+            .await;
+        }
         return Err(AppError::Generic(format!(
             "HTTP {} from {}",
             response.status(),
@@ -224,10 +295,34 @@ async fn download_single_stream(
             }
             Ok(Ok(None)) => break,
             Ok(Err(e)) => {
+                if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
+                    log_download_event(
+                        app,
+                        inst_id,
+                        stg,
+                        DownloadLogLevel::Warn,
+                        &format!("Network connection interrupted while downloading single stream from {}, error: {}", url, e),
+                        None,
+                        false,
+                    )
+                    .await;
+                }
                 // Keep partial file for resume on next attempt
                 return Err(AppError::Network(e));
             }
             Err(_) => {
+                if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
+                    log_download_event(
+                        app,
+                        inst_id,
+                        stg,
+                        DownloadLogLevel::Warn,
+                        &format!("Single stream stalled for {}s while downloading from {}", stall_timeout.as_secs(), url),
+                        None,
+                        false,
+                    )
+                    .await;
+                }
                 // Keep partial file for resume on next attempt
                 return Err(AppError::Generic(format!(
                     "download stalled for {}s (downloaded {}B so far)",
@@ -244,14 +339,28 @@ async fn download_single_stream(
         return Err(AppError::Generic(format!("empty response from {}", url)));
     }
 
+    if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
+        log_download_event(
+            app,
+            inst_id,
+            stg,
+            DownloadLogLevel::Info,
+            &format!("Successfully downloaded single stream: {} ({} bytes)", url, downloaded),
+            None,
+            false,
+        )
+        .await;
+    }
+
     Ok(DownloadOutcome {
         downloaded_bytes: downloaded,
         total_bytes: total_size.max(downloaded),
         used_chunked: false,
+        resolved_url: url.to_string(),
     })
 }
 
-async fn download_chunked_stream(
+async fn download_chunked_stream<R: Runtime>(
     client: &Client,
     url: &str,
     temp_path: &Path,
@@ -260,11 +369,27 @@ async fn download_chunked_stream(
     cancel: &Arc<AtomicBool>,
     rate_limiter: Option<Arc<DownloadRateLimiter>>,
     on_bytes: Option<&Arc<dyn Fn(u64) + Send + Sync>>,
+    app: Option<&AppHandle<R>>,
+    instance_id: Option<&str>,
+    stage: Option<&str>,
 ) -> AppResult<DownloadOutcome> {
     if !tuning.chunked_enabled || tuning.chunked_threads < CHUNKED_MIN_SEGMENTS {
         return Err(AppError::Generic(
             "chunked download is disabled".to_string(),
         ));
+    }
+
+    if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
+        log_download_event(
+            app,
+            inst_id,
+            stg,
+            DownloadLogLevel::Info,
+            &format!("Probing range request capability for URL: {}", url),
+            None,
+            false,
+        )
+        .await;
     }
 
     let probe = client
@@ -274,7 +399,22 @@ async fn download_chunked_stream(
         .send()
         .await?;
 
-    if probe.status().as_u16() != 206 {
+    let probe_status = probe.status().as_u16();
+
+    if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
+        log_download_event(
+            app,
+            inst_id,
+            stg,
+            DownloadLogLevel::Info,
+            &format!("Probe range request status: {}", probe_status),
+            None,
+            false,
+        )
+        .await;
+    }
+
+    if probe_status != 206 {
         return Err(AppError::Generic(format!(
             "range requests are not supported by {}",
             url
@@ -299,6 +439,19 @@ async fn download_chunked_stream(
         return Err(AppError::Generic(
             "chunked download needs at least 2 segments".to_string(),
         ));
+    }
+
+    if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
+        log_download_event(
+            app,
+            inst_id,
+            stg,
+            DownloadLogLevel::Info,
+            &format!("Initializing chunked download for {} ({} segments, total {} bytes)", url, segment_count, total_size),
+            None,
+            false,
+        )
+        .await;
     }
 
     if let Some(parent) = temp_path.parent() {
@@ -326,20 +479,68 @@ async fn download_chunked_stream(
         let rate_limiter = rate_limiter.clone();
         let cancel = Arc::clone(cancel);
         let on_bytes = on_bytes.cloned();
+        let app = app.cloned();
+        let instance_id = instance_id.map(|s| s.to_string());
+        let stage = stage.map(|s| s.to_string());
 
         async move {
-            let mut response = client
+            if let (Some(app), Some(inst_id), Some(stg)) = (&app, &instance_id, &stage) {
+                log_download_event(
+                    app,
+                    inst_id,
+                    stg,
+                    DownloadLogLevel::Info,
+                    &format!("Starting segment download: range={}-{} for {}", start, end, url),
+                    None,
+                    false,
+                )
+                .await;
+            }
+
+            let response = client
                 .get(&url)
                 .header(ACCEPT_ENCODING, "identity")
                 .header(RANGE, format!("bytes={}-{}", start, end))
                 .send()
-                .await?;
+                .await;
 
-            if response.status().as_u16() != 206 {
+            let mut response = match response {
+                Ok(resp) => resp,
+                Err(err) => {
+                    if let (Some(app), Some(inst_id), Some(stg)) = (&app, &instance_id, &stage) {
+                        log_download_event(
+                            app,
+                            inst_id,
+                            stg,
+                            DownloadLogLevel::Warn,
+                            &format!("Segment request failed: range={}-{} for {}, error: {}", start, end, url, err),
+                            None,
+                            false,
+                        )
+                        .await;
+                    }
+                    return Err(AppError::Network(err));
+                }
+            };
+
+            let status = response.status().as_u16();
+            if status != 206 {
+                if let (Some(app), Some(inst_id), Some(stg)) = (&app, &instance_id, &stage) {
+                    log_download_event(
+                        app,
+                        inst_id,
+                        stg,
+                        DownloadLogLevel::Warn,
+                        &format!("Segment response invalid status: {} (expected 206) for {}", status, url),
+                        None,
+                        false,
+                    )
+                    .await;
+                }
                 return Err(AppError::Generic(format!(
                     "range request failed for {}: {}",
                     url,
-                    response.status()
+                    status
                 )));
             }
 
@@ -367,8 +568,34 @@ async fn download_chunked_stream(
                         }
                     }
                     Ok(Ok(None)) => break,
-                    Ok(Err(e)) => return Err(AppError::Network(e)),
+                    Ok(Err(e)) => {
+                        if let (Some(app), Some(inst_id), Some(stg)) = (&app, &instance_id, &stage) {
+                            log_download_event(
+                                app,
+                                inst_id,
+                                stg,
+                                DownloadLogLevel::Warn,
+                                &format!("Connection interrupted on segment: range={}-{} for {}, error: {}", start, end, url, e),
+                                None,
+                                false,
+                            )
+                            .await;
+                        }
+                        return Err(AppError::Network(e));
+                    }
                     Err(_) => {
+                        if let (Some(app), Some(inst_id), Some(stg)) = (&app, &instance_id, &stage) {
+                            log_download_event(
+                                app,
+                                inst_id,
+                                stg,
+                                DownloadLogLevel::Warn,
+                                &format!("Segment stalled: range={}-{} for {}", start, end, url),
+                                None,
+                                false,
+                            )
+                            .await;
+                        }
                         return Err(AppError::Generic(format!(
                             "segment stalled for {}s",
                             stall_timeout.as_secs()
@@ -378,10 +605,35 @@ async fn download_chunked_stream(
             }
 
             if offset <= end {
+                if let (Some(app), Some(inst_id), Some(stg)) = (&app, &instance_id, &stage) {
+                    log_download_event(
+                        app,
+                        inst_id,
+                        stg,
+                        DownloadLogLevel::Warn,
+                        &format!("Segment incomplete: offset {} <= end {} for {}", offset, end, url),
+                        None,
+                        false,
+                    )
+                    .await;
+                }
                 return Err(AppError::Generic(format!(
                     "segment incomplete: {}-{} for {}",
                     start, end, url
                 )));
+            }
+
+            if let (Some(app), Some(inst_id), Some(stg)) = (&app, &instance_id, &stage) {
+                log_download_event(
+                    app,
+                    inst_id,
+                    stg,
+                    DownloadLogLevel::Info,
+                    &format!("Segment succeeded: range={}-{} for {}", start, end, url),
+                    None,
+                    false,
+                )
+                .await;
             }
 
             Ok(written)
@@ -402,14 +654,28 @@ async fn download_chunked_stream(
         )));
     }
 
+    if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
+        log_download_event(
+            app,
+            inst_id,
+            stg,
+            DownloadLogLevel::Info,
+            &format!("Successfully downloaded chunked stream: {} ({} bytes)", url, total_written),
+            None,
+            false,
+        )
+        .await;
+    }
+
     Ok(DownloadOutcome {
         downloaded_bytes: total_written,
         total_bytes: total_size,
         used_chunked: true,
+        resolved_url: url.to_string(),
     })
 }
 
-pub async fn download_file(
+pub async fn download_file<R: Runtime>(
     client: &Client,
     candidate_urls: &[String],
     temp_path: &Path,
@@ -418,6 +684,9 @@ pub async fn download_file(
     cancel: &Arc<AtomicBool>,
     rate_limiter: Option<Arc<DownloadRateLimiter>>,
     on_bytes: Option<Arc<dyn Fn(u64) + Send + Sync>>,
+    app: Option<&AppHandle<R>>,
+    instance_id: Option<&str>,
+    stage: Option<&str>,
 ) -> AppResult<DownloadOutcome> {
     if candidate_urls.is_empty() {
         return Err(AppError::Generic(
@@ -434,6 +703,19 @@ pub async fn download_file(
         }
 
         if tuning.chunked_enabled {
+            if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
+                log_download_event(
+                    app,
+                    inst_id,
+                    stg,
+                    DownloadLogLevel::Info,
+                    &format!("Attempting chunked download from URL: {}", url),
+                    None,
+                    false,
+                )
+                .await;
+            }
+
             match download_chunked_stream(
                 client,
                 url,
@@ -443,15 +725,42 @@ pub async fn download_file(
                 cancel,
                 rate_limiter.clone(),
                 on_bytes_ref,
+                app,
+                instance_id,
+                stage,
             )
             .await
             {
                 Ok(outcome) => return Ok(outcome),
                 Err(err) => {
-                    let _ = err;
+                    if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
+                        log_download_event(
+                            app,
+                            inst_id,
+                            stg,
+                            DownloadLogLevel::Warn,
+                            &format!("Chunked download attempt failed from URL: {}, error: {}. Retrying or falling back to single stream...", url, err),
+                            None,
+                            false,
+                        )
+                        .await;
+                    }
                     // Don't remove temp_path here — single_stream may resume it
                 }
             }
+        }
+
+        if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
+            log_download_event(
+                app,
+                inst_id,
+                stg,
+                DownloadLogLevel::Info,
+                &format!("Attempting single stream download from URL: {}", url),
+                None,
+                false,
+            )
+            .await;
         }
 
         match download_single_stream(
@@ -462,12 +771,27 @@ pub async fn download_file(
             cancel,
             rate_limiter.clone(),
             on_bytes_ref,
+            app,
+            instance_id,
+            stage,
         )
         .await
         {
             Ok(outcome) => return Ok(outcome),
             Err(err) => {
                 last_error = Some(err.to_string());
+                if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
+                    log_download_event(
+                        app,
+                        inst_id,
+                        stg,
+                        DownloadLogLevel::Warn,
+                        &format!("Single stream download attempt failed from URL: {}, error: {}.", url, err),
+                        None,
+                        false,
+                    )
+                    .await;
+                }
                 // Keep temp file for potential resume on next URL or retry
             }
         }

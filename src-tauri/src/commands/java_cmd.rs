@@ -342,6 +342,9 @@ pub async fn download_java_env<R: Runtime>(
                 &cancel_token,
                 rate_limiter,
                 Some(on_bytes),
+                Some(&app),
+                Some("java_download"),
+                Some("JAVA_JDK"),
             )
             .await
             {
