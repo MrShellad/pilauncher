@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { useGameLogStore } from '../../store/useGameLogStore';
+import { eventBus } from '../../utils/eventBus';
+import { useEvent } from '../../hooks/useEvent';
 
 export type InputAction =
   | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT'
@@ -135,13 +137,9 @@ const getKeyEventProps = (key: string) => {
 };
 
 export const useInputAction = (action: InputAction, callback: () => void) => {
-  useEffect(() => {
-    const handler = (e: CustomEvent<InputAction>) => {
-      if (e.detail === action) callback();
-    };
-    window.addEventListener('ore-action', handler as EventListener);
-    return () => window.removeEventListener('ore-action', handler as EventListener);
-  }, [action, callback]);
+  useEvent('ore-action', (act) => {
+    if (act === action) callback();
+  });
 };
 
 const dispatchAction = (
@@ -149,7 +147,7 @@ const dispatchAction = (
   bindings: InputBindings,
   source: InputMode = 'controller',
 ) => {
-  window.dispatchEvent(new CustomEvent('ore-action', { detail: action }));
+  eventBus.publish('ore-action', action);
 
   if (source === 'controller') {
     const key = Object.keys(bindings.keyboard).find((item) => bindings.keyboard[item] === action);
@@ -263,11 +261,7 @@ export const useInputDriver = (
         scrollAxisValue = getScrollAxisValue();
         if (Math.abs(scrollAxisValue) > SCROLL_AXIS_DEADZONE) {
           onModeChange('controller');
-          window.dispatchEvent(
-            new CustomEvent('ore-controller-scroll', {
-              detail: { deltaY: scrollAxisValue * SCROLL_AXIS_SPEED },
-            }),
-          );
+          eventBus.publish('ore-controller-scroll', { deltaY: scrollAxisValue * SCROLL_AXIS_SPEED });
         }
       }
 
@@ -413,9 +407,7 @@ export const useInputDriver = (
 
       if (kind === 'Connected') {
         if (DEBUG_GAMEPAD) console.log(`[Gamepad] connected: native-${event.payload.id}`);
-        window.dispatchEvent(
-          new CustomEvent('ore-gamepad-connected', { detail: { id: `native-${event.payload.id}` } }),
-        );
+        eventBus.publish('ore-gamepad-connected', { id: `native-${event.payload.id}` });
         return;
       }
 

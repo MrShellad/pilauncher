@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { useEvent } from '../../../hooks/useEvent';
 
 import mcvData from '../../../assets/download/mcv.json';
 import { searchModrinth, type ModrinthProject } from '../../InstanceDetail/logic/modrinthApi';
@@ -229,63 +229,56 @@ export const useResourceDownload = (
     };
   }, [instanceId, isCacheValid]);
 
-  useEffect(() => {
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isRefreshingRef = useRef(false);
+  const refreshAgainRef = useRef(false);
+  const lastDoneKeyRef = useRef('');
+  const lastDoneAtRef = useRef(0);
+
+  const runRefresh = useCallback(async () => {
+    if (isRefreshingRef.current) {
+      refreshAgainRef.current = true;
+      return;
+    }
+
+    isRefreshingRef.current = true;
+    try {
+      await refreshInstalledMods();
+    } finally {
+      isRefreshingRef.current = false;
+      if (refreshAgainRef.current) {
+        refreshAgainRef.current = false;
+        scheduleRefresh();
+      }
+    }
+  }, [refreshInstalledMods]);
+
+  const scheduleRefresh = useCallback(() => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = setTimeout(() => {
+      refreshTimerRef.current = null;
+      void runRefresh();
+    }, RESOURCE_REFRESH_DELAY_MS);
+  }, [runRefresh]);
+
+  useEvent('resource-download-progress', (payload) => {
     if (!instanceId) return;
+    if (!isCompletedResourceDownload(payload)) return;
 
-    let disposed = false;
-    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
-    let isRefreshing = false;
-    let refreshAgain = false;
-    let lastDoneKey = '';
-    let lastDoneAt = 0;
+    const doneKey = getResourceProgressKey(payload);
+    const now = Date.now();
+    if (doneKey === lastDoneKeyRef.current && now - lastDoneAtRef.current < RESOURCE_DONE_DEDUPE_MS) return;
 
-    const runRefresh = async () => {
-      if (disposed) return;
+    lastDoneKeyRef.current = doneKey;
+    lastDoneAtRef.current = now;
+    scheduleRefresh();
+  });
 
-      if (isRefreshing) {
-        refreshAgain = true;
-        return;
-      }
-
-      isRefreshing = true;
-      try {
-        await refreshInstalledMods();
-      } finally {
-        isRefreshing = false;
-        if (refreshAgain && !disposed) {
-          refreshAgain = false;
-          scheduleRefresh();
-        }
-      }
-    };
-
-    const scheduleRefresh = () => {
-      if (refreshTimer) clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(() => {
-        refreshTimer = null;
-        void runRefresh();
-      }, RESOURCE_REFRESH_DELAY_MS);
-    };
-
-    const unlistenPromise = listen<ResourceDownloadProgressPayload>('resource-download-progress', (event) => {
-      const payload = event.payload;
-      if (!isCompletedResourceDownload(payload)) return;
-
-      const doneKey = getResourceProgressKey(payload);
-      const now = Date.now();
-      if (doneKey === lastDoneKey && now - lastDoneAt < RESOURCE_DONE_DEDUPE_MS) return;
-
-      lastDoneKey = doneKey;
-      lastDoneAt = now;
-      scheduleRefresh();
-    });
-
+  useEffect(() => {
     return () => {
-      disposed = true;
-      if (refreshTimer) clearTimeout(refreshTimer);
-      void unlistenPromise.then((unlisten) => unlisten());
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     };
-  }, [instanceId, refreshInstalledMods]);
+  }, []);
 
   useEffect(() => {
     if (!isEnvLoaded) return;

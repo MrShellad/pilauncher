@@ -13,6 +13,8 @@ import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
 import { createPortal } from 'react-dom';
 
 import { FocusItem } from '../focus/FocusItem';
+import { eventBus } from '../../utils/eventBus';
+import { useEvent } from '../../hooks/useEvent';
 
 export interface DropdownOption {
   label: string;
@@ -140,7 +142,7 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
       onOpenChange?.(true);
       return true;
     });
-    window.dispatchEvent(new CustomEvent('ore-dropdown-toggle', { detail: dropdownId }));
+    eventBus.publish('ore-dropdown-toggle', dropdownId);
   }, [disabled, dropdownId, onOpenChange]);
 
   const toggleDropdown = useCallback(() => {
@@ -165,14 +167,9 @@ export const OreDropdown: React.FC<OreDropdownProps> = ({
     setVisibleOptionCount(lazy ? Math.max(8, lazyBatchSize) : Number.MAX_SAFE_INTEGER);
   }, [isOpen, lazy, lazyBatchSize, options, searchTerm]);
 
-  useEffect(() => {
-    const handleGlobalToggle = (event: Event) => {
-      const customEvent = event as CustomEvent<string>;
-      if (customEvent.detail !== dropdownId) closeDropdown();
-    };
-    window.addEventListener('ore-dropdown-toggle', handleGlobalToggle);
-    return () => window.removeEventListener('ore-dropdown-toggle', handleGlobalToggle);
-  }, [closeDropdown, dropdownId]);
+  useEvent('ore-dropdown-toggle', (id) => {
+    if (id !== dropdownId) closeDropdown();
+  });
 
   useEffect(() => {
     if (isOpen) pause();

@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { OreToggleButton } from '../../../../ui/primitives/OreToggleButton';
 import { useInputAction } from '../../../../ui/focus/InputDriver';
+import { useEvent } from '../../../../hooks/useEvent';
 import { useSettingsStore } from '../../../../store/useSettingsStore';
 
 import { invoke } from '@tauri-apps/api/core';
@@ -68,16 +69,10 @@ export const VersionChangelogModal: React.FC<VersionChangelogModalProps> = ({
   }, [isOpen, version]));
 
   // Right Stick Scrolling handler
-  useEffect(() => {
-    const handleControllerScroll = (e: CustomEvent<{ deltaY: number }>) => {
-      if (!isOpen || !viewportRef.current) return;
-      viewportRef.current.scrollTop += e.detail.deltaY;
-    };
-    window.addEventListener('ore-controller-scroll', handleControllerScroll as EventListener);
-    return () => {
-      window.removeEventListener('ore-controller-scroll', handleControllerScroll as EventListener);
-    };
-  }, [isOpen]);
+  useEvent('ore-controller-scroll', (payload) => {
+    if (!isOpen || !viewportRef.current) return;
+    viewportRef.current.scrollTop += payload.deltaY;
+  });
 
   const handleScrollArrow = useCallback((direction: string) => {
     const viewport = viewportRef.current;

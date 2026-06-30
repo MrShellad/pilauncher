@@ -3,6 +3,7 @@ import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { Copy, Check } from 'lucide-react';
+import { useEvent } from '../../../hooks/useEvent';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { VirtuosoScroller } from '../../../ui/primitives/OreOverlayScrollArea';
 import {
@@ -96,20 +97,13 @@ export const LogView: React.FC<LogViewProps> = ({ logs, isOpen }) => {
     return () => window.clearTimeout(timer);
   }, [isOpen, logSegments.length]);
 
-  useEffect(() => {
+  useEvent('ore-controller-scroll', (payload) => {
     if (!isOpen) return;
-
-    const handleControllerScroll = (event: Event) => {
-      if (!(scrollRef.current instanceof HTMLElement)) return;
-      const detail = (event as CustomEvent<{ deltaY?: number }>).detail;
-      const deltaY = detail?.deltaY ?? 0;
-      if (Math.abs(deltaY) <= 0.1) return;
-      scrollRef.current.scrollTop += deltaY;
-    };
-
-    window.addEventListener('ore-controller-scroll', handleControllerScroll);
-    return () => window.removeEventListener('ore-controller-scroll', handleControllerScroll);
-  }, [isOpen]);
+    if (!(scrollRef.current instanceof HTMLElement)) return;
+    const deltaY = payload.deltaY ?? 0;
+    if (Math.abs(deltaY) <= 0.1) return;
+    scrollRef.current.scrollTop += deltaY;
+  });
 
   const handleCopyLine = (line: string, idx: number) => {
     navigator.clipboard.writeText(line);

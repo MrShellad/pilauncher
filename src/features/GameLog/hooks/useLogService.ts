@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { listen } from '@tauri-apps/api/event';
+import { useEvent } from '../../../hooks/useEvent';
 import { useGameLogStore } from '../../../store/useGameLogStore';
 import { useUpdaterStore } from '../../../hooks/useAppUpdater';
 
@@ -26,19 +26,35 @@ export const useLogService = ({
     }
   }, []);
 
+  useEvent('game-log', (line) => {
+    logBufferRef.current.push(line);
+
+    if (isMinecraftStoppingLog(line)) {
+      const store = useGameLogStore.getState();
+      store.setGameState('idle');
+      void restoreLauncherAfterGameExit();
+      triggerPostGameUpdateReminder();
+    }
+  });
+
+  useEvent('game-exit', (payload) => {
+    if (logBufferRef.current.length > 0) {
+      useGameLogStore.getState().addLogs(logBufferRef.current);
+      logBufferRef.current = [];
+    }
+    const store = useGameLogStore.getState();
+    if (payload.code !== 0) {
+      store.analyzeCrash();
+      store.setOpen(true);
+      void forceLauncherToFront();
+    } else {
+      store.setGameState('idle');
+      void restoreLauncherAfterGameExit();
+      triggerPostGameUpdateReminder();
+    }
+  });
+
   useEffect(() => {
-    const unlistenLog = listen<string>('game-log', (event) => {
-      const line = event.payload;
-      logBufferRef.current.push(line);
-
-      if (isMinecraftStoppingLog(line)) {
-        const store = useGameLogStore.getState();
-        store.setGameState('idle');
-        void restoreLauncherAfterGameExit();
-        triggerPostGameUpdateReminder();
-      }
-    });
-
     const flushTimer = setInterval(() => {
       if (logBufferRef.current.length > 0) {
         useGameLogStore.getState().addLogs(logBufferRef.current);
@@ -46,32 +62,8 @@ export const useLogService = ({
       }
     }, 50);
 
-    const unlistenExit = listen<{ code: number }>('game-exit', (event) => {
-      if (logBufferRef.current.length > 0) {
-        useGameLogStore.getState().addLogs(logBufferRef.current);
-        logBufferRef.current = [];
-      }
-      const store = useGameLogStore.getState();
-      if (event.payload.code !== 0) {
-        store.analyzeCrash();
-        store.setOpen(true);
-        void forceLauncherToFront();
-      } else {
-        store.setGameState('idle');
-        void restoreLauncherAfterGameExit();
-        triggerPostGameUpdateReminder();
-      }
-    });
-
     return () => {
       clearInterval(flushTimer);
-      unlistenLog.then(f => f());
-      unlistenExit.then(f => f());
     };
-  }, [
-    forceLauncherToFront,
-    isMinecraftStoppingLog,
-    restoreLauncherAfterGameExit,
-    triggerPostGameUpdateReminder
-  ]);
+  }, []);
 };

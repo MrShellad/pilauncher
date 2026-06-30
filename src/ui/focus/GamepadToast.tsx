@@ -1,42 +1,27 @@
 // src/ui/focus/GamepadToast.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { invoke } from '@tauri-apps/api/core';
 import { Gamepad2 } from 'lucide-react';
-
-interface OreGamepadConnectedDetail {
-  id?: string;
-}
+import { useEvent } from '../../hooks/useEvent';
 
 export const GamepadToast: React.FC = () => {
   const [show, setShow] = useState(false);
   const [isSteamDeck, setIsSteamDeck] = useState(false);
 
-  useEffect(() => {
-    // 统一通过 InputDriver 派发的 ore-gamepad-connected 事件来感知手柄连接
-    const handleOreGamepadConnected = async (e: Event) => {
-      const custom = e as CustomEvent<OreGamepadConnectedDetail>;
-      console.log('Gamepad Connected via InputDriver:', custom.detail?.id);
+  useEvent('ore-gamepad-connected', async (detail) => {
+    console.log('Gamepad Connected via InputDriver:', detail.id);
 
-      try {
-        const isDeck = await invoke<boolean>('check_steam_deck');
-        setIsSteamDeck(isDeck);
-      } catch (err) {
-        console.error('SteamDeck 检测失败:', err);
-      }
+    try {
+      const isDeck = await invoke<boolean>('check_steam_deck');
+      setIsSteamDeck(isDeck);
+    } catch (err) {
+      console.error('SteamDeck 检测失败:', err);
+    }
 
-      setShow(true);
-      setTimeout(() => setShow(false), 3000);
-    };
-
-    window.addEventListener('ore-gamepad-connected', handleOreGamepadConnected as EventListener);
-
-    // 打开时如果已经有手柄连接，由 InputDriver 的轮询逻辑触发一次 ore-gamepad-connected
-
-    return () => {
-      window.removeEventListener('ore-gamepad-connected', handleOreGamepadConnected as EventListener);
-    };
-  }, []);
+    setShow(true);
+    setTimeout(() => setShow(false), 3000);
+  });
 
   return (
     <AnimatePresence>
