@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { Copy, Check } from 'lucide-react';
 import { useEvent } from '../../../hooks/useEvent';
 import { FocusItem } from '../../../ui/focus/FocusItem';
-import { VirtuosoScroller } from '../../../ui/primitives/OreOverlayScrollArea';
+import { OreOverlayScrollArea } from '../../../ui/primitives/OreOverlayScrollArea';
 import {
   renderHighlightedLog,
   defaultHighlightRules,
@@ -77,25 +77,48 @@ const segmentLogsByTimestamp = (logs: string[]): LogSegment[] => {
 export const LogView: React.FC<LogViewProps> = ({ logs, isOpen }) => {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLElement | Window | null>(null);
-  const virtuosoRef = useRef<VirtuosoHandle | null>(null);
+  const parentRef = useRef<HTMLDivElement | null>(null);
   const [copiedLine, setCopiedLine] = useState<number | null>(null);
   const logSegments = useMemo(() => segmentLogsByTimestamp(logs), [logs]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: logSegments.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 40,
+    overscan: 10,
+  });
+
+  // followOutput behavior
+  const lastLogsCountRef = useRef(logSegments.length);
+  useEffect(() => {
+    const parent = parentRef.current;
+    if (!parent || logSegments.length === 0) return;
+
+    const isNearBottom = parent.scrollHeight - parent.scrollTop - parent.clientHeight <= 250;
+    const isInitialLoad = lastLogsCountRef.current === 0;
+
+    if (isNearBottom || isInitialLoad) {
+      rowVirtualizer.scrollToIndex(logSegments.length - 1, {
+        align: 'end',
+      });
+    }
+
+    lastLogsCountRef.current = logSegments.length;
+  }, [logSegments.length, rowVirtualizer]);
 
   useEffect(() => {
     if (!isOpen || logSegments.length === 0) return;
 
     const scrollToEnd = () => {
-      virtuosoRef.current?.scrollToIndex({
-        index: logSegments.length - 1,
+      rowVirtualizer.scrollToIndex(logSegments.length - 1, {
         align: 'end',
-        behavior: 'auto',
       });
     };
 
     scrollToEnd();
     const timer = window.setTimeout(scrollToEnd, 0);
     return () => window.clearTimeout(timer);
-  }, [isOpen, logSegments.length]);
+  }, [isOpen, logSegments.length, rowVirtualizer]);
 
   useEvent('ore-controller-scroll', (payload) => {
     if (!isOpen) return;
@@ -121,41 +144,64 @@ export const LogView: React.FC<LogViewProps> = ({ logs, isOpen }) => {
             {logs.length === 0 ? (
               <div className="text-ore-text-muted/50 text-center mt-20 text-sm">{t('gameLog.view.waiting', '等待标准输出...')}</div>
             ) : (
-              <Virtuoso
-                ref={virtuosoRef}
-                className="custom-scrollbar"
-                style={{ flex: 1, overscrollBehaviorY: 'contain' }}
-                data={logSegments}
-                components={{ Scroller: VirtuosoScroller }}
-                followOutput={true}
-                atBottomThreshold={200}
-                scrollerRef={(node) => {
-                  if (node && node instanceof HTMLElement) {
+              <OreOverlayScrollArea
+                ref={(node) => {
+                  if (node) {
+                    (parentRef as any).current = node;
                     (scrollRef as any).current = node;
                     (focusRef as any).current = node;
                   }
                 }}
-                itemContent={(idx, segment) => (
-                  <div className="group relative font-jetbrains hover:bg-[#1E1E1F] px-2 py-1.5 border-b border-white/[0.06] transition-colors pr-10 text-[13px] leading-relaxed break-all select-text">
-                    {segment.lines.map((line, lineIndex) => (
-                      <div
-                        key={`${segment.startIndex}-${lineIndex}`}
-                        className={lineIndex > 0 ? 'pl-4 text-white/90' : ''}
-                      >
-                        {renderLogLine(line)}
-                      </div>
-                    ))}
+                className="flex-1 custom-scrollbar"
+                style={{ overscrollBehaviorY: 'contain' }}
+              >
+                <div
+                  style={{
+                    height: `${rowVirtualizer.getTotalSize()}px`,
+                    width: '100%',
+                    position: 'relative',
+                  }}
+                >
+                  {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                    const idx = virtualRow.index;
+                    const segment = logSegments[idx];
+                    if (!segment) return null;
 
-                    <button
-                      onClick={() => handleCopyLine(segment.text, idx)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-sm transition-all"
-                      title={copiedLine === idx ? t('gameLog.view.copied', '已复制！') : t('gameLog.view.copyLine', '复制此段')}
-                    >
-                      {copiedLine === idx ? <Check size={14} className="text-ore-green" /> : <Copy size={14} />}
-                    </button>
-                  </div>
-                )}
-              />
+                    return (
+                      <div
+                        key={virtualRow.key}
+                        ref={rowVirtualizer.measureElement}
+                        data-index={idx}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          transform: `translateY(${virtualRow.start}px)`,
+                        }}
+                        className="group relative font-jetbrains hover:bg-[#1E1E1F] px-2 py-1.5 border-b border-white/[0.06] transition-colors pr-10 text-[13px] leading-relaxed break-all select-text"
+                      >
+                        {segment.lines.map((line, lineIndex) => (
+                          <div
+                            key={`${segment.startIndex}-${lineIndex}`}
+                            className={lineIndex > 0 ? 'pl-4 text-white/90' : ''}
+                          >
+                            {renderLogLine(line)}
+                          </div>
+                        ))}
+
+                        <button
+                          onClick={() => handleCopyLine(segment.text, idx)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-sm transition-all"
+                          title={copiedLine === idx ? t('gameLog.view.copied', '已复制！') : t('gameLog.view.copyLine', '复制此段')}
+                        >
+                          {copiedLine === idx ? <Check size={14} className="text-ore-green" /> : <Copy size={14} />}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </OreOverlayScrollArea>
             )}
           </div>
 

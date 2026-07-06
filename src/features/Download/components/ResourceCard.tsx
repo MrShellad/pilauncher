@@ -54,6 +54,7 @@ export interface ResourceCardProps {
   onClickAuthor?: (author: string) => void;
   shouldAnimateLayout?: boolean;
   selectedProjectId?: string;
+  onMoveFocus?: (index: number, direction: string) => boolean;
 }
 
 function useTimeAgo() {
@@ -92,7 +93,8 @@ export const ResourceCard = React.memo(({
   categoryOptions,
   onClickAuthor,
   shouldAnimateLayout = false,
-  selectedProjectId
+  selectedProjectId,
+  onMoveFocus
 }: ResourceCardProps) => {
   const { t, i18n } = useTranslation();
   const timeAgo = useTimeAgo();
@@ -120,8 +122,9 @@ export const ResourceCard = React.memo(({
       focusKey={focusKey}
       onEnter={() => onSelectProject(project)}
       onArrowPress={(direction) => {
+        if (onMoveFocus?.(index, direction)) return false;
+
         if (direction !== 'up') return true;
-        if (index > 0) return true;
 
         const preferredTarget = FILTER_FALLBACK_TARGETS[Math.min(index, FILTER_FALLBACK_TARGETS.length - 1)];
         const target = [

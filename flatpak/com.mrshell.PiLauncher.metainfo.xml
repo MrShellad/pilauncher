@@ -49,6 +49,23 @@
   </categories>
 
   <releases>
+    <release version="0.1.45" date="2026-07-07">
+      <description>
+        <p xml:lang="zh_CN">深度优化启动器的界面滚动流畅度与手柄/键盘焦点导航体验。</p>
+        <ul xml:lang="zh_CN">
+          <li>[优化] 全面重构资源下载、模组管理、收藏列表与联机服务器列表的滚动机制，大幅降低系统资源占用，提升长列表下的滑动流畅度。</li>
+          <li>[修复] 彻底解决在使用手柄或键盘进行列表滚动浏览时，焦点可能丢失、卡死在首行或无法继续向下聚焦的问题。</li>
+          <li>[优化] 修复了资源列表多列排版下的卡片间距缺失问题，界面视觉呈现更美观。</li>
+          <li>[优化] 修复了皮肤加载异常问题，提升了皮肤加载的稳定性和兼容性。</li>
+        </ul>
+        <p>Significantly optimized scrolling performance and gamepad/keyboard focus navigation experience across the launcher.</p>
+        <ul>
+          <li>[Optimization] Rebuilt the scrolling engine for resource download, mod management, favorites list, and online servers directory to reduce memory usage and deliver smooth scrolling.</li>
+          <li>[Fix] Solved the issue where the focus could get stuck, lost, or fail to navigate past the first row during keyboard or gamepad navigation.</li>
+          <li>[Optimization] Restored correct margins and card spacing for multi-column grids in the resource downloader pages.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.44" date="2026-06-27">
       <description>
         <p xml:lang="zh_CN">优化资源下载源切换体验，修复中文 Wiki 网址在 RC 和预发布版本下的拼接错误，并改进了搜索结果列表滚动行为。</p>

@@ -1,6 +1,5 @@
-import React from 'react';
-import { Virtuoso } from 'react-virtuoso';
-import type { VirtuosoHandle } from 'react-virtuoso';
+import React, { useEffect, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { RefreshCw, Server } from 'lucide-react';
 import type { AdSlot, OnlineServer } from '../types';
 import { OreButton } from '../../../ui/primitives/OreButton';
@@ -25,21 +24,6 @@ interface LiveStatus {
   max?: number;
 }
 
-const VirtuosoHeader = () => <div style={{ height: 'max(calc(50vh - 18rem), 6rem)' }} />;
-const VirtuosoFooter = () => <div style={{ height: 'max(calc(50vh - 18rem), 6rem)' }} />;
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const VirtuosoScroller = React.forwardRef<HTMLDivElement, any>((props, ref) => (
-  <div {...props} ref={ref} role="list" aria-label="在线服务器列表" style={{ ...props.style, overflowY: 'overlay' as React.CSSProperties['overflowY'] }} />
-));
-VirtuosoScroller.displayName = 'VirtuosoScroller';
-
-const virtuosoComponents = {
-  Header: VirtuosoHeader,
-  Footer: VirtuosoFooter,
-  Scroller: VirtuosoScroller,
-};
-
 export const OnlineServersList: React.FC<OnlineServersListProps> = ({
   servers,
   adSlots: _adSlots,
@@ -55,7 +39,7 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
 
   React.useEffect(() => {
     if (!servers.length) return;
-    
+
     let mounted = true;
     servers.forEach(server => {
       if (!server.address) return;
@@ -98,45 +82,66 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
       const bOnline = liveStatuses[b.id]?.isOnline ?? true;
 
       if (aOnline !== bOnline) {
-        return aOnline ? -1 : 1; // online first
+        return aOnline ? -1 : 1;
       }
 
-      if (a.sortId !== b.sortId) {
-        return b.sortId - a.sortId;
+      const aSort = a.sortId ?? 0;
+      const bSort = b.sortId ?? 0;
+      if (aSort !== bSort) {
+        return bSort - aSort; // higher sortId first
       }
-      // Tie-break by createdAt descending (newer first)
+
       const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      if (Number.isNaN(aTime) || Number.isNaN(bTime)) {
-        return 0;
-      }
-      return bTime - aTime;
+      return bTime - aTime; // newer first
     });
   }, [servers, liveStatuses]);
 
+  // Generate focus keys for both play button and link button for each server
+  const serverFocusKeys = React.useMemo(() => {
+    return sortedServers.flatMap(server => [
+      `server-card-${server.id}-play`,
+      `server-card-${server.id}-link`
+    ]);
+  }, [sortedServers]);
 
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
-  const handleRefresh = React.useCallback(() => {
-    if (!isLoading) {
-      onRefresh();
-    }
-  }, [isLoading, onRefresh]);
+  const rowVirtualizer = useVirtualizer({
+    count: sortedServers.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => 520,
+    overscan: 3,
+  });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
+
+  const [headerHeight, setHeaderHeight] = useState(() => Math.max(window.innerHeight / 2 - 288, 96));
+  const [footerHeight, setFooterHeight] = useState(() => Math.max(window.innerHeight / 2 - 288, 96));
+
+  useEffect(() => {
+    const handleResize = () => {
+      const h = Math.max(window.innerHeight / 2 - 288, 96);
+      setHeaderHeight(h);
+      setFooterHeight(h);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleRefresh = () => {
+    onRefresh();
+  };
 
   const handleControllerRefresh = React.useCallback(() => {
     if (inputMode !== 'controller' || isLoading || selectedServer) {
       return;
     }
-
-    onRefresh();
-  }, [inputMode, isLoading, onRefresh, selectedServer]);
+    handleRefresh();
+  }, [inputMode, isLoading, selectedServer]);
 
   useInputAction('ACTION_X', handleControllerRefresh);
 
-  const virtuosoRef = React.useRef<VirtuosoHandle>(null);
-  const serverFocusKeys = React.useMemo(
-    () => sortedServers.flatMap((s) => [`server-card-${s.id}-copy`, `server-card-${s.id}-play`]),
-    [sortedServers]
-  );
   const focusServerControl = React.useCallback((focusKey: string, serverIndex: number) => {
     let attempts = 0;
 
@@ -147,7 +152,7 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
       }
 
       if (attempts === 0) {
-        virtuosoRef.current?.scrollToIndex({ index: serverIndex, align: 'center', behavior: 'smooth' });
+        rowVirtualizer.scrollToIndex(serverIndex, { align: 'center', behavior: 'smooth' });
       }
 
       attempts += 1;
@@ -157,7 +162,7 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
     };
 
     tryFocus();
-  }, []);
+  }, [rowVirtualizer]);
 
   const handleServerArrow = React.useCallback((direction: string) => {
     if (direction !== 'up' && direction !== 'down') return true;
@@ -190,18 +195,20 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
     }
   }, [serverFocusKeys]);
 
-  const virtuosoContext = React.useMemo(() => ({
-    liveStatuses,
-    handleServerArrow,
-    setSelectedServer,
-  }), [liveStatuses, handleServerArrow, setSelectedServer]);
-
-  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const targetIndex = React.useRef(0);
   const visibleRange = React.useRef({ startIndex: 0, endIndex: 0 });
   const wheelAccumulator = React.useRef(0);
   const lastWheelTime = React.useRef(0);
   const lastSwitchTime = React.useRef(0);
+
+  useEffect(() => {
+    if (virtualItems.length > 0) {
+      visibleRange.current = {
+        startIndex: virtualItems[0].index,
+        endIndex: virtualItems[virtualItems.length - 1].index,
+      };
+    }
+  }, [virtualItems]);
 
   React.useEffect(() => {
     const container = scrollContainerRef.current;
@@ -226,7 +233,7 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
       // 如果较长时间未滚动，说明这是一次新的滚动动作
       if (now - lastWheelTime.current > 200) {
         wheelAccumulator.current = 0;
-        
+
         // 只有当内部的 targetIndex 完全偏离了用户手动拖拽可视区时，才进行修正同步
         const { startIndex, endIndex } = visibleRange.current;
         if (targetIndex.current < startIndex || targetIndex.current > endIndex) {
@@ -245,8 +252,7 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
           targetIndex.current -= 1;
         }
 
-        virtuosoRef.current?.scrollToIndex({
-          index: targetIndex.current,
+        rowVirtualizer.scrollToIndex(targetIndex.current, {
           behavior: 'smooth',
           align: 'center'
         });
@@ -265,7 +271,7 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
 
     container.addEventListener('wheel', handleWheel, { passive: false });
     return () => container.removeEventListener('wheel', handleWheel);
-  }, [sortedServers, inputMode]);
+  }, [sortedServers, inputMode, rowVirtualizer]);
 
   return (
     <>
@@ -292,12 +298,15 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
         </OreButton>
       </div>
 
-      <div 
+      <div
         ref={scrollContainerRef}
-        className="ore-multiplayer-scroll ore-multiplayer-scroll--directory"
+        className="ore-multiplayer-scroll ore-multiplayer-scroll--directory custom-scrollbar"
         style={{
           maskImage: 'linear-gradient(to bottom, transparent, black 3rem, black calc(100% - 3rem), transparent)',
-          WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 3rem, black calc(100% - 3rem), transparent)'
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 3rem, black calc(100% - 3rem), transparent)',
+          overflowY: 'overlay' as React.CSSProperties['overflowY'],
+          height: '100%',
+          width: '100%',
         }}
       >
         {isLoading && (
@@ -322,28 +331,56 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
         )}
 
         {hasServers && (
-          <Virtuoso
-            ref={virtuosoRef}
-            data={sortedServers}
-            context={virtuosoContext}
-            rangeChanged={(range) => {
-              visibleRange.current = range;
+          <div
+            style={{
+              height: `${rowVirtualizer.getTotalSize() + headerHeight + footerHeight}px`,
+              width: '100%',
+              position: 'relative',
             }}
-            itemContent={(_index, server, context) => (
-              <div role="listitem" style={{ display: 'flex', justifyContent: 'center', padding: '1.25rem max(1rem, 3vw)' }}>
-                <OnlineServerCard
-                  server={server}
-                  liveStatus={context.liveStatuses[server.id] || null}
-                  onArrowPress={context.handleServerArrow}
-                  onClick={(currentServer) => context.setSelectedServer(currentServer)}
-                />
-              </div>
-            )}
-            components={virtuosoComponents}
-            style={{ height: '100%', width: '100%' }}
-            itemSize={() => 520}
-            initialTopMostItemIndex={{ index: 0, align: 'center' }}
-          />
+          >
+            <div style={{ height: `${headerHeight}px` }} />
+
+            {virtualItems.map((virtualRow) => {
+              const index = virtualRow.index;
+              const server = sortedServers[index];
+              if (!server) return null;
+
+              return (
+                <div
+                  key={virtualRow.key}
+                  ref={rowVirtualizer.measureElement}
+                  data-index={index}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualRow.start + headerHeight}px)`,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    padding: '1.25rem max(1rem, 3vw)'
+                  }}
+                  role="listitem"
+                >
+                  <OnlineServerCard
+                    server={server}
+                    liveStatus={liveStatuses[server.id] || null}
+                    onArrowPress={handleServerArrow}
+                    onClick={(currentServer) => setSelectedServer(currentServer)}
+                  />
+                </div>
+              );
+            })}
+
+            <div
+              style={{
+                position: 'absolute',
+                top: `${rowVirtualizer.getTotalSize() + headerHeight}px`,
+                height: `${footerHeight}px`,
+                width: '100%',
+              }}
+            />
+          </div>
         )}
       </div>
 

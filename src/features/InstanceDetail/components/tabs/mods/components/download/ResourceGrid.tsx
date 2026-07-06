@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Blocks, Check, CheckCircle2, Clock3, Download, Heart, Monitor, Server, Tags } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { VirtuosoGrid } from 'react-virtuoso';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { motion, useReducedMotion, AnimatePresence } from 'motion/react';
 import { ShimmerOverlay } from '../../../../../../Download/components/ShimmerOverlay';
 import { useIconCacheStore } from '../../../../../../Download/logic/iconCache';
@@ -66,6 +66,7 @@ interface ResourceCardProps {
   onClickAuthor?: (author: string) => void;
   shouldAnimateLayout?: boolean;
   selectedProjectId?: string;
+  onMoveFocus?: (index: number, direction: string) => boolean;
 }
 
 interface ResourceGridItem {
@@ -142,15 +143,6 @@ const ResourceGridHeader: React.FC = () => {
   return <div className="col-span-full h-[1.5rem] w-full" />;
 };
 
-const RESOURCE_GRID_COMPONENTS = {
-  Header: ResourceGridHeader,
-  Footer: ResourceGridFooter,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  List: React.forwardRef<HTMLDivElement, any>((props, ref) => (
-    <div {...props} ref={ref} role="list" aria-label="资源列表" />
-  ))
-};
-
 const prettifyLoader = (loader: string) => {
   if (!loader) return 'Vanilla';
   if (loader === 'neoforge') return 'NeoForge';
@@ -221,7 +213,8 @@ const ResourceCard = React.memo(({
   isNearBottom,
   onClickAuthor,
   shouldAnimateLayout = false,
-  selectedProjectId
+  selectedProjectId,
+  onMoveFocus
 }: ResourceCardProps) => {
   const { t, i18n } = useTranslation();
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -261,6 +254,8 @@ const ResourceCard = React.memo(({
       focusKey={focusKey}
       onEnter={() => onSelectProject(project)}
       onArrowPress={(direction) => {
+        if (onMoveFocus?.(index, direction)) return false;
+
         if (direction !== 'up') return true;
         if (index > 0) return true;
 
@@ -526,14 +521,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   onClickAuthor,
   selectedProjectId
 }) => {
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  const virtuosoRef = useRef<any>(null);
-  const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
-
-  const handleScrollContainerRef = useCallback((node: HTMLDivElement | null) => {
-    scrollContainerRef.current = node;
-    setScrollElement(node);
-  }, []);
+  const parentRef = useRef<HTMLDivElement>(null);
   const loadMoreLockRef = useRef(false);
   const latestRef = useRef({
     hasMore,
@@ -580,33 +568,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
     };
   }, [isDoubleColumn]);
 
-  useEffect(() => {
-    if (lastFocusedIndexRef.current !== null) {
-      const targetIndex = lastFocusedIndexRef.current;
-      lastFocusedIndexRef.current = null;
 
-      const focusKey = `download-grid-item-${targetIndex}`;
-      
-      const timer = setTimeout(() => {
-        if (doesFocusableExist(focusKey)) {
-          setFocus(focusKey);
-        } else {
-          virtuosoRef.current?.scrollToIndex({
-            index: targetIndex,
-            align: 'smart'
-          });
-          
-          setTimeout(() => {
-            if (doesFocusableExist(focusKey)) {
-              setFocus(focusKey);
-            }
-          }, 80);
-        }
-      }, 80);
-
-      return () => clearTimeout(timer);
-    }
-  }, [isDoubleColumn]);
 
   useEffect(() => {
     latestRef.current = { hasMore, isLoading, isLoadingMore, loadMoreFailed, onLoadMore };
@@ -621,11 +583,11 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
 
   // Reset scroll to top when a fresh search completes
   useEffect(() => {
-    if (prevIsLoadingRef.current && !isLoading && results.length > 0 && scrollElement) {
-      scrollElement.scrollTop = 0;
+    if (prevIsLoadingRef.current && !isLoading && results.length > 0 && parentRef.current) {
+      parentRef.current.scrollTop = 0;
     }
     prevIsLoadingRef.current = isLoading;
-  }, [isLoading, results.length, scrollElement]);
+  }, [isLoading, results.length]);
 
   const canLoadMore = useCallback(() => {
     const latest = latestRef.current;
@@ -660,6 +622,117 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
     return items;
   }, [installedModIndex, results]);
 
+  // Row chunking helper for grid layout
+  const rowItems = useMemo(() => {
+    const chunked: ResourceGridItem[][] = [];
+    if (isDoubleColumn) {
+      for (let i = 0; i < resourceItems.length; i += 2) {
+        const chunk = resourceItems.slice(i, i + 2);
+        chunked.push(chunk);
+      }
+    } else {
+      for (let i = 0; i < resourceItems.length; i++) {
+        chunked.push([resourceItems[i]]);
+      }
+    }
+    return chunked;
+  }, [resourceItems, isDoubleColumn]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: rowItems.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 148,
+    overscan: 4,
+  });
+
+  const virtualRows = rowVirtualizer.getVirtualItems();
+
+  useEffect(() => {
+    if (virtualRows.length > 0) {
+      const lastItem = virtualRows[virtualRows.length - 1];
+      if (lastItem.index >= rowItems.length - 2) {
+        triggerLoadMore();
+      }
+    }
+  }, [virtualRows, rowItems.length, triggerLoadMore]);
+
+  useEffect(() => {
+    if (lastFocusedIndexRef.current !== null) {
+      const targetIndex = lastFocusedIndexRef.current;
+      lastFocusedIndexRef.current = null;
+
+      const focusKey = `download-grid-item-${targetIndex}`;
+      
+      const timer = setTimeout(() => {
+        if (doesFocusableExist(focusKey)) {
+          setFocus(focusKey);
+        } else {
+          const rowIndex = isDoubleColumn ? Math.floor(targetIndex / 2) : targetIndex;
+          rowVirtualizer.scrollToIndex(rowIndex, {
+            align: 'auto'
+          });
+          
+          setTimeout(() => {
+            if (doesFocusableExist(focusKey)) {
+              setFocus(focusKey);
+            }
+          }, 80);
+        }
+      }, 80);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isDoubleColumn, rowVirtualizer]);
+
+  const focusGridIndex = useCallback((targetIndex: number, align: 'auto' | 'center' = 'auto') => {
+    if (targetIndex < 0 || targetIndex >= results.length) return false;
+
+    const targetFocusKey = `download-grid-item-${targetIndex}`;
+    const rowIndex = isDoubleColumn ? Math.floor(targetIndex / 2) : targetIndex;
+
+    rowVirtualizer.scrollToIndex(rowIndex, { align });
+
+    window.setTimeout(() => {
+      if (doesFocusableExist(targetFocusKey)) {
+        setFocus(targetFocusKey);
+        return;
+      }
+
+      rowVirtualizer.scrollToIndex(rowIndex, { align: 'center' });
+      window.setTimeout(() => {
+        if (doesFocusableExist(targetFocusKey)) {
+          setFocus(targetFocusKey);
+        }
+      }, 80);
+    }, 0);
+
+    return true;
+  }, [isDoubleColumn, results.length, rowVirtualizer]);
+
+  const handleCardMoveFocus = useCallback((index: number, direction: string) => {
+    const columns = isDoubleColumn ? 2 : 1;
+
+    if (direction === 'up') {
+      return focusGridIndex(index - columns);
+    }
+
+    if (direction === 'down') {
+      return focusGridIndex(index + columns);
+    }
+
+    if (direction === 'left') {
+      if (!isDoubleColumn || index % 2 === 0) return false;
+      return focusGridIndex(index - 1);
+    }
+
+    if (direction === 'right') {
+      if (!isDoubleColumn || index % 2 !== 0) return false;
+      return focusGridIndex(index + 1);
+    }
+
+    return false;
+  }, [focusGridIndex, isDoubleColumn]);
+
   const emptyLoading = isLoading && results.length === 0;
   const emptyStateText = resourceTab === 'shader'
     ? '当前没有找到适配这个实例环境的光影。'
@@ -690,7 +763,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
       >
         <OreOverlayScrollArea
           id={scrollContainerId}
-          ref={handleScrollContainerRef}
+          ref={parentRef}
           className="h-full min-h-0"
           viewportClassName="overscroll-contain scroll-smooth"
           contentClassName="min-h-full"
@@ -718,36 +791,66 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
                 </div>
               </div>
             ) : (
-              <VirtuosoGrid<ResourceGridItem, ResourceGridContext>
-                ref={virtuosoRef}
-                data={resourceItems}
-                context={{ hasMore, isLoadingMore, loadMoreFailed, onRetryLoadMore }}
-                customScrollParent={scrollElement ?? undefined}
-                computeItemKey={(index, item) => `${getProjectKey(item.project)}-${index}`}
-                listClassName="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] pb-[1.5rem] pt-0"
-                components={RESOURCE_GRID_COMPONENTS}
-                increaseViewportBy={{ top: 240, bottom: 520 }}
-                endReached={triggerLoadMore}
-                itemContent={(index, item) => (
-                  <ResourceCard
-                    project={item.project}
-                    viewModel={item.viewModel}
-                    index={index}
-                    isInstalled={item.isInstalled}
-                    hasMore={hasMore}
-                    canLoadMore={canLoadMore}
-                    onLoadMore={triggerLoadMore}
-                    onSelectProject={onSelectProject}
-                    isSelectionMode={isSelectionMode}
-                    isSelected={selectedProjectIds?.has(getProjectKey(item.project)) ?? false}
-                    onToggleSelection={onToggleProjectSelection}
-                    isNearBottom={index >= results.length - 6}
-                    onClickAuthor={onClickAuthor}
-                    shouldAnimateLayout={shouldAnimateLayout}
-                    selectedProjectId={selectedProjectId}
-                  />
-                )}
-              />
+              <>
+                <div
+                  style={{
+                    height: `${rowVirtualizer.getTotalSize() + 24}px`,
+                    width: '100%',
+                    position: 'relative',
+                  }}
+                >
+                  <ResourceGridHeader />
+
+                  {virtualRows.map((virtualRow) => {
+                    const rowIndex = virtualRow.index;
+                    const rowData = rowItems[rowIndex];
+                    if (!rowData) return null;
+
+                    return (
+                      <div
+                        key={virtualRow.key}
+                        ref={rowVirtualizer.measureElement}
+                        data-index={rowIndex}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          transform: `translateY(${virtualRow.start + 24}px)`,
+                        }}
+                        className="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] pb-[0.75rem]"
+                      >
+                        {rowData.map((item, colIndex) => {
+                          const itemIndex = isDoubleColumn ? rowIndex * 2 + colIndex : rowIndex;
+                          return (
+                            <ResourceCard
+                              key={`${getProjectKey(item.project)}-${itemIndex}`}
+                              project={item.project}
+                              viewModel={item.viewModel}
+                              index={itemIndex}
+                              isInstalled={item.isInstalled}
+                              hasMore={hasMore}
+                              canLoadMore={canLoadMore}
+                              onLoadMore={triggerLoadMore}
+                              onSelectProject={onSelectProject}
+                              isSelectionMode={isSelectionMode}
+                              isSelected={selectedProjectIds?.has(getProjectKey(item.project)) ?? false}
+                              onToggleSelection={onToggleProjectSelection}
+                              isNearBottom={itemIndex >= results.length - 6}
+                              onClickAuthor={onClickAuthor}
+                              shouldAnimateLayout={shouldAnimateLayout}
+                              selectedProjectId={selectedProjectId}
+                              onMoveFocus={handleCardMoveFocus}
+                            />
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <ResourceGridFooter context={{ hasMore, isLoadingMore, loadMoreFailed, onRetryLoadMore }} />
+              </>
             )}
           </div>
         </FocusBoundary>

@@ -1,5 +1,5 @@
-import React, { useMemo, useRef } from 'react';
-import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
+import React, { useMemo, useRef, useEffect } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 import { useInputMode } from '../../../../../../../ui/focus/FocusProvider';
 import { FocusItem } from '../../../../../../../ui/focus/FocusItem';
@@ -29,29 +29,6 @@ interface ModAccordionVirtualListProps {
 const getAccordionHeaderId = (groupId: ModGroupId) => `mod-accordion-header-${groupId}`;
 const getAccordionPanelId = (groupId: ModGroupId) => `mod-accordion-panel-${groupId}`;
 
-const ModListOverlayScroller = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({
-  children,
-  className = '',
-  style,
-  ...props
-}, ref) => (
-  <OreOverlayScrollArea
-    {...props}
-    ref={ref}
-    className={`h-full ${className}`}
-    viewportClassName="w-full"
-    contentClassName="w-full"
-    style={style}
-    safeInsetTop={4}
-    safeInsetBottom={4}
-    safeInsetRight={2}
-    contentSafePaddingRight={0}
-  >
-    {children}
-  </OreOverlayScrollArea>
-));
-ModListOverlayScroller.displayName = 'ModListOverlayScroller';
-
 export const ModAccordionVirtualList: React.FC<ModAccordionVirtualListProps> = ({
   renderEntries,
   listTheme,
@@ -70,20 +47,43 @@ export const ModAccordionVirtualList: React.FC<ModAccordionVirtualListProps> = (
     return new Map(groupEntries.map((entry) => [entry.group.id, entry]));
   }, [groupEntries]);
 
-  const virtuosoRef = useRef<VirtuosoHandle>(null);
+  const parentRef = useRef<HTMLDivElement>(null);
   const inputMode = useInputMode();
+
+  const rowVirtualizer = useVirtualizer({
+    count: renderEntries.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: (index) => {
+      const entry = renderEntries[index];
+      return entry?.type === 'group' ? 44 : 76;
+    },
+    overscan: 10,
+  });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
 
   const handleItemFocus = (index: number) => {
     if (inputMode !== 'mouse') {
-      virtuosoRef.current?.scrollToIndex({
-        index,
+      rowVirtualizer.scrollToIndex(index, {
         align: 'center',
-        behavior: 'smooth'
       });
     }
   };
 
-  const renderGroupHeader = (index: number, entry: GroupEntry) => {
+  useEffect(() => {
+    if (virtualItems.length > 0) {
+      onRangeChanged({
+        startIndex: virtualItems[0].index,
+        endIndex: virtualItems[virtualItems.length - 1].index,
+      });
+    }
+  }, [virtualItems, onRangeChanged]);
+
+  useEffect(() => {
+    onTopStateChange?.((rowVirtualizer.scrollOffset ?? 0) <= 0);
+  }, [rowVirtualizer.scrollOffset, onTopStateChange]);
+
+  const renderGroupHeader = (index: number, entry: GroupEntry, isSticky = false) => {
     const { group, collapsed } = entry;
 
     return (
@@ -99,7 +99,7 @@ export const ModAccordionVirtualList: React.FC<ModAccordionVirtualListProps> = (
             <ModListGroupHeader
               group={group}
               collapsed={collapsed}
-              focused={focused}
+              focused={focused && !isSticky}
               listTheme={listTheme}
               headerId={getAccordionHeaderId(group.id)}
               panelId={getAccordionPanelId(group.id)}
@@ -126,8 +126,8 @@ export const ModAccordionVirtualList: React.FC<ModAccordionVirtualListProps> = (
         role="group"
         aria-labelledby={owningGroup ? getAccordionHeaderId(owningGroup.id) : undefined}
       >
-        <ModRowItem 
-          {...getRowProps(entry.mod, entry.rowIndex)} 
+        <ModRowItem
+          {...getRowProps(entry.mod, entry.rowIndex)}
           listTheme={listTheme}
           onFocusRenderIndex={() => handleItemFocus(index)}
         />
@@ -135,58 +135,114 @@ export const ModAccordionVirtualList: React.FC<ModAccordionVirtualListProps> = (
     );
   };
 
-  const VirtuosoItem = useMemo(() => {
-    const Component = ({ children, item, style, ...props }: any) => {
-      const isGroupHead = item?.type === 'group';
-      const itemStyle = isGroupHead
-        ? {
-            ...style,
-            position: 'sticky' as const,
-            top: 0,
-            zIndex: 40,
-            width: '100%'
-          }
-        : {
-            ...style,
-            width: '100%'
-          };
+  // Sticky header computation
+  const activeStickyEntry = useMemo(() => {
+    if (virtualItems.length === 0) return null;
+    
+    const firstVisibleItem = virtualItems[0];
+    const firstEntry = renderEntries[firstVisibleItem.index];
+    if (!firstEntry) return null;
 
-      return (
-        <div
-          {...props}
-          style={itemStyle}
-          className={isGroupHead ? (listTheme === 'light' ? 'bg-[#A9ABAE]' : 'bg-[#111318]') : undefined}
-        >
-          {children}
-        </div>
+    let activeIndex = -1;
+    if (firstEntry.type === 'group') {
+      activeIndex = firstVisibleItem.index;
+    } else {
+      activeIndex = renderEntries.findIndex(
+        (e) => e.type === 'group' && e.group.id === firstEntry.groupId
       );
+    }
+
+    if (activeIndex === -1) return null;
+    return {
+      index: activeIndex,
+      entry: renderEntries[activeIndex] as GroupEntry,
     };
-    Component.displayName = 'VirtuosoItem';
-    return Component;
-  }, [listTheme]);
+  }, [virtualItems, renderEntries]);
+
+  const stickyStyle = useMemo(() => {
+    if (!activeStickyEntry) return null;
+    const offset = rowVirtualizer.scrollOffset ?? 0;
+
+    const nextVisibleGroup = virtualItems.find(
+      (item) => item.index > activeStickyEntry.index && renderEntries[item.index]?.type === 'group'
+    );
+
+    let translateY = 0;
+    if (nextVisibleGroup) {
+      const nextStart = nextVisibleGroup.start;
+      const space = nextStart - offset;
+      if (space < 44) {
+        translateY = space - 44;
+      }
+    }
+
+    return {
+      position: 'absolute' as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      transform: `translateY(${translateY}px)`,
+      zIndex: 40,
+    };
+  }, [activeStickyEntry, virtualItems, renderEntries, rowVirtualizer.scrollOffset]);
 
   return (
-    <Virtuoso
-      ref={virtuosoRef}
-      className="h-full mod-list-scrollport"
-      style={{
-        height: '100%',
-        overscrollBehaviorY: 'contain'
-      }}
-      data={renderEntries}
-      increaseViewportBy={{ top: 640, bottom: 960 }}
-      overscan={{ main: 420, reverse: 260 }}
-      atTopThreshold={0}
-      atTopStateChange={onTopStateChange}
-      rangeChanged={onRangeChanged}
-      computeItemKey={(_index, entry) => (
-        entry.type === 'group' ? `group-${entry.group.id}` : entry.mod.fileName
+    <div className="relative h-full w-full overflow-hidden">
+      <OreOverlayScrollArea
+        ref={parentRef}
+        className="h-full mod-list-scrollport"
+        viewportClassName="overscroll-contain"
+        style={{
+          height: '100%',
+        }}
+        safeInsetTop={4}
+        safeInsetBottom={4}
+        safeInsetRight={2}
+        contentSafePaddingRight={0}
+      >
+        <div
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+            width: '100%',
+            position: 'relative',
+          }}
+        >
+          {virtualItems.map((virtualRow) => {
+            const index = virtualRow.index;
+            const entry = renderEntries[index];
+            if (!entry) return null;
+
+            const isGroupHead = entry.type === 'group';
+            const itemStyle = {
+              position: 'absolute' as const,
+              top: 0,
+              left: 0,
+              width: '100%',
+              transform: `translateY(${virtualRow.start}px)`,
+              zIndex: isGroupHead ? 30 : 10,
+            };
+
+            return (
+              <div
+                key={virtualRow.key}
+                ref={rowVirtualizer.measureElement}
+                data-index={index}
+                style={itemStyle}
+                className={isGroupHead ? (listTheme === 'light' ? 'bg-[#A9ABAE]' : 'bg-[#111318]') : undefined}
+              >
+                {renderEntry(index, entry)}
+              </div>
+            );
+          })}
+        </div>
+      </OreOverlayScrollArea>
+
+      {/* Floating Sticky Header Overlay */}
+      {activeStickyEntry && stickyStyle && (
+        <div style={stickyStyle}>
+          {renderGroupHeader(activeStickyEntry.index, activeStickyEntry.entry, true)}
+        </div>
       )}
-      itemContent={renderEntry}
-      components={{
-        Scroller: ModListOverlayScroller,
-        Item: VirtuosoItem
-      }}
-    />
+    </div>
   );
 };

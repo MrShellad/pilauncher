@@ -37,7 +37,7 @@ const openSourceProjects: OpenSourceProject[] = [
   { name: 'react-i18next', url: 'https://github.com/i18next/react-i18next', group: 'frontend' },
   { name: 'Zustand', url: 'https://github.com/pmndrs/zustand', group: 'frontend' },
   { name: 'Norigin Spatial Navigation', url: 'https://github.com/NoriginMedia/Norigin-Spatial-Navigation', group: 'frontend' },
-  { name: 'React Virtuoso', url: 'https://github.com/petyosi/react-virtuoso', group: 'frontend' },
+  { name: 'TanStack Virtual', url: 'https://github.com/tanstack/virtual', group: 'frontend' },
   { name: 'qrcode.react', url: 'https://github.com/zpao/qrcode.react', group: 'frontend' },
   { name: 'Three.js', url: 'https://github.com/mrdoob/three.js', group: 'frontend' },
   { name: 'skinview3d', url: 'https://github.com/bs-community/skinview3d', group: 'frontend' },

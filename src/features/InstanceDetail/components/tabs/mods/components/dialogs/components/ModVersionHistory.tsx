@@ -1,13 +1,13 @@
 // src/features/InstanceDetail/components/tabs/mods/components/dialogs/components/ModVersionHistory.tsx
-import React from 'react';
-import { Virtuoso } from 'react-virtuoso';
+import React, { useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { OreToggleButton } from '../../../../../../../../ui/primitives/OreToggleButton';
 import { OreButton } from '../../../../../../../../ui/primitives/OreButton';
 import { FocusItem } from '../../../../../../../../ui/focus/FocusItem';
-import { VirtuosoScroller } from '../../../../../../../../ui/primitives/OreOverlayScrollArea';
+import { OreOverlayScrollArea } from '../../../../../../../../ui/primitives/OreOverlayScrollArea';
 import {
   type ModMeta,
   type ModPlatformId,
@@ -103,6 +103,15 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
     value: tab.id
   }));
 
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const rowVirtualizer = useVirtualizer({
+    count: modVersions.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 64,
+    overscan: 5,
+  });
+
   return (
     <div className="flex-1 flex flex-col min-h-0 border-t border-white/5 pt-4 font-minecraft">
       <div className="flex flex-col sm:flex-row items-center justify-between mb-3 gap-3 shrink-0">
@@ -125,84 +134,113 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
         </div>
       ) : modVersions.length > 0 ? (
         <div className="border-[2px] border-[var(--ore-border-color)] rounded-sm overflow-hidden flex-1 flex flex-col min-h-0 bg-transparent">
-          <Virtuoso
-            className="h-full"
-            data={modVersions}
-            components={{ Scroller: VirtuosoScroller }}
-            itemContent={(index, v) => {
-              const action = getVersionInstallAction(v, index);
-              const actionLabel = versionInstallLabels[action];
-              const baseTarget = displayMod || mod;
-              const platformProjectId = getPlatformProjectId(baseTarget, activePlatform) || v.project_id;
-              const platformFileId = getPlatformFileId(baseTarget, activePlatform);
-              const actionTarget: ModMeta = baseTarget.manifestEntry && platformProjectId
-                ? {
-                    ...baseTarget,
-                    manifestEntry: {
-                      ...baseTarget.manifestEntry,
-                      source: {
-                        ...baseTarget.manifestEntry.source,
-                        platform: activePlatform,
-                        projectId: platformProjectId,
-                        fileId: platformFileId || baseTarget.manifestEntry.source.fileId
-                      },
-                      matchedPlatforms: {
-                        ...(baseTarget.manifestEntry.matchedPlatforms || {}),
-                        [activePlatform]: {
-                          ...(baseTarget.manifestEntry.matchedPlatforms?.[activePlatform] || {}),
+          <OreOverlayScrollArea
+            ref={parentRef}
+            className="h-full custom-scrollbar"
+            style={{
+              height: '100%',
+              overflowY: 'auto',
+            }}
+          >
+            <div
+              style={{
+                height: `${rowVirtualizer.getTotalSize()}px`,
+                width: '100%',
+                position: 'relative',
+              }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const index = virtualRow.index;
+                const v = modVersions[index];
+                if (!v) return null;
+
+                const action = getVersionInstallAction(v, index);
+                const actionLabel = versionInstallLabels[action];
+                const baseTarget = displayMod || mod;
+                const platformProjectId = getPlatformProjectId(baseTarget, activePlatform) || v.project_id;
+                const platformFileId = getPlatformFileId(baseTarget, activePlatform);
+                const actionTarget: ModMeta = baseTarget.manifestEntry && platformProjectId
+                  ? {
+                      ...baseTarget,
+                      manifestEntry: {
+                        ...baseTarget.manifestEntry,
+                        source: {
+                          ...baseTarget.manifestEntry.source,
+                          platform: activePlatform,
                           projectId: platformProjectId,
-                          fileId: platformFileId
+                          fileId: platformFileId || baseTarget.manifestEntry.source.fileId
+                        },
+                        matchedPlatforms: {
+                          ...(baseTarget.manifestEntry.matchedPlatforms || {}),
+                          [activePlatform]: {
+                            ...(baseTarget.manifestEntry.matchedPlatforms?.[activePlatform] || {}),
+                            projectId: platformProjectId,
+                            fileId: platformFileId
+                          }
                         }
                       }
                     }
-                  }
-                : baseTarget;
+                  : baseTarget;
 
-              return (
-                <FocusItem key={v.id || index} focusKey={`mod-version-${index}`}>
-                  {({ ref, focused }) => (
-                    <div
-                      ref={ref as any}
-                      className={`flex flex-col sm:flex-row justify-between sm:items-center py-2.5 px-3 sm:px-4 border-b-[2px] border-[var(--ore-border-color)] ${index === modVersions.length - 1 ? 'border-b-0' : ''} outline-none transition-none cursor-pointer gap-3 sm:gap-0 ${
-                        focused ? 'bg-[var(--ore-color-background-surface-hover)] z-10' : 'bg-[var(--ore-color-background-surface-panel)] hover:bg-[var(--ore-color-background-surface-hover)]/60'
-                      }`}
-                    >
-                      <div className="flex items-center flex-1 min-w-0 pr-0 sm:pr-4">
+                return (
+                  <div
+                    key={virtualRow.key}
+                    ref={rowVirtualizer.measureElement}
+                    data-index={index}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <FocusItem key={v.id || index} focusKey={`mod-version-${index}`}>
+                      {({ ref, focused }) => (
                         <div
-                          className={`hidden sm:block w-2 h-2 rounded-full mr-3 flex-shrink-0 ${
-                            focused ? 'bg-white' : 'bg-ore-green/80'
+                          ref={ref as any}
+                          className={`flex flex-col sm:flex-row justify-between sm:items-center py-2.5 px-3 sm:px-4 border-b-[2px] border-[var(--ore-border-color)] ${index === modVersions.length - 1 ? 'border-b-0' : ''} outline-none transition-none cursor-pointer gap-3 sm:gap-0 ${
+                            focused ? 'bg-[var(--ore-color-background-surface-hover)] z-10' : 'bg-[var(--ore-color-background-surface-panel)] hover:bg-[var(--ore-color-background-surface-hover)]/60'
                           }`}
-                        ></div>
-                        <div className="flex flex-col flex-1 min-w-0">
-                          <span className={`font-minecraft text-sm truncate ${focused ? 'text-white' : 'text-gray-200'}`}>
-                            <span
-                              className={`inline-block sm:hidden w-1.5 h-1.5 rounded-full mr-1.5 align-middle ${
+                        >
+                          <div className="flex items-center flex-1 min-w-0 pr-0 sm:pr-4">
+                            <div
+                              className={`hidden sm:block w-2 h-2 rounded-full mr-3 flex-shrink-0 ${
                                 focused ? 'bg-white' : 'bg-ore-green/80'
                               }`}
-                            ></span>
-                            {v.name}
-                          </span>
-                          <span className="text-xs text-ore-text-muted mt-0.5 truncate">
-                            {t('instanceDetail.mods.versionHistory.versionInfo', { defaultValue: '版本: {{versionNumber}} • {{date}} 发布', versionNumber: v.version_number, date: new Date(v.date_published).toLocaleDateString() })}
-                          </span>
+                            ></div>
+                            <div className="flex flex-col flex-1 min-w-0">
+                              <span className={`font-minecraft text-sm truncate ${focused ? 'text-white' : 'text-gray-200'}`}>
+                                <span
+                                  className={`inline-block sm:hidden w-1.5 h-1.5 rounded-full mr-1.5 align-middle ${
+                                    focused ? 'bg-white' : 'bg-ore-green/80'
+                                  }`}
+                                ></span>
+                                {v.name}
+                              </span>
+                              <span className="text-xs text-ore-text-muted mt-0.5 truncate">
+                                {t('instanceDetail.mods.versionHistory.versionInfo', { defaultValue: '版本: {{versionNumber}} • {{date}} 发布', versionNumber: v.version_number, date: new Date(v.date_published).toLocaleDateString() })}
+                              </span>
+                            </div>
+                          </div>
+                          <OreButton
+                            focusKey={`btn-install-${index}`}
+                            variant={action === 'reinstall' ? 'secondary' : 'primary'}
+                            size="auto"
+                            onClick={() => onInstallVersion(actionTarget, v, action)}
+                            className="w-full sm:w-20 shrink-0"
+                          >
+                            <Download size={13} className="mr-1.5" />
+                            {actionLabel}
+                          </OreButton>
                         </div>
-                      </div>
-                      <OreButton
-                        focusKey={`btn-install-${index}`}
-                        variant={action === 'reinstall' ? 'secondary' : 'primary'}
-                        size="auto"
-                        onClick={() => onInstallVersion(actionTarget, v, action)}
-                        className="w-full sm:w-20 shrink-0"
-                      >
-                        <Download size={13} className="mr-1.5" />
-                        {actionLabel}
-                      </OreButton>
-                    </div>
-                  )}
-                </FocusItem>
-              );
-            }}
-          />
+                      )}
+                    </FocusItem>
+                  </div>
+                );
+              })}
+            </div>
+          </OreOverlayScrollArea>
         </div>
       ) : (
         <div className="text-center text-ore-text-muted py-8 font-minecraft text-sm border-[2px] border-dashed border-[var(--ore-border-color)] bg-transparent rounded-sm flex items-center justify-center">

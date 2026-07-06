@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Check, Columns3, Loader2, Save } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
-import { Virtuoso } from 'react-virtuoso';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 import { OreModal } from '../../../../ui/primitives/OreModal';
 import { OreButton } from '../../../../ui/primitives/OreButton';
-import { VirtuosoScroller } from '../../../../ui/primitives/OreOverlayScrollArea';
+import { OreOverlayScrollArea } from '../../../../ui/primitives/OreOverlayScrollArea';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import type { LibraryResourceViewModel } from '../../logic/libraryItems';
 
@@ -24,46 +24,26 @@ interface InstanceItem {
   coverPath?: string;
 }
 
-const ModalScroller = React.forwardRef<HTMLDivElement, any>((props, ref) => (
-  <VirtuosoScroller
-    {...props}
-    ref={ref}
-    contentSafePaddingRight={0}
-  />
-));
-ModalScroller.displayName = 'ModalScroller';
-
-const ModalList = React.forwardRef<HTMLDivElement, any>((props, ref) => (
-  <div
-    {...props}
-    ref={ref}
-    className={`max-w-[36rem] mx-auto px-4 ${props.className || ''}`}
-  />
-));
-ModalList.displayName = 'ModalList';
-
-const ModalHeader = () => <div className="h-4" />;
-const ModalFooter = () => <div className="h-2" />;
-
-const VIRTUOSO_COMPONENTS = {
-  Scroller: ModalScroller,
-  List: ModalList,
-  Header: ModalHeader,
-  Footer: ModalFooter,
-};
-
 export const ManageLinkageModal: React.FC<ManageLinkageModalProps> = ({
   isOpen,
   onClose,
   resource,
   onSuccess,
 }) => {
-
   const [instances, setInstances] = useState<InstanceItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const rowVirtualizer = useVirtualizer({
+    count: instances.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 76,
+    overscan: 5,
+  });
 
   useEffect(() => {
     if (isOpen && resource) {
@@ -154,11 +134,11 @@ export const ManageLinkageModal: React.FC<ManageLinkageModalProps> = ({
             </div>
           )}
           <div className="flex items-center justify-center gap-4 w-full">
-            <OreButton 
-              focusKey="btn-linkage-cancel" 
-              variant="secondary" 
-              onClick={onClose} 
-              disabled={isSaving} 
+            <OreButton
+              focusKey="btn-linkage-cancel"
+              variant="secondary"
+              onClick={onClose}
+              disabled={isSaving}
               size="md"
             >
               取消
@@ -196,68 +176,93 @@ export const ManageLinkageModal: React.FC<ManageLinkageModalProps> = ({
             正在加载实例映射...
           </div>
         ) : instances.length > 0 ? (
-          <Virtuoso
+          <OreOverlayScrollArea
+            ref={parentRef}
             className="h-full custom-scrollbar"
             style={{
               height: '100%',
               overflowY: 'auto',
             }}
-            data={instances}
-            components={VIRTUOSO_COMPONENTS}
-            computeItemKey={(_, item) => item.id}
-            itemContent={(_, instance) => {
-              const checked = selectedIds.has(instance.id);
-              return (
-                <div className="pb-2">
-                  <FocusItem
-                    key={instance.id}
-                    focusKey={`lib-linkage-item-${instance.id}`}
-                    onEnter={() => handleToggle(instance.id)}
+          >
+            <div
+              className="max-w-[36rem] mx-auto px-4"
+              style={{
+                height: `${rowVirtualizer.getTotalSize() + 24}px`,
+                width: '100%',
+                position: 'relative',
+              }}
+            >
+              <div className="h-4" /> {/* Header spacer */}
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const index = virtualRow.index;
+                const instance = instances[index];
+                if (!instance) return null;
+                const checked = selectedIds.has(instance.id);
+
+                return (
+                  <div
+                    key={virtualRow.key}
+                    ref={rowVirtualizer.measureElement}
+                    data-index={index}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      transform: `translateY(${virtualRow.start + 16}px)`,
+                    }}
+                    className="pb-2"
                   >
-                    {({ ref, focused }) => (
-                      <div
-                        ref={ref as React.RefObject<HTMLDivElement>}
-                        className={`flex items-center justify-between border-2 p-3.5 cursor-pointer rounded-[2px] transition-all duration-75 select-none ${
-                          checked
-                            ? 'border-[var(--ore-color-background-success-default)] bg-[rgba(108,195,73,0.1)] text-[var(--ore-color-text-primary-default)]'
-                            : 'border-[var(--ore-color-border-primary-default)] bg-[var(--ore-color-background-surface-panel)] text-[var(--ore-color-text-muted-default)] hover:bg-[var(--ore-color-background-surface-hover)]'
-                        } ${focused ? 'outline outline-[2px] outline-[var(--ore-focus-ringFallback)] outline-offset-1 z-10 scale-[1.01] shadow-[0_0_10px_var(--ore-focus-glow)] brightness-110' : ''}`}
-                        onClick={() => handleToggle(instance.id)}
-                      >
-                        <div className="min-w-0 flex-1 flex items-center gap-3.5">
-                          <div className="h-10 w-10 shrink-0 border border-[var(--ore-color-border-primary-default)] bg-[var(--ore-color-background-surface-deep)] overflow-hidden rounded-[2px] shadow-inner flex items-center justify-center">
-                            {instance.coverPath ? (
-                              <img src={instance.coverPath} alt="" className="h-full w-full object-cover" />
-                            ) : (
-                              <div className="text-[0.6875rem] font-minecraft text-[var(--ore-color-text-success-default)] font-bold">
-                                {instance.name.slice(0, 2).toUpperCase()}
+                    <FocusItem
+                      key={instance.id}
+                      focusKey={`lib-linkage-item-${instance.id}`}
+                      onEnter={() => handleToggle(instance.id)}
+                    >
+                      {({ ref, focused }) => (
+                        <div
+                          ref={ref as React.RefObject<HTMLDivElement>}
+                          className={`flex items-center justify-between border-2 p-3.5 cursor-pointer rounded-[2px] transition-all duration-75 select-none ${
+                            checked
+                              ? 'border-[var(--ore-color-background-success-default)] bg-[rgba(108,195,73,0.1)] text-[var(--ore-color-text-primary-default)]'
+                              : 'border-[var(--ore-color-border-primary-default)] bg-[var(--ore-color-background-surface-panel)] text-[var(--ore-color-text-muted-default)] hover:bg-[var(--ore-color-background-surface-hover)]'
+                          } ${focused ? 'outline outline-[2px] outline-[var(--ore-focus-ringFallback)] outline-offset-1 z-10 scale-[1.01] shadow-[0_0_10px_var(--ore-focus-glow)] brightness-110' : ''}`}
+                          onClick={() => handleToggle(instance.id)}
+                        >
+                          <div className="min-w-0 flex-1 flex items-center gap-3.5">
+                            <div className="h-10 w-10 shrink-0 border border-[var(--ore-color-border-primary-default)] bg-[var(--ore-color-background-surface-deep)] overflow-hidden rounded-[2px] shadow-inner flex items-center justify-center">
+                              {instance.coverPath ? (
+                                <img src={instance.coverPath} alt="" className="h-full w-full object-cover" />
+                              ) : (
+                                <div className="text-[0.6875rem] font-minecraft text-[var(--ore-color-text-success-default)] font-bold">
+                                  {instance.name.slice(0, 2).toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="truncate font-bold font-minecraft text-[var(--ore-color-text-primary-default)] text-sm tracking-wide">{instance.name}</div>
+                              <div className="text-[0.625rem] text-[var(--ore-color-text-muted-default)] mt-1 font-minecraft">
+                                MC版本: <span className="text-[var(--ore-color-text-secondary-default)]">{instance.version}</span> | 加载器: <span className="text-[var(--ore-color-text-secondary-default)]">{instance.loader || 'Vanilla'}</span>
                               </div>
-                            )}
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <div className="truncate font-bold font-minecraft text-[var(--ore-color-text-primary-default)] text-sm tracking-wide">{instance.name}</div>
-                            <div className="text-[0.625rem] text-[var(--ore-color-text-muted-default)] mt-1 font-minecraft">
-                              MC版本: <span className="text-[var(--ore-color-text-secondary-default)]">{instance.version}</span> | 加载器: <span className="text-[var(--ore-color-text-secondary-default)]">{instance.loader || 'Vanilla'}</span>
+
+                          <div className="flex items-center pl-3">
+                            <div className={`w-5 h-5 flex items-center justify-center border-2 rounded-[2px] transition-all duration-100 ${
+                              checked
+                                ? 'border-[var(--ore-color-border-primary-default)] bg-[var(--ore-color-background-success-default)]'
+                                : 'border-[var(--ore-color-border-primary-default)] bg-[var(--ore-color-background-surface-deep)]'
+                            }`}>
+                              {checked && <Check size={12} className="text-black stroke-[3.5px]" />}
                             </div>
                           </div>
                         </div>
-                        
-                        <div className="flex items-center pl-3">
-                          <div className={`w-5 h-5 flex items-center justify-center border-2 rounded-[2px] transition-all duration-100 ${
-                            checked 
-                              ? 'border-[var(--ore-color-border-primary-default)] bg-[var(--ore-color-background-success-default)]' 
-                              : 'border-[var(--ore-color-border-primary-default)] bg-[var(--ore-color-background-surface-deep)]'
-                          }`}>
-                            {checked && <Check size={12} className="text-black stroke-[3.5px]" />}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </FocusItem>
-                </div>
-              );
-            }}
-          />
+                      )}
+                    </FocusItem>
+                  </div>
+                );
+              })}
+            </div>
+          </OreOverlayScrollArea>
         ) : (
           <div className="flex h-48 flex-col items-center justify-center text-sm text-[var(--ore-color-text-muted-default)] text-center p-6 border-2 border-dashed border-[var(--ore-color-border-primary-default)] rounded-[2px] font-minecraft max-w-[36rem] mx-auto my-4">
             暂无可用游戏实例，请先在实例页创建实例。
