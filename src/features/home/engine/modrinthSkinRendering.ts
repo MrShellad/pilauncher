@@ -30,13 +30,122 @@ export async function loadModrinthAnimationSource(source: string | Blob): Promis
   }
 }
 
-export async function loadModrinthTexture(textureUrl: string): Promise<THREE.Texture> {
+/**
+ * Normalizes a legacy 64x32 Minecraft skin to the modern 64x64 format.
+ * Mimics vanilla client behavior: mirrors limbs, fixes opacity/transparency.
+ */
+export function normalizeLegacySkin(img: HTMLImageElement): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return img.src;
+
+  // Clear canvas
+  ctx.clearRect(0, 0, 64, 64);
+
+  // 1. Copy top 64x32 pixels (head, torso, right limbs) directly
+  ctx.drawImage(img, 0, 0, 64, 32, 0, 0, 64, 32);
+
+  // Helper to draw a mirrored sub-block
+  const drawMirroredFace = (
+    srcX: number,
+    srcY: number,
+    offX: number,
+    offY: number,
+    w: number,
+    h: number
+  ) => {
+    const destX = srcX + offX;
+    const destY = srcY + offY;
+    ctx.save();
+    ctx.translate(destX + w / 2, destY + h / 2);
+    ctx.scale(-1, 1);
+    ctx.drawImage(img, srcX, srcY, w, h, -w / 2, -h / 2, w, h);
+    ctx.restore();
+  };
+
+  // 2. Copy and mirror right limbs to left limbs (x, y, off_x, off_y, w, h)
+  const FACE_COPY_PARAMETERS = [
+    // Right Leg -> Left Leg
+    [4, 16, 16, 32, 4, 4],   // Top
+    [8, 16, 16, 32, 4, 4],   // Bottom
+    [0, 20, 24, 32, 4, 12],  // Outer
+    [4, 20, 16, 32, 4, 12],  // Front
+    [8, 20, 8, 32, 4, 12],   // Inner
+    [12, 20, 16, 32, 4, 12], // Back
+
+    // Right Arm -> Left Arm
+    [44, 16, -8, 32, 4, 4],   // Top
+    [48, 16, -8, 32, 4, 4],   // Bottom
+    [40, 20, 0, 32, 4, 12],   // Outer
+    [44, 20, -8, 32, 4, 12],  // Front
+    [48, 20, -16, 32, 4, 12], // Inner
+    [52, 20, -8, 32, 4, 12],  // Back
+  ];
+
+  for (const [x, y, offX, offY, w, h] of FACE_COPY_PARAMETERS) {
+    drawMirroredFace(x, y, offX, offY, w, h);
+  }
+
+  // 3. Notch Transparency Hack: If outer head layer is fully opaque, make it transparent
+  const headOverlayData = ctx.getImageData(32, 0, 32, 32);
+  let hasTransparent = false;
+  for (let i = 3; i < headOverlayData.data.length; i += 4) {
+    if (headOverlayData.data[i] < 128) {
+      hasTransparent = true;
+      break;
+    }
+  }
+  if (!hasTransparent) {
+    ctx.clearRect(32, 0, 32, 32);
+  }
+
+  // 4. Force inner parts of the skin to be fully opaque (alpha = 255)
+  const opaqueParts = [
+    [0, 0, 32, 16],
+    [0, 16, 64, 16],
+    [16, 48, 32, 16],
+  ];
+  for (const [x, y, w, h] of opaqueParts) {
+    const data = ctx.getImageData(x, y, w, h);
+    for (let i = 3; i < data.data.length; i += 4) {
+      data.data[i] = 255;
+    }
+    ctx.putImageData(data, x, y);
+  }
+
+  return canvas.toDataURL('image/png');
+}
+
+export async function loadModrinthTexture(
+  textureUrl: string,
+  type: 'skin' | 'cape' = 'skin'
+): Promise<THREE.Texture> {
   const cached = textureCache.get(textureUrl);
   if (cached) return cached;
 
+  // Load the image first to check size and normalize if legacy 64x32
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const i = new Image();
+    i.crossOrigin = 'anonymous';
+    i.onload = () => resolve(i);
+    i.onerror = () => reject(new Error(`Failed to load skin image: ${textureUrl}`));
+    i.src = textureUrl;
+  });
+
+  let finalSrc = textureUrl;
+  if (type === 'skin' && img.width === 64 && img.height === 32) {
+    try {
+      finalSrc = normalizeLegacySkin(img);
+    } catch (e) {
+      console.warn('[loadModrinthTexture] 传统皮肤转换失败，使用原图:', e);
+    }
+  }
+
   const loader = new THREE.TextureLoader();
   loader.setCrossOrigin('anonymous');
-  const texture = await loader.loadAsync(textureUrl);
+  const texture = await loader.loadAsync(finalSrc);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.flipY = false;
   texture.magFilter = THREE.NearestFilter;

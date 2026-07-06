@@ -284,7 +284,7 @@ class ThumbnailRendererClass {
     camera.aspect = width / height;
 
     const gltf = await loadModrinthModel(this.getPlayerModelUrl(model));
-    const texture = await loadModrinthTexture(skinUrl);
+    const texture = await loadModrinthTexture(skinUrl, 'skin');
     this.replaceModel(cloneModelScene(gltf.scene));
     if (this.currentModel) {
       applyPlayerTexture(this.currentModel, texture);
@@ -342,8 +342,8 @@ class ThumbnailRendererClass {
 
       const [gltf, skinTexture, capeTexture] = await Promise.all([
         loadModrinthModel(this.getPlayerModelUrl(model)),
-        loadModrinthTexture(skinUrl),
-        loadModrinthTexture(capeUrl),
+        loadModrinthTexture(skinUrl, 'skin'),
+        loadModrinthTexture(capeUrl, 'cape'),
       ]);
 
       this.replaceModel(cloneModelScene(gltf.scene));
