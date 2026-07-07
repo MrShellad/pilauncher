@@ -9,6 +9,7 @@ import { focusManager } from '../../../ui/focus/FocusManager';
 import { OnlineServerCard } from './OnlineServerCard';
 import { ServerBindModal } from './ServerBindModal';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { OreOverlayScrollArea } from '../../../ui/primitives/OreOverlayScrollArea';
 
 interface OnlineServersListProps {
   servers: OnlineServer[];
@@ -97,13 +98,7 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
     });
   }, [servers, liveStatuses]);
 
-  // Generate focus keys for both play button and link button for each server
-  const serverFocusKeys = React.useMemo(() => {
-    return sortedServers.flatMap(server => [
-      `server-card-${server.id}-play`,
-      `server-card-${server.id}-link`
-    ]);
-  }, [sortedServers]);
+
 
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
@@ -116,18 +111,26 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
-  const [headerHeight, setHeaderHeight] = useState(() => Math.max(window.innerHeight / 2 - 288, 96));
-  const [footerHeight, setFooterHeight] = useState(() => Math.max(window.innerHeight / 2 - 288, 96));
+  const [containerHeight, setContainerHeight] = useState(0);
 
   useEffect(() => {
-    const handleResize = () => {
-      const h = Math.max(window.innerHeight / 2 - 288, 96);
-      setHeaderHeight(h);
-      setFooterHeight(h);
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const updateHeight = () => {
+      setContainerHeight(container.clientHeight);
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+
+    updateHeight();
+
+    const resizeObserver = new ResizeObserver(updateHeight);
+    resizeObserver.observe(container);
+
+    return () => resizeObserver.disconnect();
   }, []);
+
+  const headerHeight = Math.max(64, Math.min((containerHeight - 520) / 2 - 32, 96));
+  const footerHeight = Math.max(64, Math.min((containerHeight - 520) / 2 - 32, 96));
 
   const handleRefresh = () => {
     onRefresh();
@@ -169,31 +172,40 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
     if (sortedServers.length === 0) return true;
 
     const currentFocusKey = getCurrentFocusKey();
-    const currentIndex = serverFocusKeys.indexOf(currentFocusKey);
-    const nextIndex = currentIndex < 0
-      ? 0
-      : direction === 'down'
-        ? Math.min(serverFocusKeys.length - 1, currentIndex + 1)
-        : Math.max(0, currentIndex - 1);
+    if (!currentFocusKey) return true;
 
-    if (nextIndex === currentIndex) return false;
+    const match = currentFocusKey.match(/^server-card-(.+)-(play|copy)$/);
+    if (!match) return true;
 
-    const targetKey = serverFocusKeys[nextIndex];
-    const targetServerIndex = Math.floor(nextIndex / 2);
-    focusServerControl(targetKey, targetServerIndex);
+    const [_, currentServerId, controlType] = match;
+    const currentServerIndex = sortedServers.findIndex(s => s.id === currentServerId);
+    if (currentServerIndex < 0) return true;
+
+    const nextServerIndex = direction === 'down'
+      ? Math.min(sortedServers.length - 1, currentServerIndex + 1)
+      : Math.max(0, currentServerIndex - 1);
+
+    if (nextServerIndex === currentServerIndex) return false;
+
+    const nextServer = sortedServers[nextServerIndex];
+    if (!nextServer) return false;
+
+    const targetKey = `server-card-${nextServer.id}-${controlType}`;
+    focusServerControl(targetKey, nextServerIndex);
     return false;
-  }, [focusServerControl, serverFocusKeys, sortedServers.length]);
+  }, [focusServerControl, sortedServers]);
 
   const isInitialFocused = React.useRef(false);
 
   React.useEffect(() => {
-    if (serverFocusKeys.length > 0 && !isInitialFocused.current) {
+    if (sortedServers.length > 0 && !isInitialFocused.current) {
       setTimeout(() => {
-        focusManager.focus(serverFocusKeys[0]);
+        focusManager.focus(`server-card-${sortedServers[0].id}-play`);
+        rowVirtualizer.scrollToIndex(0, { align: 'center' });
       }, 50);
       isInitialFocused.current = true;
     }
-  }, [serverFocusKeys]);
+  }, [sortedServers, rowVirtualizer]);
 
   const targetIndex = React.useRef(0);
   const visibleRange = React.useRef({ startIndex: 0, endIndex: 0 });
@@ -274,7 +286,7 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
   }, [sortedServers, inputMode, rowVirtualizer]);
 
   return (
-    <>
+    <div className="relative flex flex-col flex-1 min-h-0 w-full h-full">
       <div className="ore-multiplayer-floating-action" style={{ top: '0.25rem', bottom: 'auto', right: 'max(1rem, 3vw)' }}>
         <OreButton
           type="button"
@@ -298,13 +310,13 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
         </OreButton>
       </div>
 
-      <div
+      <OreOverlayScrollArea
         ref={scrollContainerRef}
-        className="ore-multiplayer-scroll ore-multiplayer-scroll--directory custom-scrollbar"
+        className="ore-multiplayer-scroll ore-multiplayer-scroll--directory"
+        contentSafePaddingRight={0}
         style={{
           maskImage: 'linear-gradient(to bottom, transparent, black 3rem, black calc(100% - 3rem), transparent)',
           WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 3rem, black calc(100% - 3rem), transparent)',
-          overflowY: 'overlay' as React.CSSProperties['overflowY'],
           height: '100%',
           width: '100%',
         }}
@@ -382,13 +394,13 @@ export const OnlineServersList: React.FC<OnlineServersListProps> = ({
             />
           </div>
         )}
-      </div>
+      </OreOverlayScrollArea>
 
       <ServerBindModal
         isOpen={!!selectedServer}
         onClose={() => setSelectedServer(null)}
         server={selectedServer}
       />
-    </>
+    </div>
   );
 };

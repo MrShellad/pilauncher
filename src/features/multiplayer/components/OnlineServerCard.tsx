@@ -398,7 +398,7 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({
 
   const handleChildFocused = useCallback(() => {
     if (inputMode !== 'mouse' && cardRef.current) {
-      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
     }
   }, [inputMode]);
 
@@ -429,7 +429,7 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({
       ref={cardRef}
       role="listitem"
       aria-label={`${server.name} - ${serverTypeLabel} - 版本 ${versionLabel || '未知'}`}
-      className={`group relative h-[30rem] w-[min(90vw,80rem)] font-minecraft flex-[0_0_auto] overflow-hidden rounded-[1rem] border bg-[#111827] transition-[border-color,box-shadow,filter] duration-300 ${isCardFocused ? 'border-green-300/45 shadow-[0_1.5rem_3.5rem_rgba(0,0,0,0.58),0_0_2rem_rgba(108,195,73,0.2)] brightness-[1.04]' : 'border-white/10 shadow-[0_1.25rem_3.125rem_rgba(0,0,0,0.5)]'
+      className={`group relative h-[30rem] w-[min(90vw,80rem)] font-minecraft flex-[0_0_auto] overflow-hidden rounded-[1rem] border bg-[#111827] transition-[border-color,box-shadow,filter] duration-300 ${isCardFocused && inputMode !== 'mouse' ? 'border-[#F5C542] ring-4 ring-[#F5C542]/45 shadow-[0_1.5rem_3.5rem_rgba(0,0,0,0.58),0_0_2rem_rgba(245,197,66,0.3)] brightness-[1.04]' : 'border-white/10 shadow-[0_1.25rem_3.125rem_rgba(0,0,0,0.5)]'
         }`}
       style={{ scrollSnapAlign: 'center', contentVisibility: 'auto', containIntrinsicSize: '30rem' }}
       onFocus={() => setIsCardFocused(true)}
@@ -623,7 +623,7 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({
                 <button
                   ref={ref as React.RefObject<HTMLButtonElement>}
                   type="button"
-                  className={`flex h-full w-[5.5rem] items-center justify-center border-l border-white/15 text-white transition-[background-color,color,filter] hover:bg-black/55 disabled:cursor-not-allowed disabled:opacity-50 ${focused && inputMode !== 'mouse' ? 'z-10 bg-black/65 text-green-200 brightness-110' : 'bg-black/35'
+                  className={`flex h-full w-[5.5rem] items-center justify-center border-l border-white/15 text-white transition-[background-color,color,filter] hover:bg-black/55 disabled:cursor-not-allowed disabled:opacity-50 ${focused && inputMode !== 'mouse' ? 'z-10 bg-black/65 text-green-200 brightness-110 outline outline-[3px] outline-[#F5C542] -outline-offset-[3px]' : 'bg-black/35'
                     }`}
                   onClick={handleCopyIp}
                   disabled={!server.address}
@@ -643,7 +643,7 @@ export const OnlineServerCard: React.FC<OnlineServerCardProps> = ({
                 <button
                   ref={ref as React.RefObject<HTMLButtonElement>}
                   type="button"
-                  className={`flex h-full flex-row items-center justify-center gap-[1rem] border-l px-[2rem] text-white transition-[background-color,border-color,filter] hover:border-[#C084FC] hover:bg-[#9333EA] disabled:cursor-not-allowed disabled:opacity-60 md:px-[3rem] ${focused && inputMode !== 'mouse' ? 'z-10 border-[#C084FC] bg-[#9333EA] brightness-110' : 'border-[#83C148] bg-[#5B8731]'
+                  className={`flex h-full flex-row items-center justify-center gap-[1rem] border-l px-[2rem] text-white transition-[background-color,border-color,filter] hover:border-[#C084FC] hover:bg-[#9333EA] disabled:cursor-not-allowed disabled:opacity-60 md:px-[3rem] ${focused && inputMode !== 'mouse' ? 'z-10 border-[#C084FC] bg-[#9333EA] brightness-110 outline outline-[3px] outline-[#F5C542] -outline-offset-[3px]' : 'border-[#83C148] bg-[#5B8731]'
                     }`}
                   onClick={() => onClick?.(server)}
                   disabled={!onClick}
