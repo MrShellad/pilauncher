@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "PiLauncher",
         "width": 1280,
         "height": 800,
@@ -20,12 +21,11 @@
         "resizable": true,
         "fullscreen": false,
         "decorations": false,
-        "transparent": false,
-        "devtools": false
+        "transparent": false
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' asset: http://asset.localhost https: http: data: blob:; connect-src 'self' https: http: ws: wss:; media-src 'self' asset: http://asset.localhost data: blob:;",
       "assetProtocol": {
         "enable": true,
         "scope": [

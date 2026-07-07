@@ -238,6 +238,10 @@ fn load_instance_meta(
             window_height: None,
             is_favorite: None,
             global_metadata_settings: None,
+            modpack_id: None,
+            modpack_uuid: None,
+            modpack_version: None,
+            modpack_source: None,
         }),
     )
 }

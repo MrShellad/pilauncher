@@ -38,13 +38,6 @@
     "core:window:allow-outer-position",
     "core:window:allow-set-position",
     "process:allow-exit",
-    "process:default",
-    "fs:default",
-    {
-      "identifier": "fs:allow-read",
-      "allow": [
-        "**"
-      ]
-    }
+    "process:default"
   ]
 }

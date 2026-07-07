@@ -57,7 +57,7 @@ fn push_quick_dir(nodes: &mut Vec<DirNode>, name: &str, path: PathBuf) {
 }
 
 #[tauri::command]
-pub async fn get_drives() -> Result<Vec<DirNode>, String> {
+pub fn get_drives() -> Result<Vec<DirNode>, String> {
     let mut drives = Vec::new();
 
     if let Some(home) = user_home_dir() {
@@ -108,7 +108,7 @@ pub async fn get_drives() -> Result<Vec<DirNode>, String> {
 }
 
 #[tauri::command]
-pub async fn list_valid_dirs(path: String) -> Result<Vec<DirNode>, String> {
+pub fn list_valid_dirs(path: String) -> Result<Vec<DirNode>, String> {
     let mut dirs = Vec::new();
     let path_obj = Path::new(&path);
 
@@ -139,7 +139,7 @@ pub async fn list_valid_dirs(path: String) -> Result<Vec<DirNode>, String> {
 }
 
 #[tauri::command]
-pub async fn list_directory_entries(
+pub fn list_directory_entries(
     path: String,
     include_files: bool,
 ) -> Result<Vec<DirNode>, String> {
@@ -196,7 +196,7 @@ pub async fn list_directory_entries(
 }
 
 #[tauri::command]
-pub async fn create_valid_dir(parent: String, name: String) -> Result<String, String> {
+pub fn create_valid_dir(parent: String, name: String) -> Result<String, String> {
     if !name.is_ascii() {
         return Err("目录名只能包含英文字符和数字！".into());
     }
@@ -209,7 +209,7 @@ pub async fn create_valid_dir(parent: String, name: String) -> Result<String, St
 }
 
 #[tauri::command]
-pub async fn get_parent_dir(path: String) -> Result<Option<String>, String> {
+pub fn get_parent_dir(path: String) -> Result<Option<String>, String> {
     let p = Path::new(&path);
     if let Some(parent) = p.parent() {
         let parent_str = parent.to_string_lossy().to_string();
@@ -224,7 +224,12 @@ pub async fn get_parent_dir(path: String) -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
-pub async fn open_path_in_file_manager(path: String) -> Result<(), String> {
+pub fn open_path_in_file_manager<R: Runtime>(
+    app: AppHandle<R>,
+    path: String,
+) -> Result<(), String> {
+    use tauri_plugin_shell::ShellExt;
+
     let input = PathBuf::from(path);
     let target = if input.is_file() {
         input
@@ -239,22 +244,9 @@ pub async fn open_path_in_file_manager(path: String) -> Result<(), String> {
         return Err("目录不存在或无法访问".to_string());
     }
 
-    #[cfg(target_os = "windows")]
-    std::process::Command::new("explorer")
-        .arg(&target)
-        .spawn()
-        .map_err(|e| format!("打开目录失败: {}", e))?;
-
-    #[cfg(target_os = "macos")]
-    std::process::Command::new("open")
-        .arg(&target)
-        .spawn()
-        .map_err(|e| format!("打开目录失败: {}", e))?;
-
-    #[cfg(target_os = "linux")]
-    std::process::Command::new("xdg-open")
-        .arg(&target)
-        .spawn()
+    let target_str = target.to_string_lossy().to_string();
+    app.shell()
+        .open(target_str, None)
         .map_err(|e| format!("打开目录失败: {}", e))?;
 
     Ok(())

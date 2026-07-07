@@ -29,21 +29,31 @@ use std::sync::atomic::{AtomicU32, Ordering};
 pub static CURRENT_GAME_PID: AtomicU32 = AtomicU32::new(0);
 
 #[tauri::command]
-pub async fn kill_current_game() -> Result<(), String> {
+pub fn kill_current_game() -> Result<(), String> {
     let pid = CURRENT_GAME_PID.load(Ordering::SeqCst);
     if pid > 0 {
         println!("⚠️ User requested to kill game process: PID {}", pid);
-        #[cfg(target_os = "windows")]
-        {
-            let _ = std::process::Command::new("taskkill")
-                .args(["/F", "/T", "/PID", &pid.to_string()])
-                .status();
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            let _ = std::process::Command::new("kill")
-                .args(["-9", &pid.to_string()])
-                .status();
+        use sysinfo::{Pid, System, ProcessesToUpdate};
+        let mut s = System::new();
+        let target_pid = Pid::from(pid as usize);
+        s.refresh_processes(ProcessesToUpdate::Some(&[target_pid]), true);
+        if let Some(process) = s.process(target_pid) {
+            process.kill();
+            println!("Sent kill signal to game process via sysinfo: PID {}", pid);
+        } else {
+            // Fallback to platform-specific process termination if sysinfo fails
+            #[cfg(target_os = "windows")]
+            {
+                let _ = std::process::Command::new("taskkill")
+                    .args(["/F", "/T", "/PID", &pid.to_string()])
+                    .status();
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                let _ = std::process::Command::new("kill")
+                    .args(["-9", &pid.to_string()])
+                    .status();
+            }
         }
     }
     Ok(())
@@ -53,7 +63,7 @@ pub async fn kill_current_game() -> Result<(), String> {
 // 新增：一键生成崩溃诊断包指令
 // ==========================================
 #[tauri::command]
-pub async fn export_diagnostics<R: Runtime>(
+pub fn export_diagnostics<R: Runtime>(
     app: AppHandle<R>,
     instance_id: String,
     launcher_logs: Vec<String>,

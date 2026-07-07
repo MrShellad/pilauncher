@@ -173,3 +173,21 @@ pub struct ThirdPartyImportProgressEvent {
     pub message: String,
     pub instance_id: Option<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ModpackUpgradeInfo {
+    pub has_update: bool,
+    pub current_version: Option<String>,
+    pub latest_version: String,
+    pub changelog: Option<String>,
+    pub new_mc_version: String,
+    pub new_loader_type: String,
+    pub new_loader_version: String,
+    pub current_mc_version: String,
+    pub backup_original_version: Option<String>,
+    pub backup_original_mc_version: Option<String>,
+    pub backup_original_loader_type: Option<String>,
+    pub backup_original_loader_version: Option<String>,
+}
+

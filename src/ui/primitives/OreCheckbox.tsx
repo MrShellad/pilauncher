@@ -11,6 +11,7 @@ interface OreCheckboxProps {
   focusKey?: string;
   onArrowPress?: (direction: string) => boolean | void;
   'aria-label'?: string;
+  autoScroll?: boolean;
 }
 
 export const OreCheckbox: React.FC<OreCheckboxProps> = ({
@@ -22,6 +23,7 @@ export const OreCheckbox: React.FC<OreCheckboxProps> = ({
   focusKey,
   onArrowPress,
   'aria-label': ariaLabel,
+  autoScroll = false,
 }) => {
   return (
     <FocusItem
@@ -29,6 +31,7 @@ export const OreCheckbox: React.FC<OreCheckboxProps> = ({
       disabled={disabled}
       onEnter={() => !disabled && onChange(!checked)}
       onArrowPress={onArrowPress}
+      autoScroll={autoScroll}
     >
       {({ ref, focused, tabIndex }) => (
         <div

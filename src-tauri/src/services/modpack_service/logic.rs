@@ -104,6 +104,10 @@ pub fn build_instance_config(
         window_height: None,
         is_favorite: None,
         global_metadata_settings: None,
+        modpack_id: Some(instance_id.to_string()),
+        modpack_uuid: metadata.pack_uuid.as_ref().map(|id| id.to_string()),
+        modpack_version: metadata.pack_version.clone(),
+        modpack_source: Some(metadata.source.clone()),
     }
 }
 

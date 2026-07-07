@@ -1,13 +1,14 @@
 // /src/features/InstanceDetail/components/tabs/OverviewPanel.tsx
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { FolderOpen, Play, ImagePlus, Clock, Calendar } from 'lucide-react';
+import { FolderOpen, Play, ImagePlus, Clock, Calendar, ArrowUp } from 'lucide-react';
 import { getButtonIcon, getButtonLabel } from '../../../../ui/icons/SocialIcons';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { SettingsSection } from '../../../../ui/layout/SettingsSection';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
+import { ModpackUpgradeModal } from '../modpack/ModpackUpgradeModal';
 import type { InstanceDetailData } from '../../../../hooks/pages/InstanceDetail/useInstanceDetail';
 import { useGameLaunch } from '../../../../hooks/useGameLaunch';
 import { useAccountStore } from '../../../../store/useAccountStore';
@@ -37,6 +38,9 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
   const [logoHovered, setLogoHovered] = useState(false);
   const [logoLoading, setLogoLoading] = useState(false);
   const [showNoAccountModal, setShowNoAccountModal] = useState(false);
+  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
+
+  const isModpack = data.tags?.includes('modpack');
 
   const { isLaunching, launchGame } = useGameLaunch();
   const inputMode = useInputMode();
@@ -205,21 +209,34 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
           </OreButton>
         </div>
 
-        {/* 右侧：实例名 + 最后游玩日期 */}
-        <div className="flex flex-col items-start md:items-end overflow-hidden w-full md:w-auto pl-0 md:pl-4">
-          <h1 className="text-xl md:text-2xl text-ore-text font-minecraft ore-text-shadow truncate w-full text-left md:text-right max-w-full md:max-w-[420px]">
-            {data.name}
-          </h1>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-1.5 w-full md:w-auto">
-            {data.playTime !== undefined && data.playTime > 0 && (
+        {/* 右侧：升级整合包按钮 + 实例名 + 最后游玩日期 */}
+        <div className="flex flex-row md:flex-row-reverse items-center gap-6 overflow-hidden w-full md:w-auto pl-0 md:pl-4">
+          {isModpack && (
+            <OreButton
+              focusKey="overview-btn-upgrade"
+              variant="secondary"
+              size="auto"
+              onClick={() => setIsUpgradeOpen(true)}
+              className="flex-1 md:flex-initial md:w-auto md:min-w-[13.5rem] h-12 md:h-14 px-6 md:px-10 text-base md:text-lg flex items-center justify-center border-ore-blue/40 text-ore-blue hover:bg-ore-blue/10 shrink-0 font-minecraft"
+            >
+              <ArrowUp className="w-5 h-5 md:w-6 md:h-6 mr-2" /> {t('instanceDetail.overview.upgradeModpack', '升级整合包')}
+            </OreButton>
+          )}
+          <div className="flex flex-col items-start md:items-end overflow-hidden flex-grow md:flex-grow-0">
+            <h1 className="text-xl md:text-2xl text-ore-text font-minecraft ore-text-shadow truncate w-full text-left md:text-right max-w-full md:max-w-[420px]">
+              {data.name}
+            </h1>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-1.5 w-full md:w-auto">
+              {data.playTime !== undefined && data.playTime > 0 && (
+                <div className="flex items-center gap-1.5 text-ore-text-muted text-base font-minecraft">
+                  <Clock size={16} />
+                  <span>{formatPlayTime(data.playTime, t)}</span>
+                </div>
+              )}
               <div className="flex items-center gap-1.5 text-ore-text-muted text-base font-minecraft">
-                <Clock size={16} />
-                <span>{formatPlayTime(data.playTime, t)}</span>
+                <Calendar size={16} />
+                <span>{data.lastPlayed ? formatRelativeTime(data.lastPlayed, t) : t('home.neverPlayed', { defaultValue: '从未游玩' })}</span>
               </div>
-            )}
-            <div className="flex items-center gap-1.5 text-ore-text-muted text-base font-minecraft">
-              <Calendar size={16} />
-              <span>{data.lastPlayed ? formatRelativeTime(data.lastPlayed, t) : t('home.neverPlayed', { defaultValue: '从未游玩' })}</span>
             </div>
           </div>
         </div>
@@ -263,6 +280,15 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
       <NoAccountModal
         isOpen={showNoAccountModal}
         onClose={() => setShowNoAccountModal(false)}
+      />
+
+      <ModpackUpgradeModal
+        instanceId={data.id}
+        isOpen={isUpgradeOpen}
+        onClose={() => setIsUpgradeOpen(false)}
+        onSuccess={() => {
+          // Trigger a reload or toast here if needed
+        }}
       />
     </div>
   );

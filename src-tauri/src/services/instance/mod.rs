@@ -11,3 +11,5 @@ pub mod resource_manager;
 pub mod save_manager;
 pub mod tag;
 pub mod verify_service;
+pub mod backup_service;
+

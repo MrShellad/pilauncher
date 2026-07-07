@@ -28,7 +28,7 @@
 
   /* 选中状态且未被聚焦/禁用时的文字 */
   .ore-checkbox-wrapper.is-checked:not(.disabled):not(.is-focused) .ore-checkbox-label {
-    color: var(--ore-btn-primary-bg);
+    @apply text-white;
   }
 
   /* ============================================== */

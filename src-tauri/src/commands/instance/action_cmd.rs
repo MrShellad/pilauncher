@@ -59,7 +59,7 @@ pub async fn remove_imported_instances<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn clean_logs<R: Runtime>(app: AppHandle<R>) -> Result<usize, String> {
+pub fn clean_logs<R: Runtime>(app: AppHandle<R>) -> Result<usize, String> {
     use crate::services::config_service::ConfigService;
     use std::fs;
     use std::path::PathBuf;
@@ -169,6 +169,10 @@ pub async fn get_instance_detail<R: Runtime>(
                     window_height: window_height.map(|h| h as u32),
                     is_favorite: Some(is_favorite != 0),
                     global_metadata_settings: None,
+                    modpack_id: None,
+                    modpack_uuid: None,
+                    modpack_version: None,
+                    modpack_source: None,
                 };
 
                 if let Err(e) = InstanceBindingService::write_instance_config(&app, &id, &config) {

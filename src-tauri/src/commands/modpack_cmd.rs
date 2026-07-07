@@ -99,3 +99,31 @@ pub async fn import_third_party_launcher_source<R: Runtime>(
 ) -> Result<ThirdPartyImportResult, String> {
     third_party_service::import_launcher_source(&app, path).await
 }
+
+#[tauri::command]
+pub async fn check_modpack_update<R: Runtime>(
+    app: AppHandle<R>,
+    instance_id: String,
+    new_pack_path: Option<String>,
+) -> Result<crate::domain::modpack::ModpackUpgradeInfo, String> {
+    modpack_service::check_modpack_update(&app, &instance_id, new_pack_path).await
+}
+
+#[tauri::command]
+pub async fn execute_modpack_upgrade<R: Runtime>(
+    app: AppHandle<R>,
+    instance_id: String,
+    new_pack_path: String,
+    skip_backup: Option<bool>,
+) -> Result<(), String> {
+    modpack_service::execute_modpack_upgrade(&app, &instance_id, &new_pack_path, skip_backup).await
+}
+
+#[tauri::command]
+pub async fn rollback_modpack_upgrade<R: Runtime>(
+    app: AppHandle<R>,
+    instance_id: String,
+) -> Result<(), String> {
+    modpack_service::rollback_modpack_upgrade(&app, &instance_id).await
+}
+

@@ -11,7 +11,7 @@ pub struct KeyBind {
 }
 
 #[tauri::command]
-pub async fn get_instance_keybindings<R: Runtime>(
+pub fn get_instance_keybindings<R: Runtime>(
     app: AppHandle<R>,
     instance_id: String,
 ) -> Result<Vec<KeyBind>, String> {
@@ -52,7 +52,7 @@ pub async fn get_instance_keybindings<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn save_instance_keybindings<R: Runtime>(
+pub fn save_instance_keybindings<R: Runtime>(
     app: AppHandle<R>,
     instance_id: String,
     keybindings: Vec<KeyBind>,
@@ -103,7 +103,7 @@ pub async fn save_instance_keybindings<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn initialize_default_keybindings<R: Runtime>(
+pub fn initialize_default_keybindings<R: Runtime>(
     app: AppHandle<R>,
     instance_id: String,
 ) -> Result<(), String> {
@@ -172,7 +172,7 @@ pub struct KeyboardLocalization {
 }
 
 #[tauri::command]
-pub async fn get_keyboard_localization<R: Runtime>(
+pub fn get_keyboard_localization<R: Runtime>(
     app: AppHandle<R>,
     lang: String,
 ) -> Result<KeyboardLocalization, String> {
@@ -295,7 +295,7 @@ fn get_default_zh_cn_localization() -> KeyboardLocalization {
 }
 
 #[tauri::command]
-pub async fn read_keybindings_file(path: String) -> Result<Vec<KeyBind>, String> {
+pub fn read_keybindings_file(path: String) -> Result<Vec<KeyBind>, String> {
     let path_buf = std::path::PathBuf::from(path);
     if !path_buf.exists() {
         return Err("文件不存在".to_string());
@@ -330,7 +330,7 @@ pub async fn read_keybindings_file(path: String) -> Result<Vec<KeyBind>, String>
 }
 
 #[tauri::command]
-pub async fn write_keybindings_file(path: String, keybindings: Vec<KeyBind>) -> Result<(), String> {
+pub fn write_keybindings_file(path: String, keybindings: Vec<KeyBind>) -> Result<(), String> {
     let path_buf = std::path::PathBuf::from(path);
     let parent = path_buf.parent().ok_or_else(|| "无法获取文件所在目录".to_string())?;
     if !parent.exists() {
@@ -367,7 +367,7 @@ pub struct KeyboardProfileListItem {
 }
 
 #[tauri::command]
-pub async fn list_presets<R: Runtime>(app: AppHandle<R>) -> Result<Vec<KeyboardProfileListItem>, String> {
+pub fn list_presets<R: Runtime>(app: AppHandle<R>) -> Result<Vec<KeyboardProfileListItem>, String> {
     let base_path_str = match crate::services::config_service::ConfigService::get_base_path(&app) {
         Ok(Some(p)) => p,
         _ => return Err("未配置基础数据目录".to_string()),
@@ -446,7 +446,7 @@ fn ensure_default_presets(preset_dir: &std::path::Path) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn list_user_profiles<R: Runtime>(app: AppHandle<R>) -> Result<Vec<KeyboardProfileListItem>, String> {
+pub fn list_user_profiles<R: Runtime>(app: AppHandle<R>) -> Result<Vec<KeyboardProfileListItem>, String> {
     let base_path_str = match crate::services::config_service::ConfigService::get_base_path(&app) {
         Ok(Some(p)) => p,
         _ => return Err("未配置基础数据目录".to_string()),
@@ -480,7 +480,7 @@ pub async fn list_user_profiles<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Key
 }
 
 #[tauri::command]
-pub async fn save_user_profile<R: Runtime>(
+pub fn save_user_profile<R: Runtime>(
     app: AppHandle<R>,
     filename: String,
     profile: KeyboardProfile,
@@ -515,7 +515,7 @@ pub async fn save_user_profile<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn delete_user_profile<R: Runtime>(
+pub fn delete_user_profile<R: Runtime>(
     app: AppHandle<R>,
     filename: String,
 ) -> Result<(), String> {
@@ -539,7 +539,7 @@ pub async fn delete_user_profile<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn backup_instance_options_file<R: Runtime>(
+pub fn backup_instance_options_file<R: Runtime>(
     app: AppHandle<R>,
     instance_id: String,
 ) -> Result<(), String> {
@@ -568,7 +568,7 @@ pub async fn backup_instance_options_file<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn has_options_backup<R: Runtime>(
+pub fn has_options_backup<R: Runtime>(
     app: AppHandle<R>,
     instance_id: String,
 ) -> Result<bool, String> {
@@ -591,7 +591,7 @@ pub async fn has_options_backup<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn restore_instance_options_backup<R: Runtime>(
+pub fn restore_instance_options_backup<R: Runtime>(
     app: AppHandle<R>,
     instance_id: String,
 ) -> Result<(), String> {

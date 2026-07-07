@@ -6,17 +6,17 @@ use tauri::{AppHandle, Runtime};
 use walkdir::WalkDir;
 
 #[tauri::command]
-pub async fn get_base_directory<R: Runtime>(app: AppHandle<R>) -> Result<Option<String>, String> {
+pub fn get_base_directory<R: Runtime>(app: AppHandle<R>) -> Result<Option<String>, String> {
     ConfigService::get_base_path(&app).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn set_base_directory<R: Runtime>(app: AppHandle<R>, path: String) -> Result<(), String> {
+pub fn set_base_directory<R: Runtime>(app: AppHandle<R>, path: String) -> Result<(), String> {
     ConfigService::set_base_path(&app, &path)
 }
 
 #[tauri::command]
-pub async fn rename_base_directory<R: Runtime>(
+pub fn rename_base_directory<R: Runtime>(
     app: AppHandle<R>,
     new_name: String,
 ) -> Result<(), String> {
@@ -44,7 +44,7 @@ pub async fn rename_base_directory<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn migrate_base_directory<R: Runtime>(
+pub fn migrate_base_directory<R: Runtime>(
     app: AppHandle<R>,
     new_path: String,
     move_data: bool,
@@ -105,7 +105,7 @@ pub async fn migrate_base_directory<R: Runtime>(
 
 /// 将当前选中的实例 ID 持久化到 base_path/config/selected_instance.json
 #[tauri::command]
-pub async fn save_selected_instance<R: Runtime>(
+pub fn save_selected_instance<R: Runtime>(
     app: AppHandle<R>,
     instance_id: String,
 ) -> Result<(), String> {
@@ -127,7 +127,7 @@ pub async fn save_selected_instance<R: Runtime>(
 
 /// 从 base_path/config/selected_instance.json 读取上次选中的实例 ID
 #[tauri::command]
-pub async fn load_selected_instance<R: Runtime>(
+pub fn load_selected_instance<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<Option<String>, String> {
     let base_path_str = match ConfigService::get_base_path(&app) {

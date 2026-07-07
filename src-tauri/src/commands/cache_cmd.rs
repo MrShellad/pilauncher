@@ -43,7 +43,7 @@ fn get_cache_file_path<R: Runtime>(
 }
 
 #[command]
-pub async fn read_session_cache<R: Runtime>(
+pub fn read_session_cache<R: Runtime>(
     app: AppHandle<R>,
     namespace: String,
 ) -> Result<Option<Value>, String> {
@@ -65,7 +65,7 @@ pub async fn read_session_cache<R: Runtime>(
 }
 
 #[command]
-pub async fn write_session_cache<R: Runtime>(
+pub fn write_session_cache<R: Runtime>(
     app: AppHandle<R>,
     namespace: String,
     data: Value,
@@ -88,7 +88,7 @@ pub async fn write_session_cache<R: Runtime>(
 }
 
 #[command]
-pub async fn read_persistent_cache<R: Runtime>(
+pub fn read_persistent_cache<R: Runtime>(
     app: AppHandle<R>,
     namespace: String,
 ) -> Result<Option<Value>, String> {
@@ -105,7 +105,7 @@ pub async fn read_persistent_cache<R: Runtime>(
 }
 
 #[command]
-pub async fn write_persistent_cache<R: Runtime>(
+pub fn write_persistent_cache<R: Runtime>(
     app: AppHandle<R>,
     namespace: String,
     data: Value,
@@ -123,7 +123,7 @@ pub async fn write_persistent_cache<R: Runtime>(
 }
 
 #[command]
-pub async fn read_shared_download_filter_config<R: Runtime>(
+pub fn read_shared_download_filter_config<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<Value, String> {
     let path = ConfigService::ensure_shared_download_filter_config(&app)?;
