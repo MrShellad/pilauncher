@@ -25,6 +25,7 @@ export const defaultHighlightRules: LogHighlightRule[] = [
  */
 export const renderHighlightedLog = (line: string, rules: LogHighlightRule[] = defaultHighlightRules): React.ReactNode => {
   let result: React.ReactNode[] = [line];
+  let keyCounter = 0;
 
   rules.forEach(rule => {
     const newResult: React.ReactNode[] = [];
@@ -45,8 +46,8 @@ export const renderHighlightedLog = (line: string, rules: LogHighlightRule[] = d
       parts.forEach((part, i) => {
         newResult.push(part);
         if (i < matches.length) {
-          // React key 在这里用 i 足矣，因为是单行内的静态拆分
-          newResult.push(<span key={i} className={rule.className}>{matches[i]}</span>);
+          keyCounter++;
+          newResult.push(<span key={`hl-${keyCounter}`} className={rule.className}>{matches[i]}</span>);
         }
       });
     });

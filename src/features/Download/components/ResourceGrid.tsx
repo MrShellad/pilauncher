@@ -276,7 +276,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   const rowVirtualizer = useVirtualizer({
     count: rowItems.length,
     getScrollElement: () => scrollElement,
-    estimateSize: () => 148,
+    estimateSize: () => 144,
     overscan: 4,
   });
 
@@ -395,7 +395,8 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
             <OreOverlayScrollArea
               ref={handleScrollContainerRef}
               id={scrollContainerId}
-              className="h-full custom-scrollbar"
+              className="h-full"
+              contentSafePaddingRight={0}
               style={{
                 height: '100%',
                 overflowY: 'auto',
@@ -432,7 +433,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
                         width: '100%',
                         transform: `translateY(${virtualRow.start + 24}px)`,
                       }}
-                      className="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] px-[1rem] pb-[0.75rem]"
+                      className="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] px-[1rem] pb-[0.5rem]"
                     >
                       {rowData.map((item, colIndex) => {
                         const itemIndex = isDoubleColumn ? rowIndex * 2 + colIndex : rowIndex;

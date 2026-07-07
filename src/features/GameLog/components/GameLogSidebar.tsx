@@ -142,7 +142,7 @@ export const GameLogSidebar: React.FC = () => {
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             className="fixed top-0 right-0 h-full w-[820px] bg-[#141415] border-l-[3px] border-[#1E1E1F] shadow-2xl z-[90] flex flex-col font-minecraft"
           >
-            <FocusBoundary id="game-log-sidebar" trapFocus={isOpen} onEscape={closeSidebarAndRestoreFocus} className="flex flex-col h-full outline-none">
+            <FocusBoundary id="game-log-sidebar" trapFocus={isOpen} onEscape={closeSidebarAndRestoreFocus} className="flex flex-col h-full min-h-0 outline-none">
 
             <div className="h-14 bg-[#1E1E1F] flex items-center justify-between px-4 shrink-0 shadow-sm z-20">
               <div className="flex items-center text-white">
@@ -189,7 +189,7 @@ export const GameLogSidebar: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col overflow-hidden relative">
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
               <TelemetryPanel showTelemetry={showTelemetry} telemetryItems={telemetryItems} />
 
               <AnimatePresence>

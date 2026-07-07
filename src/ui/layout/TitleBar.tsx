@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, Home as HomeIcon, Library as LibraryIcon, Minus, Server, Settings, Square, X, Users } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import logoImage from '../../assets/home/herologo/minecraft_title.webp';
 import { invoke } from '@tauri-apps/api/core';
 import { useLauncherStore } from '../../store/useLauncherStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
@@ -139,10 +140,15 @@ export const TitleBar: React.FC = () => {
         {!isMobile && (
           <div
             data-tauri-drag-region
-            className="flex min-w-[112px] flex-1 items-center font-minecraft text-sm tracking-wider text-white drop-shadow-md"
+            className="flex min-w-[112px] flex-1 items-center drop-shadow-md"
           >
-            <div data-tauri-drag-region className="pointer-events-none">
-              PiLauncher
+            <div data-tauri-drag-region className="pointer-events-none flex items-center">
+              <img
+                src={logoImage}
+                alt="PiLauncher"
+                className="h-[1.125rem] md:h-[1.375rem] w-auto object-contain select-none pointer-events-none"
+                data-tauri-drag-region
+              />
             </div>
           </div>
         )}

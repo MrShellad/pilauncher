@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from 'react-i18next';
@@ -35,7 +35,11 @@ const renderLogLine = (line: string): React.ReactNode => {
   while ((match = timestampPattern.exec(line)) !== null) {
     const timestamp = match[0];
     if (match.index > lastIndex) {
-      parts.push(renderHighlightedLog(line.slice(lastIndex, match.index), defaultHighlightRules));
+      parts.push(
+        <React.Fragment key={`text-${lastIndex}`}>
+          {renderHighlightedLog(line.slice(lastIndex, match.index), defaultHighlightRules)}
+        </React.Fragment>
+      );
     }
     parts.push(
       <span key={`ts-${match.index}`} className="rounded-sm bg-ore-green/10 px-1 font-bold text-ore-green">
@@ -46,7 +50,11 @@ const renderLogLine = (line: string): React.ReactNode => {
   }
 
   if (lastIndex < line.length) {
-    parts.push(renderHighlightedLog(line.slice(lastIndex), defaultHighlightRules));
+    parts.push(
+      <React.Fragment key={`text-end-${lastIndex}`}>
+        {renderHighlightedLog(line.slice(lastIndex), defaultHighlightRules)}
+      </React.Fragment>
+    );
   }
 
   return parts.length > 0 ? parts : renderHighlightedLog(line, defaultHighlightRules);
@@ -77,48 +85,70 @@ const segmentLogsByTimestamp = (logs: string[]): LogSegment[] => {
 export const LogView: React.FC<LogViewProps> = ({ logs, isOpen }) => {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLElement | Window | null>(null);
-  const parentRef = useRef<HTMLDivElement | null>(null);
+  const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
   const [copiedLine, setCopiedLine] = useState<number | null>(null);
   const logSegments = useMemo(() => segmentLogsByTimestamp(logs), [logs]);
 
   const rowVirtualizer = useVirtualizer({
     count: logSegments.length,
-    getScrollElement: () => parentRef.current,
+    getScrollElement: () => scrollElement,
     estimateSize: () => 40,
     overscan: 10,
   });
 
-  // followOutput behavior
-  const lastLogsCountRef = useRef(logSegments.length);
-  useEffect(() => {
-    const parent = parentRef.current;
-    if (!parent || logSegments.length === 0) return;
+  const isAutoScrollRef = useRef(true);
+  const isProgrammaticScrollRef = useRef(false);
+  const releaseProgrammaticScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const totalSize = rowVirtualizer.getTotalSize();
 
-    const isNearBottom = parent.scrollHeight - parent.scrollTop - parent.clientHeight <= 250;
-    const isInitialLoad = lastLogsCountRef.current === 0;
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    if (isProgrammaticScrollRef.current) return;
 
-    if (isNearBottom || isInitialLoad) {
-      rowVirtualizer.scrollToIndex(logSegments.length - 1, {
-        align: 'end',
-      });
+    const target = e.currentTarget;
+    // 10px threshold to determine if we are at the bottom (allow fractional pixels)
+    isAutoScrollRef.current = target.scrollHeight - target.scrollTop - target.clientHeight <= 10;
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    if (!scrollElement || logSegments.length === 0) return;
+
+    if (releaseProgrammaticScrollTimerRef.current) {
+      clearTimeout(releaseProgrammaticScrollTimerRef.current);
+      releaseProgrammaticScrollTimerRef.current = null;
     }
 
-    lastLogsCountRef.current = logSegments.length;
-  }, [logSegments.length, rowVirtualizer]);
+    isProgrammaticScrollRef.current = true;
+    rowVirtualizer.scrollToIndex(logSegments.length - 1, { align: 'end' });
+
+    requestAnimationFrame(() => {
+      rowVirtualizer.scrollToIndex(logSegments.length - 1, { align: 'end' });
+
+      requestAnimationFrame(() => {
+        scrollElement.scrollTop = scrollElement.scrollHeight;
+        releaseProgrammaticScrollTimerRef.current = setTimeout(() => {
+          isProgrammaticScrollRef.current = false;
+          releaseProgrammaticScrollTimerRef.current = null;
+        }, 80);
+      });
+    });
+  }, [logSegments.length, rowVirtualizer, scrollElement]);
+
+  // followOutput behavior
+  useEffect(() => {
+    if (!isOpen || logSegments.length === 0 || !scrollElement) return;
+
+    if (isAutoScrollRef.current) {
+      scrollToBottom();
+    }
+  }, [totalSize, logSegments.length, isOpen, scrollElement, scrollToBottom]);
 
   useEffect(() => {
-    if (!isOpen || logSegments.length === 0) return;
-
-    const scrollToEnd = () => {
-      rowVirtualizer.scrollToIndex(logSegments.length - 1, {
-        align: 'end',
-      });
+    return () => {
+      if (releaseProgrammaticScrollTimerRef.current) {
+        clearTimeout(releaseProgrammaticScrollTimerRef.current);
+      }
     };
-
-    scrollToEnd();
-    const timer = window.setTimeout(scrollToEnd, 0);
-    return () => window.clearTimeout(timer);
-  }, [isOpen, logSegments.length, rowVirtualizer]);
+  }, []);
 
   useEvent('ore-controller-scroll', (payload) => {
     if (!isOpen) return;
@@ -139,20 +169,28 @@ export const LogView: React.FC<LogViewProps> = ({ logs, isOpen }) => {
   return (
     <FocusItem focusKey="log-area">
       {({ ref: focusRef, focused }) => (
-        <div className="flex-1 overflow-hidden relative flex flex-col">
-          <div className={`flex-1 flex flex-col p-3 transition-all duration-200 ${focused ? 'ring-2 ring-inset ring-ore-green/60 bg-white/[0.01]' : ''}`}>
+        <div className="flex-1 min-h-0 overflow-hidden relative flex flex-col">
+          <div className={`flex-1 min-h-0 flex flex-col p-3 transition-all duration-200 ${focused ? 'ring-2 ring-inset ring-ore-green/60 bg-white/[0.01]' : ''}`}>
             {logs.length === 0 ? (
               <div className="text-ore-text-muted/50 text-center mt-20 text-sm">{t('gameLog.view.waiting', '等待标准输出...')}</div>
             ) : (
               <OreOverlayScrollArea
                 ref={(node) => {
                   if (node) {
-                    (parentRef as any).current = node;
+                    setScrollElement(node);
                     (scrollRef as any).current = node;
                     (focusRef as any).current = node;
                   }
                 }}
-                className="flex-1 custom-scrollbar"
+                onScroll={handleScroll}
+                onWheel={(e) => {
+                  isProgrammaticScrollRef.current = false;
+                  if (e.deltaY < 0) {
+                    isAutoScrollRef.current = false;
+                  }
+                }}
+                className="flex-1 min-h-0"
+                viewportClassName="custom-scrollbar"
                 style={{ overscrollBehaviorY: 'contain' }}
               >
                 <div
