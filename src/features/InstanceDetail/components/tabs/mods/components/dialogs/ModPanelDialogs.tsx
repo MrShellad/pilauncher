@@ -13,6 +13,7 @@ import type { ModPanelDialogActions, ModPanelDialogState } from '../../hooks/use
 
 interface ModPanelDialogsProps {
   instanceConfig: any;
+  instanceId?: string;
   mods: ModMeta[];
   snapshotState: 'idle' | 'snapshotting' | 'rolling_back';
   state: ModPanelDialogState;
@@ -28,6 +29,7 @@ interface ModPanelDialogsProps {
 
 export const ModPanelDialogs: React.FC<ModPanelDialogsProps> = ({
   instanceConfig,
+  instanceId,
   mods,
   snapshotState,
   state,
@@ -55,6 +57,7 @@ export const ModPanelDialogs: React.FC<ModPanelDialogsProps> = ({
         mod={state.selectedMod}
         allMods={mods}
         instanceConfig={instanceConfig}
+        instanceId={instanceId}
         onClose={actions.closeModDetail}
         onToggle={actions.toggleSelectedMod}
         onDelete={actions.deleteModFromDetail}

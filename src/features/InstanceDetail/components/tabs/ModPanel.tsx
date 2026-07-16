@@ -268,6 +268,7 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
 
       <ModPanelDialogs
         instanceConfig={controller.state.instanceConfig}
+        instanceId={instanceId}
         mods={controller.state.mods}
         snapshotState={controller.state.snapshotState}
         state={controller.dialogs.state}

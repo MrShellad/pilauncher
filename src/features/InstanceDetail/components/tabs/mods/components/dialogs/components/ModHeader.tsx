@@ -1,16 +1,53 @@
 // src/features/InstanceDetail/components/tabs/mods/components/dialogs/components/ModHeader.tsx
 import React from 'react';
-import { Blocks, Loader2 } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Blocks, Clock3, Download, ExternalLink, Heart, Loader2, Monitor, Server } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { FocusItem } from '../../../../../../../../ui/focus/FocusItem';
 
 import { useModIcon } from '../../../../../../logic/modIconService';
 import { getModPreferredPlatform, type ModMeta } from '../../../../../../logic/modService';
 import { PLATFORM_LABELS } from '../utils/modDetailUtils';
+import { formatDate, formatNumber } from '../../../../../../../../utils/formatters';
+import { openExternalLink } from '../../../../../../../../utils/openExternalLink';
+import { CurseforgeIcon, ModrinthIcon } from '../../../../../../../Download/components/Icons';
 
 interface ModHeaderProps {
   mod: ModMeta;
   displayMod: ModMeta | null;
 }
+
+const renderEnvChip = (
+  env: string | undefined,
+  type: 'client' | 'server',
+  t: ReturnType<typeof useTranslation>['t']
+) => {
+  if (!env || env === 'unsupported') return null;
+
+  const Icon = type === 'client' ? Monitor : Server;
+  const isRequired = env === 'required';
+  const label = type === 'client'
+    ? t('download.env.client', { defaultValue: 'Client' })
+    : t('download.env.server', { defaultValue: 'Server' });
+
+  return (
+    <span
+      className={`
+        inline-flex items-center gap-1 border-[2px] border-[var(--ore-downloadDetail-divider)] px-1.5 py-0.5
+        text-[9px] font-minecraft uppercase tracking-[0.14em]
+        ${isRequired
+          ? 'bg-[#6CC349] text-black shadow-[inset_0_-2px_0_#3C8527]'
+          : 'bg-[var(--ore-downloadDetail-rowBg)] text-[var(--ore-downloadDetail-rowText)] shadow-[var(--ore-downloadDetail-chipShadow)]'}
+      `}
+    >
+      <Icon size={10} />
+      {label}
+      {isRequired
+        ? t('download.env.required', { defaultValue: 'Required' })
+        : t('download.env.optional', { defaultValue: 'Optional' })}
+    </span>
+  );
+};
 
 export const ModHeader: React.FC<ModHeaderProps> = ({ mod, displayMod }) => {
   const { t } = useTranslation();
@@ -36,38 +73,132 @@ export const ModHeader: React.FC<ModHeaderProps> = ({ mod, displayMod }) => {
       ? t('instanceDetail.mods.header.linked', { defaultValue: '已链接至 {{source}}', source: sourceLabel }) 
       : t('instanceDetail.mods.header.unmatched', { defaultValue: '未找到匹配项目' }));
 
+  const handleOpenWeb = () => {
+    if (!displayMod?.networkInfo) return;
+    const url = displayMod.networkInfo.source === 'curseforge'
+      ? `https://www.curseforge.com/projects/${displayMod.networkInfo.id}`
+      : `https://modrinth.com/project/${displayMod.networkInfo.slug || displayMod.networkInfo.id}`;
+    openExternalLink(url);
+  };
+
+  const author = displayMod?.networkInfo?.author || t('download.meta.unknownAuthor', { defaultValue: 'Unknown' });
+  const networkInfo = displayMod?.networkInfo;
+
   return (
-    <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 shrink-0 font-minecraft">
-      <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto sm:mx-0 flex-shrink-0 bg-[var(--ore-color-background-surface-deep)] border-[2px] border-[var(--ore-border-color)] flex items-center justify-center p-1 rounded-sm relative shadow-sm">
+    <div
+      className="flex flex-shrink-0 gap-3 border-b-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-surface)] px-4 py-2.5"
+      style={{ boxShadow: 'var(--ore-downloadDetail-headerShadow)' }}
+    >
+      <motion.div
+        layoutId={`mod-icon-container-${mod.fileName}`}
+        className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] relative"
+        style={{ boxShadow: 'var(--ore-downloadDetail-sectionShadow)' }}
+      >
         {mod.isFetchingNetwork && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-            <Loader2 className="animate-spin text-ore-green" />
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+            <Loader2 className="animate-spin text-ore-green" size={16} />
           </div>
         )}
-
         {detailIconUrl ? (
-          <img src={detailIconUrl} alt="icon" className="w-full h-full object-cover rounded-sm" />
+          <motion.img
+            layoutId={`mod-icon-image-${mod.fileName}`}
+            src={detailIconUrl}
+            alt=""
+            className="h-full w-full object-cover"
+          />
         ) : (
-          <Blocks size={36} className="text-gray-600" />
+          <motion.div
+            layoutId={`mod-icon-placeholder-${mod.fileName}`}
+            className="flex h-full w-full items-center justify-center"
+          >
+            <Blocks size={28} className="text-white/75" />
+          </motion.div>
+        )}
+      </motion.div>
+
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          <h2 className="min-w-0 truncate font-minecraft text-lg text-white xl:text-xl flex items-center gap-2">
+            <span className="truncate">{displayMod?.name || displayMod?.networkInfo?.title || displayMod?.fileName}</span>
+            {!displayMod?.isEnabled && (
+              <span className="flex-shrink-0 text-[10px] bg-[var(--ore-color-background-danger-subtle)] text-[var(--ore-color-text-danger-default)] px-1.5 py-0.5 border-[2px] border-[var(--ore-border-color)] tracking-wider font-minecraft uppercase">
+                {t('instanceDetail.mods.header.disabled', { defaultValue: '已禁用' })}
+              </span>
+            )}
+          </h2>
+          {networkInfo && (
+            <span className="font-minecraft text-[10px] uppercase tracking-[0.14em] text-[var(--ore-downloadDetail-labelText)]">
+              {t('download.meta.byAuthor', { defaultValue: 'by {{author}}', author })}
+            </span>
+          )}
+          <div className="ml-1 flex flex-wrap items-center gap-1.5">
+            {renderEnvChip(networkInfo?.client_side, 'client', t)}
+            {renderEnvChip(networkInfo?.server_side, 'server', t)}
+          </div>
+        </div>
+
+        {networkInfo ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-minecraft uppercase tracking-[0.12em] text-[var(--ore-downloadDetail-hintText)]">
+            <span className="inline-flex items-center gap-1 text-[#6CC349]">
+              <Download size={12} />
+              {formatNumber(networkInfo.downloads)}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[#F46D6D]">
+              <Heart size={12} />
+              {formatNumber(networkInfo.follows || 0)}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[#8CB3FF]">
+              <Clock3 size={12} />
+              {formatDate(networkInfo.date_modified)}
+            </span>
+            <span className="text-[var(--ore-downloadDetail-hintText)] opacity-60">
+              • {sizeText} • {displayMod.fileName}
+            </span>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-minecraft uppercase tracking-[0.12em] text-[var(--ore-downloadDetail-hintText)]">
+            <span className="text-[var(--ore-downloadDetail-hintText)]">
+              {sizeText}
+            </span>
+            <span>•</span>
+            <span className="truncate max-w-[12rem] sm:max-w-xs text-gray-400" title={displayMod?.fileName}>
+              {displayMod?.fileName}
+            </span>
+            <span>•</span>
+            <span className="text-gray-400">{statusText}</span>
+          </div>
         )}
       </div>
 
-      <div className="flex-1 min-w-0 flex flex-col justify-center text-center sm:text-left">
-        <h2 className="text-lg sm:text-xl font-minecraft text-white drop-shadow-sm flex flex-col sm:flex-row items-center sm:justify-start gap-2 sm:gap-3 truncate mb-1.5">
-          <span className="truncate">{displayMod?.name || displayMod?.networkInfo?.title || displayMod?.fileName}</span>
-          {!displayMod?.isEnabled && (
-            <span className="flex-shrink-0 text-xs bg-[var(--ore-color-background-danger-subtle)] text-[var(--ore-color-text-danger-default)] px-1.5 py-0.5 rounded-[2px] border-[2px] border-[var(--ore-border-color)] tracking-wider">
-              {t('instanceDetail.mods.header.disabled', { defaultValue: '已禁用' })}
-            </span>
-          )}
-        </h2>
-        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-3 sm:gap-x-5 gap-y-1.5 text-xs sm:text-sm text-gray-400">
-          <span className="truncate max-w-[12rem] sm:max-w-xs">{t('instanceDetail.mods.header.fileLabel', { defaultValue: '文件: {{fileName}}', fileName: displayMod?.fileName })}</span>
-          <span>{t('instanceDetail.mods.header.sizeLabel', { defaultValue: '大小: {{size}}', size: sizeText })}</span>
-          <span>{t('instanceDetail.mods.header.sourceLabel', { defaultValue: '来源: {{source}}', source: sourceLabel })}</span>
-          <span>{t('instanceDetail.mods.header.statusLabel', { defaultValue: '状态: {{status}}', status: statusText })}</span>
+      {networkInfo && (
+        <div className="flex shrink-0 flex-col items-end justify-center ml-2">
+          <FocusItem focusKey="mod-modal-header-open-web">
+            {({ ref, focused }: { ref: any; focused: boolean }) => (
+              <button
+                ref={ref}
+                onClick={handleOpenWeb}
+                className={`flex h-8 items-center gap-1.5 border-[2px] bg-[var(--ore-downloadDetail-base)] px-2.5 shadow-[inset_0_-2px_0_rgba(0,0,0,0.2)] transition-colors hover:bg-[var(--ore-downloadDetail-rowBg)] active:translate-y-[1px] active:shadow-none ${
+                  focused ? 'border-white shadow-[0_0_1rem_rgba(255,255,255,0.2)]' : 'border-[var(--ore-downloadDetail-divider)]'
+                }`}
+                title={t('download.openInBrowser', { defaultValue: 'Open in Browser' })}
+              >
+                {networkInfo.source === 'curseforge' ? (
+                  <>
+                    <CurseforgeIcon className="text-[14px] text-[#F16436]" />
+                    <span className="font-minecraft text-[10px] uppercase tracking-[0.1em] text-white">CurseForge</span>
+                  </>
+                ) : (
+                  <>
+                    <ModrinthIcon className="text-[14px] text-[#1BD96A]" />
+                    <span className="font-minecraft text-[10px] uppercase tracking-[0.1em] text-white">Modrinth</span>
+                  </>
+                )}
+                <ExternalLink size={12} className="ml-0.5 text-[var(--ore-downloadDetail-hintText)]" />
+              </button>
+            )}
+          </FocusItem>
         </div>
-      </div>
+      )}
     </div>
   );
 };
