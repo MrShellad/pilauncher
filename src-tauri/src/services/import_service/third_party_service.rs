@@ -253,7 +253,7 @@ pub(crate) fn register_candidate_instance(
     Ok(())
 }
 
-pub async fn import_single_instance<R: Runtime>(
+pub fn import_single_instance<R: Runtime>(
     app: &AppHandle<R>,
     path: String,
 ) -> Result<Option<MissingRuntime>, String> {
@@ -291,7 +291,7 @@ pub async fn import_single_instance<R: Runtime>(
     ))
 }
 
-pub async fn detect_launcher_sources<R: Runtime>(
+pub fn detect_launcher_sources<R: Runtime>(
     app: &AppHandle<R>,
     path: Option<String>,
 ) -> Result<Vec<ThirdPartyImportSource>, String> {
@@ -321,7 +321,7 @@ pub async fn detect_launcher_sources<R: Runtime>(
     Ok(sources)
 }
 
-pub async fn import_launcher_source<R: Runtime>(
+pub fn import_launcher_source<R: Runtime>(
     app: &AppHandle<R>,
     path: String,
 ) -> Result<ThirdPartyImportResult, String> {

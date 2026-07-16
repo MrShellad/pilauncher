@@ -1,12 +1,13 @@
 import { useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { getCurrentWindow, UserAttentionType } from '@tauri-apps/api/window';
+import { UserAttentionType } from '@tauri-apps/api/window';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import type { GameSettings } from '../../../types/settings';
-
+ 
 type LauncherVisibility = GameSettings['launcherVisibility'];
-
+ 
 export const useWindowService = () => {
-  const appWindowRef = useRef(getCurrentWindow());
+  const appWindowRef = useRef(getCurrentWebviewWindow());
   const foregroundLockRef = useRef(false);
   const launcherHiddenByRuntimeRef = useRef(false);
 

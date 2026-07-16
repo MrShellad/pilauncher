@@ -14,7 +14,7 @@ import { FocusProvider } from './ui/focus/FocusProvider';
 import { OreToastContainer } from './ui/primitives/OreToast';
 import i18n from './ui/i18';
 import { TitleBar } from './ui/layout/TitleBar';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import './ui/i18';
 
 import Home from './pages/Home';
@@ -195,12 +195,15 @@ const App: React.FC = () => {
     startupJavaScanDoneRef.current = true;
 
     if (!javaAutoDetect) return;
-    void (async () => {
-      const result = await triggerJavaAutoDetect({ source: 'startup', notifyIfChanged: false });
-      if (result?.changed && result.hasPreviousSnapshot) {
-        setIsJavaEnvChangedDialogOpen(true);
-      }
-    })();
+    const timer = setTimeout(() => {
+      void (async () => {
+        const result = await triggerJavaAutoDetect({ source: 'startup', notifyIfChanged: false });
+        if (result?.changed && result.hasPreviousSnapshot) {
+          setIsJavaEnvChangedDialogOpen(true);
+        }
+      })();
+    }, 5000);
+    return () => clearTimeout(timer);
   }, [hasHydrated, javaAutoDetect, triggerJavaAutoDetect]);
 
   useEffect(() => {
@@ -209,12 +212,12 @@ const App: React.FC = () => {
     if (isMobile) {
       // Force fullscreen via Tauri appWindow
       try {
-        const appWindow = getCurrentWindow();
+        const appWindow = getCurrentWebviewWindow();
         appWindow.setFullscreen(true).catch((err: any) => {
           console.warn('[App] Failed to set fullscreen via Tauri:', err);
         });
       } catch (err) {
-        console.warn('[App] Failed to access Tauri getCurrentWindow:', err);
+        console.warn('[App] Failed to access Tauri getCurrentWebviewWindow:', err);
       }
 
       // Force landscape orientation via Screen Orientation API
@@ -228,7 +231,10 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    void ensureSessionRefresh();
+    const timer = setTimeout(() => {
+      void ensureSessionRefresh();
+    }, 2000);
+    return () => clearTimeout(timer);
   }, [ensureSessionRefresh]);
 
   useEffect(() => {
@@ -236,11 +242,14 @@ const App: React.FC = () => {
     if (clientInstallationTelemetryRequested) return;
     clientInstallationTelemetryRequested = true;
 
-    import('@tauri-apps/api/core').then(({ invoke }) => {
-      invoke('track_client_installation').catch((err) => {
-        console.warn('[App] Client installation telemetry upload skipped or failed:', err);
+    const timer = setTimeout(() => {
+      import('@tauri-apps/api/core').then(({ invoke }) => {
+        invoke('track_client_installation').catch((err) => {
+          console.warn('[App] Client installation telemetry upload skipped or failed:', err);
+        });
       });
-    });
+    }, 15000);
+    return () => clearTimeout(timer);
   }, [hasHydrated, telemetryUploadEnabled]);
 
   useEffect(() => {
@@ -304,9 +313,12 @@ const App: React.FC = () => {
 
   // ✅ 启动时初始化手柄 Mod 注册表（从 Modrinth/CurseForge API 拉取版本信息）
   useEffect(() => {
-    initGamepadModRegistry().catch((err) => {
-      console.warn('[App] 手柄 Mod 注册表初始化失败（不影响使用）:', err);
-    });
+    const timer = setTimeout(() => {
+      initGamepadModRegistry().catch((err) => {
+        console.warn('[App] 手柄 Mod 注册表初始化失败（不影响使用）:', err);
+      });
+    }, 10000);
+    return () => clearTimeout(timer);
   }, []);
 
   // 允许输入框/文本区域使用右键菜单，对于其他区域进行禁用，保证无障碍剪贴板操作

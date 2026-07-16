@@ -279,7 +279,7 @@ export const useModOperations = ({
         projectId,
         targetVersionId,
         targetVersionName || undefined,
-        oldFileName !== targetFileName ? oldFileName : undefined
+        oldFileName
       );
       if (platform) {
         const matchedPlatforms = {

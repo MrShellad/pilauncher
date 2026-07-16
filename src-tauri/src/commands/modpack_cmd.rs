@@ -10,19 +10,19 @@ use crate::services::modpack_service::export::ExportConfig;
 use tauri::{AppHandle, Runtime};
 
 #[tauri::command]
-pub async fn import_local_instances_folders<R: Runtime>(
+pub fn import_local_instances_folders<R: Runtime>(
     app: AppHandle<R>,
     paths: Vec<String>,
 ) -> Result<ImportResult, String> {
-    local_instance_service::import_local_instances_folders(&app, paths).await
+    local_instance_service::import_local_instances_folders(&app, paths)
 }
 
 #[tauri::command]
-pub async fn import_third_party_instance<R: Runtime>(
+pub fn import_third_party_instance<R: Runtime>(
     app: AppHandle<R>,
     path: String,
 ) -> Result<Option<MissingRuntime>, String> {
-    third_party_service::import_single_instance(&app, path).await
+    third_party_service::import_single_instance(&app, path)
 }
 
 #[tauri::command]
@@ -42,7 +42,7 @@ pub async fn download_missing_runtimes<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn parse_modpack_metadata(path: String) -> Result<ModpackMetadata, String> {
+pub fn parse_modpack_metadata(path: String) -> Result<ModpackMetadata, String> {
     modpack_service::parse_modpack(&path)
 }
 
@@ -69,11 +69,11 @@ pub async fn download_and_import_modpack<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn scan_instances_in_dir<R: Runtime>(
+pub fn scan_instances_in_dir<R: Runtime>(
     app: AppHandle<R>,
     path: String,
 ) -> Result<ImportResult, String> {
-    local_instance_service::scan_instances_in_dir(&app, path).await
+    local_instance_service::scan_instances_in_dir(&app, path)
 }
 
 #[tauri::command]
@@ -85,19 +85,19 @@ pub async fn export_modpack<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn detect_third_party_launcher_sources<R: Runtime>(
+pub fn detect_third_party_launcher_sources<R: Runtime>(
     app: AppHandle<R>,
     path: Option<String>,
 ) -> Result<Vec<ThirdPartyImportSource>, String> {
-    third_party_service::detect_launcher_sources(&app, path).await
+    third_party_service::detect_launcher_sources(&app, path)
 }
 
 #[tauri::command]
-pub async fn import_third_party_launcher_source<R: Runtime>(
+pub fn import_third_party_launcher_source<R: Runtime>(
     app: AppHandle<R>,
     path: String,
 ) -> Result<ThirdPartyImportResult, String> {
-    third_party_service::import_launcher_source(&app, path).await
+    third_party_service::import_launcher_source(&app, path)
 }
 
 #[tauri::command]

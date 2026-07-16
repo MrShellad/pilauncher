@@ -86,6 +86,7 @@ pub fn run() {
     builder = builder
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_opener::init())
         .manage(lan_state.clone());
 
     builder = commands::register(builder);

@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ModMeta } from '../../../../logic/modService';
 import { subscribeToModIcon, type ModIconPriority, type ModIconSnapshot } from '../../../../logic/modIconService';
@@ -11,8 +11,7 @@ const getModIconSnapshotKey = (mod: ModMeta) => {
   return [
     mod.cacheKey || mod.fileName,
     mod.fileName,
-    mod.modifiedAt || 0,
-    mod.fileSize || 0,
+    mod.iconAbsolutePath || '',
     mod.networkIconUrl || mod.networkInfo?.icon_url || ''
   ].join('|');
 };
@@ -106,7 +105,13 @@ export const useModIconSubscription = ({
 
       mods.forEach((mod) => {
         const currentSnapshot = current[mod.fileName];
-        const rememberedSnapshot = rememberedIconSnapshots.get(getModIconSnapshotKey(mod));
+        const key = getModIconSnapshotKey(mod);
+        const rememberedSnapshot = rememberedIconSnapshots.get(key);
+
+        if (currentSnapshot && !rememberedSnapshot && currentSnapshot.status === 'ready' && currentSnapshot.src) {
+          rememberIconSnapshot(mod, currentSnapshot);
+        }
+
         const nextSnapshot = currentSnapshot || rememberedSnapshot;
 
         if (nextSnapshot && next[mod.fileName] !== nextSnapshot) {
@@ -174,23 +179,21 @@ export const useModIconSubscription = ({
 
           rememberIconSnapshot(mod, snapshot);
 
-          startTransition(() => {
-            setIconSnapshots((current) => {
-              const previous = current[mod.fileName];
-              if (
-                previous?.key === snapshot.key &&
-                previous?.src === snapshot.src &&
-                previous?.status === snapshot.status &&
-                previous?.isPlaceholder === snapshot.isPlaceholder
-              ) {
-                return current;
-              }
+          setIconSnapshots((current) => {
+            const previous = current[mod.fileName];
+            if (
+              previous?.key === snapshot.key &&
+              previous?.src === snapshot.src &&
+              previous?.status === snapshot.status &&
+              previous?.isPlaceholder === snapshot.isPlaceholder
+            ) {
+              return current;
+            }
 
-              return {
-                ...current,
-                [mod.fileName]: snapshot
-              };
-            });
+            return {
+              ...current,
+              [mod.fileName]: snapshot
+            };
           });
         }).then((disconnect) => {
           if (subDisposed) {

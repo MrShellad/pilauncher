@@ -26,7 +26,7 @@ pub fn generate_offline_uuid(name: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub async fn upload_offline_skin<R: Runtime>(
+pub fn upload_offline_skin<R: Runtime>(
     app: AppHandle<R>,
     uuid: String,
     source_path: String,
@@ -44,7 +44,7 @@ pub async fn fetch_offline_skin_from_mojang<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn delete_offline_account_dir<R: Runtime>(
+pub fn delete_offline_account_dir<R: Runtime>(
     app: AppHandle<R>,
     uuid: String,
 ) -> Result<(), String> {
@@ -135,7 +135,7 @@ pub async fn clear_active_cape<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn get_wardrobe_skin_library<R: Runtime>(
+pub fn get_wardrobe_skin_library<R: Runtime>(
     app: AppHandle<R>,
     account_uuid: String,
 ) -> Result<WardrobeSkinLibrary, String> {
@@ -143,7 +143,7 @@ pub async fn get_wardrobe_skin_library<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn save_wardrobe_skin_asset<R: Runtime>(
+pub fn save_wardrobe_skin_asset<R: Runtime>(
     app: AppHandle<R>,
     account_uuid: String,
     source_path: String,
@@ -153,7 +153,7 @@ pub async fn save_wardrobe_skin_asset<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn delete_wardrobe_skin_asset<R: Runtime>(
+pub fn delete_wardrobe_skin_asset<R: Runtime>(
     app: AppHandle<R>,
     account_uuid: String,
     asset_id: String,
@@ -162,7 +162,7 @@ pub async fn delete_wardrobe_skin_asset<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn set_wardrobe_skin_asset_variant<R: Runtime>(
+pub fn set_wardrobe_skin_asset_variant<R: Runtime>(
     app: AppHandle<R>,
     account_uuid: String,
     asset_id: String,
@@ -172,7 +172,7 @@ pub async fn set_wardrobe_skin_asset_variant<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn set_active_wardrobe_skin_offline<R: Runtime>(
+pub fn set_active_wardrobe_skin_offline<R: Runtime>(
     app: AppHandle<R>,
     account_uuid: String,
     asset_id: String,

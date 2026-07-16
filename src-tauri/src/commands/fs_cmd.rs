@@ -228,8 +228,8 @@ pub fn open_path_in_file_manager<R: Runtime>(
     app: AppHandle<R>,
     path: String,
 ) -> Result<(), String> {
-    use tauri_plugin_shell::ShellExt;
-
+    use tauri_plugin_opener::OpenerExt;
+ 
     let input = PathBuf::from(path);
     let target = if input.is_file() {
         input
@@ -239,16 +239,16 @@ pub fn open_path_in_file_manager<R: Runtime>(
     } else {
         input
     };
-
+ 
     if !target.exists() || !target.is_dir() {
         return Err("目录不存在或无法访问".to_string());
     }
-
+ 
     let target_str = target.to_string_lossy().to_string();
-    app.shell()
-        .open(target_str, None)
+    app.opener()
+        .open_path(target_str, None::<&str>)
         .map_err(|e| format!("打开目录失败: {}", e))?;
-
+ 
     Ok(())
 }
 

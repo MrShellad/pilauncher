@@ -206,7 +206,11 @@ pub fn route_library_urls(original: &str, dl_settings: &DownloadSettings) -> Vec
 
 pub fn route_assets_index_urls(original: &str, dl_settings: &DownloadSettings) -> Vec<String> {
     let mut urls = Vec::new();
-    let official_base = "https://launchermeta.mojang.com";
+    let official_base = if original.starts_with("https://piston-meta.mojang.com") {
+        "https://piston-meta.mojang.com"
+    } else {
+        "https://launchermeta.mojang.com"
+    };
     let default_mirror = "https://bmclapi2.bangbang93.com";
 
     match dl_settings.vanilla_source.as_str() {

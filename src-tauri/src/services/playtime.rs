@@ -118,6 +118,9 @@ pub struct PlaytimeService;
 impl PlaytimeService {
     pub fn spawn_background_tasks<R: Runtime + 'static>(app: AppHandle<R>, pool: SqlitePool) {
         tauri::async_runtime::spawn(async move {
+            // 🌟 延迟 5 秒执行，避开冷启动峰值
+            tokio::time::sleep(Duration::from_secs(5)).await;
+
             if let Err(error) = Self::recover_stale_sessions(&app, &pool).await {
                 eprintln!(
                     "[Playtime] Failed to recover stale sessions on startup: {}",

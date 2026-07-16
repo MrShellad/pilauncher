@@ -17,7 +17,7 @@ pub struct BackgroundPanoramaSet {
 }
 
 #[tauri::command]
-pub async fn get_settings<R: Runtime>(app: AppHandle<R>) -> Result<serde_json::Value, String> {
+pub fn get_settings<R: Runtime>(app: AppHandle<R>) -> Result<serde_json::Value, String> {
     // 🌟 修复：如果没拿到基础路径，不再抛出错误，而是温柔地返回一个空 JSON
     let base_path_str = match ConfigService::get_base_path(&app) {
         Ok(Some(path)) => path,
@@ -39,7 +39,7 @@ pub async fn get_settings<R: Runtime>(app: AppHandle<R>) -> Result<serde_json::V
 }
 
 #[tauri::command]
-pub async fn save_settings<R: Runtime>(
+pub fn save_settings<R: Runtime>(
     app: AppHandle<R>,
     settings: serde_json::Value,
 ) -> Result<(), String> {
@@ -63,7 +63,7 @@ pub async fn save_settings<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn import_background_image<R: Runtime>(
+pub fn import_background_image<R: Runtime>(
     app: AppHandle<R>,
     source_path: String,
 ) -> Result<String, String> {
@@ -91,7 +91,7 @@ pub async fn import_background_image<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn delete_background_image(path: String) -> Result<(), String> {
+pub fn delete_background_image(path: String) -> Result<(), String> {
     let file_path = Path::new(&path);
     if file_path.exists() {
         std::fs::remove_file(file_path).map_err(|e| e.to_string())?;
@@ -100,7 +100,7 @@ pub async fn delete_background_image(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn list_background_panoramas<R: Runtime>(
+pub fn list_background_panoramas<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<Vec<BackgroundPanoramaSet>, String> {
     let base_path_str = match ConfigService::get_base_path(&app) {
@@ -202,7 +202,7 @@ pub async fn list_background_panoramas<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn import_panorama_from_pack<R: Runtime>(
+pub fn import_panorama_from_pack<R: Runtime>(
     app: AppHandle<R>,
     pack_path: String,
 ) -> Result<String, String> {
@@ -325,7 +325,7 @@ pub async fn import_panorama_from_pack<R: Runtime>(
 
 // 获取按键映射
 #[tauri::command]
-pub async fn get_keybindings<R: Runtime>(app: AppHandle<R>) -> Result<serde_json::Value, String> {
+pub fn get_keybindings<R: Runtime>(app: AppHandle<R>) -> Result<serde_json::Value, String> {
     // 🌟 修复：同上兜底
     let base_path_str = match ConfigService::get_base_path(&app) {
         Ok(Some(path)) => path,
@@ -348,7 +348,7 @@ pub async fn get_keybindings<R: Runtime>(app: AppHandle<R>) -> Result<serde_json
 
 // 保存按键映射
 #[tauri::command]
-pub async fn save_keybindings<R: Runtime>(
+pub fn save_keybindings<R: Runtime>(
     app: AppHandle<R>,
     bindings: serde_json::Value,
 ) -> Result<(), String> {

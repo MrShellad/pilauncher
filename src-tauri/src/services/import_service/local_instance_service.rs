@@ -47,7 +47,7 @@ fn copy_and_check_instance(
     ))
 }
 
-pub async fn import_local_instances_folders<R: Runtime>(
+pub fn import_local_instances_folders<R: Runtime>(
     app: &AppHandle<R>,
     paths: Vec<String>,
 ) -> Result<ImportResult, String> {
@@ -98,7 +98,7 @@ pub async fn import_local_instances_folders<R: Runtime>(
     Ok(ImportResult { added, missing })
 }
 
-pub async fn scan_instances_in_dir<R: Runtime>(
+pub fn scan_instances_in_dir<R: Runtime>(
     app: &AppHandle<R>,
     path: String,
 ) -> Result<ImportResult, String> {
