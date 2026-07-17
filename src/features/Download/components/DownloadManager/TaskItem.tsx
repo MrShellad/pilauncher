@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { motion } from 'motion/react';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
@@ -112,11 +112,11 @@ const renderLogLine = (log: string, index: number) => {
   const messageParts = message.split(highlightRegex);
 
   return (
-    <div key={index} className="mb-[0.125rem] flex items-center truncate">
+    <div key={index} className="mb-[0.125rem] flex items-start">
       <span className="mr-[0.5rem] shrink-0 rounded-[0.1875rem] border border-white/5 bg-black/40 px-[0.25rem] text-[#A0A0A0]">
         {time}
       </span>
-      <span className="text-gray-300">
+      <span className="min-w-0 flex-1 break-words text-gray-300">
         {messageParts.map((part, partIndex) => {
           if (highlightRegex.test(part)) {
             const isErrorPart = /failed|error/i.test(part);
@@ -161,16 +161,43 @@ export const TaskItem = ({
 }: {
   task: DownloadTask;
   taskCount: number;
-  setActiveTab: any;
-  removeTask: any;
+  setActiveTab: (tab: string) => void;
+  removeTask: (id: string) => void;
 }) => {
   const [showLogs, setShowLogs] = useState(false);
+  const logViewportRef = useRef<HTMLDivElement | null>(null);
+  const shouldStickToLatestLogRef = useRef(true);
 
   const isDone = task.status === 'completed';
   const isError = task.status === 'error';
   const isResource = task.taskType === 'resource';
   const isUpdate = task.taskType === 'update';
   const latestLog = task.logs.length > 0 ? task.logs[task.logs.length - 1] : null;
+
+  useEffect(() => {
+    const viewport = logViewportRef.current;
+    if (!showLogs || !viewport || !shouldStickToLatestLogRef.current) return;
+
+    requestAnimationFrame(() => {
+      viewport.scrollTop = viewport.scrollHeight;
+    });
+  }, [showLogs, task.logs.length]);
+
+  const toggleLogs = () => {
+    setShowLogs((prev) => {
+      const next = !prev;
+      if (next) {
+        shouldStickToLatestLogRef.current = true;
+      }
+      return next;
+    });
+  };
+
+  const handleLogScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const viewport = event.currentTarget;
+    const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+    shouldStickToLatestLogRef.current = distanceFromBottom < 24;
+  };
 
   useInputAction('ACTION_Y', () => {
     const focusKey = getCurrentFocusKey();
@@ -180,7 +207,7 @@ export const TaskItem = ({
       focusKey === `btn-retry-${task.id}` ||
       focusKey === `btn-complete-${task.id}`
     )) {
-      setShowLogs((prev) => !prev);
+      toggleLogs();
     }
   });
 
@@ -287,7 +314,7 @@ export const TaskItem = ({
             focusKey={`btn-log-${task.id}`}
             variant="ghost"
             size="auto"
-            onClick={() => setShowLogs(!showLogs)}
+            onClick={toggleLogs}
             className="!min-w-0 !h-[clamp(2.25rem,3vw,2.5rem)] !px-[0.625rem]"
           >
             <div className="flex items-center gap-[0.25rem] text-[0.75rem] text-ore-text-muted transition-colors hover:text-white">
@@ -370,6 +397,8 @@ export const TaskItem = ({
         className="overflow-hidden"
       >
         <OreOverlayScrollArea
+          ref={logViewportRef}
+          onScroll={handleLogScroll}
           className="max-h-[12rem] rounded-[0.1875rem] border border-[#2A2A2C] bg-[#141415]"
           contentClassName="p-[0.5rem] font-mono text-[0.75rem] leading-[1.5]"
           contentSafePaddingRight={12}

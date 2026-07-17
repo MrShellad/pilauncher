@@ -7,6 +7,7 @@
 
   .ore-overlay-scrollarea__viewport {
     @apply h-full min-h-0 overflow-y-auto overflow-x-hidden;
+    max-height: inherit;
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
