@@ -375,7 +375,7 @@ const App: React.FC = () => {
 
   return (
     <FocusProvider>
-      <div className="relative flex h-[100dvh] w-screen flex-col overflow-hidden text-ore-text">
+      <div className="relative flex h-[100dvh] w-screen flex-col overflow-hidden text-ore-text ore-safe-padding">
         <OreBackground />
         
         {/* 跳过导航链接 */}

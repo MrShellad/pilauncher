@@ -287,7 +287,7 @@ export class SkinEngine {
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.NoToneMapping;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
     enableSampleAlphaToCoverage(this.renderer);
 
     this.scene = new THREE.Scene();

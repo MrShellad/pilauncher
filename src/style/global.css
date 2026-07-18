@@ -54,11 +54,11 @@
   --ore-modal-w: 100dvw;
   --ore-modal-max-h: 100dvh;
   --ore-btn-sm-min-w: 5rem;
-  --ore-btn-sm-h: 2.25rem;
+  --ore-btn-sm-h: 2.5rem;
   --ore-btn-md-min-w: 7.5rem;
-  --ore-btn-md-h: 2.5rem;
+  --ore-btn-md-h: 2.75rem;
   --ore-btn-lg-min-w: 10rem;
-  --ore-btn-lg-h: 2.75rem;
+  --ore-btn-lg-h: 3rem;
   --ore-btn-auto-min-w: 4.5rem;
 }
 
@@ -75,11 +75,11 @@
   --ore-modal-w: min(760px, 94vw);
   --ore-modal-max-h: min(86dvh, 760px);
   --ore-btn-sm-min-w: 5rem;
-  --ore-btn-sm-h: 2.125rem;
+  --ore-btn-sm-h: 2.5rem;
   --ore-btn-md-min-w: 7rem;
-  --ore-btn-md-h: 2.25rem;
+  --ore-btn-md-h: 2.75rem;
   --ore-btn-lg-min-w: 9rem;
-  --ore-btn-lg-h: 2.5rem;
+  --ore-btn-lg-h: 3rem;
   --ore-btn-auto-min-w: 4.5rem;
 }
 
@@ -315,3 +315,10 @@ html, body {
   inherits: true;
   initial-value: -120%;
 }
+
+/* Safe Area utilities */
+.ore-safe-padding {
+  padding-left: env(safe-area-inset-left, 0px) !important;
+  padding-right: env(safe-area-inset-right, 0px) !important;
+}
+
