@@ -4,6 +4,7 @@ import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/
 import { OreOverlayScrollArea } from '../../../ui/primitives/OreOverlayScrollArea';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import { ShimmerOverlay } from './ShimmerOverlay';
+import { useScreenDensity } from '../../../hooks/ui/useScreenDensity';
 
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import type { InstalledModIndex, ModMeta } from '../../InstanceDetail/logic/modService';
@@ -175,12 +176,13 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   const [shouldAnimateLayout, setShouldAnimateLayout] = useState(false);
   const reflowTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [isDoubleColumn, setIsDoubleColumn] = useState(() => window.innerWidth > 1920);
+  const density = useScreenDensity();
+  const [isDoubleColumn, setIsDoubleColumn] = useState(() => window.innerWidth > 1920 && density !== 'compact');
   const lastFocusedIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
     const handleResize = () => {
-      const double = window.innerWidth > 1920;
+      const double = window.innerWidth > 1920 && density !== 'compact';
       if (double !== isDoubleColumn) {
         setShouldAnimateLayout(true);
         if (reflowTimeoutRef.current) {
@@ -201,6 +203,8 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
       }
     };
 
+    handleResize();
+
     window.addEventListener('resize', handleResize);
     return () => {
       window.removeEventListener('resize', handleResize);
@@ -208,7 +212,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
         clearTimeout(reflowTimeoutRef.current);
       }
     };
-  }, [isDoubleColumn]);
+  }, [isDoubleColumn, density]);
 
   useEffect(() => {
     latestLoadMoreRef.current = { hasMore, isLoading, isLoadingMore, loadMoreFailed, onLoadMore };

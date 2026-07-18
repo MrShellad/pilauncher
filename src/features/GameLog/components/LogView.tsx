@@ -6,6 +6,7 @@ import { Copy, Check } from 'lucide-react';
 import { useEvent } from '../../../hooks/useEvent';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { OreOverlayScrollArea } from '../../../ui/primitives/OreOverlayScrollArea';
+import { useScreenDensity } from '../../../hooks/ui/useScreenDensity';
 import {
   renderHighlightedLog,
   defaultHighlightRules,
@@ -84,6 +85,8 @@ const segmentLogsByTimestamp = (logs: string[]): LogSegment[] => {
 
 export const LogView: React.FC<LogViewProps> = ({ logs, isOpen }) => {
   const { t } = useTranslation();
+  const density = useScreenDensity();
+  const isTv = density === 'tv';
   const scrollRef = useRef<HTMLElement | Window | null>(null);
   const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
   const [copiedLine, setCopiedLine] = useState<number | null>(null);
@@ -92,7 +95,7 @@ export const LogView: React.FC<LogViewProps> = ({ logs, isOpen }) => {
   const rowVirtualizer = useVirtualizer({
     count: logSegments.length,
     getScrollElement: () => scrollElement,
-    estimateSize: () => 40,
+    estimateSize: () => isTv ? 60 : 40,
     overscan: 10,
   });
 
@@ -217,7 +220,7 @@ export const LogView: React.FC<LogViewProps> = ({ logs, isOpen }) => {
                           width: '100%',
                           transform: `translateY(${virtualRow.start}px)`,
                         }}
-                        className="group relative font-jetbrains hover:bg-[#1E1E1F] px-2 py-1.5 border-b border-white/[0.06] transition-colors pr-10 text-[13px] leading-relaxed break-all select-text"
+                        className={`group relative font-jetbrains hover:bg-[#1E1E1F] px-2 py-1.5 border-b border-white/[0.06] transition-colors pr-10 leading-relaxed break-all select-text text-[${isTv ? '16px' : '13px'}]`}
                       >
                         {segment.lines.map((line, lineIndex) => (
                           <div

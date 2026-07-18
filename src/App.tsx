@@ -32,6 +32,7 @@ import { JavaEnvironmentChangedDialog } from './features/runtime/components/Java
 import { RuntimeRepairDialogHost } from './features/runtime/components/RuntimeRepairDialogHost';
 import { StartupUpdateChecker } from './features/Settings/components/StartupUpdateChecker';
 import { useWebDavAutoSync } from './hooks/useWebDavAutoSync';
+import { useScreenDensity } from './hooks/ui/useScreenDensity';
 
 const News = lazy(() => import('./pages/News'));
 const Instances = lazy(() => import('./pages/Instances'));
@@ -128,6 +129,7 @@ const ResourceDownloadGuard: React.FC<{ activeTab: string }> = ({ activeTab }) =
 };
 
 const App: React.FC = () => {
+  useScreenDensity();
   useWebDavAutoSync();
   const activeTab = useLauncherStore((state) => state.activeTab);
   const ensureSessionRefresh = useNewsStore((state) => state.ensureSessionRefresh);
@@ -373,7 +375,7 @@ const App: React.FC = () => {
 
   return (
     <FocusProvider>
-      <div className="relative flex h-screen w-screen flex-col overflow-hidden text-ore-text">
+      <div className="relative flex h-[100dvh] w-screen flex-col overflow-hidden text-ore-text">
         <OreBackground />
         
         {/* 跳过导航链接 */}

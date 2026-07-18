@@ -17,6 +17,7 @@ import { useMicrosoftAuth } from '../../Settings/hooks/useMicrosoftAuth';
 import { MicrosoftAuthModal } from '../../Settings/components/modals/MicrosoftAuthModal';
 import { MicrosoftAccountSidebar } from './MicrosoftAccountSidebar';
 import { LanTrustModal } from '../../lan/LanTrustModal';
+import { useScreenDensity } from '../../../hooks/ui/useScreenDensity';
 
 // ✅ 引入本地默认头像作为终极兜底
 import defaultAvatar from '../../../assets/home/account/128.png';
@@ -35,6 +36,7 @@ interface PiStyleConfig {
 
 export const PlayStats: React.FC<PlayStatsProps> = ({ instanceId, playTime, lastPlayed }) => {
   const { t } = useTranslation();
+  const density = useScreenDensity();
   const setActiveTab = useLauncherStore(state => state.setActiveTab);
   const unreadNewsCount = useNewsStore(state => state.unreadCount);
   const [piConfig, setPiConfig] = useState<PiStyleConfig | null>(null);
@@ -117,99 +119,165 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ instanceId, playTime, last
   const accountSquareClass = "!min-w-0 !w-[var(--home-side-button)] !h-[var(--home-side-button)] !p-0 !justify-center !items-center !text-[#111214] [&_svg]:!text-[#111214]";
   const profileButtonClass = "!h-[var(--home-side-button)] !min-w-0 !px-[clamp(1rem,1.5vw,2rem)] !text-[length:var(--home-side-font)] !text-[#111214] [&_svg]:!text-[#111214]";
 
+  const isCompact = density === 'compact';
+
   return (
     <>
-      <motion.div
-        initial={OreMotionTokens.homeLeftPanel.initial}
-        animate={OreMotionTokens.homeLeftPanel.animate}
-        transition={OreMotionTokens.homeLeftPanel.transition}
-        className="absolute bottom-[clamp(1.5rem,5vh,5rem)] left-[var(--home-panel-edge)] z-30 flex flex-col gap-[clamp(1.25rem,2.4vh,3rem)]"
-      >
-
-        <div className="mb-[clamp(0.375rem,0.8vh,1rem)] flex flex-col gap-[clamp(0.75rem,1.3vh,1.5rem)]">
-          {piConfig?.wiki && (() => {
-            const WikiIcon = getButtonIcon('wiki');
-            return (
-              <OreButton focusKey="btn-wiki" variant="secondary" size="auto" className={squareBtnClass} style={piConfig.buttonStyle} onClick={() => void openExternalLink(piConfig.wiki!.url)} title={piConfig.wiki!.label || 'Wiki'} autoScroll={false}>
-                <WikiIcon size="var(--home-side-icon)" />
+      {isCompact ? (
+        <div className="absolute top-[3.25rem] left-[1rem] right-[1rem] z-30 flex items-center justify-between pointer-events-auto">
+          {/* Left group: Profile button, Notifications button, and Socials */}
+          <div className="flex items-center gap-2">
+            {!currentAccount ? (
+              <OreButton focusKey="btn-login" variant="secondary" size="auto" className="!h-9 !min-w-0 px-3 text-xs !text-[#111214] [&_svg]:!text-[#111214]" onClick={msAuthState.startMicrosoftLogin} autoScroll={false}>
+                <span className="mt-[0.03125rem] leading-none tracking-widest">{t('home.addAccount')}</span>
               </OreButton>
-            );
-          })()}
+            ) : (
+              <OreButton focusKey="btn-profile" variant="secondary" size="auto" className="!h-9 !min-w-0 px-3 text-xs !justify-start !text-[#111214] [&_svg]:!text-[#111214]" onClick={() => setIsSidebarOpen(true)} autoScroll={false}>
+                <img
+                  src={avatarSrc || defaultAvatar}
+                  onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultAvatar; }}
+                  alt="Profile"
+                  className="mr-2 h-5 w-5 border border-black/20 shadow-sm"
+                  style={{ imageRendering: 'pixelated' }}
+                />
+                <span className="mt-[0.03125rem] leading-none tracking-widest">{currentAccount.name}</span>
+              </OreButton>
+            )}
 
-          {piConfig?.socials && piConfig.socials.length > 0 && (
-            <div className="flex gap-[clamp(0.75rem,1.2vw,1.5rem)]">
-              {piConfig.socials.slice(0, 5).map((social, index) => (
-                <OreButton key={index} focusKey={`btn-social-${index}`} variant="secondary" size="auto" className={squareBtnClass} style={piConfig.buttonStyle} onClick={() => void openExternalLink(social.url)} title={social.type} autoScroll={false}>
-                  {renderSocialIcon(social.type)}
-                </OreButton>
-              ))}
+            {/* Notifications button */}
+            <div className="relative">
+              <OreButton
+                focusKey="btn-notification"
+                variant="secondary"
+                size="auto"
+                className="!min-w-0 !w-9 !h-9 !p-0 !justify-center !items-center !text-[#111214] [&_svg]:!text-[#111214]"
+                onClick={() => setActiveTab('news')}
+                title={t('home.notification')}
+                autoScroll={false}
+              >
+                <NewspaperIcon className="block h-4 w-4 shrink-0 text-black drop-shadow-md" />
+              </OreButton>
+              {unreadNewsCount > 0 && (
+                <div className="pointer-events-none absolute right-[-0.25rem] top-[-0.25rem] z-20 min-w-[1.25rem] select-none rounded-sm border border-[#1E1E1F] bg-ore-red px-[0.25rem] py-[0.05rem] text-center font-minecraft text-[8px] font-bold leading-none text-white shadow-sm">
+                  {unreadNewsCount > 99 ? '99+' : unreadNewsCount}
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        <div className="flex items-center gap-[clamp(0.75rem,1.2vw,1.5rem)]">
-          <div className="relative">
-            <OreButton
-              focusKey="btn-notification"
-              variant="secondary"
-              size="auto"
-              className={accountSquareClass}
-              style={piConfig?.buttonStyle}
-              onClick={() => {
-                setActiveTab('news');
-              }}
-              title={t('home.notification')}
-              autoScroll={false}
-            >
-              <NewspaperIcon className="block h-[var(--home-side-icon)] w-[var(--home-side-icon)] shrink-0 text-black drop-shadow-md" />
-            </OreButton>
-            {unreadNewsCount > 0 && (
-              <div className="pointer-events-none absolute right-[-0.5rem] top-[-0.5rem] z-20 min-w-[clamp(1.45rem,1.7vw,2.25rem)] select-none rounded-sm border-[0.125rem] border-[#1E1E1F] bg-ore-red px-[0.375rem] py-[0.125rem] text-center font-minecraft text-[clamp(0.625rem,0.75vw,0.9375rem)] font-bold leading-none text-white shadow-sm">
-                {unreadNewsCount > 99 ? '99+' : unreadNewsCount}
+            {/* Wiki button */}
+            {piConfig?.wiki && (() => {
+              const WikiIcon = getButtonIcon('wiki');
+              return (
+                <OreButton focusKey="btn-wiki" variant="secondary" size="auto" className="!min-w-0 !w-9 !h-9 !p-0 !justify-center !items-center !text-[#111214] [&_svg]:!text-[#111214]" onClick={() => void openExternalLink(piConfig.wiki!.url)} title={piConfig.wiki!.label || 'Wiki'} autoScroll={false}>
+                  <WikiIcon size={16} />
+                </OreButton>
+              );
+            })()}
+          </div>
+
+          {/* Right group: Play Stats (very compact) */}
+          <div className="flex flex-col items-end gap-0.5 text-right font-minecraft text-xs drop-shadow-md text-white/90">
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-ore-text-muted uppercase tracking-wider">{t('home.playTime')}:</span>
+              <span className="font-bold text-white">{formatPlayTime(playTime, t)}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-ore-text-muted uppercase tracking-wider">{t('home.lastPlayed')}:</span>
+              <span className="font-bold text-white">{lastPlayed ? formatRelativeTime(lastPlayed, t) : t('home.neverPlayed', { defaultValue: '从未进行游戏' })}</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <motion.div
+          initial={OreMotionTokens.homeLeftPanel.initial}
+          animate={OreMotionTokens.homeLeftPanel.animate}
+          transition={OreMotionTokens.homeLeftPanel.transition}
+          className="absolute bottom-[clamp(1.5rem,5vh,5rem)] left-[var(--home-panel-edge)] z-30 flex flex-col gap-[clamp(1.25rem,2.4vh,3rem)]"
+        >
+          <div className="mb-[clamp(0.375rem,0.8vh,1rem)] flex flex-col gap-[clamp(0.75rem,1.3vh,1.5rem)]">
+            {piConfig?.wiki && (() => {
+              const WikiIcon = getButtonIcon('wiki');
+              return (
+                <OreButton focusKey="btn-wiki" variant="secondary" size="auto" className={squareBtnClass} style={piConfig.buttonStyle} onClick={() => void openExternalLink(piConfig.wiki!.url)} title={piConfig.wiki!.label || 'Wiki'} autoScroll={false}>
+                  <WikiIcon size="var(--home-side-icon)" />
+                </OreButton>
+              );
+            })()}
+
+            {piConfig?.socials && piConfig.socials.length > 0 && (
+              <div className="flex gap-[clamp(0.75rem,1.2vw,1.5rem)]">
+                {piConfig.socials.slice(0, 5).map((social, index) => (
+                  <OreButton key={index} focusKey={`btn-social-${index}`} variant="secondary" size="auto" className={squareBtnClass} style={piConfig.buttonStyle} onClick={() => void openExternalLink(social.url)} title={social.type} autoScroll={false}>
+                    {renderSocialIcon(social.type)}
+                  </OreButton>
+                ))}
               </div>
             )}
           </div>
 
-          {!currentAccount ? (
-            <OreButton focusKey="btn-login" variant="secondary" size="auto" className={profileButtonClass} style={piConfig?.buttonStyle} onClick={msAuthState.startMicrosoftLogin} autoScroll={false}>
-              <span className="mt-[0.03125rem] leading-none tracking-widest">{t('home.addAccount')}</span>
-            </OreButton>
-          ) : (
-            <OreButton focusKey="btn-profile" variant="secondary" size="auto" className={`${profileButtonClass} !justify-start`} style={piConfig?.buttonStyle} onClick={() => setIsSidebarOpen(true)} autoScroll={false}>
-              {/* ✅ 彻底采用本地图片作为 onerror 断网兜底 */}
-              <img
-                src={avatarSrc || defaultAvatar}
-                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultAvatar; }}
-                alt="Profile"
-                className={`mr-[clamp(0.75rem,1vw,1.25rem)] h-[clamp(1.75rem,2vw,2.75rem)] w-[clamp(1.75rem,2vw,2.75rem)] border border-black/20 shadow-sm transition-opacity duration-300 ${avatarSrc ? 'opacity-100' : 'opacity-30'}`}
-                style={{ imageRendering: 'pixelated' }}
-              />
-              <span className="mt-[0.03125rem] leading-none tracking-widest">{t('home.profile')}</span>
-            </OreButton>
-          )}
-        </div>
+          <div className="flex items-center gap-[clamp(0.75rem,1.2vw,1.5rem)]">
+            <div className="relative">
+              <OreButton
+                focusKey="btn-notification"
+                variant="secondary"
+                size="auto"
+                className={accountSquareClass}
+                style={piConfig?.buttonStyle}
+                onClick={() => {
+                  setActiveTab('news');
+                }}
+                title={t('home.notification')}
+                autoScroll={false}
+              >
+                <NewspaperIcon className="block h-[var(--home-side-icon)] w-[var(--home-side-icon)] shrink-0 text-black drop-shadow-md" />
+              </OreButton>
+              {unreadNewsCount > 0 && (
+                <div className="pointer-events-none absolute right-[-0.5rem] top-[-0.5rem] z-20 min-w-[clamp(1.45rem,1.7vw,2.25rem)] select-none rounded-sm border-[0.125rem] border-[#1E1E1F] bg-ore-red px-[0.375rem] py-[0.125rem] text-center font-minecraft text-[clamp(0.625rem,0.75vw,0.9375rem)] font-bold leading-none text-white shadow-sm">
+                  {unreadNewsCount > 99 ? '99+' : unreadNewsCount}
+                </div>
+              )}
+            </div>
 
-        <div 
-          key={instanceId}
-          className="mt-[clamp(0.75rem,1.6vh,2rem)] flex flex-col gap-[clamp(0.25rem,0.55vh,0.625rem)]"
-        >
-          <span className="text-[clamp(0.75rem,0.9vw,1.125rem)] font-bold uppercase tracking-wider text-ore-text-muted">{t('home.playTime')}</span>
-          <span 
-            key={playTime}
-            className="font-minecraft text-[clamp(1.25rem,1.5vw,2.25rem)] text-white drop-shadow-md"
+            {!currentAccount ? (
+              <OreButton focusKey="btn-login" variant="secondary" size="auto" className={profileButtonClass} style={piConfig?.buttonStyle} onClick={msAuthState.startMicrosoftLogin} autoScroll={false}>
+                <span className="mt-[0.03125rem] leading-none tracking-widest">{t('home.addAccount')}</span>
+              </OreButton>
+            ) : (
+              <OreButton focusKey="btn-profile" variant="secondary" size="auto" className={`${profileButtonClass} !justify-start`} style={piConfig?.buttonStyle} onClick={() => setIsSidebarOpen(true)} autoScroll={false}>
+                <img
+                  src={avatarSrc || defaultAvatar}
+                  onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = defaultAvatar; }}
+                  alt="Profile"
+                  className={`mr-[clamp(0.75rem,1vw,1.25rem)] h-[clamp(1.75rem,2vw,2.75rem)] w-[clamp(1.75rem,2vw,2.75rem)] border border-black/20 shadow-sm transition-opacity duration-300 ${avatarSrc ? 'opacity-100' : 'opacity-30'}`}
+                  style={{ imageRendering: 'pixelated' }}
+                />
+                <span className="mt-[0.03125rem] leading-none tracking-widest">{t('home.profile')}</span>
+              </OreButton>
+            )}
+          </div>
+
+          <div 
+            key={instanceId}
+            className="mt-[clamp(0.75rem,1.6vh,2rem)] flex flex-col gap-[clamp(0.25rem,0.55vh,0.625rem)]"
           >
-            {formatPlayTime(playTime, t)}
-          </span>
-          
-          <span className="mt-[clamp(0.75rem,1.3vh,1.5rem)] text-[clamp(0.75rem,0.9vw,1.125rem)] font-bold uppercase tracking-wider text-ore-text-muted">{t('home.lastPlayed')}</span>
-          <span 
-            key={lastPlayed}
-            className="font-minecraft text-[clamp(1rem,1.2vw,1.75rem)] text-white drop-shadow-md"
-          >
-            {lastPlayed ? formatRelativeTime(lastPlayed, t) : t('home.neverPlayed', { defaultValue: '从未进行游戏' })}
-          </span>
-        </div>
-      </motion.div>
+            <span className="text-[clamp(0.75rem,0.9vw,1.125rem)] font-bold uppercase tracking-wider text-ore-text-muted">{t('home.playTime')}</span>
+            <span 
+              key={playTime}
+              className="font-minecraft text-[clamp(1.25rem,1.5vw,2.25rem)] text-white drop-shadow-md"
+            >
+              {formatPlayTime(playTime, t)}
+            </span>
+            
+            <span className="mt-[clamp(0.75rem,1.3vh,1.5rem)] text-[clamp(0.75rem,0.9vw,1.125rem)] font-bold uppercase tracking-wider text-ore-text-muted">{t('home.lastPlayed')}</span>
+            <span 
+              key={lastPlayed}
+              className="font-minecraft text-[clamp(1rem,1.2vw,1.75rem)] text-white drop-shadow-md"
+            >
+              {lastPlayed ? formatRelativeTime(lastPlayed, t) : t('home.neverPlayed', { defaultValue: '从未进行游戏' })}
+            </span>
+          </div>
+        </motion.div>
+      )}
 
       <MicrosoftAuthModal {...msAuthState} isOpen={msAuthState.isLoginModalOpen} onClose={() => msAuthState.setIsLoginModalOpen(false)} />
       <MicrosoftAccountSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />

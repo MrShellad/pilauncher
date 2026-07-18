@@ -9,6 +9,7 @@ import { FocusBoundary } from '../focus/FocusBoundary';
 import { FocusItem } from '../focus/FocusItem';
 import { focusManager } from '../focus/FocusManager';
 import '../../style/tokens/designToken';
+import { useScreenDensity } from '../../hooks/ui/useScreenDensity';
 
 interface OreModalProps {
   isOpen: boolean;
@@ -45,6 +46,7 @@ export const OreModal: React.FC<OreModalProps> = ({
   role = 'dialog',
   'aria-describedby': ariaDescribedby,
 }) => {
+  const density = useScreenDensity();
   const modalId = useId();
   const boundaryId = `modal-boundary-${modalId.replace(/:/g, '')}`;
   const titleId = `modal-title-${boundaryId}`;
@@ -125,7 +127,7 @@ export const OreModal: React.FC<OreModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <div
-          className={`fixed inset-0 flex items-center justify-center p-4 sm:p-6 ${wrapperClassName}`}
+          className={`fixed inset-0 flex items-center justify-center ${density === 'compact' ? 'p-0' : 'p-4 sm:p-6'} ${wrapperClassName}`}
           onMouseDown={(e) => {
             if (e.target === e.currentTarget && closeOnOutsideClick) {
               onClose();
@@ -146,7 +148,7 @@ export const OreModal: React.FC<OreModalProps> = ({
             trapFocus={isOpen}
             onEscape={onClose}
             defaultFocusKey={boundaryDefaultFocusKey}
-            className="relative z-10 outline-none"
+            className="relative z-10 outline-none w-full h-full flex items-center justify-center pointer-events-none [&>*]:pointer-events-auto"
           >
             <FocusItem focusKey={modalEntryFocusKey} autoScroll={false}>
               {({ ref, tabIndex }) => (
@@ -171,11 +173,11 @@ export const OreModal: React.FC<OreModalProps> = ({
               transition={{ duration: 0.15, ease: 'easeOut' }}
               className={`
                 relative flex flex-col overflow-hidden rounded-[2px]
-                bg-[var(--ore-modal-bg)] border-[3px] border-[var(--ore-border-color)]
+                bg-[var(--ore-modal-bg)] border-[var(--ore-border-color)]
                 shadow-[var(--ore-modal-shadow)]
-                ${className}
+                ${density === 'compact' ? 'w-full h-full border-0' : `border-[3px] ${className}`}
               `}
-              style={{ maxHeight: '85vh' }}
+              style={{ maxHeight: 'var(--ore-modal-max-h, 85vh)' }}
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
             >
@@ -227,7 +229,7 @@ export const OreModal: React.FC<OreModalProps> = ({
 
               {actions && (
                 <div
-                  className={`flex-shrink-0 flex flex-wrap items-center justify-end gap-3 px-6 py-4 bg-[var(--ore-modal-footer-bg)] border-t-[3px] border-[var(--ore-border-color)] relative z-20 ${actionsClassName}`}
+                  className={`flex-shrink-0 flex flex-wrap items-center justify-end gap-3 px-6 py-4 bg-[var(--ore-modal-footer-bg)] border-t-[3px] border-[var(--ore-border-color)] relative z-20 ${actionsClassName} ${density === 'compact' ? '[&>*]:flex-1 w-full gap-2 px-3 py-2.5' : ''}`}
                   style={{ boxShadow: 'var(--ore-modal-footer-shadow)' }}
                 >
                   {actions}

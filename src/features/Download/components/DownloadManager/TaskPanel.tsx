@@ -4,6 +4,7 @@ import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
 import type { DownloadTask } from '../../../../store/useDownloadStore';
 import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
+import { useScreenDensity } from '../../../../hooks/ui/useScreenDensity';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreSwitch } from '../../../../ui/primitives/OreSwitch';
 import { ControlHint } from '../../../../ui/components/ControlHint';
@@ -21,6 +22,9 @@ export const TaskPanel = ({
   autoOpenOnce,
   onAutoOpenOnceChange
 }: any) => {
+  const density = useScreenDensity();
+  const isCompact = density === 'compact';
+
   const activeTasksCount = taskList.filter((task: DownloadTask) => task.status === 'downloading').length;
   const completedTasksCount = taskList.filter((task: DownloadTask) => task.status === 'completed').length;
 
@@ -47,11 +51,17 @@ export const TaskPanel = ({
     return (b.lastUpdate || 0) - (a.lastUpdate || 0);
   });
 
+  const compactVariants = {
+    hidden: { y: '100%' },
+    visible: { y: 0, transition: { type: 'spring' as const, damping: 25, stiffness: 250 } },
+    exit: { y: '100%', transition: { ease: 'easeInOut' as const, duration: 0.2 } }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          variants={OreMotionTokens.downloadPanelContainer}
+          variants={isCompact ? compactVariants : OreMotionTokens.downloadPanelContainer}
           initial="hidden"
           animate="visible"
           exit="exit"
@@ -60,7 +70,11 @@ export const TaskPanel = ({
               setFocus('btn-taskpanel-hide');
             }
           }}
-          className="z-[1000] mb-[1.25rem] flex w-[clamp(22rem,85vw,40rem)] max-h-[calc(100vh-120px)] flex-col overflow-hidden border-[0.125rem] border-[var(--ore-border-color)] bg-[var(--ore-modal-bg)] text-[var(--ore-modal-content-text)]"
+          className={`z-[1000] flex flex-col overflow-hidden bg-[var(--ore-modal-bg)] text-[var(--ore-modal-content-text)]
+            ${isCompact 
+              ? 'fixed bottom-0 left-0 right-0 mb-0 h-[70dvh] max-h-[70dvh] w-full border-t-[0.125rem] border-[var(--ore-border-color)] rounded-t-lg'
+              : 'mb-[1.25rem] w-[clamp(22rem,85vw,40rem)] max-h-[calc(100vh-120px)] border-[0.125rem] border-[var(--ore-border-color)]'
+            }`}
           style={{ boxShadow: 'var(--ore-modal-shadow)' }}
         >
           <FocusBoundary

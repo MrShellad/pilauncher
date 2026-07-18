@@ -27,9 +27,11 @@ import { Filter, Tags, Search } from 'lucide-react';
 import { InstanceCardView } from '../features/Instances/components/InstanceCardView';
 import { OreOverlayScrollArea } from '../ui/primitives/OreOverlayScrollArea';
 import { LayoutGroup } from 'motion/react';
+import { useScreenDensity } from '../hooks/ui/useScreenDensity';
 
 const Instances: React.FC = () => {
   const { t } = useTranslation();
+  const density = useScreenDensity();
   const {
     instances,
     filteredInstances,
@@ -101,135 +103,241 @@ const Instances: React.FC = () => {
       className="flex h-full w-full flex-col overflow-hidden px-6 pb-6 pt-1 sm:pt-2 md:pt-4 sm:px-8 sm:pb-8"
     >
       <h1 className="sr-only">{t('nav.instances', '实例')}</h1>
-      <div className="mb-4 flex w-full flex-wrap items-center justify-between gap-4 lg:mb-5">
-        {/* 左侧组：视图切换、搜索、排序、标签 */}
-        <div className="flex flex-row items-center gap-3 flex-wrap sm:flex-nowrap">
-          <FocusItem focusKey="view-toggle" onEnter={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}>
-            {({ ref, focused }) => (
-              <button
-                ref={ref}
-                onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                className={`flex items-center justify-center h-[40px] w-[40px] rounded-sm bg-[#1E1E1F] border-2 border-ore-gray-border transition-colors focus:outline-none hover:bg-white/10 ${focused ? 'outline outline-[3px] outline-offset-[2px] outline-white z-10' : ''
-                  }`}
-                title={viewMode === 'grid' ? t('instancesPage.viewToggleList', '切换为列表视图') : t('instancesPage.viewToggleGrid', '切换为网格视图')}
-                tabIndex={-1}
-              >
-                {viewMode === 'grid' ? <List size={18} className="text-white" /> : <LayoutGrid size={18} className="text-white" />}
-              </button>
-            )}
-          </FocusItem>
-
-          <div className="flex-1 min-w-[140px] max-w-[220px]">
+      {density === 'compact' ? (
+        <div className="mb-3 flex w-full flex-col gap-2">
+          {/* Row 1: Search (Full Width) */}
+          <div className="w-full">
             <OreInput
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t('instancesPage.searchPlaceholder', '搜索实例...')}
-              prefixNode={<Search size={16} />}
+              prefixNode={<Search size={15} />}
               focusKey="instances-search"
-              height="40px"
-              className="!text-sm"
+              height="36px"
+              className="!text-xs"
             />
           </div>
-
-          <div className="w-[180px] flex-shrink-0">
-            <OreDropdown
-              options={[
-                { label: t('instancesPage.sortOptions.lastPlayed', '最近游玩'), value: "lastPlayed" },
-                { label: t('instancesPage.sortOptions.createdAt', '创建时间'), value: "createdAt" }
-              ]}
-              value={sortBy}
-              onChange={(v) => setSortBy(v as SortType)}
-              focusKey="instances-sort"
-              className="!h-[40px]"
-              prefixNode={<Filter size={14} />}
-            />
-          </div>
-
-          <FocusItem focusKey="instances-tags" onEnter={() => setIsTagModalOpen(true)}>
-            {({ ref, focused }) => (
-              <div ref={ref} className={`flex-shrink-0 transition-all ${focused ? 'outline outline-2 outline-white rounded-sm z-10' : ''}`}>
-                <OreButton
-                  variant="secondary"
-                  size="auto"
-                  className="!h-[40px] px-4 relative !min-w-0 !m-0"
-                  onClick={() => setIsTagModalOpen(true)}
+          {/* Row 2: Other controls */}
+          <div className="flex w-full items-center gap-2 flex-wrap">
+            <FocusItem focusKey="view-toggle" onEnter={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}>
+              {({ ref, focused }) => (
+                <button
+                  ref={ref}
+                  onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                  className={`flex items-center justify-center h-9 w-9 rounded-sm bg-[#1E1E1F] border-2 border-ore-gray-border transition-colors focus:outline-none hover:bg-white/10 ${focused ? 'outline outline-2 outline-white z-10' : ''}`}
+                  title={viewMode === 'grid' ? t('instancesPage.viewToggleList', '切换为列表视图') : t('instancesPage.viewToggleGrid', '切换为网格视图')}
                   tabIndex={-1}
                 >
-                  <Tags size={14} className="mr-1.5 flex-shrink-0" />
-                  <span className="font-minecraft text-sm">{t('instancesPage.tagsBtn', '标签')}</span>
-                  {selectedTags.length > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 bg-ore-green text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">
-                      {selectedTags.length}
-                    </span>
-                  )}
-                </OreButton>
-              </div>
-            )}
-          </FocusItem>
-        </div>
+                  {viewMode === 'grid' ? <List size={15} className="text-white" /> : <LayoutGrid size={15} className="text-white" />}
+                </button>
+              )}
+            </FocusItem>
 
-        {/* 右侧组：操作按钮 */}
-        <div className="flex flex-row items-center gap-3 flex-wrap sm:flex-nowrap p-2 -m-2">
-          <FocusItem focusKey="action-new" onEnter={handleCreate}>
-            {({ ref, focused }) => (
-              <div
-                ref={ref}
-                className={`flex-shrink-0 rounded-sm transition-shadow duration-150 ${focused
-                    ? 'outline outline-2 outline-offset-[4px] outline-white'
-                    : 'outline outline-2 outline-offset-[4px] outline-transparent'
-                  }`}
-              >
-                <OreButton
-                  variant="primary"
-                  size="auto"
-                  className="!h-[40px] !min-w-0 !px-0 !m-0"
-                  onClick={handleCreate}
-                  tabIndex={-1}
-                >
-                  <span className="flex h-full min-w-[clamp(9.2rem,14.2vw,15.4rem)] items-center justify-center whitespace-nowrap px-3">
-                    <Plus className="mr-[clamp(0.35rem,0.6vw,0.6rem)] h-[clamp(0.9rem,1.1vw,1.25rem)] w-[clamp(0.9rem,1.1vw,1.25rem)] flex-shrink-0" />
-                    <span className="font-minecraft text-[clamp(0.9rem,0.84rem+0.4vw,1.15rem)] tracking-wider">
-                      {t('instancesPage.actionNew', '新建实例')}
-                    </span>
-                  </span>
-                </OreButton>
-              </div>
-            )}
-          </FocusItem>
+            <div className="w-[110px] flex-shrink-0">
+              <OreDropdown
+                options={[
+                  { label: t('instancesPage.sortOptions.lastPlayed', '最近游玩'), value: "lastPlayed" },
+                  { label: t('instancesPage.sortOptions.createdAt', '创建时间'), value: "createdAt" }
+                ]}
+                value={sortBy}
+                onChange={(v) => setSortBy(v as SortType)}
+                focusKey="instances-sort"
+                className="!h-9"
+                prefixNode={<Filter size={12} />}
+              />
+            </div>
 
-          <FocusItem focusKey="action-import-external" onEnter={() => setIsImportOptionModalOpen(true)}>
-            {({ ref, focused }) => (
-              <div
-                ref={ref}
-                className={`flex-shrink-0 rounded-sm transition-shadow duration-150 ${focused
-                    ? 'outline outline-2 outline-offset-[4px] outline-white'
-                    : 'outline outline-2 outline-offset-[4px] outline-transparent'
-                  }`}
-              >
-                <OreButton
-                  variant="secondary"
-                  size="auto"
-                  className="!h-[40px] !min-w-0 !px-0 !m-0"
-                  onClick={() => setIsImportOptionModalOpen(true)}
-                  disabled={isDetectingSources || isImporting}
-                  tabIndex={-1}
-                >
-                  <span className="flex h-full min-w-[clamp(10.8rem,18vw,18rem)] items-center justify-center whitespace-nowrap px-3">
-                    {isDetectingSources ? (
-                      <Loader2 className="mr-[clamp(0.35rem,0.6vw,0.6rem)] h-[clamp(0.9rem,1.1vw,1.25rem)] w-[clamp(0.9rem,1.1vw,1.25rem)] animate-spin flex-shrink-0" />
-                    ) : (
-                      <FolderPlus className="mr-[clamp(0.35rem,0.6vw,0.6rem)] h-[clamp(0.9rem,1.1vw,1.25rem)] w-[clamp(0.9rem,1.1vw,1.25rem)] flex-shrink-0" />
+            <FocusItem focusKey="instances-tags" onEnter={() => setIsTagModalOpen(true)}>
+              {({ ref, focused }) => (
+                <div ref={ref} className={`flex-shrink-0 transition-all ${focused ? 'outline outline-2 outline-white rounded-sm z-10' : ''}`}>
+                  <OreButton
+                    variant="secondary"
+                    size="auto"
+                    className="!h-9 px-2 relative !min-w-0 !m-0"
+                    onClick={() => setIsTagModalOpen(true)}
+                    tabIndex={-1}
+                  >
+                    <Tags size={12} className="mr-1 flex-shrink-0" />
+                    <span className="font-minecraft text-xs">{t('instancesPage.tagsBtn', '标签')}</span>
+                    {selectedTags.length > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 bg-ore-green text-white text-[8px] w-3.5 h-3.5 flex items-center justify-center rounded-full font-bold">
+                        {selectedTags.length}
+                      </span>
                     )}
-                    <span className="font-minecraft text-[clamp(0.9rem,0.84rem+0.4vw,1.15rem)] tracking-wider">
-                      {t('instancesPage.actionImportExternal', '导入外部实例')}
-                    </span>
-                  </span>
-                </OreButton>
-              </div>
-            )}
-          </FocusItem>
+                  </OreButton>
+                </div>
+              )}
+            </FocusItem>
+
+            <div className="flex-1" />
+
+            <FocusItem focusKey="action-new" onEnter={handleCreate}>
+              {({ ref, focused }) => (
+                <div ref={ref} className={`flex-shrink-0 rounded-sm transition-shadow duration-150 ${focused ? 'outline outline-2 outline-white' : ''}`}>
+                  <OreButton
+                    variant="primary"
+                    size="auto"
+                    className="!h-9 !min-w-0 !px-3 !m-0"
+                    onClick={handleCreate}
+                    tabIndex={-1}
+                  >
+                    <Plus size={12} className="mr-1 flex-shrink-0" />
+                    <span className="font-minecraft text-xs">{t('instancesPage.actionNew', '新建')}</span>
+                  </OreButton>
+                </div>
+              )}
+            </FocusItem>
+
+            <FocusItem focusKey="action-import-external" onEnter={() => setIsImportOptionModalOpen(true)}>
+              {({ ref, focused }) => (
+                <div ref={ref} className={`flex-shrink-0 rounded-sm transition-shadow duration-150 ${focused ? 'outline outline-2 outline-white' : ''}`}>
+                  <OreButton
+                    variant="secondary"
+                    size="auto"
+                    className="!h-9 !min-w-0 !px-3 !m-0"
+                    onClick={() => setIsImportOptionModalOpen(true)}
+                    disabled={isDetectingSources || isImporting}
+                    tabIndex={-1}
+                  >
+                    {isDetectingSources ? <Loader2 size={12} className="mr-1 animate-spin" /> : <FolderPlus size={12} className="mr-1" />}
+                    <span className="font-minecraft text-xs">{t('instancesPage.actionImportExternal', '导入')}</span>
+                  </OreButton>
+                </div>
+              )}
+            </FocusItem>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="mb-4 flex w-full flex-wrap items-center justify-between gap-4 lg:mb-5">
+          {/* 左侧组：视图切换、搜索、排序、标签 */}
+          <div className="flex flex-row items-center gap-3 flex-wrap sm:flex-nowrap">
+            <FocusItem focusKey="view-toggle" onEnter={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}>
+              {({ ref, focused }) => (
+                <button
+                  ref={ref}
+                  onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                  className={`flex items-center justify-center h-[40px] w-[40px] rounded-sm bg-[#1E1E1F] border-2 border-ore-gray-border transition-colors focus:outline-none hover:bg-white/10 ${focused ? 'outline outline-[3px] outline-offset-[2px] outline-white z-10' : ''
+                    }`}
+                  title={viewMode === 'grid' ? t('instancesPage.viewToggleList', '切换为列表视图') : t('instancesPage.viewToggleGrid', '切换为网格视图')}
+                  tabIndex={-1}
+                >
+                  {viewMode === 'grid' ? <List size={18} className="text-white" /> : <LayoutGrid size={18} className="text-white" />}
+                </button>
+              )}
+            </FocusItem>
+
+            <div className="flex-1 min-w-[140px] max-w-[220px]">
+              <OreInput
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t('instancesPage.searchPlaceholder', '搜索实例...')}
+                prefixNode={<Search size={16} />}
+                focusKey="instances-search"
+                height="40px"
+                className="!text-sm"
+              />
+            </div>
+
+            <div className="w-[180px] flex-shrink-0">
+              <OreDropdown
+                options={[
+                  { label: t('instancesPage.sortOptions.lastPlayed', '最近游玩'), value: "lastPlayed" },
+                  { label: t('instancesPage.sortOptions.createdAt', '创建时间'), value: "createdAt" }
+                ]}
+                value={sortBy}
+                onChange={(v) => setSortBy(v as SortType)}
+                focusKey="instances-sort"
+                className="!h-[40px]"
+                prefixNode={<Filter size={14} />}
+              />
+            </div>
+
+            <FocusItem focusKey="instances-tags" onEnter={() => setIsTagModalOpen(true)}>
+              {({ ref, focused }) => (
+                <div ref={ref} className={`flex-shrink-0 transition-all ${focused ? 'outline outline-2 outline-white rounded-sm z-10' : ''}`}>
+                  <OreButton
+                    variant="secondary"
+                    size="auto"
+                    className="!h-[40px] px-4 relative !min-w-0 !m-0"
+                    onClick={() => setIsTagModalOpen(true)}
+                    tabIndex={-1}
+                  >
+                    <Tags size={14} className="mr-1.5 flex-shrink-0" />
+                    <span className="font-minecraft text-sm">{t('instancesPage.tagsBtn', '标签')}</span>
+                    {selectedTags.length > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 bg-ore-green text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">
+                        {selectedTags.length}
+                      </span>
+                    )}
+                  </OreButton>
+                </div>
+              )}
+            </FocusItem>
+          </div>
+
+          {/* 右侧组：操作按钮 */}
+          <div className="flex flex-row items-center gap-3 flex-wrap sm:flex-nowrap p-2 -m-2">
+            <FocusItem focusKey="action-new" onEnter={handleCreate}>
+              {({ ref, focused }) => (
+                <div
+                  ref={ref}
+                  className={`flex-shrink-0 rounded-sm transition-shadow duration-150 ${focused
+                      ? 'outline outline-2 outline-offset-[4px] outline-white'
+                      : 'outline outline-2 outline-offset-[4px] outline-transparent'
+                    }`}
+                >
+                  <OreButton
+                    variant="primary"
+                    size="auto"
+                    className="!h-[40px] !min-w-0 !px-0 !m-0"
+                    onClick={handleCreate}
+                    tabIndex={-1}
+                  >
+                    <span className="flex h-full min-w-[clamp(9.2rem,14.2vw,15.4rem)] items-center justify-center whitespace-nowrap px-3">
+                      <Plus className="mr-[clamp(0.35rem,0.6vw,0.6rem)] h-[clamp(0.9rem,1.1vw,1.25rem)] w-[clamp(0.9rem,1.1vw,1.25rem)] flex-shrink-0" />
+                      <span className="font-minecraft text-[clamp(0.9rem,0.84rem+0.4vw,1.15rem)] tracking-wider">
+                        {t('instancesPage.actionNew', '新建实例')}
+                      </span>
+                    </span>
+                  </OreButton>
+                </div>
+              )}
+            </FocusItem>
+
+            <FocusItem focusKey="action-import-external" onEnter={() => setIsImportOptionModalOpen(true)}>
+              {({ ref, focused }) => (
+                <div
+                  ref={ref}
+                  className={`flex-shrink-0 rounded-sm transition-shadow duration-150 ${focused
+                      ? 'outline outline-2 outline-offset-[4px] outline-white'
+                      : 'outline outline-2 outline-offset-[4px] outline-transparent'
+                    }`}
+                >
+                  <OreButton
+                    variant="secondary"
+                    size="auto"
+                    className="!h-[40px] !min-w-0 !px-0 !m-0"
+                    onClick={() => setIsImportOptionModalOpen(true)}
+                    disabled={isDetectingSources || isImporting}
+                    tabIndex={-1}
+                  >
+                    <span className="flex h-full min-w-[clamp(10.8rem,18vw,18rem)] items-center justify-center whitespace-nowrap px-3">
+                      {isDetectingSources ? (
+                        <Loader2 className="mr-[clamp(0.35rem,0.6vw,0.6rem)] h-[clamp(0.9rem,1.1vw,1.25rem)] w-[clamp(0.9rem,1.1vw,1.25rem)] animate-spin flex-shrink-0" />
+                      ) : (
+                        <FolderPlus className="mr-[clamp(0.35rem,0.6vw,0.6rem)] h-[clamp(0.9rem,1.1vw,1.25rem)] w-[clamp(0.9rem,1.1vw,1.25rem)] flex-shrink-0" />
+                      )}
+                      <span className="font-minecraft text-[clamp(0.9rem,0.84rem+0.4vw,1.15rem)] tracking-wider">
+                        {t('instancesPage.actionImportExternal', '导入外部实例')}
+                      </span>
+                    </span>
+                  </OreButton>
+                </div>
+              )}
+            </FocusItem>
+          </div>
+        </div>
+      )}
 
       <ThirdPartyImportPanel
         isOpen={isPanelOpen}
@@ -247,7 +355,7 @@ const Instances: React.FC = () => {
         viewportClassName="pb-10 pr-0"
         contentClassName={`
           ${viewMode === 'grid'
-            ? 'flex flex-wrap content-start justify-center gap-4 sm:gap-5 lg:gap-6'
+            ? 'grid grid-cols-[repeat(auto-fill,minmax(var(--ore-card-min-w,312px),1fr))] content-start justify-center gap-4 sm:gap-5 lg:gap-6 w-full'
             : 'grid grid-cols-1 content-start gap-3 auto-rows-max'
           }
         `}

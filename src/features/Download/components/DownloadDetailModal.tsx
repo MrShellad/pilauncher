@@ -6,6 +6,9 @@ import { useDownloadDetail } from '../hooks/useDownloadDetail';
 import type { DownloadInstanceConfig, DownloadSource } from '../hooks/useResourceDownload';
 import { OreModal } from '../../../ui/primitives/OreModal';
 import { OreOverlayScrollArea } from '../../../ui/primitives/OreOverlayScrollArea';
+import { useScreenDensity } from '../../../hooks/ui/useScreenDensity';
+import { marked } from 'marked';
+import { useTranslation } from 'react-i18next';
 
 import { InstanceSelectModal } from './DetailModal/InstanceSelectModal';
 import { ModpackCreateModal } from './DetailModal/ModpackCreateModal';
@@ -40,6 +43,9 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
   source,
   directInstallInstanceIds
 }) => {
+  const { t } = useTranslation();
+  const density = useScreenDensity();
+  const [detailTab, setDetailTab] = useState<'versions' | 'description'>('versions');
   const hasDirectInstall = !!(directInstallInstanceIds && directInstallInstanceIds.length > 0);
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
   const [visibleCount, setVisibleCount] = useState(15);
@@ -89,6 +95,16 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
     loaderOptions,
     availableVersions
   } = useDownloadDetail(displayProject, instanceConfig, source, searchMcVersion, searchLoader, activeTab);
+
+  const rawDescription = details?.body || details?.description || displayProject?.description || '';
+  const htmlDescription = useMemo(() => {
+    try {
+      return marked.parse(rawDescription) as string;
+    } catch {
+      return rawDescription;
+    }
+  }, [rawDescription]);
+
   useEffect(() => {
     if (!project) return;
     setShowDescriptionModal(false);
@@ -184,56 +200,146 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
         contentClassName="ore-download-detail-modal__content flex flex-1 min-h-0 flex-col overflow-hidden bg-[#313233] p-0"
       >
         <ProjectHeader project={displayProject} details={details} />
-        <ProjectGallery
-          project={displayProject}
-          details={details}
-          isScrolled={isScrolled}
-          onOpenDescriptionModal={() => setShowDescriptionModal(true)}
-          controlsEnabled={controlsEnabled}
-        />
 
-        {!hasDirectInstall && (
-          <VersionFilters
-            versionsCount={strictlyFilteredVersions.length}
-            loaderOptions={loaderOptions}
-            activeLoader={activeLoader}
-            setActiveLoader={setActiveLoader}
-            availableVersions={availableVersions}
-            activeVersion={activeVersion}
-            setActiveVersion={setActiveVersion}
-            controlsEnabled={controlsEnabled}
-          />
+        {density === 'compact' && (
+          <div className="flex border-b border-[#1E1E1F] bg-[#222324] shrink-0">
+            <button
+              onClick={() => setDetailTab('versions')}
+              className={`flex-1 py-2 text-center font-minecraft font-bold text-xs border-b-2 transition-colors ${detailTab === 'versions' ? 'border-ore-green text-white bg-white/5' : 'border-transparent text-gray-400 hover:text-white'}`}
+            >
+              {t('download.detail.versions', '版本列表')}
+            </button>
+            <button
+              onClick={() => setDetailTab('description')}
+              className={`flex-1 py-2 text-center font-minecraft font-bold text-xs border-b-2 transition-colors ${detailTab === 'description' ? 'border-ore-green text-white bg-white/5' : 'border-transparent text-gray-400 hover:text-white'}`}
+            >
+              {t('download.detail.description', '项目描述')}
+            </button>
+          </div>
         )}
 
-        <OreOverlayScrollArea
-          ref={scrollContainerRef}
-          className={`
-            relative z-10 flex-1 w-full bg-[#313233] min-h-0
-            ${hasDirectInstall ? 'border-t-[0.125rem] border-[#1E1E1F]' : ''}
-          `}
-          viewportClassName="shadow-[inset_0_0.625rem_1.25rem_-0.625rem_rgba(0,0,0,0.55)]"
-          onScroll={handleScroll}
-          contentSafePaddingRight={6}
-        >
-          <VersionList
-            versions={strictlyFilteredVersions}
-            isLoadingVersions={isLoadingVersions}
-            activeVersion={currentDisplayVersion || ''}
-            activeLoader={currentDisplayLoader || ''}
-            displayVersions={displayVersions}
-            installedVersionIds={installedVersionIds}
-            onDownload={(version) => {
-              if (hasDirectInstall && directInstallInstanceIds) {
-                onDownload(version, directInstallInstanceIds);
-                onClose();
-              } else {
-                setPendingVersion(version);
-              }
-            }}
-            visibleCount={visibleCount}
-            observerTarget={observerTarget}
-          />
-        </OreOverlayScrollArea>
+        {density !== 'compact' ? (
+          <>
+            <ProjectGallery
+              project={displayProject}
+              details={details}
+              isScrolled={isScrolled}
+              onOpenDescriptionModal={() => setShowDescriptionModal(true)}
+              controlsEnabled={controlsEnabled}
+            />
+
+            {!hasDirectInstall && (
+              <VersionFilters
+                versionsCount={strictlyFilteredVersions.length}
+                loaderOptions={loaderOptions}
+                activeLoader={activeLoader}
+                setActiveLoader={setActiveLoader}
+                availableVersions={availableVersions}
+                activeVersion={activeVersion}
+                setActiveVersion={setActiveVersion}
+                controlsEnabled={controlsEnabled}
+              />
+            )}
+
+            <OreOverlayScrollArea
+              ref={scrollContainerRef}
+              className={`
+                relative z-10 flex-1 w-full bg-[#313233] min-h-0
+                ${hasDirectInstall ? 'border-t-[0.125rem] border-[#1E1E1F]' : ''}
+              `}
+              viewportClassName="shadow-[inset_0_0.625rem_1.25rem_-0.625rem_rgba(0,0,0,0.55)]"
+              onScroll={handleScroll}
+              contentSafePaddingRight={6}
+            >
+              <VersionList
+                versions={strictlyFilteredVersions}
+                isLoadingVersions={isLoadingVersions}
+                activeVersion={currentDisplayVersion || ''}
+                activeLoader={currentDisplayLoader || ''}
+                displayVersions={displayVersions}
+                installedVersionIds={installedVersionIds}
+                onDownload={(version) => {
+                  if (hasDirectInstall && directInstallInstanceIds) {
+                    onDownload(version, directInstallInstanceIds);
+                    onClose();
+                  } else {
+                    setPendingVersion(version);
+                  }
+                }}
+                visibleCount={visibleCount}
+                observerTarget={observerTarget}
+              />
+            </OreOverlayScrollArea>
+          </>
+        ) : (
+          <>
+            {detailTab === 'versions' ? (
+              <>
+                {!hasDirectInstall && (
+                  <VersionFilters
+                    versionsCount={strictlyFilteredVersions.length}
+                    loaderOptions={loaderOptions}
+                    activeLoader={activeLoader}
+                    setActiveLoader={setActiveLoader}
+                    availableVersions={availableVersions}
+                    activeVersion={activeVersion}
+                    setActiveVersion={setActiveVersion}
+                    controlsEnabled={controlsEnabled}
+                  />
+                )}
+                <OreOverlayScrollArea
+                  ref={scrollContainerRef}
+                  className={`
+                    relative z-10 flex-1 w-full bg-[#313233] min-h-0
+                    ${hasDirectInstall ? 'border-t-[0.125rem] border-[#1E1E1F]' : ''}
+                  `}
+                  viewportClassName="shadow-[inset_0_0.625rem_1.25rem_-0.625rem_rgba(0,0,0,0.55)]"
+                  onScroll={handleScroll}
+                  contentSafePaddingRight={6}
+                >
+                  <VersionList
+                    versions={strictlyFilteredVersions}
+                    isLoadingVersions={isLoadingVersions}
+                    activeVersion={currentDisplayVersion || ''}
+                    activeLoader={currentDisplayLoader || ''}
+                    displayVersions={displayVersions}
+                    installedVersionIds={installedVersionIds}
+                    onDownload={(version) => {
+                      if (hasDirectInstall && directInstallInstanceIds) {
+                        onDownload(version, directInstallInstanceIds);
+                        onClose();
+                      } else {
+                        setPendingVersion(version);
+                      }
+                    }}
+                    visibleCount={visibleCount}
+                    observerTarget={observerTarget}
+                  />
+                </OreOverlayScrollArea>
+              </>
+            ) : (
+              <OreOverlayScrollArea
+                className="relative z-10 flex-1 w-full bg-[#313233] min-h-0"
+                viewportClassName="shadow-[inset_0_0.625rem_1.25rem_-0.625rem_rgba(0,0,0,0.55)] p-4"
+                contentSafePaddingRight={6}
+              >
+                <div className="flex flex-col gap-4">
+                  <ProjectGallery
+                    project={displayProject}
+                    details={details}
+                    isScrolled={isScrolled}
+                    onOpenDescriptionModal={() => setShowDescriptionModal(true)}
+                    controlsEnabled={controlsEnabled}
+                  />
+                  <div
+                    className="markdown-body font-minecraft text-xs leading-relaxed text-gray-300 break-words"
+                    dangerouslySetInnerHTML={{ __html: htmlDescription }}
+                  />
+                </div>
+              </OreOverlayScrollArea>
+            )}
+          </>
+        )}
       </OreModal>
 
       {activeTab === 'modpack' ? (

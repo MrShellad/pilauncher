@@ -15,7 +15,7 @@ interface OreInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>
 }
 
 export const OreInput = React.forwardRef<HTMLInputElement, OreInputProps>(
-  ({ label, description, error, containerClassName = '', width = '100%', height = '40px', disabled, className = '', style, focusKey, onArrowPress, prefixNode, onKeyDown, ...props }, forwardedRef) => {
+  ({ label, description, error, containerClassName = '', width = '100%', height = 'var(--ore-control-h, 40px)', disabled, className = '', style, focusKey, onArrowPress, prefixNode, onKeyDown, ...props }, forwardedRef) => {
     const id = useId(); 
     const internalRef = useRef<HTMLInputElement>(null);
 

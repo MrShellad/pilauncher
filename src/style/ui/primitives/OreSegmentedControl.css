@@ -214,4 +214,17 @@
       inset 0.125rem 0.125rem var(--ore-btn-secondary-highlight),
       inset -0.125rem -0.125rem var(--ore-btn-secondary-press);
   }
+
+  /* --- 移动端紧凑与掌机模式布局优化 --- */
+  :root[data-density="compact"] {
+    --seg-height: 2.75rem !important;
+    --seg-min-width: 6.5rem !important;
+    --seg-px: 1rem !important;
+    --seg-font-size: 0.9375rem !important;
+  }
+  :root[data-density="deck"] {
+    --seg-height: 2.75rem !important;
+    --seg-min-width: 7rem !important;
+    --seg-px: 1.125rem !important;
+  }
 }

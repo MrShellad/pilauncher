@@ -122,7 +122,7 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                   animate={focused ? "hover" : "rest"}
                   whileHover="hover"
                   className={`
-                    relative flex h-[16.5rem] min-w-[19.5rem] w-[clamp(19.5rem,21vw,25rem)] flex-col rounded-[0.25rem] cursor-pointer select-none group
+                    relative flex h-[16.5rem] w-full flex-col rounded-[0.25rem] cursor-pointer select-none group
                     transition-all duration-200
                     border-[0.25rem] ${focused ? 'border-white shadow-[0_0_1.5rem_rgba(255,255,255,0.22)] z-50' : 'border-transparent shadow-[0_0.5rem_1rem_rgba(0,0,0,0.35)]'}
                   `}

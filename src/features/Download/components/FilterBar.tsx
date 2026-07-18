@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
-import { RotateCcw, Search, type LucideIcon } from 'lucide-react';
+import { RotateCcw, Search, Filter, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { GamepadButtonIcon } from '../../../ui/components/GamepadButtonIcon';
@@ -11,6 +11,7 @@ import { OreButton } from '../../../ui/primitives/OreButton';
 import { OreDropdown } from '../../../ui/primitives/OreDropdown';
 import { OreInput } from '../../../ui/primitives/OreInput';
 import { OreToggleButton } from '../../../ui/primitives/OreToggleButton';
+import { useScreenDensity } from '../../../hooks/ui/useScreenDensity';
 import type { DownloadSource, FilterOption, TabType } from '../hooks/useResourceDownload';
 import {
   getLocalizedDownloadOptionLabel
@@ -78,6 +79,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   onReset
 }) => {
   const { t, i18n } = useTranslation();
+  const density = useScreenDensity();
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const scaleClassName = `
     [--filter-shell-px:0.875rem]
     [--filter-shell-py:0.5rem]
@@ -158,8 +161,9 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   `;
   const fieldClassName = 'min-w-0 min-h-[var(--filter-control-h)]';
   const controlHintClassName = 'origin-center scale-[var(--filter-control-hint-scale)]';
+  const isCompactOrDeck = density === 'compact' || density === 'deck';
   const tabButtonClassName = `
-    relative flex h-[var(--filter-control-h)] min-w-[var(--filter-tab-min-w)] flex-1 items-center justify-center
+    relative flex h-[var(--filter-control-h)] ${isCompactOrDeck ? 'min-w-0' : 'min-w-[var(--filter-tab-min-w)]'} flex-1 items-center justify-center
     gap-[var(--filter-tab-gap)] border-[0.125rem] border-[#141516] px-[var(--filter-tab-px)] pb-[0.1875rem]
     font-minecraft text-[var(--filter-tab-font)] uppercase tracking-[0.14em] outline-none transition-none
   `;
@@ -315,8 +319,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                         : 'inset 0 -0.1875rem #58585A, inset 0.125rem 0.125rem rgba(255,255,255,0.8), inset -0.125rem -0.3125rem rgba(255,255,255,0.45)'
                     }}
                   >
-                    <Icon className={`size-[var(--filter-tab-icon)] ${isActive ? '!text-white' : '!text-[#121314]'}`} />
-                    <span className="truncate">{tab.label}</span>
+                    <Icon className={`size-[var(--filter-tab-icon)] ${isActive ? '!text-white' : '!text-[#121314]'} ${isCompactOrDeck ? '!mr-0' : ''}`} />
+                    {!isCompactOrDeck && <span className="truncate">{tab.label}</span>}
                     {isActive && (
                       <span
                         className="absolute bg-white/90"
@@ -340,36 +344,38 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         </div>
 
         <div className="grid grid-cols-1 gap-x-[var(--filter-col-gap)] gap-y-[var(--filter-row-gap)] md:grid-cols-2 lg:grid-cols-12">
-          <div className={`${fieldClassName} md:col-span-1 lg:col-span-3`}>
-            <FocusItem
-              focusKey="filter-source-toggle"
-              onArrowPress={handleFilterArrow('filter-source-toggle')}
-              onEnter={() => setSource(source === 'modrinth' ? 'curseforge' : 'modrinth')}
-            >
-              {({ ref, focused }) => (
-                <div
-                  ref={ref as React.RefObject<HTMLDivElement>}
-                  className={focused ? 'outline outline-[0.125rem] outline-offset-[0.1875rem] outline-white' : ''}
-                >
-                  <OreToggleButton
-                    options={sourceOptions}
-                    value={source}
-                    onChange={(value) => setSource(value as DownloadSource)}
-                    focusable={false}
-                    className={sourceToggleClassName}
-                    size="sm"
-                  />
+          {(!isCompactOrDeck || showAdvanced) && (
+            <div className={`${fieldClassName} md:col-span-1 lg:col-span-3`}>
+              <FocusItem
+                focusKey="filter-source-toggle"
+                onArrowPress={handleFilterArrow('filter-source-toggle')}
+                onEnter={() => setSource(source === 'modrinth' ? 'curseforge' : 'modrinth')}
+              >
+                {({ ref, focused }) => (
+                  <div
+                    ref={ref as React.RefObject<HTMLDivElement>}
+                    className={focused ? 'outline outline-[0.125rem] outline-offset-[0.1875rem] outline-white' : ''}
+                  >
+                    <OreToggleButton
+                      options={sourceOptions}
+                      value={source}
+                      onChange={(value) => setSource(value as DownloadSource)}
+                      focusable={false}
+                      className={sourceToggleClassName}
+                      size="sm"
+                    />
+                  </div>
+                )}
+              </FocusItem>
+              {source === 'curseforge' && !isCurseForgeAvailable && (
+                <div className="mt-0.5 text-[0.625rem] text-[#FFE08A]">
+                  {t('download.curseforge.apiKeyMissing', {
+                    defaultValue: 'Set VITE_CURSEFORGE_API_KEY to enable CurseForge requests.'
+                  })}
                 </div>
               )}
-            </FocusItem>
-            {source === 'curseforge' && !isCurseForgeAvailable && (
-              <div className="mt-0.5 text-[0.625rem] text-[#FFE08A]">
-                {t('download.curseforge.apiKeyMissing', {
-                  defaultValue: 'Set VITE_CURSEFORGE_API_KEY to enable CurseForge requests.'
-                })}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <div className={`${fieldClassName} md:col-span-2 lg:col-span-6 lg:justify-self-center lg:w-full`}>
             <OreInput
@@ -390,7 +396,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           </div>
 
           <div className={`${fieldClassName} md:col-span-2 lg:col-span-3`}>
-            <div className="grid h-full grid-cols-2 gap-[var(--filter-col-gap)]">
+            <div className={`grid h-full ${isCompactOrDeck ? 'grid-cols-3' : 'grid-cols-2'} gap-[var(--filter-col-gap)]`}>
               <OreButton
                 focusKey="download-btn-search"
                 onArrowPress={handleFilterArrow('download-btn-search')}
@@ -414,57 +420,74 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                 <RotateCcw className="mr-[0.375rem] size-[var(--filter-icon-size)] !text-black" />
                 {t('download.actions.reset', { defaultValue: 'Reset' })}
               </OreButton>
+
+              {isCompactOrDeck && (
+                <OreButton
+                  focusKey="download-btn-advanced"
+                  variant={showAdvanced ? 'primary' : 'secondary'}
+                  size="auto"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className={`${actionButtonClassName} ${showAdvanced ? '!text-white' : '!text-black'}`}
+                >
+                  <Filter className="mr-[0.25rem] size-[var(--filter-icon-size)]" />
+                  {showAdvanced ? t('download.actions.hideFilters', '收起') : t('download.actions.showFilters', '筛选')}
+                </OreButton>
+              )}
             </div>
           </div>
 
-          <div className={`${fieldClassName} md:col-span-1 lg:col-span-3`}>
-            <OreDropdown
-              focusKey="filter-mc-version"
-              onArrowPress={handleFilterArrow('filter-mc-version')}
-              searchable
-              options={translatedMcVersionOptions}
-              value={mcVersion || ''}
-              onChange={setMcVersion}
-              className={dropdownClassName}
-              placeholder={t('download.filters.versionAll', { defaultValue: 'All Versions' })}
-            />
-          </div>
+          {(!isCompactOrDeck || showAdvanced) && (
+            <>
+              <div className={`${fieldClassName} md:col-span-1 lg:col-span-3`}>
+                <OreDropdown
+                  focusKey="filter-mc-version"
+                  onArrowPress={handleFilterArrow('filter-mc-version')}
+                  searchable
+                  options={translatedMcVersionOptions}
+                  value={mcVersion || ''}
+                  onChange={setMcVersion}
+                  className={dropdownClassName}
+                  placeholder={t('download.filters.versionAll', { defaultValue: 'All Versions' })}
+                />
+              </div>
 
-          <div className={`${fieldClassName} md:col-span-1 lg:col-span-3`}>
-            <OreDropdown
-              focusKey="filter-loader"
-              onArrowPress={handleFilterArrow('filter-loader')}
-              options={loaderOptions}
-              value={loaderType || ''}
-              onChange={setLoaderType}
-              className={dropdownClassName}
-              placeholder={t('download.filters.loaderAll', { defaultValue: 'All' })}
-            />
-          </div>
+              <div className={`${fieldClassName} md:col-span-1 lg:col-span-3`}>
+                <OreDropdown
+                  focusKey="filter-loader"
+                  onArrowPress={handleFilterArrow('filter-loader')}
+                  options={loaderOptions}
+                  value={loaderType || ''}
+                  onChange={setLoaderType}
+                  className={dropdownClassName}
+                  placeholder={t('download.filters.loaderAll', { defaultValue: 'All' })}
+                />
+              </div>
 
-          <div className={`${fieldClassName} md:col-span-1 lg:col-span-3`}>
-            <OreDropdown
-              focusKey="filter-category"
-              onArrowPress={handleFilterArrow('filter-category')}
-              options={translatedCategoryOptions}
-              value={category || ''}
-              onChange={setCategory}
-              className={dropdownClassName}
-              placeholder={t('download.filters.categoryAll', { defaultValue: 'All Categories' })}
-            />
-          </div>
+              <div className={`${fieldClassName} md:col-span-1 lg:col-span-3`}>
+                <OreDropdown
+                  focusKey="filter-category"
+                  onArrowPress={handleFilterArrow('filter-category')}
+                  options={translatedCategoryOptions}
+                  value={category || ''}
+                  onChange={setCategory}
+                  className={dropdownClassName}
+                  placeholder={t('download.filters.categoryAll', { defaultValue: 'All Categories' })}
+                />
+              </div>
 
-          <div className={`${fieldClassName} md:col-span-1 lg:col-span-3`}>
-            <OreDropdown
-              focusKey="filter-sort"
-              onArrowPress={handleFilterArrow('filter-sort')}
-              options={sortOptions}
-              value={sort || 'relevance'}
-              onChange={setSort}
-              className={dropdownClassName}
-              placeholder={t('download.sort.relevance', { defaultValue: 'Relevance' })}
-            />
-          </div>
+              <div className={`${fieldClassName} md:col-span-1 lg:col-span-3`}>
+                <OreDropdown
+                  focusKey="filter-sort"
+                  onArrowPress={handleFilterArrow('filter-sort')}
+                  options={sortOptions}
+                  value={sort || 'relevance'}
+                  onChange={setSort}
+                  className={dropdownClassName}
+                  placeholder={t('download.sort.relevance', { defaultValue: 'Relevance' })}
+                />
+              </div>
+            </>
+          )}
         </div>
       </div>
     </FocusBoundary>

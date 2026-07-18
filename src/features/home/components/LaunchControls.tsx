@@ -4,6 +4,7 @@ import { OreButton } from '../../../ui/primitives/OreButton';
 import { useTranslation } from 'react-i18next';
 
 import { FocusItem } from '../../../ui/focus/FocusItem';
+import { useScreenDensity } from '../../../hooks/ui/useScreenDensity';
 import { focusManager } from '../../../ui/focus/FocusManager';
 import { useInputMode } from '../../../ui/focus/FocusProvider';
 
@@ -41,7 +42,18 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
   const inputMode = useInputMode();
   const { instances } = useInstances();
 
-  const scaleStyle = {
+  const density = useScreenDensity();
+  const isCompact = density === 'compact';
+
+  const scaleStyle = isCompact ? {
+    '--launch-control-w': '22rem',
+    '--launch-control-gap': '0.5rem',
+    '--launch-action-h': '2.25rem',
+    '--launch-hero-h': '2.75rem',
+    '--launch-action-font': '0.875rem',
+    '--launch-hero-font': '1rem',
+    '--launch-action-gap': '0.375rem',
+  } as React.CSSProperties : {
     '--launch-control-w': 'clamp(20rem, 42vmin, 96rem)',
     '--launch-control-gap': 'calc(var(--launch-control-w) * 0.055)',
     '--launch-action-h': 'calc(var(--launch-control-w) * 0.155)',
@@ -162,61 +174,62 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
           )}
         </FocusItem>
 
-        {/* 2. 实例选择按钮 */}
-        <FocusItem focusKey="instance-button" onEnter={onSelectInstance} autoScroll={false}>
-          {({ ref, focused }) => (
-            <div
-              ref={ref}
-              className={`
-                w-full rounded-sm transition-shadow duration-150
-                ${focused
-                  ? 'z-10 outline outline-[0.1875rem] outline-offset-[0.25rem] outline-white/60 shadow-[0_0_0.9375rem_rgba(255,255,255,0.2)]'
-                  : 'outline outline-[0.1875rem] outline-offset-[0.25rem] outline-transparent'
-                }
-              `}
-            >
-              <OreButton
-                variant="secondary"
-                size="full"
-                className={innerButtonClass}
-                onClick={onSelectInstance}
-                tabIndex={-1}
+        {/* 2. 实例选择与设置按钮 */}
+        <div className={`w-full flex ${isCompact ? 'flex-row gap-2' : 'flex-col gap-[var(--launch-control-gap)]'}`}>
+          <FocusItem focusKey="instance-button" onEnter={onSelectInstance} autoScroll={false}>
+            {({ ref, focused }) => (
+              <div
+                ref={ref}
+                className={`
+                  w-full rounded-sm transition-shadow duration-150
+                  ${focused
+                    ? 'z-10 outline outline-[0.1875rem] outline-offset-[0.25rem] outline-white/60 shadow-[0_0_0.9375rem_rgba(255,255,255,0.2)]'
+                    : 'outline outline-[0.1875rem] outline-offset-[0.25rem] outline-transparent'
+                  }
+                `}
               >
-                <span className="font-minecraft truncate max-w-[70%] tracking-wide leading-none">
-                  {instanceName}
-                </span>
-              </OreButton>
-            </div>
-          )}
-        </FocusItem>
+                <OreButton
+                  variant="secondary"
+                  size="full"
+                  className={innerButtonClass}
+                  onClick={onSelectInstance}
+                  tabIndex={-1}
+                >
+                  <span className="font-minecraft truncate max-w-[80%] tracking-wide leading-none">
+                    {instanceName}
+                  </span>
+                </OreButton>
+              </div>
+            )}
+          </FocusItem>
 
-        {/* 3. 设置按钮 */}
-        <FocusItem focusKey="settings-button" onEnter={handleSettingsClick} autoScroll={false}>
-          {({ ref, focused }) => (
-            <div
-              ref={ref}
-              className={`
-                w-full rounded-sm transition-shadow duration-150
-                ${focused
-                  ? 'z-10 outline outline-[0.1875rem] outline-offset-[0.25rem] outline-white/60 shadow-[0_0_0.9375rem_rgba(255,255,255,0.2)]'
-                  : 'outline outline-[0.1875rem] outline-offset-[0.25rem] outline-transparent'
-                }
-              `}
-            >
-              <OreButton
-                variant="secondary"
-                size="full"
-                className={innerButtonClass}
-                onClick={handleSettingsClick}
-                tabIndex={-1}
+          <FocusItem focusKey="settings-button" onEnter={handleSettingsClick} autoScroll={false}>
+            {({ ref, focused }) => (
+              <div
+                ref={ref}
+                className={`
+                  w-full rounded-sm transition-shadow duration-150
+                  ${focused
+                    ? 'z-10 outline outline-[0.1875rem] outline-offset-[0.25rem] outline-white/60 shadow-[0_0_0.9375rem_rgba(255,255,255,0.2)]'
+                    : 'outline outline-[0.1875rem] outline-offset-[0.25rem] outline-transparent'
+                  }
+                `}
               >
-                <span className="font-minecraft font-medium tracking-wide leading-none">
-                  {t('home.instanceDetail')}
-                </span>
-              </OreButton>
-            </div>
-          )}
-        </FocusItem>
+                <OreButton
+                  variant="secondary"
+                  size="full"
+                  className={innerButtonClass}
+                  onClick={handleSettingsClick}
+                  tabIndex={-1}
+                >
+                  <span className="font-minecraft font-medium tracking-wide leading-none">
+                    {t('home.instanceDetail')}
+                  </span>
+                </OreButton>
+              </div>
+            )}
+          </FocusItem>
+        </div>
 
       </div>
 

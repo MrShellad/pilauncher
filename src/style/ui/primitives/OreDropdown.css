@@ -137,4 +137,22 @@
     z-index: 20;
     filter: drop-shadow(0 0 6px var(--ore-focus-glow)) brightness(1.06);
   }
+
+  /* --- 移动端紧凑模式下拉菜单阴影与布局适配 --- */
+  :root[data-density="compact"] .ore-dropdown-trigger {
+    padding: 0 8px 2px 8px !important;
+    box-shadow:
+      inset 0 -2px #58585a,
+      inset 2px 2px rgba(255, 255, 255, 0.6),
+      inset -2px -4px rgba(255, 255, 255, 0.4) !important;
+  }
+  :root[data-density="compact"] .ore-dropdown-trigger:hover:not(:disabled):not(.is-open) {
+    box-shadow:
+      inset 0 -2px #58585a,
+      inset 2px 2px rgba(255, 255, 255, 0.8),
+      inset -2px -4px rgba(255, 255, 255, 0.6) !important;
+  }
+  :root[data-density="compact"] .ore-dropdown-item {
+    min-height: 32px !important;
+  }
 }

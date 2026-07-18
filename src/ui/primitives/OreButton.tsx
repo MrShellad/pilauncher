@@ -29,11 +29,11 @@ export const OreButton: React.FC<OreButtonProps> = ({
 }) => {
 
   const buttonSizes = {
-    sm: "min-w-[7.5rem] h-9 px-4 text-sm", 
-    md: "min-w-[10rem] h-10 px-6 text-base", 
-    lg: "min-w-[12.5rem] h-11 px-8 text-lg", 
-    auto: "w-auto min-w-[6.25rem] h-10 px-5 text-base", 
-    full: "w-full h-10 md:h-11 lg:h-12 px-4 md:px-6 text-base md:text-base lg:text-lg", 
+    sm: "min-w-[var(--ore-btn-sm-min-w,7.5rem)] h-[var(--ore-btn-sm-h,2.25rem)] px-4 text-sm", 
+    md: "min-w-[var(--ore-btn-md-min-w,10rem)] h-[var(--ore-btn-md-h,2.5rem)] px-6 text-base", 
+    lg: "min-w-[var(--ore-btn-lg-min-w,12.5rem)] h-[var(--ore-btn-lg-h,2.75rem)] px-8 text-lg", 
+    auto: "w-auto min-w-[var(--ore-btn-auto-min-w,6.25rem)] h-[var(--ore-btn-md-h,2.5rem)] px-5 text-base", 
+    full: "w-full h-[var(--ore-btn-md-h,2.5rem)] px-4 text-base", 
   };
   
   const variants = {

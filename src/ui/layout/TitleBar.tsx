@@ -10,6 +10,7 @@ import { OreSegmentedControl, type TabItem } from '../primitives/OreSegmentedCon
 import { useInputAction } from '../focus/InputDriver';
 import { GamepadButtonIcon } from '../components/GamepadButtonIcon';
 import { OreConfirmDialog } from '../primitives/OreConfirmDialog';
+import { useScreenDensity } from '../../hooks/ui/useScreenDensity';
 
 export const TitleBar: React.FC = () => {
   const { t } = useTranslation();
@@ -120,6 +121,7 @@ export const TitleBar: React.FC = () => {
     setActiveTab(navTabs[nextIndex].id as any);
   };
 
+  const density = useScreenDensity();
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -128,6 +130,8 @@ export const TitleBar: React.FC = () => {
     setIsMobile(mobile);
   }, []);
 
+  const isCompactOrMobile = isMobile || density === 'compact';
+
   useInputAction('TAB_LEFT', () => handleSwitchTab(-1));
   useInputAction('TAB_RIGHT', () => handleSwitchTab(1));
 
@@ -135,9 +139,9 @@ export const TitleBar: React.FC = () => {
     <>
       <div
         data-tauri-drag-region
-        className={`z-50 flex min-h-[48px] md:min-h-[56px] w-full select-none items-center gap-3 px-4 pb-1 md:pb-2 pt-[8px] md:pt-[14px] ${isMobile ? 'justify-center' : ''}`}
+        className={`z-50 flex min-h-[48px] md:min-h-[56px] w-full select-none items-center gap-3 px-4 pb-1 md:pb-2 pt-[8px] md:pt-[14px] ${isCompactOrMobile ? 'justify-center' : ''}`}
       >
-        {!isMobile && (
+        {!isCompactOrMobile && (
           <div
             data-tauri-drag-region
             className="flex min-w-[112px] flex-1 items-center drop-shadow-md"
@@ -203,7 +207,7 @@ export const TitleBar: React.FC = () => {
           </button>
         </nav>
 
-        {!isMobile && (
+        {!isCompactOrMobile && (
           <div
             data-tauri-drag-region
             className="flex min-w-[112px] flex-1 items-center justify-end"

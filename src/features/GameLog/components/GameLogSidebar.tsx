@@ -20,12 +20,15 @@ import { useLogShare } from '../hooks/useLogShare';
 import { TelemetryPanel } from './TelemetryPanel';
 import { LogView } from './LogView';
 import { LogShareDialog } from './LogShareDialog';
+import { useScreenDensity } from '../../../hooks/ui/useScreenDensity';
 
 // Note: useLogService has been moved to <GameLogService /> (always mounted in App.tsx).
 // This component only handles UI; focus restoration is done via the isOpen watcher below.
 
 export const GameLogSidebar: React.FC = () => {
   const { t } = useTranslation();
+  const density = useScreenDensity();
+  const isCompact = density === 'compact';
   const { isOpen, setOpen, currentInstanceId, logs, gameState, crashReason, telemetry, clearLogs } = useGameLogStore();
   const hasDownloadTasks = useDownloadStore((state) => Object.keys(state.tasks).length > 0);
   const isDownloadPopupOpen = useDownloadStore((state) => state.isPopupOpen);
@@ -140,7 +143,7 @@ export const GameLogSidebar: React.FC = () => {
           <motion.div
             initial={{ x: '100%', opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: '100%', opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 h-full w-[820px] bg-[#141415] border-l-[3px] border-[#1E1E1F] shadow-2xl z-[90] flex flex-col font-minecraft"
+            className={`fixed top-0 right-0 h-full bg-[#141415] border-l-[3px] border-[#1E1E1F] shadow-2xl z-[90] flex flex-col font-minecraft ${isCompact ? 'w-screen' : 'w-[820px]'}`}
           >
             <FocusBoundary id="game-log-sidebar" trapFocus={isOpen} onEscape={closeSidebarAndRestoreFocus} className="flex flex-col h-full min-h-0 outline-none">
 

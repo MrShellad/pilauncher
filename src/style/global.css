@@ -14,10 +14,159 @@
   --ore-font-family-subheading: "Minecraft Seven", var(--ore-font-family-minecraft);
   --ore-font-family-decorative: "Minecraft Five", var(--ore-font-family-minecraft);
   --ore-font-family-decorative-bold: "Minecraft Five Bold", var(--ore-font-family-minecraft);
+
+  /* --- 响应式语义 Token 默认值 (desktop) --- */
+  --ore-density: desktop;
+  --ore-page-pad-x: 24px;
+  --ore-page-pad-y: 16px;
+  --ore-control-h: 40px;
+  --ore-control-gap: 12px;
+  --ore-focus-ring-w: 2px;
+  --ore-content-max-w: 1200px;
+  --ore-card-min-w: 312px;
+  --ore-modal-w: 480px;
+  --ore-modal-max-h: 85vh;
+  --ore-btn-sm-min-w: 7.5rem;
+  --ore-btn-sm-h: 2.25rem;
+  --ore-btn-md-min-w: 10rem;
+  --ore-btn-md-h: 2.5rem;
+  --ore-btn-lg-min-w: 12.5rem;
+  --ore-btn-lg-h: 2.75rem;
+  --ore-btn-auto-min-w: 6.25rem;
+
+  /* 安全区变量 */
+  --ore-safe-top: env(safe-area-inset-top, 0px);
+  --ore-safe-right: env(safe-area-inset-right, 0px);
+  --ore-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ore-safe-left: env(safe-area-inset-left, 0px);
+}
+
+/* --- 移动端横屏 / 小窗口 适配 (compact) --- */
+:root[data-density="compact"] {
+  --ore-density: compact;
+  --ore-page-pad-x: 12px;
+  --ore-page-pad-y: 8px;
+  --ore-control-h: 32px;
+  --ore-control-gap: 8px;
+  --ore-focus-ring-w: 2px;
+  --ore-content-max-w: 100%;
+  --ore-card-min-w: 240px;
+  --ore-modal-w: 100dvw;
+  --ore-modal-max-h: 100dvh;
+  --ore-btn-sm-min-w: 5rem;
+  --ore-btn-sm-h: 2.25rem;
+  --ore-btn-md-min-w: 7.5rem;
+  --ore-btn-md-h: 2.5rem;
+  --ore-btn-lg-min-w: 10rem;
+  --ore-btn-lg-h: 2.75rem;
+  --ore-btn-auto-min-w: 4.5rem;
+}
+
+/* --- Steam Deck / 掌机 适配 (deck) --- */
+:root[data-density="deck"] {
+  --ore-density: deck;
+  --ore-page-pad-x: 20px;
+  --ore-page-pad-y: 12px;
+  --ore-control-h: 36px;
+  --ore-control-gap: 10px;
+  --ore-focus-ring-w: 2px;
+  --ore-content-max-w: 1000px;
+  --ore-card-min-w: 280px;
+  --ore-modal-w: min(760px, 94vw);
+  --ore-modal-max-h: min(86dvh, 760px);
+  --ore-btn-sm-min-w: 5rem;
+  --ore-btn-sm-h: 2.125rem;
+  --ore-btn-md-min-w: 7rem;
+  --ore-btn-md-h: 2.25rem;
+  --ore-btn-lg-min-w: 9rem;
+  --ore-btn-lg-h: 2.5rem;
+  --ore-btn-auto-min-w: 4.5rem;
+}
+
+/* --- 2K / 高清大屏 PC 适配 (wide) --- */
+:root[data-density="wide"] {
+  --ore-density: wide;
+  --ore-page-pad-x: 32px;
+  --ore-page-pad-y: 20px;
+  --ore-control-h: 44px;
+  --ore-control-gap: 16px;
+  --ore-focus-ring-w: 3px;
+  --ore-content-max-w: 1400px;
+  --ore-card-min-w: 340px;
+  --ore-modal-w: 540px;
+  --ore-modal-max-h: 85vh;
+  --ore-btn-sm-min-w: 7.5rem;
+  --ore-btn-sm-h: 2.25rem;
+  --ore-btn-md-min-w: 10rem;
+  --ore-btn-md-h: 2.5rem;
+  --ore-btn-lg-min-w: 12.5rem;
+  --ore-btn-lg-h: 2.75rem;
+  --ore-btn-auto-min-w: 6.25rem;
+}
+
+/* --- 4K / 电视 远距离适配 (tv) --- */
+:root[data-density="tv"] {
+  --ore-density: tv;
+  --ore-page-pad-x: 48px;
+  --ore-page-pad-y: 32px;
+  --ore-control-h: 56px;
+  --ore-control-gap: 20px;
+  --ore-focus-ring-w: 4px;
+  --ore-content-max-w: 1600px;
+  --ore-card-min-w: 400px;
+  --ore-modal-w: 720px;
+  --ore-modal-max-h: 90vh;
+  --ore-btn-sm-min-w: 10rem;
+  --ore-btn-sm-h: 3rem;
+  --ore-btn-md-min-w: 14rem;
+  --ore-btn-md-h: 3.5rem;
+  --ore-btn-lg-min-w: 18rem;
+  --ore-btn-lg-h: 4rem;
+  --ore-btn-auto-min-w: 8rem;
+}
+
+/* --- 触控区域滑动体验优化 --- */
+.ore-touch-scroller,
+.ore-overlay-scrollarea__viewport {
+  touch-action: pan-y !important;
+}
+
+/* --- TV 模式滚动条加宽 --- */
+:root[data-density="tv"] .ore-overlay-scrollarea__track {
+  width: 12px;
+}
+:root[data-density="tv"] .ore-overlay-scrollarea__thumb {
+  left: -8px;
+  right: -8px;
+}
+
+/* --- 设置分类图标-only 自动布局 --- */
+:root[data-density="compact"] .settings-tab-label span,
+:root[data-density="deck"] .settings-tab-label span {
+  display: none !important;
+}
+:root[data-density="compact"] .settings-tab-label,
+:root[data-density="deck"] .settings-tab-label {
+  gap: 0 !important;
 }
 
 html {
   font-size: 16px;
+}
+:root[data-density="compact"] {
+  font-size: 14px;
+}
+:root[data-density="deck"] {
+  font-size: 15px;
+}
+:root[data-density="desktop"] {
+  font-size: 16px;
+}
+:root[data-density="wide"] {
+  font-size: 17px;
+}
+:root[data-density="tv"] {
+  font-size: 20px;
 }
 
 html, body {

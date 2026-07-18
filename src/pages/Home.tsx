@@ -13,10 +13,12 @@ import { SkinViewerPlaceholder } from '../features/home/components/SkinViewerPla
 import { OreButton } from '../ui/primitives/OreButton';
 import { motion } from 'motion/react';
 import { OreMotionTokens } from '../style/tokens/motion';
+import { useScreenDensity } from '../hooks/ui/useScreenDensity';
 
 const Home: React.FC = () => {
   // ✅ 修复 1：移除 playTime 和 lastPlayed 解构，只保留 handleLaunch
   const { handleLaunch } = useHome();
+  const density = useScreenDensity();
   const { t } = useTranslation();
   const { instances } = useInstances();
 
@@ -35,7 +37,7 @@ const Home: React.FC = () => {
   const playTime = currentInstance?.playTime || 0;
   const lastPlayed = currentInstance?.lastPlayed || t('home.neverPlayed');
 
-  // 2. 弹窗中点击实例的逻辑
+  // 2. 弹窗中点击实例 of 逻辑
   const handleCardClick = (id: string) => {
     setSelectedInstanceId(id);
     setIsModalOpen(false);
@@ -51,7 +53,7 @@ const Home: React.FC = () => {
 
   return (
     <div
-      className="
+      className={`
         relative h-full w-full
         [--home-action-h:clamp(3rem,4.7vh,5.25rem)]
         [--home-action-font:clamp(1rem,2vh,1.875rem)]
@@ -63,31 +65,35 @@ const Home: React.FC = () => {
         [--home-side-font:clamp(1rem,1.25vw,1.75rem)]
         [--home-side-icon:clamp(1.45rem,1.65vw,2.25rem)]
         [--home-panel-edge:clamp(1rem,2.3vw,4rem)]
-        [--home-skin-w:clamp(12rem,25vw,27rem)]
-        [--home-skin-h:clamp(18.75rem,50vh,40rem)]
-      "
+        ${density === 'deck' 
+          ? '[--home-skin-w:13rem] [--home-skin-h:17rem]' 
+          : '[--home-skin-w:clamp(12rem,25vw,27rem)] [--home-skin-h:clamp(18.75rem,50vh,40rem)]'
+        }
+      `}
     >
       <h1 className="sr-only">{t('nav.home', '首页')}</h1>
       {/* ✅ 修复 3：将提取出的数据传给 PlayStats */}
       <PlayStats instanceId={currentId} playTime={playTime} lastPlayed={lastPlayed} />
-      <motion.div
-        initial={OreMotionTokens.homeRightPanel.initial}
-        animate={OreMotionTokens.homeRightPanel.animate}
-        transition={OreMotionTokens.homeRightPanel.transition}
-        className="absolute bottom-[clamp(1rem,3vh,3rem)] right-[var(--home-panel-edge)] z-20 flex w-[var(--home-skin-w)] flex-col items-center gap-[clamp(0.75rem,1.4vh,1.5rem)]"
-      >
-        <SkinViewerPlaceholder className="relative flex h-[var(--home-skin-h)] w-full cursor-grab items-center justify-center active:cursor-grabbing" />
-        <OreButton
-          focusKey="btn-wardrobe"
-          variant="secondary"
-          size="auto"
-          className="!h-[var(--home-action-h)] !w-[40%] !min-w-0 !px-[clamp(1rem,1.4vw,2rem)] !text-[length:var(--home-action-font)] !text-[#111214] [&_svg]:!text-[#111214]"
-          onClick={() => setActiveTab('wardrobe')}
-          autoScroll={false}
+      {density !== 'compact' && (
+        <motion.div
+          initial={OreMotionTokens.homeRightPanel.initial}
+          animate={OreMotionTokens.homeRightPanel.animate}
+          transition={OreMotionTokens.homeRightPanel.transition}
+          className="absolute bottom-[clamp(1rem,3vh,3rem)] right-[var(--home-panel-edge)] z-20 flex w-[var(--home-skin-w)] flex-col items-center gap-[clamp(0.75rem,1.4vh,1.5rem)]"
         >
-          {t('home.wardrobe')}
-        </OreButton>
-      </motion.div>
+          <SkinViewerPlaceholder className="relative flex h-[var(--home-skin-h)] w-full cursor-grab items-center justify-center active:cursor-grabbing" />
+          <OreButton
+            focusKey="btn-wardrobe"
+            variant="secondary"
+            size="auto"
+            className="!h-[var(--home-action-h)] !w-[40%] !min-w-0 !px-[clamp(1rem,1.4vw,2rem)] !text-[length:var(--home-action-font)] !text-[#111214] [&_svg]:!text-[#111214]"
+            onClick={() => setActiveTab('wardrobe')}
+            autoScroll={false}
+          >
+            {t('home.wardrobe')}
+          </OreButton>
+        </motion.div>
+      )}
 
       <motion.div
         initial={OreMotionTokens.homeTopPanel.initial}
