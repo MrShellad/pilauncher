@@ -376,7 +376,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             </div>
           )}
 
-          <div className={`${fieldClassName} ${isCompactOrDeck ? 'md:col-span-2' : 'md:col-span-2'} lg:col-span-6 lg:justify-self-center lg:w-full flex gap-2`}>
+          <div className={`${fieldClassName} md:col-span-2 ${isCompactOrDeck ? 'lg:col-span-9' : 'lg:col-span-6 lg:justify-self-center'} lg:w-full flex gap-2`}>
             {isCompactOrDeck && (
               <div className="shrink-0">
                 <FocusItem

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { invoke } from '@tauri-apps/api/core';
 
 const DB_NAME = 'icon-cache-db';
 const STORE_NAME = 'icons';
@@ -89,9 +90,24 @@ export const useIconCacheStore = create<IconCacheState>((set, get) => ({
   refreshIcon: async (url: string) => {
     if (!url) return '';
     try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch icon');
-      const blob = await response.blob();
+      let blob: Blob;
+
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        try {
+          const base64DataUrl = await invoke<string>('fetch_image_base64', { url });
+          const res = await fetch(base64DataUrl);
+          blob = await res.blob();
+        } catch (err) {
+          console.warn('Proxy fetch failed, falling back to direct fetch:', err);
+          const response = await fetch(url);
+          if (!response.ok) throw new Error('Failed to fetch icon');
+          blob = await response.blob();
+        }
+      } else {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Failed to fetch icon');
+        blob = await response.blob();
+      }
 
       // Save to IndexedDB
       await setCache(url, blob);

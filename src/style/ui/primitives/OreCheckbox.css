@@ -1,5 +1,3 @@
-@tailwind components;
-
 @layer components {
   /* 外层容器 */
   .ore-checkbox-wrapper {
@@ -23,7 +21,7 @@
 
   /* 禁用状态时的文字 */
   .ore-checkbox-wrapper.disabled .ore-checkbox-label {
-    @apply text-[#5A5A5A] !important;
+    @apply !text-[#5A5A5A];
   }
 
   /* 选中状态且未被聚焦/禁用时的文字 */

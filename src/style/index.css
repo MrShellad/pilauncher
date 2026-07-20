@@ -1,8 +1,5 @@
-@tailwind utilities;
 
-@layer utilities {
-  .outline-ore-focus {
-    outline-color: var(--ore-focus-ringFallback);
-    outline-color: var(--ore-focus-ring);
-  }
+@utility outline-ore-focus {
+  outline-color: var(--ore-focus-ringFallback);
+  outline-color: var(--ore-focus-ring);
 }

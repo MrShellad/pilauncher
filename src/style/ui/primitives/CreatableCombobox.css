@@ -1,5 +1,3 @@
-@tailwind components;
-
 /* /src/style/ui/primitives/CreatableCombobox.css */
 @layer components {
   .ore-combobox-panel {

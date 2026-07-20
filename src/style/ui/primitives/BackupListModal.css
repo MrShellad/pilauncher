@@ -1,5 +1,3 @@
-@tailwind components;
-
 .ore-backup-list-modal {
   --ore-backup-list-width: 68rem;
   --ore-backup-list-height: 48rem;

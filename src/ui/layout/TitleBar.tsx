@@ -27,12 +27,23 @@ export const TitleBar: React.FC = () => {
   useEffect(() => {
     appWindow.isFullscreen().then(setIsFullscreen);
 
-    const unlisten = appWindow.onResized(async () => {
-      const fullscreen = await appWindow.isFullscreen();
-      setIsFullscreen(fullscreen);
+    let timeoutId: any = null;
+    const unlisten = appWindow.onResized(() => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(async () => {
+        try {
+          const fullscreen = await appWindow.isFullscreen();
+          setIsFullscreen(fullscreen);
+        } catch (e) {
+          // ignore
+        }
+      }, 150);
     });
 
     return () => {
+      if (timeoutId) clearTimeout(timeoutId);
       unlisten.then((fn) => fn());
     };
   }, [appWindow]);

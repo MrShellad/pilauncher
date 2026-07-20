@@ -1,5 +1,3 @@
-@tailwind components;
-
 .ore-download-detail-modal {
   --ore-download-detail-width: 67.5rem;
   --ore-download-detail-height: 52rem;

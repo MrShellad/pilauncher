@@ -1,5 +1,3 @@
-@tailwind components;
-
 @layer components {
   .ore-overlay-scrollarea {
     @apply relative min-h-0 overflow-hidden;

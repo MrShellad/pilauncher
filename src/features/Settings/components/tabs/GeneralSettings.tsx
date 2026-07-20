@@ -51,12 +51,25 @@ export const GeneralSettings: React.FC = () => {
 
     void appWindow.isFullscreen().then(setIsFullscreen);
 
-    const unlistenResize = appWindow.onResized(async () => {
-      const fullscreen = await appWindow.isFullscreen().catch(() => false);
-      setIsFullscreen(fullscreen);
+    let timeoutId: any = null;
+    const unlistenResize = appWindow.onResized(() => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(async () => {
+        try {
+          const fullscreen = await appWindow.isFullscreen().catch(() => false);
+          setIsFullscreen(fullscreen);
+        } catch (e) {
+          // ignore
+        }
+      }, 150);
     });
 
     return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       if (fullscreenCooldownRef.current) {
         window.clearTimeout(fullscreenCooldownRef.current);
       }

@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
 const lucideEntryPath = fileURLToPath(
   new URL('./node_modules/lucide-react/dist/esm/lucide-react.js', import.meta.url)
@@ -91,7 +92,7 @@ const lucideDirectImportPlugin = (): Plugin => {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [lucideDirectImportPlugin(), react()],
+  plugins: [tailwindcss(), lucideDirectImportPlugin(), react()],
   optimizeDeps: {
     include: [
       'react',
@@ -100,7 +101,7 @@ export default defineConfig({
       'zustand',
       'i18next',
       'react-i18next',
-      'framer-motion',
+      'motion/react',
       '@tauri-apps/api/core',
       '@tauri-apps/api/event',
       '@tauri-apps/api/path',

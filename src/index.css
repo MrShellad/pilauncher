@@ -1,6 +1,41 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* --- 基础主题色 --- */
+  --color-ore-green: #3C8527;
+  --color-ore-red: #C33636;
+  --color-ore-button: #D0D1D4;
+
+  /* --- 导航栏体系 --- */
+  --color-ore-nav: #48494A;
+  --color-ore-nav-hover: #58585A;
+  --color-ore-nav-active: #313233;
+  --color-ore-nav-shadow: #242425;
+
+  /* --- 基础边框与轨道 --- */
+  --color-ore-gray-border: #1E1E1F;
+  --color-ore-gray-track: #8C8D90;
+
+  /* --- 文本颜色 --- */
+  --color-ore-text: #F2F2F2;
+  --color-ore-text-emphasis: #FFFFFF;
+  --color-ore-text-muted: #D0D1D4;
+  --color-ore-text-dark: #000000;
+
+  /* --- 自定义阴影 --- */
+  --drop-shadow-ore-glow: 0 0 6px var(--ore-focus-glow);
+
+  /* --- 字体系列 --- */
+  --font-sans: var(--ore-font-family-sans);
+  --font-minecraft: var(--ore-font-family-minecraft);
+  --font-jetbrains: "JetBrains Mono", monospace;
+
+  /* --- 间距体系 --- */
+  --spacing-ore-nav: 44px;
+  --spacing-ore-btn-sm: 36px;
+  --spacing-ore-btn-md: 40px;
+}
 
 body.intent-keyboard,
 body.intent-controller {

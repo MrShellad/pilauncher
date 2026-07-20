@@ -216,6 +216,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         network_cmd::run_network_test,
         network_cmd::fetch_donors,
         network_cmd::proxy_fetch,
+        network_cmd::fetch_image_base64,
         download_benchmark_cmd::run_download_benchmark,
         qrcode_cmd::generate_device_auth_qr,
         update_cmd::check_update,

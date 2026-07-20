@@ -266,3 +266,38 @@ pub async fn proxy_fetch(
     let json = res.json().await.map_err(|e| e.to_string())?;
     Ok(json)
 }
+
+#[tauri::command]
+pub async fn fetch_image_base64(url: String) -> Result<String, String> {
+    if !url.starts_with("https://media.forgecdn.net/")
+        && !url.starts_with("https://cdn.modrinth.com/")
+        && !url.starts_with("https://avatars.githubusercontent.com/")
+        && !url.starts_with("https://textures.minecraft.net/")
+    {
+        return Err("Only CurseForge, Modrinth, GitHub and Mojang texture URLs are allowed".to_string());
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(15))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let res = client.get(&url).send().await.map_err(|e| e.to_string())?;
+
+    if !res.status().is_success() {
+        return Err(format!("Failed to fetch image: status {}", res.status()));
+    }
+
+    let content_type = res
+        .headers()
+        .get("content-type")
+        .and_then(|val| val.to_str().ok())
+        .unwrap_or("image/png")
+        .to_string();
+
+    let bytes = res.bytes().await.map_err(|e| e.to_string())?;
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+
+    Ok(format!("data:{};base64,{}", content_type, b64))
+}
+

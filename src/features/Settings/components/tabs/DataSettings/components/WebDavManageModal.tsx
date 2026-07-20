@@ -457,7 +457,7 @@ export const WebDavManageModal: React.FC<WebDavManageModalProps> = ({ isOpen, on
             onChange={(val) => setActiveTab(val as 'saves' | 'skins' | 'favorites' | 'keymaps')}
             focusKeyPrefix="webdav-manage-tab"
             onArrowPress={handleLinearArrow}
-            className="flex-1 ore-tab-nav-toggle"
+            className="w-full flex-1 ore-tab-nav-toggle"
             uiScale="adaptive"
             focusable={true}
           />

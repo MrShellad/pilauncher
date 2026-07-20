@@ -158,7 +158,7 @@ export const Settings: React.FC = () => {
                   size="lg"
                   uiScale="adaptive"
                   focusable={false}
-                  className="settings-tabs-toggle ore-tab-nav-toggle max-w-[88rem]"
+                  className="w-full settings-tabs-toggle ore-tab-nav-toggle max-w-[88rem]"
                 />
               </div>
             </div>

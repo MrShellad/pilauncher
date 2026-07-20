@@ -1,5 +1,3 @@
-@tailwind components;
-
 .ore-save-restore-modal {
   --ore-save-restore-width: 60rem;
   --ore-save-restore-height: 47rem;
