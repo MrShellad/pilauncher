@@ -49,6 +49,29 @@
   </categories>
 
   <releases>
+    <release version="0.1.50" date="2026-08-15">
+      <description>
+        <p xml:lang="zh_CN">本次更新重点优化了模组管理、下载体验和 Steam Deck 等设备上的手柄操作。</p>
+        <ul xml:lang="zh_CN">
+          <li>[优化] 重新整理下载任务列表、日志查看和操作按钮，状态更清晰，手柄焦点导航更稳定。</li>
+          <li>[优化] 改进小屏幕与大屏幕布局，让 Steam Deck、掌机、PC 和电视上的列表与操作区更易查看和使用。</li>
+          <li>[优化] 模组图标会在联网时自动下载并保存，实例列表可更快显示统一、清晰的图标。</li>
+          <li>[优化] 批量更新模组前会先创建快照，更新失败或需要回退时可更安心地恢复之前的状态。</li>
+          <li>[优化] 模组快照支持更可靠的历史回滚，回滚前会自动保留当前状态。</li>
+          <li>[修复] 修复下载管理器中焦点可能停留在日志按钮、无法继续导航的问题。</li>
+        </ul>
+        <p>This release improves mod management, downloads, and controller usability on Steam Deck and other devices.</p>
+        <ul>
+          <li>[Optimization] Refined the download task list, log viewer, and action controls for clearer status and more reliable controller navigation.</li>
+          <li>[Optimization] Improved compact and large-screen layouts for Steam Deck, handhelds, PCs, and TVs.</li>
+          <li>[Optimization] Mod icons are now downloaded and saved while online, so instance lists can display consistent icons more quickly.</li>
+          <li>[Optimization] Batch mod updates now create a snapshot first, making it easier to recover from unsuccessful updates.</li>
+          <li>[Optimization] Mod snapshots now provide more reliable history rollback and automatically preserve the current state before restoring.</li>
+          <li>[Fix] Fixed an issue where download-manager focus could become trapped on the log button.</li>
+        </ul>
+      </description>
+    </release>
+
     <release version="0.1.49" date="2026-07-20">
       <description>
         <p xml:lang="zh_CN">全新升级至 Vite 8 与 TailwindCSS v4 构建引擎，并深度优化手柄选项按钮与低分辨率搜索栏布局，修复高频缩放报错与资源图标跨域下载问题。</p>
