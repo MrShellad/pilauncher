@@ -822,7 +822,8 @@
         "pointer": "마우스 포인터",
         "actionX": "보조 작업",
         "actionY": "빠른 작동",
-        "scroll": "스크롤하거나 초점을 위나 아래로 이동하세요.",
+        "tabs": "런처 탭 전환",
+        "scroll": "페이지 내용 스크롤",
         "mouseButtons": "Minecraft에서 왼쪽 및 오른쪽 클릭"
       },
       "visibility": "게임이 실행되는 동안의 가시성",

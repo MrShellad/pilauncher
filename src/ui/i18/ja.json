@@ -822,7 +822,8 @@
         "pointer": "マウスポインタ",
         "actionX": "二次的な操作",
         "actionY": "素早い操作",
-        "scroll": "スクロールまたはフォーカスを上下に移動します",
+        "tabs": "ランチャーのタブを切り替え",
+        "scroll": "ページ内容をスクロール",
         "mouseButtons": "Minecraft での左クリックと右クリック"
       },
       "visibility": "ゲーム実行中の視認性",

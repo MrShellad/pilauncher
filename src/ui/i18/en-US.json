@@ -825,7 +825,8 @@
         "pointer": "Mouse pointer",
         "actionX": "Secondary action",
         "actionY": "Quick action",
-        "scroll": "Scroll or move focus up/down",
+        "tabs": "Switch launcher tabs",
+        "scroll": "Scroll page content",
         "mouseButtons": "Right / left mouse click for Minecraft"
       },
       "visibility": "Visibility during Game Runtime",

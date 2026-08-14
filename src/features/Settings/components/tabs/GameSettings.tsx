@@ -111,16 +111,16 @@ export const GameSettings: React.FC = () => {
 
   const steamDeckKeymapColumns = useMemo(() => [
     [
-      ['A', t('settings.game.steamDeckMap.confirm')],
-      ['B / Menu', t('settings.game.steamDeckMap.cancel')],
-      ['Left Stick / WASD', t('settings.game.steamDeckMap.move')],
-      ['Right Trackpad', t('settings.game.steamDeckMap.pointer')],
+      ['A / Space', t('settings.game.steamDeckMap.confirm')],
+      ['B / Menu / Esc', t('settings.game.steamDeckMap.cancel')],
+      ['D-Pad / Left Stick / WASD', t('settings.game.steamDeckMap.move')],
+      ['L1 / R1 / Q / E', t('settings.game.steamDeckMap.tabs')],
     ],
     [
+      ['Right Trackpad', t('settings.game.steamDeckMap.pointer')],
+      ['Trackpad Scroll', t('settings.game.steamDeckMap.scroll')],
       ['X / Right Click', t('settings.game.steamDeckMap.actionX')],
       ['Y / F', t('settings.game.steamDeckMap.actionY')],
-      ['L1 / R1 / D-Pad', t('settings.game.steamDeckMap.scroll')],
-      ['L2 / R2', t('settings.game.steamDeckMap.mouseButtons')],
     ],
   ], [t]);
 

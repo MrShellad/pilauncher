@@ -89,27 +89,20 @@ export const defaultBindings: InputBindings = {
 export const steamDeckKeyboardPreset: Pick<InputBindings, 'controllerKeyboard' | 'mouse'> = {
   controllerKeyboard: {
     w: 'UP',
-    W: 'UP',
     s: 'DOWN',
-    S: 'DOWN',
     a: 'LEFT',
-    A: 'LEFT',
     d: 'RIGHT',
-    D: 'RIGHT',
     ' ': 'CONFIRM',
     Space: 'CONFIRM',
     Enter: 'CONFIRM',
     Escape: 'CANCEL',
     f: 'ACTION_Y',
-    F: 'ACTION_Y',
+    q: 'TAB_LEFT',
+    e: 'TAB_RIGHT',
   },
   mouse: {
     buttons: {
       2: 'ACTION_X',
-    },
-    wheel: {
-      up: 'UP',
-      down: 'DOWN',
     },
   },
 };
@@ -124,6 +117,14 @@ const SCROLL_AXIS_SPEED = 15;
 
 const isRightStickYAxis = (id: string | number) =>
   id === 'RightStickY' || id === 3 || id === '3';
+
+const isEditableTarget = (target: EventTarget | null) => {
+  if (!(target instanceof HTMLElement)) return false;
+
+  return target.isContentEditable || Boolean(
+    target.closest('input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), select:not([disabled]), [contenteditable="true"]'),
+  );
+};
 
 const getKeyEventProps = (key: string) => {
   const props: any = { key };
@@ -316,7 +317,8 @@ export const useInputDriver = (
     };
 
     const resolveKeyboardBinding = (e: KeyboardEvent) => {
-      const candidates = [e.key, e.code].filter(Boolean);
+      const candidates = [e.key, e.key.length === 1 ? e.key.toLowerCase() : '', e.code]
+        .filter(Boolean);
       const controllerKey = candidates.find((key) => bindings.controllerKeyboard?.[key]);
       if (controllerKey) return { key: controllerKey, mode: 'controller' as InputMode };
       const keyboardKey = candidates.find((key) => bindings.keyboard[key]);
@@ -326,6 +328,9 @@ export const useInputDriver = (
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!e.isTrusted || ['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return;
+      // Steam's on-screen keyboard emits ordinary keys. Keep native text entry intact.
+      if (isEditableTarget(e.target)) return;
+
       const binding = resolveKeyboardBinding(e);
       onModeChange(binding.mode);
       activeKeys.current.set(binding.key, binding.mode);

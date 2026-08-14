@@ -830,7 +830,8 @@
         "pointer": "鼠标指针",
         "actionX": "次级操作",
         "actionY": "快捷操作",
-        "scroll": "滚动或上下移动焦点",
+        "tabs": "切换启动器标签",
+        "scroll": "滚动页面内容",
         "mouseButtons": "Minecraft 中的左右键点击"
       },
       "visibility": "游戏运行时的可见性",

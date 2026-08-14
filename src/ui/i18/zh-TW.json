@@ -823,7 +823,8 @@
         "pointer": "滑鼠指針",
         "actionX": "次級操作",
         "actionY": "快速操作",
-        "scroll": "捲動或上下移動焦點",
+        "tabs": "切換啟動器分頁",
+        "scroll": "捲動頁面內容",
         "mouseButtons": "Minecraft 中的左右鍵點擊"
       },
       "visibility": "遊戲運行時的可見性",
