@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Download } from 'lucide-react';
-import { getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
 import type { DownloadTask } from '../../../../store/useDownloadStore';
 import type { TabType } from '../../../../store/useLauncherStore';
@@ -67,6 +67,56 @@ export const TaskPanel = ({
       .sort((a, b) => b.lastUpdate - a.lastUpdate || b.startedAt - a.startedAt),
   })), [taskList]);
   const selectedLogTask = taskList.find((task) => task.id === logTaskId) ?? null;
+
+  const taskActionFocusOrder = useMemo(() => taskGroups.flatMap((group) => {
+    if (group.id === 'completed' && !isCompletedExpanded) return [];
+
+    return group.tasks.flatMap((task) => {
+      const focusKeys = [`btn-log-${task.id}`];
+      const isDone = task.status === 'completed';
+      const isError = task.status === 'error';
+      const isResource = task.taskType === 'resource';
+      const isUpdate = task.taskType === 'update';
+
+      if (!isDone && !isError && !isUpdate) {
+        if (isResource) focusKeys.push(`btn-pause-${task.id}`);
+        focusKeys.push(`btn-cancel-${task.id}`);
+      } else if (isError) {
+        if (task.retryTask || task.retryAction) focusKeys.push(`btn-retry-${task.id}`);
+        focusKeys.push(`btn-complete-${task.id}`);
+      } else if (isDone) {
+        focusKeys.push(`btn-complete-${task.id}`);
+      }
+
+      return focusKeys;
+    });
+  }), [isCompletedExpanded, taskGroups]);
+
+  const panelFocusOrder = useMemo(() => [
+    ...taskActionFocusOrder,
+    ...(completedTasksCount > 0 ? ['btn-taskpanel-toggle-completed'] : []),
+    'btn-taskpanel-auto-open-once',
+    ...(completedTasksCount > 0 ? ['btn-taskpanel-clear-completed'] : []),
+    'btn-taskpanel-hide',
+  ], [completedTasksCount, taskActionFocusOrder]);
+
+  const handlePanelArrowPress = useCallback((focusKey: string, direction: string) => {
+    if (!['left', 'right', 'up', 'down'].includes(direction)) return true;
+
+    const availableFocusKeys = panelFocusOrder.filter((key) => doesFocusableExist(key));
+    const currentIndex = availableFocusKeys.indexOf(focusKey);
+    if (currentIndex < 0) return true;
+
+    const moveBackward = direction === 'left' || direction === 'up';
+    const nextIndex = Math.max(
+      0,
+      Math.min(availableFocusKeys.length - 1, currentIndex + (moveBackward ? -1 : 1)),
+    );
+    const nextFocusKey = availableFocusKeys[nextIndex];
+    if (nextFocusKey && nextFocusKey !== focusKey) setFocus(nextFocusKey);
+
+    return false;
+  }, [panelFocusOrder]);
 
   const openTaskLog = useCallback((taskId: string) => {
     setLogTaskId(taskId);
@@ -174,6 +224,7 @@ export const TaskPanel = ({
                           variant="ghost"
                           size="auto"
                           onClick={() => setCompletedExpanded((expanded) => !expanded)}
+                          onArrowPress={(direction) => handlePanelArrowPress('btn-taskpanel-toggle-completed', direction)}
                           className="!h-[2rem] !min-w-0 !px-[0.5rem] text-[0.75rem]"
                         >
                           {isCompletedExpanded ? '收起' : '展开'}
@@ -196,6 +247,7 @@ export const TaskPanel = ({
                               setActiveTab={setActiveTab}
                               removeTask={removeTask}
                               onOpenLog={openTaskLog}
+                              onActionArrowPress={handlePanelArrowPress}
                             />
                           </motion.div>
                         ))}
@@ -219,6 +271,7 @@ export const TaskPanel = ({
                   focusKey="btn-taskpanel-auto-open-once"
                   checked={autoOpenOnce}
                   onChange={onAutoOpenOnceChange}
+                  onArrowPress={(direction) => handlePanelArrowPress('btn-taskpanel-auto-open-once', direction)}
                   label="只弹一次"
                 />
               </div>
@@ -230,6 +283,7 @@ export const TaskPanel = ({
                   size="auto"
                   disabled={completedTasksCount === 0}
                   onClick={clearCompletedTasks}
+                  onArrowPress={(direction) => handlePanelArrowPress('btn-taskpanel-clear-completed', direction)}
                   className="!min-w-[8.5rem] text-[0.8125rem]"
                 >
                   清除已完成{completedTasksCount > 0 ? ` (${completedTasksCount})` : ''}
@@ -240,6 +294,7 @@ export const TaskPanel = ({
                   variant="primary"
                   size="auto"
                   onClick={onClose}
+                  onArrowPress={(direction) => handlePanelArrowPress('btn-taskpanel-hide', direction)}
                   className="!min-w-[6.5rem] text-[0.8125rem]"
                 >
                   隐藏面板

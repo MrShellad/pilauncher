@@ -1,5 +1,5 @@
 use crate::services::instance::mod_snapshot_manager::{
-    InstanceSnapshot, ModSnapshotManager, SnapshotDiff,
+    InstanceSnapshot, ModSnapshotManager, RollbackResult, SnapshotDiff,
 };
 use tauri::{AppHandle, Runtime};
 
@@ -10,7 +10,7 @@ pub async fn take_snapshot<R: Runtime>(
     trigger: String,
     message: String,
 ) -> Result<InstanceSnapshot, String> {
-    ModSnapshotManager::take_snapshot(app, instance_id, trigger, message).await
+    ModSnapshotManager::take_snapshot(app, instance_id, trigger, message)
 }
 
 #[tauri::command]
@@ -36,6 +36,6 @@ pub async fn rollback_instance<R: Runtime>(
     app: AppHandle<R>,
     instance_id: String,
     snapshot_id: String,
-) -> Result<(), String> {
+) -> Result<RollbackResult, String> {
     ModSnapshotManager::rollback_instance(&app, &instance_id, &snapshot_id)
 }

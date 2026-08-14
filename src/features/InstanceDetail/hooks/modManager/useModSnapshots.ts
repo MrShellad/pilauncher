@@ -15,12 +15,15 @@ export const useModSnapshots = ({ instanceId, loadMods }: UseModSnapshotsOptions
 
   useEffect(() => {
     const unlisten = listen<SnapshotProgressEvent>('snapshot-progress', (event) => {
+      if (event.payload.instanceId && event.payload.instanceId !== instanceId) {
+        return;
+      }
       setSnapshotProgress(event.payload);
     });
     return () => {
       unlisten.then((unlistenSnapshotProgress) => unlistenSnapshotProgress());
     };
-  }, []);
+  }, [instanceId]);
 
   const takeSnapshot = useCallback(async (trigger: string, message: string) => {
     setSnapshotState('snapshotting');
@@ -47,8 +50,9 @@ export const useModSnapshots = ({ instanceId, loadMods }: UseModSnapshotsOptions
   const doRollback = useCallback(async (snapshotId: string) => {
     setSnapshotState('rolling_back');
     try {
-      await modService.rollbackInstance(instanceId, snapshotId);
+      const result = await modService.rollbackInstance(instanceId, snapshotId);
       await loadMods();
+      return result;
     } catch (error) {
       console.error(error);
       throw error;

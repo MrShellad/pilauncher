@@ -121,6 +121,7 @@ interface TaskItemProps {
   setActiveTab: (tab: TabType) => void;
   removeTask: (id: string) => void;
   onOpenLog: (taskId: string) => void;
+  onActionArrowPress: (focusKey: string, direction: string) => boolean;
 }
 
 export const TaskItem = memo(({
@@ -129,6 +130,7 @@ export const TaskItem = memo(({
   setActiveTab,
   removeTask,
   onOpenLog,
+  onActionArrowPress,
 }: TaskItemProps) => {
   const isDone = task.status === 'completed';
   const isError = task.status === 'error';
@@ -297,6 +299,7 @@ export const TaskItem = memo(({
             icon={<ScrollText className="h-[1rem] w-[1rem]" />}
             label="查看日志"
             onClick={() => onOpenLog(task.id)}
+            onArrowPress={(direction) => onActionArrowPress(`btn-log-${task.id}`, direction)}
           />
           <span className="truncate font-mono text-[0.75rem] tabular-nums text-[var(--ore-downloadDetail-mutedText)]">
             {task.logs.length} 条日志
@@ -313,6 +316,7 @@ export const TaskItem = memo(({
                   icon={isPaused ? <Play className="h-[1rem] w-[1rem]" /> : <Pause className="h-[1rem] w-[1rem]" />}
                   label={isPaused ? '继续下载' : '暂停下载'}
                   onClick={handlePauseResume}
+                  onArrowPress={(direction) => onActionArrowPress(`btn-pause-${task.id}`, direction)}
                 />
               )}
               <OreIconButton
@@ -321,6 +325,7 @@ export const TaskItem = memo(({
                 icon={<X className="h-[1rem] w-[1rem]" />}
                 label="取消任务"
                 onClick={handleCancel}
+                onArrowPress={(direction) => onActionArrowPress(`btn-cancel-${task.id}`, direction)}
               />
             </>
           )}
@@ -334,6 +339,7 @@ export const TaskItem = memo(({
                   icon={<RotateCcw className="h-[1rem] w-[1rem]" />}
                   label="重试任务"
                   onClick={handleRetry}
+                  onArrowPress={(direction) => onActionArrowPress(`btn-retry-${task.id}`, direction)}
                 />
               )}
               <OreIconButton
@@ -345,6 +351,7 @@ export const TaskItem = memo(({
                   handoffFocusInsidePanel();
                   removeTask(task.id);
                 }}
+                onArrowPress={(direction) => onActionArrowPress(`btn-complete-${task.id}`, direction)}
               />
             </>
           )}
@@ -362,6 +369,7 @@ export const TaskItem = memo(({
                 removeTask(task.id);
                 if (task.taskType === 'instance') setActiveTab('instances');
               }}
+              onArrowPress={(direction) => onActionArrowPress(`btn-complete-${task.id}`, direction)}
             />
           )}
         </div>

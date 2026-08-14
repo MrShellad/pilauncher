@@ -294,6 +294,7 @@ export const isProjectInstalled = (
 
 export interface ModEntry {
   hash: string;
+  hashAlgorithm?: string;
   fileName: string;
   modId?: string | null;
   version?: string | null;
@@ -301,6 +302,7 @@ export interface ModEntry {
 }
 
 export interface InstanceSnapshot {
+  schemaVersion?: number;
   id: string;
   timestamp: number;
   trigger: string;
@@ -315,11 +317,18 @@ export interface SnapshotDiff {
   stateChanged: { old: ModEntry; new: ModEntry }[];
 }
 
+export interface SnapshotRollbackResult {
+  restoredSnapshotId: string;
+  preRollbackSnapshotId: string;
+}
+
 export interface SnapshotProgressEvent {
+  instanceId?: string;
   current: number;
   total: number;
   phase: string;
   file: string;
+  operationId?: string;
 }
 
 export const modService = {
@@ -370,7 +379,7 @@ export const modService = {
     invoke<SnapshotDiff>('calculate_snapshot_diff', { instanceId: id, oldId, newId }),
 
   rollbackInstance: (id: string, snapshotId: string) => 
-    invoke<void>('rollback_instance', { instanceId: id, snapshotId }),
+    invoke<SnapshotRollbackResult>('rollback_instance', { instanceId: id, snapshotId }),
     
   updateModCache: (cacheKey: string, name: string, desc: string, iconUrl: string) =>
     invoke<string | null>('update_mod_cache', { cacheKey, name, desc, iconUrl }),

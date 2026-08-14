@@ -293,9 +293,10 @@ export const useModPanelController = (instanceId: string) => {
       await syncHistoryAfterSnapshot();
     } catch (error) {
       console.error(error);
-      addToast('warning', t('modPanel.updateAllSnapshotFailed', {
-        defaultValue: '创建更新前快照失败，将直接开始更新。'
+      addToast('error', t('modPanel.updateAllSnapshotFailed', {
+        defaultValue: '创建更新前快照失败，已取消批量更新。'
       }));
+      return;
     } finally {
       setIsPreparingUpgradeSnapshot(false);
     }

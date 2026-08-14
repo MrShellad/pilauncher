@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { focusManager } from '../../../../../../ui/focus/FocusManager';
 import { useToastStore } from '../../../../../../store/useToastStore';
 
-import type { InstanceSnapshot, ModMeta, SnapshotDiff } from '../../../../logic/modService';
+import type { InstanceSnapshot, ModMeta, SnapshotDiff, SnapshotRollbackResult } from '../../../../logic/modService';
 import { getModIdentityKey } from '../../../../logic/modService';
 
 export interface PendingDeleteState {
@@ -18,7 +18,7 @@ interface UseModPanelDialogsOptions {
   mods: ModMeta[];
   fetchHistory: () => Promise<InstanceSnapshot[]>;
   diffSnapshots: (oldId: string, newId: string) => Promise<SnapshotDiff>;
-  doRollback: (snapshotId: string) => Promise<void>;
+  doRollback: (snapshotId: string) => Promise<SnapshotRollbackResult>;
   toggleMod: (fileName: string, currentEnabled: boolean) => void | Promise<void>;
   deleteMod: (fileName: string) => void | Promise<void>;
   deleteMods: (fileNames: string[]) => void | Promise<void>;
@@ -221,11 +221,12 @@ export const useModPanelDialogs = ({
 
   const rollbackSnapshot = useCallback(async (snapshotId: string) => {
     try {
-      await doRollback(snapshotId);
+      const result = await doRollback(snapshotId);
       const refreshedHistory = await fetchHistory();
       setHistory(refreshedHistory);
       addToast('success', t('modSnapshots.messages.rollbackSuccess', {
-        defaultValue: 'Rolled back to the selected snapshot.'
+        id: result.preRollbackSnapshotId,
+        defaultValue: 'Rolled back to the selected snapshot. A safety snapshot was created: {{id}}.'
       }));
     } catch (error) {
       console.error(error);
