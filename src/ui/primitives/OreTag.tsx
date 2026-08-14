@@ -7,7 +7,10 @@ export type OreTagVariant =
   | 'informative' 
   | 'notice' 
   | 'warning' 
-  | 'realms';
+  | 'realms'
+  | 'success'
+  | 'error'
+  | 'paused';
 
 export type OreTagSize = 'sm' | 'md' | 'lg';
 export type OreTagWeight = 'normal' | 'bold';

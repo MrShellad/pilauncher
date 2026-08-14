@@ -1,28 +1,27 @@
-import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { memo } from 'react';
 import { motion } from 'motion/react';
-import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import {
   AlertTriangle,
   Box,
-  CheckCircle,
-  ChevronDown,
-  ChevronUp,
   FileDown,
   Pause,
   Play,
   RefreshCw,
   RotateCcw,
+  ScrollText,
+  Settings2,
   Trash2,
+  X,
 } from 'lucide-react';
 
 import { useDownloadStore, type DownloadTask } from '../../../../store/useDownloadStore';
+import type { TabType } from '../../../../store/useLauncherStore';
 import { controlResourceDownload } from '../../logic/downloadTask';
-import { ControlHint } from '../../../../ui/components/ControlHint';
-import { useInputAction } from '../../../../ui/focus/InputDriver';
-import { OreButton } from '../../../../ui/primitives/OreButton';
+import { OreIconButton } from '../../../../ui/primitives/OreIconButton';
 import { OreProgressBar } from '../../../../ui/primitives/OreProgressBar';
-import { OreOverlayScrollArea } from '../../../../ui/primitives/OreOverlayScrollArea';
+import { OreTag, type OreTagVariant } from '../../../../ui/primitives/OreTag';
 
 const INSTANCE_PIPELINE = [
   { label: '下载', key: 0 },
@@ -41,16 +40,6 @@ const UPDATE_PIPELINE = [
   { label: '安装', key: 1 },
   { label: '完成', key: 3 },
 ];
-
-const LOG_CONTAINER_TRANSITION = {
-  duration: 0.22,
-  ease: [0.32, 0.72, 0, 1] as const,
-};
-
-const LOG_PANEL_VARIANTS = {
-  open: { maxHeight: '12rem', opacity: 1, marginTop: '0.5rem' },
-  collapsed: { maxHeight: 0, opacity: 0, marginTop: 0 },
-};
 
 const PipelineIndicator = ({
   stages,
@@ -106,36 +95,6 @@ const PipelineIndicator = ({
   </div>
 );
 
-const renderLogLine = (log: string, index: number) => {
-  const timeMatch = log.match(/^(\[.*?\])\s(.*)$/);
-  const time = timeMatch ? timeMatch[1] : '';
-  const message = timeMatch ? timeMatch[2] : log;
-  const highlightRegex =
-    /(\d+\/\d+|\d+%|[\w.-]+\.(?:jar|json|zip|exe|msi)|done|failed|success|error|completed|installer)/gi;
-  const messageParts = message.split(highlightRegex);
-
-  return (
-    <div key={index} className="mb-[0.125rem] flex items-start">
-      <span className="mr-[0.5rem] shrink-0 rounded-[0.1875rem] border border-white/5 bg-black/40 px-[0.25rem] text-[#A0A0A0]">
-        {time}
-      </span>
-      <span className="min-w-0 flex-1 break-words text-gray-300">
-        {messageParts.map((part, partIndex) => {
-          if (highlightRegex.test(part)) {
-            const isErrorPart = /failed|error/i.test(part);
-            return (
-              <span key={partIndex} className={isErrorPart ? 'font-bold text-red-400' : 'font-bold text-ore-green'}>
-                {part}
-              </span>
-            );
-          }
-          return <span key={partIndex}>{part}</span>;
-        })}
-      </span>
-    </div>
-  );
-};
-
 const ProgressSummary = ({ task }: { task: DownloadTask }) => {
   if (task.status === 'completed') {
     return <span className="font-minecraft text-[0.75rem] font-bold text-ore-green">已完成</span>;
@@ -156,64 +115,28 @@ const ProgressSummary = ({ task }: { task: DownloadTask }) => {
   );
 };
 
-export const TaskItem = ({
+interface TaskItemProps {
+  task: DownloadTask;
+  taskCount: number;
+  setActiveTab: (tab: TabType) => void;
+  removeTask: (id: string) => void;
+  onOpenLog: (taskId: string) => void;
+}
+
+export const TaskItem = memo(({
   task,
   taskCount,
   setActiveTab,
   removeTask,
-}: {
-  task: DownloadTask;
-  taskCount: number;
-  setActiveTab: (tab: string) => void;
-  removeTask: (id: string) => void;
-}) => {
-  const [showLogs, setShowLogs] = useState(false);
-  const logViewportRef = useRef<HTMLDivElement | null>(null);
-  const shouldStickToLatestLogRef = useRef(true);
-
+  onOpenLog,
+}: TaskItemProps) => {
   const isDone = task.status === 'completed';
   const isError = task.status === 'error';
   const isPaused = task.status === 'paused';
   const isResource = task.taskType === 'resource';
   const isUpdate = task.taskType === 'update';
   const latestLog = task.logs.length > 0 ? task.logs[task.logs.length - 1] : null;
-
-  useEffect(() => {
-    const viewport = logViewportRef.current;
-    if (!showLogs || !viewport || !shouldStickToLatestLogRef.current) return;
-
-    requestAnimationFrame(() => {
-      viewport.scrollTop = viewport.scrollHeight;
-    });
-  }, [showLogs, task.logs.length]);
-
-  const toggleLogs = () => {
-    setShowLogs((prev) => {
-      const next = !prev;
-      if (next) {
-        shouldStickToLatestLogRef.current = true;
-      }
-      return next;
-    });
-  };
-
-  const handleLogScroll = (event: React.UIEvent<HTMLDivElement>) => {
-    const viewport = event.currentTarget;
-    const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
-    shouldStickToLatestLogRef.current = distanceFromBottom < 24;
-  };
-
-  useInputAction('ACTION_Y', () => {
-    const focusKey = getCurrentFocusKey();
-    if (focusKey && (
-      focusKey === `btn-log-${task.id}` ||
-      focusKey === `btn-cancel-${task.id}` ||
-      focusKey === `btn-retry-${task.id}` ||
-      focusKey === `btn-complete-${task.id}`
-    )) {
-      toggleLogs();
-    }
-  });
+  const canRetry = Boolean(task.retryTask || task.retryAction);
 
   const handoffFocusInsidePanel = () => {
     if (taskCount <= 1) return;
@@ -225,17 +148,25 @@ export const TaskItem = ({
   const pipeline = isUpdate ? UPDATE_PIPELINE : isResource ? RESOURCE_PIPELINE : INSTANCE_PIPELINE;
 
   const statusLabel = isError ? '失败' : isDone ? '完成' : '进行中';
-  const statusColorClass = isError
-    ? 'border-red-500/30 bg-red-500/10 text-red-500'
+  const visibleStatusLabel = isPaused ? '已暂停' : statusLabel;
+  const statusVariant: OreTagVariant = isError
+    ? 'error'
     : isDone
-      ? 'border-ore-green/30 bg-ore-green/10 text-ore-green'
-      : 'border-white/10 bg-white/5 text-[var(--ore-downloadDetail-mutedText)]';
-  const visibleStatusLabel = isPaused ? 'Paused' : statusLabel;
+      ? 'success'
+      : isPaused
+        ? 'paused'
+        : 'neutral';
 
   const handleRetry = () => {
+    const retryStage = isUpdate
+      ? 'CHECKING_UPDATE'
+      : isResource
+        ? 'DOWNLOADING_MOD'
+        : 'VANILLA_CORE';
+
     useDownloadStore.getState().addOrUpdateTask({
       id: task.id,
-      stage: isUpdate ? 'CHECKING_UPDATE' : task.stage,
+      stage: retryStage,
       message: '正在准备重试...',
     });
 
@@ -251,7 +182,9 @@ export const TaskItem = ({
       return;
     }
 
-    invoke(task.retryAction!, { ...task.retryPayload }).catch((error) => {
+    if (!task.retryAction) return;
+
+    invoke(task.retryAction, { ...task.retryPayload }).catch((error) => {
       console.error('重试失败:', error);
       useDownloadStore.getState().addOrUpdateTask({
         id: task.id,
@@ -303,21 +236,21 @@ export const TaskItem = ({
 
   return (
     <motion.div
-      layout
-      transition={{ layout: LOG_CONTAINER_TRANSITION }}
-      className={`group relative flex flex-col border bg-[#141415] p-[clamp(0.75rem,1.5vw,0.875rem)] transition-colors ${
-        isError ? 'border-red-500/50 bg-[#1A1A1B]' : 'border-[var(--ore-downloadDetail-divider)] bg-[#1A1A1B]'
+      role="article"
+      aria-label={`下载任务：${task.title}，${visibleStatusLabel}，进度 ${task.progress}%`}
+      className={`group relative flex flex-col border bg-[var(--ore-downloadDetail-base)] p-[clamp(0.75rem,1.5vw,0.875rem)] transition-colors ${
+        isError ? 'border-[var(--ore-btn-danger-bg)]' : 'border-[var(--ore-downloadDetail-divider)]'
       }`}
       style={{ boxShadow: 'var(--ore-downloadDetail-sectionShadow)' }}
     >
       <div className="mb-[0.375rem] flex items-center justify-between gap-[0.5rem]">
         <div className="flex min-w-0 flex-1 items-center gap-[0.375rem]">
           {isError ? (
-            <AlertTriangle className="h-[1.125rem] w-[1.125rem] shrink-0 text-red-500" />
+            <AlertTriangle className="h-[1.125rem] w-[1.125rem] shrink-0 text-[var(--ore-btn-danger-bg)]" />
           ) : isUpdate ? (
             <RefreshCw className={`h-[1.125rem] w-[1.125rem] shrink-0 ${isDone ? 'text-ore-green' : 'text-ore-text-muted'}`} />
           ) : isResource ? (
-            <FileDown className={`h-[1.125rem] w-[1.125rem] shrink-0 ${isDone ? 'text-blue-400' : 'text-ore-text-muted'}`} />
+            <FileDown className={`h-[1.125rem] w-[1.125rem] shrink-0 ${isDone ? 'text-ore-green' : 'text-ore-text-muted'}`} />
           ) : (
             <Box className={`h-[1.125rem] w-[1.125rem] shrink-0 ${isDone ? 'text-ore-green' : 'text-ore-text-muted'}`} />
           )}
@@ -326,9 +259,9 @@ export const TaskItem = ({
             {task.title}
           </span>
 
-          <span className={`shrink-0 rounded-[0.125rem] border px-[0.375rem] py-[0.125rem] font-minecraft text-[0.75rem] uppercase tracking-[0.06em] ${statusColorClass}`}>
+          <OreTag variant={statusVariant} size="sm" weight="bold" className="shrink-0 uppercase tracking-[0.06em]">
             {visibleStatusLabel}
-          </span>
+          </OreTag>
         </div>
       </div>
 
@@ -348,131 +281,93 @@ export const TaskItem = ({
         <span className={isError ? 'text-red-400/80' : ''}>{task.stepText}</span>
       </div>
 
-      {latestLog && (
-        <motion.div
-          initial={false}
-          animate={
-            showLogs
-              ? { opacity: 0, maxHeight: 0, marginBottom: 0 }
-              : { opacity: 1, maxHeight: '2rem', marginBottom: '0.375rem' }
-          }
-          transition={LOG_CONTAINER_TRANSITION}
-          className="overflow-hidden"
-        >
+      <div className="mb-[0.375rem] min-h-[1rem] overflow-hidden">
+        {latestLog && (
           <div className="truncate font-mono text-[0.6875rem] leading-[1.4] text-[#6D6D6E]">
             {latestLog}
           </div>
-        </motion.div>
-      )}
+        )}
+      </div>
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-[0.375rem]">
-          <OreButton
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-[0.75rem] border-t border-[var(--ore-downloadDetail-divider)] pt-[0.625rem]">
+        <div className="flex min-w-0 items-center gap-[0.5rem]">
+          <OreIconButton
             focusKey={`btn-log-${task.id}`}
             variant="ghost"
-            size="auto"
-            onClick={toggleLogs}
-            className="!min-w-0 !h-[clamp(2.25rem,3vw,2.5rem)] !px-[0.625rem]"
-          >
-            <div className="flex items-center gap-[0.25rem] text-[0.75rem] text-ore-text-muted transition-colors hover:text-white">
-              <ControlHint label="Y" variant="face" tone="yellow" className="scale-[0.75] origin-center" />
-              <span className="text-[0.75rem]">日志</span>
-              {showLogs ? (
-                <ChevronUp className="h-[0.75rem] w-[0.75rem]" />
-              ) : (
-                <ChevronDown className="h-[0.75rem] w-[0.75rem]" />
-              )}
-            </div>
-          </OreButton>
+            icon={<ScrollText className="h-[1rem] w-[1rem]" />}
+            label="查看日志"
+            onClick={() => onOpenLog(task.id)}
+          />
+          <span className="truncate font-mono text-[0.75rem] tabular-nums text-[var(--ore-downloadDetail-mutedText)]">
+            {task.logs.length} 条日志
+          </span>
         </div>
 
-        <div className="flex items-center gap-[0.375rem]">
-          {!isDone && !isError && !isUpdate ? (
+        <div className="flex min-w-[5rem] items-center justify-end gap-[0.375rem]">
+          {!isDone && !isError && !isUpdate && (
             <>
-            {isResource && (
-              <OreButton
-                focusKey={`btn-pause-${task.id}`}
-                variant="ghost"
-                size="auto"
-                onClick={handlePauseResume}
-                className="!min-w-0 !h-[clamp(2.25rem,3vw,2.5rem)] !px-[0.75rem]"
-                title={isPaused ? 'Resume download' : 'Pause download'}
-              >
-                {isPaused ? <Play className="h-[1rem] w-[1rem]" /> : <Pause className="h-[1rem] w-[1rem]" />}
-              </OreButton>
-            )}
-            <OreButton
-              focusKey={`btn-cancel-${task.id}`}
-              variant="danger"
-              size="auto"
-              onClick={handleCancel}
-              className="!min-w-0 !h-[clamp(2.25rem,3vw,2.5rem)] !px-[0.75rem]"
-            >
-              <Trash2 className="h-[1rem] w-[1rem]" />
-            </OreButton>
+              {isResource && (
+                <OreIconButton
+                  focusKey={`btn-pause-${task.id}`}
+                  variant="ghost"
+                  icon={isPaused ? <Play className="h-[1rem] w-[1rem]" /> : <Pause className="h-[1rem] w-[1rem]" />}
+                  label={isPaused ? '继续下载' : '暂停下载'}
+                  onClick={handlePauseResume}
+                />
+              )}
+              <OreIconButton
+                focusKey={`btn-cancel-${task.id}`}
+                variant="danger"
+                icon={<X className="h-[1rem] w-[1rem]" />}
+                label="取消任务"
+                onClick={handleCancel}
+              />
             </>
-          ) : isDone || isError ? (
+          )}
+
+          {isError && (
             <>
-              {isError && task.retryAction && (
-                <OreButton
+              {canRetry && (
+                <OreIconButton
                   focusKey={`btn-retry-${task.id}`}
                   variant="primary"
-                  size="auto"
+                  icon={<RotateCcw className="h-[1rem] w-[1rem]" />}
+                  label="重试任务"
                   onClick={handleRetry}
-                  className="!min-w-0 !h-[clamp(2.25rem,3vw,2.5rem)] !px-[0.75rem] border-[#4CAF50] bg-ore-green text-[0.8125rem] text-black hover:bg-ore-green-hover"
-                >
-                  <div className="flex items-center gap-[0.25rem] font-bold">
-                    <RotateCcw className="h-[1rem] w-[1rem]" />
-                    <span>重试</span>
-                  </div>
-                </OreButton>
+                />
               )}
-
-              <OreButton
+              <OreIconButton
                 focusKey={`btn-complete-${task.id}`}
-                variant={isError ? 'danger' : 'primary'}
-                size="auto"
+                variant="danger"
+                icon={<Trash2 className="h-[1rem] w-[1rem]" />}
+                label="清除失败任务"
                 onClick={() => {
                   handoffFocusInsidePanel();
                   removeTask(task.id);
-                  if (task.taskType === 'instance' && isDone) {
-                    setActiveTab('instances');
-                  }
                 }}
-                className="!min-w-0 !h-[clamp(2.25rem,3vw,2.5rem)] !px-[0.75rem] text-[0.8125rem]"
-                style={isResource ? { backgroundColor: '#3b82f6', borderColor: '#2563eb' } : {}}
-              >
-                <div className="flex items-center gap-[0.25rem]">
-                  {isError ? (
-                    <Trash2 className="h-[1rem] w-[1rem]" />
-                  ) : (
-                    <CheckCircle className="h-[1rem] w-[1rem]" />
-                  )}
-                  <span>{isError ? '清除' : task.taskType === 'instance' ? '前往配置' : '关闭'}</span>
-                </div>
-              </OreButton>
+              />
             </>
-          ) : null}
+          )}
+
+          {isDone && (
+            <OreIconButton
+              focusKey={`btn-complete-${task.id}`}
+              variant={task.taskType === 'instance' ? 'primary' : 'secondary'}
+              icon={task.taskType === 'instance'
+                ? <Settings2 className="h-[1rem] w-[1rem]" />
+                : <X className="h-[1rem] w-[1rem]" />}
+              label={task.taskType === 'instance' ? '前往实例配置' : '关闭任务'}
+              onClick={() => {
+                handoffFocusInsidePanel();
+                removeTask(task.id);
+                if (task.taskType === 'instance') setActiveTab('instances');
+              }}
+            />
+          )}
         </div>
       </div>
-
-      <motion.div
-        initial={false}
-        animate={showLogs ? 'open' : 'collapsed'}
-        variants={LOG_PANEL_VARIANTS}
-        transition={LOG_CONTAINER_TRANSITION}
-        className="overflow-hidden"
-      >
-        <OreOverlayScrollArea
-          ref={logViewportRef}
-          onScroll={handleLogScroll}
-          className="max-h-[12rem] rounded-[0.1875rem] border border-[#2A2A2C] bg-[#141415]"
-          contentClassName="p-[0.5rem] font-mono text-[0.75rem] leading-[1.5]"
-          contentSafePaddingRight={12}
-        >
-          {task.logs.map((log, index) => renderLogLine(log, index))}
-        </OreOverlayScrollArea>
-      </motion.div>
     </motion.div>
   );
-};
+});
+
+TaskItem.displayName = 'TaskItem';

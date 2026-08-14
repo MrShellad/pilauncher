@@ -6,10 +6,11 @@ import { FocusItem } from '../../../../ui/focus/FocusItem';
 const RING_RADIUS = 46;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
-export const FloatingButton = ({ isOpen, onClick, activeCount, hasTasks, progress, pulseKey }: {
+export const FloatingButton = ({ isOpen, onClick, activeCount, failedCount, hasTasks, progress, pulseKey }: {
   isOpen: boolean;
   onClick: () => void;
   activeCount: number;
+  failedCount: number;
   hasTasks: boolean;
   progress: number;
   pulseKey: number;
@@ -23,7 +24,7 @@ export const FloatingButton = ({ isOpen, onClick, activeCount, hasTasks, progres
           {({ ref, focused }) => (
             <motion.button
               key={pulseKey}
-              ref={ref as any}
+              ref={ref}
               initial={{ scale: 0, opacity: 0, boxShadow: '0 0 0 rgba(108,195,73,0)' }}
               animate={{
                 scale: pulseKey > 0 ? [0.82, 1.16, 1] : 1,
@@ -45,6 +46,8 @@ export const FloatingButton = ({ isOpen, onClick, activeCount, hasTasks, progres
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={onClick}
+              aria-label={`打开下载任务管理器：${activeCount} 个进行中，${failedCount} 个失败。`}
+              title="打开下载任务管理器"
               className={`group relative flex h-[clamp(3.5rem,4vw,4.5rem)] w-[clamp(3.5rem,4vw,4.5rem)] items-center justify-center rounded-none border-[0.1875rem] border-[#1E1E1F] bg-[#313233] outline-none transition-all
                 ${focused ? 'z-50 scale-105 outline outline-[0.125rem] outline-white outline-offset-[0.125rem]' : 'hover:border-[#6CC349]'}
               `}
@@ -59,6 +62,12 @@ export const FloatingButton = ({ isOpen, onClick, activeCount, hasTasks, progres
               {activeCount > 0 && (
                 <span className="absolute -right-[0.25rem] -top-[0.25rem] flex min-h-[1.375rem] min-w-[1.375rem] items-center justify-center rounded-none border-[0.125rem] border-[#111214] bg-[#6CC349] px-[0.25rem] text-[0.75rem] font-bold text-[#111214] shadow-[inset_-0.125rem_-0.125rem_0_#3C8527]">
                   {activeCount}
+                </span>
+              )}
+
+              {failedCount > 0 && (
+                <span className="absolute -left-[0.25rem] -top-[0.25rem] flex min-h-[1.375rem] min-w-[1.375rem] items-center justify-center rounded-none border-[0.125rem] border-[#111214] bg-red-500 px-[0.25rem] text-[0.75rem] font-bold text-white shadow-[inset_-0.125rem_-0.125rem_0_rgba(127,29,29,0.85)]">
+                  {failedCount}
                 </span>
               )}
 

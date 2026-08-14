@@ -24,6 +24,15 @@
   .ore-tag-realms {
     @apply bg-[#B192EA] text-black;
   }
+  .ore-tag-success {
+    @apply bg-[#71B943] text-black;
+  }
+  .ore-tag-error {
+    @apply bg-[#FF7676] text-black;
+  }
+  .ore-tag-paused {
+    @apply bg-[#B1B2B5] text-black;
+  }
 
   /* ================= 灏哄鎺у埗 ================= */
   .ore-tag-sm {

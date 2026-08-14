@@ -7,6 +7,7 @@ import { useLauncherStore } from '../../../../store/useLauncherStore';
 import { useSettingsStore } from '../../../../store/useSettingsStore';
 import { useToastStore } from '../../../../store/useToastStore';
 import { useInputAction } from '../../../../ui/focus/InputDriver';
+import type { DownloadTaskStatus, DownloadTaskType } from '../../logic/downloadTask';
 import { INITIAL_DOWNLOAD_FOCUS_KEY } from '../../../Settings/components/tabs/download/downloadSettings.constants';
 import { FloatingButton } from './FloatingButton';
 import { TaskPanel } from './TaskPanel';
@@ -47,11 +48,31 @@ const globalSafeFallbackKeys = [
   'play-button'
 ];
 
+interface DownloadProgressPayload {
+  task_id?: string;
+  instance_id?: string;
+  instance_name?: string;
+  file_name?: string;
+  title?: string;
+  version?: string;
+  task_type?: string;
+  stage?: string;
+  current?: number;
+  total?: number;
+  message?: string;
+  level?: string;
+}
+
+const isDownloadTaskType = (value: string | undefined): value is DownloadTaskType => (
+  value === 'instance' || value === 'resource' || value === 'update'
+);
+
 const isTaskManagerFocusKey = (focusKey: string) =>
   focusKey === 'btn-floating-download' ||
   focusKey.startsWith('task-') ||
   focusKey.startsWith('btn-taskpanel') ||
   focusKey.startsWith('btn-log-') ||
+  focusKey.startsWith('btn-pause-') ||
   focusKey.startsWith('btn-cancel-') ||
   focusKey.startsWith('btn-retry-') ||
   focusKey.startsWith('btn-complete-');
@@ -75,21 +96,23 @@ export const DownloadManager: React.FC = () => {
   const taskList = Object.values(tasks);
   const activeTasks = taskList.filter((task) => task.status === 'downloading');
   const activeTasksCount = activeTasks.length;
+  const failedTasksCount = taskList.filter((task) => task.status === 'error').length;
   const hasTasks = taskList.length > 0;
 
   // Aggregate progress for floating button ring
   const aggregatedProgress = activeTasksCount > 0
     ? Math.round(activeTasks.reduce((sum, t) => sum + t.progress, 0) / activeTasksCount)
-    : taskList.length > 0
-      ? Math.round(taskList.reduce((sum, t) => sum + t.progress, 0) / taskList.length)
-      : 0;
+    : 0;
 
   const previousPopupOpenRef = useRef(isPopupOpen);
   const knownTaskIdsRef = useRef<Set<string>>(new Set());
   const taskToastInitializedRef = useRef(false);
   const lastPageFocusRef = useRef<string | null>(null);
+  const taskStatusesRef = useRef<Record<string, DownloadTaskStatus>>({});
+  const taskStatusInitializedRef = useRef(false);
   const shouldRestorePageFocusRef = useRef(false);
   const [newTaskPulseKey, setNewTaskPulseKey] = useState(0);
+  const [taskAnnouncement, setTaskAnnouncement] = useState('');
 
   const resolveFallbackFocus = useCallback(() => {
     const orderedCandidates = [
@@ -162,6 +185,36 @@ export const DownloadManager: React.FC = () => {
   }, [addToast, taskList]);
 
   useEffect(() => {
+    const nextStatuses = Object.fromEntries(taskList.map((task) => [task.id, task.status]));
+
+    if (!taskStatusInitializedRef.current) {
+      taskStatusesRef.current = nextStatuses;
+      taskStatusInitializedRef.current = true;
+      return;
+    }
+
+    const latestTransition = [...taskList]
+      .sort((a, b) => b.lastUpdate - a.lastUpdate)
+      .find((task) => {
+        const previousStatus = taskStatusesRef.current[task.id];
+        return previousStatus !== task.status;
+      });
+
+    taskStatusesRef.current = nextStatuses;
+
+    if (!latestTransition) return;
+
+    const statusText: Partial<Record<DownloadTaskStatus, string>> = {
+      completed: '下载完成',
+      error: '下载失败',
+      paused: '下载已暂停',
+      downloading: '下载已继续',
+    };
+    const announcement = statusText[latestTransition.status];
+    if (announcement) setTaskAnnouncement(`${latestTransition.title}：${announcement}`);
+  }, [taskList]);
+
+  useEffect(() => {
     const wasOpen = previousPopupOpenRef.current;
     previousPopupOpenRef.current = isPopupOpen;
 
@@ -206,10 +259,13 @@ export const DownloadManager: React.FC = () => {
   }, [hasTasks, isPopupOpen, rememberCurrentPageFocus, resolveFallbackFocus]);
 
   useEffect(() => {
-    const unlistenInstance = listen('instance-deployment-progress', (event: any) => {
+    const unlistenInstance = listen<DownloadProgressPayload>('instance-deployment-progress', (event) => {
       const payload = event.payload;
+      const id = payload.task_id || payload.instance_id;
+      if (!id) return;
+
       addOrUpdateTask({
-        id: payload.task_id || payload.instance_id,
+        id,
         taskType: 'instance',
         title: payload.instance_name || payload.instance_id || '实例',
         stage: payload.stage,
@@ -219,10 +275,13 @@ export const DownloadManager: React.FC = () => {
       });
     });
 
-    const unlistenInstanceSpeed = listen('instance-deployment-speed', (event: any) => {
+    const unlistenInstanceSpeed = listen<DownloadProgressPayload>('instance-deployment-speed', (event) => {
       const payload = event.payload;
+      const id = payload.task_id || payload.instance_id;
+      if (!id) return;
+
       addOrUpdateTask({
-        id: payload.task_id || payload.instance_id,
+        id,
         taskType: 'instance',
         title: payload.instance_name || payload.instance_id || '瀹炰緥',
         stage: payload.stage,
@@ -233,15 +292,17 @@ export const DownloadManager: React.FC = () => {
       });
     });
 
-    const unlistenDownloadLog = listen('download-task-log', (event: any) => {
+    const unlistenDownloadLog = listen<DownloadProgressPayload>('download-task-log', (event) => {
       const payload = event.payload;
       const id = payload.task_id || payload.instance_id;
+      if (!id) return;
+
       const existing = useDownloadStore.getState().tasks[id];
       const levelPrefix = payload.level ? `[${payload.level}] ` : '';
 
       addOrUpdateTask({
         id,
-        taskType: payload.task_type || existing?.taskType || 'instance',
+        taskType: isDownloadTaskType(payload.task_type) ? payload.task_type : existing?.taskType || 'instance',
         title: payload.title || existing?.title || payload.instance_id || id,
         stage: payload.stage || existing?.stage,
         current: existing?.current ?? 0,
@@ -250,10 +311,13 @@ export const DownloadManager: React.FC = () => {
       });
     });
 
-    const unlistenResource = listen('resource-download-progress', (event: any) => {
+    const unlistenResource = listen<DownloadProgressPayload>('resource-download-progress', (event) => {
       const payload = event.payload;
+      const id = payload.task_id || payload.file_name;
+      if (!id || !payload.file_name) return;
+
       addOrUpdateTask({
-        id: payload.task_id || payload.file_name,
+        id,
         taskType: 'resource',
         title: payload.file_name,
         stage: payload.stage || 'DOWNLOADING_MOD',
@@ -264,7 +328,7 @@ export const DownloadManager: React.FC = () => {
       });
     });
 
-    const unlistenLauncherUpdate = listen('launcher-update-progress', (event: any) => {
+    const unlistenLauncherUpdate = listen<DownloadProgressPayload>('launcher-update-progress', (event) => {
       const payload = event.payload;
       addOrUpdateTask({
         id: payload.task_id || 'launcher-update',
@@ -278,7 +342,7 @@ export const DownloadManager: React.FC = () => {
       });
     });
 
-    const unlistenJava = listen('java-installed-auto-set', (event: any) => {
+    const unlistenJava = listen<string>('java-installed-auto-set', (event) => {
       updateJavaSetting('javaPath', event.payload);
     });
 
@@ -294,6 +358,9 @@ export const DownloadManager: React.FC = () => {
 
   return (
     <div className="pointer-events-none fixed bottom-[clamp(1rem,2vw,1.5rem)] right-[clamp(1rem,2vw,1.5rem)] z-[999]">
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {taskAnnouncement}
+      </div>
       <div className="pointer-events-auto absolute bottom-0 right-0 flex origin-bottom-right flex-col items-end">
         <TaskPanel
           isOpen={isPopupOpen}
@@ -314,6 +381,7 @@ export const DownloadManager: React.FC = () => {
           activeCount={activeTasksCount}
           hasTasks={hasTasks}
           progress={aggregatedProgress}
+          failedCount={failedTasksCount}
           pulseKey={newTaskPulseKey}
         />
       </div>

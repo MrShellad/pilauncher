@@ -5,9 +5,9 @@ import { FocusItem } from '../focus/FocusItem';
 // ✅ 核心修复：引入 designToken，确保打包器加载它，并触发内部的 CSS 变量全局注入！
 import '../../style/tokens/designToken'; 
 
-interface OreButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface OreButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'purple' | 'hero' | 'ghost';
-  size?: 'sm' | 'md' | 'lg' | 'auto' | 'full'; 
+  size?: 'sm' | 'md' | 'lg' | 'auto' | 'full' | 'icon';
   focusKey?: string; 
   focusable?: boolean;
   onArrowPress?: (direction: string) => boolean | void;
@@ -34,6 +34,7 @@ export const OreButton: React.FC<OreButtonProps> = ({
     lg: "min-w-[var(--ore-btn-lg-min-w,12.5rem)] h-[var(--ore-btn-lg-h,2.75rem)] px-8 text-lg", 
     auto: "w-auto min-w-[var(--ore-btn-auto-min-w,6.25rem)] h-[var(--ore-btn-md-h,2.5rem)] px-5 text-base", 
     full: "w-full h-[var(--ore-btn-md-h,2.5rem)] px-4 text-base", 
+    icon: "h-[var(--ore-btn-md-h,2.5rem)] w-[var(--ore-btn-md-h,2.5rem)] p-0 text-base",
   };
   
   const variants = {
@@ -52,7 +53,7 @@ export const OreButton: React.FC<OreButtonProps> = ({
       focusable={focusable}
       onArrowPress={onArrowPress}
       autoScroll={autoScroll}
-      onEnter={() => onClick && onClick({ preventDefault: () => {}, stopPropagation: () => {} } as any)}
+      onEnter={() => onClick?.({ preventDefault: () => {}, stopPropagation: () => {} } as React.MouseEvent<HTMLButtonElement>)}
     >
       {({ ref, focused, tabIndex }) => (
         <button
