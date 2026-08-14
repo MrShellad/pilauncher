@@ -130,6 +130,7 @@ export const GameSettings: React.FC = () => {
     steamDeckToggleLockRef.current = true;
     setSteamDeckToggleLocked(true);
     updateGameSetting('steamDeckKeymap', enabled);
+    updateGameSetting('steamDeckInputModeConfigured', true);
 
     if (steamDeckToggleTimerRef.current !== null) {
       window.clearTimeout(steamDeckToggleTimerRef.current);

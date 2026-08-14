@@ -106,6 +106,19 @@ export const DownloadSettings: React.FC = () => {
 
         <div className="mt-4 border-t border-white/5 pt-4">
           <FormRow
+            label={t('settings.download.strictSourceRouting')}
+            description={t('settings.download.strictSourceRoutingDesc')}
+            control={
+              <OreSwitch
+                focusKey="settings-download-strict-source-routing"
+                onArrowPress={handleLinearArrow}
+                checked={download.strictSourceRouting ?? false}
+                onChange={(value) => updateDownloadSetting('strictSourceRouting', value)}
+              />
+            }
+          />
+
+          <FormRow
             label={t('settings.download.autoLatency')}
             description={t('settings.download.autoLatencyDesc')}
             control={

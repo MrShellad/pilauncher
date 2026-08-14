@@ -20,6 +20,7 @@ export interface ModpackUpgradeInfo {
 
 export interface ProgressEvent {
   instanceId: string;
+  instance_id?: string;
   stage: string;
   fileName: string;
   current: number;
@@ -99,7 +100,7 @@ export const useModpackUpgrade = (instanceId: string) => {
 
     const setupListener = async () => {
       const unsub = await listen<ProgressEvent>('instance-deployment-progress', (event) => {
-        if (event.payload.instanceId === instanceId) {
+        if (event.payload.instance_id === instanceId || event.payload.instanceId === instanceId) {
           setProgress(event.payload);
           // Map backend stages to hook status
           if (event.payload.stage === 'EXTRACTING') {

@@ -1,8 +1,8 @@
 use crate::domain::event::DownloadProgressEvent;
 use crate::domain::mod_manifest::{
     build_file_state, build_manifest_entry, build_manifest_source, compute_file_hash,
-    mod_manifest_key, upsert_mod_manifest_entry, ModManifestEntry, ModSourceKind,
-    ModMetadataSettings,
+    mod_manifest_key, upsert_mod_manifest_entry, ModManifestEntry, ModMetadataSettings,
+    ModSourceKind,
 };
 use crate::services::config_service::ConfigService;
 use crate::services::deployment_cancel::is_cancelled;
@@ -26,7 +26,7 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 use super::logging::ModpackImportLogger;
 use super::logic::{
     build_instance_config, resolve_curseforge_install_target, safe_relative_path,
-    sanitize_instance_id, CurseForgeInstallTarget, ModpackSourceHint,
+    validate_instance_id_from_name, CurseForgeInstallTarget, ModpackSourceHint,
 };
 use super::ops::{
     create_instance_layout, detect_modpack_source, extract_overrides, open_modpack_archive,
@@ -567,7 +567,7 @@ pub async fn execute_import<R: Runtime>(
     server_binding: Option<crate::domain::instance::ServerBinding>,
 ) -> Result<(), String> {
     let base_dir = resolve_base_dir(app)?;
-    let instance_id = sanitize_instance_id(instance_name);
+    let instance_id = validate_instance_id_from_name(instance_name)?;
     let logger = ModpackImportLogger::new(&base_dir, &instance_id);
     execute_import_with_logger(app, zip_path, instance_name, cancel, server_binding, logger).await
 }
@@ -581,7 +581,23 @@ pub async fn execute_import_with_logger<R: Runtime>(
     logger: ModpackImportLogger,
 ) -> Result<(), String> {
     let base_dir = resolve_base_dir(app)?;
-    let instance_id = sanitize_instance_id(instance_name);
+    let instance_id = validate_instance_id_from_name(instance_name)?;
+    let instance_root = base_dir.join("instances").join(&instance_id);
+    if instance_root.exists() {
+        return Err(format!("Instance already exists: {}", instance_id));
+    }
+
+    let staging_root = base_dir
+        .join("temp")
+        .join("modpack")
+        .join("staging")
+        .join(uuid::Uuid::new_v4().to_string());
+    fs::create_dir_all(
+        staging_root
+            .parent()
+            .ok_or_else(|| "Failed to resolve modpack staging directory".to_string())?,
+    )
+    .map_err(|error| error.to_string())?;
     logger
         .info(
             "START",
@@ -597,17 +613,34 @@ pub async fn execute_import_with_logger<R: Runtime>(
         .await;
     set_download_log_path(&instance_id, logger.path().to_path_buf());
 
-    let result = execute_import_inner(
+    let result = match deploy_archive_to_staging(
         app,
         zip_path,
         &instance_id,
         instance_name,
         &base_dir,
+        &staging_root,
         cancel,
         server_binding,
         &logger,
     )
-    .await;
+    .await
+    {
+        Ok(mut config) => {
+            if is_cancelled(cancel) {
+                Err("Cancelled".to_string())
+            } else if let Err(error) = fs::rename(&staging_root, &instance_root) {
+                Err(format!(
+                    "Failed to activate staged instance {}: {}",
+                    instance_root.display(),
+                    error
+                ))
+            } else {
+                persist_instance(app, &instance_id, &instance_root, &mut config).await
+            }
+        }
+        Err(error) => Err(error),
+    };
 
     if result.is_err() || is_cancelled(cancel) {
         let reason = result
@@ -622,62 +655,51 @@ pub async fn execute_import_with_logger<R: Runtime>(
             )
             .await;
 
-        for (path, existed, cleanup_result) in cleanup_modpack_artifacts(&base_dir, &instance_id) {
-            match cleanup_result {
-                Ok(()) if existed => {
-                    logger
-                        .info("CLEANUP", format!("Removed {}", path.display()))
-                        .await;
-                }
-                Ok(()) => {
-                    logger
-                        .info(
-                            "CLEANUP",
-                            format!("No cleanup needed for {}", path.display()),
-                        )
-                        .await;
-                }
-                Err(error) => {
-                    logger
-                        .warn(
-                            "CLEANUP",
-                            format!("Failed to remove {}: {}", path.display(), error),
-                        )
-                        .await;
+        for path in [&staging_root, &instance_root] {
+            if path.exists() {
+                match fs::remove_dir_all(path) {
+                    Ok(()) => {
+                        logger
+                            .info("CLEANUP", format!("Removed {}", path.display()))
+                            .await
+                    }
+                    Err(error) => {
+                        logger
+                            .warn(
+                                "CLEANUP",
+                                format!("Failed to remove {}: {}", path.display(), error),
+                            )
+                            .await
+                    }
                 }
             }
         }
 
         let db = app.state::<crate::services::db_service::AppDatabase>();
-        if let Err(error) =
+        let _ =
             crate::services::instance::binding::InstanceBindingService::delete_instance_records(
                 &db.pool,
                 &instance_id,
             )
-            .await
-        {
-            eprintln!(
-                "[ModpackImport] Failed to remove database records for {} after cleanup: {}",
-                instance_id, error
-            );
-            logger
-                .warn(
-                    "CLEANUP",
-                    format!("Failed to remove database records: {}", error),
-                )
-                .await;
-        } else {
-            logger
-                .info("CLEANUP", "Removed database records for failed import")
-                .await;
-        }
+            .await;
     }
 
     match &result {
         Ok(()) => {
             logger
                 .info("DONE", "Modpack import finished successfully")
-                .await
+                .await;
+            let _ = app.emit(
+                "instance-deployment-progress",
+                DownloadProgressEvent {
+                    instance_id: instance_id.clone(),
+                    stage: "DONE".to_string(),
+                    file_name: String::new(),
+                    current: 100,
+                    total: 100,
+                    message: "Modpack setup completed".to_string(),
+                },
+            );
         }
         Err(error) => {
             logger
@@ -690,16 +712,46 @@ pub async fn execute_import_with_logger<R: Runtime>(
     result
 }
 
-async fn execute_import_inner<R: Runtime>(
+pub(super) async fn persist_instance<R: Runtime>(
+    app: &AppHandle<R>,
+    instance_id: &str,
+    instance_root: &Path,
+    config: &mut crate::domain::instance::InstanceConfig,
+) -> Result<(), String> {
+    let db = app.state::<crate::services::db_service::AppDatabase>();
+    crate::services::instance::binding::InstanceBindingService::upsert_instance(&db.pool, config)
+        .await
+        .map_err(|error| error.to_string())?;
+
+    if let Some(binding) = config.server_binding.as_ref() {
+        let canonical_binding =
+            crate::services::instance::binding::InstanceBindingService::replace_binding_for_instance(
+                &db.pool,
+                instance_id,
+                binding,
+                true,
+            )
+            .await
+            .map_err(|error| error.to_string())?;
+        config.server_binding = Some(canonical_binding);
+        config.auto_join_server = Some(true);
+        super::ops::write_instance_config(instance_root, config)?;
+    }
+
+    Ok(())
+}
+
+pub(super) async fn deploy_archive_to_staging<R: Runtime>(
     app: &AppHandle<R>,
     zip_path: &str,
     instance_id: &str,
     instance_name: &str,
     base_dir: &Path,
+    instance_root: &Path,
     cancel: &Arc<AtomicBool>,
     server_binding: Option<crate::domain::instance::ServerBinding>,
     logger: &ModpackImportLogger,
-) -> Result<(), String> {
+) -> Result<crate::domain::instance::InstanceConfig, String> {
     if is_cancelled(cancel) {
         logger
             .warn("CANCEL", "Import was cancelled before parsing")
@@ -749,7 +801,6 @@ async fn execute_import_inner<R: Runtime>(
             .as_ref()
             .and_then(|manifest| manifest.server.clone())
     });
-    let instance_root = base_dir.join("instances").join(instance_id);
     logger
         .info(
             "INSTANCE",
@@ -757,52 +808,14 @@ async fn execute_import_inner<R: Runtime>(
         )
         .await;
 
-    create_instance_layout(&instance_root)?;
+    create_instance_layout(instance_root)?;
     logger.info("INSTANCE", "Instance layout created").await;
     let mut config = build_instance_config(instance_id, instance_name, &metadata);
     config.server_binding = effective_server_binding.clone();
-    super::ops::write_instance_config(&instance_root, &config)?;
+    super::ops::write_instance_config(instance_root, &config)?;
     logger
         .info("INSTANCE", "Initial instance.json written")
         .await;
-
-    let db = app.state::<crate::services::db_service::AppDatabase>();
-    crate::services::instance::binding::InstanceBindingService::upsert_instance(&db.pool, &config)
-        .await
-        .map_err(|e| e.to_string())?;
-    logger
-        .info("INSTANCE", "Instance database record upserted")
-        .await;
-
-    if let Some(binding) = &effective_server_binding {
-        logger
-            .info(
-                "SERVER_BINDING",
-                format!(
-                    "Applying server binding: uuid={} name={} address={}:{}",
-                    binding.uuid, binding.name, binding.ip, binding.port
-                ),
-            )
-            .await;
-        let canonical_binding =
-            crate::services::instance::binding::InstanceBindingService::replace_binding_for_instance(
-                &db.pool,
-                instance_id,
-                binding,
-                true,
-            )
-            .await
-            .map_err(|e| e.to_string())?;
-        config.server_binding = Some(canonical_binding);
-        config.auto_join_server = Some(true);
-        super::ops::write_instance_config(&instance_root, &config)?;
-        logger
-            .info(
-                "SERVER_BINDING",
-                "Server binding saved to database and instance.json",
-            )
-            .await;
-    }
 
     logger.info("EXTRACT", "Extracting modpack overrides").await;
     let _ = app.emit(
@@ -817,7 +830,7 @@ async fn execute_import_inner<R: Runtime>(
         },
     );
 
-    extract_overrides(zip_path, &instance_root)?;
+    extract_overrides(zip_path, instance_root)?;
     logger.info("EXTRACT", "Overrides extracted").await;
 
     if is_cancelled(cancel) {
@@ -934,7 +947,7 @@ async fn execute_import_inner<R: Runtime>(
     fetch_modpack_mods(
         app,
         zip_path,
-        &instance_root,
+        instance_root,
         instance_id,
         base_dir,
         cancel,
@@ -949,46 +962,7 @@ async fn execute_import_inner<R: Runtime>(
         return Err("Cancelled".to_string());
     }
 
-    let _ = app.emit(
-        "instance-deployment-progress",
-        DownloadProgressEvent {
-            instance_id: instance_id.to_string(),
-            stage: "DONE".to_string(),
-            file_name: "".to_string(),
-            current: 100,
-            total: 100,
-            message: "Modpack setup completed".to_string(),
-        },
-    );
-
-    Ok(())
-}
-
-fn cleanup_modpack_artifacts(
-    base_dir: &Path,
-    instance_id: &str,
-) -> Vec<(PathBuf, bool, Result<(), String>)> {
-    let instance_root = base_dir.join("instances").join(instance_id);
-    let temp_root = base_dir.join("temp").join("modpack");
-
-    [
-        instance_root,
-        temp_root.join(instance_id),
-        temp_root.join("curseforge").join(instance_id),
-        temp_root.join("modrinth").join(instance_id),
-        temp_root.join("pipack").join(instance_id),
-    ]
-    .into_iter()
-    .map(|path| {
-        let existed = path.exists();
-        let result = if existed {
-            fs::remove_dir_all(&path).map_err(|error| error.to_string())
-        } else {
-            Ok(())
-        };
-        (path, existed, result)
-    })
-    .collect()
+    Ok(config)
 }
 
 async fn fetch_modpack_mods<R: Runtime>(

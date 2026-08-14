@@ -9,6 +9,21 @@ static CANCEL_REGISTRY: Lazy<Mutex<HashMap<String, Arc<AtomicBool>>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
 /// 注册一个新的取消令牌，返回 Arc<AtomicBool> 供部署流程检查
+pub fn try_register(instance_id: &str) -> Result<Arc<AtomicBool>, String> {
+    let token = Arc::new(AtomicBool::new(false));
+    let mut map = CANCEL_REGISTRY.lock().unwrap();
+    if map.contains_key(instance_id) {
+        return Err(format!(
+            "Instance deployment is already running: {}",
+            instance_id
+        ));
+    }
+    map.insert(instance_id.to_string(), Arc::clone(&token));
+    Ok(token)
+}
+
+// Legacy deployment callers do not yet expose admission errors. New modpack jobs
+// must use `try_register` so same-instance imports cannot run concurrently.
 pub fn register(instance_id: &str) -> Arc<AtomicBool> {
     let token = Arc::new(AtomicBool::new(false));
     let mut map = CANCEL_REGISTRY.lock().unwrap();

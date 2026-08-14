@@ -5,6 +5,7 @@ use crate::domain::modpack::{
     PIPACK_MANIFEST_FILE, PIPACK_OVERRIDES_DIR,
 };
 use crate::services::config_service::ConfigService;
+use crate::services::deployment_cancel;
 use crate::services::instance::mod_manifest_service::ModManifestService;
 use chrono::Utc;
 use regex::Regex;
@@ -12,8 +13,8 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
-use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::io::{BufReader, Read, Write};
+use std::path::{Component, Path, PathBuf};
 use tauri::{AppHandle, Emitter, Runtime};
 use uuid::Uuid;
 use walkdir::WalkDir;
@@ -21,7 +22,9 @@ use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
 
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ExportProgress {
+    pub task_id: String,
     pub current: u64,
     pub total: u64,
     pub message: String,
@@ -31,6 +34,8 @@ pub struct ExportProgress {
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportConfig {
+    #[serde(default)]
+    pub task_id: String,
     pub instance_id: String,
     pub name: String,
     pub version: String,
@@ -45,6 +50,16 @@ pub struct ExportConfig {
     pub include_saves: bool,
     pub additional_paths: Vec<String>,
     pub output_path: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportResult {
+    pub output_path: String,
+    pub packed_files: usize,
+    pub referenced_mod_files: usize,
+    pub bundled_mod_files: usize,
+    pub warnings: Vec<String>,
 }
 
 #[derive(Default, Clone)]
@@ -67,6 +82,7 @@ struct ExportArtifacts {
     skipped_files: HashSet<String>,
     curseforge_files: Vec<CurseForgeManifestFileReference>,
     mrpack_files: Vec<MrpackManifestFile>,
+    warnings: Vec<String>,
 }
 
 struct ExportableModFile {
@@ -74,6 +90,16 @@ struct ExportableModFile {
     path: PathBuf,
     relative_path_str: String,
     manifest_entry: ModManifestEntry,
+}
+
+struct ExportCancellationGuard {
+    key: String,
+}
+
+impl Drop for ExportCancellationGuard {
+    fn drop(&mut self) {
+        deployment_cancel::unregister(&self.key);
+    }
 }
 
 #[derive(Serialize)]
@@ -118,24 +144,32 @@ struct ModrinthExportFile {
 pub async fn execute_export<R: Runtime>(
     app: &AppHandle<R>,
     config: ExportConfig,
-) -> Result<(), String> {
+) -> Result<ExportResult, String> {
     let base_path_str = ConfigService::get_base_path(app)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Base path is not configured".to_string())?;
 
-    let instance_dir = PathBuf::from(&base_path_str)
-        .join("instances")
-        .join(&config.instance_id);
-    if !instance_dir.exists() {
-        return Err("Instance directory not found".to_string());
-    }
+    validate_export_config(&config)?;
+    let instance_dir = resolve_instance_dir(&base_path_str, &config.instance_id)?;
+    let task_id = if config.task_id.trim().is_empty() {
+        Uuid::new_v4().to_string()
+    } else {
+        config.task_id.clone()
+    };
+    let cancellation_key = export_cancellation_key(&task_id);
+    let cancellation_token = deployment_cancel::try_register(&cancellation_key)?;
+    let _cancellation_guard = ExportCancellationGuard {
+        key: cancellation_key,
+    };
+    let (output_path, temporary_output_path) = prepare_output_paths(&instance_dir, &config)?;
 
-    let instance_meta = load_instance_meta(&instance_dir, &config)?;
+    let instance_meta = load_instance_meta(&instance_dir)?;
     let overrides_prefix = resolve_overrides_prefix(&config.format);
 
     let _ = app.emit(
         "export-progress",
         ExportProgress {
+            task_id: task_id.clone(),
             current: 0,
             total: 100,
             message: "Initializing export...".to_string(),
@@ -143,7 +177,9 @@ pub async fn execute_export<R: Runtime>(
         },
     );
 
+    ensure_export_not_cancelled(&cancellation_token)?;
     let artifacts = prepare_export_artifacts(app, &instance_dir, &instance_meta, &config).await?;
+    ensure_export_not_cancelled(&cancellation_token)?;
     let files_to_pack = collect_files_to_pack(
         &instance_dir,
         &config,
@@ -151,40 +187,65 @@ pub async fn execute_export<R: Runtime>(
         &artifacts.skipped_files,
     )?;
 
-    let output_file = File::create(&config.output_path).map_err(|e| e.to_string())?;
-    let mut zip = ZipWriter::new(output_file);
     let options = SimpleFileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated)
-        .unix_permissions(0o755);
+        .unix_permissions(0o644);
 
     let total_files = std::cmp::max(files_to_pack.len() as u64, 1);
-    for (index, planned) in files_to_pack.iter().enumerate() {
-        zip.start_file(planned.archive_path.as_str(), options)
+    let result = ExportResult {
+        output_path: output_path.to_string_lossy().to_string(),
+        packed_files: files_to_pack.len(),
+        referenced_mod_files: artifacts.skipped_files.len(),
+        bundled_mod_files: files_to_pack
+            .iter()
+            .filter(|file| file.relative_path.starts_with("mods"))
+            .count(),
+        warnings: artifacts.warnings.clone(),
+    };
+
+    let write_result = (|| -> Result<(), String> {
+        let output_file = File::options()
+            .write(true)
+            .create_new(true)
+            .open(&temporary_output_path)
             .map_err(|e| e.to_string())?;
+        let mut zip = ZipWriter::new(output_file);
 
-        let mut file = File::open(&planned.source_path).map_err(|e| e.to_string())?;
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer).map_err(|e| e.to_string())?;
-        zip.write_all(&buffer).map_err(|e| e.to_string())?;
+        for (index, planned) in files_to_pack.iter().enumerate() {
+            ensure_export_not_cancelled(&cancellation_token)?;
+            zip.start_file(planned.archive_path.as_str(), options)
+                .map_err(|e| e.to_string())?;
 
-        let _ = app.emit(
-            "export-progress",
-            ExportProgress {
-                current: (index + 1) as u64,
-                total: total_files,
-                message: format!("Packing {:?}", planned.relative_path),
-                stage: "PACKING".to_string(),
-            },
-        );
+            let file = File::open(&planned.source_path).map_err(|e| e.to_string())?;
+            copy_file_to_archive(file, &mut zip, &cancellation_token)?;
+
+            let _ = app.emit(
+                "export-progress",
+                ExportProgress {
+                    task_id: task_id.clone(),
+                    current: (index + 1) as u64,
+                    total: total_files,
+                    message: format!("Packing {:?}", planned.relative_path),
+                    stage: "PACKING".to_string(),
+                },
+            );
+        }
+
+        ensure_export_not_cancelled(&cancellation_token)?;
+        write_export_manifest(&mut zip, options, &config, &instance_meta, artifacts)?;
+        zip.finish().map_err(|e| e.to_string())?;
+        fs::rename(&temporary_output_path, &output_path).map_err(|e| e.to_string())
+    })();
+
+    if let Err(error) = write_result {
+        let _ = fs::remove_file(&temporary_output_path);
+        return Err(error);
     }
-
-    write_export_manifest(&mut zip, options, &config, &instance_meta, artifacts)?;
-
-    zip.finish().map_err(|e| e.to_string())?;
 
     let _ = app.emit(
         "export-progress",
         ExportProgress {
+            task_id,
             current: 100,
             total: 100,
             message: "Export completed successfully.".to_string(),
@@ -192,65 +253,20 @@ pub async fn execute_export<R: Runtime>(
         },
     );
 
-    Ok(())
+    Ok(result)
 }
 
-fn load_instance_meta(
-    instance_dir: &Path,
-    config: &ExportConfig,
-) -> Result<InstanceConfig, String> {
+fn load_instance_meta(instance_dir: &Path) -> Result<InstanceConfig, String> {
     let instance_json_path = instance_dir.join("instance.json");
-    let content = fs::read_to_string(&instance_json_path).unwrap_or_default();
-    Ok(
-        serde_json::from_str(&content).unwrap_or_else(|_| InstanceConfig {
-            id: config.instance_id.clone(),
-            name: config.name.clone(),
-            mc_version: "1.20.1".to_string(),
-            loader: crate::domain::instance::LoaderConfig {
-                r#type: "vanilla".to_string(),
-                version: "".to_string(),
-            },
-            java: crate::domain::instance::JavaConfig {
-                path: "".to_string(),
-                version: "".to_string(),
-            },
-            memory: crate::domain::instance::MemoryConfig {
-                min: 1024,
-                max: 4096,
-            },
-            resolution: crate::domain::instance::ResolutionConfig {
-                width: 854,
-                height: 480,
-            },
-            play_time: 0.0,
-            last_played: "".to_string(),
-            created_at: "".to_string(),
-            cover_image: None,
-            hero_logo: None,
-            gamepad: None,
-            custom_buttons: None,
-            third_party_path: None,
-            server_binding: None,
-            auto_join_server: None,
-            tags: None,
-            jvm_args: None,
-            window_width: None,
-            window_height: None,
-            is_favorite: None,
-            global_metadata_settings: None,
-            modpack_id: None,
-            modpack_uuid: None,
-            modpack_version: None,
-            modpack_source: None,
-        }),
-    )
+    let content = fs::read_to_string(&instance_json_path)
+        .map_err(|e| format!("Failed to read instance metadata: {}", e))?;
+    serde_json::from_str(&content).map_err(|e| format!("Invalid instance metadata: {}", e))
 }
 
 fn resolve_overrides_prefix(format: &str) -> Option<String> {
     match format {
-        "zip" => None,
-        "curseforge" | "mrpack" | "pipack" => Some(format!("{}/", PIPACK_OVERRIDES_DIR)),
-        _ => Some(format!("{}/", PIPACK_OVERRIDES_DIR)),
+        "zip" | "curseforge" | "mrpack" | "pipack" => Some(format!("{}/", PIPACK_OVERRIDES_DIR)),
+        _ => None,
     }
 }
 
@@ -262,7 +278,7 @@ async fn prepare_export_artifacts<R: Runtime>(
 ) -> Result<ExportArtifacts, String> {
     let mut artifacts = ExportArtifacts::default();
 
-    if config.format == "pipack" {
+    if matches!(config.format.as_str(), "pipack" | "zip") {
         let (pipack_manifest, skipped_files) =
             prepare_pipack_manifest(instance_dir, instance_meta, config)?;
         artifacts.pipack_manifest = pipack_manifest;
@@ -277,14 +293,18 @@ async fn prepare_export_artifacts<R: Runtime>(
     let exportable_mods = load_exportable_mod_files(instance_dir)?;
     match config.format.as_str() {
         "curseforge" => {
-            let (files, skipped_files) = build_curseforge_manifest_files(&exportable_mods);
+            let (files, skipped_files, warnings) =
+                build_curseforge_manifest_files(&exportable_mods);
             artifacts.curseforge_files = files;
             artifacts.skipped_files = skipped_files;
+            artifacts.warnings = warnings;
         }
         "mrpack" => {
-            let (files, skipped_files) = build_mrpack_manifest_files(app, &exportable_mods).await?;
+            let (files, skipped_files, warnings) =
+                build_mrpack_manifest_files(app, &exportable_mods).await?;
             artifacts.mrpack_files = files;
             artifacts.skipped_files = skipped_files;
+            artifacts.warnings = warnings;
         }
         _ => {}
     }
@@ -297,7 +317,7 @@ fn prepare_pipack_manifest(
     instance_meta: &InstanceConfig,
     config: &ExportConfig,
 ) -> Result<(Option<PiPackManifest>, HashSet<String>), String> {
-    if config.format != "pipack" {
+    if !matches!(config.format.as_str(), "pipack" | "zip") {
         return Ok((None, HashSet::new()));
     }
 
@@ -307,7 +327,7 @@ fn prepare_pipack_manifest(
     if config.include_mods {
         let mods_dir = instance_dir.join("mods");
         let manifest_path = instance_dir.join("mod_manifest.json");
-        let manifest_entries = ModManifestService::sync_from_mods_dir(&mods_dir, &manifest_path)?;
+        let manifest_entries = ModManifestService::load_from_mods_dir(&mods_dir, &manifest_path)?;
 
         if mods_dir.exists() {
             for entry in fs::read_dir(&mods_dir).map_err(|e| e.to_string())? {
@@ -389,7 +409,7 @@ fn prepare_pipack_manifest(
 fn load_exportable_mod_files(instance_dir: &Path) -> Result<Vec<ExportableModFile>, String> {
     let mods_dir = instance_dir.join("mods");
     let manifest_path = instance_dir.join("mod_manifest.json");
-    let manifest_entries = ModManifestService::sync_from_mods_dir(&mods_dir, &manifest_path)?;
+    let manifest_entries = ModManifestService::load_from_mods_dir(&mods_dir, &manifest_path)?;
     let mut files = Vec::new();
 
     if !mods_dir.exists() {
@@ -431,11 +451,14 @@ fn load_exportable_mod_files(instance_dir: &Path) -> Result<Vec<ExportableModFil
 
 fn build_curseforge_manifest_files(
     exportable_mods: &[ExportableModFile],
-) -> (Vec<CurseForgeManifestFileReference>, HashSet<String>) {
+) -> (
+    Vec<CurseForgeManifestFileReference>,
+    HashSet<String>,
+    Vec<String>,
+) {
     let mut files = Vec::new();
     let mut skipped_files = HashSet::new();
-    let mut referenced_projects = HashSet::new();
-
+    let mut warnings = Vec::new();
     for item in exportable_mods {
         if item.file_name.ends_with(".disabled") {
             continue;
@@ -447,6 +470,10 @@ fn build_curseforge_manifest_files(
             .as_deref()
             .is_some_and(|platform| platform.eq_ignore_ascii_case("curseforge"))
         {
+            warnings.push(format!(
+                "{} has no CurseForge file reference and was bundled as a local file.",
+                item.file_name
+            ));
             continue;
         }
 
@@ -455,6 +482,10 @@ fn build_curseforge_manifest_files(
             .as_deref()
             .and_then(|value| value.trim().parse::<u64>().ok())
         else {
+            warnings.push(format!(
+                "{} has an invalid CurseForge project reference and was bundled as a local file.",
+                item.file_name
+            ));
             continue;
         };
         let Some(file_id) = source
@@ -462,12 +493,12 @@ fn build_curseforge_manifest_files(
             .as_deref()
             .and_then(|value| value.trim().parse::<u64>().ok())
         else {
+            warnings.push(format!(
+                "{} has an invalid CurseForge file reference and was bundled as a local file.",
+                item.file_name
+            ));
             continue;
         };
-
-        if !referenced_projects.insert(project_id) {
-            continue;
-        }
 
         files.push(CurseForgeManifestFileReference {
             project_id,
@@ -477,26 +508,71 @@ fn build_curseforge_manifest_files(
         skipped_files.insert(item.relative_path_str.clone());
     }
 
-    (files, skipped_files)
+    (files, skipped_files, warnings)
 }
 
 async fn build_mrpack_manifest_files<R: Runtime>(
     app: &AppHandle<R>,
     exportable_mods: &[ExportableModFile],
-) -> Result<(Vec<MrpackManifestFile>, HashSet<String>), String> {
+) -> Result<(Vec<MrpackManifestFile>, HashSet<String>, Vec<String>), String> {
     let client = build_export_http_client(app)?;
     let mut files = Vec::new();
     let mut skipped_files = HashSet::new();
+    let mut warnings = Vec::new();
 
     for item in exportable_mods {
-        let Some(manifest_file) = build_mrpack_manifest_file(&client, item).await? else {
-            continue;
-        };
-        files.push(manifest_file);
-        skipped_files.insert(item.relative_path_str.clone());
+        match build_mrpack_manifest_file(&client, item).await {
+            Ok(Some(manifest_file)) => {
+                files.push(manifest_file);
+                skipped_files.insert(item.relative_path_str.clone());
+            }
+            Ok(None) => {
+                let message = if item
+                    .manifest_entry
+                    .source
+                    .platform
+                    .as_deref()
+                    .is_some_and(|platform| platform.eq_ignore_ascii_case("modrinth"))
+                {
+                    format!(
+                        "{} could not be verified against Modrinth and was bundled as a local file.",
+                        item.file_name
+                    )
+                } else {
+                    format!(
+                        "{} has no Modrinth file reference and was bundled as a local file.",
+                        item.file_name
+                    )
+                };
+                warnings.push(message);
+                if item
+                    .manifest_entry
+                    .source
+                    .platform
+                    .as_deref()
+                    .is_some_and(|platform| platform.eq_ignore_ascii_case("modrinth"))
+                {
+                    log::warn!(
+                        "Bundling Modrinth mod without a verified download reference: {}",
+                        item.file_name
+                    );
+                }
+            }
+            Err(error) => {
+                warnings.push(format!(
+                    "{} could not be resolved from Modrinth and was bundled as a local file: {}",
+                    item.file_name, error
+                ));
+                log::warn!(
+                    "Bundling Modrinth mod after metadata lookup failed ({}): {}",
+                    item.file_name,
+                    error
+                );
+            }
+        }
     }
 
-    Ok((files, skipped_files))
+    Ok((files, skipped_files, warnings))
 }
 
 fn build_export_http_client<R: Runtime>(app: &AppHandle<R>) -> Result<Client, String> {
@@ -661,39 +737,48 @@ fn collect_files_to_pack(
     overrides_prefix: Option<&str>,
     skipped_files: &HashSet<String>,
 ) -> Result<Vec<PlannedArchiveFile>, String> {
-    let mut folders_to_include = Vec::new();
+    let canonical_instance_dir = fs::canonicalize(instance_dir).map_err(|e| e.to_string())?;
+    let mut paths_to_include = Vec::new();
     if config.include_mods {
-        folders_to_include.push("mods");
+        paths_to_include.push(instance_dir.join("mods"));
     }
     if config.include_configs {
-        folders_to_include.push("config");
+        paths_to_include.push(instance_dir.join("config"));
     }
     if config.include_resource_packs {
-        folders_to_include.push("resourcepacks");
+        paths_to_include.push(instance_dir.join("resourcepacks"));
     }
     if config.include_shader_packs {
-        folders_to_include.push("shaderpacks");
+        paths_to_include.push(instance_dir.join("shaderpacks"));
     }
     if config.include_saves {
-        folders_to_include.push("saves");
+        paths_to_include.push(instance_dir.join("saves"));
     }
     for path in &config.additional_paths {
-        folders_to_include.push(path.as_str());
+        paths_to_include.push(resolve_additional_path(instance_dir, path)?);
     }
 
     let mut files = Vec::new();
-    for folder in folders_to_include {
-        let folder_path = instance_dir.join(folder);
-        if !folder_path.exists() {
+    let mut archive_paths = HashSet::new();
+    for source_path in paths_to_include {
+        if !source_path.exists() {
             continue;
         }
+        ensure_path_within_instance(&source_path, &canonical_instance_dir)?;
 
-        for entry in WalkDir::new(&folder_path) {
+        for entry in WalkDir::new(&source_path).follow_links(false) {
             let entry = entry.map_err(|e| e.to_string())?;
+            if entry.file_type().is_symlink() {
+                return Err(format!(
+                    "Refusing to export symbolic link: {}",
+                    entry.path().display()
+                ));
+            }
             let path = entry.path();
             if !path.is_file() {
                 continue;
             }
+            ensure_path_within_instance(path, &canonical_instance_dir)?;
 
             let relative_path = path
                 .strip_prefix(instance_dir)
@@ -710,6 +795,9 @@ fn collect_files_to_pack(
             } else {
                 format!("{}/{}", config.name, relative_path_str)
             };
+            if !archive_paths.insert(archive_path.clone()) {
+                return Err(format!("Duplicate archive entry: {}", archive_path));
+            }
 
             files.push(PlannedArchiveFile {
                 source_path: path.to_path_buf(),
@@ -722,6 +810,166 @@ fn collect_files_to_pack(
     Ok(files)
 }
 
+fn validate_export_config(config: &ExportConfig) -> Result<(), String> {
+    if !matches!(
+        config.format.as_str(),
+        "zip" | "curseforge" | "mrpack" | "pipack"
+    ) {
+        return Err("Unsupported export format".to_string());
+    }
+    if config.version.trim().is_empty() {
+        return Err("Export version cannot be empty".to_string());
+    }
+    validate_archive_component(&config.name, "Export name")
+}
+
+fn validate_archive_component(value: &str, label: &str) -> Result<(), String> {
+    let path = Path::new(value);
+    if value.trim().is_empty()
+        || value.chars().any(char::is_control)
+        || value.contains('/')
+        || value.contains('\\')
+        || !is_safe_relative_path(path)
+    {
+        return Err(format!("{} must be a single safe path segment", label));
+    }
+    Ok(())
+}
+
+fn is_safe_relative_path(path: &Path) -> bool {
+    !path.as_os_str().is_empty()
+        && path
+            .components()
+            .all(|component| matches!(component, Component::Normal(_)))
+}
+
+fn resolve_instance_dir(base_path: &str, instance_id: &str) -> Result<PathBuf, String> {
+    if !is_safe_relative_path(Path::new(instance_id)) {
+        return Err("Invalid instance identifier".to_string());
+    }
+
+    let instances_dir = Path::new(base_path).join("instances");
+    let canonical_instances_dir = fs::canonicalize(&instances_dir)
+        .map_err(|e| format!("Failed to resolve instances directory: {}", e))?;
+    let instance_dir = instances_dir.join(instance_id);
+    let metadata =
+        fs::metadata(&instance_dir).map_err(|_| "Instance directory not found".to_string())?;
+    if !metadata.is_dir() {
+        return Err("Instance directory not found".to_string());
+    }
+    let canonical_instance_dir = fs::canonicalize(&instance_dir).map_err(|e| e.to_string())?;
+    if !canonical_instance_dir.starts_with(&canonical_instances_dir) {
+        return Err("Instance directory escapes the configured instances root".to_string());
+    }
+    Ok(canonical_instance_dir)
+}
+
+fn resolve_additional_path(instance_dir: &Path, configured_path: &str) -> Result<PathBuf, String> {
+    let relative_path = Path::new(configured_path);
+    if !is_safe_relative_path(relative_path) {
+        return Err(
+            "Additional export paths must be relative to the instance directory".to_string(),
+        );
+    }
+
+    let path = instance_dir.join(relative_path);
+    if !path.exists() {
+        return Err(format!(
+            "Additional export path does not exist: {}",
+            configured_path
+        ));
+    }
+    let metadata = fs::symlink_metadata(&path).map_err(|e| e.to_string())?;
+    if metadata.file_type().is_symlink() {
+        return Err(format!(
+            "Additional export path cannot be a symbolic link: {}",
+            configured_path
+        ));
+    }
+    ensure_path_within_instance(&path, instance_dir)?;
+    Ok(path)
+}
+
+fn ensure_path_within_instance(path: &Path, canonical_instance_dir: &Path) -> Result<(), String> {
+    let canonical_path = fs::canonicalize(path).map_err(|e| e.to_string())?;
+    if !canonical_path.starts_with(canonical_instance_dir) {
+        return Err(format!(
+            "Export path escapes the instance directory: {}",
+            path.display()
+        ));
+    }
+    Ok(())
+}
+
+fn prepare_output_paths(
+    instance_dir: &Path,
+    config: &ExportConfig,
+) -> Result<(PathBuf, PathBuf), String> {
+    let output_path = PathBuf::from(&config.output_path);
+    if !output_path.is_absolute() {
+        return Err("Export output path must be absolute".to_string());
+    }
+    let file_name = output_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| "Export output path must include a file name".to_string())?;
+    validate_archive_component(file_name, "Export output file name")?;
+    if output_path.exists() {
+        return Err("Export output file already exists".to_string());
+    }
+    let output_dir = output_path
+        .parent()
+        .ok_or_else(|| "Export output path must have a parent directory".to_string())?;
+    let canonical_output_dir = fs::canonicalize(output_dir)
+        .map_err(|e| format!("Failed to resolve export output directory: {}", e))?;
+    if !fs::metadata(&canonical_output_dir)
+        .map_err(|e| e.to_string())?
+        .is_dir()
+    {
+        return Err("Export output parent is not a directory".to_string());
+    }
+    if canonical_output_dir.starts_with(instance_dir) {
+        return Err("Export output must be outside the instance directory".to_string());
+    }
+
+    let output_path = canonical_output_dir.join(file_name);
+    let temporary_output_path =
+        canonical_output_dir.join(format!(".{}.{}.partial", file_name, Uuid::new_v4()));
+    Ok((output_path, temporary_output_path))
+}
+
+fn export_cancellation_key(task_id: &str) -> String {
+    format!("export:{}", task_id)
+}
+
+fn ensure_export_not_cancelled(
+    cancellation_token: &std::sync::Arc<std::sync::atomic::AtomicBool>,
+) -> Result<(), String> {
+    if deployment_cancel::is_cancelled(cancellation_token) {
+        return Err("Export cancelled".to_string());
+    }
+    Ok(())
+}
+
+fn copy_file_to_archive(
+    file: File,
+    zip: &mut ZipWriter<File>,
+    cancellation_token: &std::sync::Arc<std::sync::atomic::AtomicBool>,
+) -> Result<(), String> {
+    let mut reader = BufReader::new(file);
+    let mut buffer = [0_u8; 64 * 1024];
+
+    loop {
+        ensure_export_not_cancelled(cancellation_token)?;
+        let bytes_read = reader.read(&mut buffer).map_err(|e| e.to_string())?;
+        if bytes_read == 0 {
+            return Ok(());
+        }
+        zip.write_all(&buffer[..bytes_read])
+            .map_err(|e| e.to_string())?;
+    }
+}
+
 fn write_export_manifest(
     zip: &mut ZipWriter<File>,
     options: SimpleFileOptions,
@@ -731,15 +979,22 @@ fn write_export_manifest(
 ) -> Result<(), String> {
     match config.format.as_str() {
         "curseforge" => {
+            let mod_loaders = if instance_meta.loader.r#type.eq_ignore_ascii_case("vanilla") {
+                Vec::<serde_json::Value>::new()
+            } else {
+                vec![serde_json::json!({
+                    "id": format!(
+                        "{}-{}",
+                        instance_meta.loader.r#type,
+                        instance_meta.loader.version
+                    ),
+                    "primary": true
+                })]
+            };
             let manifest = serde_json::json!({
                 "minecraft": {
                     "version": instance_meta.mc_version,
-                    "modLoaders": [
-                        {
-                            "id": format!("{}-{}", instance_meta.loader.r#type, instance_meta.loader.version),
-                            "primary": true
-                        }
-                    ]
+                    "modLoaders": mod_loaders
                 },
                 "manifestType": "minecraftModpack",
                 "manifestVersion": 1,
@@ -762,10 +1017,12 @@ fn write_export_manifest(
                 "minecraft".to_string(),
                 serde_json::Value::String(instance_meta.mc_version.clone()),
             );
-            dependencies.insert(
-                instance_meta.loader.r#type.clone(),
-                serde_json::Value::String(instance_meta.loader.version.clone()),
-            );
+            if let Some(loader_key) = modrinth_loader_dependency(&instance_meta.loader.r#type) {
+                dependencies.insert(
+                    loader_key.to_string(),
+                    serde_json::Value::String(instance_meta.loader.version.clone()),
+                );
+            }
             let modrinth_index = serde_json::json!({
                 "formatVersion": 1,
                 "game": "minecraft",
@@ -782,7 +1039,7 @@ fn write_export_manifest(
             zip.write_all(index_str.as_bytes())
                 .map_err(|e| e.to_string())?;
         }
-        "pipack" => {
+        "zip" | "pipack" => {
             let manifest = artifacts
                 .pipack_manifest
                 .ok_or_else(|| "PiPack manifest missing".to_string())?;
@@ -799,12 +1056,19 @@ fn write_export_manifest(
     Ok(())
 }
 
-fn build_pack_uuid(instance_id: &str) -> String {
-    Uuid::new_v5(
-        &Uuid::NAMESPACE_URL,
-        format!("pilauncher:pipack:{}", instance_id).as_bytes(),
-    )
-    .to_string()
+fn build_pack_uuid(_instance_id: &str) -> String {
+    Uuid::new_v4().to_string()
+}
+
+fn modrinth_loader_dependency(loader: &str) -> Option<&'static str> {
+    match loader.trim().to_ascii_lowercase().as_str() {
+        "fabric" | "fabric-loader" => Some("fabric-loader"),
+        "quilt" | "quilt-loader" => Some("quilt-loader"),
+        "forge" => Some("forge"),
+        "neoforge" => Some("neoforge"),
+        "vanilla" | "" => None,
+        _ => None,
+    }
 }
 
 fn has_platform_reference(entry: &ModManifestEntry) -> bool {
@@ -932,5 +1196,46 @@ fn parse_toml_like_mod_metadata(contents: &str) -> ExportedJarMeta {
         name: capture(r#"(?m)^\s*displayName\s*=\s*["']([^"']+)["']"#),
         version: capture(r#"(?m)^\s*version\s*=\s*["']([^"']+)["']"#),
         description: capture(r#"(?m)^\s*description\s*=\s*["']([^"']+)["']"#),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        is_safe_relative_path, modrinth_loader_dependency, resolve_overrides_prefix,
+        validate_archive_component,
+    };
+    use std::path::Path;
+
+    #[test]
+    fn rejects_archive_path_traversal_and_nested_names() {
+        assert!(validate_archive_component("../escape", "Export name").is_err());
+        assert!(validate_archive_component("nested/name", "Export name").is_err());
+        assert!(validate_archive_component("nested\\name", "Export name").is_err());
+        assert!(validate_archive_component("Pack Name", "Export name").is_ok());
+    }
+
+    #[test]
+    fn only_accepts_normal_relative_instance_paths() {
+        assert!(is_safe_relative_path(Path::new("config/options.txt")));
+        assert!(!is_safe_relative_path(Path::new("../outside.txt")));
+        assert!(!is_safe_relative_path(Path::new("/outside.txt")));
+        assert!(!is_safe_relative_path(Path::new("")));
+    }
+
+    #[test]
+    fn writes_importable_loader_keys_for_mrpack() {
+        assert_eq!(modrinth_loader_dependency("fabric"), Some("fabric-loader"));
+        assert_eq!(modrinth_loader_dependency("quilt"), Some("quilt-loader"));
+        assert_eq!(modrinth_loader_dependency("forge"), Some("forge"));
+        assert_eq!(modrinth_loader_dependency("vanilla"), None);
+    }
+
+    #[test]
+    fn standard_zip_uses_pipack_compatible_overrides() {
+        assert_eq!(
+            resolve_overrides_prefix("zip").as_deref(),
+            Some("overrides/")
+        );
     }
 }

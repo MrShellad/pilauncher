@@ -25,9 +25,23 @@ pub async fn update_mod_cache<R: tauri::Runtime>(
     name: String,
     desc: String,
     icon_url: String,
-) -> Result<(), String> {
+) -> Result<Option<String>, String> {
     crate::services::instance::mod_manager::ModManagerService::update_mod_cache(
         &app, &cache_key, &name, &desc, &icon_url,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn ensure_offline_jar_icon<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    instance_id: String,
+    file_name: String,
+) -> Result<Option<String>, String> {
+    crate::services::instance::mod_manager::ModManagerService::ensure_offline_jar_icon(
+        &app,
+        &instance_id,
+        &file_name,
     )
     .await
 }

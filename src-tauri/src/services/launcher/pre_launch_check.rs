@@ -198,6 +198,29 @@ fn parse_java_major(version: &str) -> Option<u32> {
     Some(first)
 }
 
+fn check_game_directory(instance_dir: &Path, config: &InstanceConfig) -> PreLaunchCheckItem {
+    let game_dir = config
+        .third_party_path
+        .as_deref()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| instance_dir.to_path_buf());
+
+    match super::ensure_game_directory_access(&game_dir) {
+        Ok(()) => PreLaunchCheckItem {
+            kind: "gameDirectory".to_string(),
+            status: PreLaunchCheckStatus::Passed,
+            message: "Game directory access check passed".to_string(),
+            details: vec![format!("Game directory: {}", game_dir.display())],
+        },
+        Err(error) => PreLaunchCheckItem {
+            kind: "gameDirectory".to_string(),
+            status: PreLaunchCheckStatus::Failed,
+            message: "Game directory is unavailable".to_string(),
+            details: vec![format!("Game directory: {}", game_dir.display()), error],
+        },
+    }
+}
+
 fn check_java<R: Runtime>(
     app: &AppHandle<R>,
     instance_dir: &Path,
@@ -332,6 +355,8 @@ impl PreLaunchCheckService {
         let config = read_instance_config(&instance_json_path).map_err(AppError::Generic)?;
 
         let mut checks = Vec::new();
+        emit_check_log(app, "[INFO] Checking game directory access...");
+        checks.push(check_game_directory(&instance_dir, &config));
 
         emit_check_log(app, "[INFO] 启动前检查：正在校验游戏运行库完整性...");
         let mut runtime_check = verify_service::verify_instance_runtime(app, instance_id)
@@ -367,16 +392,23 @@ impl PreLaunchCheckService {
                             runtime_check.missing_file_count, runtime_check.total_missing_size
                         ),
                     );
-                    match verify_service::download_missing_runtimes(app, vec![repair.clone()]).await {
+                    match verify_service::download_missing_runtimes(app, vec![repair.clone()]).await
+                    {
                         Ok(_) => {
                             emit_check_log(app, "[INFO] 自动修复完成，正在进行二次校验...");
                             match verify_service::verify_instance_runtime(app, instance_id).await {
                                 Ok(new_check) => {
                                     runtime_check = new_check;
                                     if !runtime_check.needs_repair {
-                                        emit_check_log(app, "[INFO] 二次校验通过！游戏运行库已恢复完整。");
+                                        emit_check_log(
+                                            app,
+                                            "[INFO] 二次校验通过！游戏运行库已恢复完整。",
+                                        );
                                     } else {
-                                        emit_check_log(app, "[WARN] 二次校验仍未通过，无法完全修复。");
+                                        emit_check_log(
+                                            app,
+                                            "[WARN] 二次校验仍未通过，无法完全修复。",
+                                        );
                                     }
                                 }
                                 Err(e) => {

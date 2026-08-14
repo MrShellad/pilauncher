@@ -12,7 +12,7 @@ const getModIconSnapshotKey = (mod: ModMeta) => {
     mod.cacheKey || mod.fileName,
     mod.fileName,
     mod.iconAbsolutePath || '',
-    mod.networkIconUrl || mod.networkInfo?.icon_url || ''
+    mod.offlineJarIconAbsolutePath || ''
   ].join('|');
 };
 
@@ -65,6 +65,7 @@ const getIconPriority = (
 };
 
 interface UseModIconSubscriptionOptions {
+  instanceId?: string;
   mods: ModMeta[];
   visibleMods: ModMeta[];
   focusedRowFileName: string | null;
@@ -73,12 +74,12 @@ interface UseModIconSubscriptionOptions {
 const getModIconSourceKey = (mod: ModMeta) => {
   return [
     mod.iconAbsolutePath || '',
-    mod.networkIconUrl || '',
-    mod.networkInfo?.icon_url || ''
+    mod.offlineJarIconAbsolutePath || ''
   ].join('|');
 };
 
 export const useModIconSubscription = ({
+  instanceId,
   mods,
   visibleMods,
   focusedRowFileName
@@ -195,7 +196,7 @@ export const useModIconSubscription = ({
               [mod.fileName]: snapshot
             };
           });
-        }).then((disconnect) => {
+        }, instanceId).then((disconnect) => {
           if (subDisposed) {
             disconnect();
           } else {
@@ -204,7 +205,7 @@ export const useModIconSubscription = ({
         });
       }
     });
-  }, [focusedRowIndex, modIndexByFileName, visibleMods]);
+  }, [focusedRowIndex, instanceId, modIndexByFileName, visibleMods]);
 
   useEffect(() => {
     return () => {

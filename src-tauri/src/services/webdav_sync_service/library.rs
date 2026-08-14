@@ -1,6 +1,7 @@
 use crate::domain::library::WebDavSyncConfig;
 use crate::services::config_service::ConfigService;
 use crate::services::library_service::LibraryService;
+use regex::Regex;
 use reqwest::{Client, Method, StatusCode};
 use sqlx::SqlitePool;
 use std::collections::HashSet;
@@ -11,7 +12,6 @@ use tauri::{AppHandle, Runtime};
 use walkdir::WalkDir;
 use zip::write::SimpleFileOptions;
 use zip::{ZipArchive, ZipWriter};
-use regex::Regex;
 
 use super::constants::{LIBRARY_DIR, LIBRARY_RESOURCEPACKS_DIR, LIBRARY_SHADERS_DIR};
 use super::{paths, remote};
@@ -101,7 +101,9 @@ fn zip_dir(src_dir: &Path, dst_zip: &Path) -> Result<(), String> {
             .map_err(|error| error.to_string())?;
         let mut source = File::open(path).map_err(|error| error.to_string())?;
         let mut buffer = Vec::new();
-        source.read_to_end(&mut buffer).map_err(|error| error.to_string())?;
+        source
+            .read_to_end(&mut buffer)
+            .map_err(|error| error.to_string())?;
         zip.write_all(&buffer).map_err(|error| error.to_string())?;
     }
 
@@ -115,8 +117,7 @@ fn unzip_dir(src_bytes: &[u8], dst_dir: &Path) -> Result<(), String> {
     }
     fs::create_dir_all(dst_dir).map_err(|error| error.to_string())?;
 
-    let mut archive =
-        ZipArchive::new(Cursor::new(src_bytes)).map_err(|error| error.to_string())?;
+    let mut archive = ZipArchive::new(Cursor::new(src_bytes)).map_err(|error| error.to_string())?;
     for index in 0..archive.len() {
         let mut entry = archive.by_index(index).map_err(|error| error.to_string())?;
         let enclosed_name = entry
@@ -133,7 +134,9 @@ fn unzip_dir(src_bytes: &[u8], dst_dir: &Path) -> Result<(), String> {
             }
             let mut file = File::create(&target).map_err(|error| error.to_string())?;
             let mut buffer = Vec::new();
-            entry.read_to_end(&mut buffer).map_err(|error| error.to_string())?;
+            entry
+                .read_to_end(&mut buffer)
+                .map_err(|error| error.to_string())?;
             file.write_all(&buffer).map_err(|error| error.to_string())?;
         }
     }
@@ -192,7 +195,9 @@ pub(crate) async fn sync_library_files<R: Runtime>(
     let base_path = ConfigService::get_base_path(app)
         .map_err(|error| error.to_string())?
         .ok_or_else(|| "base path is not configured".to_string())?;
-    let library_base = PathBuf::from(&base_path).join("shared_mods").join("library");
+    let library_base = PathBuf::from(&base_path)
+        .join("shared_mods")
+        .join("library");
     let local_shaders_dir = library_base.join("shaders");
     let local_resourcepacks_dir = library_base.join("resourcepacks");
 
@@ -223,7 +228,8 @@ pub(crate) async fn sync_library_files<R: Runtime>(
         &active_shaders,
         &local_shaders_set,
         &remote_shaders_set,
-    ).await?;
+    )
+    .await?;
 
     // 7. Perform dual-sync for Resource Packs
     sync_folder_files(
@@ -235,7 +241,8 @@ pub(crate) async fn sync_library_files<R: Runtime>(
         &active_resourcepacks,
         &local_resourcepacks_set,
         &remote_resourcepacks_set,
-    ).await?;
+    )
+    .await?;
 
     Ok(())
 }
@@ -260,10 +267,15 @@ async fn sync_folder_files<R: Runtime>(
 
         if has_local && !has_remote {
             // Upload to remote
-            log::info!("WebDAV library sync: Uploading {} to {}", file_name, remote_path);
+            log::info!(
+                "WebDAV library sync: Uploading {} to {}",
+                file_name,
+                remote_path
+            );
             let bytes_to_upload = if local_path.is_dir() {
                 // Zip it first into a temp file
-                let temp_zip = paths::sync_root(app)?.join(format!("lib-upload-{}.zip", uuid::Uuid::new_v4()));
+                let temp_zip =
+                    paths::sync_root(app)?.join(format!("lib-upload-{}.zip", uuid::Uuid::new_v4()));
                 zip_dir(&local_path, &temp_zip)?;
                 let data = fs::read(&temp_zip).map_err(|e| e.to_string())?;
                 let _ = fs::remove_file(&temp_zip); // Clean up immediately
@@ -280,18 +292,28 @@ async fn sync_folder_files<R: Runtime>(
                 .map_err(|e| format!("failed to upload {file_name}: {e}"))?;
 
             if !response.status().is_success() {
-                return Err(format!("failed to upload {file_name}: HTTP {}", response.status()));
+                return Err(format!(
+                    "failed to upload {file_name}: HTTP {}",
+                    response.status()
+                ));
             }
         } else if !has_local && has_remote {
             // Download from remote
-            log::info!("WebDAV library sync: Downloading {} from {}", file_name, remote_path);
+            log::info!(
+                "WebDAV library sync: Downloading {} from {}",
+                file_name,
+                remote_path
+            );
             let response = remote::authorized_request(client, config, Method::GET, &remote_path)
                 .send()
                 .await
                 .map_err(|e| format!("failed to download {file_name}: {e}"))?;
 
             if !response.status().is_success() {
-                return Err(format!("failed to download {file_name}: HTTP {}", response.status()));
+                return Err(format!(
+                    "failed to download {file_name}: HTTP {}",
+                    response.status()
+                ));
             }
 
             let bytes = response
@@ -319,7 +341,10 @@ async fn sync_folder_files<R: Runtime>(
     for file_name in local_set {
         if !active_set.contains(file_name) {
             let local_path = local_dir.join(file_name);
-            log::info!("WebDAV library sync: Cleaning up local path {:?}", local_path);
+            log::info!(
+                "WebDAV library sync: Cleaning up local path {:?}",
+                local_path
+            );
             if local_path.is_dir() {
                 let _ = fs::remove_dir_all(&local_path);
             } else {
@@ -332,14 +357,20 @@ async fn sync_folder_files<R: Runtime>(
     for file_name in remote_set {
         if !active_set.contains(file_name) {
             let remote_path = format!("{remote_dir}/{file_name}");
-            log::info!("WebDAV library sync: Cleaning up remote WebDAV path {}", remote_path);
+            log::info!(
+                "WebDAV library sync: Cleaning up remote WebDAV path {}",
+                remote_path
+            );
             let response = remote::authorized_request(client, config, Method::DELETE, &remote_path)
                 .send()
                 .await
                 .map_err(|e| format!("failed to delete remote file {remote_path}: {e}"))?;
 
             if response.status() != StatusCode::NOT_FOUND && !response.status().is_success() {
-                return Err(format!("failed to delete remote file {file_name}: HTTP {}", response.status()));
+                return Err(format!(
+                    "failed to delete remote file {file_name}: HTTP {}",
+                    response.status()
+                ));
             }
         }
     }

@@ -24,6 +24,51 @@ use resolver::ConfigResolver;
 
 pub struct LauncherService;
 
+pub(crate) fn ensure_game_directory_access(game_dir: &Path) -> Result<(), String> {
+    let metadata = std::fs::metadata(game_dir).map_err(|error| {
+        format!(
+            "Unable to access game directory {}: {}",
+            game_dir.display(),
+            error
+        )
+    })?;
+    if !metadata.is_dir() {
+        return Err(format!(
+            "Game path is not a directory: {}",
+            game_dir.display()
+        ));
+    }
+
+    std::fs::read_dir(game_dir).map_err(|error| {
+        format!(
+            "Unable to read game directory {}: {}",
+            game_dir.display(),
+            error
+        )
+    })?;
+
+    let probe_path = game_dir.join(format!(".pilauncher-access-{}.tmp", uuid::Uuid::new_v4()));
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&probe_path)
+        .map_err(|error| {
+            format!(
+                "Game directory is not writable: {}. Check the directory permissions and Flatpak filesystem access. {}",
+                game_dir.display(), error
+            )
+        })?;
+    std::fs::remove_file(&probe_path).map_err(|error| {
+        format!(
+            "Game directory write check could not clean up {}: {}",
+            probe_path.display(),
+            error
+        )
+    })?;
+
+    Ok(())
+}
+
 #[derive(serde::Deserialize)]
 struct AuthlibInjectorArtifact {
     download_url: String,
@@ -336,6 +381,8 @@ impl LauncherService {
         if let Some(third_party) = &instance_cfg.third_party_path {
             game_dir = PathBuf::from(third_party);
         }
+
+        ensure_game_directory_access(&game_dir).map_err(AppError::Generic)?;
 
         let resolved_config = ConfigResolver::resolve(app, &instance_cfg);
 
@@ -801,5 +848,32 @@ mod tests {
         );
 
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn validates_game_directory_and_removes_access_probe() {
+        let root = unique_test_root("game-directory-access");
+        std::fs::create_dir_all(&root).unwrap();
+
+        ensure_game_directory_access(&root).unwrap();
+        let remaining_probes = std::fs::read_dir(&root)
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(".pilauncher-access-")
+            })
+            .count();
+        assert_eq!(remaining_probes, 0);
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn rejects_missing_game_directory() {
+        let missing = unique_test_root("missing-game-directory");
+        assert!(ensure_game_directory_access(&missing).is_err());
     }
 }

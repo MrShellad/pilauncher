@@ -190,4 +190,3 @@ pub struct ModpackUpgradeInfo {
     pub backup_original_loader_type: Option<String>,
     pub backup_original_loader_version: Option<String>,
 }
-

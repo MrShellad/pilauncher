@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { AlertTriangle, Check, Loader2 } from 'lucide-react';
 
@@ -16,6 +15,7 @@ import {
   type DownloadSource
 } from '../../../../../../Download/hooks/useResourceDownload';
 import { useIconCacheStore } from '../../../../../../Download/logic/iconCache';
+import { runResourceDownloadTask } from '../../../../../../Download/logic/resourceDownloadTask';
 import { fetchCurseForgeVersions, getCurseForgeProjectDetails } from '../../../../../../Download/logic/curseforgeApi';
 import {
   fetchModrinthVersions,
@@ -25,7 +25,6 @@ import {
   type OreProjectVersion
 } from '../../../../../logic/modrinthApi';
 import { getInstalledProjectIds, getInstalledVersionIds, modService } from '../../../../../logic/modService';
-import { useDownloadStore } from '../../../../../../../store/useDownloadStore';
 import { FocusBoundary } from '../../../../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../../../../ui/focus/FocusItem';
 import { useInputAction } from '../../../../../../../ui/focus/InputDriver';
@@ -562,71 +561,63 @@ export const InstanceModDownloadView: React.FC<{
   }, []);
 
   const enqueueDownload = useCallback(async (version: OreProjectVersion, targetInstanceId: string, explicitProjectId?: string) => {
-    useDownloadStore.getState().addOrUpdateTask({
-      id: version.file_name,
-      taskType: 'resource',
-      title: version.file_name,
-      stage: 'DOWNLOADING_MOD',
-      current: 0,
-      total: 100,
+    /* Legacy task initialization is owned by runResourceDownloadTask.
       message: '正在建立连接...',
-      retryAction: 'download_resource',
-      retryPayload: {
-        url: version.download_url,
-        fileName: version.file_name,
-        instanceId: targetInstanceId,
-        subFolder
-      }
-    });
-
+    */
     try {
-      await invoke('download_resource', {
+      await runResourceDownloadTask({
         url: version.download_url,
         fileName: version.file_name,
         instanceId: targetInstanceId,
-        subFolder
+        subFolder,
+        title: version.file_name,
+        message: 'Connecting...',
+        onCompleted: async () => {
+          if (resourceTab !== 'mod') return;
+
+          const projectId = explicitProjectId || selectedProject?.id || '';
+          let cachedDetail = projectId ? projectDetailsCache.current.get(projectId) : null;
+          if (!cachedDetail && projectId && selectedProject && projectId === selectedProject.id) {
+            cachedDetail = selectedProject;
+          }
+
+          if (projectId && cachedDetail) {
+            const platform = source === 'curseforge' ? 'curseforge' : 'modrinth';
+            const cacheKey = `${platform}_${projectId}`;
+            await modService.updateModCache(
+              cacheKey,
+              cachedDetail.title || cachedDetail.name || '',
+              cachedDetail.description || cachedDetail.summary || '',
+              cachedDetail.icon_url || cachedDetail.logo || ''
+            ).catch((err) => console.error('Failed to update mod cache:', err));
+          }
+
+          if (projectId) {
+            await modService.updateModManifest(
+              targetInstanceId,
+              version.file_name,
+              'launcherDownload',
+              source === 'curseforge' ? 'curseforge' : 'modrinth',
+              projectId,
+              version.id
+            );
+          }
+
+          if (targetInstanceId === instanceId) {
+            await refreshInstalledMods();
+          }
+        }
       });
-
-      if (resourceTab === 'mod') {
-        const projectId = explicitProjectId || selectedProject?.id || '';
-        let cachedDetail = projectId ? projectDetailsCache.current.get(projectId) : null;
-        if (!cachedDetail && projectId && selectedProject && projectId === selectedProject.id) {
-          cachedDetail = selectedProject;
-        }
-
-        if (projectId && cachedDetail) {
-          const platform = source === 'curseforge' ? 'curseforge' : 'modrinth';
-          const cacheKey = `${platform}_${projectId}`;
-          await modService.updateModCache(
-            cacheKey,
-            cachedDetail.title || cachedDetail.name || '',
-            cachedDetail.description || cachedDetail.summary || '',
-            cachedDetail.icon_url || cachedDetail.logo || ''
-          ).catch((err) => console.error('Failed to update mod cache:', err));
-        }
-
-        if (projectId) {
-          await modService.updateModManifest(
-            targetInstanceId,
-            version.file_name,
-            'launcherDownload',
-            source === 'curseforge' ? 'curseforge' : 'modrinth',
-            projectId,
-            version.id
-          );
-        }
-
-        if (targetInstanceId === instanceId) {
-          await refreshInstalledMods();
-        }
-      }
     } catch (error) {
       console.error('下载异常:', error);
+      /* Error task state is written by runResourceDownloadTask.
       useDownloadStore.getState().addOrUpdateTask({
-        id: version.file_name,
+        id: taskId,
         stage: 'ERROR',
         message: `下载失败: ${error}`
       });
+      */
+      throw error;
     }
   }, [instanceId, refreshInstalledMods, resourceTab, selectedProject, source, subFolder]);
 

@@ -39,6 +39,11 @@ export const FocusProvider: React.FC<FocusProviderProps> = ({ children, debug = 
   const steamDeckKeymapEnabled = useSettingsStore(
     (state) => state.settings.game?.steamDeckKeymap ?? false,
   );
+  const steamDeckInputModeConfigured = useSettingsStore(
+    (state) => state.settings.game?.steamDeckInputModeConfigured ?? false,
+  );
+  const hasHydrated = useSettingsStore((state) => state._hasHydrated);
+  const updateGameSetting = useSettingsStore((state) => state.updateGameSetting);
 
   const currentModeRef = useRef<InputMode>('mouse');
 
@@ -59,6 +64,25 @@ export const FocusProvider: React.FC<FocusProviderProps> = ({ children, debug = 
 
     void setupEngine();
   }, [debug]);
+
+  useEffect(() => {
+    if (!hasHydrated || steamDeckInputModeConfigured) return;
+
+    let cancelled = false;
+    invoke<boolean>('check_steamos_gamepad_mode')
+      .then((isGameMode) => {
+        if (cancelled || !isGameMode) return;
+        updateGameSetting('steamDeckKeymap', true);
+        updateGameSetting('steamDeckInputModeConfigured', true);
+      })
+      .catch(() => {
+        // Steam Deck detection is advisory. Keep the user's existing input mode on failure.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasHydrated, steamDeckInputModeConfigured, updateGameSetting]);
 
   const activeBindings = useMemo<InputBindings>(() => {
     const merged: InputBindings = {
@@ -110,7 +134,10 @@ export const FocusProvider: React.FC<FocusProviderProps> = ({ children, debug = 
     }
   }, []);
 
-  useInputDriver(updateMode, activeBindings);
+  // Steam community Minecraft layouts generally emulate keyboard and mouse.
+  // Do not also consume the physical controller through gilrs in that mode,
+  // otherwise a single Deck input can trigger two launcher actions.
+  useInputDriver(updateMode, activeBindings, !steamDeckKeymapEnabled);
 
   if (!isInitialized) return null;
 

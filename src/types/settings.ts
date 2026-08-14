@@ -77,6 +77,7 @@ export interface GameSettings {
   fullscreen: boolean;
   preLaunchCheck: boolean;
   steamDeckKeymap: boolean;
+  steamDeckInputModeConfigured: boolean;
   gamepadModCheck: boolean; // 鎵嬫焺鍚姩鏃惰嚜鍔ㄦ娴嬫墜鏌?Mod
   showGameLog: boolean; // 鏄剧ず娓告垙鏃ュ織闈㈡澘
 }
@@ -100,6 +101,7 @@ export interface DownloadSettings {
   quiltSourceUrl: string;
 
   autoCheckLatency: boolean;
+  strictSourceRouting: boolean;
   concurrency: number;
   chunkedDownloadEnabled: boolean;
   chunkedDownloadThreads: number;
@@ -197,6 +199,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     fullscreen: true,
     preLaunchCheck: true,
     steamDeckKeymap: false,
+    steamDeckInputModeConfigured: false,
     gamepadModCheck: true,
     showGameLog: true,
   },
@@ -215,6 +218,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     quiltSourceUrl: 'https://meta.quiltmc.org',
 
     autoCheckLatency: false,
+    strictSourceRouting: false,
     concurrency: 8,
     chunkedDownloadEnabled: false,
     chunkedDownloadThreads: 2,

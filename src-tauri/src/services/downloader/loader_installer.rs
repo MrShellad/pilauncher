@@ -3,7 +3,9 @@ use crate::error::{AppError, AppResult};
 use crate::services::config_service::{ConfigService, DownloadSettings};
 use crate::services::deployment_cancel::is_cancelled;
 use crate::services::downloader::dependencies::scheduler::sha1_file;
-use crate::services::downloader::logging::{resolve_logs_dir, log_download_event, DownloadLogLevel};
+use crate::services::downloader::logging::{
+    log_download_event, resolve_logs_dir, DownloadLogLevel,
+};
 use serde::Deserialize;
 use serde_json::Value;
 use std::env;
@@ -33,12 +35,24 @@ pub struct SimpleVersionInfo {
 
 impl lighty_loaders::types::VersionInfo for SimpleVersionInfo {
     type LoaderType = lighty_loaders::types::Loader;
-    fn name(&self) -> &str { &self.name }
-    fn loader_version(&self) -> &str { &self.loader_version }
-    fn minecraft_version(&self) -> &str { &self.mc_version }
-    fn game_dirs(&self) -> &Path { &self.game_dir }
-    fn java_dirs(&self) -> &Path { &self.java_dir }
-    fn loader(&self) -> &Self::LoaderType { &self.loader_type }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn loader_version(&self) -> &str {
+        &self.loader_version
+    }
+    fn minecraft_version(&self) -> &str {
+        &self.mc_version
+    }
+    fn game_dirs(&self) -> &Path {
+        &self.game_dir
+    }
+    fn java_dirs(&self) -> &Path {
+        &self.java_dir
+    }
+    fn loader(&self) -> &Self::LoaderType {
+        &self.loader_type
+    }
 }
 
 pub fn version_to_json(
@@ -117,7 +131,6 @@ pub fn version_to_json(
 
 const INSTALLER_OUTPUT_BUFFER_LIMIT: usize = 20;
 
-
 #[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -166,8 +179,6 @@ fn push_unique_url(urls: &mut Vec<String>, url: String) {
         urls.push(url);
     }
 }
-
-
 
 #[allow(dead_code)]
 fn fabric_profile_urls(
@@ -325,7 +336,10 @@ async fn send_from_candidates<R: Runtime>(
                 instance_id,
                 "LOADER_CORE",
                 DownloadLogLevel::Info,
-                &format!("Fetching loader resource (attempt {}/{}) from: {}", round, attempts, url),
+                &format!(
+                    "Fetching loader resource (attempt {}/{}) from: {}",
+                    round, attempts, url
+                ),
                 None,
                 true,
             )
@@ -338,7 +352,11 @@ async fn send_from_candidates<R: Runtime>(
                         instance_id,
                         "LOADER_CORE",
                         DownloadLogLevel::Info,
-                        &format!("Successfully fetched loader resource from {}. Status: {}", url, response.status()),
+                        &format!(
+                            "Successfully fetched loader resource from {}. Status: {}",
+                            url,
+                            response.status()
+                        ),
                         None,
                         true,
                     )
@@ -352,7 +370,11 @@ async fn send_from_candidates<R: Runtime>(
                         instance_id,
                         "LOADER_CORE",
                         DownloadLogLevel::Warn,
-                        &format!("Failed fetching loader resource from {}, HTTP status: {}", url, response.status()),
+                        &format!(
+                            "Failed fetching loader resource from {}, HTTP status: {}",
+                            url,
+                            response.status()
+                        ),
                         Some(&err_msg),
                         true,
                     )
@@ -424,7 +446,8 @@ async fn download_text_from_candidates<R: Runtime>(
     max_attempts: u32,
     cancel: &Arc<AtomicBool>,
 ) -> AppResult<String> {
-    let response = send_from_candidates(app, instance_id, client, urls, max_attempts, cancel).await?;
+    let response =
+        send_from_candidates(app, instance_id, client, urls, max_attempts, cancel).await?;
     Ok(response.text().await?)
 }
 
@@ -436,11 +459,10 @@ async fn download_bytes_from_candidates<R: Runtime>(
     max_attempts: u32,
     cancel: &Arc<AtomicBool>,
 ) -> AppResult<Vec<u8>> {
-    let response = send_from_candidates(app, instance_id, client, urls, max_attempts, cancel).await?;
+    let response =
+        send_from_candidates(app, instance_id, client, urls, max_attempts, cancel).await?;
     Ok(response.bytes().await?.to_vec())
 }
-
-
 
 fn remember_installer_output(lines: &Arc<Mutex<Vec<String>>>, line: String) {
     let mut guard = lines.lock().unwrap();
@@ -615,8 +637,6 @@ async fn run_java_installer<R: Runtime>(
 
     Ok(())
 }
-
-
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct LoaderFileExpectation {
@@ -990,8 +1010,6 @@ fn needs_loader_manifest_download(json_path: &Path) -> bool {
     let content = std::fs::read_to_string(json_path).unwrap_or_default();
     serde_json::from_str::<Value>(&content).is_err()
 }
-
-
 
 pub async fn install_loader<R: Runtime>(
     app: &AppHandle<R>,

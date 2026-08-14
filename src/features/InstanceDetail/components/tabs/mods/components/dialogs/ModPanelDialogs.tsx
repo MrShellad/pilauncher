@@ -43,6 +43,18 @@ export const ModPanelDialogs: React.FC<ModPanelDialogsProps> = ({
   onAddFavorite
 }) => {
   const { t } = useTranslation();
+  const installedIdentitySignature = React.useMemo(() => (
+    mods.map((mod) => [
+      mod.fileName,
+      mod.modId || '',
+      mod.manifestEntry?.source?.platform || '',
+      mod.manifestEntry?.source?.projectId || '',
+      mod.manifestEntry?.source?.fileId || ''
+    ].join('\u0001')).join('\u0002')
+  ), [mods]);
+  // Only identity changes need to reach the detail modal; update progress does not.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const stableMods = React.useMemo(() => mods, [installedIdentitySignature]);
   const currentGlobalSettings = React.useMemo(() => {
     if (instanceConfig?.globalMetadataSettings) {
       return instanceConfig.globalMetadataSettings;
@@ -55,7 +67,7 @@ export const ModPanelDialogs: React.FC<ModPanelDialogsProps> = ({
     <>
       <ModDetailModal
         mod={state.selectedMod}
-        allMods={mods}
+        allMods={stableMods}
         instanceConfig={instanceConfig}
         instanceId={instanceId}
         onClose={actions.closeModDetail}

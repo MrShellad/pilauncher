@@ -274,7 +274,9 @@ pub async fn fetch_image_base64(url: String) -> Result<String, String> {
         && !url.starts_with("https://avatars.githubusercontent.com/")
         && !url.starts_with("https://textures.minecraft.net/")
     {
-        return Err("Only CurseForge, Modrinth, GitHub and Mojang texture URLs are allowed".to_string());
+        return Err(
+            "Only CurseForge, Modrinth, GitHub and Mojang texture URLs are allowed".to_string(),
+        );
     }
 
     let client = reqwest::Client::builder()
@@ -300,4 +302,3 @@ pub async fn fetch_image_base64(url: String) -> Result<String, String> {
 
     Ok(format!("data:{};base64,{}", content_type, b64))
 }
-

@@ -1,5 +1,6 @@
 // src/store/useGameLogStore.ts
 import { create } from 'zustand';
+import { appendGameLogs, createInitialTelemetry } from '../features/GameLog/logic/gameLogProcessor';
 
 export type GameState = 'idle' | 'launching' | 'running' | 'crashed';
 
@@ -31,11 +32,7 @@ interface GameLogStore {
   analyzeCrash: () => void;
 }
 
-const MAX_LOG_LINES = 1000;
-
-const initialTelemetry: StartupTelemetry = {
-  jvmUptime: null, loaderInit: null, resourceLoad: null, renderInit: null, totalStartup: null, _startTime: null,
-};
+const initialTelemetry = createInitialTelemetry();
 
 export const useGameLogStore = create<GameLogStore>((set, get) => ({
   isOpen: false,
@@ -51,6 +48,14 @@ export const useGameLogStore = create<GameLogStore>((set, get) => ({
   setGameState: (gameState) => set({ gameState }),
 
   addLogs: (lines) => set((state) => {
+    return appendGameLogs({
+      logs: state.logs,
+      gameState: state.gameState,
+      telemetry: state.telemetry,
+      latestLanPort: state.latestLanPort,
+    }, lines);
+
+    /* Legacy inline log processing retained below for reference during migration.
     if (lines.length === 0) return state;
     
     const combined = state.logs.concat(lines);
@@ -125,7 +130,8 @@ export const useGameLogStore = create<GameLogStore>((set, get) => ({
       }
     }
 
-    return { logs: newLogs, gameState: nextState, telemetry: newTelemetry };
+    */
+    return state;
   }),
 
   clearLogs: () => set({ logs: [], crashReason: null, gameState: 'idle', telemetry: { ...initialTelemetry }, latestLanPort: null }),

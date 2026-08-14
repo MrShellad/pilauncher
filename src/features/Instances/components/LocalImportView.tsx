@@ -32,6 +32,12 @@ interface ModpackMetadata {
   packUuid?: string | null;
 }
 
+interface ModpackDeploymentAccepted {
+  taskId: string;
+  instanceId: string;
+  instanceName: string;
+}
+
 const SUPPORTED_ARCHIVE_EXTENSIONS = ['zip', 'mrpack', 'pipack'];
 const ARCHIVE_DIALOG_FILTERS = [
   {
@@ -126,19 +132,33 @@ export const LocalImportView: React.FC = () => {
     void parseSelectedArchive(path);
   };
 
-  const handleSelectPath = async () => {
-    const selected = await open({ directory: true, multiple: false });
-    if (selected && typeof selected === 'string') {
-      setInstallPath(selected);
-    }
-  };
-
   const handleStartImport = async () => {
+    const normalizedInstanceName = instanceName.trim();
+    if (!normalizedInstanceName) {
+      alert(t('localImport.errors.importFailed', { error: 'Instance name is required.' }));
+      return;
+    }
+
     setIsImporting(true);
     try {
-      await invoke('import_modpack', {
+      const accepted = await invoke<ModpackDeploymentAccepted>('import_modpack', {
         zipPath: selectedPath,
-        instanceName,
+        instanceName: normalizedInstanceName,
+      });
+
+      useDownloadStore.getState().addOrUpdateTask({
+        id: accepted.taskId,
+        taskType: 'instance',
+        title: accepted.instanceName,
+        stage: 'EXTRACTING',
+        current: 0,
+        total: 100,
+        message: 'Modpack import accepted, validating archive...',
+        retryAction: 'import_modpack',
+        retryPayload: {
+          zipPath: selectedPath,
+          instanceName: normalizedInstanceName,
+        },
       });
 
       useLauncherStore.getState().setActiveTab('home');
@@ -305,19 +325,6 @@ export const LocalImportView: React.FC = () => {
                   >
                     {installPath}
                   </div>
-                  <FocusItem focusKey="btn-change-path" onEnter={handleSelectPath}>
-                    {({ ref, focused }) => (
-                      <button
-                        ref={ref}
-                        onClick={handleSelectPath}
-                        className={`bg-[#2A2A2C] px-4 font-minecraft text-white transition-colors hover:bg-[#3A3B3D] focus:outline-none ${
-                          focused ? 'outline outline-2 outline-offset-2 outline-white' : ''
-                        }`}
-                      >
-                        {t('localImport.actions.change')}
-                      </button>
-                    )}
-                  </FocusItem>
                 </div>
               </div>
             </div>

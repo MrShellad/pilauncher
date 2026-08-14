@@ -12,6 +12,11 @@ use super::logic::{
     parse_pipack_metadata, ModpackSourceHint,
 };
 
+const MAX_ARCHIVE_ENTRIES: usize = 20_000;
+const MAX_ARCHIVE_UNCOMPRESSED_BYTES: u64 = 8 * 1024 * 1024 * 1024;
+const MAX_ARCHIVE_ENTRY_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+const MAX_ARCHIVE_COMPRESSION_RATIO: u64 = 250;
+
 pub fn resolve_base_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     let base_path_str = ConfigService::get_base_path(app)
         .map_err(|e| e.to_string())?
@@ -57,6 +62,7 @@ pub fn detect_modpack_source<R: Read + Seek>(
 
 pub fn parse_modpack(path: &str) -> Result<ModpackMetadata, String> {
     let mut archive = open_modpack_archive(path)?;
+    validate_archive(&mut archive)?;
     match detect_modpack_source(&mut archive)? {
         ModpackSourceHint::PiPack => {
             let contents = read_zip_entry_to_string(&mut archive, PIPACK_MANIFEST_FILE)?;
@@ -107,6 +113,7 @@ pub fn write_instance_config(instance_root: &Path, config: &InstanceConfig) -> R
 pub fn extract_overrides(zip_path: &str, target_dir: &Path) -> Result<(), String> {
     let file = File::open(zip_path).map_err(|e| e.to_string())?;
     let mut archive = ZipArchive::new(file).map_err(|e| e.to_string())?;
+    validate_archive(&mut archive)?;
 
     let override_prefixes = resolve_override_prefixes(&mut archive)?;
 
@@ -138,6 +145,40 @@ pub fn extract_overrides(zip_path: &str, target_dir: &Path) -> Result<(), String
             }
             let mut outfile = File::create(&final_path).map_err(|e| e.to_string())?;
             std::io::copy(&mut file, &mut outfile).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_archive<R: Read + Seek>(archive: &mut ZipArchive<R>) -> Result<(), String> {
+    if archive.len() > MAX_ARCHIVE_ENTRIES {
+        return Err(format!(
+            "Archive has too many entries ({}; maximum {})",
+            archive.len(),
+            MAX_ARCHIVE_ENTRIES
+        ));
+    }
+
+    let mut total_uncompressed = 0u64;
+    for index in 0..archive.len() {
+        let entry = archive.by_index(index).map_err(|error| error.to_string())?;
+        let uncompressed = entry.size();
+        let compressed = entry.compressed_size();
+        if uncompressed > MAX_ARCHIVE_ENTRY_BYTES {
+            return Err(format!("Archive entry is too large: {}", entry.name()));
+        }
+        total_uncompressed = total_uncompressed.saturating_add(uncompressed);
+        if total_uncompressed > MAX_ARCHIVE_UNCOMPRESSED_BYTES {
+            return Err("Archive uncompressed size exceeds the safety limit".to_string());
+        }
+        if uncompressed >= 1024 * 1024
+            && compressed > 0
+            && uncompressed / compressed > MAX_ARCHIVE_COMPRESSION_RATIO
+        {
+            return Err(format!(
+                "Archive entry has an unsafe compression ratio: {}",
+                entry.name()
+            ));
         }
     }
     Ok(())

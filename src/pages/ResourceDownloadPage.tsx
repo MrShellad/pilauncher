@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { AnimatePresence, motion } from 'motion/react';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Blocks, Image as ImageIcon, Package, type LucideIcon } from 'lucide-react';
@@ -16,12 +15,12 @@ import { InstanceSelectModal } from '../features/Download/components/DetailModal
 import { ResourceGrid, ResourceCardSkeleton } from '../features/Download/components/ResourceGrid';
 import { ShimmerOverlay } from '../features/Download/components/ShimmerOverlay';
 import { fetchCurseForgeVersions } from '../features/Download/logic/curseforgeApi';
+import { runResourceDownloadTask } from '../features/Download/logic/resourceDownloadTask';
 import { useResourceDownload, type DownloadSource, type TabType } from '../features/Download/hooks/useResourceDownload';
 import { useDownloadSelectionStore } from '../features/Download/stores/useDownloadSelectionStore';
 import { useIconCacheStore } from '../features/Download/logic/iconCache';
 import { fetchModrinthVersions, type ModrinthProject, type OreProjectVersion } from '../features/InstanceDetail/logic/modrinthApi';
 import { getInstalledProjectIds, getInstalledVersionIds, modService } from '../features/InstanceDetail/logic/modService';
-import { useDownloadStore } from '../store/useDownloadStore';
 import { useLauncherStore } from '../store/useLauncherStore';
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { useInputAction } from '../ui/focus/InputDriver';
@@ -430,58 +429,38 @@ const ResourceDownloadPage: React.FC = () => {
     const subFolder = subFolderMap[activeTab];
 
     const executeDownload = async (targetVersion: OreProjectVersion, customProjectId?: string) => {
-      useDownloadStore.getState().addOrUpdateTask({
-        id: targetVersion.file_name,
-        taskType: 'resource',
-        title: targetVersion.file_name,
-        stage: 'DOWNLOADING_MOD',
-        current: 0,
-        total: 100,
-        message: t('download.progress.connecting', { defaultValue: 'Connecting...' }),
-        retryAction: 'download_resource',
-        retryPayload: {
-          url: targetVersion.download_url,
-          fileName: targetVersion.file_name,
-          instanceId: singleInstanceId,
-          subFolder
-        }
-      });
-
       try {
-        await invoke('download_resource', {
+        await runResourceDownloadTask({
           url: targetVersion.download_url,
           fileName: targetVersion.file_name,
           instanceId: singleInstanceId,
-          subFolder
+          subFolder,
+          title: targetVersion.file_name,
+          message: t('download.progress.connecting', { defaultValue: 'Connecting...' }),
+          onCompleted: async () => {
+            if (activeTab !== 'mod') return;
+
+            const projectId = customProjectId || projectOverride?.projectId || targetVersion.project_id || selectedProject?.id || '';
+            if (projectId) {
+              await modService.updateModManifest(
+                singleInstanceId,
+                targetVersion.file_name,
+                'launcherDownload',
+                (projectOverride?.source || source) === 'curseforge' ? 'curseforge' : 'modrinth',
+                projectId,
+                targetVersion.id
+              );
+            }
+
+            if (singleInstanceId === instanceId) {
+              await refreshInstalledMods();
+            }
+          }
         });
 
-        if (activeTab === 'mod') {
-          const projectId = customProjectId || projectOverride?.projectId || targetVersion.project_id || selectedProject?.id || '';
-          if (projectId) {
-            await modService.updateModManifest(
-              singleInstanceId,
-              targetVersion.file_name,
-              'launcherDownload',
-              (projectOverride?.source || source) === 'curseforge' ? 'curseforge' : 'modrinth',
-              projectId,
-              targetVersion.id
-            );
-          }
-
-          if (singleInstanceId === instanceId) {
-            await refreshInstalledMods();
-          }
-        }
       } catch (error) {
         console.error(`下载 ${targetVersion.file_name} 失败:`, error);
-        useDownloadStore.getState().addOrUpdateTask({
-          id: targetVersion.file_name,
-          stage: 'ERROR',
-          message: t('download.progress.failed', {
-            defaultValue: 'Download failed: {{error}}',
-            error: String(error)
-          })
-        });
+        throw error;
       }
     };
 

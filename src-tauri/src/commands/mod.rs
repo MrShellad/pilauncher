@@ -27,8 +27,8 @@ pub mod telemetry_cmd;
 pub mod terracotta;
 pub mod translation_cmd;
 pub mod update_cmd;
-pub mod wiki_cmd;
 pub mod version_cmd;
+pub mod wiki_cmd;
 
 use tauri::{Builder, Runtime};
 
@@ -109,6 +109,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         instance::snapshot_cmd::calculate_snapshot_diff,
         instance::snapshot_cmd::rollback_instance,
         instance::mod_cmd::update_mod_cache,
+        instance::mod_cmd::ensure_offline_jar_icon,
         instance::mod_cmd::open_mod_folder,
         instance::mod_cmd::execute_mod_file_cleanup,
         instance::resource_cmd::list_resources,
@@ -147,6 +148,9 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         resource_cmd::get_ore_project_detail,
         resource_cmd::get_ore_project_versions,
         resource_cmd::download_resource,
+        resource_cmd::pause_resource_download,
+        resource_cmd::resume_resource_download,
+        resource_cmd::cancel_resource_download,
         launcher_cmd::launch_game,
         launcher_cmd::run_pre_launch_check,
         launcher_cmd::kill_current_game,
@@ -175,6 +179,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         modpack_cmd::download_missing_runtimes,
         modpack_cmd::verify_instance_runtime,
         modpack_cmd::export_modpack,
+        modpack_cmd::cancel_modpack_export,
         java_cmd::download_java_env,
         fs_cmd::get_drives,
         fs_cmd::list_directory_entries,

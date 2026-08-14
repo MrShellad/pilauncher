@@ -76,7 +76,11 @@ pub struct InstanceConfig {
     pub window_width: Option<u32>,
     pub window_height: Option<u32>,
     pub is_favorite: Option<bool>,
-    #[serde(rename = "globalMetadataSettings", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "globalMetadataSettings",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub global_metadata_settings: Option<crate::domain::mod_manifest::ModMetadataSettings>,
     // Modpack tracking fields
     #[serde(default, skip_serializing_if = "Option::is_none")]

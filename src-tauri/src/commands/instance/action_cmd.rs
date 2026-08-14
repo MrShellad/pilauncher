@@ -1,13 +1,13 @@
 use crate::domain::instance::{
-    CustomButtonConfig, InstanceBindingState, ServerBinding, UpdateInstanceEnvironmentPayload,
-    InstanceConfig, LoaderConfig, JavaConfig, MemoryConfig, ResolutionConfig,
+    CustomButtonConfig, InstanceBindingState, InstanceConfig, JavaConfig, LoaderConfig,
+    MemoryConfig, ResolutionConfig, ServerBinding, UpdateInstanceEnvironmentPayload,
 };
-use sqlx::Row;
 use crate::services::db_service::AppDatabase;
 use crate::services::instance::action::InstanceActionService;
 use crate::services::instance::binding::InstanceBindingService;
 use crate::services::instance::environment::InstanceEnvironmentService;
 use crate::services::instance::tag::InstanceTagService;
+use sqlx::Row;
 use tauri::{AppHandle, Runtime, State};
 
 #[tauri::command]
@@ -107,7 +107,7 @@ pub async fn get_instance_detail<R: Runtime>(
                     last_played_at, created_at, jvm_args, window_width, 
                     window_height, is_favorite 
                  FROM instances 
-                 WHERE id = ?"
+                 WHERE id = ?",
             )
             .bind(&id)
             .fetch_optional(&db.pool)
@@ -115,15 +115,23 @@ pub async fn get_instance_detail<R: Runtime>(
             {
                 let name: String = row.get("name");
                 let mc_version: String = row.get("mc_version");
-                let loader_type: String = row.get::<Option<String>, _>("loader_type").unwrap_or_else(|| "vanilla".to_string());
-                let loader_version: String = row.get::<Option<String>, _>("loader_version").unwrap_or_default();
-                let java_path: String = row.get::<Option<String>, _>("java_path").unwrap_or_else(|| "auto".to_string());
+                let loader_type: String = row
+                    .get::<Option<String>, _>("loader_type")
+                    .unwrap_or_else(|| "vanilla".to_string());
+                let loader_version: String = row
+                    .get::<Option<String>, _>("loader_version")
+                    .unwrap_or_default();
+                let java_path: String = row
+                    .get::<Option<String>, _>("java_path")
+                    .unwrap_or_else(|| "auto".to_string());
                 let min_memory: i64 = row.get::<Option<i64>, _>("min_memory").unwrap_or(1024);
                 let max_memory: i64 = row.get::<Option<i64>, _>("max_memory").unwrap_or(4096);
                 let icon_path: Option<String> = row.get("icon_path");
                 let playtime_secs: i64 = row.get::<Option<i64>, _>("playtime_secs").unwrap_or(0);
                 let last_played_at: Option<String> = row.get("last_played_at");
-                let created_at: String = row.get::<Option<String>, _>("created_at").unwrap_or_default();
+                let created_at: String = row
+                    .get::<Option<String>, _>("created_at")
+                    .unwrap_or_default();
                 let jvm_args: Option<String> = row.get("jvm_args");
                 let window_width: Option<i64> = row.get("window_width");
                 let window_height: Option<i64> = row.get("window_height");
@@ -176,16 +184,29 @@ pub async fn get_instance_detail<R: Runtime>(
                 };
 
                 if let Err(e) = InstanceBindingService::write_instance_config(&app, &id, &config) {
-                    eprintln!("[AutoRebuild] Failed to write reconstructed instance config: {}", e);
+                    eprintln!(
+                        "[AutoRebuild] Failed to write reconstructed instance config: {}",
+                        e
+                    );
                 } else {
-                    println!("[AutoRebuild] Successfully reconstructed instance.json for {}", id);
+                    println!(
+                        "[AutoRebuild] Successfully reconstructed instance.json for {}",
+                        id
+                    );
                 }
             }
         }
     }
 
     let mut detail = InstanceActionService::get_detail(&app, &id)?;
-    if let Err(e) = crate::services::playtime::PlaytimeService::merge_into_instance_detail(&app, &db.pool, &id, &mut detail).await {
+    if let Err(e) = crate::services::playtime::PlaytimeService::merge_into_instance_detail(
+        &app,
+        &db.pool,
+        &id,
+        &mut detail,
+    )
+    .await
+    {
         eprintln!("[get_instance_detail] Failed to merge playtime: {}", e);
     }
     let binding_state = InstanceBindingService::get_instance_binding_state(&app, &db.pool, &id)

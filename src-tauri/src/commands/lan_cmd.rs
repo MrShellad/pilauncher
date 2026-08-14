@@ -139,10 +139,13 @@ pub async fn send_trust_request<R: Runtime>(
     let url = format!("http://{}:{}/trust/request", target_ip, target_port);
 
     let timestamp = chrono::Utc::now().timestamp().to_string();
-    let message = format!("POST:/trust/request:{}:{}", timestamp, req_payload.device_id);
+    let message = format!(
+        "POST:/trust/request:{}:{}",
+        timestamp, req_payload.device_id
+    );
 
     use base64::{engine::general_purpose, Engine as _};
-    use ed25519_dalek::{SigningKey, Signer};
+    use ed25519_dalek::{Signer, SigningKey};
 
     let private_bytes = general_purpose::STANDARD
         .decode(&my_identity.private_key_b64)
@@ -293,7 +296,8 @@ pub async fn update_lan_device_info<R: Runtime>(
     let old_id = current_info.device_id.clone();
     let old_name = current_info.device_name.clone();
 
-    let name_changed = !old_id.is_empty() && (old_name != info.device_name || old_id != info.device_id);
+    let name_changed =
+        !old_id.is_empty() && (old_name != info.device_name || old_id != info.device_id);
 
     *current_info = info.clone();
     let mut bg_path = state.local_bg_path.lock().unwrap();
@@ -849,7 +853,7 @@ pub async fn push_to_device<R: Runtime>(
         let sign_message = format!("{}:{}:{}:{}", method, path, timestamp, sender_device_id);
 
         use base64::{engine::general_purpose, Engine as _};
-        use ed25519_dalek::{SigningKey, Signer};
+        use ed25519_dalek::{Signer, SigningKey};
 
         let private_bytes = general_purpose::STANDARD
             .decode(&identity.private_key_b64)

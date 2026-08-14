@@ -6,7 +6,7 @@ use crate::domain::modpack::{
 use crate::services::import_service::{local_instance_service, third_party_service};
 use crate::services::instance::verify_service;
 use crate::services::modpack_service;
-use crate::services::modpack_service::export::ExportConfig;
+use crate::services::modpack_service::export::{ExportConfig, ExportResult};
 use tauri::{AppHandle, Runtime};
 
 #[tauri::command]
@@ -52,9 +52,8 @@ pub async fn import_modpack<R: Runtime>(
     zip_path: String,
     instance_name: String,
     server_binding: Option<ServerBinding>,
-) -> Result<(), String> {
-    modpack_service::start_import(app, zip_path, instance_name, server_binding);
-    Ok(())
+) -> Result<modpack_service::ModpackDeploymentAccepted, String> {
+    modpack_service::start_import(app, zip_path, instance_name, server_binding)
 }
 
 #[tauri::command]
@@ -63,9 +62,8 @@ pub async fn download_and_import_modpack<R: Runtime>(
     url: String,
     instance_name: String,
     server_binding: Option<ServerBinding>,
-) -> Result<(), String> {
-    modpack_service::download_and_import_modpack(app, url, instance_name, server_binding);
-    Ok(())
+) -> Result<modpack_service::ModpackDeploymentAccepted, String> {
+    modpack_service::download_and_import_modpack(app, url, instance_name, server_binding)
 }
 
 #[tauri::command]
@@ -80,8 +78,17 @@ pub fn scan_instances_in_dir<R: Runtime>(
 pub async fn export_modpack<R: Runtime>(
     app: AppHandle<R>,
     config: ExportConfig,
-) -> Result<(), String> {
+) -> Result<ExportResult, String> {
     modpack_service::export::execute_export(&app, config).await
+}
+
+#[tauri::command]
+pub fn cancel_modpack_export(task_id: String) -> Result<(), String> {
+    if task_id.trim().is_empty() {
+        return Err("Export task identifier cannot be empty".to_string());
+    }
+    crate::services::deployment_cancel::cancel(&format!("export:{}", task_id));
+    Ok(())
 }
 
 #[tauri::command]
@@ -126,4 +133,3 @@ pub async fn rollback_modpack_upgrade<R: Runtime>(
 ) -> Result<(), String> {
     modpack_service::rollback_modpack_upgrade(&app, &instance_id).await
 }
-

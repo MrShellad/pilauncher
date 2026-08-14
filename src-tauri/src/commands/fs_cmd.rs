@@ -139,10 +139,7 @@ pub fn list_valid_dirs(path: String) -> Result<Vec<DirNode>, String> {
 }
 
 #[tauri::command]
-pub fn list_directory_entries(
-    path: String,
-    include_files: bool,
-) -> Result<Vec<DirNode>, String> {
+pub fn list_directory_entries(path: String, include_files: bool) -> Result<Vec<DirNode>, String> {
     let mut nodes = Vec::new();
     let path_obj = Path::new(&path);
 
@@ -229,7 +226,7 @@ pub fn open_path_in_file_manager<R: Runtime>(
     path: String,
 ) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
- 
+
     let input = PathBuf::from(path);
     let target = if input.is_file() {
         input
@@ -239,16 +236,16 @@ pub fn open_path_in_file_manager<R: Runtime>(
     } else {
         input
     };
- 
+
     if !target.exists() || !target.is_dir() {
         return Err("目录不存在或无法访问".to_string());
     }
- 
+
     let target_str = target.to_string_lossy().to_string();
     app.opener()
         .open_path(target_str, None::<&str>)
         .map_err(|e| format!("打开目录失败: {}", e))?;
- 
+
     Ok(())
 }
 

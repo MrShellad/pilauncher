@@ -1,8 +1,8 @@
 use crate::domain::mod_manifest::{
     build_file_state, build_manifest_entry, build_manifest_source, compute_file_hash,
     mod_manifest_key, normalize_manifest_entry, read_raw_mod_manifest, upsert_mod_manifest_entry,
-    write_mod_manifest, ModManifest, ModManifestEntry, ModMetadataSettings, ModPlatformMatch,
-    ModSourceKind, ModFileHash,
+    write_mod_manifest, ModFileHash, ModManifest, ModManifestEntry, ModMetadataSettings,
+    ModPlatformMatch, ModSourceKind,
 };
 use std::collections::HashMap;
 use std::path::Path;
@@ -46,6 +46,8 @@ impl ModManifestService {
             entry.version = raw.version;
             entry.description = raw.description;
             entry.icon_rel_path = raw.icon_rel_path;
+            entry.network_icon_rel_path = raw.network_icon_rel_path;
+            entry.jar_fallback_icon_rel_path = raw.jar_fallback_icon_rel_path;
             entry.curseforge_fingerprint = raw.curseforge_fingerprint;
             entry.matched_platforms = raw.matched_platforms;
             entry.metadata_settings = raw.metadata_settings;
@@ -89,7 +91,9 @@ impl ModManifestService {
                         if let Ok(file_hash) = compute_file_hash(&path) {
                             let found_key = raw_manifest.iter().find_map(|(k, v)| {
                                 if let Some(ref h) = v.hash {
-                                    if h.value == file_hash.value && h.algorithm == file_hash.algorithm {
+                                    if h.value == file_hash.value
+                                        && h.algorithm == file_hash.algorithm
+                                    {
                                         Some(k.clone())
                                     } else {
                                         None
@@ -169,8 +173,12 @@ impl ModManifestService {
         old_file_name: Option<String>,
     ) -> Result<(), String> {
         let is_modpack = check_is_modpack(manifest_path);
-        let has_platform = platform.as_deref().map(|p| !p.trim().is_empty()).unwrap_or(false);
-        let should_lock = (is_modpack || source_kind == ModSourceKind::LauncherDownload) && has_platform;
+        let has_platform = platform
+            .as_deref()
+            .map(|p| !p.trim().is_empty())
+            .unwrap_or(false);
+        let should_lock =
+            (is_modpack || source_kind == ModSourceKind::LauncherDownload) && has_platform;
         let locked_settings = if should_lock {
             platform.as_ref().map(|p| ModMetadataSettings {
                 metadata_platform: Some(p.clone()),
@@ -185,7 +193,12 @@ impl ModManifestService {
         let file_state = build_file_state(target_path)?;
         let hash = compute_file_hash(target_path)?;
         let mut entry = build_manifest_entry(
-            build_manifest_source(source_kind, platform.clone(), project_id.clone(), file_id.clone()),
+            build_manifest_source(
+                source_kind,
+                platform.clone(),
+                project_id.clone(),
+                file_id.clone(),
+            ),
             hash,
             file_state,
         );
@@ -196,7 +209,9 @@ impl ModManifestService {
             entry.metadata_settings = locked_settings;
         }
 
-        if let Ok(fingerprint) = crate::domain::mod_manifest::compute_curseforge_fingerprint(target_path) {
+        if let Ok(fingerprint) =
+            crate::domain::mod_manifest::compute_curseforge_fingerprint(target_path)
+        {
             entry.curseforge_fingerprint = Some(fingerprint);
         }
 
@@ -216,11 +231,20 @@ impl ModManifestService {
                 if entry.icon_rel_path.is_none() {
                     entry.icon_rel_path = old_entry.icon_rel_path.clone();
                 }
+                if entry.network_icon_rel_path.is_none() {
+                    entry.network_icon_rel_path = old_entry.network_icon_rel_path.clone();
+                }
+                if entry.jar_fallback_icon_rel_path.is_none() {
+                    entry.jar_fallback_icon_rel_path = old_entry.jar_fallback_icon_rel_path.clone();
+                }
                 if entry.matched_platforms.is_empty() {
                     entry.matched_platforms = old_entry.matched_platforms.clone();
                 } else {
                     for (p, m) in &old_entry.matched_platforms {
-                        entry.matched_platforms.entry(p.clone()).or_insert_with(|| m.clone());
+                        entry
+                            .matched_platforms
+                            .entry(p.clone())
+                            .or_insert_with(|| m.clone());
                     }
                 }
                 if entry.metadata_settings.is_none() {
@@ -229,7 +253,9 @@ impl ModManifestService {
             }
         }
 
-        if let (Some(p), Some(pid), Some(fid)) = (platform.as_deref(), project_id.as_ref(), file_id.as_ref()) {
+        if let (Some(p), Some(pid), Some(fid)) =
+            (platform.as_deref(), project_id.as_ref(), file_id.as_ref())
+        {
             let platform_key = p.trim().to_ascii_lowercase();
             if !platform_key.is_empty() {
                 entry.matched_platforms.insert(
@@ -257,7 +283,9 @@ impl ModManifestService {
         let mut manifest = Self::read_manifest_robust(manifest_path);
 
         for entry in manifest.values_mut() {
-            let old_platform = entry.metadata_settings.as_ref()
+            let old_platform = entry
+                .metadata_settings
+                .as_ref()
                 .and_then(|s| s.metadata_platform.as_deref())
                 .unwrap_or("auto");
             let new_platform = settings.metadata_platform.as_deref().unwrap_or("auto");
@@ -269,6 +297,8 @@ impl ModManifestService {
                 entry.name = None;
                 entry.description = None;
                 entry.icon_rel_path = None;
+                entry.network_icon_rel_path = None;
+                entry.jar_fallback_icon_rel_path = None;
             }
             entry.metadata_settings = Some(settings.clone());
         }
@@ -286,6 +316,8 @@ impl ModManifestService {
             entry.name = None;
             entry.description = None;
             entry.icon_rel_path = None;
+            entry.network_icon_rel_path = None;
+            entry.jar_fallback_icon_rel_path = None;
             entry.matched_platforms.clear();
         }
 
@@ -354,7 +386,9 @@ impl ModManifestService {
             )
         });
 
-        let old_platform = entry.metadata_settings.as_ref()
+        let old_platform = entry
+            .metadata_settings
+            .as_ref()
             .and_then(|s| s.metadata_platform.as_deref())
             .unwrap_or("auto");
         let new_platform = settings.metadata_platform.as_deref().unwrap_or("auto");
@@ -715,7 +749,8 @@ mod tests {
             Some("file123".to_string()),
             Some("1.0.0".to_string()),
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         let content = fs::read_to_string(&manifest_path).unwrap();
         let parsed: ModManifest = serde_json::from_str(&content).unwrap();
@@ -733,7 +768,8 @@ mod tests {
             Some("file456".to_string()),
             Some("1.0.1".to_string()),
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         let content = fs::read_to_string(&manifest_path).unwrap();
         let parsed: ModManifest = serde_json::from_str(&content).unwrap();
@@ -755,7 +791,8 @@ mod tests {
             Some("file789".to_string()),
             Some("1.0.2".to_string()),
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         let content = fs::read_to_string(&manifest_path).unwrap();
         let parsed: ModManifest = serde_json::from_str(&content).unwrap();
@@ -779,7 +816,8 @@ mod tests {
             None,
             None,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         let content = fs::read_to_string(&manifest_path).unwrap();
         let parsed: ModManifest = serde_json::from_str(&content).unwrap();

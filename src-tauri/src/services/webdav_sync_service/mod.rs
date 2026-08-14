@@ -1,5 +1,6 @@
 mod compaction;
 mod constants;
+mod keymaps;
 mod library;
 mod local_store;
 mod migration;
@@ -11,8 +12,6 @@ mod skins;
 mod snapshot;
 mod state;
 mod util;
-mod keymaps;
-
 
 use crate::domain::library::{
     FavoriteOperation, FavoriteOperationAction, StarredItem, WebDavFavoriteSyncResult,
@@ -177,7 +176,7 @@ impl WebDavSyncService {
                 remote::upload_snapshot(&client, config, snapshot).await?;
             }
         }
-        
+
         library::sync_library_files(app, pool, &client, config).await?;
         keymaps::sync_keyboard_profiles(app, &client, config).await?;
 
@@ -251,4 +250,3 @@ impl WebDavSyncService {
         keymaps::delete_webdav_keymap(config, filename).await
     }
 }
-

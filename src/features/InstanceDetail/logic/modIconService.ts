@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 
-import type { ModMeta } from './modService';
+import { modService, type ModMeta } from './modService';
 
 export type ModIconPriority = 'high' | 'medium' | 'low';
 export type ModIconStatus = 'idle' | 'loading' | 'ready' | 'failed';
@@ -47,22 +47,6 @@ const PRIORITY_WEIGHT: Record<ModIconPriority, number> = {
   low: 2
 };
 
-const buildRemoteIconSrc = (mod: ModMeta) => {
-  return mod.networkIconUrl || mod.networkInfo?.icon_url || null;
-};
-
-const sha1Hex = async (value: string) => {
-  if (!globalThis.crypto?.subtle) {
-    return value;
-  }
-
-  const encoded = new TextEncoder().encode(value);
-  const digest = await globalThis.crypto.subtle.digest('SHA-1', encoded);
-  return Array.from(new Uint8Array(digest))
-    .map((item) => item.toString(16).padStart(2, '0'))
-    .join('');
-};
-
 const preloadImage = (src: string) => {
   return new Promise<string | null>((resolve) => {
     const image = new Image();
@@ -77,8 +61,6 @@ class ModIconService {
   private memoryCache = new Map<string, string>();
   private states = new Map<string, InternalIconState>();
   private listeners = new Map<string, Set<(snapshot: ModIconSnapshot) => void>>();
-  private keyByRemoteSrc = new Map<string, string>();
-  private pendingKeyByRemoteSrc = new Map<string, Promise<string>>();
   private downloadingMap = new Map<string, Promise<string | null>>();
   private queue: QueueTask[] = [];
   private nextSequence = 0;
@@ -112,34 +94,19 @@ class ModIconService {
       };
     }
 
-    const remoteSrc = buildRemoteIconSrc(mod);
-
-    if (!remoteSrc) {
-      return null;
+    if (
+      typeof navigator !== 'undefined' &&
+      navigator.onLine === false &&
+      mod.offlineJarIconAbsolutePath
+    ) {
+      const localUrl = convertFileSrc(mod.offlineJarIconAbsolutePath);
+      return {
+        cacheId: `jar:${mod.offlineJarIconAbsolutePath}`,
+        candidates: [localUrl]
+      };
     }
 
-    return {
-      cacheId: await this.resolveRemoteCacheId(remoteSrc),
-      candidates: [remoteSrc]
-    };
-  }
-
-  private async resolveRemoteCacheId(remoteSrc: string) {
-    const existing = this.keyByRemoteSrc.get(remoteSrc);
-    if (existing) return existing;
-
-    const pending = this.pendingKeyByRemoteSrc.get(remoteSrc);
-    if (pending) return pending;
-
-    const task = sha1Hex(remoteSrc).then((digest) => {
-      const cacheId = `remote:${digest}`;
-      this.keyByRemoteSrc.set(remoteSrc, cacheId);
-      this.pendingKeyByRemoteSrc.delete(remoteSrc);
-      return cacheId;
-    });
-
-    this.pendingKeyByRemoteSrc.set(remoteSrc, task);
-    return task;
+    return null;
   }
 
   private async getIconFromDescriptor(descriptor: ModIconDescriptor, priority: ModIconPriority) {
@@ -315,15 +282,34 @@ const modIconService = new ModIconService();
 export const subscribeToModIcon = (
   mod: ModMeta,
   priority: ModIconPriority,
-  listener: (snapshot: ModIconSnapshot) => void
+  listener: (snapshot: ModIconSnapshot) => void,
+  instanceId?: string
 ) => {
-  return modIconService.connect(mod, priority, listener);
+  const resolveIconMod = async () => {
+    if (
+      instanceId &&
+      typeof navigator !== 'undefined' &&
+      navigator.onLine === false &&
+      !mod.offlineJarIconAbsolutePath
+    ) {
+      try {
+        const path = await modService.ensureOfflineJarIcon(instanceId, mod.fileName);
+        return path ? { ...mod, offlineJarIconAbsolutePath: path } : mod;
+      } catch (error) {
+        console.warn('Offline JAR icon fallback failed', error);
+      }
+    }
+
+    return mod;
+  };
+
+  return resolveIconMod().then((resolvedMod) => (
+    modIconService.connect(resolvedMod, priority, listener)
+  ));
 };
 
-export const useModIcon = (mod: ModMeta, priority: ModIconPriority) => {
+export const useModIcon = (mod: ModMeta, priority: ModIconPriority, instanceId?: string) => {
   const [snapshot, setSnapshot] = useState<ModIconSnapshot>(EMPTY_ICON);
-  const remoteIconSrc = mod.networkIconUrl || mod.networkInfo?.icon_url || '';
-
   useEffect(() => {
     let disposed = false;
     let unsubscribe = () => {};
@@ -332,7 +318,7 @@ export const useModIcon = (mod: ModMeta, priority: ModIconPriority) => {
       if (!disposed) {
         setSnapshot(nextSnapshot);
       }
-    }).then((disconnect) => {
+    }, instanceId).then((disconnect) => {
       if (disposed) {
         disconnect();
         return;
@@ -350,8 +336,9 @@ export const useModIcon = (mod: ModMeta, priority: ModIconPriority) => {
     mod.fileSize,
     mod.modifiedAt,
     mod.iconAbsolutePath,
+    mod.offlineJarIconAbsolutePath,
     priority,
-    remoteIconSrc
+    instanceId
   ]);
 
   return snapshot;

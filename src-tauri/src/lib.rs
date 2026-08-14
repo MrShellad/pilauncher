@@ -8,7 +8,15 @@ pub mod domain;
 pub mod error;
 pub mod services;
 
-
+#[cfg(any(test, all(target_os = "linux", not(target_os = "android"))))]
+fn resolve_linux_app_config_dir(
+    xdg_config_home: Option<std::path::PathBuf>,
+    home: Option<std::path::PathBuf>,
+) -> Option<std::path::PathBuf> {
+    xdg_config_home
+        .or_else(|| home.map(|path| path.join(".config")))
+        .map(|path| path.join("com.mrshell.PiLauncher"))
+}
 
 #[cfg(all(target_os = "linux", not(target_os = "android")))]
 fn apply_linux_compat_env_vars() {
@@ -23,11 +31,11 @@ fn apply_linux_compat_env_vars() {
     let mut should_disable = false;
     let mut found_setting = false;
 
-    // 手动解析默认配置路径 (Tauri 2 默认在 ~/.config/<bundle_id>)
-    if let Some(home) = std::env::var_os("HOME") {
-        let config_dir = PathBuf::from(home)
-            .join(".config")
-            .join("com.mrshell.PiLauncher");
+    let config_dir = resolve_linux_app_config_dir(
+        std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from),
+        std::env::var_os("HOME").map(PathBuf::from),
+    );
+    if let Some(config_dir) = config_dir {
         let meta_path = config_dir.join("meta.json");
 
         if let Ok(meta_content) = fs::read_to_string(meta_path) {
@@ -102,6 +110,10 @@ pub fn run() {
                 )?;
             }
 
+            services::config_service::ConfigService::ensure_base_path(app.handle()).map_err(
+                |error| std::io::Error::other(format!("failed to initialize base directory: {}", error)),
+            )?;
+
             // ==========================================
             // 挂载异步的 SQLite 数据库
             // ==========================================
@@ -171,4 +183,29 @@ pub fn run() {
     app.run(|_app_handle: &tauri::AppHandle, _event| {
         // NOTE: Terracotta sidecar cleanup disabled — no child process to kill.
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_linux_app_config_dir;
+    use std::path::PathBuf;
+
+    #[test]
+    fn prefers_xdg_config_home_for_linux_app_config() {
+        assert_eq!(
+            resolve_linux_app_config_dir(
+                Some(PathBuf::from("/sandbox/config")),
+                Some(PathBuf::from("/home/player"))
+            ),
+            Some(PathBuf::from("/sandbox/config/com.mrshell.PiLauncher"))
+        );
+    }
+
+    #[test]
+    fn falls_back_to_home_config_directory() {
+        assert_eq!(
+            resolve_linux_app_config_dir(None, Some(PathBuf::from("/home/player"))),
+            Some(PathBuf::from("/home/player/.config/com.mrshell.PiLauncher"))
+        );
+    }
 }

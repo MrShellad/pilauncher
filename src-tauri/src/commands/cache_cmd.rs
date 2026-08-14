@@ -123,9 +123,7 @@ pub fn write_persistent_cache<R: Runtime>(
 }
 
 #[command]
-pub fn read_shared_download_filter_config<R: Runtime>(
-    app: AppHandle<R>,
-) -> Result<Value, String> {
+pub fn read_shared_download_filter_config<R: Runtime>(app: AppHandle<R>) -> Result<Value, String> {
     let path = ConfigService::ensure_shared_download_filter_config(&app)?;
     let content = fs::read_to_string(&path)
         .map_err(|e| format!("failed to read shared filter config: {}", e))?;

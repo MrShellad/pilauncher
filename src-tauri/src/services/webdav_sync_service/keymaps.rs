@@ -29,12 +29,14 @@ pub(crate) async fn sync_keyboard_profiles<R: Runtime>(
 
     // 3. Ensure local directory exists
     if !local_dir.exists() {
-        fs::create_dir_all(&local_dir).map_err(|e| format!("failed to create local keyboard directory: {}", e))?;
+        fs::create_dir_all(&local_dir)
+            .map_err(|e| format!("failed to create local keyboard directory: {}", e))?;
     }
 
     // 4. Scan local profiles
     let mut local_files = Vec::new();
-    let entries = fs::read_dir(&local_dir).map_err(|e| format!("failed to read local keyboard directory: {}", e))?;
+    let entries = fs::read_dir(&local_dir)
+        .map_err(|e| format!("failed to read local keyboard directory: {}", e))?;
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("json") {
@@ -45,13 +47,14 @@ pub(crate) async fn sync_keyboard_profiles<R: Runtime>(
     }
 
     // 5. Scan remote profiles
-    let remote_files = match super::library::list_files_in_dir(client, config, KEYBOARD_USER_DIR).await {
-        Ok(files) => files,
-        Err(err) => {
-            log::warn!("Failed to list remote keyboard profiles: {}", err);
-            Vec::new()
-        }
-    };
+    let remote_files =
+        match super::library::list_files_in_dir(client, config, KEYBOARD_USER_DIR).await {
+            Ok(files) => files,
+            Err(err) => {
+                log::warn!("Failed to list remote keyboard profiles: {}", err);
+                Vec::new()
+            }
+        };
     let remote_files: Vec<String> = remote_files
         .into_iter()
         .filter(|name| name.ends_with(".json"))
@@ -80,7 +83,8 @@ pub(crate) async fn sync_keyboard_profiles<R: Runtime>(
             download_keymap_file(client, config, &local_path, &remote_path).await?;
         } else if has_local && has_remote {
             let local_updated_at = read_local_profile_updated_at(&local_path)?;
-            let remote_updated_at = read_remote_profile_updated_at(client, config, &remote_path).await?;
+            let remote_updated_at =
+                read_remote_profile_updated_at(client, config, &remote_path).await?;
 
             if local_updated_at > remote_updated_at {
                 upload_keymap_file(app, client, config, &local_path, &remote_path).await?;
@@ -96,7 +100,8 @@ pub(crate) async fn sync_keyboard_profiles<R: Runtime>(
 fn read_local_profile_updated_at(path: &PathBuf) -> Result<String, String> {
     let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
     let header: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
-    let updated_at = header.get("updatedAt")
+    let updated_at = header
+        .get("updatedAt")
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .to_string();
@@ -114,20 +119,24 @@ async fn read_remote_profile_updated_at(
         .map_err(|e| format!("failed to fetch remote keymap file header: {e}"))?;
 
     if !response.status().is_success() {
-        return Err(format!("failed to fetch remote keymap file: HTTP {}", response.status()));
+        return Err(format!(
+            "failed to fetch remote keymap file: HTTP {}",
+            response.status()
+        ));
     }
 
     let bytes = response
         .bytes()
         .await
         .map_err(|e| format!("failed to read remote keymap file bytes: {e}"))?;
-    
+
     let header: serde_json::Value = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
-    let updated_at = header.get("updatedAt")
+    let updated_at = header
+        .get("updatedAt")
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .to_string();
-    
+
     Ok(updated_at)
 }
 
@@ -138,9 +147,13 @@ async fn upload_keymap_file<R: Runtime>(
     local_path: &PathBuf,
     remote_path: &str,
 ) -> Result<(), String> {
-    log::info!("WebDAV keymap sync: Uploading keymap {:?} to {}", local_path, remote_path);
+    log::info!(
+        "WebDAV keymap sync: Uploading keymap {:?} to {}",
+        local_path,
+        remote_path
+    );
     let bytes_to_upload = fs::read(local_path).map_err(|e| e.to_string())?;
-    
+
     let response = remote::authorized_request(client, config, Method::PUT, remote_path)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
         .body(bytes_to_upload)
@@ -149,9 +162,12 @@ async fn upload_keymap_file<R: Runtime>(
         .map_err(|e| format!("failed to upload keymap file {remote_path}: {e}"))?;
 
     if !response.status().is_success() {
-        return Err(format!("failed to upload keymap file {remote_path}: HTTP {}", response.status()));
+        return Err(format!(
+            "failed to upload keymap file {remote_path}: HTTP {}",
+            response.status()
+        ));
     }
-    
+
     Ok(())
 }
 
@@ -161,14 +177,21 @@ async fn download_keymap_file(
     local_path: &PathBuf,
     remote_path: &str,
 ) -> Result<(), String> {
-    log::info!("WebDAV keymap sync: Downloading keymap from {} to {:?}", remote_path, local_path);
+    log::info!(
+        "WebDAV keymap sync: Downloading keymap from {} to {:?}",
+        remote_path,
+        local_path
+    );
     let response = remote::authorized_request(client, config, Method::GET, remote_path)
         .send()
         .await
         .map_err(|e| format!("failed to download keymap file {remote_path}: {e}"))?;
 
     if !response.status().is_success() {
-        return Err(format!("failed to download keymap file {remote_path}: HTTP {}", response.status()));
+        return Err(format!(
+            "failed to download keymap file {remote_path}: HTTP {}",
+            response.status()
+        ));
     }
 
     let bytes = response
@@ -179,7 +202,7 @@ async fn download_keymap_file(
     if let Some(parent) = local_path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    
+
     fs::write(local_path, bytes).map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -212,4 +235,3 @@ pub(crate) async fn delete_webdav_keymap(
         ))
     }
 }
-

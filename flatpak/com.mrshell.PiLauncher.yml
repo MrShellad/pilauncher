@@ -15,15 +15,19 @@ finish-args:
   - --socket=pulseaudio
   - --filesystem=/run/media
   - --filesystem=~/.local/share/Steam
+  # The in-app directory browser and third-party instance support need host home access.
+  # Default launcher data remains in Flatpak's private app data directory.
   - --filesystem=home
   - --filesystem=xdg-data/.minecraft
-  - --filesystem=xdg-data/PiLauncher:create
   - --filesystem=xdg-data/fonts
   - --filesystem=~/.jdks:ro
   - --filesystem=~/.sdkman/candidates/java:ro
+  - --filesystem=/usr/lib/jvm:ro
   - --filesystem=/opt:ro
   - --filesystem=/run/udev:ro
   - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.freedesktop.portal.FileChooser
+  - --talk-name=org.freedesktop.portal.OpenURI
 
 modules:
   - name: PiLauncher

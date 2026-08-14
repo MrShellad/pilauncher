@@ -8,6 +8,32 @@ use tauri::{AppHandle, Runtime, State};
 
 use crate::services::deferred_startup::DeferredStartupState;
 
+const FLATPAK_APP_ID: &str = "com.mrshell.PiLauncher";
+
+struct SteamShortcutTarget {
+    exe: String,
+    start_dir: String,
+    launch_options: String,
+}
+
+fn steam_shortcut_target(executable: &Path, flatpak_id: Option<&str>) -> SteamShortcutTarget {
+    if flatpak_id == Some(FLATPAK_APP_ID) {
+        let home_dir = std::env::var("HOME").unwrap_or_else(|_| "/".to_string());
+        return SteamShortcutTarget {
+            exe: "\"/usr/bin/flatpak\"".to_string(),
+            start_dir: format!("\"{}\"", home_dir),
+            launch_options: format!("run {}", FLATPAK_APP_ID),
+        };
+    }
+
+    let start_dir = executable.parent().unwrap_or_else(|| Path::new("."));
+    SteamShortcutTarget {
+        exe: format!("\"{}\"", executable.to_string_lossy()),
+        start_dir: format!("\"{}\"", start_dir.to_string_lossy()),
+        launch_options: String::new(),
+    }
+}
+
 #[tauri::command]
 pub async fn start_deferred_services(
     deferred_startup: State<'_, DeferredStartupState>,
@@ -86,7 +112,7 @@ pub fn get_primary_monitor_resolution<R: Runtime>(app: AppHandle<R>) -> Result<(
 pub async fn check_steam_status() -> Result<bool, String> {
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
-        Ok(steamlocate::SteamDir::locate().is_ok() || steamlocate::SteamDir::locate().is_err())
+        Ok(steamlocate::SteamDir::locate().is_ok())
     }
     #[cfg(any(target_os = "android", target_os = "ios"))]
     {
@@ -98,21 +124,11 @@ pub async fn check_steam_status() -> Result<bool, String> {
 pub async fn check_steamos_gamepad_mode() -> Result<bool, String> {
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
-        // 1. check SteamOS (/etc/steamos-release)
-        let has_steamos = Path::new("/etc/steamos-release").exists();
-
-        // 2. check CPU AMD Custom APU
-        let cpuinfo = fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
-        let is_custom_apu = cpuinfo.contains("AMD Custom APU");
-
-        // 3. check gamescope
-        let is_gamescope = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default() == "gamescope"
-            || std::env::var("WAYLAND_DISPLAY").unwrap_or_default() == "gamescope";
-
-        // 4. check SteamDeck env
-        let is_steam_env = std::env::var("SteamDeck").unwrap_or_default() == "1";
-
-        Ok(has_steamos || is_custom_apu || is_gamescope || is_steam_env)
+        Ok(is_steamos_gamepad_mode(
+            &std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default(),
+            &std::env::var("WAYLAND_DISPLAY").unwrap_or_default(),
+            &std::env::var("SteamDeck").unwrap_or_default(),
+        ))
     }
     #[cfg(any(target_os = "android", target_os = "ios"))]
     {
@@ -137,9 +153,7 @@ pub async fn register_steam_shortcut<R: Runtime>(
         }
 
         let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
-        let exe_path_str = format!("\"{}\"", exe_path.to_string_lossy());
-        let app_dir = exe_path.parent().unwrap();
-        let start_dir_str = format!("\"{}\"", app_dir.to_string_lossy());
+        let target = steam_shortcut_target(&exe_path, std::env::var("FLATPAK_ID").ok().as_deref());
 
         let mut success = false;
         for entry in fs::read_dir(userdata_path).map_err(|e| e.to_string())? {
@@ -153,27 +167,37 @@ pub async fn register_steam_shortcut<R: Runtime>(
                         let mut shortcuts = vec![];
                         if shortcuts_path.exists() {
                             if let Ok(content) = fs::read(&shortcuts_path) {
-                                if let Ok(parsed) = steam_shortcuts_util::parse_shortcuts(&content) {
+                                if let Ok(parsed) = steam_shortcuts_util::parse_shortcuts(&content)
+                                {
                                     shortcuts = parsed.into_iter().map(|s| s.to_owned()).collect();
                                 }
                             }
                         }
 
-                        shortcuts.retain(|s| s.app_name != "PiLauncher");
-
-                        let new_shortcut = steam_shortcuts_util::shortcut::Shortcut::new(
-                            "0",
-                            "PiLauncher",
-                            &exe_path_str,
-                            &start_dir_str,
-                            "",
-                            "",
-                            "",
-                        );
-
-                        let appid = new_shortcut.app_id;
-
-                        shortcuts.push(new_shortcut.to_owned());
+                        let appid = if let Some(existing) = shortcuts
+                            .iter_mut()
+                            .find(|shortcut| shortcut.app_name == "PiLauncher")
+                        {
+                            // Keep the existing AppID so Steam Input layouts and artwork
+                            // remain associated with this shortcut after an app update.
+                            existing.exe = target.exe.clone();
+                            existing.start_dir = target.start_dir.clone();
+                            existing.launch_options = target.launch_options.clone();
+                            existing.app_id
+                        } else {
+                            let new_shortcut = steam_shortcuts_util::shortcut::Shortcut::new(
+                                "0",
+                                "PiLauncher",
+                                &target.exe,
+                                &target.start_dir,
+                                "",
+                                "",
+                                &target.launch_options,
+                            );
+                            let appid = new_shortcut.app_id;
+                            shortcuts.push(new_shortcut.to_owned());
+                            appid
+                        };
 
                         let borrowed_shortcuts: Vec<steam_shortcuts_util::shortcut::Shortcut> =
                             shortcuts.iter().map(|s| s.borrow()).collect();
@@ -226,4 +250,41 @@ pub async fn register_steam_shortcut<R: Runtime>(
     {
         Err("Steam shortcut registration is not supported on mobile devices.".to_string())
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn flatpak_shortcut_runs_the_host_flatpak_command() {
+        let target = steam_shortcut_target(Path::new("/app/bin/PiLauncher"), Some(FLATPAK_APP_ID));
+
+        assert_eq!(target.exe, "\"/usr/bin/flatpak\"");
+        assert_eq!(target.launch_options, "run com.mrshell.PiLauncher");
+        assert_ne!(target.exe, "\"/app/bin/PiLauncher\"");
+    }
+
+    #[test]
+    fn native_shortcut_runs_the_packaged_executable() {
+        let target = steam_shortcut_target(Path::new("/opt/PiLauncher/PiLauncher"), None);
+
+        assert_eq!(target.exe, "\"/opt/PiLauncher/PiLauncher\"");
+        assert_eq!(target.start_dir, "\"/opt/PiLauncher\"");
+        assert!(target.launch_options.is_empty());
+    }
+
+    #[test]
+    fn gamepad_mode_requires_a_gamescope_or_steam_deck_session() {
+        assert!(is_steamos_gamepad_mode("gamescope", "wayland-0", ""));
+        assert!(is_steamos_gamepad_mode("KDE", "gamescope", ""));
+        assert!(is_steamos_gamepad_mode("KDE", "wayland-0", "1"));
+        assert!(!is_steamos_gamepad_mode("KDE", "wayland-0", ""));
+    }
+}
+
+fn is_steamos_gamepad_mode(current_desktop: &str, wayland_display: &str, steam_deck: &str) -> bool {
+    current_desktop.eq_ignore_ascii_case("gamescope")
+        || wayland_display.eq_ignore_ascii_case("gamescope")
+        || steam_deck == "1"
 }

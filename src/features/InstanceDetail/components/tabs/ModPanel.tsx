@@ -251,6 +251,7 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
     >
       <ModList
         {...controller.list}
+        instanceId={instanceId}
         onUpdateAllMods={controller.list.onUpdateAllMods}
         snapshotState={controller.topBar.snapshotState}
         snapshotProgressPhase={controller.topBar.snapshotProgressPhase}

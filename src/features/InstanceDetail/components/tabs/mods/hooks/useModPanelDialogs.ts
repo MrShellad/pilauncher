@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { useTranslation } from 'react-i18next';
 
@@ -6,6 +6,7 @@ import { focusManager } from '../../../../../../ui/focus/FocusManager';
 import { useToastStore } from '../../../../../../store/useToastStore';
 
 import type { InstanceSnapshot, ModMeta, SnapshotDiff } from '../../../../logic/modService';
+import { getModIdentityKey } from '../../../../logic/modService';
 
 export interface PendingDeleteState {
   fileNames: string[];
@@ -100,7 +101,8 @@ export const useModPanelDialogs = ({
   const { t } = useTranslation();
   const addToast = useToastStore((state) => state.addToast);
 
-  const [selectedMod, setSelectedMod] = useState<ModMeta | null>(null);
+  const [selectedModKey, setSelectedModKey] = useState<string | null>(null);
+  const [selectedModSnapshot, setSelectedModSnapshot] = useState<ModMeta | null>(null);
   const [openMetadataSettingsOnDetailOpen, setOpenMetadataSettingsOnDetailOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<PendingDeleteState | null>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
@@ -111,12 +113,14 @@ export const useModPanelDialogs = ({
 
   const openModDetail = useCallback((mod: ModMeta) => {
     setOpenMetadataSettingsOnDetailOpen(false);
-    setSelectedMod(mod);
+    setSelectedModKey(getModIdentityKey(mod));
+    setSelectedModSnapshot(mod);
   }, []);
 
   const openModMetadataSettings = useCallback((mod: ModMeta) => {
     setOpenMetadataSettingsOnDetailOpen(true);
-    setSelectedMod(mod);
+    setSelectedModKey(getModIdentityKey(mod));
+    setSelectedModSnapshot(mod);
   }, []);
 
   const markMetadataSettingsOpened = useCallback(() => {
@@ -132,40 +136,30 @@ export const useModPanelDialogs = ({
     window.setTimeout(() => focusManager.restoreFocus('tab-boundary-mods', 'mod-btn-metadata-settings'), 50);
   }, []);
 
-  useEffect(() => {
-    const syncTimer = window.setTimeout(() => {
-      setSelectedMod((current) => {
-        if (!current) return current;
+  const selectedMod = useMemo(() => {
+    if (!selectedModKey) {
+      return null;
+    }
 
-        const directMatch = mods.find((mod) => mod.fileName === current.fileName);
-        if (directMatch) {
-          return mergeSelectedModFromList(current, directMatch);
-        }
+    const matched = mods.find((mod) => getModIdentityKey(mod) === selectedModKey);
+    if (!matched) {
+      return selectedModSnapshot;
+    }
 
-        const currentProjectId = current.manifestEntry?.source.projectId || current.modId;
-        if (!currentProjectId) return current;
-
-        const projectMatches = mods.filter((mod) => (
-          mod.manifestEntry?.source.projectId === currentProjectId || mod.modId === currentProjectId
-        ));
-
-        if (projectMatches.length !== 1) return current;
-
-        return mergeSelectedModFromList(current, projectMatches[0]);
-      });
-    }, 0);
-
-    return () => window.clearTimeout(syncTimer);
-  }, [mods]);
+    return selectedModSnapshot
+      ? mergeSelectedModFromList(selectedModSnapshot, matched)
+      : matched;
+  }, [mods, selectedModKey, selectedModSnapshot]);
 
   const closeModDetail = useCallback(() => {
     setOpenMetadataSettingsOnDetailOpen(false);
-    setSelectedMod(null);
+    setSelectedModKey(null);
+    setSelectedModSnapshot(null);
     window.setTimeout(() => focusManager.restoreFocus('tab-boundary-mods'), 50);
   }, []);
 
   const toggleSelectedMod = useCallback((fileName: string, currentEnabled: boolean) => {
-    setSelectedMod((prev) => (
+    setSelectedModSnapshot((prev) => (
       prev
         ? {
           ...prev,
@@ -179,7 +173,8 @@ export const useModPanelDialogs = ({
   }, [toggleMod]);
 
   const deleteModFromDetail = useCallback((fileName: string) => {
-    setSelectedMod(null);
+    setSelectedModKey(null);
+    setSelectedModSnapshot(null);
     onDeleteComplete?.([fileName]);
     void deleteMod(fileName);
   }, [deleteMod, onDeleteComplete]);
@@ -280,12 +275,13 @@ export const useModPanelDialogs = ({
       void deleteMods(pendingDelete.fileNames);
     }
 
-    setSelectedMod((prev) => (
-      prev && pendingDelete.fileNames.includes(prev.fileName) ? null : prev
-    ));
+    if (selectedMod && pendingDelete.fileNames.includes(selectedMod.fileName)) {
+      setSelectedModKey(null);
+      setSelectedModSnapshot(null);
+    }
     onDeleteComplete?.(pendingDelete.fileNames);
     closeDeleteConfirm();
-  }, [closeDeleteConfirm, deleteMod, deleteMods, onDeleteComplete, pendingDelete]);
+  }, [closeDeleteConfirm, deleteMod, deleteMods, onDeleteComplete, pendingDelete, selectedMod]);
 
   return {
     state: {

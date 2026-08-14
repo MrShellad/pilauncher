@@ -130,12 +130,20 @@ pub(super) async fn resolve_installer_urls<R: Runtime>(
     let list_urls = list_urls(dl_settings, mc_version);
 
     if !list_urls.is_empty() {
-        let list_text =
-            match download_text_from_candidates(app, instance_id, client, &list_urls, max_attempts, cancel).await {
-                Ok(text) => text,
-                Err(AppError::Cancelled) => return Err(AppError::Cancelled),
-                Err(_) => String::new(),
-            };
+        let list_text = match download_text_from_candidates(
+            app,
+            instance_id,
+            client,
+            &list_urls,
+            max_attempts,
+            cancel,
+        )
+        .await
+        {
+            Ok(text) => text,
+            Err(AppError::Cancelled) => return Err(AppError::Cancelled),
+            Err(_) => String::new(),
+        };
 
         if !list_text.is_empty() {
             if let Ok(entries) = serde_json::from_str::<Vec<serde_json::Value>>(&list_text) {
@@ -171,11 +179,13 @@ pub(super) async fn install<R: Runtime>(
 ) -> AppResult<()> {
     let dl_settings = ConfigService::get_download_settings(app);
     let java_settings = ConfigService::get_java_settings(app);
-    let java_runtime = crate::services::runtime_service::resolve_global_installer_java_runtime(
-        &java_settings,
-        mc_version,
-        crate::services::runtime_service::installer_default_java_command(),
-    );
+    let java_runtime =
+        crate::services::runtime_service::resolve_global_installer_java_runtime_with_managed(
+            &java_settings,
+            mc_version,
+            crate::services::runtime_service::installer_default_java_command(),
+            &global_mc_root.join("java"),
+        );
     let client = build_download_client(&dl_settings)?;
     let max_attempts = dl_settings.retry_count.max(1);
     let version_id = format!("neoforge-{}", loader_version);
@@ -189,7 +199,7 @@ pub(super) async fn install<R: Runtime>(
         mc_version: mc_version.to_string(),
         loader_version: loader_version.to_string(),
         game_dir: global_mc_root.to_path_buf(),
-        java_dir: global_mc_root.join("runtime/java"),
+        java_dir: global_mc_root.join("java"),
         loader_type: lighty_loaders::types::Loader::NeoForge,
     };
 
@@ -228,8 +238,15 @@ pub(super) async fn install<R: Runtime>(
         if is_cancelled(cancel) {
             return Err(AppError::Cancelled);
         }
-        let installer_bytes =
-            download_bytes_from_candidates(app, instance_id, &client, &installer_urls, max_attempts, cancel).await?;
+        let installer_bytes = download_bytes_from_candidates(
+            app,
+            instance_id,
+            &client,
+            &installer_urls,
+            max_attempts,
+            cancel,
+        )
+        .await?;
         tokio::fs::write(&installer_path, installer_bytes).await?;
     }
 
@@ -239,10 +256,17 @@ pub(super) async fn install<R: Runtime>(
         }
 
         use lighty_loaders::loaders::neoforge::neoforge::{NeoForgeQuery, NEOFORGE};
-        let merged = NEOFORGE.get(&info, NeoForgeQuery::NeoForgeBuilder).await.map_err(|e| AppError::Generic(e.to_string()))?;
+        let merged = NEOFORGE
+            .get(&info, NeoForgeQuery::NeoForgeBuilder)
+            .await
+            .map_err(|e| AppError::Generic(e.to_string()))?;
         let merged_version = match &*merged {
             lighty_loaders::types::VersionMetaData::Version(v) => v,
-            _ => return Err(AppError::Generic("Failed to resolve NeoForge version metadata".into())),
+            _ => {
+                return Err(AppError::Generic(
+                    "Failed to resolve NeoForge version metadata".into(),
+                ))
+            }
         };
         let profile_json = version_to_json(merged_version, &version_id, mc_version);
         let profile_json_text = serde_json::to_string_pretty(&profile_json)?;
@@ -260,10 +284,17 @@ pub(super) async fn install<R: Runtime>(
     );
 
     use lighty_loaders::loaders::neoforge::neoforge::{NeoForgeQuery, NEOFORGE};
-    let installer_libs_meta = NEOFORGE.get(&info, NeoForgeQuery::Libraries).await.map_err(|e| AppError::Generic(e.to_string()))?;
+    let installer_libs_meta = NEOFORGE
+        .get(&info, NeoForgeQuery::Libraries)
+        .await
+        .map_err(|e| AppError::Generic(e.to_string()))?;
     let installer_libs = match &*installer_libs_meta {
         lighty_loaders::types::VersionMetaData::Libraries(libs) => libs,
-        _ => return Err(AppError::Generic("Failed to resolve NeoForge installer libraries".into())),
+        _ => {
+            return Err(AppError::Generic(
+                "Failed to resolve NeoForge installer libraries".into(),
+            ))
+        }
     };
 
     let mut libs_arr = serde_json::json!([]);

@@ -7,9 +7,8 @@ import {
   setFocus
 } from '@noriginmedia/norigin-spatial-navigation';
 import { useTranslation } from 'react-i18next';
-import { invoke } from '@tauri-apps/api/core';
-import { useDownloadStore } from '../../../../../../../store/useDownloadStore';
 import { DownloadDetailModal } from '../../../../../../Download/components/DownloadDetailModal';
+import { runResourceDownloadTask } from '../../../../../../Download/logic/resourceDownloadTask';
 import { OreModal } from '../../../../../../../ui/primitives/OreModal';
 import { OreButton } from '../../../../../../../ui/primitives/OreButton';
 import { FocusBoundary } from '../../../../../../../ui/focus/FocusBoundary';
@@ -132,29 +131,17 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
     _autoInstallRequiredDeps?: boolean
   ) => {
     const singleId = (Array.isArray(targetInstanceIdOrName) ? targetInstanceIdOrName[0] : targetInstanceIdOrName) || instanceId || '';
-    useDownloadStore.getState().addOrUpdateTask({
-      id: version.file_name,
-      taskType: 'resource',
-      title: version.file_name,
-      stage: 'DOWNLOADING_MOD',
-      current: 0,
-      total: 100,
+    /* Legacy task initialization is owned by runResourceDownloadTask.
       message: '正在建立连接...',
-      retryAction: 'download_resource',
-      retryPayload: {
-        url: version.download_url,
-        fileName: version.file_name,
-        instanceId: singleId,
-        subFolder: 'mods'
-      }
-    });
-
+    */
     try {
-      await invoke('download_resource', {
+      await runResourceDownloadTask({
         url: version.download_url,
         fileName: version.file_name,
         instanceId: singleId,
-        subFolder: 'mods'
+        subFolder: 'mods',
+        title: version.file_name,
+        message: '姝ｅ湪寤虹珛杩炴帴...'
       });
     } catch (err) {
       console.error('Failed to download dependency:', err);
@@ -462,7 +449,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
           className="flex flex-col min-h-0 h-full bg-[#313233]"
         >
           {/* Header Info Block */}
-          <ModHeader mod={mod} displayMod={displayMod} />
+          <ModHeader mod={mod} displayMod={displayMod} instanceId={instanceId} />
 
           {/* Dependencies Section & Version History */}
           <div className="flex flex-col flex-1 min-h-0 p-4 sm:p-6 gap-4">

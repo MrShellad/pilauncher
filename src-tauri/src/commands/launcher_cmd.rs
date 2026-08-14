@@ -33,7 +33,7 @@ pub fn kill_current_game() -> Result<(), String> {
     let pid = CURRENT_GAME_PID.load(Ordering::SeqCst);
     if pid > 0 {
         println!("⚠️ User requested to kill game process: PID {}", pid);
-        use sysinfo::{Pid, System, ProcessesToUpdate};
+        use sysinfo::{Pid, ProcessesToUpdate, System};
         let mut s = System::new();
         let target_pid = Pid::from(pid as usize);
         s.refresh_processes(ProcessesToUpdate::Some(&[target_pid]), true);

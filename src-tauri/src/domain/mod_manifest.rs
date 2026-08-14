@@ -107,6 +107,10 @@ pub struct ModManifestEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon_rel_path: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub network_icon_rel_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub jar_fallback_icon_rel_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub curseforge_fingerprint: Option<u32>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub matched_platforms: HashMap<String, ModPlatformMatch>,
@@ -143,6 +147,10 @@ pub struct RawModManifestEntry {
     pub description: Option<String>,
     #[serde(default)]
     pub icon_rel_path: Option<String>,
+    #[serde(default)]
+    pub network_icon_rel_path: Option<String>,
+    #[serde(default)]
+    pub jar_fallback_icon_rel_path: Option<String>,
     #[serde(default)]
     pub curseforge_fingerprint: Option<u32>,
     #[serde(default)]
@@ -287,7 +295,6 @@ pub fn compute_curseforge_fingerprint(path: &Path) -> Result<u32, String> {
     Ok(hash)
 }
 
-
 pub fn build_manifest_source(
     kind: ModSourceKind,
     platform: Option<String>,
@@ -316,6 +323,8 @@ pub fn build_manifest_entry(
         version: None,
         description: None,
         icon_rel_path: None,
+        network_icon_rel_path: None,
+        jar_fallback_icon_rel_path: None,
         curseforge_fingerprint: None,
         matched_platforms: HashMap::new(),
         metadata_settings: None,
@@ -438,6 +447,8 @@ fn copy_cached_metadata_from_raw(raw: Option<&RawModManifestEntry>, entry: &mut 
     entry.version = raw.version.clone();
     entry.description = raw.description.clone();
     entry.icon_rel_path = raw.icon_rel_path.clone();
+    entry.network_icon_rel_path = raw.network_icon_rel_path.clone();
+    entry.jar_fallback_icon_rel_path = raw.jar_fallback_icon_rel_path.clone();
     entry.curseforge_fingerprint = raw.curseforge_fingerprint;
     entry.matched_platforms = raw.matched_platforms.clone();
     entry.metadata_settings = raw.metadata_settings.clone();
@@ -462,6 +473,12 @@ pub fn merge_cached_metadata(target: &mut ModManifestEntry, source: &ModManifest
     }
     if target.icon_rel_path.is_none() {
         target.icon_rel_path = source.icon_rel_path.clone();
+    }
+    if target.network_icon_rel_path.is_none() {
+        target.network_icon_rel_path = source.network_icon_rel_path.clone();
+    }
+    if target.jar_fallback_icon_rel_path.is_none() {
+        target.jar_fallback_icon_rel_path = source.jar_fallback_icon_rel_path.clone();
     }
     if target.curseforge_fingerprint.is_none() {
         target.curseforge_fingerprint = source.curseforge_fingerprint;
@@ -670,5 +687,21 @@ mod tests {
         );
 
         let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn icon_sources_are_serialized_separately() {
+        let mut entry = build_manifest_entry(
+            build_manifest_source(ModSourceKind::ExternalImport, None, None, None),
+            ModFileHash::sha1("demo".to_string()),
+            ModFileState::default(),
+        );
+        entry.network_icon_rel_path = Some("icons/network/demo.png".to_string());
+        entry.jar_fallback_icon_rel_path = Some("icons/offline/demo.png".to_string());
+
+        let value = serde_json::to_value(&entry).expect("serialize manifest entry");
+        assert_eq!(value["networkIconRelPath"], "icons/network/demo.png");
+        assert_eq!(value["jarFallbackIconRelPath"], "icons/offline/demo.png");
+        assert!(value.get("iconRelPath").is_none());
     }
 }

@@ -127,9 +127,7 @@ pub fn save_selected_instance<R: Runtime>(
 
 /// 从 base_path/config/selected_instance.json 读取上次选中的实例 ID
 #[tauri::command]
-pub fn load_selected_instance<R: Runtime>(
-    app: AppHandle<R>,
-) -> Result<Option<String>, String> {
+pub fn load_selected_instance<R: Runtime>(app: AppHandle<R>) -> Result<Option<String>, String> {
     let base_path_str = match ConfigService::get_base_path(&app) {
         Ok(Some(p)) => p,
         _ => return Ok(None),

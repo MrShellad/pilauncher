@@ -94,6 +94,7 @@ export const useModPanelController = (instanceId: string) => {
   const [pendingUpgradeAction, setPendingUpgradeAction] = useState<ModVersionInstallAction>('upgrade');
   const [isPreparingUpgradeSnapshot, setIsPreparingUpgradeSnapshot] = useState(false);
   const upgradeSnapshotPromptHandledRef = useRef(false);
+  const isBatchUpgradeRunningRef = useRef(false);
 
   useEffect(() => {
     upgradeSnapshotPromptHandledRef.current = false;
@@ -140,6 +141,7 @@ export const useModPanelController = (instanceId: string) => {
 
     const runRefresh = async () => {
       if (disposed) return;
+      if (isBatchUpgradeRunningRef.current) return;
 
       if (isRefreshing) {
         refreshAgain = true;
@@ -170,6 +172,7 @@ export const useModPanelController = (instanceId: string) => {
       'resource-download-progress',
       ({ payload }) => {
         if (!isCompletedResourceDownload(payload)) return;
+        if (isBatchUpgradeRunningRef.current) return;
 
         const doneKey = getResourceProgressKey(payload);
         const now = Date.now();
@@ -300,14 +303,23 @@ export const useModPanelController = (instanceId: string) => {
     let successCount = 0;
     let failCount = 0;
 
-    for (const mod of modsToUpdate) {
-      try {
-        await upgradeMod(mod);
-        successCount++;
-      } catch (error) {
-        console.error(`Failed to upgrade mod ${mod.name || mod.fileName}:`, error);
-        failCount++;
+    isBatchUpgradeRunningRef.current = true;
+    try {
+      for (const mod of modsToUpdate) {
+        try {
+          await upgradeMod(mod, { reloadAfterInstall: false });
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to upgrade mod ${mod.name || mod.fileName}:`, error);
+          failCount++;
+        }
       }
+
+      if (successCount > 0) {
+        await loadMods({ silent: true });
+      }
+    } finally {
+      isBatchUpgradeRunningRef.current = false;
     }
 
     if (successCount > 0) {
@@ -322,7 +334,7 @@ export const useModPanelController = (instanceId: string) => {
         defaultValue: `${failCount} 个模组更新失败。`
       }));
     }
-  }, [mods, upgradeMod, takeSnapshot, addToast, t, syncHistoryAfterSnapshot]);
+  }, [mods, upgradeMod, loadMods, takeSnapshot, addToast, t, syncHistoryAfterSnapshot]);
 
   const handleMetadataResolved = useCallback((updatedMod: ModMeta) => {
     setMods((current) => {
@@ -338,6 +350,8 @@ export const useModPanelController = (instanceId: string) => {
           description: mod.description || updatedMod.description,
           networkInfo: updatedMod.networkInfo || mod.networkInfo,
           networkIconUrl: updatedMod.networkIconUrl || updatedMod.networkInfo?.icon_url || mod.networkIconUrl,
+          iconAbsolutePath: updatedMod.iconAbsolutePath || mod.iconAbsolutePath,
+          offlineJarIconAbsolutePath: updatedMod.offlineJarIconAbsolutePath || mod.offlineJarIconAbsolutePath,
           isFetchingNetwork: false
         };
 
@@ -357,6 +371,8 @@ export const useModPanelController = (instanceId: string) => {
           nextMod.description === mod.description &&
           sameNetworkInfo &&
           nextMod.networkIconUrl === mod.networkIconUrl &&
+          nextMod.iconAbsolutePath === mod.iconAbsolutePath &&
+          nextMod.offlineJarIconAbsolutePath === mod.offlineJarIconAbsolutePath &&
           nextMod.isFetchingNetwork === mod.isFetchingNetwork
         ) {
           return mod;
@@ -628,6 +644,7 @@ export const useModPanelController = (instanceId: string) => {
       onOpenDownload: handleOpenDownload
     },
     list: {
+      instanceId,
       mods,
       isLoading,
       selectedMods,

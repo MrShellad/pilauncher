@@ -6,6 +6,7 @@ import type { DownloadSource, TabType as DownloadTabType } from '../../Download/
 import { modService } from '../../InstanceDetail/logic/modService';
 import type { ModrinthProject, OreProjectVersion } from '../../InstanceDetail/logic/modrinthApi';
 import { useDownloadStore } from '../../../store/useDownloadStore';
+import { runResourceDownloadTask } from '../../Download/logic/resourceDownloadTask';
 import type { LibraryResourceViewModel } from '../logic/libraryItems';
 import { getLibraryDownloadSubFolder, toDetailProject, toDownloadTabType } from '../logic/libraryPageUtils';
 import { useLibraryStore } from '../../../stores/useLibraryStore';
@@ -80,94 +81,67 @@ export const useLibraryResourceDetail = () => {
       ? (detailTab === 'shader' ? 'shaders' : 'resourcepacks')
       : getLibraryDownloadSubFolder(detailTab);
 
-    useDownloadStore.getState().addOrUpdateTask({
-      id: version.file_name,
-      taskType: 'resource',
-      title: version.file_name,
-      stage: 'DOWNLOADING_MOD',
-      current: 0,
-      total: 100,
-      message: t('libraryPage.messages.connectingDownload'),
-      retryAction: 'download_resource',
-      retryPayload: {
-        url: version.download_url,
-        fileName: version.file_name,
-        instanceId: targetIdForDownload,
-        subFolder,
-      },
-    });
-
     try {
-      await invoke('download_resource', {
+      await runResourceDownloadTask({
         url: version.download_url,
         fileName: version.file_name,
         instanceId: targetIdForDownload,
         subFolder,
-      });
-
-      if (detailTab === 'mod') {
-        const projectId = version.project_id || detailProject?.id || detailProject?.project_id || '';
-        if (projectId) {
-          await modService.updateModManifest(
-            targetIdForDownload,
-            version.file_name,
-            'launcherDownload',
-            detailSource === 'curseforge' ? 'curseforge' : 'modrinth',
-            projectId,
-            version.id,
-          );
-        }
-        modService.invalidateModManifestCache(targetIdForDownload);
-      }
-
-      if (isGlobalResource && detailProject) {
-        const starredItems = useLibraryStore.getState().items;
-        const originalItem = starredItems.find(i => i.projectId === detailProject.id || i.id === detailProject.id);
-        if (originalItem) {
-          const now = Math.floor(Date.now() / 1000);
-          const snapshot = originalItem.snapshot ? JSON.parse(originalItem.snapshot) : {};
-          const state = originalItem.state ? JSON.parse(originalItem.state) : {};
-
-          const updatedSnapshot = {
-            ...snapshot,
-            version: version.version_number,
-            fileName: version.file_name,
-          };
-          const updatedState = {
-            ...state,
-            installedVersion: version.version_number,
-            hasUpdate: false,
-          };
-
-          const updatedItem = {
-            ...originalItem,
-            snapshot: JSON.stringify(updatedSnapshot),
-            state: JSON.stringify(updatedState),
-            updatedAt: now,
-          };
-
-          await useLibraryStore.getState().addStarredItem(updatedItem);
-
-          await invoke('link_library_resource_to_instances', {
-            resourceId: originalItem.id,
-            instanceIds,
-          });
-
-          await useLibraryStore.getState().initializeLibrary();
-        }
-      }
-
-      useDownloadStore.getState().setPopupOpen(true);
-    } catch (error) {
-      useDownloadStore.getState().addOrUpdateTask({
-        id: version.file_name,
-        taskType: 'resource',
         title: version.file_name,
-        stage: 'ERROR',
-        current: 0,
-        total: 100,
-        message: t('libraryPage.messages.downloadFailed', { error: String(error) }),
+        message: t('libraryPage.messages.connectingDownload'),
+        onCompleted: async () => {
+          if (detailTab === 'mod') {
+            const projectId = version.project_id || detailProject?.id || detailProject?.project_id || '';
+            if (projectId) {
+              await modService.updateModManifest(
+                targetIdForDownload,
+                version.file_name,
+                'launcherDownload',
+                detailSource === 'curseforge' ? 'curseforge' : 'modrinth',
+                projectId,
+                version.id,
+              );
+            }
+            modService.invalidateModManifestCache(targetIdForDownload);
+          }
+
+          if (isGlobalResource && detailProject) {
+            const starredItems = useLibraryStore.getState().items;
+            const originalItem = starredItems.find(i => i.projectId === detailProject.id || i.id === detailProject.id);
+            if (originalItem) {
+              const now = Math.floor(Date.now() / 1000);
+              const snapshot = originalItem.snapshot ? JSON.parse(originalItem.snapshot) : {};
+              const state = originalItem.state ? JSON.parse(originalItem.state) : {};
+
+              const updatedItem = {
+                ...originalItem,
+                snapshot: JSON.stringify({
+                  ...snapshot,
+                  version: version.version_number,
+                  fileName: version.file_name,
+                }),
+                state: JSON.stringify({
+                  ...state,
+                  installedVersion: version.version_number,
+                  hasUpdate: false,
+                }),
+                updatedAt: now,
+              };
+
+              await useLibraryStore.getState().addStarredItem(updatedItem);
+              await invoke('link_library_resource_to_instances', {
+                resourceId: originalItem.id,
+                instanceIds,
+              });
+              await useLibraryStore.getState().initializeLibrary();
+            }
+          }
+
+          useDownloadStore.getState().setPopupOpen(true);
+        }
       });
+    } catch (error) {
+      console.error('Library resource download failed:', error);
     }
   };
 

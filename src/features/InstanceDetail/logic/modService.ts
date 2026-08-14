@@ -33,6 +33,8 @@ export interface ModManifestEntry {
     modifiedAt: number;
   };
   icon_rel_path?: string;
+  networkIconRelPath?: string;
+  jarFallbackIconRelPath?: string;
   curseforgeFingerprint?: number;
   matchedPlatforms?: Record<string, ModPlatformMatch>;
   metadataSettings?: ModMetadataSettings;
@@ -46,6 +48,7 @@ export interface ModMeta {
   version?: string;
   description?: string;
   iconAbsolutePath?: string;
+  offlineJarIconAbsolutePath?: string;
   networkIconUrl?: string; 
   curseforgeFingerprint?: number;
   fileSize: number;
@@ -99,6 +102,31 @@ export const getModPlatformReference = (
   }
 
   return matched;
+};
+
+export const getModIdentityKey = (mod: ModMeta): string => {
+  const source = mod.manifestEntry?.source;
+  const references = [
+    source,
+    { platform: 'modrinth', ...mod.manifestEntry?.matchedPlatforms?.modrinth },
+    { platform: 'curseforge', ...mod.manifestEntry?.matchedPlatforms?.curseforge }
+  ];
+
+  for (const reference of references) {
+    if (reference?.platform && reference.projectId) {
+      return `project:${reference.platform}:${reference.projectId}`;
+    }
+  }
+
+  if (mod.modId) {
+    return `mod:${mod.modId}`;
+  }
+
+  if (mod.cacheKey && !mod.cacheKey.startsWith('file_')) {
+    return `cache:${mod.cacheKey}`;
+  }
+
+  return `file:${mod.fileName.replace(/\.disabled$/i, '').toLowerCase()}`;
 };
 
 export const isCompleteModPlatformReference = (
@@ -344,8 +372,11 @@ export const modService = {
   rollbackInstance: (id: string, snapshotId: string) => 
     invoke<void>('rollback_instance', { instanceId: id, snapshotId }),
     
-  updateModCache: (cacheKey: string, name: string, desc: string, iconUrl: string) => 
-    invoke('update_mod_cache', { cacheKey, name, desc, iconUrl }),
+  updateModCache: (cacheKey: string, name: string, desc: string, iconUrl: string) =>
+    invoke<string | null>('update_mod_cache', { cacheKey, name, desc, iconUrl }),
+
+  ensureOfflineJarIcon: (instanceId: string, fileName: string) =>
+    invoke<string | null>('ensure_offline_jar_icon', { instanceId, fileName }),
 
   updateModManifest: (
     instanceId: string,
@@ -424,8 +455,8 @@ export const modService = {
       });
   },
 
-  downloadResource: (url: string, fileName: string, instanceId: string, subFolder: string) =>
-    invoke('download_resource', { url, fileName, instanceId, subFolder }),
+  downloadResource: (url: string, fileName: string, instanceId: string, subFolder: string, taskId?: string) =>
+    invoke('download_resource', { url, fileName, instanceId, subFolder, taskId }),
 
   openModFolder: (id: string) =>  
     invoke('open_mod_folder', { id }),

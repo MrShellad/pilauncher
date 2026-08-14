@@ -7,6 +7,7 @@ import {
   Folder,
   List,
   Loader2,
+  X,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { invoke } from '@tauri-apps/api/core';
@@ -26,10 +27,19 @@ interface ExportConfirmStepProps {
 }
 
 interface ExportProgress {
+  taskId: string;
   current: number;
   total: number;
   message: string;
   stage: string;
+}
+
+interface ExportResult {
+  outputPath: string;
+  packedFiles: number;
+  referencedModFiles: number;
+  bundledModFiles: number;
+  warnings: string[];
 }
 
 const getBasename = (path: string) => path.split(/[/\\]/).pop() || path;
@@ -44,6 +54,8 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
   const [status, setStatus] = useState<'idle' | 'exporting' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [outputDir, setOutputDir] = useState('');
+  const [exportTaskId, setExportTaskId] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
 
   const formatLabels: Record<ExportData['format'], string> = {
     zip: t('instanceDetail.export.confirm.format.zip', { defaultValue: '标准 ZIP' }),
@@ -79,18 +91,15 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
   useEffect(() => {
     let active = true;
     const unlistenPromise = listen<ExportProgress>('export-progress', (event) => {
-      if (!active) return;
+      if (!active || !exportTaskId || event.payload.taskId !== exportTaskId) return;
       setProgress(event.payload);
-      if (event.payload.stage === 'DONE') {
-        setStatus('success');
-      }
     });
 
     return () => {
       active = false;
       unlistenPromise.then((cleanup) => cleanup());
     };
-  }, []);
+  }, [exportTaskId]);
 
   useEffect(() => {
     if (status === 'success') {
@@ -109,7 +118,7 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
   const fileExtension =
     data.format === 'pipack' ? 'pipack' : data.format === 'mrpack' ? 'mrpack' : 'zip';
   const effectiveManifestMode =
-    data.format === 'pipack' ? true : data.format === 'zip' ? false : data.manifestMode;
+    data.format === 'pipack' || data.format === 'zip' ? true : data.manifestMode;
   const outputFileName = `${data.name}-${data.version}.${fileExtension}`;
   const percent =
     progress && progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
@@ -133,7 +142,7 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
     data.format === 'pipack'
       ? t('instanceDetail.export.confirm.manifest.pipackForce', { defaultValue: 'PiPack 强制启用' })
       : data.format === 'zip'
-        ? t('instanceDetail.export.confirm.manifest.zipDisabled', { defaultValue: '标准 ZIP 不使用 Manifest' })
+        ? t('instanceDetail.export.confirm.manifest.zipCompatible', { defaultValue: 'PiPack compatible manifest enabled' })
         : effectiveManifestMode
           ? t('instanceDetail.export.confirm.manifest.enabled', { defaultValue: '已启用' })
           : t('instanceDetail.export.confirm.manifest.disabled', { defaultValue: '未启用' });
@@ -160,13 +169,17 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
     try {
       const outputPath = await join(outputDir, outputFileName);
       const additionalStrings = data.additionalPaths.map((item) => item.path);
+      const taskId = crypto.randomUUID();
 
       setProgress(null);
       setErrorMessage('');
+      setWarnings([]);
+      setExportTaskId(taskId);
       setStatus('exporting');
 
-      await invoke('export_modpack', {
+      const result = await invoke<ExportResult>('export_modpack', {
         config: {
+          taskId,
           instanceId,
           name: data.name,
           version: data.version,
@@ -183,6 +196,8 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
           outputPath,
         },
       });
+      setWarnings(result.warnings);
+      setStatus('success');
     } catch (error: any) {
       console.error('Export failed:', error);
       setStatus('error');
@@ -202,6 +217,15 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
       }
     } catch (error) {
       console.error('Failed to select output directory:', error);
+    }
+  };
+
+  const handleCancelExport = async () => {
+    if (!exportTaskId) return;
+    try {
+      await invoke('cancel_modpack_export', { taskId: exportTaskId });
+    } catch (error) {
+      console.error('Failed to cancel export:', error);
     }
   };
 
@@ -359,6 +383,11 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
             <p className="mx-auto max-w-[25rem] truncate text-xs uppercase tracking-widest text-[#B1B2B5]">
               {progress?.message || 'PREPARING EXPORT TASK...'}
             </p>
+            {status === 'success' && warnings.length > 0 && (
+              <p className="mx-auto mt-3 max-w-[32rem] text-xs leading-5 text-[#F2C94C]">
+                {warnings[0]}
+              </p>
+            )}
           </div>
 
           <div className="relative mt-4 w-full max-w-md shrink-0 space-y-2">
@@ -406,6 +435,12 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
                 {t('instanceDetail.export.confirm.backToSettings', { defaultValue: '返回导出设置' })}
               </OreButton>
             </motion.div>
+          )}
+          {status === 'exporting' && (
+            <OreButton variant="secondary" onClick={handleCancelExport} size="lg">
+              <X size={18} className="mr-2" />
+              {t('common.cancel', { defaultValue: 'Cancel' })}
+            </OreButton>
           )}
         </div>
       )}

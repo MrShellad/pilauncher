@@ -9,12 +9,15 @@ import {
   ChevronDown,
   ChevronUp,
   FileDown,
+  Pause,
+  Play,
   RefreshCw,
   RotateCcw,
   Trash2,
 } from 'lucide-react';
 
 import { useDownloadStore, type DownloadTask } from '../../../../store/useDownloadStore';
+import { controlResourceDownload } from '../../logic/downloadTask';
 import { ControlHint } from '../../../../ui/components/ControlHint';
 import { useInputAction } from '../../../../ui/focus/InputDriver';
 import { OreButton } from '../../../../ui/primitives/OreButton';
@@ -170,6 +173,7 @@ export const TaskItem = ({
 
   const isDone = task.status === 'completed';
   const isError = task.status === 'error';
+  const isPaused = task.status === 'paused';
   const isResource = task.taskType === 'resource';
   const isUpdate = task.taskType === 'update';
   const latestLog = task.logs.length > 0 ? task.logs[task.logs.length - 1] : null;
@@ -226,6 +230,7 @@ export const TaskItem = ({
     : isDone
       ? 'border-ore-green/30 bg-ore-green/10 text-ore-green'
       : 'border-white/10 bg-white/5 text-[var(--ore-downloadDetail-mutedText)]';
+  const visibleStatusLabel = isPaused ? 'Paused' : statusLabel;
 
   const handleRetry = () => {
     useDownloadStore.getState().addOrUpdateTask({
@@ -233,6 +238,18 @@ export const TaskItem = ({
       stage: isUpdate ? 'CHECKING_UPDATE' : task.stage,
       message: '正在准备重试...',
     });
+
+    if (task.retryTask) {
+      task.retryTask().catch((error) => {
+        console.error('Retry failed:', error);
+        useDownloadStore.getState().addOrUpdateTask({
+          id: task.id,
+          stage: 'ERROR',
+          message: `Retry failed: ${error}`,
+        });
+      });
+      return;
+    }
 
     invoke(task.retryAction!, { ...task.retryPayload }).catch((error) => {
       console.error('重试失败:', error);
@@ -242,6 +259,46 @@ export const TaskItem = ({
         message: `重试失败: ${error}`,
       });
     });
+  };
+
+  const handlePauseResume = async () => {
+    try {
+      await controlResourceDownload(task.id, isPaused ? 'resume' : 'pause');
+      useDownloadStore.getState().addOrUpdateTask({
+        id: task.id,
+        status: isPaused ? 'downloading' : 'paused',
+        stage: isPaused ? 'DOWNLOADING_MOD' : 'PAUSED',
+        current: task.current,
+        total: task.total,
+        message: isPaused ? 'Resuming download...' : 'Download paused',
+      });
+    } catch (error) {
+      console.error('Resource download control failed:', error);
+      useDownloadStore.getState().addOrUpdateTask({
+        id: task.id,
+        stage: task.stage,
+        message: `Operation failed: ${error}`,
+      });
+    }
+  };
+
+  const handleCancel = async () => {
+    handoffFocusInsidePanel();
+    try {
+      if (isResource) {
+        await controlResourceDownload(task.id, 'cancel');
+      } else {
+        await invoke('cancel_instance_deployment', { instanceId: task.id });
+      }
+      useDownloadStore.getState().cancelTask(task.id);
+    } catch (error) {
+      console.error('Cancel task failed:', error);
+      useDownloadStore.getState().addOrUpdateTask({
+        id: task.id,
+        stage: task.stage,
+        message: `Cancel failed: ${error}`,
+      });
+    }
   };
 
   return (
@@ -270,7 +327,7 @@ export const TaskItem = ({
           </span>
 
           <span className={`shrink-0 rounded-[0.125rem] border px-[0.375rem] py-[0.125rem] font-minecraft text-[0.75rem] uppercase tracking-[0.06em] ${statusColorClass}`}>
-            {statusLabel}
+            {visibleStatusLabel}
           </span>
         </div>
       </div>
@@ -331,19 +388,29 @@ export const TaskItem = ({
 
         <div className="flex items-center gap-[0.375rem]">
           {!isDone && !isError && !isUpdate ? (
+            <>
+            {isResource && (
+              <OreButton
+                focusKey={`btn-pause-${task.id}`}
+                variant="ghost"
+                size="auto"
+                onClick={handlePauseResume}
+                className="!min-w-0 !h-[clamp(2.25rem,3vw,2.5rem)] !px-[0.75rem]"
+                title={isPaused ? 'Resume download' : 'Pause download'}
+              >
+                {isPaused ? <Play className="h-[1rem] w-[1rem]" /> : <Pause className="h-[1rem] w-[1rem]" />}
+              </OreButton>
+            )}
             <OreButton
               focusKey={`btn-cancel-${task.id}`}
               variant="danger"
               size="auto"
-              onClick={() => {
-                handoffFocusInsidePanel();
-                invoke('cancel_instance_deployment', { instanceId: task.id }).catch(console.error);
-                useDownloadStore.getState().cancelTask(task.id);
-              }}
+              onClick={handleCancel}
               className="!min-w-0 !h-[clamp(2.25rem,3vw,2.5rem)] !px-[0.75rem]"
             >
               <Trash2 className="h-[1rem] w-[1rem]" />
             </OreButton>
+            </>
           ) : isDone || isError ? (
             <>
               {isError && task.retryAction && (

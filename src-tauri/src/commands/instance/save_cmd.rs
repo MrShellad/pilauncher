@@ -114,4 +114,3 @@ pub async fn set_backup_all_worlds_on_exit_enabled<R: Runtime>(
 ) -> Result<(), String> {
     SaveManagerService::set_backup_all_worlds_on_exit_enabled(&app, &id, enabled)
 }
-

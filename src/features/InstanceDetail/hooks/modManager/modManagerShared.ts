@@ -1,6 +1,7 @@
 import { fetchCurseForgeVersions, hasCurseForgeApiKey } from '../../../Download/logic/curseforgeApi';
 import {
   getModPlatformReference,
+  getModIdentityKey,
   isCompleteModPlatformReference,
   type ModMeta,
   type ModPlatformId
@@ -184,11 +185,20 @@ export const mergeModBatch = (current: ModMeta[], batch: ModMeta[]) => {
     return current;
   }
 
-  const byFileName = new Map(current.map((mod) => [mod.fileName, mod]));
+  const next = [...current];
   batch.forEach((mod) => {
-    byFileName.set(mod.fileName, mod);
+    const identityKey = getModIdentityKey(mod);
+    const index = next.findIndex((currentMod) => (
+      getModIdentityKey(currentMod) === identityKey || currentMod.fileName === mod.fileName
+    ));
+
+    if (index >= 0) {
+      next[index] = mod;
+    } else {
+      next.push(mod);
+    }
   });
-  return Array.from(byFileName.values());
+  return next;
 };
 
 export const mergeSyncedModMetadata = (

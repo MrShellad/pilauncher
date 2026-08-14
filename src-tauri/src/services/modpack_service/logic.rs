@@ -58,9 +58,69 @@ pub fn resolve_curseforge_install_target(class_id: Option<u64>) -> CurseForgeIns
 
 pub fn sanitize_instance_id(instance_name: &str) -> String {
     instance_name
-        .replace(' ', "_")
-        .replace('/', "")
-        .replace('\\', "")
+        .trim()
+        .chars()
+        .map(|character| {
+            if character.is_whitespace() {
+                '_'
+            } else {
+                character
+            }
+        })
+        .collect()
+}
+
+pub fn validate_instance_id_from_name(instance_name: &str) -> Result<String, String> {
+    let instance_id = sanitize_instance_id(instance_name);
+
+    if instance_id.is_empty() || instance_id == "." || instance_id == ".." {
+        return Err("Instance name cannot be empty, '.' or '..'".to_string());
+    }
+
+    if instance_id.len() > 96 {
+        return Err("Instance name is too long (maximum 96 bytes)".to_string());
+    }
+
+    if instance_id.chars().any(|character| {
+        character.is_control()
+            || matches!(
+                character,
+                '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|'
+            )
+    }) {
+        return Err("Instance name contains unsupported path characters".to_string());
+    }
+
+    let upper = instance_id.to_ascii_uppercase();
+    if matches!(
+        upper.as_str(),
+        "CON"
+            | "PRN"
+            | "AUX"
+            | "NUL"
+            | "COM1"
+            | "COM2"
+            | "COM3"
+            | "COM4"
+            | "COM5"
+            | "COM6"
+            | "COM7"
+            | "COM8"
+            | "COM9"
+            | "LPT1"
+            | "LPT2"
+            | "LPT3"
+            | "LPT4"
+            | "LPT5"
+            | "LPT6"
+            | "LPT7"
+            | "LPT8"
+            | "LPT9"
+    ) {
+        return Err("Instance name is reserved by Windows".to_string());
+    }
+
+    Ok(instance_id)
 }
 
 pub fn build_instance_config(
@@ -254,9 +314,9 @@ pub fn normalize_override_dir(value: Option<&str>) -> String {
 mod tests {
     use super::{
         normalize_override_dir, parse_pipack_metadata, resolve_curseforge_install_target,
-        CurseForgeInstallTarget, CURSEFORGE_CLASS_CUSTOMIZATION, CURSEFORGE_CLASS_DATA_PACK,
-        CURSEFORGE_CLASS_MOD, CURSEFORGE_CLASS_RESOURCE_PACK, CURSEFORGE_CLASS_SHADER,
-        CURSEFORGE_CLASS_WORLD,
+        validate_instance_id_from_name, CurseForgeInstallTarget, CURSEFORGE_CLASS_CUSTOMIZATION,
+        CURSEFORGE_CLASS_DATA_PACK, CURSEFORGE_CLASS_MOD, CURSEFORGE_CLASS_RESOURCE_PACK,
+        CURSEFORGE_CLASS_SHADER, CURSEFORGE_CLASS_WORLD,
     };
 
     #[test]
@@ -330,6 +390,20 @@ mod tests {
         assert_eq!(
             resolve_curseforge_install_target(None),
             CurseForgeInstallTarget::Mod
+        );
+    }
+
+    #[test]
+    fn rejects_instance_names_that_can_escape_or_alias_directories() {
+        for name in ["", "   ", ".", "..", "alpha/beta", "alpha\\beta", "CON"] {
+            assert!(
+                validate_instance_id_from_name(name).is_err(),
+                "{name} should be rejected"
+            );
+        }
+        assert_eq!(
+            validate_instance_id_from_name("My Pack").unwrap(),
+            "My_Pack"
         );
     }
 }

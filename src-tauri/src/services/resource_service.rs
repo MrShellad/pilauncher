@@ -1,11 +1,16 @@
+use once_cell::sync::Lazy;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Runtime};
 // 引入跨层的 DTO
 use crate::domain::resource::{OreProjectDependency, OreProjectDetail, OreProjectVersion};
-use crate::services::downloader::transfer::{download_file, DownloadRateLimiter, DownloadTuning};
+use crate::services::downloader::transfer::{
+    download_file_with_control, DownloadControl, DownloadRateLimiter, DownloadTuning,
+};
 use crate::services::file_write_lock;
 
 // ==========================================
@@ -78,6 +83,42 @@ pub struct ResourceProgressPayload {
 // 服务类
 // ==========================================
 pub struct ResourceService;
+
+static RESOURCE_DOWNLOAD_CONTROLS: Lazy<Mutex<HashMap<String, Arc<DownloadControl>>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+fn register_resource_download(task_id: &str) -> Result<Arc<DownloadControl>, String> {
+    let mut controls = RESOURCE_DOWNLOAD_CONTROLS
+        .lock()
+        .map_err(|_| "资源下载控制器不可用".to_string())?;
+    if controls.contains_key(task_id) {
+        return Err("该资源下载任务已经在运行".to_string());
+    }
+
+    let control = Arc::new(DownloadControl::new());
+    controls.insert(task_id.to_string(), Arc::clone(&control));
+    Ok(control)
+}
+
+fn get_resource_download_control(task_id: &str) -> Result<Arc<DownloadControl>, String> {
+    RESOURCE_DOWNLOAD_CONTROLS
+        .lock()
+        .map_err(|_| "资源下载控制器不可用".to_string())?
+        .get(task_id)
+        .cloned()
+        .ok_or_else(|| "未找到正在运行的资源下载任务".to_string())
+}
+
+fn unregister_resource_download(task_id: &str, control: &Arc<DownloadControl>) {
+    if let Ok(mut controls) = RESOURCE_DOWNLOAD_CONTROLS.lock() {
+        if controls
+            .get(task_id)
+            .is_some_and(|current| Arc::ptr_eq(current, control))
+        {
+            controls.remove(task_id);
+        }
+    }
+}
 
 impl ResourceService {
     /// 获取并清洗项目详情
@@ -188,12 +229,73 @@ impl ResourceService {
         Ok(clean_versions)
     }
 
+    pub fn pause_download(task_id: &str) -> Result<(), String> {
+        get_resource_download_control(task_id)?.pause();
+        Ok(())
+    }
+
+    pub fn resume_download(task_id: &str) -> Result<(), String> {
+        get_resource_download_control(task_id)?.resume();
+        Ok(())
+    }
+
+    pub fn cancel_download(task_id: &str) -> Result<(), String> {
+        get_resource_download_control(task_id)?.cancel();
+        Ok(())
+    }
+
     pub async fn download_resource<R: Runtime>(
         app: &AppHandle<R>,
         url: &str,
         file_name: &str,
         instance_id: &str,
         sub_folder: &str,
+        task_id: &str,
+    ) -> Result<(), String> {
+        let control = register_resource_download(task_id)?;
+        let result = Self::download_resource_inner(
+            app,
+            url,
+            file_name,
+            instance_id,
+            sub_folder,
+            task_id,
+            Arc::clone(&control),
+        )
+        .await;
+
+        unregister_resource_download(task_id, &control);
+
+        if let Err(error) = &result {
+            let stage = if error.contains("取消") {
+                "CANCELED"
+            } else {
+                "ERROR"
+            };
+            let _ = app.emit(
+                "resource-download-progress",
+                ResourceProgressPayload {
+                    task_id: task_id.to_string(),
+                    file_name: file_name.to_string(),
+                    stage: stage.to_string(),
+                    current: 0,
+                    total: 0,
+                    message: error.clone(),
+                },
+            );
+        }
+
+        result
+    }
+
+    async fn download_resource_inner<R: Runtime>(
+        app: &AppHandle<R>,
+        url: &str,
+        file_name: &str,
+        instance_id: &str,
+        sub_folder: &str,
+        task_id: &str,
+        control: Arc<DownloadControl>,
     ) -> Result<(), String> {
         // 1. 获取目标绝对路径
         let base_path_str = crate::services::config_service::ConfigService::get_base_path(app)
@@ -281,7 +383,7 @@ impl ResourceService {
         let _ = app.emit(
             "resource-download-progress",
             ResourceProgressPayload {
-                task_id: file_name.to_string(),
+                task_id: task_id.to_string(),
                 file_name: file_name.to_string(),
                 stage: "DOWNLOADING_MOD".to_string(),
                 current: initial_downloaded,
@@ -291,6 +393,7 @@ impl ResourceService {
         );
 
         let progress_app = app.clone();
+        let progress_task_id = task_id.to_string();
         let progress_file_name = file_name.to_string();
         let downloaded_bytes = Arc::new(std::sync::atomic::AtomicU64::new(initial_downloaded));
         let last_progress_emit = Arc::new(std::sync::Mutex::new(
@@ -330,7 +433,7 @@ impl ResourceService {
                 let _ = progress_app.emit(
                     "resource-download-progress",
                     ResourceProgressPayload {
-                        task_id: progress_file_name.clone(),
+                        task_id: progress_task_id.clone(),
                         file_name: progress_file_name.clone(),
                         stage: "DOWNLOADING_MOD".to_string(),
                         current,
@@ -341,14 +444,13 @@ impl ResourceService {
             })
         };
 
-        let no_cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let download_result = download_file(
+        let download_result = download_file_with_control(
             &client,
             &candidate_urls,
             &temp_target_path,
             tuning,
             std::time::Duration::from_secs(dl_settings.timeout.max(1)),
-            &no_cancel,
+            &control,
             rate_limiter,
             Some(on_bytes),
             Some(app),
@@ -366,7 +468,7 @@ impl ResourceService {
         let _ = app.emit(
             "resource-download-progress",
             ResourceProgressPayload {
-                task_id: file_name.to_string(),
+                task_id: task_id.to_string(),
                 file_name: file_name.to_string(),
                 stage: "DONE".to_string(),
                 current: download_result.total_bytes.max(1),
@@ -382,7 +484,10 @@ impl ResourceService {
 async fn probe_download_total_bytes(client: &reqwest::Client, url: &str) -> Option<u64> {
     if let Ok(Ok(response)) = tokio::time::timeout(
         std::time::Duration::from_secs(8),
-        client.head(url).header(reqwest::header::ACCEPT_ENCODING, "identity").send(),
+        client
+            .head(url)
+            .header(reqwest::header::ACCEPT_ENCODING, "identity")
+            .send(),
     )
     .await
     {

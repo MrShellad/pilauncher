@@ -237,7 +237,7 @@ impl ConfigResolver {
             .ok()
             .flatten()
             .unwrap_or_default();
-        let instance_dir = PathBuf::from(base_path)
+        let instance_dir = PathBuf::from(&base_path)
             .join("instances")
             .join(&instance_cfg.id);
 
@@ -260,7 +260,16 @@ impl ConfigResolver {
             &instance_cfg.mc_version,
             runtime_service::launcher_default_java_command(),
         );
-        let java_path = java_runtime.java_path.clone();
+        let java_path =
+            if java_runtime.java_path == runtime_service::launcher_default_java_command() {
+                runtime_service::resolve_managed_java_runtime(
+                    &PathBuf::from(&base_path),
+                    &java_runtime.required_java_major,
+                )
+                .unwrap_or(java_runtime.java_path.clone())
+            } else {
+                java_runtime.java_path.clone()
+            };
 
         let memory_mode = if instance_runtime.use_global_memory {
             global_java.memory_allocation_mode.clone()

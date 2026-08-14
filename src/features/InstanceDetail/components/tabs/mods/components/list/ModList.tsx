@@ -21,6 +21,7 @@ import { ModListSkeleton } from './ModListSkeleton';
 import { useModListController } from '../../hooks/useModListController';
 
 export interface ModListProps {
+  instanceId?: string;
   mods: ModMeta[];
   isLoading: boolean;
   selectedMods: Set<string>;
@@ -64,6 +65,7 @@ export interface ModListProps {
 }
 
 export const ModList: React.FC<ModListProps> = ({
+  instanceId,
   mods,
   isLoading,
   selectedMods,
@@ -107,6 +109,7 @@ export const ModList: React.FC<ModListProps> = ({
   const [listTheme, setListTheme] = useState<ModListTheme>('dark');
   const [hasShownReadyList, setHasShownReadyList] = useState(false);
   const controller = useModListController({
+    instanceId,
     mods,
     searchQuery,
     isLoading,

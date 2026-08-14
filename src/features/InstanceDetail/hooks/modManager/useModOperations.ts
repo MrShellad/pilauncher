@@ -1,6 +1,6 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 
-import { useDownloadStore } from '../../../../store/useDownloadStore';
+import { runResourceDownloadTask } from '../../../Download/logic/resourceDownloadTask';
 import { useToastStore } from '../../../../store/useToastStore';
 import {
   buildLockedModMetadataSettings,
@@ -16,6 +16,10 @@ interface UseModOperationsOptions {
   instanceId: string;
   setMods: Dispatch<SetStateAction<ModMeta[]>>;
   loadMods: (options?: LoadModsOptions) => Promise<void>;
+}
+
+export interface ModInstallOptions {
+  reloadAfterInstall?: boolean;
 }
 
 const getDependentMods = (mods: ModMeta[], parentMod: ModMeta): ModMeta[] => {
@@ -203,7 +207,8 @@ export const useModOperations = ({
   const installModVersion = useCallback(async (
     mod: ModMeta,
     version?: OreProjectVersion,
-    action: ModVersionInstallAction = 'upgrade'
+    action: ModVersionInstallAction = 'upgrade',
+    options: ModInstallOptions = {}
   ) => {
     const source = mod.manifestEntry?.source;
     let platform = '' as ModPlatformId | '';
@@ -234,30 +239,22 @@ export const useModOperations = ({
     const targetFileName = shouldKeepDisabled && !remoteFileName.endsWith('.disabled')
       ? `${remoteFileName}.disabled`
       : remoteFileName;
-
     setMods((current) => current.map((item) => (
       item.fileName === oldFileName ? { ...item, isUpdatingMod: true } : item
     )));
 
-    useDownloadStore.getState().addOrUpdateTask({
-      id: targetFileName,
-      taskType: 'resource',
-      title: targetFileName,
-      stage: 'DOWNLOADING_MOD',
-      current: 0,
-      total: 100,
+    /* Legacy task initialization is owned by runResourceDownloadTask.
       message: `正在准备${getActionText(action)}模组...`,
-      retryAction: 'download_resource',
-      retryPayload: {
+    */
+    try {
+      await runResourceDownloadTask({
         url: targetDownloadUrl,
         fileName: targetFileName,
         instanceId,
-        subFolder: 'mods'
-      }
-    });
-
-    try {
-      await modService.downloadResource(targetDownloadUrl, targetFileName, instanceId, 'mods');
+        subFolder: 'mods',
+        title: targetFileName,
+        message: `Preparing ${getActionText(action)} mod...`,
+        onCompleted: async () => {
 
       const name = mod.name || mod.networkInfo?.title || '';
       const description = mod.description || mod.networkInfo?.description || '';
@@ -364,21 +361,29 @@ export const useModOperations = ({
         return next;
       });
 
-      await loadMods({ silent: true });
+      if (options.reloadAfterInstall !== false) {
+        await loadMods({ silent: true });
+      }
+        },
+      });
     } catch (error) {
       setMods((current) => current.map((item) => (
         item.fileName === oldFileName ? { ...item, isUpdatingMod: false } : item
       )));
+      /* Error task state is written by runResourceDownloadTask.
       useDownloadStore.getState().addOrUpdateTask({
-        id: targetFileName,
+        id: taskId,
         stage: 'ERROR',
         message: `下载失败: ${error}`
       });
+      */
       throw error;
     }
   }, [instanceId, loadMods, setMods]);
 
-  const upgradeMod = useCallback(async (mod: ModMeta) => installModVersion(mod, undefined, 'upgrade'), [installModVersion]);
+  const upgradeMod = useCallback(async (mod: ModMeta, options?: ModInstallOptions) => (
+    installModVersion(mod, undefined, 'upgrade', options)
+  ), [installModVersion]);
 
   const openModFolder = useCallback(() => {
     modService.openModFolder(instanceId).catch(console.error);

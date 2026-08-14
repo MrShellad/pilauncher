@@ -28,6 +28,7 @@ export const useDownloadSettingsController = (extraFocusKeys: string[] = []) => 
 
     keys.push(
       'settings-download-auto-latency',
+      'settings-download-strict-source-routing',
       'settings-download-speed-unit-0',
       'settings-download-speed-unit-1',
       'settings-download-speed-limit',

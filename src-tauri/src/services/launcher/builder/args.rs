@@ -158,7 +158,7 @@ impl LaunchCommandBuilder {
             .replace("${auth_session}", "{}")
             .replace("${auth_xuid}", "0")
             .replace("${clientid}", "0")
-        }
+    }
 
     #[allow(dead_code)]
     fn resolve_library_placeholder_segment(&self, segment: &str) -> String {
@@ -638,7 +638,8 @@ impl LaunchCommandBuilder {
             ));
         }
         let preliminary_classpath_entries = preliminary_classpath.entries.clone();
-        let preliminary_classpath_string = preliminary_classpath_entries.join(Self::classpath_separator());
+        let preliminary_classpath_string =
+            preliminary_classpath_entries.join(Self::classpath_separator());
 
         // 🌟 2. 构造 lighty-launch 兼容的实例信息与版本元数据
         let version_info = PiVersionInfo {
@@ -660,19 +661,43 @@ impl LaunchCommandBuilder {
 
         // 🌟 3. 第一轮生成：使用未过滤的 Classpath 解析初步参数以获取 Module Path 条目
         let mut arg_overrides = std::collections::HashMap::new();
-        arg_overrides.insert("game_directory".to_string(), self.game_dir.to_string_lossy().to_string());
-        arg_overrides.insert("assets_root".to_string(), self.get_assets_dir().to_string_lossy().to_string());
-        arg_overrides.insert("library_directory".to_string(), self.get_libraries_dir().to_string_lossy().to_string());
-        arg_overrides.insert("natives_directory".to_string(), self.get_natives_dir().to_string_lossy().to_string());
-        arg_overrides.insert("auth_access_token".to_string(), self.auth.access_token.clone());
+        arg_overrides.insert(
+            "game_directory".to_string(),
+            self.game_dir.to_string_lossy().to_string(),
+        );
+        arg_overrides.insert(
+            "assets_root".to_string(),
+            self.get_assets_dir().to_string_lossy().to_string(),
+        );
+        arg_overrides.insert(
+            "library_directory".to_string(),
+            self.get_libraries_dir().to_string_lossy().to_string(),
+        );
+        arg_overrides.insert(
+            "natives_directory".to_string(),
+            self.get_natives_dir().to_string_lossy().to_string(),
+        );
+        arg_overrides.insert(
+            "auth_access_token".to_string(),
+            self.auth.access_token.clone(),
+        );
         arg_overrides.insert("auth_uuid".to_string(), self.auth.uuid.clone());
-        arg_overrides.insert("auth_player_name".to_string(), self.auth.player_name.clone());
+        arg_overrides.insert(
+            "auth_player_name".to_string(),
+            self.auth.player_name.clone(),
+        );
         arg_overrides.insert("user_type".to_string(), self.auth.user_type.clone());
         arg_overrides.insert("version_name".to_string(), launch_version_id.clone());
         arg_overrides.insert("version_type".to_string(), "PiLauncher".to_string());
         arg_overrides.insert("classpath".to_string(), preliminary_classpath_string);
-        arg_overrides.insert("resolution_width".to_string(), self.config.resolution_width.to_string());
-        arg_overrides.insert("resolution_height".to_string(), self.config.resolution_height.to_string());
+        arg_overrides.insert(
+            "resolution_width".to_string(),
+            self.config.resolution_width.to_string(),
+        );
+        arg_overrides.insert(
+            "resolution_height".to_string(),
+            self.config.resolution_height.to_string(),
+        );
         arg_overrides.insert("assets_index_name".to_string(), raw.asset_index.clone());
         arg_overrides.insert("launcher_name".to_string(), LAUNCHER_NAME.to_string());
         arg_overrides.insert("launcher_version".to_string(), LAUNCHER_VERSION.to_string());
@@ -689,7 +714,9 @@ impl LaunchCommandBuilder {
             id: None,
             username: self.auth.player_name.clone(),
             uuid: self.auth.uuid.clone(),
-            access_token: Some(lighty_auth::SecretString::from(self.auth.access_token.clone())),
+            access_token: Some(lighty_auth::SecretString::from(
+                self.auth.access_token.clone(),
+            )),
             xuid: None,
             email: None,
             email_verified: false,
@@ -699,19 +726,22 @@ impl LaunchCommandBuilder {
             provider: lighty_auth::AuthProvider::Offline,
         };
 
-        let preliminary_lighty_args = <PiVersionInfo as lighty_launch::arguments::Arguments>::build_arguments(
-            &version_info,
-            &builder_version,
-            Some(&user_profile),
-            &arg_overrides,
-            &std::collections::HashSet::new(),
-            &jvm_overrides,
-            &std::collections::HashSet::new(),
-            &[],
-        );
+        let preliminary_lighty_args =
+            <PiVersionInfo as lighty_launch::arguments::Arguments>::build_arguments(
+                &version_info,
+                &builder_version,
+                Some(&user_profile),
+                &arg_overrides,
+                &std::collections::HashSet::new(),
+                &jvm_overrides,
+                &std::collections::HashSet::new(),
+                &[],
+            );
 
         let main_class_str = builder_version.main_class.main_class.clone();
-        let pos_prelim = preliminary_lighty_args.iter().position(|arg| arg == &main_class_str);
+        let pos_prelim = preliminary_lighty_args
+            .iter()
+            .position(|arg| arg == &main_class_str);
         let preliminary_jvm_args = if let Some(pos) = pos_prelim {
             preliminary_lighty_args[0..pos].to_vec()
         } else {
@@ -740,7 +770,10 @@ impl LaunchCommandBuilder {
         // 🌟 5. 提取真正的 JVM 与 Game 参数
         let pos = lighty_args.iter().position(|arg| arg == &main_class_str);
         let (resolved_jvm_args, resolved_game_args) = if let Some(pos) = pos {
-            (lighty_args[0..pos].to_vec(), lighty_args[pos+1..].to_vec())
+            (
+                lighty_args[0..pos].to_vec(),
+                lighty_args[pos + 1..].to_vec(),
+            )
         } else {
             (lighty_args, Vec::new())
         };
@@ -835,12 +868,24 @@ struct PiVersionInfo {
 
 impl lighty_loaders::types::VersionInfo for PiVersionInfo {
     type LoaderType = lighty_loaders::types::Loader;
-    fn name(&self) -> &str { &self.name }
-    fn loader_version(&self) -> &str { &self.loader_version }
-    fn minecraft_version(&self) -> &str { &self.mc_version }
-    fn game_dirs(&self) -> &std::path::Path { &self.game_dir }
-    fn java_dirs(&self) -> &std::path::Path { &self.java_dir }
-    fn loader(&self) -> &Self::LoaderType { &self.loader_type }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn loader_version(&self) -> &str {
+        &self.loader_version
+    }
+    fn minecraft_version(&self) -> &str {
+        &self.mc_version
+    }
+    fn game_dirs(&self) -> &std::path::Path {
+        &self.game_dir
+    }
+    fn java_dirs(&self) -> &std::path::Path {
+        &self.java_dir
+    }
+    fn loader(&self) -> &Self::LoaderType {
+        &self.loader_type
+    }
 }
 
 fn construct_lighty_version(
@@ -854,14 +899,16 @@ fn construct_lighty_version(
 
     let mut major_version = 8;
     for manifest in version_chain.iter().rev() {
-        if let Some(major) = manifest.json.pointer("/javaVersion/majorVersion").and_then(|v| v.as_u64()) {
+        if let Some(major) = manifest
+            .json
+            .pointer("/javaVersion/majorVersion")
+            .and_then(|v| v.as_u64())
+        {
             major_version = major as u8;
             break;
         }
     }
-    let java_version = lighty_loaders::types::version_metadata::JavaVersion {
-        major_version,
-    };
+    let java_version = lighty_loaders::types::version_metadata::JavaVersion { major_version };
 
     let arguments = lighty_loaders::types::version_metadata::Arguments {
         game: raw.game.clone(),
@@ -871,10 +918,21 @@ fn construct_lighty_version(
     let mut libraries = Vec::new();
     for lib_val in all_libraries {
         let name = lib_val["name"].as_str().unwrap_or("").to_string();
-        let path = lib_val.pointer("/downloads/artifact/path").and_then(|v| v.as_str()).map(|s| s.to_string());
-        let url = lib_val.pointer("/downloads/artifact/url").and_then(|v| v.as_str()).map(|s| s.to_string());
-        let sha1 = lib_val.pointer("/downloads/artifact/sha1").and_then(|v| v.as_str()).map(|s| s.to_string());
-        let size = lib_val.pointer("/downloads/artifact/size").and_then(|v| v.as_u64());
+        let path = lib_val
+            .pointer("/downloads/artifact/path")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+        let url = lib_val
+            .pointer("/downloads/artifact/url")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+        let sha1 = lib_val
+            .pointer("/downloads/artifact/sha1")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+        let size = lib_val
+            .pointer("/downloads/artifact/size")
+            .and_then(|v| v.as_u64());
 
         libraries.push(lighty_loaders::types::version_metadata::Library {
             name,
@@ -889,9 +947,21 @@ fn construct_lighty_version(
     for manifest in version_chain.iter().rev() {
         if let Some(obj) = manifest.json.get("assetIndex").and_then(|v| v.as_object()) {
             assets_index = Some(lighty_loaders::types::version_metadata::AssetIndex {
-                id: obj.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                url: obj.get("url").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                sha1: obj.get("sha1").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                id: obj
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                url: obj
+                    .get("url")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                sha1: obj
+                    .get("sha1")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
                 size: obj.get("size").and_then(|v| v.as_u64()).unwrap_or(0),
                 total_size: obj.get("totalSize").and_then(|v| v.as_u64()),
             });
@@ -911,7 +981,6 @@ fn construct_lighty_version(
         assets: None,
     }
 }
-
 
 #[cfg(test)]
 fn split_path_entries_for_test(value: &str, separator: char) -> Vec<String> {
@@ -1288,6 +1357,7 @@ mod tests {
 
     #[test]
     fn build_args_includes_legacy_library_when_file_exists() {
+        init_app_state_for_tests();
         let root = unique_test_root("legacy-lib-present");
         let runtime_root = root.join("runtime");
         let game_dir = root.join("game");
@@ -1341,6 +1411,7 @@ mod tests {
 
     #[test]
     fn build_args_does_not_add_vanilla_jar_to_module_bootstrap_classpath() {
+        init_app_state_for_tests();
         let root = unique_test_root("module-bootstrap-no-vanilla-cp");
         let runtime_root = root.join("runtime");
         let game_dir = root.join("game");
@@ -1439,6 +1510,7 @@ mod tests {
 
     #[test]
     fn build_args_resolves_resolution_and_metadata_placeholders() {
+        init_app_state_for_tests();
         let root = unique_test_root("resolution-placeholder-resolution");
         let runtime_root = root.join("runtime");
         let game_dir = root.join("game");

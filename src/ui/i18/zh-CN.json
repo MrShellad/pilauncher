@@ -873,6 +873,8 @@
       "metaSourceDesc": "用于获取 version_manifest_v2 版本列表。",
       "autoLatency": "动态测速与自动切换",
       "autoLatencyDesc": "下载前自动对可用节点进行延迟检测，并优先选择低延迟节点。",
+      "strictSourceRouting": "严格使用所选下载源",
+      "strictSourceRoutingDesc": "不回退到官方或其他镜像；所选源未提供资源时任务会失败。",
       "speedUnit": "速度显示单位",
       "speedUnitDesc": "MB/s 与 Mbps 两种展示模式。",
       "speedLimit": "全局下载限速",

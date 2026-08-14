@@ -35,7 +35,9 @@ impl InstanceEnvironmentService {
             ));
         }
 
-        let loader_type = normalize_loader_type(&payload.loader_type);
+        let loader_type = normalize_loader_type(&payload.loader_type).ok_or_else(|| {
+            AppError::Generic(format!("Unsupported loader type: {}", payload.loader_type))
+        })?;
         let loader_version = normalize_loader_version(
             &loader_type,
             game_version,
@@ -52,6 +54,17 @@ impl InstanceEnvironmentService {
             && config.loader.r#type.eq_ignore_ascii_case(&loader_type)
             && config.loader.version == loader_version
         {
+            // A previous run can finish its filesystem work but fail before the
+            // database write. Treat this as a reconciliation path, not a no-op.
+            InstanceBindingService::upsert_instance(&db.pool, &config).await?;
+            Self::emit(
+                app,
+                instance_id,
+                "DONE",
+                100,
+                100,
+                "Instance environment is already up to date.".to_string(),
+            );
             return Ok(());
         }
 
@@ -61,8 +74,13 @@ impl InstanceEnvironmentService {
         let base_dir = PathBuf::from(base_path);
         let runtime_dir = base_dir.join("runtime");
         let instance_root = base_dir.join("instances").join(instance_id);
+        let config_path = InstanceBindingService::instance_config_path(app, instance_id)
+            .map_err(AppError::Generic)?;
+        let previous_config = std::fs::read(&config_path)?;
+        let manifest_path = instance_root.join("instance_manifest.json");
+        let previous_manifest = std::fs::read(&manifest_path).ok();
 
-        let cancel_guard = DeploymentCancelGuard::new(instance_id);
+        let cancel_guard = DeploymentCancelGuard::new(instance_id)?;
         let cancel = Arc::clone(&cancel_guard.token);
         let result = async {
             Self::emit(
@@ -161,6 +179,12 @@ impl InstanceEnvironmentService {
         .await;
 
         if result.is_err() {
+            // Keep instance metadata coherent when a late commit step fails.
+            // Downloaded runtime artifacts are shared cache entries and may be
+            // reused, but the instance must continue to describe its old state.
+            let _ = std::fs::write(&config_path, previous_config);
+            restore_optional_file(&manifest_path, previous_manifest.as_deref());
+
             let runtime_temp = runtime_dir.join("temp");
             if runtime_temp.exists() {
                 let _ = std::fs::remove_dir_all(&runtime_temp);
@@ -196,13 +220,14 @@ impl InstanceEnvironmentService {
     }
 }
 
-fn normalize_loader_type(loader_type: &str) -> String {
-    match loader_type.trim().to_lowercase().as_str() {
-        "neoforge" | "neo_forge" | "neo-forge" => "neoforge".to_string(),
-        "fabric" => "fabric".to_string(),
-        "forge" => "forge".to_string(),
-        "quilt" => "quilt".to_string(),
-        _ => "vanilla".to_string(),
+fn normalize_loader_type(loader_type: &str) -> Option<String> {
+    match loader_type.trim().to_ascii_lowercase().as_str() {
+        "vanilla" | "" => Some("vanilla".to_string()),
+        "neoforge" | "neo_forge" | "neo-forge" => Some("neoforge".to_string()),
+        "fabric" => Some("fabric".to_string()),
+        "forge" => Some("forge".to_string()),
+        "quilt" => Some("quilt".to_string()),
+        _ => None,
     }
 }
 
@@ -234,10 +259,23 @@ struct DeploymentCancelGuard {
 }
 
 impl DeploymentCancelGuard {
-    fn new(instance_id: &str) -> Self {
-        Self {
+    fn new(instance_id: &str) -> AppResult<Self> {
+        Ok(Self {
             instance_id: instance_id.to_string(),
-            token: deployment_cancel::register(instance_id),
+            token: deployment_cancel::try_register(instance_id).map_err(AppError::Generic)?,
+        })
+    }
+}
+
+fn restore_optional_file(path: &std::path::Path, content: Option<&[u8]>) {
+    match content {
+        Some(content) => {
+            let _ = std::fs::write(path, content);
+        }
+        None => {
+            if path.exists() {
+                let _ = std::fs::remove_file(path);
+            }
         }
     }
 }
@@ -245,5 +283,23 @@ impl DeploymentCancelGuard {
 impl Drop for DeploymentCancelGuard {
     fn drop(&mut self) {
         deployment_cancel::unregister(&self.instance_id);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_loader_type;
+
+    #[test]
+    fn rejects_unknown_loader_instead_of_downgrading_to_vanilla() {
+        assert_eq!(
+            normalize_loader_type("Neo-Forge"),
+            Some("neoforge".to_string())
+        );
+        assert_eq!(
+            normalize_loader_type("vanilla"),
+            Some("vanilla".to_string())
+        );
+        assert_eq!(normalize_loader_type("unsupported-loader"), None);
     }
 }

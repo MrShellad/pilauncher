@@ -15,6 +15,7 @@ import { CurseforgeIcon, ModrinthIcon } from '../../../../../../../Download/comp
 interface ModHeaderProps {
   mod: ModMeta;
   displayMod: ModMeta | null;
+  instanceId?: string;
 }
 
 const renderEnvChip = (
@@ -49,10 +50,10 @@ const renderEnvChip = (
   );
 };
 
-export const ModHeader: React.FC<ModHeaderProps> = ({ mod, displayMod }) => {
+export const ModHeader: React.FC<ModHeaderProps> = ({ mod, displayMod, instanceId }) => {
   const { t } = useTranslation();
   const activeIconMod = displayMod || mod;
-  const iconSnapshot = useModIcon(activeIconMod, 'high');
+  const iconSnapshot = useModIcon(activeIconMod, 'high', instanceId);
 
   const preferredMetadataPlatform = displayMod ? getModPreferredPlatform(displayMod, 'metadata') : undefined;
   const sourceLabel = preferredMetadataPlatform
@@ -63,7 +64,7 @@ export const ModHeader: React.FC<ModHeaderProps> = ({ mod, displayMod }) => {
       ? 'Modrinth'
       : displayMod?.manifestEntry?.source.platform || t('instanceDetail.mods.header.sourceLocal', { defaultValue: '本地' });
 
-  const detailIconUrl = iconSnapshot.src || displayMod?.networkIconUrl || displayMod?.networkInfo?.icon_url || '';
+  const detailIconUrl = iconSnapshot.src || '';
 
   const sizeText = displayMod?.fileSize ? (displayMod.fileSize / 1024 / 1024).toFixed(2) + ' MB' : t('instanceDetail.mods.header.unknown', { defaultValue: '未知' });
   

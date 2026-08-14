@@ -4,13 +4,13 @@ use crate::services::config_service::{ConfigService, DownloadSettings};
 use crate::services::deployment_cancel;
 use crate::services::downloader::transfer::{download_file, DownloadRateLimiter, DownloadTuning};
 use reqwest::Client;
-use std::sync::atomic::AtomicBool;
+use serde::Serialize;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Runtime};
 
 use super::logging::ModpackImportLogger;
-use super::logic::sanitize_instance_id;
+use super::logic::validate_instance_id_from_name;
 use super::ops::resolve_base_dir;
 use super::orchestrator::{execute_import, execute_import_with_logger};
 
@@ -55,15 +55,29 @@ fn file_name_from_url(url: &str) -> String {
         .unwrap_or_else(|| "modpack.zip".to_string())
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModpackDeploymentAccepted {
+    pub task_id: String,
+    pub instance_id: String,
+    pub instance_name: String,
+}
+
 pub fn start_import<R: Runtime>(
     app: AppHandle<R>,
     zip_path: String,
     instance_name: String,
     server_binding: Option<ServerBinding>,
-) {
+) -> Result<ModpackDeploymentAccepted, String> {
+    let instance_id = validate_instance_id_from_name(&instance_name)?;
+    let cancel = deployment_cancel::try_register(&instance_id)?;
+    let accepted = ModpackDeploymentAccepted {
+        task_id: instance_id.clone(),
+        instance_id: instance_id.clone(),
+        instance_name: instance_name.clone(),
+    };
+
     tauri::async_runtime::spawn(async move {
-        let instance_id = sanitize_instance_id(&instance_name);
-        let cancel = deployment_cancel::register(&instance_id);
         let result = execute_import(&app, &zip_path, &instance_name, &cancel, server_binding).await;
         deployment_cancel::unregister(&instance_id);
 
@@ -82,6 +96,8 @@ pub fn start_import<R: Runtime>(
             );
         }
     });
+
+    Ok(accepted)
 }
 
 pub fn download_and_import_modpack<R: Runtime>(
@@ -89,36 +105,38 @@ pub fn download_and_import_modpack<R: Runtime>(
     url: String,
     instance_name: String,
     server_binding: Option<ServerBinding>,
-) {
+) -> Result<ModpackDeploymentAccepted, String> {
+    let instance_id = validate_instance_id_from_name(&instance_name)?;
+    let base_dir = resolve_base_dir(&app)?;
+    let cancel = deployment_cancel::try_register(&instance_id)?;
+    let accepted = ModpackDeploymentAccepted {
+        task_id: instance_id.clone(),
+        instance_id: instance_id.clone(),
+        instance_name: instance_name.clone(),
+    };
+
     tauri::async_runtime::spawn(async move {
-        let instance_id = sanitize_instance_id(&instance_name);
-        let logger = resolve_base_dir(&app)
-            .ok()
-            .map(|base_dir| ModpackImportLogger::new(&base_dir, &instance_id));
-        if let Some(logger) = &logger {
-            logger
-                .info(
-                    "DOWNLOAD_MODPACK",
-                    format!(
-                        "Starting remote modpack import: instance_id={} instance_name={} url={}",
-                        instance_id, instance_name, url
-                    ),
-                )
-                .await;
-        }
+        let logger = ModpackImportLogger::new(&base_dir, &instance_id);
+        logger
+            .info(
+                "DOWNLOAD_MODPACK",
+                format!(
+                    "Starting remote modpack import: instance_id={} instance_name={} url={}",
+                    instance_id, instance_name, url
+                ),
+            )
+            .await;
 
         let dl_settings = ConfigService::get_download_settings(&app);
         let client = match build_modpack_download_client(&dl_settings) {
             Ok(client) => client,
             Err(error) => {
-                if let Some(logger) = &logger {
-                    logger
-                        .error(
-                            "DOWNLOAD_MODPACK",
-                            format!("Download client init failed: {}", error),
-                        )
-                        .await;
-                }
+                logger
+                    .error(
+                        "DOWNLOAD_MODPACK",
+                        format!("Download client init failed: {}", error),
+                    )
+                    .await;
                 let _ = app.emit(
                     "instance-deployment-progress",
                     DownloadProgressEvent {
@@ -130,6 +148,7 @@ pub fn download_and_import_modpack<R: Runtime>(
                         message: format!("Modpack download client init failed: {}", error),
                     },
                 );
+                deployment_cancel::unregister(&instance_id);
                 return;
             }
         };
@@ -137,17 +156,15 @@ pub fn download_and_import_modpack<R: Runtime>(
         let normalized_url = normalize_modpack_download_url(&url);
         let file_name = file_name_from_url(&normalized_url);
         let max_attempts = dl_settings.retry_count.max(1);
-        if let Some(logger) = &logger {
-            logger
-                .info(
-                    "DOWNLOAD_MODPACK",
-                    format!(
-                        "Download prepared: normalized_url={} file_name={} attempts={} timeout={}s",
-                        normalized_url, file_name, max_attempts, dl_settings.timeout
-                    ),
-                )
-                .await;
-        }
+        logger
+            .info(
+                "DOWNLOAD_MODPACK",
+                format!(
+                    "Download prepared: normalized_url={} file_name={} attempts={} timeout={}s",
+                    normalized_url, file_name, max_attempts, dl_settings.timeout
+                ),
+            )
+            .await;
 
         let _ = app.emit(
             "instance-deployment-progress",
@@ -161,7 +178,27 @@ pub fn download_and_import_modpack<R: Runtime>(
             },
         );
 
-        let temp_path = std::env::temp_dir().join(&file_name);
+        let archive_dir = base_dir
+            .join("temp")
+            .join("modpack")
+            .join("archives")
+            .join(uuid::Uuid::new_v4().to_string());
+        if let Err(error) = std::fs::create_dir_all(&archive_dir) {
+            let _ = app.emit(
+                "instance-deployment-progress",
+                DownloadProgressEvent {
+                    instance_id: instance_id.clone(),
+                    stage: "ERROR".to_string(),
+                    file_name: String::new(),
+                    current: 0,
+                    total: 100,
+                    message: format!("Failed to create temporary archive directory: {}", error),
+                },
+            );
+            deployment_cancel::unregister(&instance_id);
+            return;
+        }
+        let temp_path = archive_dir.join("archive.zip");
         let candidate_urls = vec![normalized_url.clone()];
         let speed_limit_bytes_per_sec =
             ConfigService::download_speed_limit_bytes_per_sec(&dl_settings);
@@ -177,26 +214,27 @@ pub fn download_and_import_modpack<R: Runtime>(
             chunked_threads: dl_settings.chunked_download_threads.max(1),
             chunked_threshold_bytes: ConfigService::chunked_download_min_size_bytes(&dl_settings),
         };
-        let no_cancel = Arc::new(AtomicBool::new(false));
         let mut download_result = None;
         let mut last_error: Option<String> = None;
 
         for attempt in 1..=max_attempts {
-            if let Some(logger) = &logger {
-                logger
-                    .info(
-                        "DOWNLOAD_MODPACK",
-                        format!("Downloading archive attempt {}/{}", attempt, max_attempts),
-                    )
-                    .await;
+            if deployment_cancel::is_cancelled(&cancel) {
+                last_error = Some("Cancelled".to_string());
+                break;
             }
+            logger
+                .info(
+                    "DOWNLOAD_MODPACK",
+                    format!("Downloading archive attempt {}/{}", attempt, max_attempts),
+                )
+                .await;
             match download_file(
                 &client,
                 &candidate_urls,
                 &temp_path,
                 tuning,
                 Duration::from_secs(dl_settings.timeout.max(1)),
-                &no_cancel,
+                &cancel,
                 rate_limiter.clone(),
                 None,
                 Some(&app),
@@ -206,34 +244,30 @@ pub fn download_and_import_modpack<R: Runtime>(
             .await
             {
                 Ok(result) => {
-                    if let Some(logger) = &logger {
-                        logger
-                            .info(
-                                "DOWNLOAD_MODPACK",
-                                format!(
-                                    "Archive download completed: bytes={} temp_path={}",
-                                    result.downloaded_bytes,
-                                    temp_path.display()
-                                ),
-                            )
-                            .await;
-                    }
+                    logger
+                        .info(
+                            "DOWNLOAD_MODPACK",
+                            format!(
+                                "Archive download completed: bytes={} temp_path={}",
+                                result.downloaded_bytes,
+                                temp_path.display()
+                            ),
+                        )
+                        .await;
                     download_result = Some(result);
                     break;
                 }
                 Err(error) => {
                     last_error = Some(error.to_string());
-                    if let Some(logger) = &logger {
-                        logger
-                            .warn(
-                                "DOWNLOAD_MODPACK",
-                                format!(
-                                    "Archive download attempt {}/{} failed: {}",
-                                    attempt, max_attempts, error
-                                ),
-                            )
-                            .await;
-                    }
+                    logger
+                        .warn(
+                            "DOWNLOAD_MODPACK",
+                            format!(
+                                "Archive download attempt {}/{} failed: {}",
+                                attempt, max_attempts, error
+                            ),
+                        )
+                        .await;
                     if attempt < max_attempts {
                         tokio::time::sleep(Duration::from_millis(800 * attempt as u64)).await;
                     }
@@ -242,19 +276,17 @@ pub fn download_and_import_modpack<R: Runtime>(
         }
 
         let Some(download_result) = download_result else {
-            if let Some(logger) = &logger {
-                logger
-                    .error(
-                        "DOWNLOAD_MODPACK",
-                        format!(
-                            "Archive download failed: {}",
-                            last_error
-                                .clone()
-                                .unwrap_or_else(|| "unknown error".to_string())
-                        ),
-                    )
-                    .await;
-            }
+            logger
+                .error(
+                    "DOWNLOAD_MODPACK",
+                    format!(
+                        "Archive download failed: {}",
+                        last_error
+                            .clone()
+                            .unwrap_or_else(|| "unknown error".to_string())
+                    ),
+                )
+                .await;
             let _ = app.emit(
                 "instance-deployment-progress",
                 DownloadProgressEvent {
@@ -269,6 +301,8 @@ pub fn download_and_import_modpack<R: Runtime>(
                     ),
                 },
             );
+            let _ = std::fs::remove_dir_all(&archive_dir);
+            deployment_cancel::unregister(&instance_id);
             return;
         };
 
@@ -284,28 +318,16 @@ pub fn download_and_import_modpack<R: Runtime>(
             },
         );
 
-        let cancel = deployment_cancel::register(&instance_id);
         let temp_path_string = temp_path.to_string_lossy().to_string();
-        let result = if let Some(logger) = logger.clone() {
-            execute_import_with_logger(
-                &app,
-                &temp_path_string,
-                &instance_name,
-                &cancel,
-                server_binding,
-                logger,
-            )
-            .await
-        } else {
-            execute_import(
-                &app,
-                &temp_path_string,
-                &instance_name,
-                &cancel,
-                server_binding,
-            )
-            .await
-        };
+        let result = execute_import_with_logger(
+            &app,
+            &temp_path_string,
+            &instance_name,
+            &cancel,
+            server_binding,
+            logger.clone(),
+        )
+        .await;
         deployment_cancel::unregister(&instance_id);
 
         if let Err(error) = result {
@@ -325,29 +347,28 @@ pub fn download_and_import_modpack<R: Runtime>(
 
         match std::fs::remove_file(&temp_path) {
             Ok(()) => {
-                if let Some(logger) = &logger {
-                    logger
-                        .info(
-                            "DOWNLOAD_MODPACK",
-                            format!("Removed temporary archive {}", temp_path.display()),
-                        )
-                        .await;
-                }
+                logger
+                    .info(
+                        "DOWNLOAD_MODPACK",
+                        format!("Removed temporary archive {}", temp_path.display()),
+                    )
+                    .await;
             }
             Err(error) => {
-                if let Some(logger) = &logger {
-                    logger
-                        .warn(
-                            "DOWNLOAD_MODPACK",
-                            format!(
-                                "Failed to remove temporary archive {}: {}",
-                                temp_path.display(),
-                                error
-                            ),
-                        )
-                        .await;
-                }
+                logger
+                    .warn(
+                        "DOWNLOAD_MODPACK",
+                        format!(
+                            "Failed to remove temporary archive {}: {}",
+                            temp_path.display(),
+                            error
+                        ),
+                    )
+                    .await;
             }
         }
+        let _ = std::fs::remove_dir_all(&archive_dir);
     });
+
+    Ok(accepted)
 }

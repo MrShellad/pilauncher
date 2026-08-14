@@ -12,6 +12,12 @@ import type { ModrinthProject, OreProjectVersion } from '../../InstanceDetail/lo
 import { useDownloadStore } from '../../../store/useDownloadStore';
 import { useLauncherStore } from '../../../store/useLauncherStore';
 
+interface ModpackDeploymentAccepted {
+  taskId: string;
+  instanceId: string;
+  instanceName: string;
+}
+
 export const ModpackView: React.FC = () => {
   const { t } = useTranslation();
   const downloadState = useResourceDownload('__modpack_market__');
@@ -38,9 +44,24 @@ export const ModpackView: React.FC = () => {
     }
 
     try {
-      await invoke('download_and_import_modpack', {
+      const accepted = await invoke<ModpackDeploymentAccepted>('download_and_import_modpack', {
         url: version.download_url,
         instanceName: singleName
+      });
+
+      useDownloadStore.getState().addOrUpdateTask({
+        id: accepted.taskId,
+        taskType: 'instance',
+        title: accepted.instanceName,
+        stage: 'DOWNLOADING_MODPACK',
+        current: 0,
+        total: 100,
+        message: 'Modpack download accepted, establishing connection...',
+        retryAction: 'download_and_import_modpack',
+        retryPayload: {
+          url: version.download_url,
+          instanceName: singleName,
+        },
       });
 
       setSelectedProject(null);

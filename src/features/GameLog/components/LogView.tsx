@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { Copy, Check } from 'lucide-react';
-import { useEvent } from '../../../hooks/useEvent';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { OreOverlayScrollArea } from '../../../ui/primitives/OreOverlayScrollArea';
 import { useScreenDensity } from '../../../hooks/ui/useScreenDensity';
@@ -12,6 +11,7 @@ import {
   defaultHighlightRules,
   LOG_TIMESTAMP_PATTERN,
 } from '../logic/LogHighlighter';
+import { useLogScrollController } from '../hooks/useLogScrollController';
 
 interface LogViewProps {
   logs: string[];
@@ -87,7 +87,6 @@ export const LogView: React.FC<LogViewProps> = ({ logs, isOpen }) => {
   const { t } = useTranslation();
   const density = useScreenDensity();
   const isTv = density === 'tv';
-  const scrollRef = useRef<HTMLElement | Window | null>(null);
   const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
   const [copiedLine, setCopiedLine] = useState<number | null>(null);
   const logSegments = useMemo(() => segmentLogsByTimestamp(logs), [logs]);
@@ -99,66 +98,13 @@ export const LogView: React.FC<LogViewProps> = ({ logs, isOpen }) => {
     overscan: 10,
   });
 
-  const isAutoScrollRef = useRef(true);
-  const isProgrammaticScrollRef = useRef(false);
-  const releaseProgrammaticScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const totalSize = rowVirtualizer.getTotalSize();
-
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    if (isProgrammaticScrollRef.current) return;
-
-    const target = e.currentTarget;
-    // 10px threshold to determine if we are at the bottom (allow fractional pixels)
-    isAutoScrollRef.current = target.scrollHeight - target.scrollTop - target.clientHeight <= 10;
-  }, []);
-
-  const scrollToBottom = useCallback(() => {
-    if (!scrollElement || logSegments.length === 0) return;
-
-    if (releaseProgrammaticScrollTimerRef.current) {
-      clearTimeout(releaseProgrammaticScrollTimerRef.current);
-      releaseProgrammaticScrollTimerRef.current = null;
-    }
-
-    isProgrammaticScrollRef.current = true;
-    rowVirtualizer.scrollToIndex(logSegments.length - 1, { align: 'end' });
-
-    requestAnimationFrame(() => {
-      rowVirtualizer.scrollToIndex(logSegments.length - 1, { align: 'end' });
-
-      requestAnimationFrame(() => {
-        scrollElement.scrollTop = scrollElement.scrollHeight;
-        releaseProgrammaticScrollTimerRef.current = setTimeout(() => {
-          isProgrammaticScrollRef.current = false;
-          releaseProgrammaticScrollTimerRef.current = null;
-        }, 80);
-      });
-    });
-  }, [logSegments.length, rowVirtualizer, scrollElement]);
-
-  // followOutput behavior
-  useEffect(() => {
-    if (!isOpen || logSegments.length === 0 || !scrollElement) return;
-
-    if (isAutoScrollRef.current) {
-      scrollToBottom();
-    }
-  }, [totalSize, logSegments.length, isOpen, scrollElement, scrollToBottom]);
-
-  useEffect(() => {
-    return () => {
-      if (releaseProgrammaticScrollTimerRef.current) {
-        clearTimeout(releaseProgrammaticScrollTimerRef.current);
-      }
-    };
-  }, []);
-
-  useEvent('ore-controller-scroll', (payload) => {
-    if (!isOpen) return;
-    if (!(scrollRef.current instanceof HTMLElement)) return;
-    const deltaY = payload.deltaY ?? 0;
-    if (Math.abs(deltaY) <= 0.1) return;
-    scrollRef.current.scrollTop += deltaY;
+  const { handleScroll, handleWheel } = useLogScrollController({
+    isOpen,
+    itemCount: logSegments.length,
+    totalSize,
+    scrollElement,
+    virtualizer: rowVirtualizer,
   });
 
   const handleCopyLine = (line: string, idx: number) => {
@@ -181,17 +127,11 @@ export const LogView: React.FC<LogViewProps> = ({ logs, isOpen }) => {
                 ref={(node) => {
                   if (node) {
                     setScrollElement(node);
-                    (scrollRef as any).current = node;
-                    (focusRef as any).current = node;
+                    focusRef.current = node;
                   }
                 }}
                 onScroll={handleScroll}
-                onWheel={(e) => {
-                  isProgrammaticScrollRef.current = false;
-                  if (e.deltaY < 0) {
-                    isAutoScrollRef.current = false;
-                  }
-                }}
+                onWheel={handleWheel}
                 className="flex-1 min-h-0"
                 viewportClassName="custom-scrollbar"
                 style={{ overscrollBehaviorY: 'contain' }}

@@ -868,6 +868,8 @@
       "metaSourceDesc": "Used to fetch version_manifest_v2.",
       "autoLatency": "Dynamic Auto-Switching",
       "autoLatencyDesc": "Test latency before downloading and pick the lowest one.",
+      "strictSourceRouting": "Strict selected source",
+      "strictSourceRoutingDesc": "Do not fall back to official or other mirrors when the selected source lacks a resource.",
       "speedUnit": "Speed Unit",
       "speedUnitDesc": "Display mode: MB/s or Mbps.",
       "speedLimit": "Global Speed Limit",

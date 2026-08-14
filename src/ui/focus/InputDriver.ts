@@ -174,6 +174,7 @@ const dispatchAction = (
 export const useInputDriver = (
   onModeChange: (mode: InputMode) => void,
   bindings: InputBindings = defaultBindings,
+  nativeGamepadEnabled = true,
 ) => {
   const activeActions = useRef<Map<InputAction, { start: number; lastFire: number }>>(new Map());
   const requestRef = useRef<number>(0);
@@ -240,7 +241,7 @@ export const useInputDriver = (
       const { gameState } = useGameLogStore.getState();
       let scrollAxisValue = 0;
 
-      if (gameState === 'running' || gameState === 'launching') {
+      if (!nativeGamepadEnabled || gameState === 'running' || gameState === 'launching') {
         clearNativeInputs();
       } else {
         nativeButtonsRef.current.forEach((id) => {
@@ -302,8 +303,8 @@ export const useInputDriver = (
         Math.abs(scrollAxisValue) > SCROLL_AXIS_DEADZONE ||
         activeKeys.current.size > 0 ||
         activeMouseButtons.current.size > 0 ||
-        nativeButtonsRef.current.size > 0 ||
-        hasActiveAxisInput();
+        (nativeGamepadEnabled && nativeButtonsRef.current.size > 0) ||
+        (nativeGamepadEnabled && hasActiveAxisInput());
 
       if (hasActiveInput || activeActions.current.size > 0) {
         lastInputActivityRef.current = now;
@@ -403,6 +404,8 @@ export const useInputDriver = (
       axis_name?: string | null;
       axis_value?: number | null;
     }>('native-gamepad-event', (event) => {
+      if (!nativeGamepadEnabled) return;
+
       const { kind, button_code, button_name, axis_code, axis_name, axis_value } = event.payload;
 
       if (kind === 'Connected') {
@@ -521,5 +524,5 @@ export const useInputDriver = (
       if (unlistenNative) unlistenNative();
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, [onModeChange, bindings]);
+  }, [onModeChange, bindings, nativeGamepadEnabled]);
 };

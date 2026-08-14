@@ -1,15 +1,12 @@
 // src-tauri/src/services/instance/backup_service.rs
 use std::fs::{self, File};
 use std::io::{self};
-use std::path::{Path};
+use std::path::Path;
 use walkdir::WalkDir;
 use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
 
-pub fn backup_instance_data(
-    instance_root: &Path,
-    backup_zip_path: &Path,
-) -> Result<(), String> {
+pub fn backup_instance_data(instance_root: &Path, backup_zip_path: &Path) -> Result<(), String> {
     // Ensure parent directory of backup zip path exists
     if let Some(parent) = backup_zip_path.parent() {
         fs::create_dir_all(parent).map_err(|e| format!("Failed to create backup dir: {}", e))?;
@@ -39,10 +36,7 @@ pub fn backup_instance_data(
         }
 
         if full_path.is_dir() {
-            for entry in WalkDir::new(&full_path)
-                .into_iter()
-                .filter_map(|e| e.ok())
-            {
+            for entry in WalkDir::new(&full_path).into_iter().filter_map(|e| e.ok()) {
                 let path = entry.path();
                 let strip_rel = match path.strip_prefix(&full_path) {
                     Ok(p) => p,
@@ -52,7 +46,11 @@ pub fn backup_instance_data(
                 let zip_path_str = if strip_rel.as_os_str().is_empty() {
                     zip_prefix.to_string()
                 } else {
-                    format!("{}/{}", zip_prefix, strip_rel.to_string_lossy().replace('\\', "/"))
+                    format!(
+                        "{}/{}",
+                        zip_prefix,
+                        strip_rel.to_string_lossy().replace('\\', "/")
+                    )
                 };
 
                 if entry.file_type().is_dir() {
@@ -61,8 +59,8 @@ pub fn backup_instance_data(
                 } else if entry.file_type().is_file() {
                     zip.start_file(&zip_path_str, options)
                         .map_err(|e| format!("Failed to start file in zip: {}", e))?;
-                    let mut src_file = File::open(path)
-                        .map_err(|e| format!("Failed to open src file: {}", e))?;
+                    let mut src_file =
+                        File::open(path).map_err(|e| format!("Failed to open src file: {}", e))?;
                     io::copy(&mut src_file, &mut zip)
                         .map_err(|e| format!("Failed to copy file content to zip: {}", e))?;
                 }
@@ -70,34 +68,33 @@ pub fn backup_instance_data(
         } else if full_path.is_file() {
             zip.start_file(zip_prefix, options)
                 .map_err(|e| format!("Failed to start file in zip: {}", e))?;
-            let mut src_file = File::open(&full_path)
-                .map_err(|e| format!("Failed to open src file: {}", e))?;
+            let mut src_file =
+                File::open(&full_path).map_err(|e| format!("Failed to open src file: {}", e))?;
             io::copy(&mut src_file, &mut zip)
                 .map_err(|e| format!("Failed to copy file content to zip: {}", e))?;
         }
     }
 
-    zip.finish().map_err(|e| format!("Failed to finalize zip: {}", e))?;
+    zip.finish()
+        .map_err(|e| format!("Failed to finalize zip: {}", e))?;
     Ok(())
 }
 
-pub fn restore_backup_data(
-    instance_root: &Path,
-    backup_zip_path: &Path,
-) -> Result<(), String> {
+pub fn restore_backup_data(instance_root: &Path, backup_zip_path: &Path) -> Result<(), String> {
     if !backup_zip_path.exists() {
         return Err("Backup file does not exist".to_string());
     }
 
-    let file = File::open(backup_zip_path)
-        .map_err(|e| format!("Failed to open backup zip: {}", e))?;
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|e| format!("Failed to read backup zip: {}", e))?;
+    let file =
+        File::open(backup_zip_path).map_err(|e| format!("Failed to open backup zip: {}", e))?;
+    let mut archive =
+        zip::ZipArchive::new(file).map_err(|e| format!("Failed to read backup zip: {}", e))?;
 
     for i in 0..archive.len() {
-        let mut file = archive.by_index(i)
+        let mut file = archive
+            .by_index(i)
             .map_err(|e| format!("Failed to read entry from backup zip: {}", e))?;
-        
+
         let outpath = match file.enclosed_name() {
             Some(path) => path.to_owned(),
             None => continue,
@@ -115,8 +112,7 @@ pub fn restore_backup_data(
             }
             let mut outfile = fs::File::create(&final_path)
                 .map_err(|e| format!("Failed to create file: {}", e))?;
-            io::copy(&mut file, &mut outfile)
-                .map_err(|e| format!("Failed to copy file: {}", e))?;
+            io::copy(&mut file, &mut outfile).map_err(|e| format!("Failed to copy file: {}", e))?;
         }
     }
 
@@ -174,4 +170,3 @@ mod tests {
         let _ = fs::remove_dir_all(temp_dir);
     }
 }
-

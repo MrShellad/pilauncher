@@ -2,10 +2,10 @@
 use crate::domain::library::StarredItem;
 use crate::services::config_service::ConfigService;
 use crate::services::db_service::AppDatabase;
-use tauri::{AppHandle, Runtime, State};
-use std::path::{Path, PathBuf};
-use std::fs;
 use sqlx::Row;
+use std::fs;
+use std::path::{Path, PathBuf};
+use tauri::{AppHandle, Runtime, State};
 
 fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), String> {
     let src = src.as_ref();
@@ -30,8 +30,12 @@ fn create_junction(src: &Path, dst: &Path) -> std::io::Result<()> {
             "/c",
             "mklink",
             "/j",
-            dst.to_str().ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid destination path"))?,
-            src.to_str().ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid source path"))?,
+            dst.to_str().ok_or_else(|| {
+                std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid destination path")
+            })?,
+            src.to_str().ok_or_else(|| {
+                std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid source path")
+            })?,
         ])
         .output()?;
     if output.status.success() {
@@ -45,9 +49,11 @@ fn create_junction(src: &Path, dst: &Path) -> std::io::Result<()> {
 fn create_resource_link(src: &Path, dst: &Path) -> Result<(), String> {
     if dst.exists() {
         if dst.is_dir() {
-            fs::remove_dir_all(dst).map_err(|e| format!("Failed to remove existing destination directory: {}", e))?;
+            fs::remove_dir_all(dst)
+                .map_err(|e| format!("Failed to remove existing destination directory: {}", e))?;
         } else {
-            fs::remove_file(dst).map_err(|e| format!("Failed to remove existing destination file: {}", e))?;
+            fs::remove_file(dst)
+                .map_err(|e| format!("Failed to remove existing destination file: {}", e))?;
         }
     }
 
@@ -98,10 +104,10 @@ fn safe_remove_link(path: &Path) -> Result<(), String> {
     if !path.exists() {
         return Ok(());
     }
-    
+
     let meta = fs::symlink_metadata(path).map_err(|e| e.to_string())?;
     let file_type = meta.file_type();
-    
+
     if file_type.is_symlink() {
         #[cfg(target_os = "windows")]
         {
@@ -120,7 +126,7 @@ fn safe_remove_link(path: &Path) -> Result<(), String> {
     } else {
         fs::remove_file(path).map_err(|e| e.to_string())?;
     }
-    
+
     Ok(())
 }
 
@@ -204,15 +210,17 @@ pub async fn get_library_resource_mappings(
     db: State<'_, AppDatabase>,
     resource_id: String,
 ) -> Result<Vec<String>, String> {
-    let rows = sqlx::query(
-        "SELECT instance_id FROM library_resource_mappings WHERE resource_id = ?"
-    )
-    .bind(&resource_id)
-    .fetch_all(&db.pool)
-    .await
-    .map_err(|e| e.to_string())?;
+    let rows =
+        sqlx::query("SELECT instance_id FROM library_resource_mappings WHERE resource_id = ?")
+            .bind(&resource_id)
+            .fetch_all(&db.pool)
+            .await
+            .map_err(|e| e.to_string())?;
 
-    let instance_ids = rows.into_iter().map(|row| row.get::<String, _>("instance_id")).collect();
+    let instance_ids = rows
+        .into_iter()
+        .map(|row| row.get::<String, _>("instance_id"))
+        .collect();
     Ok(instance_ids)
 }
 
@@ -223,10 +231,13 @@ pub async fn link_library_resource_to_instances<R: Runtime>(
     resource_id: String,
     instance_ids: Vec<String>,
 ) -> Result<(), String> {
-    let starred_items = crate::services::library_service::LibraryService::get_starred_items(&db.pool)
-        .await
-        .map_err(|e| e.to_string())?;
-    let item = starred_items.into_iter().find(|i| i.id == resource_id)
+    let starred_items =
+        crate::services::library_service::LibraryService::get_starred_items(&db.pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    let item = starred_items
+        .into_iter()
+        .find(|i| i.id == resource_id)
         .ok_or_else(|| "Resource not found in library".to_string())?;
 
     let res_type = item.r#type.clone();
@@ -235,11 +246,12 @@ pub async fn link_library_resource_to_instances<R: Runtime>(
         "resourcepack" => "resourcepacks",
         _ => return Err(format!("Unsupported type: {}", res_type)),
     };
-    
+
     let snapshot_value: serde_json::Value = serde_json::from_str(&item.snapshot)
         .map_err(|e| format!("Invalid snapshot format: {}", e))?;
-    
-    let filename = snapshot_value.get("fileName")
+
+    let filename = snapshot_value
+        .get("fileName")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
         .ok_or_else(|| "Filename not found in resource metadata".to_string())?;
@@ -258,10 +270,12 @@ pub async fn link_library_resource_to_instances<R: Runtime>(
         return Err(format!("Library file does not exist: {:?}", src_path));
     }
 
-    let existing_instance_ids = get_library_resource_mappings(db.clone(), resource_id.clone()).await?;
+    let existing_instance_ids =
+        get_library_resource_mappings(db.clone(), resource_id.clone()).await?;
 
     let checked_set: std::collections::HashSet<String> = instance_ids.iter().cloned().collect();
-    let existing_set: std::collections::HashSet<String> = existing_instance_ids.iter().cloned().collect();
+    let existing_set: std::collections::HashSet<String> =
+        existing_instance_ids.iter().cloned().collect();
 
     for inst_id in &existing_set {
         if !checked_set.contains(inst_id) {
@@ -272,11 +286,11 @@ pub async fn link_library_resource_to_instances<R: Runtime>(
                 _ => return Err("Invalid type".to_string()),
             };
             let dest_path = instance_dir.join(dest_folder).join(&filename);
-            
+
             safe_remove_link(&dest_path)?;
 
             sqlx::query(
-                "DELETE FROM library_resource_mappings WHERE resource_id = ? AND instance_id = ?"
+                "DELETE FROM library_resource_mappings WHERE resource_id = ? AND instance_id = ?",
             )
             .bind(&resource_id)
             .bind(inst_id)
@@ -334,10 +348,13 @@ pub async fn update_library_resource_file<R: Runtime>(
     new_filename: String,
     new_snapshot_json: String,
 ) -> Result<(), String> {
-    let starred_items = crate::services::library_service::LibraryService::get_starred_items(&db.pool)
-        .await
-        .map_err(|e| e.to_string())?;
-    let mut item = starred_items.into_iter().find(|i| i.id == resource_id)
+    let starred_items =
+        crate::services::library_service::LibraryService::get_starred_items(&db.pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    let mut item = starred_items
+        .into_iter()
+        .find(|i| i.id == resource_id)
         .ok_or_else(|| "Resource not found".to_string())?;
 
     let res_type = item.r#type.clone();
@@ -347,9 +364,10 @@ pub async fn update_library_resource_file<R: Runtime>(
         _ => return Err("Invalid type".to_string()),
     };
 
-    let snapshot_value: serde_json::Value = serde_json::from_str(&item.snapshot)
-        .map_err(|e| e.to_string())?;
-    let old_filename = snapshot_value.get("fileName")
+    let snapshot_value: serde_json::Value =
+        serde_json::from_str(&item.snapshot).map_err(|e| e.to_string())?;
+    let old_filename = snapshot_value
+        .get("fileName")
         .and_then(|v| v.as_str())
         .ok_or_else(|| "Old filename not found in snapshot".to_string())?;
 
@@ -376,12 +394,12 @@ pub async fn update_library_resource_file<R: Runtime>(
             fs::remove_file(&old_library_path).map_err(|e| e.to_string())?;
         }
     }
-    
+
     let src_path = Path::new(&new_local_path);
     if !src_path.exists() {
         return Err("New local path does not exist".to_string());
     }
-    
+
     if src_path.is_dir() {
         if new_library_path.exists() {
             fs::remove_dir_all(&new_library_path).map_err(|e| e.to_string())?;
@@ -394,15 +412,17 @@ pub async fn update_library_resource_file<R: Runtime>(
         fs::copy(src_path, &new_library_path).map_err(|e| e.to_string())?;
     }
 
-    let rows = sqlx::query(
-        "SELECT instance_id FROM library_resource_mappings WHERE resource_id = ?"
-    )
-    .bind(&resource_id)
-    .fetch_all(&db.pool)
-    .await
-    .map_err(|e| e.to_string())?;
+    let rows =
+        sqlx::query("SELECT instance_id FROM library_resource_mappings WHERE resource_id = ?")
+            .bind(&resource_id)
+            .fetch_all(&db.pool)
+            .await
+            .map_err(|e| e.to_string())?;
 
-    let mapped_instances: Vec<String> = rows.into_iter().map(|row| row.get::<String, _>("instance_id")).collect();
+    let mapped_instances: Vec<String> = rows
+        .into_iter()
+        .map(|row| row.get::<String, _>("instance_id"))
+        .collect();
 
     let dest_folder = match res_type.as_str() {
         "shader" => "shaderpacks",
@@ -412,7 +432,7 @@ pub async fn update_library_resource_file<R: Runtime>(
 
     for inst_id in &mapped_instances {
         let instance_dir = get_game_dir(&app, inst_id)?;
-        
+
         let old_dest_path = instance_dir.join(dest_folder).join(old_filename);
         if old_dest_path.exists() {
             safe_remove_link(&old_dest_path)?;
@@ -437,7 +457,7 @@ pub async fn update_library_resource_file<R: Runtime>(
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64;
-    
+
     crate::services::library_service::LibraryService::save_starred_item(&db.pool, &item)
         .await
         .map_err(|e| e.to_string())?;
@@ -451,10 +471,13 @@ pub async fn delete_library_resource<R: Runtime>(
     db: State<'_, AppDatabase>,
     resource_id: String,
 ) -> Result<(), String> {
-    let starred_items = crate::services::library_service::LibraryService::get_starred_items(&db.pool)
-        .await
-        .map_err(|e| e.to_string())?;
-    let item = starred_items.into_iter().find(|i| i.id == resource_id)
+    let starred_items =
+        crate::services::library_service::LibraryService::get_starred_items(&db.pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    let item = starred_items
+        .into_iter()
+        .find(|i| i.id == resource_id)
         .ok_or_else(|| "Resource not found".to_string())?;
 
     let res_type = item.r#type.clone();
@@ -464,22 +487,25 @@ pub async fn delete_library_resource<R: Runtime>(
         _ => return Err("Invalid type".to_string()),
     };
 
-    let snapshot_value: serde_json::Value = serde_json::from_str(&item.snapshot)
-        .map_err(|e| e.to_string())?;
-    let filename = snapshot_value.get("fileName")
+    let snapshot_value: serde_json::Value =
+        serde_json::from_str(&item.snapshot).map_err(|e| e.to_string())?;
+    let filename = snapshot_value
+        .get("fileName")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
     if let Some(filename) = filename {
-        let rows = sqlx::query(
-            "SELECT instance_id FROM library_resource_mappings WHERE resource_id = ?"
-        )
-        .bind(&resource_id)
-        .fetch_all(&db.pool)
-        .await
-        .map_err(|e| e.to_string())?;
+        let rows =
+            sqlx::query("SELECT instance_id FROM library_resource_mappings WHERE resource_id = ?")
+                .bind(&resource_id)
+                .fetch_all(&db.pool)
+                .await
+                .map_err(|e| e.to_string())?;
 
-        let mapped_instances: Vec<String> = rows.into_iter().map(|row| row.get::<String, _>("instance_id")).collect();
+        let mapped_instances: Vec<String> = rows
+            .into_iter()
+            .map(|row| row.get::<String, _>("instance_id"))
+            .collect();
 
         let dest_folder = match res_type.as_str() {
             "shader" => "shaderpacks",
@@ -514,13 +540,11 @@ pub async fn delete_library_resource<R: Runtime>(
         }
     }
 
-    sqlx::query(
-        "DELETE FROM library_resource_mappings WHERE resource_id = ?"
-    )
-    .bind(&resource_id)
-    .execute(&db.pool)
-    .await
-    .map_err(|e| e.to_string())?;
+    sqlx::query("DELETE FROM library_resource_mappings WHERE resource_id = ?")
+        .bind(&resource_id)
+        .execute(&db.pool)
+        .await
+        .map_err(|e| e.to_string())?;
 
     crate::services::library_service::LibraryService::remove_starred_item(&db.pool, &resource_id)
         .await

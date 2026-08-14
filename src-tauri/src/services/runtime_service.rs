@@ -126,6 +126,32 @@ pub fn resolve_global_installer_java_runtime(
     runtime
 }
 
+/// Resolves Java for Loader installers. When the user has not configured a
+/// usable Java command, prefer a managed runtime that was downloaded by the
+/// launcher for the required Minecraft version.
+pub fn resolve_global_installer_java_runtime_with_managed(
+    java_settings: &JavaSettings,
+    mc_version: &str,
+    fallback_java_command: &str,
+    runtime_java_dir: &Path,
+) -> ResolvedJavaRuntime {
+    let mut runtime =
+        resolve_global_installer_java_runtime(java_settings, mc_version, fallback_java_command);
+
+    if runtime
+        .java_path
+        .eq_ignore_ascii_case(fallback_java_command)
+    {
+        if let Some(managed_java) =
+            resolve_managed_java_runtime_in_dir(runtime_java_dir, &runtime.required_java_major)
+        {
+            runtime.java_path = managed_java;
+        }
+    }
+
+    runtime
+}
+
 pub fn resolve_instance_java_runtime(
     instance_runtime: &RuntimeConfig,
     java_settings: &JavaSettings,
@@ -141,6 +167,88 @@ pub fn resolve_instance_java_runtime(
         required_java_major: get_required_java_version(mc_version),
         java_path: normalize_java_path(instance_runtime.java_path.clone(), fallback_java_command),
     }
+}
+
+pub fn resolve_managed_java_runtime(base_path: &Path, required_java_major: &str) -> Option<String> {
+    let runtime_java_dir = base_path.join("runtime").join("java");
+    resolve_managed_java_runtime_in_dir(&runtime_java_dir, required_java_major)
+}
+
+pub fn resolve_managed_java_runtime_in_dir(
+    runtime_java_dir: &Path,
+    required_java_major: &str,
+) -> Option<String> {
+    let required_major = required_java_major.parse::<u32>().ok()?;
+    if !runtime_java_dir.is_dir() {
+        return None;
+    }
+
+    let candidates = WalkDir::new(&runtime_java_dir)
+        .follow_links(false)
+        .max_depth(8)
+        .into_iter()
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| {
+            let path = prefer_windows_java_executable(entry.into_path());
+            if !is_java_executable(&path) {
+                return None;
+            }
+
+            let version = get_java_version(&path)?;
+            let major = java_major_from_version(&version)?;
+            Some((major, path))
+        })
+        .collect::<Vec<_>>();
+
+    select_managed_java_candidate(candidates, required_major)
+        .map(|path| path.to_string_lossy().to_string())
+}
+
+fn is_java_executable(path: &Path) -> bool {
+    if !path.is_file() {
+        return false;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        path.file_name()
+            .and_then(|name| name.to_str())
+            .map(|name| name.eq_ignore_ascii_case("java.exe"))
+            .unwrap_or(false)
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        path.file_name().map(|name| name == "java").unwrap_or(false)
+    }
+}
+
+fn java_major_from_version(version: &str) -> Option<u32> {
+    let version_part = version.split_whitespace().next().unwrap_or(version);
+    let mut parts = version_part
+        .split(|character: char| !character.is_ascii_digit())
+        .filter(|part| !part.is_empty());
+    let first = parts.next()?.parse::<u32>().ok()?;
+    if first == 1 {
+        parts.next()?.parse::<u32>().ok()
+    } else {
+        Some(first)
+    }
+}
+
+fn select_managed_java_candidate(
+    mut candidates: Vec<(u32, PathBuf)>,
+    required_major: u32,
+) -> Option<PathBuf> {
+    candidates.retain(|(major, _)| *major >= required_major);
+    candidates.sort_by(|left, right| {
+        (left.0 != required_major, left.0, &left.1).cmp(&(
+            right.0 != required_major,
+            right.0,
+            &right.1,
+        ))
+    });
+    candidates.into_iter().next().map(|(_, path)| path)
 }
 
 fn normalize_java_path(java_path: String, fallback_java_command: &str) -> String {
@@ -713,6 +821,33 @@ mod tests {
         let resolved = resolve_global_java_runtime(&java_settings(), "1.20.1", "java");
         assert_eq!(resolved.required_java_major, "17");
         assert_eq!(resolved.java_path, "java-17");
+    }
+
+    #[test]
+    fn managed_java_selection_prefers_exact_major_then_nearest_newer() {
+        let exact = PathBuf::from("/runtime/java/java-17/bin/java");
+        assert_eq!(
+            select_managed_java_candidate(
+                vec![
+                    (21, PathBuf::from("/runtime/java/java-21/bin/java")),
+                    (17, exact.clone()),
+                    (8, PathBuf::from("/runtime/java/java-8/bin/java")),
+                ],
+                17,
+            ),
+            Some(exact)
+        );
+
+        assert_eq!(
+            select_managed_java_candidate(
+                vec![
+                    (25, PathBuf::from("/runtime/java/java-25/bin/java")),
+                    (21, PathBuf::from("/runtime/java/java-21/bin/java")),
+                ],
+                17,
+            ),
+            Some(PathBuf::from("/runtime/java/java-21/bin/java"))
+        );
     }
 
     #[test]

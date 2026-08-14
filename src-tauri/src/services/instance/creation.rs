@@ -137,7 +137,13 @@ impl InstanceCreationService {
         fs::create_dir_all(global_mc_root.join("libraries"))?;
         fs::create_dir_all(global_mc_root.join("versions"))?;
 
-        let cancel = deployment_cancel::register(&instance_id);
+        let cancel = match deployment_cancel::try_register(&instance_id) {
+            Ok(cancel) => cancel,
+            Err(error) => {
+                let _ = fs::remove_dir_all(&tmp_instance_root);
+                return Err(AppError::Generic(error));
+            }
+        };
 
         let vanilla_version_dir = global_mc_root.join("versions").join(&payload.game_version);
         let vanilla_version_existed = vanilla_version_dir.exists();

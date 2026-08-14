@@ -32,6 +32,8 @@ pub struct DownloadSettings {
     pub verify_after_download: bool,
     #[serde(default)]
     pub auto_check_latency: bool,
+    #[serde(default)]
+    pub strict_source_routing: bool,
     // 各路下载源路由配置
     pub vanilla_source: String,
     pub vanilla_source_url: String,
@@ -100,6 +102,7 @@ impl Default for DownloadSettings {
             timeout: 15,
             verify_after_download: true,
             auto_check_latency: false,
+            strict_source_routing: false,
             vanilla_source: "bmclapi".to_string(),
             vanilla_source_url: "https://bmclapi2.bangbang93.com".to_string(),
             fabric_source: "official".to_string(),
@@ -233,6 +236,18 @@ impl ConfigService {
             }
         }
         Ok(None)
+    }
+
+    pub fn ensure_base_path<R: Runtime>(app: &AppHandle<R>) -> Result<String, String> {
+        if let Some(base_path) = Self::get_base_path(app).map_err(|e| e.to_string())? {
+            Self::ensure_base_layout(Path::new(&base_path))?;
+            return Ok(base_path);
+        }
+
+        let default_path = app.path().app_data_dir().map_err(|e| e.to_string())?;
+        let default_path_str = default_path.to_string_lossy().to_string();
+        Self::set_base_path(app, &default_path_str)?;
+        Ok(default_path_str)
     }
 
     pub fn ensure_shared_download_filter_config_in_base_path(
@@ -370,6 +385,19 @@ impl ConfigService {
             fs::create_dir_all(target).map_err(|e| e.to_string())?;
         }
 
+        Self::ensure_base_layout(target)?;
+
+        let meta_path = Self::get_meta_path(app).map_err(|e| e.to_string())?;
+        if let Some(parent) = meta_path.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        let data = serde_json::json!({ "base_path": target_path });
+        fs::write(meta_path, data.to_string()).map_err(|e| e.to_string())?;
+        Self::ensure_shared_download_filter_config_in_base_path(target)?;
+        Ok(())
+    }
+
+    fn ensure_base_layout(target: &Path) -> Result<(), String> {
         let dirs_to_create = [
             target.join("runtime").join("assets"),
             target.join("runtime").join("libraries"),
@@ -386,14 +414,6 @@ impl ConfigService {
                     .map_err(|e| format!("创建目录失败 {}: {}", dir.display(), e))?;
             }
         }
-
-        let meta_path = Self::get_meta_path(app).map_err(|e| e.to_string())?;
-        if let Some(parent) = meta_path.parent() {
-            let _ = fs::create_dir_all(parent);
-        }
-        let data = serde_json::json!({ "base_path": target_path });
-        fs::write(meta_path, data.to_string()).map_err(|e| e.to_string())?;
-        Self::ensure_shared_download_filter_config_in_base_path(target)?;
         Ok(())
     }
 }

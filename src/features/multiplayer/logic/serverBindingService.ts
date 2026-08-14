@@ -1,10 +1,17 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { ServerBindableInstance, ServerBindingRecord } from '../types';
+import { useDownloadStore } from '../../../store/useDownloadStore';
 
 interface DownloadAndImportModpackInput {
   url: string;
   instanceName: string;
   serverBinding: ServerBindingRecord;
+}
+
+interface ModpackDeploymentAccepted {
+  taskId: string;
+  instanceId: string;
+  instanceName: string;
 }
 
 export interface InstanceBindingState {
@@ -40,10 +47,25 @@ export const serverBindingService = {
       serverBinding: null,
     }),
 
-  downloadAndImportModpack: ({ url, instanceName, serverBinding }: DownloadAndImportModpackInput) =>
-    invoke('download_and_import_modpack', {
+  downloadAndImportModpack: async ({ url, instanceName, serverBinding }: DownloadAndImportModpackInput) => {
+    const accepted = await invoke<ModpackDeploymentAccepted>('download_and_import_modpack', {
       url,
       instanceName,
       serverBinding,
-    }),
+    });
+
+    useDownloadStore.getState().addOrUpdateTask({
+      id: accepted.taskId,
+      taskType: 'instance',
+      title: accepted.instanceName,
+      stage: 'DOWNLOADING_MODPACK',
+      current: 0,
+      total: 100,
+      message: 'Server modpack download accepted, establishing connection...',
+      retryAction: 'download_and_import_modpack',
+      retryPayload: { url, instanceName, serverBinding },
+    });
+
+    return accepted;
+  },
 };

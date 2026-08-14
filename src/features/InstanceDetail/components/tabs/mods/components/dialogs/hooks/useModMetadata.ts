@@ -26,6 +26,7 @@ export const useModMetadata = (
   const [displayMod, setDisplayMod] = useState<ModMeta | null>(null);
   const lastOpenedFileNameRef = useRef<string | null>(null);
   const fetchedMetadataKeysRef = useRef<Set<string>>(new Set());
+  const modRef = useRef<ModMeta | null>(mod);
 
   const initialMetadataPlatform = useMemo<ModPlatformId>(() => {
     if (!mod) return 'modrinth';
@@ -73,7 +74,17 @@ export const useModMetadata = (
         current.version === nextMod.version &&
         current.fileSize === nextMod.fileSize &&
         current.isEnabled === nextMod.isEnabled &&
+        current.iconAbsolutePath === nextMod.iconAbsolutePath &&
+        current.offlineJarIconAbsolutePath === nextMod.offlineJarIconAbsolutePath &&
         current.isFetchingNetwork === nextMod.isFetchingNetwork &&
+        current.hasUpdate === nextMod.hasUpdate &&
+        current.updateVersionName === nextMod.updateVersionName &&
+        current.updateFileId === nextMod.updateFileId &&
+        current.updateFileName === nextMod.updateFileName &&
+        current.updateDownloadUrl === nextMod.updateDownloadUrl &&
+        current.isCheckingUpdate === nextMod.isCheckingUpdate &&
+        current.isUpdatingMod === nextMod.isUpdatingMod &&
+        current.cacheKey === nextMod.cacheKey &&
         current.networkInfo === nextMod.networkInfo &&
         current.networkIconUrl === nextMod.networkIconUrl
       ) {
@@ -88,9 +99,14 @@ export const useModMetadata = (
     }
   }, [mod]);
 
+  useEffect(() => {
+    modRef.current = mod;
+  }, [mod]);
+
   // Fetch metadata details from APIs
   useEffect(() => {
-    if (mod && metadataRequestKey) {
+    const requestMod = modRef.current;
+    if (requestMod && metadataRequestKey) {
       let disposed = false;
 
       if (fetchedMetadataKeysRef.current.has(metadataRequestKey)) {
@@ -99,9 +115,9 @@ export const useModMetadata = (
       fetchedMetadataKeysRef.current.add(metadataRequestKey);
 
       const fetchMetadata = async () => {
-        let projectId = getPlatformProjectId(mod, initialMetadataPlatform);
+        let projectId = getPlatformProjectId(requestMod, initialMetadataPlatform);
         if (!projectId) {
-          projectId = await resolveProjectIdByHash(mod, initialMetadataPlatform);
+          projectId = await resolveProjectIdByHash(requestMod, initialMetadataPlatform);
         }
 
         if (projectId) {
@@ -110,22 +126,32 @@ export const useModMetadata = (
             : fetchModrinthProjectById(projectId);
         } else {
           const query =
-            mod.modId ||
-            mod.fileName.replace('.jar', '').replace('.disabled', '').replace(/[-_v0-9\.]+$/, '');
+            requestMod.modId ||
+            requestMod.fileName.replace('.jar', '').replace('.disabled', '').replace(/[-_v0-9\.]+$/, '');
           return fetchModrinthInfo(query);
         }
       };
 
-      fetchMetadata().then(netInfo => {
+      fetchMetadata().then(async netInfo => {
         if (disposed) {
           return;
         }
 
         if (netInfo) {
+          const cachedIconPath = requestMod.cacheKey && netInfo.icon_url
+            ? await modService.updateModCache(
+              requestMod.cacheKey,
+              netInfo.title,
+              netInfo.description,
+              netInfo.icon_url
+            ).catch(() => null)
+            : null;
+
           const resolvedMod: ModMeta = {
-            ...mod,
+            ...requestMod,
             networkInfo: netInfo,
-            networkIconUrl: netInfo.icon_url || mod.networkIconUrl,
+            networkIconUrl: netInfo.icon_url || requestMod.networkIconUrl,
+            iconAbsolutePath: cachedIconPath || requestMod.iconAbsolutePath,
             isFetchingNetwork: false
           };
 
@@ -133,16 +159,11 @@ export const useModMetadata = (
             ...prev,
             networkInfo: netInfo,
             networkIconUrl: netInfo.icon_url || prev.networkIconUrl,
+            iconAbsolutePath: cachedIconPath || prev.iconAbsolutePath,
             isFetchingNetwork: false
           } : null);
           onMetadataResolved?.(resolvedMod);
 
-          if (mod.cacheKey) {
-            modService.updateModCache(
-              mod.cacheKey,
-              netInfo.title, netInfo.description, netInfo.icon_url
-            ).catch(console.error);
-          }
         }
       }).catch((error) => {
         if (!disposed) {
@@ -155,7 +176,7 @@ export const useModMetadata = (
         disposed = true;
       };
     }
-  }, [initialMetadataPlatform, metadataRequestKey, mod, onMetadataResolved]);
+  }, [initialMetadataPlatform, metadataRequestKey, onMetadataResolved]);
 
   return {
     displayMod,

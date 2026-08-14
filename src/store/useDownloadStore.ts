@@ -1,13 +1,20 @@
 import { create } from 'zustand';
 
 import { useSettingsStore } from './useSettingsStore';
+import type {
+  DownloadRetryPayload,
+  DownloadTaskStage,
+  DownloadTaskStatus,
+  DownloadTaskType
+} from '../features/Download/logic/downloadTask';
+import { deriveDownloadTaskStatus } from '../features/Download/logic/downloadTask';
 
 export interface DownloadTask {
   id: string;
-  taskType: 'instance' | 'resource' | 'update';
+  taskType: DownloadTaskType;
   title: string;
-  status: 'downloading' | 'paused' | 'completed' | 'error';
-  stage: string;
+  status: DownloadTaskStatus;
+  stage: DownloadTaskStage;
   stepText: string;
   progress: number;
   current: number;
@@ -24,7 +31,8 @@ export interface DownloadTask {
   lastSpeedUpdate?: number;
   lastSpeedCurrent?: number;
   retryAction?: string;
-  retryPayload?: any;
+  retryPayload?: DownloadRetryPayload;
+  retryTask?: () => Promise<void>;
 }
 
 interface DownloadStore {
@@ -193,7 +201,10 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
 
   addOrUpdateTask: (update) =>
     set((state) => {
-      if (state.ignoredTasks.has(update.id)) return state;
+      if (state.ignoredTasks.has(update.id)) {
+        const isExplicitNewResourceTask = Boolean(update.retryTask || update.retryAction);
+        if (!isExplicitNewResourceTask) return state;
+      }
 
       const existingTask = state.tasks[update.id];
       const now = Date.now();
@@ -245,9 +256,11 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
         newLogs.push(`[${new Date().toLocaleTimeString()}] ${update.message}`);
       }
 
-      const isError = stage === 'ERROR';
-      const isDone = stage === 'DONE';
-      const status = isDone ? 'completed' : isError ? 'error' : 'downloading';
+      const status = deriveDownloadTaskStatus(stage, existingTask?.status, update.status);
+      const isError = status === 'error';
+      const isDone = status === 'completed';
+      const isCanceled = status === 'canceled';
+      const isPaused = status === 'paused';
       const currentVal = update.current ?? update.speedCurrent ?? existingTask?.current ?? 0;
       const totalVal = update.total ?? existingTask?.total ?? 0;
 
@@ -259,7 +272,7 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
 
       const startedAt = existingTask?.startedAt ?? now;
       const elapsedSeconds = Math.floor((now - startedAt) / 1000);
-      const etaStr = isError ? '' : formatElapsed(elapsedSeconds);
+      const etaStr = isError || isPaused || isCanceled ? '' : formatElapsed(elapsedSeconds);
       const pipelineStage = isDone
         ? 3
         : isError
@@ -277,8 +290,8 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
         current: currentVal,
         total: totalVal,
         speedCurrent: update.speedCurrent ?? existingTask?.speedCurrent,
-        speed: isDone || isError ? '0 KB/s' : speedStr,
-        speedBytes: isDone || isError ? 0 : speedBytes,
+        speed: isDone || isError || isPaused || isCanceled ? '0 KB/s' : speedStr,
+        speedBytes: isDone || isError || isPaused || isCanceled ? 0 : speedBytes,
         eta: etaStr,
         pipelineStage,
         logs: newLogs.slice(-50),
@@ -291,6 +304,7 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
           : existingTask?.lastSpeedCurrent,
         retryAction: update.retryAction || existingTask?.retryAction,
         retryPayload: update.retryPayload || existingTask?.retryPayload,
+        retryTask: update.retryTask || existingTask?.retryTask,
       };
       const isNewTask = !existingTask;
       const alreadyAutoOpened = state.hasAutoOpenedInCurrentBatch;
@@ -299,8 +313,12 @@ export const useDownloadStore = create<DownloadStore>((set) => ({
         status === 'downloading' &&
         (!state.autoOpenOnce || !alreadyAutoOpened);
 
+      const nextIgnoredTasks = new Set(state.ignoredTasks);
+      nextIgnoredTasks.delete(update.id);
+
       return {
         tasks: { ...state.tasks, [update.id]: newTask },
+        ignoredTasks: nextIgnoredTasks,
         isPopupOpen: shouldAutoOpen ? true : state.isPopupOpen,
         hasAutoOpenedInCurrentBatch: shouldAutoOpen || alreadyAutoOpened,
       };

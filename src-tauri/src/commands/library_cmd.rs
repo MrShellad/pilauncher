@@ -251,4 +251,3 @@ pub async fn delete_webdav_keymap(
 ) -> Result<(), String> {
     WebDavSyncService::delete_webdav_keymap(&config, &filename).await
 }
-

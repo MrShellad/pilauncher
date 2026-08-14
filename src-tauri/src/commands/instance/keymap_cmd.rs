@@ -16,7 +16,9 @@ pub fn get_instance_keybindings<R: Runtime>(
     instance_id: String,
 ) -> Result<Vec<KeyBind>, String> {
     let config_path = InstanceBindingService::instance_config_path(&app, &instance_id)?;
-    let instance_dir = config_path.parent().ok_or_else(|| "无法获取实例目录".to_string())?;
+    let instance_dir = config_path
+        .parent()
+        .ok_or_else(|| "无法获取实例目录".to_string())?;
 
     let config = InstanceBindingService::load_instance_config(&app, &instance_id)?;
     let mut game_dir = instance_dir.to_path_buf();
@@ -34,7 +36,8 @@ pub fn get_instance_keybindings<R: Runtime>(
         return Err("OPTIONS_TXT_NOT_FOUND".to_string());
     }
 
-    let content = fs::read_to_string(&options_path).map_err(|e| format!("读取 options.txt 失败: {}", e))?;
+    let content =
+        fs::read_to_string(&options_path).map_err(|e| format!("读取 options.txt 失败: {}", e))?;
     let mut keybindings = Vec::new();
 
     for line in content.lines() {
@@ -58,7 +61,9 @@ pub fn save_instance_keybindings<R: Runtime>(
     keybindings: Vec<KeyBind>,
 ) -> Result<(), String> {
     let config_path = InstanceBindingService::instance_config_path(&app, &instance_id)?;
-    let instance_dir = config_path.parent().ok_or_else(|| "无法获取实例目录".to_string())?;
+    let instance_dir = config_path
+        .parent()
+        .ok_or_else(|| "无法获取实例目录".to_string())?;
 
     let config = InstanceBindingService::load_instance_config(&app, &instance_id)?;
     let mut game_dir = instance_dir.to_path_buf();
@@ -108,7 +113,9 @@ pub fn initialize_default_keybindings<R: Runtime>(
     instance_id: String,
 ) -> Result<(), String> {
     let config_path = InstanceBindingService::instance_config_path(&app, &instance_id)?;
-    let instance_dir = config_path.parent().ok_or_else(|| "无法获取实例目录".to_string())?;
+    let instance_dir = config_path
+        .parent()
+        .ok_or_else(|| "无法获取实例目录".to_string())?;
 
     let config = InstanceBindingService::load_instance_config(&app, &instance_id)?;
     let mut game_dir = instance_dir.to_path_buf();
@@ -218,10 +225,9 @@ pub fn get_keyboard_localization<R: Runtime>(
         }
     }
 
-    let content = fs::read_to_string(&file_path)
-        .map_err(|e| format!("读取翻译文件失败: {}", e))?;
-    let loc: KeyboardLocalization = serde_json::from_str(&content)
-        .map_err(|e| format!("解析翻译文件失败: {}", e))?;
+    let content = fs::read_to_string(&file_path).map_err(|e| format!("读取翻译文件失败: {}", e))?;
+    let loc: KeyboardLocalization =
+        serde_json::from_str(&content).map_err(|e| format!("解析翻译文件失败: {}", e))?;
 
     Ok(loc)
 }
@@ -232,10 +238,22 @@ fn get_default_zh_cn_localization() -> KeyboardLocalization {
     keys.insert("key.mouse.right".to_string(), "鼠标右键".to_string());
     keys.insert("key.mouse.middle".to_string(), "鼠标中键".to_string());
     keys.insert("key.keyboard.space".to_string(), "空格键".to_string());
-    keys.insert("key.keyboard.left.shift".to_string(), "左 Shift".to_string());
-    keys.insert("key.keyboard.right.shift".to_string(), "右 Shift".to_string());
-    keys.insert("key.keyboard.left.control".to_string(), "左 Ctrl".to_string());
-    keys.insert("key.keyboard.right.control".to_string(), "右 Ctrl".to_string());
+    keys.insert(
+        "key.keyboard.left.shift".to_string(),
+        "左 Shift".to_string(),
+    );
+    keys.insert(
+        "key.keyboard.right.shift".to_string(),
+        "右 Shift".to_string(),
+    );
+    keys.insert(
+        "key.keyboard.left.control".to_string(),
+        "左 Ctrl".to_string(),
+    );
+    keys.insert(
+        "key.keyboard.right.control".to_string(),
+        "右 Ctrl".to_string(),
+    );
     keys.insert("key.keyboard.left.alt".to_string(), "左 Alt".to_string());
     keys.insert("key.keyboard.right.alt".to_string(), "右 Alt".to_string());
     keys.insert("key.keyboard.escape".to_string(), "Esc".to_string());
@@ -244,7 +262,10 @@ fn get_default_zh_cn_localization() -> KeyboardLocalization {
     keys.insert("key.keyboard.backspace".to_string(), "退格键".to_string());
     keys.insert("key.keyboard.caps.lock".to_string(), "大写锁定".to_string());
     keys.insert("key.keyboard.num.lock".to_string(), "数字锁定".to_string());
-    keys.insert("key.keyboard.scroll.lock".to_string(), "滚动锁定".to_string());
+    keys.insert(
+        "key.keyboard.scroll.lock".to_string(),
+        "滚动锁定".to_string(),
+    );
     keys.insert("key.keyboard.up".to_string(), "方向键上".to_string());
     keys.insert("key.keyboard.down".to_string(), "方向键下".to_string());
     keys.insert("key.keyboard.left".to_string(), "方向键左".to_string());
@@ -270,17 +291,29 @@ fn get_default_zh_cn_localization() -> KeyboardLocalization {
     actions.insert("key.attack".to_string(), "攻击/毁坏".to_string());
     actions.insert("key.pickItem".to_string(), "选取方块".to_string());
     actions.insert("key.fullscreen".to_string(), "切换全屏".to_string());
-    actions.insert("key.spectatorOutlines".to_string(), "高亮显示玩家 (旁观)".to_string());
-    
+    actions.insert(
+        "key.spectatorOutlines".to_string(),
+        "高亮显示玩家 (旁观)".to_string(),
+    );
+
     for i in 1..=9 {
         actions.insert(format!("key.hotbar.{}", i), format!("快捷栏第{}格", i));
     }
-    
-    actions.insert("key.saveToolbarActivator".to_string(), "保存快捷栏激活键".to_string());
-    actions.insert("key.loadToolbarActivator".to_string(), "加载快捷栏激活键".to_string());
+
+    actions.insert(
+        "key.saveToolbarActivator".to_string(),
+        "保存快捷栏激活键".to_string(),
+    );
+    actions.insert(
+        "key.loadToolbarActivator".to_string(),
+        "加载快捷栏激活键".to_string(),
+    );
     actions.insert("key.advancements".to_string(), "打开进度界面".to_string());
     actions.insert("key.command".to_string(), "打开命令栏".to_string());
-    actions.insert("key.socialInteractions".to_string(), "多人联机社交交互".to_string());
+    actions.insert(
+        "key.socialInteractions".to_string(),
+        "多人联机社交交互".to_string(),
+    );
 
     KeyboardLocalization {
         metadata: KeyboardLocalizationMetadata {
@@ -301,8 +334,7 @@ pub fn read_keybindings_file(path: String) -> Result<Vec<KeyBind>, String> {
         return Err("文件不存在".to_string());
     }
 
-    let content = std::fs::read_to_string(&path_buf)
-        .map_err(|e| format!("读取文件失败: {}", e))?;
+    let content = std::fs::read_to_string(&path_buf).map_err(|e| format!("读取文件失败: {}", e))?;
 
     // Try parsing as JSON first
     if let Ok(keybindings) = serde_json::from_str::<Vec<KeyBind>>(&content) {
@@ -332,17 +364,17 @@ pub fn read_keybindings_file(path: String) -> Result<Vec<KeyBind>, String> {
 #[tauri::command]
 pub fn write_keybindings_file(path: String, keybindings: Vec<KeyBind>) -> Result<(), String> {
     let path_buf = std::path::PathBuf::from(path);
-    let parent = path_buf.parent().ok_or_else(|| "无法获取文件所在目录".to_string())?;
+    let parent = path_buf
+        .parent()
+        .ok_or_else(|| "无法获取文件所在目录".to_string())?;
     if !parent.exists() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("创建文件所在目录失败: {}", e))?;
+        std::fs::create_dir_all(parent).map_err(|e| format!("创建文件所在目录失败: {}", e))?;
     }
 
-    let content = serde_json::to_string_pretty(&keybindings)
-        .map_err(|e| format!("序列化配置失败: {}", e))?;
+    let content =
+        serde_json::to_string_pretty(&keybindings).map_err(|e| format!("序列化配置失败: {}", e))?;
 
-    std::fs::write(&path_buf, content)
-        .map_err(|e| format!("写入文件失败: {}", e))?;
+    std::fs::write(&path_buf, content).map_err(|e| format!("写入文件失败: {}", e))?;
 
     Ok(())
 }
@@ -386,8 +418,13 @@ pub fn list_presets<R: Runtime>(app: AppHandle<R>) -> Result<Vec<KeyboardProfile
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("json") {
-                let filename = path.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
-                let content = fs::read_to_string(&path).map_err(|e| format!("读取文件失败: {}", e))?;
+                let filename = path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("")
+                    .to_string();
+                let content =
+                    fs::read_to_string(&path).map_err(|e| format!("读取文件失败: {}", e))?;
                 if let Ok(profile) = serde_json::from_str::<KeyboardProfile>(&content) {
                     list.push(KeyboardProfileListItem { filename, profile });
                 }
@@ -401,8 +438,7 @@ pub fn list_presets<R: Runtime>(app: AppHandle<R>) -> Result<Vec<KeyboardProfile
 
 fn ensure_default_presets(preset_dir: &std::path::Path) -> Result<(), String> {
     if !preset_dir.exists() {
-        std::fs::create_dir_all(preset_dir)
-            .map_err(|e| format!("创建 preset 目录失败: {}", e))?;
+        std::fs::create_dir_all(preset_dir).map_err(|e| format!("创建 preset 目录失败: {}", e))?;
     }
 
     let preset_file = preset_dir.join("preset-01.json");
@@ -415,24 +451,78 @@ fn ensure_default_presets(preset_dir: &std::path::Path) -> Result<(), String> {
             description: "最基础的 Minecraft 官方键盘和鼠标控制方案。".to_string(),
             version: "1.0.0".to_string(),
             keybindings: vec![
-                KeyBind { name: "key.forward".to_string(), key: "key.keyboard.w".to_string() },
-                KeyBind { name: "key.left".to_string(), key: "key.keyboard.a".to_string() },
-                KeyBind { name: "key.back".to_string(), key: "key.keyboard.s".to_string() },
-                KeyBind { name: "key.right".to_string(), key: "key.keyboard.d".to_string() },
-                KeyBind { name: "key.jump".to_string(), key: "key.keyboard.space".to_string() },
-                KeyBind { name: "key.sneak".to_string(), key: "key.keyboard.left.shift".to_string() },
-                KeyBind { name: "key.sprint".to_string(), key: "key.keyboard.left.control".to_string() },
-                KeyBind { name: "key.drop".to_string(), key: "key.keyboard.q".to_string() },
-                KeyBind { name: "key.inventory".to_string(), key: "key.keyboard.e".to_string() },
-                KeyBind { name: "key.chat".to_string(), key: "key.keyboard.t".to_string() },
-                KeyBind { name: "key.playerlist".to_string(), key: "key.keyboard.tab".to_string() },
-                KeyBind { name: "key.screenshot".to_string(), key: "key.keyboard.f2".to_string() },
-                KeyBind { name: "key.togglePerspective".to_string(), key: "key.keyboard.f5".to_string() },
-                KeyBind { name: "key.swapHands".to_string(), key: "key.keyboard.f".to_string() },
-                KeyBind { name: "key.use".to_string(), key: "key.mouse.right".to_string() },
-                KeyBind { name: "key.attack".to_string(), key: "key.mouse.left".to_string() },
-                KeyBind { name: "key.pickItem".to_string(), key: "key.mouse.middle".to_string() },
-                KeyBind { name: "key.fullscreen".to_string(), key: "key.keyboard.f11".to_string() },
+                KeyBind {
+                    name: "key.forward".to_string(),
+                    key: "key.keyboard.w".to_string(),
+                },
+                KeyBind {
+                    name: "key.left".to_string(),
+                    key: "key.keyboard.a".to_string(),
+                },
+                KeyBind {
+                    name: "key.back".to_string(),
+                    key: "key.keyboard.s".to_string(),
+                },
+                KeyBind {
+                    name: "key.right".to_string(),
+                    key: "key.keyboard.d".to_string(),
+                },
+                KeyBind {
+                    name: "key.jump".to_string(),
+                    key: "key.keyboard.space".to_string(),
+                },
+                KeyBind {
+                    name: "key.sneak".to_string(),
+                    key: "key.keyboard.left.shift".to_string(),
+                },
+                KeyBind {
+                    name: "key.sprint".to_string(),
+                    key: "key.keyboard.left.control".to_string(),
+                },
+                KeyBind {
+                    name: "key.drop".to_string(),
+                    key: "key.keyboard.q".to_string(),
+                },
+                KeyBind {
+                    name: "key.inventory".to_string(),
+                    key: "key.keyboard.e".to_string(),
+                },
+                KeyBind {
+                    name: "key.chat".to_string(),
+                    key: "key.keyboard.t".to_string(),
+                },
+                KeyBind {
+                    name: "key.playerlist".to_string(),
+                    key: "key.keyboard.tab".to_string(),
+                },
+                KeyBind {
+                    name: "key.screenshot".to_string(),
+                    key: "key.keyboard.f2".to_string(),
+                },
+                KeyBind {
+                    name: "key.togglePerspective".to_string(),
+                    key: "key.keyboard.f5".to_string(),
+                },
+                KeyBind {
+                    name: "key.swapHands".to_string(),
+                    key: "key.keyboard.f".to_string(),
+                },
+                KeyBind {
+                    name: "key.use".to_string(),
+                    key: "key.mouse.right".to_string(),
+                },
+                KeyBind {
+                    name: "key.attack".to_string(),
+                    key: "key.mouse.left".to_string(),
+                },
+                KeyBind {
+                    name: "key.pickItem".to_string(),
+                    key: "key.mouse.middle".to_string(),
+                },
+                KeyBind {
+                    name: "key.fullscreen".to_string(),
+                    key: "key.keyboard.f11".to_string(),
+                },
             ],
         };
 
@@ -446,7 +536,9 @@ fn ensure_default_presets(preset_dir: &std::path::Path) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn list_user_profiles<R: Runtime>(app: AppHandle<R>) -> Result<Vec<KeyboardProfileListItem>, String> {
+pub fn list_user_profiles<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<Vec<KeyboardProfileListItem>, String> {
     let base_path_str = match crate::services::config_service::ConfigService::get_base_path(&app) {
         Ok(Some(p)) => p,
         _ => return Err("未配置基础数据目录".to_string()),
@@ -458,8 +550,7 @@ pub fn list_user_profiles<R: Runtime>(app: AppHandle<R>) -> Result<Vec<KeyboardP
         .join("user");
 
     if !user_dir.exists() {
-        std::fs::create_dir_all(&user_dir)
-            .map_err(|e| format!("创建 user 目录失败: {}", e))?;
+        std::fs::create_dir_all(&user_dir).map_err(|e| format!("创建 user 目录失败: {}", e))?;
     }
 
     let mut list = Vec::new();
@@ -467,7 +558,11 @@ pub fn list_user_profiles<R: Runtime>(app: AppHandle<R>) -> Result<Vec<KeyboardP
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("json") {
-            let filename = path.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
+            let filename = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_string();
             let content = fs::read_to_string(&path).map_err(|e| format!("读取文件失败: {}", e))?;
             if let Ok(profile) = serde_json::from_str::<KeyboardProfile>(&content) {
                 list.push(KeyboardProfileListItem { filename, profile });
@@ -490,7 +585,10 @@ pub fn save_user_profile<R: Runtime>(
         _ => return Err("未配置基础数据目录".to_string()),
     };
 
-    let safe_filename = filename.chars().filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_').collect::<String>();
+    let safe_filename = filename
+        .chars()
+        .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_')
+        .collect::<String>();
     if safe_filename.is_empty() {
         return Err("不合法的配置名称".to_string());
     }
@@ -505,26 +603,25 @@ pub fn save_user_profile<R: Runtime>(
     }
 
     let file_path = user_dir.join(format!("{}.json", safe_filename));
-    let content = serde_json::to_string_pretty(&profile)
-        .map_err(|e| format!("序列化配置失败: {}", e))?;
+    let content =
+        serde_json::to_string_pretty(&profile).map_err(|e| format!("序列化配置失败: {}", e))?;
 
-    std::fs::write(&file_path, content)
-        .map_err(|e| format!("保存配置文件失败: {}", e))?;
+    std::fs::write(&file_path, content).map_err(|e| format!("保存配置文件失败: {}", e))?;
 
     Ok(())
 }
 
 #[tauri::command]
-pub fn delete_user_profile<R: Runtime>(
-    app: AppHandle<R>,
-    filename: String,
-) -> Result<(), String> {
+pub fn delete_user_profile<R: Runtime>(app: AppHandle<R>, filename: String) -> Result<(), String> {
     let base_path_str = match crate::services::config_service::ConfigService::get_base_path(&app) {
         Ok(Some(p)) => p,
         _ => return Err("未配置基础数据目录".to_string()),
     };
 
-    let safe_filename = filename.chars().filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_').collect::<String>();
+    let safe_filename = filename
+        .chars()
+        .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_')
+        .collect::<String>();
     let file_path = std::path::PathBuf::from(base_path_str)
         .join("config")
         .join("keyboard")
@@ -544,7 +641,9 @@ pub fn backup_instance_options_file<R: Runtime>(
     instance_id: String,
 ) -> Result<(), String> {
     let config_path = InstanceBindingService::instance_config_path(&app, &instance_id)?;
-    let instance_dir = config_path.parent().ok_or_else(|| "无法获取实例目录".to_string())?;
+    let instance_dir = config_path
+        .parent()
+        .ok_or_else(|| "无法获取实例目录".to_string())?;
 
     let config = InstanceBindingService::load_instance_config(&app, &instance_id)?;
     let mut game_dir = instance_dir.to_path_buf();
@@ -573,7 +672,9 @@ pub fn has_options_backup<R: Runtime>(
     instance_id: String,
 ) -> Result<bool, String> {
     let config_path = InstanceBindingService::instance_config_path(&app, &instance_id)?;
-    let instance_dir = config_path.parent().ok_or_else(|| "无法获取实例目录".to_string())?;
+    let instance_dir = config_path
+        .parent()
+        .ok_or_else(|| "无法获取实例目录".to_string())?;
 
     let config = InstanceBindingService::load_instance_config(&app, &instance_id)?;
     let mut game_dir = instance_dir.to_path_buf();
@@ -596,7 +697,9 @@ pub fn restore_instance_options_backup<R: Runtime>(
     instance_id: String,
 ) -> Result<(), String> {
     let config_path = InstanceBindingService::instance_config_path(&app, &instance_id)?;
-    let instance_dir = config_path.parent().ok_or_else(|| "无法获取实例目录".to_string())?;
+    let instance_dir = config_path
+        .parent()
+        .ok_or_else(|| "无法获取实例目录".to_string())?;
 
     let config = InstanceBindingService::load_instance_config(&app, &instance_id)?;
     let mut game_dir = instance_dir.to_path_buf();
@@ -615,8 +718,7 @@ pub fn restore_instance_options_backup<R: Runtime>(
     }
 
     let options_path = game_dir.join("options.txt");
-    fs::copy(&backup_path, &options_path)
-        .map_err(|e| format!("恢复备份失败: {}", e))?;
+    fs::copy(&backup_path, &options_path).map_err(|e| format!("恢复备份失败: {}", e))?;
 
     Ok(())
 }
@@ -678,10 +780,34 @@ key_key.sneak:42
         }
 
         assert_eq!(keybindings.len(), 4);
-        assert_eq!(keybindings[0], KeyBind { name: "key.forward".to_string(), key: "key.keyboard.w".to_string() });
-        assert_eq!(keybindings[1], KeyBind { name: "key.back".to_string(), key: "key.keyboard.s".to_string() });
-        assert_eq!(keybindings[2], KeyBind { name: "key.jump".to_string(), key: "key.keyboard.space".to_string() });
-        assert_eq!(keybindings[3], KeyBind { name: "key.sneak".to_string(), key: "42".to_string() });
+        assert_eq!(
+            keybindings[0],
+            KeyBind {
+                name: "key.forward".to_string(),
+                key: "key.keyboard.w".to_string()
+            }
+        );
+        assert_eq!(
+            keybindings[1],
+            KeyBind {
+                name: "key.back".to_string(),
+                key: "key.keyboard.s".to_string()
+            }
+        );
+        assert_eq!(
+            keybindings[2],
+            KeyBind {
+                name: "key.jump".to_string(),
+                key: "key.keyboard.space".to_string()
+            }
+        );
+        assert_eq!(
+            keybindings[3],
+            KeyBind {
+                name: "key.sneak".to_string(),
+                key: "42".to_string()
+            }
+        );
 
         let _ = fs::remove_dir_all(temp_dir);
     }
@@ -703,8 +829,14 @@ bobView:true
 
         // Simulate save_instance_keybindings
         let new_keybinds = vec![
-            KeyBind { name: "key.forward".to_string(), key: "key.keyboard.up".to_string() }, // modified
-            KeyBind { name: "key.jump".to_string(), key: "key.keyboard.space".to_string() },  // added
+            KeyBind {
+                name: "key.forward".to_string(),
+                key: "key.keyboard.up".to_string(),
+            }, // modified
+            KeyBind {
+                name: "key.jump".to_string(),
+                key: "key.keyboard.space".to_string(),
+            }, // added
         ];
 
         let mut lines = Vec::new();

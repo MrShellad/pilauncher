@@ -6,7 +6,14 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores([
+    'build',
+    'dist',
+    'node_modules',
+    '.pnpm-store',
+    'src-tauri/target',
+    'docs/Terracotta-master'
+  ]),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

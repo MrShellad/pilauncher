@@ -84,16 +84,20 @@ fn load_tmt_config(
 ) -> Result<TmtConfig, String> {
     let api_url = read_config_value("TMT_API_URL")
         .ok_or_else(|| "TMT_API_URL is not configured in .env or environment.".to_string())?;
-    
+
     let secret_id = secret_id_opt
         .filter(|s| !s.trim().is_empty())
         .or_else(|| read_config_value("TMT_SECRET_ID"))
-        .ok_or_else(|| "TMT_SECRET_ID is not configured in .env, environment, or settings.".to_string())?;
-        
+        .ok_or_else(|| {
+            "TMT_SECRET_ID is not configured in .env, environment, or settings.".to_string()
+        })?;
+
     let secret_key = secret_key_opt
         .filter(|s| !s.trim().is_empty())
         .or_else(|| read_config_value("TMT_SECRET_KEY"))
-        .ok_or_else(|| "TMT_SECRET_KEY is not configured in .env, environment, or settings.".to_string())?;
+        .ok_or_else(|| {
+            "TMT_SECRET_KEY is not configured in .env, environment, or settings.".to_string()
+        })?;
 
     let region = read_config_value("TMT_REGION")
         .ok_or_else(|| "TMT_REGION is not configured in .env or environment.".to_string())?;

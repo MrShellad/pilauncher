@@ -15,6 +15,39 @@ fn push_unique(urls: &mut Vec<String>, url: String) {
     }
 }
 
+fn url_origin(url: &str) -> Option<&str> {
+    let scheme_end = url.find("://")? + 3;
+    let authority_end = url[scheme_end..]
+        .find('/')
+        .map(|index| scheme_end + index)
+        .unwrap_or(url.len());
+    Some(&url[..authority_end])
+}
+
+fn restrict_to_selected_source(
+    urls: Vec<String>,
+    dl_settings: &DownloadSettings,
+    selected_source: &str,
+    selected_url: &str,
+    official_base: &str,
+) -> Vec<String> {
+    if !dl_settings.strict_source_routing {
+        return urls;
+    }
+
+    let base = match selected_source {
+        "official" | "mojang" => official_base,
+        _ => selected_url,
+    };
+    let Some(origin) = url_origin(base) else {
+        return Vec::new();
+    };
+
+    urls.into_iter()
+        .filter(|url| url_origin(url).is_some_and(|candidate| candidate == origin))
+        .collect()
+}
+
 fn replace_prefix(original: &str, from: &str, to: &str) -> Option<String> {
     original
         .strip_prefix(from)
@@ -168,26 +201,36 @@ pub fn route_library_urls(original: &str, dl_settings: &DownloadSettings) -> Vec
         (
             "https://libraries.minecraft.net",
             vanilla_library_bases(dl_settings),
+            &dl_settings.vanilla_source,
+            &dl_settings.vanilla_source_url,
         ),
         (
             "https://maven.fabricmc.net",
             fabric_library_bases(dl_settings),
+            &dl_settings.fabric_source,
+            &dl_settings.fabric_source_url,
         ),
         (
             "https://maven.minecraftforge.net",
             forge_library_bases(dl_settings),
+            &dl_settings.forge_source,
+            &dl_settings.forge_source_url,
         ),
         (
             "https://maven.neoforged.net/releases",
             neoforge_library_bases(dl_settings),
+            &dl_settings.neoforge_source,
+            &dl_settings.neoforge_source_url,
         ),
         (
             "https://maven.quiltmc.org/repository/release",
             quilt_library_bases(dl_settings),
+            &dl_settings.quilt_source,
+            &dl_settings.quilt_source_url,
         ),
     ];
 
-    for (official_base, candidate_bases) in mappings {
+    for (official_base, candidate_bases, selected_source, selected_url) in mappings {
         if original.starts_with(official_base) {
             for base in candidate_bases {
                 if base == official_base {
@@ -196,8 +239,18 @@ pub fn route_library_urls(original: &str, dl_settings: &DownloadSettings) -> Vec
                     push_unique(&mut urls, candidate);
                 }
             }
-            return urls;
+            return restrict_to_selected_source(
+                urls,
+                dl_settings,
+                selected_source,
+                selected_url,
+                official_base,
+            );
         }
+    }
+
+    if dl_settings.strict_source_routing {
+        return Vec::new();
     }
 
     push_unique(&mut urls, original.to_string());
@@ -237,7 +290,13 @@ pub fn route_assets_index_urls(original: &str, dl_settings: &DownloadSettings) -
         push_unique(&mut urls, original.to_string());
     }
 
-    urls
+    restrict_to_selected_source(
+        urls,
+        dl_settings,
+        &dl_settings.vanilla_source,
+        &dl_settings.vanilla_source_url,
+        official_base,
+    )
 }
 
 pub fn route_asset_object_urls(
@@ -272,7 +331,13 @@ pub fn route_asset_object_urls(
         }
     }
 
-    urls
+    restrict_to_selected_source(
+        urls,
+        dl_settings,
+        &dl_settings.vanilla_source,
+        &dl_settings.vanilla_source_url,
+        "https://resources.download.minecraft.net",
+    )
 }
 
 fn source_base_candidates(
@@ -321,7 +386,8 @@ fn source_base_candidates(
 pub fn route_vanilla_version_manifest_urls(dl_settings: &DownloadSettings) -> Vec<String> {
     let mut urls = Vec::new();
     let official = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json".to_string();
-    let default_mirror = "https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json".to_string();
+    let default_mirror =
+        "https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json".to_string();
 
     match dl_settings.vanilla_source.as_str() {
         "official" | "mojang" => {
@@ -330,16 +396,28 @@ pub fn route_vanilla_version_manifest_urls(dl_settings: &DownloadSettings) -> Ve
         }
         _ => {
             if let Some(base) = normalize_source_base(&dl_settings.vanilla_source_url) {
-                push_unique(&mut urls, format!("{}/mc/game/version_manifest_v2.json", base));
+                push_unique(
+                    &mut urls,
+                    format!("{}/mc/game/version_manifest_v2.json", base),
+                );
             }
             push_unique(&mut urls, official);
             push_unique(&mut urls, default_mirror);
         }
     }
-    urls
+    restrict_to_selected_source(
+        urls,
+        dl_settings,
+        &dl_settings.vanilla_source,
+        &dl_settings.vanilla_source_url,
+        "https://piston-meta.mojang.com",
+    )
 }
 
-pub fn route_vanilla_version_json_urls(version_url: &str, dl_settings: &DownloadSettings) -> Vec<String> {
+pub fn route_vanilla_version_json_urls(
+    version_url: &str,
+    dl_settings: &DownloadSettings,
+) -> Vec<String> {
     let mut urls = Vec::new();
     let selected_url = if dl_settings.vanilla_source == "official" {
         version_url.to_string()
@@ -361,7 +439,13 @@ pub fn route_vanilla_version_json_urls(version_url: &str, dl_settings: &Download
         );
         push_unique(&mut urls, version_url.to_string());
     }
-    urls
+    restrict_to_selected_source(
+        urls,
+        dl_settings,
+        &dl_settings.vanilla_source,
+        &dl_settings.vanilla_source_url,
+        "https://piston-meta.mojang.com",
+    )
 }
 
 pub fn route_vanilla_jar_urls(jar_url: &str, dl_settings: &DownloadSettings) -> Vec<String> {
@@ -387,7 +471,13 @@ pub fn route_vanilla_jar_urls(jar_url: &str, dl_settings: &DownloadSettings) -> 
         );
         push_unique(&mut urls, bmcl_url);
     }
-    urls
+    restrict_to_selected_source(
+        urls,
+        dl_settings,
+        &dl_settings.vanilla_source,
+        &dl_settings.vanilla_source_url,
+        "https://piston-data.mojang.com",
+    )
 }
 
 pub fn route_fabric_profile_urls(
@@ -398,7 +488,7 @@ pub fn route_fabric_profile_urls(
     const FABRIC_OFFICIAL_BASE: &str = "https://meta.fabricmc.net";
     const FABRIC_BMCLAPI_BASE: &str = "https://bmclapi2.bangbang93.com/fabric-meta";
 
-    source_base_candidates(
+    let urls = source_base_candidates(
         &dl_settings.fabric_source,
         &dl_settings.fabric_source_url,
         FABRIC_OFFICIAL_BASE,
@@ -411,7 +501,14 @@ pub fn route_fabric_profile_urls(
             base, mc_version, loader_version
         )
     })
-    .collect()
+    .collect();
+    restrict_to_selected_source(
+        urls,
+        dl_settings,
+        &dl_settings.fabric_source,
+        &dl_settings.fabric_source_url,
+        FABRIC_OFFICIAL_BASE,
+    )
 }
 
 fn append_forge_installer_urls(
@@ -453,7 +550,13 @@ pub fn route_forge_installer_urls(
     ) {
         append_forge_installer_urls(&mut urls, &base, mc_version, loader_version);
     }
-    urls
+    restrict_to_selected_source(
+        urls,
+        dl_settings,
+        &dl_settings.forge_source,
+        &dl_settings.forge_source_url,
+        FORGE_OFFICIAL_BASE,
+    )
 }
 
 fn append_neoforge_installer_urls(urls: &mut Vec<String>, base: &str, loader_version: &str) {
@@ -489,7 +592,13 @@ pub fn route_neoforge_installer_urls(
     ) {
         append_neoforge_installer_urls(&mut urls, &base, loader_version);
     }
-    urls
+    restrict_to_selected_source(
+        urls,
+        dl_settings,
+        &dl_settings.neoforge_source,
+        &dl_settings.neoforge_source_url,
+        NEOFORGE_OFFICIAL_BASE,
+    )
 }
 
 fn append_neoforge_list_url(urls: &mut Vec<String>, base: &str, mc_version: &str) {
@@ -512,10 +621,7 @@ fn append_neoforge_list_url(urls: &mut Vec<String>, base: &str, mc_version: &str
     }
 }
 
-pub fn route_neoforge_list_urls(
-    mc_version: &str,
-    dl_settings: &DownloadSettings,
-) -> Vec<String> {
+pub fn route_neoforge_list_urls(mc_version: &str, dl_settings: &DownloadSettings) -> Vec<String> {
     const NEOFORGE_BMCLAPI_BASE: &str = "https://bmclapi2.bangbang93.com/neoforge";
 
     let mut urls = Vec::new();
@@ -525,7 +631,13 @@ pub fn route_neoforge_list_urls(
     }
 
     append_neoforge_list_url(&mut urls, NEOFORGE_BMCLAPI_BASE, mc_version);
-    urls
+    restrict_to_selected_source(
+        urls,
+        dl_settings,
+        &dl_settings.neoforge_source,
+        &dl_settings.neoforge_source_url,
+        NEOFORGE_BMCLAPI_BASE,
+    )
 }
 
 pub fn route_quilt_profile_urls(
@@ -535,7 +647,7 @@ pub fn route_quilt_profile_urls(
 ) -> Vec<String> {
     const QUILT_OFFICIAL_BASE: &str = "https://meta.quiltmc.org";
 
-    source_base_candidates(
+    let urls = source_base_candidates(
         &dl_settings.quilt_source,
         &dl_settings.quilt_source_url,
         QUILT_OFFICIAL_BASE,
@@ -548,5 +660,51 @@ pub fn route_quilt_profile_urls(
             base, mc_version, loader_version
         )
     })
-    .collect()
+    .collect();
+    restrict_to_selected_source(
+        urls,
+        dl_settings,
+        &dl_settings.quilt_source,
+        &dl_settings.quilt_source_url,
+        QUILT_OFFICIAL_BASE,
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strict_routing_removes_unselected_mirrors_and_official_fallbacks() {
+        let mut settings = DownloadSettings::default();
+        settings.strict_source_routing = true;
+
+        let client_urls = route_vanilla_jar_urls(
+            "https://piston-data.mojang.com/v1/objects/client.jar",
+            &settings,
+        );
+        assert_eq!(
+            client_urls,
+            vec!["https://bmclapi2.bangbang93.com/v1/objects/client.jar"]
+        );
+
+        let forge_urls = route_forge_installer_urls("1.20.1", "47.4.0", &settings);
+        assert!(forge_urls
+            .iter()
+            .all(|url| url.starts_with("https://bmclapi2.bangbang93.com/")));
+        assert!(!forge_urls.is_empty());
+    }
+
+    #[test]
+    fn strict_routing_fails_closed_for_an_invalid_selected_source() {
+        let mut settings = DownloadSettings::default();
+        settings.strict_source_routing = true;
+        settings.vanilla_source = "custom".to_string();
+        settings.vanilla_source_url = String::new();
+
+        assert!(route_vanilla_version_manifest_urls(&settings).is_empty());
+        assert!(
+            route_library_urls("https://repo.example.invalid/library.jar", &settings).is_empty()
+        );
+    }
 }

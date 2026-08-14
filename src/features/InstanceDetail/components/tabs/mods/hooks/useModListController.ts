@@ -14,6 +14,7 @@ import { useModIconSubscription } from './useModIconSubscription';
 import { useModListFocus } from './useModListFocus';
 
 interface UseModListControllerOptions {
+  instanceId?: string;
   mods: ModMeta[];
   searchQuery: string;
   isLoading: boolean;
@@ -32,6 +33,7 @@ interface VirtualRange {
 }
 
 export const useModListController = ({
+  instanceId,
   mods,
   searchQuery,
   isLoading,
@@ -122,6 +124,7 @@ export const useModListController = ({
   }, [activeMods, focusedRowIndex, renderEntries, virtualRange.endIndex, virtualRange.startIndex]);
 
   const iconSnapshots = useModIconSubscription({
+    instanceId,
     mods: activeMods,
     visibleMods: iconRangeMods,
     focusedRowFileName

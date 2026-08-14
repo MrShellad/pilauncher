@@ -73,6 +73,19 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
     onChange({ [id]: !data[id] } as Partial<ExportData>);
   };
 
+  const toInstanceRelativePath = (selectedPath: string): string | null => {
+    const root = defaultPath.replace(/[\\/]+$/, '').replace(/\\/g, '/');
+    const candidate = selectedPath.trim().replace(/\\/g, '/');
+    if (!root || !candidate) return null;
+
+    if (!candidate.toLocaleLowerCase().startsWith(`${root.toLocaleLowerCase()}/`)) {
+      addToast('warning', 'Only files and directories inside the current instance can be exported.');
+      return null;
+    }
+
+    return candidate.slice(root.length + 1);
+  };
+
   const handleSelectDir = async () => {
     try {
       const selectedPath = await open({
@@ -83,12 +96,13 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
 
       if (!selectedPath || typeof selectedPath !== 'string') return;
 
-      const trimmedPath = selectedPath.trim();
-      if (data.additionalPaths.find((item) => item.path === trimmedPath)) {
-        addToast('warning', t('instanceDetail.export.content.directoryAlreadyAdded', { defaultValue: '目录 [{{name}}] 已在附加列表中，请勿重复添加', name: getBasename(trimmedPath) }));
+      const relativePath = toInstanceRelativePath(selectedPath);
+      if (!relativePath) return;
+      if (data.additionalPaths.find((item) => item.path === relativePath)) {
+        addToast('warning', t('instanceDetail.export.content.directoryAlreadyAdded', { defaultValue: '目录 [{{name}}] 已在附加列表中，请勿重复添加', name: getBasename(relativePath) }));
       } else {
         onChange({
-          additionalPaths: [...data.additionalPaths, { path: trimmedPath, type: 'dir' }],
+          additionalPaths: [...data.additionalPaths, { path: relativePath, type: 'dir' }],
         });
       }
     } catch (error) {
@@ -113,13 +127,13 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
 
       for (const path of paths) {
         if (typeof path !== 'string') continue;
-        const trimmed = path.trim();
-        if (trimmed.length === 0) continue;
+        const relativePath = toInstanceRelativePath(path);
+        if (!relativePath) continue;
 
-        if (data.additionalPaths.find((item) => item.path === trimmed)) {
-          duplicatePaths.push(trimmed);
+        if (data.additionalPaths.find((item) => item.path === relativePath)) {
+          duplicatePaths.push(relativePath);
         } else {
-          filteredPaths.push(trimmed);
+          filteredPaths.push(relativePath);
         }
       }
 

@@ -83,7 +83,14 @@ impl MdnsScanner {
     }
 
     /// 重启 mDNS 广播服务
-    pub fn restart_broadcast(old_device_id: &str, old_device_name: &str, new_device_id: &str, new_device_name: &str, public_key: &str, http_port: u16) {
+    pub fn restart_broadcast(
+        old_device_id: &str,
+        old_device_name: &str,
+        new_device_id: &str,
+        new_device_name: &str,
+        public_key: &str,
+        http_port: u16,
+    ) {
         Self::stop_broadcast(old_device_id, old_device_name);
         Self::start_broadcast(new_device_id, new_device_name, public_key, http_port);
     }

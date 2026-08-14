@@ -23,8 +23,9 @@ pub struct ModMetadata {
     pub name: Option<String>,
     pub version: Option<String>,
     pub description: Option<String>,
-    pub icon_absolute_path: Option<String>, // JAR包内提取的物理图标
-    pub network_icon_url: Option<String>,   // 网络缓存的图标 URL
+    pub icon_absolute_path: Option<String>, // 网络获取并缓存的标准图标
+    pub offline_jar_icon_absolute_path: Option<String>, // 离线 JAR 兜底图标
+    pub network_icon_url: Option<String>,   // 远程图标来源，仅用于缓存
     pub curseforge_fingerprint: Option<u32>,
     pub file_size: u64,
     pub is_enabled: bool, // 修复报错：状态字段
@@ -272,18 +273,22 @@ impl ModManagerService {
 
                         // FAST PATH: use manifest metadata when file_state matches.
                         let is_fast_path = match &manifest_entry {
-                            Some(entry) => {
-                                entry.file_state.as_ref() == Some(&current_file_state)
-                            }
+                            Some(entry) => entry.file_state.as_ref() == Some(&current_file_state),
                             None => false,
                         };
 
                         if is_fast_path {
                             let entry = manifest_entry.unwrap();
                             let icon_absolute_path = entry
-                                .icon_rel_path
+                                .network_icon_rel_path
                                 .as_ref()
-                                .map(|rel| shared_mods_dir.join(rel).to_string_lossy().to_string());
+                                .map(|rel| {
+                                    shared_mods_dir
+                                        .join(rel)
+                                        .to_string_lossy()
+                                        .replace('\\', "/")
+                                })
+                                .filter(|path| Path::new(path).is_file());
 
                             let cache_key = ModManifestService::manifest_cache_key(
                                 Some(&entry),
@@ -297,6 +302,17 @@ impl ModManagerService {
                                 version: entry.version.clone(),
                                 description: entry.description.clone(),
                                 icon_absolute_path,
+                                offline_jar_icon_absolute_path: entry
+                                    .jar_fallback_icon_rel_path
+                                    .as_ref()
+                                    .or(entry.icon_rel_path.as_ref())
+                                    .map(|rel| {
+                                        shared_mods_dir
+                                            .join(rel)
+                                            .to_string_lossy()
+                                            .replace('\\', "/")
+                                    })
+                                    .filter(|path| Path::new(path).is_file()),
                                 network_icon_url: None,
                                 curseforge_fingerprint: entry.curseforge_fingerprint,
                                 file_size: current_file_state.size,
@@ -376,6 +392,18 @@ impl ModManagerService {
                                 let mut m = Self::parse_jar_meta(&path_clone);
                                 m.is_enabled = is_enabled;
                                 m.manifest_entry = manifest_entry.clone();
+                                m.offline_jar_icon_absolute_path = m
+                                    .manifest_entry
+                                    .as_ref()
+                                    .and_then(|entry| {
+                                        entry
+                                            .jar_fallback_icon_rel_path
+                                            .as_ref()
+                                            .or(entry.icon_rel_path.as_ref())
+                                            .map(|rel| shared_mods_dir_for_blocking.join(rel))
+                                    })
+                                    .filter(|path| path.is_file())
+                                    .map(|path| path.to_string_lossy().replace('\\', "/"));
                                 m.curseforge_fingerprint = Self::resolve_curseforge_fingerprint(
                                     m.manifest_entry.as_ref(),
                                     &path_clone,
@@ -463,7 +491,7 @@ impl ModManagerService {
                                                     let abs_path = shared_mods_dir_clone.join(icon_url);
                                                     if abs_path.exists() {
                                                         meta.icon_absolute_path = Some(abs_path.to_string_lossy().replace('\\', "/"));
-                                                        extracted_icon_rel_path = Some(icon_url.clone());
+                                                         extracted_icon_rel_path = Some(icon_url.clone());
                                                     }
                                                 }
                                             } else {
@@ -530,9 +558,9 @@ impl ModManagerService {
                             }
 
                             if extracted_icon_rel_path.is_none() {
-                                extracted_icon_rel_path = entry.icon_rel_path.clone();
+                                extracted_icon_rel_path = entry.network_icon_rel_path.clone();
                             } else {
-                                entry.icon_rel_path = extracted_icon_rel_path.clone();
+                                entry.network_icon_rel_path = extracted_icon_rel_path.clone();
                             }
 
                             if meta.curseforge_fingerprint.is_none() {
@@ -697,14 +725,30 @@ impl ModManagerService {
             entry.version = raw.version.clone();
             entry.description = raw.description.clone();
             entry.icon_rel_path = raw.icon_rel_path.clone();
+            entry.network_icon_rel_path = raw.network_icon_rel_path.clone();
+            entry.jar_fallback_icon_rel_path = raw.jar_fallback_icon_rel_path.clone();
             entry.curseforge_fingerprint = raw.curseforge_fingerprint;
 
-            let icon_absolute_path = entry.icon_rel_path.as_ref().map(|rel| {
-                shared_mods_dir
-                    .join(rel)
-                    .to_string_lossy()
-                    .replace('\\', "/")
-            });
+            let icon_absolute_path = entry
+                .network_icon_rel_path
+                .as_ref()
+                .map(|rel| {
+                    shared_mods_dir
+                        .join(rel)
+                        .to_string_lossy()
+                        .replace('\\', "/")
+                })
+                .filter(|path| Path::new(path).is_file());
+            let offline_jar_icon_absolute_path = entry
+                .jar_fallback_icon_rel_path
+                .as_ref()
+                .or(entry.icon_rel_path.as_ref())
+                .map(|rel| {
+                    shared_mods_dir
+                        .join(rel)
+                        .to_string_lossy()
+                        .replace('\\', "/")
+                });
             let cache_key = ModManifestService::manifest_cache_key(
                 Some(&entry),
                 entry.mod_id.as_deref(),
@@ -718,6 +762,7 @@ impl ModManagerService {
                 version: entry.version.clone(),
                 description: entry.description.clone(),
                 icon_absolute_path,
+                offline_jar_icon_absolute_path,
                 network_icon_url: None,
                 curseforge_fingerprint: entry.curseforge_fingerprint,
                 file_size: file_state.size,
@@ -795,7 +840,8 @@ impl ModManagerService {
                                 .await
                                 {
                                     meta.icon_absolute_path = Some(path.clone());
-                                    if let Ok(rel) = Path::new(&path).strip_prefix(shared_mods_dir) {
+                                    if let Ok(rel) = Path::new(&path).strip_prefix(shared_mods_dir)
+                                    {
                                         *extracted_icon_rel_path =
                                             Some(rel.to_string_lossy().replace('\\', "/"));
                                     }
@@ -869,11 +915,21 @@ impl ModManagerService {
                                         .as_str()
                                         .or_else(|| first["logo"]["url"].as_str())
                                     {
-                                        let target_path = bucket_dir.join(format!("{}.png", mod_id.trim()));
-                                        if Self::download_icon_to_path(client, icon_url, &target_path).await {
-                                            let abs_path_str = target_path.to_string_lossy().to_string();
+                                        let target_path =
+                                            bucket_dir.join(format!("{}.png", mod_id.trim()));
+                                        if Self::download_icon_to_path(
+                                            client,
+                                            icon_url,
+                                            &target_path,
+                                        )
+                                        .await
+                                        {
+                                            let abs_path_str =
+                                                target_path.to_string_lossy().to_string();
                                             meta.icon_absolute_path = Some(abs_path_str);
-                                            if let Ok(rel) = target_path.strip_prefix(shared_mods_dir) {
+                                            if let Ok(rel) =
+                                                target_path.strip_prefix(shared_mods_dir)
+                                            {
                                                 *extracted_icon_rel_path =
                                                     Some(rel.to_string_lossy().replace('\\', "/"));
                                             }
@@ -928,20 +984,58 @@ impl ModManagerService {
         meta: &mut ModMetadata,
         extracted_icon_rel_path: &mut Option<String>,
     ) {
-        let preferred_platform = meta.manifest_entry.as_ref()
+        let preferred_platform = meta
+            .manifest_entry
+            .as_ref()
             .and_then(|entry| entry.metadata_settings.as_ref())
             .and_then(|settings| settings.metadata_platform.as_deref())
             .unwrap_or("auto");
 
         if preferred_platform == "curseforge" {
-            let hit = Self::try_fetch_curseforge_metadata(client, mod_id, cache_key, bucket_dir, shared_mods_dir, meta, extracted_icon_rel_path).await;
+            let hit = Self::try_fetch_curseforge_metadata(
+                client,
+                mod_id,
+                cache_key,
+                bucket_dir,
+                shared_mods_dir,
+                meta,
+                extracted_icon_rel_path,
+            )
+            .await;
             if !hit {
-                let _ = Self::try_fetch_modrinth_metadata(client, mod_id, cache_key, bucket_dir, shared_mods_dir, meta, extracted_icon_rel_path).await;
+                let _ = Self::try_fetch_modrinth_metadata(
+                    client,
+                    mod_id,
+                    cache_key,
+                    bucket_dir,
+                    shared_mods_dir,
+                    meta,
+                    extracted_icon_rel_path,
+                )
+                .await;
             }
         } else {
-            let hit = Self::try_fetch_modrinth_metadata(client, mod_id, cache_key, bucket_dir, shared_mods_dir, meta, extracted_icon_rel_path).await;
+            let hit = Self::try_fetch_modrinth_metadata(
+                client,
+                mod_id,
+                cache_key,
+                bucket_dir,
+                shared_mods_dir,
+                meta,
+                extracted_icon_rel_path,
+            )
+            .await;
             if !hit {
-                let _ = Self::try_fetch_curseforge_metadata(client, mod_id, cache_key, bucket_dir, shared_mods_dir, meta, extracted_icon_rel_path).await;
+                let _ = Self::try_fetch_curseforge_metadata(
+                    client,
+                    mod_id,
+                    cache_key,
+                    bucket_dir,
+                    shared_mods_dir,
+                    meta,
+                    extracted_icon_rel_path,
+                )
+                .await;
             }
         }
     }
@@ -950,7 +1044,7 @@ impl ModManagerService {
         let name = filename
             .trim_end_matches(".disabled")
             .trim_end_matches(".jar");
-        
+
         if let Ok(re) = regex::Regex::new(r#"(?i)[-_+]v?(\d+(?:\.\d+)+(?:[-_][a-zA-Z0-9.]+)?)"#) {
             let mut matches = Vec::new();
             for cap in re.captures_iter(name) {
@@ -986,6 +1080,7 @@ impl ModManagerService {
             version: None,
             description: None,
             icon_absolute_path: None,
+            offline_jar_icon_absolute_path: None,
             network_icon_url: None,
             curseforge_fingerprint: None,
             file_size,
@@ -1009,8 +1104,14 @@ impl ModManagerService {
                             meta.version = json["version"].as_str().map(|s| s.to_string());
                             meta.description = json["description"].as_str().map(|s| s.to_string());
                             if let Some(depends) = json.get("depends").and_then(|d| d.as_object()) {
-                                let deps: Vec<String> = depends.keys()
-                                    .filter(|k| *k != "minecraft" && *k != "fabricloader" && *k != "fabric" && *k != "java")
+                                let deps: Vec<String> = depends
+                                    .keys()
+                                    .filter(|k| {
+                                        *k != "minecraft"
+                                            && *k != "fabricloader"
+                                            && *k != "fabric"
+                                            && *k != "java"
+                                    })
                                     .cloned()
                                     .collect();
                                 if !deps.is_empty() {
@@ -1029,22 +1130,35 @@ impl ModManagerService {
                         if quilt_json.read_to_string(&mut contents).is_ok() {
                             if let Ok(json) = serde_json::from_str::<Value>(&contents) {
                                 if let Some(quilt_loader) = json.get("quilt_loader") {
-                                    meta.mod_id = quilt_loader["id"].as_str().map(|s| s.to_string());
-                                    meta.version = quilt_loader["version"].as_str().map(|s| s.to_string());
+                                    meta.mod_id =
+                                        quilt_loader["id"].as_str().map(|s| s.to_string());
+                                    meta.version =
+                                        quilt_loader["version"].as_str().map(|s| s.to_string());
                                     if let Some(metadata) = quilt_loader.get("metadata") {
-                                        meta.description = metadata["description"].as_str().map(|s| s.to_string());
+                                        meta.description =
+                                            metadata["description"].as_str().map(|s| s.to_string());
                                     }
-                                    if let Some(depends) = quilt_loader.get("depends").and_then(|d| d.as_array()) {
+                                    if let Some(depends) =
+                                        quilt_loader.get("depends").and_then(|d| d.as_array())
+                                    {
                                         let mut deps = Vec::new();
                                         for dep in depends {
                                             if let Some(dep_obj) = dep.as_object() {
-                                                if let Some(id) = dep_obj.get("id").and_then(|i| i.as_str()) {
-                                                    if id != "minecraft" && id != "quilt_loader" && id != "java" {
+                                                if let Some(id) =
+                                                    dep_obj.get("id").and_then(|i| i.as_str())
+                                                {
+                                                    if id != "minecraft"
+                                                        && id != "quilt_loader"
+                                                        && id != "java"
+                                                    {
                                                         deps.push(id.to_string());
                                                     }
                                                 }
                                             } else if let Some(id) = dep.as_str() {
-                                                if id != "minecraft" && id != "quilt_loader" && id != "java" {
+                                                if id != "minecraft"
+                                                    && id != "quilt_loader"
+                                                    && id != "java"
+                                                {
                                                     deps.push(id.to_string());
                                                 }
                                             }
@@ -1078,7 +1192,10 @@ impl ModManagerService {
                                 {
                                     if let Some(caps) = version_re.captures(&contents) {
                                         let v = caps[1].to_string();
-                                        if v != "${file.jarVersion}" && !v.starts_with("${") && v != "@VERSION@" {
+                                        if v != "${file.jarVersion}"
+                                            && !v.starts_with("${")
+                                            && v != "@VERSION@"
+                                        {
                                             meta.version = Some(v);
                                         }
                                     }
@@ -1157,7 +1274,10 @@ impl ModManagerService {
                                         if let Some(reqs) = first_mod["dependencies"].as_array() {
                                             for r in reqs {
                                                 if let Some(s) = r.as_str() {
-                                                    if s != "minecraft" && s != "forge" && !deps.contains(&s.to_string()) {
+                                                    if s != "minecraft"
+                                                        && s != "forge"
+                                                        && !deps.contains(&s.to_string())
+                                                    {
                                                         deps.push(s.to_string());
                                                     }
                                                 }
@@ -1276,10 +1396,7 @@ impl ModManagerService {
     }
 
     #[allow(dead_code)]
-    fn extract_icon_to_path(
-        jar_path: &Path,
-        target_path: &Path,
-    ) -> bool {
+    fn extract_icon_to_path(jar_path: &Path, target_path: &Path) -> bool {
         if let Ok(file) = File::open(jar_path) {
             if let Ok(mut archive) = zip::ZipArchive::new(file) {
                 let mut icon_path_in_jar = None;
@@ -1506,7 +1623,7 @@ impl ModManagerService {
         name: &str,
         desc: &str,
         icon_url: &str,
-    ) -> Result<(), String> {
+    ) -> Result<Option<String>, String> {
         let db = app.state::<crate::services::db_service::AppDatabase>();
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -1514,24 +1631,49 @@ impl ModManagerService {
             .as_secs() as i64;
 
         let mut final_icon_url = icon_url.to_string();
+        let mut cached_icon_path = None;
 
         if icon_url.starts_with("http://") || icon_url.starts_with("https://") {
             if let Ok(shared_mods_dir) = Self::get_shared_mods_dir(app) {
-                let icons_base_dir = shared_mods_dir.join("icons");
-                let bucket_dir = Self::get_or_create_available_bucket(&icons_base_dir);
-                let client = reqwest::Client::builder()
-                    .timeout(std::time::Duration::from_secs(5))
-                    .build()
-                    .unwrap_or_default();
-                if let Some(abs_path_str) = Self::download_icon_to_bucket(
-                    &client,
-                    icon_url,
-                    &bucket_dir,
-                    cache_key,
-                ).await {
-                    let abs_path = std::path::Path::new(&abs_path_str);
-                    if let Ok(rel) = abs_path.strip_prefix(&shared_mods_dir) {
-                        final_icon_url = rel.to_string_lossy().replace('\\', "/");
+                if let Ok(Some(row)) = sqlx::query_as::<_, ModCacheInfo>(
+                    "SELECT name, description, icon_url FROM global_mod_cache WHERE cache_key = ?",
+                )
+                .bind(cache_key)
+                .fetch_optional(&db.pool)
+                .await
+                {
+                    if let Some(rel) = row.icon_url.filter(|value| value.starts_with("icons/")) {
+                        let existing_path = shared_mods_dir.join(&rel);
+                        if existing_path.is_file()
+                            && fs::metadata(&existing_path)
+                                .map(|meta| meta.len() > 0)
+                                .unwrap_or(false)
+                        {
+                            cached_icon_path =
+                                Some(existing_path.to_string_lossy().replace('\\', "/"));
+                            final_icon_url = rel;
+                        }
+                    }
+                }
+
+                if cached_icon_path.is_some() {
+                    // Reuse a valid network cache and avoid downloading it again.
+                } else {
+                    let icons_base_dir = shared_mods_dir.join("icons");
+                    let bucket_dir = Self::get_or_create_available_bucket(&icons_base_dir);
+                    let client = reqwest::Client::builder()
+                        .timeout(std::time::Duration::from_secs(5))
+                        .build()
+                        .unwrap_or_default();
+                    if let Some(abs_path_str) =
+                        Self::download_icon_to_bucket(&client, icon_url, &bucket_dir, cache_key)
+                            .await
+                    {
+                        cached_icon_path = Some(abs_path_str.clone());
+                        let abs_path = std::path::Path::new(&abs_path_str);
+                        if let Ok(rel) = abs_path.strip_prefix(&shared_mods_dir) {
+                            final_icon_url = rel.to_string_lossy().replace('\\', "/");
+                        }
                     }
                 }
             }
@@ -1557,10 +1699,70 @@ impl ModManagerService {
         .await
         .map_err(|e| e.to_string())?;
 
-        Ok(())
+        Ok(cached_icon_path)
     }
 
     // 新增：检测手柄 Mod 并更新 instance.json
+    pub async fn ensure_offline_jar_icon<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        file_name: &str,
+    ) -> Result<Option<String>, String> {
+        let instance_dir = Self::get_instance_dir(app, instance_id)?;
+        let mut game_dir = instance_dir.clone();
+        let config_path = instance_dir.join("instance.json");
+        if let Ok(content) = fs::read_to_string(&config_path) {
+            if let Ok(cfg) =
+                serde_json::from_str::<crate::domain::instance::InstanceConfig>(&content)
+            {
+                if let Some(tp) = cfg.third_party_path {
+                    game_dir = PathBuf::from(tp);
+                }
+            }
+        }
+
+        let safe_file_name = Path::new(file_name)
+            .file_name()
+            .ok_or_else(|| "invalid mod file name".to_string())?
+            .to_string_lossy()
+            .to_string();
+        let jar_path = game_dir.join("mods").join(&safe_file_name);
+        if !jar_path.is_file() {
+            return Ok(None);
+        }
+
+        let shared_mods_dir = Self::get_shared_mods_dir(app)?;
+        let target_dir = shared_mods_dir.join("icons").join("offline");
+        fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
+        let target_path = target_dir.join(format!(
+            "{}.png",
+            safe_file_name
+                .trim_end_matches(".disabled")
+                .trim_end_matches(".jar")
+        ));
+
+        if target_path.is_file()
+            && fs::metadata(&target_path)
+                .map(|m| m.len() > 0)
+                .unwrap_or(false)
+        {
+            return Ok(Some(target_path.to_string_lossy().replace('\\', "/")));
+        }
+
+        let extraction_target = target_path.clone();
+        let extracted = tokio::task::spawn_blocking(move || {
+            Self::extract_icon_to_path(&jar_path, &extraction_target)
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+
+        if extracted {
+            Ok(Some(target_path.to_string_lossy().replace('\\', "/")))
+        } else {
+            Ok(None)
+        }
+    }
+
     pub fn check_and_update_gamepad<R: Runtime>(
         app: &AppHandle<R>,
         instance_id: &str,
@@ -1950,6 +2152,3 @@ impl ModManagerService {
         Ok(())
     }
 }
-
-
-

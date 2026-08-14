@@ -1,10 +1,8 @@
-import { useEffect, useState } from 'react';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { ask, open } from '@tauri-apps/plugin-dialog';
-import { useTranslation } from 'react-i18next';
 import { useLauncherStore } from '../../../store/useLauncherStore';
 import { useDownloadStore } from '../../../store/useDownloadStore';
-import { useToastStore } from '../../../store/useToastStore';
+import { useInstanceDetailData } from './useInstanceDetailData';
 
 export type DetailTab =
   | 'overview'
@@ -65,40 +63,20 @@ interface InstanceBindingState {
   autoJoinServer: boolean;
 }
 
-interface RawInstanceDetail {
-  name?: string;
-  description?: string;
-  cover_absolute_path?: string;
-  game_version?: string;
-  gameVersion?: string;
-  mcVersion?: string;
-  loader_type?: string;
-  loader_version?: string;
-  loaderType?: string;
-  loader?: { type?: string; version?: string };
-  playTime?: string | number;
-  play_time?: string | number;
-  lastPlayed?: string;
-  last_played?: string;
-  custom_buttons?: CustomButton[];
-  server_binding?: ServerBindingInfo;
-  auto_join_server?: boolean;
-  tags?: string[];
-}
-
 export const useInstanceDetail = (instanceId: string) => {
-  const { t } = useTranslation();
-  const addToast = useToastStore((state) => state.addToast);
-
   const activeTab = useLauncherStore((state) => state.instanceDetailTab) as DetailTab;
   const setActiveTab = useLauncherStore((state) => state.setInstanceDetailTab);
   const setMainTab = useLauncherStore((state) => state.setActiveTab);
+  const {
+    data,
+    setData,
+    isInitializing,
+    currentImageIndex,
+    heroLogoUrl,
+    setHeroLogoUrl,
+  } = useInstanceDetailData(instanceId, activeTab);
 
-  const [data, setData] = useState<InstanceDetailData | null>(null);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isInitializing, setIsInitializing] = useState(true);
-  const [heroLogoUrl, setHeroLogoUrl] = useState<string | null>(null);
-
+  /* Legacy inline data loading moved to useInstanceDetailData.
   useEffect(() => {
     const fetchDetail = async () => {
       try {
@@ -171,6 +149,7 @@ export const useInstanceDetail = (instanceId: string) => {
     return () => clearInterval(timer);
   }, [data, activeTab]);
 
+  */
   const handlePlay = () => {
     console.log(`启动实例: ${data?.name}`);
   };

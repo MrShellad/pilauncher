@@ -1114,7 +1114,9 @@ impl SaveManagerService {
         };
 
         // Save it to pilauncher_world_idx.json
-        let idx = WorldIdx { uuid: new_uuid.clone() };
+        let idx = WorldIdx {
+            uuid: new_uuid.clone(),
+        };
         if let Ok(content) = serde_json::to_string_pretty(&idx) {
             let _ = fs::write(&idx_path, content);
         }
@@ -1952,9 +1954,11 @@ impl SaveManagerService {
         Self::verify_backup_record_payloads(&record, true)?;
 
         if record.meta.backup_mode == "differential" {
-            let base_id = record.meta.base_backup_id.as_deref().ok_or_else(|| {
-                "differential backup is missing base backup id".to_string()
-            })?;
+            let base_id = record
+                .meta
+                .base_backup_id
+                .as_deref()
+                .ok_or_else(|| "differential backup is missing base backup id".to_string())?;
             let base_record = Self::find_backup_record(app, instance_id, base_id)
                 .map_err(|_| format!("differential base backup is missing: {}", base_id))?;
             Self::verify_backup_record_payloads(&base_record, false)?;
@@ -2142,7 +2146,9 @@ impl SaveManagerService {
                     Self::move_dir_with_fallback(&dst_config, &rollback_config)?;
                 }
                 if defaultconfigs_existed {
-                    if let Err(e) = Self::move_dir_with_fallback(&dst_defaultconfigs, &rollback_defaultconfigs) {
+                    if let Err(e) =
+                        Self::move_dir_with_fallback(&dst_defaultconfigs, &rollback_defaultconfigs)
+                    {
                         if config_existed {
                             let _ = Self::move_dir_with_fallback(&rollback_config, &dst_config);
                         }
@@ -2161,7 +2167,8 @@ impl SaveManagerService {
                     if temp_defaultconfigs.exists() {
                         Self::move_dir_with_fallback(&temp_defaultconfigs, &dst_defaultconfigs)?;
                     } else if defaultconfigs_existed {
-                        fs::create_dir_all(&dst_defaultconfigs).map_err(|error| error.to_string())?;
+                        fs::create_dir_all(&dst_defaultconfigs)
+                            .map_err(|error| error.to_string())?;
                     }
                     Ok(())
                 })();
@@ -2174,7 +2181,10 @@ impl SaveManagerService {
                         let _ = Self::move_dir_with_fallback(&rollback_config, &dst_config);
                     }
                     if defaultconfigs_existed {
-                        let _ = Self::move_dir_with_fallback(&rollback_defaultconfigs, &dst_defaultconfigs);
+                        let _ = Self::move_dir_with_fallback(
+                            &rollback_defaultconfigs,
+                            &dst_defaultconfigs,
+                        );
                     }
                     return Err(swap_error);
                 }
@@ -2260,10 +2270,11 @@ impl SaveManagerService {
     ) -> Result<(), String> {
         let instance_dir = Self::get_instance_dir(app, instance_id)?;
         let config_path = instance_dir.join("instance.json");
-        
+
         let content = fs::read_to_string(&config_path).map_err(|e| e.to_string())?;
-        let mut value: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
-        
+        let mut value: serde_json::Value =
+            serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
         if let Some(save_backup) = value.get_mut("saveBackup") {
             if let Some(obj) = save_backup.as_object_mut() {
                 obj.insert("autoOnExit".to_string(), serde_json::Value::Bool(enabled));
@@ -2284,7 +2295,7 @@ impl SaveManagerService {
                 obj.insert("saveBackup".to_string(), save_backup_obj);
             }
         }
-        
+
         Self::write_json_atomically(&config_path, &value)?;
         Ok(())
     }
@@ -2305,13 +2316,17 @@ impl SaveManagerService {
     ) -> Result<(), String> {
         let instance_dir = Self::get_instance_dir(app, instance_id)?;
         let config_path = instance_dir.join("instance.json");
-        
+
         let content = fs::read_to_string(&config_path).map_err(|e| e.to_string())?;
-        let mut value: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
-        
+        let mut value: serde_json::Value =
+            serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
         if let Some(save_backup) = value.get_mut("saveBackup") {
             if let Some(obj) = save_backup.as_object_mut() {
-                obj.insert("backupAllWorldsOnExit".to_string(), serde_json::Value::Bool(enabled));
+                obj.insert(
+                    "backupAllWorldsOnExit".to_string(),
+                    serde_json::Value::Bool(enabled),
+                );
             }
         } else {
             let save_backup_obj = serde_json::json!({
@@ -2329,7 +2344,7 @@ impl SaveManagerService {
                 obj.insert("saveBackup".to_string(), save_backup_obj);
             }
         }
-        
+
         Self::write_json_atomically(&config_path, &value)?;
         Ok(())
     }

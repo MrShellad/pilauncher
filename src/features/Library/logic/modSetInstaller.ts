@@ -6,6 +6,7 @@ import { fetchCurseForgeVersions } from '../../Download/logic/curseforgeApi';
 import { fetchModrinthVersions, type OreProjectDependency, type OreProjectVersion } from '../../InstanceDetail/logic/modrinthApi';
 import { getInstalledProjectIds, modService } from '../../InstanceDetail/logic/modService';
 import { useDownloadStore } from '../../../store/useDownloadStore';
+import { runResourceDownloadTask } from '../../Download/logic/resourceDownloadTask';
 import type { ModSetTracker, ModSetTrackerItem } from '../stores/useModSetTrackerStore';
 
 export interface CompatibleInstance {
@@ -122,25 +123,6 @@ const resolveTrackerItemVersion = async (
   }
 };
 
-const enqueueResourceTask = (version: OreProjectVersion, instanceId: string) => {
-  useDownloadStore.getState().addOrUpdateTask({
-    id: version.file_name,
-    taskType: 'resource',
-    title: version.file_name,
-    stage: 'DOWNLOADING_MOD',
-    current: 0,
-    total: 100,
-    message: i18n.t('libraryPage.messages.connectingDownload'),
-    retryAction: 'download_resource',
-    retryPayload: {
-      url: version.download_url,
-      fileName: version.file_name,
-      instanceId,
-      subFolder: 'mods',
-    },
-  });
-};
-
 export const getCompatibleInstancesForTracker = (tracker: ModSetTracker) =>
   invoke<CompatibleInstance[]>('get_compatible_instances', {
     gameVersions: [tracker.gameVersion],
@@ -255,36 +237,38 @@ export const installTrackerToInstance = async (
         }
       }
 
-      enqueueResourceTask(version, instanceId);
-      await modService.downloadResource(version.download_url, version.file_name, instanceId, 'mods');
-
-      const trackerProject = tracker.projects.find((p) => p.projectId === projectId);
-      const name = trackerProject?.title || '';
-      const iconUrl = trackerProject?.iconUrl || '';
-      const cacheKey = version.file_name.replace(/\.disabled$/, '').replace(/\.jar$/, '');
-      if (name) {
-        await modService.updateModCache(cacheKey, name, '', iconUrl)
-          .catch((err) => console.error('Failed to update mod cache:', err));
-      }
-
-      await modService.updateModManifest(
+      await runResourceDownloadTask({
+        url: version.download_url,
+        fileName: version.file_name,
         instanceId,
-        version.file_name,
-        'launcherDownload',
-        source === 'curseforge' ? 'curseforge' : 'modrinth',
-        projectId,
-        version.id,
-      );
-      installedProjectIds.add(projectId);
-      installed += 1;
+        subFolder: 'mods',
+        title: version.file_name,
+        message: i18n.t('libraryPage.messages.connectingDownload'),
+        onCompleted: async () => {
+          const trackerProject = tracker.projects.find((p) => p.projectId === projectId);
+          const name = trackerProject?.title || '';
+          const iconUrl = trackerProject?.iconUrl || '';
+          const cacheKey = version.file_name.replace(/\.disabled$/, '').replace(/\.jar$/, '');
+          if (name) {
+            await modService.updateModCache(cacheKey, name, '', iconUrl)
+              .catch((err) => console.error('Failed to update mod cache:', err));
+          }
+
+          await modService.updateModManifest(
+            instanceId,
+            version.file_name,
+            'launcherDownload',
+            source === 'curseforge' ? 'curseforge' : 'modrinth',
+            projectId,
+            version.id,
+          );
+          installedProjectIds.add(projectId);
+          installed += 1;
+        },
+      });
     } catch (error) {
       failed += 1;
       console.error(`[ModSetInstaller] Failed to install ${key}`, error);
-      useDownloadStore.getState().addOrUpdateTask({
-        id: version.file_name,
-        stage: 'ERROR',
-        message: i18n.t('libraryPage.messages.downloadFailed', { error: String(error) }),
-      });
     } finally {
       installingProjectKeys.delete(key);
     }

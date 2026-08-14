@@ -246,15 +246,16 @@ export const useModCloudSync = (instanceId: string) => {
             if (!version?.project_id) return;
 
             let detail: ModrinthProject | undefined;
+            let cachedIconPath: string | null = null;
             try {
               if (!modrinthDetailCache.has(version.project_id)) {
                 modrinthDetailCache.set(version.project_id, fetchModrinthProjectById(version.project_id));
               }
               detail = await modrinthDetailCache.get(version.project_id);
               if (detail) {
-                const dbIcon = mod.manifestEntry?.icon_rel_path || detail.icon_url || '';
+                const dbIcon = detail.icon_url || mod.networkIconUrl || '';
                 const cacheKey = `modrinth_${version.project_id}`;
-                await modService.updateModCache(
+                cachedIconPath = await modService.updateModCache(
                   cacheKey,
                   detail.title,
                   detail.description,
@@ -272,7 +273,8 @@ export const useModCloudSync = (instanceId: string) => {
               ? {
                   name: detail.title || mod.name,
                   description: mod.description || detail.description,
-                  networkIconUrl: detail.icon_url || mod.networkIconUrl
+                   networkIconUrl: detail.icon_url || mod.networkIconUrl,
+                   iconAbsolutePath: cachedIconPath || mod.iconAbsolutePath
                 }
               : undefined, version.version_number);
           } finally {
@@ -300,15 +302,16 @@ export const useModCloudSync = (instanceId: string) => {
               if (!version?.project_id) return;
 
               let detail: Awaited<ReturnType<typeof getCurseForgeProjectDetails>> | undefined;
+              let cachedIconPath: string | null = null;
               try {
                 if (!curseForgeDetailCache.has(version.project_id)) {
                   curseForgeDetailCache.set(version.project_id, getCurseForgeProjectDetails(version.project_id));
                 }
                 detail = await curseForgeDetailCache.get(version.project_id);
                 if (detail) {
-                  const dbIcon = mod.manifestEntry?.icon_rel_path || detail.icon_url || '';
+                  const dbIcon = detail.icon_url || mod.networkIconUrl || '';
                   const cacheKey = `curseforge_${version.project_id}`;
-                  await modService.updateModCache(
+                  cachedIconPath = await modService.updateModCache(
                     cacheKey,
                     detail.title,
                     detail.description,
@@ -326,7 +329,8 @@ export const useModCloudSync = (instanceId: string) => {
                 ? {
                     name: detail.title || mod.name,
                     description: mod.description || detail.description,
-                    networkIconUrl: detail.icon_url || mod.networkIconUrl
+                   networkIconUrl: detail.icon_url || mod.networkIconUrl,
+                   iconAbsolutePath: cachedIconPath || mod.iconAbsolutePath
                   }
                 : undefined, version.version_number);
             } finally {
@@ -340,7 +344,70 @@ export const useModCloudSync = (instanceId: string) => {
       }
     }
 
-    if (platformMatchesByFileName.size === 0) {
+    const knownIconMods = modsToSync.filter((mod) => {
+      if (mod.iconAbsolutePath || matchedByFileName.get(mod.fileName)?.iconAbsolutePath) {
+        return false;
+      }
+
+      const platform = getModPreferredPlatformWithGlobal(mod, globalPlatform);
+      const projectId = platform
+        ? getModPlatformReference(mod, platform)?.projectId
+        : undefined;
+      return !!platform && !!projectId && !platformMatchesByFileName.has(mod.fileName);
+    });
+
+    for (let i = 0; i < knownIconMods.length; i += 5) {
+      const batch = knownIconMods.slice(i, i + 5);
+      await Promise.all(batch.map(async (mod) => {
+        const platform = getModPreferredPlatformWithGlobal(mod, globalPlatform);
+        const projectId = platform
+          ? getModPlatformReference(mod, platform)?.projectId
+          : undefined;
+        if (!platform || !projectId) return;
+
+        try {
+          let title = mod.name || '';
+          let description = mod.description || '';
+          let iconUrl = mod.networkIconUrl || '';
+
+          if (platform === 'modrinth') {
+            const detail = modrinthDetailCache.has(projectId)
+              ? await modrinthDetailCache.get(projectId)
+              : await fetchModrinthProjectById(projectId);
+            title = detail?.title || title;
+            description = detail?.description || description;
+            iconUrl = detail?.icon_url || iconUrl;
+          } else {
+            const detail = curseForgeDetailCache.has(projectId)
+              ? await curseForgeDetailCache.get(projectId)
+              : await getCurseForgeProjectDetails(projectId);
+            title = detail?.title || title;
+            description = detail?.description || description;
+            iconUrl = detail?.icon_url || iconUrl;
+          }
+
+          const cachedIconPath = iconUrl
+            ? await modService.updateModCache(
+              `${platform}_${projectId}`,
+              title,
+              description,
+              iconUrl
+            )
+            : null;
+
+          matchedByFileName.set(mod.fileName, {
+            name: title || mod.name,
+            description: description || mod.description,
+            networkIconUrl: iconUrl || mod.networkIconUrl,
+            iconAbsolutePath: cachedIconPath || mod.iconAbsolutePath
+          });
+        } catch (error) {
+          console.error('Known mod icon hydration failed', error);
+        }
+      }));
+    }
+
+    if (platformMatchesByFileName.size === 0 && matchedByFileName.size === 0) {
       return modsToSync;
     }
 

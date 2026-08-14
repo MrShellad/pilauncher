@@ -139,6 +139,15 @@ export const useModManager = (instanceId: string) => {
     };
   }, [cancelUpdateCheck, instanceId, loadMods]);
 
+  useEffect(() => {
+    const handleOnline = () => {
+      void loadMods({ silent: true });
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [loadMods]);
+
   const checkModUpdates = useCallback(async () => {
     const config = await modService.getInstanceDetail(instanceId);
     const targetMc = resolveInstanceGameVersion(config);

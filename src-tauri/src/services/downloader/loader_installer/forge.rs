@@ -22,11 +22,13 @@ pub(super) async fn install<R: Runtime>(
 ) -> AppResult<()> {
     let dl_settings = ConfigService::get_download_settings(app);
     let java_settings = ConfigService::get_java_settings(app);
-    let java_runtime = crate::services::runtime_service::resolve_global_installer_java_runtime(
-        &java_settings,
-        mc_version,
-        crate::services::runtime_service::installer_default_java_command(),
-    );
+    let java_runtime =
+        crate::services::runtime_service::resolve_global_installer_java_runtime_with_managed(
+            &java_settings,
+            mc_version,
+            crate::services::runtime_service::installer_default_java_command(),
+            &global_mc_root.join("java"),
+        );
     let client = build_download_client(&dl_settings)?;
     let max_attempts = dl_settings.retry_count.max(1);
 
@@ -41,7 +43,7 @@ pub(super) async fn install<R: Runtime>(
         mc_version: mc_version.to_string(),
         loader_version: loader_version.to_string(),
         game_dir: global_mc_root.to_path_buf(),
-        java_dir: global_mc_root.join("runtime/java"),
+        java_dir: global_mc_root.join("java"),
         loader_type: lighty_loaders::types::Loader::Forge,
     };
 
@@ -69,8 +71,15 @@ pub(super) async fn install<R: Runtime>(
         if is_cancelled(cancel) {
             return Err(AppError::Cancelled);
         }
-        let installer_bytes =
-            download_bytes_from_candidates(app, instance_id, &client, &installer_urls, max_attempts, cancel).await?;
+        let installer_bytes = download_bytes_from_candidates(
+            app,
+            instance_id,
+            &client,
+            &installer_urls,
+            max_attempts,
+            cancel,
+        )
+        .await?;
         tokio::fs::write(&installer_path, installer_bytes).await?;
     }
 
@@ -82,17 +91,34 @@ pub(super) async fn install<R: Runtime>(
         }
 
         if is_legacy {
-            let profile = lighty_loaders::loaders::forge::forge_legacy::read_install_profile_from_jar(&installer_path).await.map_err(|e| AppError::Generic(e.to_string()))?;
-            let merged_version = lighty_loaders::loaders::forge::forge_legacy::legacy_version_builder(&info, &profile).await.map_err(|e| AppError::Generic(e.to_string()))?;
+            let profile =
+                lighty_loaders::loaders::forge::forge_legacy::read_install_profile_from_jar(
+                    &installer_path,
+                )
+                .await
+                .map_err(|e| AppError::Generic(e.to_string()))?;
+            let merged_version =
+                lighty_loaders::loaders::forge::forge_legacy::legacy_version_builder(
+                    &info, &profile,
+                )
+                .await
+                .map_err(|e| AppError::Generic(e.to_string()))?;
             let profile_json = version_to_json(&merged_version, &version_id, mc_version);
             let profile_json_text = serde_json::to_string_pretty(&profile_json)?;
             tokio::fs::write(&json_path, profile_json_text).await?;
         } else {
             use lighty_loaders::loaders::forge::forge::{ForgeQuery, FORGE};
-            let merged = FORGE.get(&info, ForgeQuery::ForgeBuilder).await.map_err(|e| AppError::Generic(e.to_string()))?;
+            let merged = FORGE
+                .get(&info, ForgeQuery::ForgeBuilder)
+                .await
+                .map_err(|e| AppError::Generic(e.to_string()))?;
             let merged_version = match &*merged {
                 lighty_loaders::types::VersionMetaData::Version(v) => v,
-                _ => return Err(AppError::Generic("Failed to resolve Forge version metadata".into())),
+                _ => {
+                    return Err(AppError::Generic(
+                        "Failed to resolve Forge version metadata".into(),
+                    ))
+                }
             };
             let profile_json = version_to_json(merged_version, &version_id, mc_version);
             let profile_json_text = serde_json::to_string_pretty(&profile_json)?;
@@ -106,7 +132,11 @@ pub(super) async fn install<R: Runtime>(
     }
 
     if is_legacy {
-        let profile = lighty_loaders::loaders::forge::forge_legacy::read_install_profile_from_jar(&installer_path).await.map_err(|e| AppError::Generic(e.to_string()))?;
+        let profile = lighty_loaders::loaders::forge::forge_legacy::read_install_profile_from_jar(
+            &installer_path,
+        )
+        .await
+        .map_err(|e| AppError::Generic(e.to_string()))?;
         emit_loader_progress(
             app,
             instance_id,
@@ -115,7 +145,9 @@ pub(super) async fn install<R: Runtime>(
             100,
             "正在解压 Legacy Forge 核心库...",
         );
-        lighty_loaders::loaders::forge::forge_legacy::extract_universal_jar(&info, &profile).await.map_err(|e| AppError::Generic(e.to_string()))?;
+        lighty_loaders::loaders::forge::forge_legacy::extract_universal_jar(&info, &profile)
+            .await
+            .map_err(|e| AppError::Generic(e.to_string()))?;
     } else {
         emit_loader_progress(
             app,

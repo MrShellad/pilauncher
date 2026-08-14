@@ -2,10 +2,10 @@
 
 use crate::error::AppResult;
 use crate::services::db_service::AppDatabase;
+use serde::Serialize;
 use sqlx::Row;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Runtime, State};
-use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -67,11 +67,10 @@ pub async fn get_local_versions<R: Runtime>(
     }
 
     // Query all instances from db
-    let rows = sqlx::query(
-        "SELECT id, name, mc_version, loader_type, loader_version FROM instances"
-    )
-    .fetch_all(&db.pool)
-    .await?;
+    let rows =
+        sqlx::query("SELECT id, name, mc_version, loader_type, loader_version FROM instances")
+            .fetch_all(&db.pool)
+            .await?;
 
     let db_instances: Vec<DbInstance> = rows
         .into_iter()
@@ -79,8 +78,16 @@ pub async fn get_local_versions<R: Runtime>(
             id: row.get("id"),
             name: row.get("name"),
             mc_version: row.get("mc_version"),
-            loader_type: row.try_get::<Option<String>, _>("loader_type").ok().flatten().unwrap_or_else(|| "vanilla".to_string()),
-            loader_version: row.try_get::<Option<String>, _>("loader_version").ok().flatten().unwrap_or_default(),
+            loader_type: row
+                .try_get::<Option<String>, _>("loader_type")
+                .ok()
+                .flatten()
+                .unwrap_or_else(|| "vanilla".to_string()),
+            loader_version: row
+                .try_get::<Option<String>, _>("loader_version")
+                .ok()
+                .flatten()
+                .unwrap_or_default(),
         })
         .collect();
 
@@ -131,11 +138,13 @@ pub async fn get_local_versions<R: Runtime>(
                 let matches = if loader_type == "vanilla" {
                     inst.mc_version == mc_version
                 } else {
-                    if let Some(folder_name) = crate::services::minecraft_service::resolve_loader_folder(
-                        &inst.loader_type,
-                        &inst.mc_version,
-                        &inst.loader_version,
-                    ) {
+                    if let Some(folder_name) =
+                        crate::services::minecraft_service::resolve_loader_folder(
+                            &inst.loader_type,
+                            &inst.mc_version,
+                            &inst.loader_version,
+                        )
+                    {
                         folder_name == id
                     } else {
                         false
@@ -166,19 +175,22 @@ pub async fn get_local_versions<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn delete_local_version<R: Runtime>(
-    app: AppHandle<R>,
-    id: String,
-) -> AppResult<()> {
+pub async fn delete_local_version<R: Runtime>(app: AppHandle<R>, id: String) -> AppResult<()> {
     // Security check: ensure id is a valid directory name and not a path traversal
     let path_id = Path::new(&id);
     if path_id.components().count() != 1 {
-        return Err(crate::error::AppError::Generic("Invalid version ID".to_string()));
+        return Err(crate::error::AppError::Generic(
+            "Invalid version ID".to_string(),
+        ));
     }
 
     let base_path = match crate::services::config_service::ConfigService::get_base_path(&app) {
         Ok(Some(p)) => p,
-        _ => return Err(crate::error::AppError::Generic("Base directory not configured".to_string())),
+        _ => {
+            return Err(crate::error::AppError::Generic(
+                "Base directory not configured".to_string(),
+            ))
+        }
     };
 
     let version_dir = PathBuf::from(base_path)

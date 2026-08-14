@@ -1,7 +1,5 @@
-use tauri::{AppHandle, Runtime};
-use crate::services::downloader::logging::{log_download_event, DownloadLogLevel};
 use crate::error::{AppError, AppResult};
-use crate::services::deployment_cancel::is_cancelled;
+use crate::services::downloader::logging::{log_download_event, DownloadLogLevel};
 use futures::stream::{iter, StreamExt};
 use reqwest::header::{ACCEPT_ENCODING, CONTENT_RANGE, RANGE};
 use reqwest::Client;
@@ -11,8 +9,9 @@ use std::path::Path;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use tauri::{AppHandle, Runtime};
 use tokio::io::{AsyncSeekExt, AsyncWriteExt};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Notify};
 
 const CHUNKED_MIN_SEGMENTS: usize = 2;
 const RANGE_PROBE_HEADER: &str = "bytes=0-0";
@@ -37,6 +36,72 @@ pub struct DownloadOutcome {
     pub total_bytes: u64,
     pub used_chunked: bool,
     pub resolved_url: String,
+}
+
+/// Control shared by a resource download command and its pause/resume/cancel commands.
+/// The legacy `download_file` API below still accepts the instance deployment token.
+#[derive(Clone)]
+pub struct DownloadControl {
+    cancel: Arc<AtomicBool>,
+    paused: Arc<AtomicBool>,
+    notify: Arc<Notify>,
+}
+
+impl DownloadControl {
+    pub fn new() -> Self {
+        Self {
+            cancel: Arc::new(AtomicBool::new(false)),
+            paused: Arc::new(AtomicBool::new(false)),
+            notify: Arc::new(Notify::new()),
+        }
+    }
+
+    pub fn from_cancel(cancel: Arc<AtomicBool>) -> Self {
+        Self {
+            cancel,
+            paused: Arc::new(AtomicBool::new(false)),
+            notify: Arc::new(Notify::new()),
+        }
+    }
+
+    pub fn pause(&self) {
+        self.paused.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    pub fn resume(&self) {
+        self.paused
+            .store(false, std::sync::atomic::Ordering::SeqCst);
+        self.notify.notify_waiters();
+    }
+
+    pub fn cancel(&self) {
+        self.cancel.store(true, std::sync::atomic::Ordering::SeqCst);
+        self.notify.notify_waiters();
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.cancel.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    pub async fn wait_if_paused(&self) -> AppResult<()> {
+        loop {
+            if self.is_cancelled() {
+                return Err(AppError::Cancelled);
+            }
+            if !self.paused.load(std::sync::atomic::Ordering::SeqCst) {
+                return Ok(());
+            }
+
+            let notified = self.notify.notified();
+            if !self.paused.load(std::sync::atomic::Ordering::SeqCst) {
+                continue;
+            }
+            tokio::select! {
+                _ = notified => {},
+                _ = tokio::time::sleep(Duration::from_millis(250)) => {},
+            }
+        }
+    }
 }
 
 struct DownloadRateLimiterState {
@@ -128,7 +193,7 @@ async fn download_single_stream<R: Runtime>(
     url: &str,
     temp_path: &Path,
     stall_timeout: Duration,
-    cancel: &Arc<AtomicBool>,
+    control: &DownloadControl,
     rate_limiter: Option<Arc<DownloadRateLimiter>>,
     on_bytes: Option<&Arc<dyn Fn(u64) + Send + Sync>>,
     app: Option<&AppHandle<R>>,
@@ -152,7 +217,10 @@ async fn download_single_stream<R: Runtime>(
                 inst_id,
                 stg,
                 DownloadLogLevel::Info,
-                &format!("Resuming download from offset {} bytes for {}", existing_len, url),
+                &format!(
+                    "Resuming download from offset {} bytes for {}",
+                    existing_len, url
+                ),
                 None,
                 false,
             )
@@ -187,7 +255,12 @@ async fn download_single_stream<R: Runtime>(
             inst_id,
             stg,
             DownloadLogLevel::Info,
-            &format!("Response received from {}. Status: {}, Content-Length: {:?}", url, status, response.content_length()),
+            &format!(
+                "Response received from {}. Status: {}, Content-Length: {:?}",
+                url,
+                status,
+                response.content_length()
+            ),
             None,
             false,
         )
@@ -218,7 +291,11 @@ async fn download_single_stream<R: Runtime>(
                     inst_id,
                     stg,
                     DownloadLogLevel::Warn,
-                    &format!("HTTP {} from {} when retrying without Range", response.status(), url),
+                    &format!(
+                        "HTTP {} from {} when retrying without Range",
+                        response.status(),
+                        url
+                    ),
                     None,
                     false,
                 )
@@ -275,10 +352,12 @@ async fn download_single_stream<R: Runtime>(
     let mut downloaded: u64 = resume_offset;
 
     loop {
-        if is_cancelled(cancel) {
-            let _ = tokio::fs::remove_file(temp_path).await;
-            return Err(AppError::Cancelled);
-        }
+        control.wait_if_paused().await.map_err(|error| {
+            if matches!(&error, AppError::Cancelled) {
+                let _ = std::fs::remove_file(temp_path);
+            }
+            error
+        })?;
 
         let next_chunk = tokio::time::timeout(stall_timeout, response.chunk()).await;
         match next_chunk {
@@ -317,7 +396,11 @@ async fn download_single_stream<R: Runtime>(
                         inst_id,
                         stg,
                         DownloadLogLevel::Warn,
-                        &format!("Single stream stalled for {}s while downloading from {}", stall_timeout.as_secs(), url),
+                        &format!(
+                            "Single stream stalled for {}s while downloading from {}",
+                            stall_timeout.as_secs(),
+                            url
+                        ),
                         None,
                         false,
                     )
@@ -345,7 +428,10 @@ async fn download_single_stream<R: Runtime>(
             inst_id,
             stg,
             DownloadLogLevel::Info,
-            &format!("Successfully downloaded single stream: {} ({} bytes)", url, downloaded),
+            &format!(
+                "Successfully downloaded single stream: {} ({} bytes)",
+                url, downloaded
+            ),
             None,
             false,
         )
@@ -366,7 +452,7 @@ async fn download_chunked_stream<R: Runtime>(
     temp_path: &Path,
     tuning: DownloadTuning,
     stall_timeout: Duration,
-    cancel: &Arc<AtomicBool>,
+    control: &DownloadControl,
     rate_limiter: Option<Arc<DownloadRateLimiter>>,
     on_bytes: Option<&Arc<dyn Fn(u64) + Send + Sync>>,
     app: Option<&AppHandle<R>>,
@@ -447,7 +533,10 @@ async fn download_chunked_stream<R: Runtime>(
             inst_id,
             stg,
             DownloadLogLevel::Info,
-            &format!("Initializing chunked download for {} ({} segments, total {} bytes)", url, segment_count, total_size),
+            &format!(
+                "Initializing chunked download for {} ({} segments, total {} bytes)",
+                url, segment_count, total_size
+            ),
             None,
             false,
         )
@@ -477,7 +566,7 @@ async fn download_chunked_stream<R: Runtime>(
         let url = url.to_string();
         let shared_file = Arc::clone(&shared_file);
         let rate_limiter = rate_limiter.clone();
-        let cancel = Arc::clone(cancel);
+        let control = control.clone();
         let on_bytes = on_bytes.cloned();
         let app = app.cloned();
         let instance_id = instance_id.map(|s| s.to_string());
@@ -548,9 +637,7 @@ async fn download_chunked_stream<R: Runtime>(
             let mut written: u64 = 0;
 
             loop {
-                if is_cancelled(&cancel) {
-                    return Err(AppError::Cancelled);
-                }
+                control.wait_if_paused().await?;
 
                 let next_chunk = tokio::time::timeout(stall_timeout, response.chunk()).await;
                 match next_chunk {
@@ -660,7 +747,10 @@ async fn download_chunked_stream<R: Runtime>(
             inst_id,
             stg,
             DownloadLogLevel::Info,
-            &format!("Successfully downloaded chunked stream: {} ({} bytes)", url, total_written),
+            &format!(
+                "Successfully downloaded chunked stream: {} ({} bytes)",
+                url, total_written
+            ),
             None,
             false,
         )
@@ -688,6 +778,36 @@ pub async fn download_file<R: Runtime>(
     instance_id: Option<&str>,
     stage: Option<&str>,
 ) -> AppResult<DownloadOutcome> {
+    let control = DownloadControl::from_cancel(Arc::clone(cancel));
+    download_file_with_control(
+        client,
+        candidate_urls,
+        temp_path,
+        tuning,
+        stall_timeout,
+        &control,
+        rate_limiter,
+        on_bytes,
+        app,
+        instance_id,
+        stage,
+    )
+    .await
+}
+
+pub async fn download_file_with_control<R: Runtime>(
+    client: &Client,
+    candidate_urls: &[String],
+    temp_path: &Path,
+    tuning: DownloadTuning,
+    stall_timeout: Duration,
+    control: &DownloadControl,
+    rate_limiter: Option<Arc<DownloadRateLimiter>>,
+    on_bytes: Option<Arc<dyn Fn(u64) + Send + Sync>>,
+    app: Option<&AppHandle<R>>,
+    instance_id: Option<&str>,
+    stage: Option<&str>,
+) -> AppResult<DownloadOutcome> {
     if candidate_urls.is_empty() {
         return Err(AppError::Generic(
             "download_file requires at least one candidate url".to_string(),
@@ -698,9 +818,10 @@ pub async fn download_file<R: Runtime>(
     let mut last_error: Option<String> = None;
 
     for url in candidate_urls {
-        if is_cancelled(cancel) {
+        if control.is_cancelled() {
             return Err(AppError::Cancelled);
         }
+        control.wait_if_paused().await?;
 
         if tuning.chunked_enabled {
             if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
@@ -722,7 +843,7 @@ pub async fn download_file<R: Runtime>(
                 temp_path,
                 tuning,
                 stall_timeout,
-                cancel,
+                control,
                 rate_limiter.clone(),
                 on_bytes_ref,
                 app,
@@ -733,6 +854,10 @@ pub async fn download_file<R: Runtime>(
             {
                 Ok(outcome) => return Ok(outcome),
                 Err(err) => {
+                    if control.is_cancelled() {
+                        let _ = tokio::fs::remove_file(temp_path).await;
+                        return Err(AppError::Cancelled);
+                    }
                     if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
                         log_download_event(
                             app,
@@ -768,7 +893,7 @@ pub async fn download_file<R: Runtime>(
             url,
             temp_path,
             stall_timeout,
-            cancel,
+            control,
             rate_limiter.clone(),
             on_bytes_ref,
             app,
@@ -779,6 +904,9 @@ pub async fn download_file<R: Runtime>(
         {
             Ok(outcome) => return Ok(outcome),
             Err(err) => {
+                if control.is_cancelled() {
+                    return Err(AppError::Cancelled);
+                }
                 last_error = Some(err.to_string());
                 if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
                     log_download_event(
@@ -786,7 +914,10 @@ pub async fn download_file<R: Runtime>(
                         inst_id,
                         stg,
                         DownloadLogLevel::Warn,
-                        &format!("Single stream download attempt failed from URL: {}, error: {}.", url, err),
+                        &format!(
+                            "Single stream download attempt failed from URL: {}, error: {}.",
+                            url, err
+                        ),
                         None,
                         false,
                     )
@@ -801,4 +932,51 @@ pub async fn download_file<R: Runtime>(
         "download failed for all candidate urls: {}",
         last_error.unwrap_or_else(|| "unknown error".to_string())
     )))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn pause_blocks_until_resume() {
+        let control = DownloadControl::new();
+        control.pause();
+
+        let waiting = tokio::spawn({
+            let control = control.clone();
+            async move { control.wait_if_paused().await }
+        });
+
+        assert!(tokio::time::timeout(Duration::from_millis(50), waiting)
+            .await
+            .is_err());
+
+        control.resume();
+        assert!(tokio::time::timeout(Duration::from_secs(1), async {
+            let control = control.clone();
+            control.wait_if_paused().await
+        })
+        .await
+        .expect("resume should wake the control")
+        .is_ok());
+    }
+
+    #[tokio::test]
+    async fn cancel_wakes_paused_download() {
+        let control = DownloadControl::new();
+        control.pause();
+
+        let waiting = tokio::spawn({
+            let control = control.clone();
+            async move { control.wait_if_paused().await }
+        });
+
+        control.cancel();
+        let result = tokio::time::timeout(Duration::from_secs(1), waiting)
+            .await
+            .expect("cancel should wake the control")
+            .expect("download waiter should not panic");
+        assert!(matches!(result, Err(AppError::Cancelled)));
+    }
 }

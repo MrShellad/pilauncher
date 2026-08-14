@@ -90,9 +90,9 @@ async fn auth_middleware(
     request: Request<axum::body::Body>,
     next: Next,
 ) -> Result<Response, StatusCode> {
-    use sqlx::Row;
     use base64::{engine::general_purpose, Engine as _};
-    use ed25519_dalek::{Signature, VerifyingKey, Verifier};
+    use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+    use sqlx::Row;
 
     // 1. 获取头部鉴权信息
     let sender_device_id = headers
@@ -109,17 +109,22 @@ async fn auth_middleware(
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
     // 2. 校验时间戳防重放 (限制在 60 秒内)
-    let timestamp = timestamp_str.parse::<i64>().map_err(|_| StatusCode::BAD_REQUEST)?;
+    let timestamp = timestamp_str
+        .parse::<i64>()
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
     let now = chrono::Utc::now().timestamp();
     if (now - timestamp).abs() > 60 {
-        println!("[API 鉴权] 失败：请求时间戳超时 {} (当前时间 {})", timestamp, now);
+        println!(
+            "[API 鉴权] 失败：请求时间戳超时 {} (当前时间 {})",
+            timestamp, now
+        );
         return Err(StatusCode::UNAUTHORIZED);
     }
 
     // 3. 从数据库查询公钥与信任状态
     let db = state.tauri_app.state::<AppDatabase>();
     let device_record = sqlx::query(
-        "SELECT public_key_b64, trust_level FROM trusted_devices WHERE device_uuid = $1 LIMIT 1"
+        "SELECT public_key_b64, trust_level FROM trusted_devices WHERE device_uuid = $1 LIMIT 1",
     )
     .bind(sender_device_id)
     .fetch_optional(&db.pool)
@@ -131,19 +136,29 @@ async fn auth_middleware(
 
     let (public_key_b64, trust_level) = match device_record {
         Some(row) => {
-            let pk: String = row.try_get("public_key_b64").map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-            let tl: String = row.try_get("trust_level").map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            let pk: String = row
+                .try_get("public_key_b64")
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            let tl: String = row
+                .try_get("trust_level")
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
             (pk, tl)
         }
         None => {
-            println!("[API 鉴权] 失败：设备 {} 未在信任数据库中", sender_device_id);
+            println!(
+                "[API 鉴权] 失败：设备 {} 未在信任数据库中",
+                sender_device_id
+            );
             return Err(StatusCode::FORBIDDEN);
         }
     };
 
     // 必须是已信任设备，好友设备需要先升级为信任设备
     if trust_level != "trusted" {
-        println!("[API 鉴权] 失败：设备 {} 的信任等级为 {}, 拒绝传输", sender_device_id, trust_level);
+        println!(
+            "[API 鉴权] 失败：设备 {} 的信任等级为 {}, 拒绝传输",
+            sender_device_id, trust_level
+        );
         return Err(StatusCode::FORBIDDEN);
     }
 
@@ -160,11 +175,17 @@ async fn auth_middleware(
         .decode(signature_b64)
         .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    let public_array: [u8; 32] = public_bytes.try_into().map_err(|_| StatusCode::BAD_REQUEST)?;
-    let verifying_key = VerifyingKey::from_bytes(&public_array).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let public_array: [u8; 32] = public_bytes
+        .try_into()
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+    let verifying_key =
+        VerifyingKey::from_bytes(&public_array).map_err(|_| StatusCode::BAD_REQUEST)?;
     let signature = Signature::from_slice(&sig_bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    if verifying_key.verify(message.as_bytes(), &signature).is_err() {
+    if verifying_key
+        .verify(message.as_bytes(), &signature)
+        .is_err()
+    {
         println!("[API 鉴权] 失败：签名验证未通过");
         return Err(StatusCode::UNAUTHORIZED);
     }
@@ -178,7 +199,7 @@ async fn request_trust(
     Json(payload): Json<TrustRequest>,
 ) -> Result<Json<TrustRequest>, StatusCode> {
     use base64::{engine::general_purpose, Engine as _};
-    use ed25519_dalek::{Signature, VerifyingKey, Verifier};
+    use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 
     // 1. 获取头部鉴权信息
     let signature_b64 = headers
@@ -191,14 +212,19 @@ async fn request_trust(
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
     // 2. 校验时间戳防重放 (限制在 60 秒内)
-    let timestamp = timestamp_str.parse::<i64>().map_err(|_| StatusCode::BAD_REQUEST)?;
+    let timestamp = timestamp_str
+        .parse::<i64>()
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
     let now = chrono::Utc::now().timestamp();
     if (now - timestamp).abs() > 60 {
         return Err(StatusCode::UNAUTHORIZED);
     }
 
     // 3. 重构签名消息: "POST:/trust/request:{timestamp}:{sender_device_id}"
-    let message = format!("POST:/trust/request:{}:{}", timestamp_str, payload.device_id);
+    let message = format!(
+        "POST:/trust/request:{}:{}",
+        timestamp_str, payload.device_id
+    );
 
     // 4. 验证 Ed25519 签名 (基于请求体中的 public_key)
     let public_bytes = general_purpose::STANDARD
@@ -208,11 +234,17 @@ async fn request_trust(
         .decode(signature_b64)
         .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    let public_array: [u8; 32] = public_bytes.try_into().map_err(|_| StatusCode::BAD_REQUEST)?;
-    let verifying_key = VerifyingKey::from_bytes(&public_array).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let public_array: [u8; 32] = public_bytes
+        .try_into()
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+    let verifying_key =
+        VerifyingKey::from_bytes(&public_array).map_err(|_| StatusCode::BAD_REQUEST)?;
     let signature = Signature::from_slice(&sig_bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    if verifying_key.verify(message.as_bytes(), &signature).is_err() {
+    if verifying_key
+        .verify(message.as_bytes(), &signature)
+        .is_err()
+    {
         println!("[信任握手] 失败：签名验证未通过");
         return Err(StatusCode::UNAUTHORIZED);
     }
@@ -221,7 +253,7 @@ async fn request_trust(
     // 但是，如果设备已经在我们的数据库中且公钥相同，则可以自动允许（这在 resolve 之后或再次连接时发生）
     let db = state.tauri_app.state::<AppDatabase>();
     let existing_trust = sqlx::query(
-        "SELECT trust_level, public_key_b64 FROM trusted_devices WHERE device_uuid = $1 LIMIT 1"
+        "SELECT trust_level, public_key_b64 FROM trusted_devices WHERE device_uuid = $1 LIMIT 1",
     )
     .bind(&payload.device_id)
     .fetch_optional(&db.pool)
@@ -238,7 +270,9 @@ async fn request_trust(
         use sqlx::Row;
         let db_pk: String = row.try_get("public_key_b64").unwrap_or_default();
         let db_tl: String = row.try_get("trust_level").unwrap_or_default();
-        if db_pk == payload.public_key && (db_tl == "trusted" || (db_tl == "friend" && request_kind != "trusted")) {
+        if db_pk == payload.public_key
+            && (db_tl == "trusted" || (db_tl == "friend" && request_kind != "trusted"))
+        {
             is_already_trusted = true;
         }
     }
@@ -274,7 +308,12 @@ async fn request_trust(
             .unwrap_or_default();
         let config_dir = PathBuf::from(base_path).join("config");
         let my_identity = TrustStore::get_or_create_identity(&config_dir);
-        let current_info = state.shared_state.current_device_info.lock().unwrap().clone();
+        let current_info = state
+            .shared_state
+            .current_device_info
+            .lock()
+            .unwrap()
+            .clone();
 
         return Ok(Json(TrustRequest {
             device_id: if !current_info.device_id.trim().is_empty() {
@@ -444,7 +483,9 @@ async fn receive_transfer(
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
     let is_valid_transfer_id = !transfer_id.is_empty()
-        && transfer_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-');
+        && transfer_id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-');
     if !is_valid_transfer_id {
         return (
             StatusCode::BAD_REQUEST,
