@@ -436,7 +436,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                 onArrowPress={handleFilterArrow('download-btn-search')}
                 variant="primary"
                 size="auto"
-                onClick={onSearch}
+                onClick={() => onSearch()}
                 className={`${actionButtonClassName} !text-white`}
               >
                 <Search className="mr-[0.375rem] size-[var(--filter-icon-size)] !text-white" />

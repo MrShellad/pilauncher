@@ -292,7 +292,7 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
               onArrowPress={handleArrow('inst-filter-btn-search')}
               variant="primary"
               size="auto"
-              onClick={onSearch}
+              onClick={() => onSearch()}
               className="!h-[2.75rem] w-full font-bold tracking-wider text-black"
             >
               <Search size="1rem" className="mr-1.5" />
