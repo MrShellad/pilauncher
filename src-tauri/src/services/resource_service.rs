@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Runtime};
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 // 引入跨层的 DTO
 use crate::domain::resource::{OreProjectDependency, OreProjectDetail, OreProjectVersion};
 use crate::services::downloader::transfer::{
@@ -87,6 +88,12 @@ pub struct ResourceService;
 static RESOURCE_DOWNLOAD_CONTROLS: Lazy<Mutex<HashMap<String, Arc<DownloadControl>>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
+/// Mod downloads are started directly by several UI entry points. Keep a
+/// semaphore for each selectable limit so the `concurrency` setting controls
+/// file-level work here as it already does for game dependencies.
+static RESOURCE_DOWNLOAD_SEMAPHORES: Lazy<Mutex<HashMap<usize, Arc<Semaphore>>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
 fn register_resource_download(task_id: &str) -> Result<Arc<DownloadControl>, String> {
     let mut controls = RESOURCE_DOWNLOAD_CONTROLS
         .lock()
@@ -117,6 +124,79 @@ fn unregister_resource_download(task_id: &str, control: &Arc<DownloadControl>) {
         {
             controls.remove(task_id);
         }
+    }
+}
+
+fn resource_download_semaphore(concurrency: usize) -> Result<Arc<Semaphore>, String> {
+    let concurrency = concurrency.clamp(1, 8);
+    let mut semaphores = RESOURCE_DOWNLOAD_SEMAPHORES
+        .lock()
+        .map_err(|_| "Mod download scheduler is unavailable".to_string())?;
+
+    Ok(Arc::clone(
+        semaphores
+            .entry(concurrency)
+            .or_insert_with(|| Arc::new(Semaphore::new(concurrency))),
+    ))
+}
+
+async fn acquire_resource_download_slot(
+    concurrency: usize,
+    control: &DownloadControl,
+) -> Result<OwnedSemaphorePermit, String> {
+    let semaphore = resource_download_semaphore(concurrency)?;
+
+    loop {
+        control
+            .wait_if_paused()
+            .await
+            .map_err(|error| error.to_string())?;
+        if control.is_cancelled() {
+            return Err("Download cancelled".to_string());
+        }
+
+        let acquire = Arc::clone(&semaphore).acquire_owned();
+        tokio::select! {
+            permit = acquire => {
+                return permit.map_err(|_| "Mod download scheduler has shut down".to_string());
+            }
+            _ = tokio::time::sleep(std::time::Duration::from_millis(200)) => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod download_scheduler_tests {
+    use super::{acquire_resource_download_slot, DownloadControl};
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn resource_download_concurrency_limits_active_files() {
+        let first_control = Arc::new(DownloadControl::new());
+        let first = acquire_resource_download_slot(1, &first_control)
+            .await
+            .expect("first download should acquire the only slot");
+
+        let waiting_control = Arc::new(DownloadControl::new());
+        assert!(
+            tokio::time::timeout(
+                Duration::from_millis(50),
+                acquire_resource_download_slot(1, &waiting_control),
+            )
+            .await
+            .is_err(),
+            "second download must wait for the configured concurrency slot"
+        );
+
+        drop(first);
+        assert!(tokio::time::timeout(
+            Duration::from_secs(1),
+            acquire_resource_download_slot(1, &waiting_control),
+        )
+        .await
+        .expect("slot should be released")
+        .is_ok());
     }
 }
 
@@ -330,6 +410,8 @@ impl ResourceService {
         // 2. 发起下载（支持分块 / 单连接自动回退）
         let dl_settings =
             crate::services::config_service::ConfigService::get_download_settings(app);
+        let _download_slot =
+            acquire_resource_download_slot(dl_settings.concurrency, &control).await?;
         let mut builder = Client::builder()
             .connect_timeout(std::time::Duration::from_secs(dl_settings.timeout.max(1)));
         if dl_settings.proxy_type != "none" {
@@ -449,7 +531,7 @@ impl ResourceService {
             &candidate_urls,
             &temp_target_path,
             tuning,
-            std::time::Duration::from_secs(dl_settings.timeout.max(1)),
+            crate::services::config_service::ConfigService::stall_timeout(&dl_settings),
             &control,
             rate_limiter,
             Some(on_bytes),

@@ -171,7 +171,9 @@ export const DownloadSettings: React.FC = () => {
                 className="w-24 text-center font-bold text-ore-green"
                 min={0}
               />
-              <span className="font-minecraft text-sm text-ore-text-muted">MB/s</span>
+              <span className="font-minecraft text-sm text-ore-text-muted">
+                {download.speedUnit}
+              </span>
             </div>
           }
         />

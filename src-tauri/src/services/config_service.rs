@@ -62,7 +62,7 @@ fn default_quilt_source_url() -> String {
 }
 
 fn default_chunked_download_enabled() -> bool {
-    false
+    true
 }
 
 fn default_chunked_download_threads() -> usize {
@@ -70,7 +70,7 @@ fn default_chunked_download_threads() -> usize {
 }
 
 fn default_chunked_download_min_size_mb() -> u64 {
-    32
+    8
 }
 
 fn default_playtime_auto_sync() -> bool {
@@ -90,9 +90,9 @@ impl Default for DownloadSettings {
         Self {
             minecraft_meta_source: "bangbang93".to_string(),
             concurrency: 8,
-            chunked_download_enabled: false,
+            chunked_download_enabled: true,
             chunked_download_threads: 4,
-            chunked_download_min_size_mb: 32,
+            chunked_download_min_size_mb: 8,
             speed_limit: 0,
             speed_unit: "MB/s".to_string(),
             proxy_type: "none".to_string(),
@@ -199,7 +199,15 @@ impl ConfigService {
         if dl_settings.speed_limit == 0 {
             0
         } else {
-            dl_settings.speed_limit.saturating_mul(1024 * 1024)
+            match dl_settings.speed_unit.as_str() {
+                // Mbps is a network-rate unit, while MB/s is a byte-rate unit.
+                // Keep the conversion here so every downloader applies the same cap.
+                "Mbps" => dl_settings
+                    .speed_limit
+                    .saturating_mul(1_000_000)
+                    .saturating_div(8),
+                _ => dl_settings.speed_limit.saturating_mul(1024 * 1024),
+            }
         }
     }
 
@@ -415,5 +423,33 @@ impl ConfigService {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ConfigService, DownloadSettings};
+
+    #[test]
+    fn converts_speed_limits_using_the_selected_unit() {
+        let mb_per_second = DownloadSettings {
+            speed_limit: 10,
+            speed_unit: "MB/s".to_string(),
+            ..DownloadSettings::default()
+        };
+        let megabits_per_second = DownloadSettings {
+            speed_limit: 10,
+            speed_unit: "Mbps".to_string(),
+            ..DownloadSettings::default()
+        };
+
+        assert_eq!(
+            ConfigService::download_speed_limit_bytes_per_sec(&mb_per_second),
+            10 * 1024 * 1024
+        );
+        assert_eq!(
+            ConfigService::download_speed_limit_bytes_per_sec(&megabits_per_second),
+            1_250_000
+        );
     }
 }

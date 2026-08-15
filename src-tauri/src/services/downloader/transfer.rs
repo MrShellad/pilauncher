@@ -858,6 +858,11 @@ pub async fn download_file_with_control<R: Runtime>(
                         let _ = tokio::fs::remove_file(temp_path).await;
                         return Err(AppError::Cancelled);
                     }
+                    // A chunked attempt preallocates the temporary file.  Its length is
+                    // therefore the full file size even when only a few ranges arrived.
+                    // Do not let the single-stream fallback mistake that sparse file for
+                    // a complete resumable download and issue a pointless 416 request.
+                    let _ = tokio::fs::remove_file(temp_path).await;
                     if let (Some(app), Some(inst_id), Some(stg)) = (app, instance_id, stage) {
                         log_download_event(
                             app,
