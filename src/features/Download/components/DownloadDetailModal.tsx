@@ -131,18 +131,9 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
   };
 
   const strictlyFilteredVersions = useMemo(() => {
-    return versions.map(v => {
-      if (activeTab === 'mod') {
-        const validModLoaders = ['fabric', 'forge', 'neoforge'];
-        return {
-          ...v,
-          loaders: v.loaders.filter(l => validModLoaders.includes(l.toLowerCase()))
-        };
-      }
-      return v;
-    }).filter((version) => {
-      const targetLoader = hasDirectInstall ? searchLoader : (activeLoader || searchLoader);
-      const targetVersion = hasDirectInstall ? searchMcVersion : (activeVersion || searchMcVersion);
+    return versions.filter((version) => {
+      const targetLoader = activeLoader;
+      const targetVersion = activeVersion;
 
       let matchLoader = true;
       if (activeTab === 'mod' && targetLoader && targetLoader.toLowerCase() !== 'all') {
@@ -156,11 +147,11 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
 
       return matchLoader && matchVersion;
     });
-  }, [activeLoader, activeTab, activeVersion, hasDirectInstall, searchLoader, searchMcVersion, versions]);
+  }, [activeLoader, activeTab, activeVersion, versions]);
 
   const displayVersions = strictlyFilteredVersions.slice(0, visibleCount);
-  const currentDisplayLoader = hasDirectInstall ? searchLoader : (activeLoader || searchLoader);
-  const currentDisplayVersion = hasDirectInstall ? searchMcVersion : (activeVersion || searchMcVersion);
+  const currentDisplayLoader = activeLoader;
+  const currentDisplayVersion = activeVersion;
   const controlsEnabled = !pendingVersion;
 
 

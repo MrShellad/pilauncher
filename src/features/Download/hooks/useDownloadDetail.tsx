@@ -49,6 +49,9 @@ export const useDownloadDetail = (
   const [isLoadingVersions, setIsLoadingVersions] = useState(false);
   const [activeLoader, setActiveLoader] = useState('');
   const [activeVersion, setActiveVersion] = useState('');
+  const curseForgeFilterKey = source === 'curseforge'
+    ? `${activeVersion}\u0000${activeLoader}`
+    : '';
 
   useEffect(() => {
     if (!project) return;
@@ -93,9 +96,12 @@ export const useDownloadDetail = (
     let active = true;
     setIsLoadingVersions(true);
 
+    // Modrinth project metadata and version metadata can be temporarily out of sync.
+    // Its complete project history is filtered once in the modal. CurseForge remains
+    // server-filtered because its file endpoint is paginated.
     const request = source === 'curseforge'
       ? fetchCurseForgeVersions(projectId, activeVersion, activeLoader)
-      : fetchModrinthVersions(projectId, activeVersion, activeLoader);
+      : fetchModrinthVersions(projectId);
 
     request
       .then((data) => {
@@ -113,7 +119,7 @@ export const useDownloadDetail = (
     return () => {
       active = false;
     };
-  }, [activeLoader, activeVersion, project, source]);
+  }, [curseForgeFilterKey, project, source]);
 
   const loaderOptions = useMemo<ToggleOption[]>(() => {
     const options: ToggleOption[] = [
@@ -122,8 +128,11 @@ export const useDownloadDetail = (
 
     if (!details) return options;
 
-    const uniqueLoaders = Array.from(new Set((details.loaders || []).filter(Boolean)));
-    const validModLoaders = ['fabric', 'forge', 'neoforge'];
+    const uniqueLoaders = Array.from(new Set([
+      ...(details.loaders || []),
+      ...versions.flatMap((version) => version.loaders || [])
+    ].filter(Boolean)));
+    const validModLoaders = ['fabric', 'forge', 'neoforge', 'quilt', 'liteloader'];
     
     uniqueLoaders.forEach((loader) => {
       const normalized = loader.toLowerCase();
@@ -151,7 +160,7 @@ export const useDownloadDetail = (
     });
 
     return options;
-  }, [details, t]);
+  }, [activeTab, details, t, versions]);
 
   const availableVersions = useMemo(() => {
     if (!details) return [];
