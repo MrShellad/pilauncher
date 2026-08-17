@@ -123,10 +123,22 @@ export const useModListController = ({
     return rangeMods;
   }, [activeMods, focusedRowIndex, renderEntries, virtualRange.endIndex, virtualRange.startIndex]);
 
+  // Keep the current viewport ahead of the prefetch buffer: when users scroll,
+  // icons that are already on screen must not wait behind icons above the fold.
+  const iconViewportMods = useMemo(() => {
+    const viewportMods = renderEntries
+      .slice(virtualRange.startIndex, virtualRange.endIndex + 1)
+      .filter((entry) => entry.type === 'mod')
+      .map((entry) => entry.mod);
+
+    return viewportMods.length > 0 ? viewportMods : activeMods.slice(0, 24);
+  }, [activeMods, renderEntries, virtualRange.endIndex, virtualRange.startIndex]);
+
   const iconSnapshots = useModIconSubscription({
     instanceId,
     mods: activeMods,
     visibleMods: iconRangeMods,
+    viewportMods: iconViewportMods,
     focusedRowFileName
   });
 

@@ -150,99 +150,80 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
     : 'border-[#2A3140] bg-[#171B23] text-[#8B93A7] hover:border-[#313A4D] hover:bg-[#232937] hover:text-[#DCE3F1]';
 
   return (
-    <div className={`mx-2 mb-1.5 border px-3 py-2 ${toolbarClass}`}>
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="flex items-center font-minecraft text-white">
-            <History size={18} className="mr-2 text-[#7AA2FF]" />
-            模组快照
-          </h3>
-          <div className="flex flex-wrap items-center gap-2">
-            <OreButton
-              focusKey="mod-btn-snapshot"
-              variant="primary"
-              size="auto"
-              disabled={snapshotState !== 'idle'}
-              onClick={onCreateSnapshot}
-              onArrowPress={onHeaderArrowPress}
-              className={MOD_LIST_HEADER_CLASSES.oreButton}
-              style={LIST_CONTROL_TEXT_STYLE}
-            >
-              {snapshotState === 'snapshotting' ? (
-                <Loader2 className="mr-1.5 animate-spin" size={14} />
-              ) : (
-                <History size={14} className="mr-1.5" />
-              )}
-              {snapshotLabel}
-            </OreButton>
-            <OreButton
-              focusKey="mod-btn-history"
-              size="auto"
-              variant="secondary"
-              onClick={onOpenHistory}
-              onArrowPress={onHeaderArrowPress}
-              className={MOD_LIST_HEADER_CLASSES.oreButton}
-              style={LIST_CONTROL_TEXT_STYLE}
-            >
-              <RefreshCw size={14} className="mr-1.5" />
-              历史快照
-            </OreButton>
-            <div className="mx-0.5 h-5 w-px bg-white/15" />
-            <OreButton
-              focusKey="mod-btn-folder"
-              variant="secondary"
-              size="auto"
-              onClick={onOpenModFolder}
-              onArrowPress={onHeaderArrowPress}
-              className={MOD_LIST_HEADER_CLASSES.oreButton}
-              style={LIST_CONTROL_TEXT_STYLE}
-            >
-              <FolderOpen size={14} className="mr-1.5" />
-              打开文件夹
-            </OreButton>
-            <div className="mx-0.5 h-5 w-px bg-white/15" />
-            <OreButton
-              focusKey="mod-btn-cleanup"
-              variant="secondary"
-              size="auto"
-              onClick={onAnalyzeCleanup}
-              onArrowPress={onHeaderArrowPress}
-              className={MOD_LIST_HEADER_CLASSES.oreButton}
-              style={LIST_CONTROL_TEXT_STYLE}
-            >
-              <Wand2 size={14} className="mr-1.5" />
-              清理名称
-            </OreButton>
-            <div className="mx-0.5 h-5 w-px bg-white/15" />
-            <OreButton
-              focusKey="mod-btn-theme-toggle"
-              variant="secondary"
-              size="auto"
-              onClick={() => onThemeChange(isLightTheme ? 'dark' : 'light')}
-              onArrowPress={onHeaderArrowPress}
-              className={MOD_LIST_HEADER_CLASSES.oreButton}
-              style={LIST_CONTROL_TEXT_STYLE}
-              title={isLightTheme ? '切换到暗色列表' : '切换到亮色列表'}
-            >
-              {isLightTheme ? <Moon size={14} className="mr-1.5" /> : <Sun size={14} className="mr-1.5" />}
-              {isLightTheme ? '暗色' : '亮色'}
-            </OreButton>
-            <OreButton
-              focusKey="mod-btn-metadata-settings"
-              variant="secondary"
-              size="auto"
-              onClick={onOpenModMetadataSettings}
-              onArrowPress={onHeaderArrowPress}
-              className={MOD_LIST_HEADER_CLASSES.oreButton}
-              style={LIST_CONTROL_TEXT_STYLE}
-              title="MOD 元数据"
-            >
-              <Settings2 size={14} className="mr-1.5" />
-              元数据
-            </OreButton>
+    <section className={`mx-2 mb-1.5 border p-3 ${toolbarClass}`} aria-label="本地 MOD 工具栏">
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-current/10 pb-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h3 className={`flex items-center font-minecraft text-[1.125rem] ${isLightTheme ? 'text-[#111214]' : 'text-white'}`}>
+              <LayoutList size={18} className="mr-2 text-[#7AA2FF]" />
+              本地 MOD
+            </h3>
+            <div className={`flex items-center gap-2 text-[0.9375rem] ${isLightTheme ? 'text-[#4A4C50]' : 'text-[#8D96A8]'}`}>
+              <span>共 {stats.total} 个</span>
+              {stats.visible !== stats.total && <span>显示 {stats.visible} 个</span>}
+              {stats.updates > 0 && <span className="font-semibold text-[#57D38C]">{stats.updates} 个可更新</span>}
+            </div>
           </div>
+          <p className={`mt-1 text-[0.9375rem] ${isLightTheme ? 'text-[#60636A]' : 'text-[#7E879A]'}`}>
+            搜索、筛选并维护当前实例的模组文件
+          </p>
         </div>
-      <div className="flex w-full flex-wrap items-center gap-x-2 gap-y-2">
-        <div className="flex min-w-[14rem] flex-1 items-center gap-2">
+
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <OreButton
+            focusKey="mod-btn-snapshot"
+            variant="secondary"
+            size="auto"
+            disabled={snapshotState !== 'idle'}
+            onClick={onCreateSnapshot}
+            onArrowPress={onHeaderArrowPress}
+            className={MOD_LIST_HEADER_CLASSES.oreButton}
+            style={LIST_CONTROL_TEXT_STYLE}
+          >
+            {snapshotState === 'snapshotting' ? <Loader2 className="mr-1.5 animate-spin" size={14} /> : <History size={14} className="mr-1.5" />}
+            {snapshotLabel}
+          </OreButton>
+          <OreButton
+            focusKey="mod-btn-history"
+            size="auto"
+            variant="secondary"
+            onClick={onOpenHistory}
+            onArrowPress={onHeaderArrowPress}
+            className={MOD_LIST_HEADER_CLASSES.oreButton}
+            style={LIST_CONTROL_TEXT_STYLE}
+          >
+            <RefreshCw size={14} className="mr-1.5" />
+            历史
+          </OreButton>
+          <OreButton
+            focusKey="mod-btn-folder"
+            variant="secondary"
+            size="auto"
+            onClick={onOpenModFolder}
+            onArrowPress={onHeaderArrowPress}
+            className={MOD_LIST_HEADER_CLASSES.oreButton}
+            style={LIST_CONTROL_TEXT_STYLE}
+          >
+            <FolderOpen size={14} className="mr-1.5" />
+            文件夹
+          </OreButton>
+          <OreButton
+            focusKey="mod-btn-download"
+            variant="primary"
+            size="auto"
+            onClick={onOpenDownload}
+            onArrowPress={onHeaderArrowPress}
+            className={MOD_LIST_HEADER_CLASSES.oreButton}
+            style={LIST_CONTROL_TEXT_STYLE}
+          >
+            <DownloadCloud size={14} className="mr-1.5" />
+            下载 MOD
+          </OreButton>
+        </div>
+      </header>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="flex min-w-[16rem] flex-1 items-center gap-2">
           <OreInput
             focusKey="mod-search-input"
             value={searchQuery}
@@ -258,7 +239,6 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
             style={LIST_CONTROL_TEXT_STYLE}
             prefixNode={<Search size={16} className={isLightTheme ? 'text-[#313233]' : undefined} />}
           />
-
           {searchQuery && (
             <OreButton
               focusKey="mod-search-clear"
@@ -275,10 +255,9 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
           )}
         </div>
 
-        <div className={`${MOD_LIST_HEADER_CLASSES.segmentGroup} ${segmentClass} justify-start xl:justify-end`}>
+        <div className={`${MOD_LIST_HEADER_CLASSES.segmentGroup} ${segmentClass}`} aria-label="列表视图">
           {VIEW_MODE_OPTIONS.map((option) => {
             const isActive = option.id === viewMode;
-
             return (
               <button
                 key={option.id}
@@ -294,23 +273,31 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
             );
           })}
         </div>
+
+        <div className="flex flex-wrap items-center gap-1 border-l border-current/10 pl-2">
+          <OreButton focusKey="mod-btn-cleanup" variant="secondary" size="auto" onClick={onAnalyzeCleanup} onArrowPress={onHeaderArrowPress} className={MOD_LIST_HEADER_CLASSES.oreButton} style={LIST_CONTROL_TEXT_STYLE}>
+            <Wand2 size={14} className="mr-1.5" />清理名称
+          </OreButton>
+          <OreButton focusKey="mod-btn-theme-toggle" variant="secondary" size="auto" onClick={() => onThemeChange(isLightTheme ? 'dark' : 'light')} onArrowPress={onHeaderArrowPress} className={`${MOD_LIST_HEADER_CLASSES.oreButton} !min-w-10 !px-2`} style={LIST_CONTROL_TEXT_STYLE} title={isLightTheme ? '切换到暗色列表' : '切换到亮色列表'}>
+            {isLightTheme ? <Moon size={14} /> : <Sun size={14} />}
+          </OreButton>
+          <OreButton focusKey="mod-btn-metadata-settings" variant="secondary" size="auto" onClick={onOpenModMetadataSettings} onArrowPress={onHeaderArrowPress} className={`${MOD_LIST_HEADER_CLASSES.oreButton} !min-w-10 !px-2`} style={LIST_CONTROL_TEXT_STYLE} title="MOD 元数据">
+            <Settings2 size={14} />
+          </OreButton>
+        </div>
       </div>
 
-      <div className="mt-2 flex min-h-[2.625rem] flex-wrap items-center justify-between gap-x-2 gap-y-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+      <div className="mt-3 flex min-h-[2.625rem] flex-wrap items-center justify-between gap-3 border-t border-current/10 pt-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5" aria-label="模组筛选">
           {filterOptions.map((option) => {
             const isActive = option.id === quickFilter;
-
             return (
               <button
                 key={option.id}
                 type="button"
                 tabIndex={-1}
                 onClick={() => onQuickFilterChange(option.id)}
-                className={`inline-flex min-h-10 items-center gap-1.5 border px-3 text-[1.0625rem] transition-colors ${isActive
-                    ? filterActiveClass
-                    : filterInactiveClass
-                  }`}
+                className={`inline-flex min-h-10 items-center gap-1.5 border px-3 text-[1.0625rem] transition-colors ${isActive ? filterActiveClass : filterInactiveClass}`}
               >
                 {getFilterIcon(option.id)}
                 <span>{option.label}</span>
@@ -322,103 +309,34 @@ export const ModListHeader: React.FC<ModListHeaderProps> = ({
 
         <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2">
           {isBatchMode && (
-            <div className="flex shrink-0 animate-in flex-wrap items-center gap-2 fade-in slide-in-from-top-1">
-              <OreButton
-                focusKey="mod-btn-batch-enable"
-                size="auto"
-                variant="secondary"
-                onClick={onBatchEnable}
-                onArrowPress={onHeaderArrowPress}
-                className={MOD_LIST_HEADER_CLASSES.oreButton}
-                style={LIST_CONTROL_TEXT_STYLE}
-              >
-                <Power size={14} className="mr-1.5" />
-                启用
+            <div className={`flex flex-wrap items-center gap-2 border px-2 py-1.5 ${isLightTheme ? 'border-[#1E1E1F] bg-[#DDE0E3]' : 'border-[#313A4D] bg-[#1A1F29]'}`}>
+              <span className={`px-1 text-[0.9375rem] font-semibold ${isLightTheme ? 'text-[#313233]' : 'text-[#B8C2D9]'}`}>批量操作</span>
+              <OreButton focusKey="mod-btn-batch-enable" size="auto" variant="secondary" onClick={onBatchEnable} onArrowPress={onHeaderArrowPress} className={MOD_LIST_HEADER_CLASSES.oreButton} style={LIST_CONTROL_TEXT_STYLE}>
+                <Power size={14} className="mr-1.5" />启用
               </OreButton>
-
-              <OreButton
-                focusKey="mod-btn-batch-disable"
-                size="auto"
-                variant="secondary"
-                onClick={onBatchDisable}
-                onArrowPress={onHeaderArrowPress}
-                className={MOD_LIST_HEADER_CLASSES.oreButton}
-                style={LIST_CONTROL_TEXT_STYLE}
-              >
-                <Power size={14} className="mr-1.5 opacity-50" />
-                禁用
+              <OreButton focusKey="mod-btn-batch-disable" size="auto" variant="secondary" onClick={onBatchDisable} onArrowPress={onHeaderArrowPress} className={MOD_LIST_HEADER_CLASSES.oreButton} style={LIST_CONTROL_TEXT_STYLE}>
+                <Power size={14} className="mr-1.5 opacity-50" />禁用
               </OreButton>
-
-              <OreButton
-                focusKey="mod-btn-batch-delete"
-                size="auto"
-                variant="danger"
-                onClick={onBatchDelete}
-                onArrowPress={onHeaderArrowPress}
-                className={MOD_LIST_HEADER_CLASSES.oreButton}
-                style={LIST_CONTROL_TEXT_STYLE}
-              >
-                <Trash2 size={14} className="mr-1.5" />
-                删除
+              <OreButton focusKey="mod-btn-batch-favorite" size="auto" variant="secondary" onClick={onBatchFavorite} onArrowPress={onHeaderArrowPress} className={MOD_LIST_HEADER_CLASSES.oreButton} style={LIST_CONTROL_TEXT_STYLE}>
+                <Star size={14} className="mr-1.5" />收藏
               </OreButton>
-
-              <OreButton
-                focusKey="mod-btn-batch-favorite"
-                size="auto"
-                variant="secondary"
-                onClick={onBatchFavorite}
-                onArrowPress={onHeaderArrowPress}
-                className={MOD_LIST_HEADER_CLASSES.oreButton}
-                style={LIST_CONTROL_TEXT_STYLE}
-              >
-                <Star size={14} className="mr-1.5" />
-                收藏
+              <OreButton focusKey="mod-btn-batch-delete" size="auto" variant="danger" onClick={onBatchDelete} onArrowPress={onHeaderArrowPress} className={MOD_LIST_HEADER_CLASSES.oreButton} style={LIST_CONTROL_TEXT_STYLE}>
+                <Trash2 size={14} className="mr-1.5" />删除
               </OreButton>
             </div>
           )}
 
-          <OreButton
-            focusKey="mod-btn-check-updates"
-            variant="purple"
-            size="auto"
-            disabled={isCheckingModUpdates || isUpdatingAny}
-            onClick={onCheckModUpdates}
-            onArrowPress={onHeaderArrowPress}
-            className={MOD_LIST_HEADER_CLASSES.oreButton}
-            style={LIST_CONTROL_TEXT_STYLE}
-          >
+          <OreButton focusKey="mod-btn-check-updates" variant="purple" size="auto" disabled={isCheckingModUpdates || isUpdatingAny} onClick={onCheckModUpdates} onArrowPress={onHeaderArrowPress} className={MOD_LIST_HEADER_CLASSES.oreButton} style={LIST_CONTROL_TEXT_STYLE}>
             <RefreshCw size={14} className={`mr-1.5 ${isCheckingModUpdates ? 'animate-spin' : ''}`} />
             {isCheckingModUpdates ? '检查中...' : '检查更新'}
           </OreButton>
           {stats.updates > 0 && (
-            <OreButton
-              focusKey="mod-btn-update-all"
-              variant="primary"
-              size="auto"
-              disabled={isCheckingModUpdates || isUpdatingAny}
-              onClick={onUpdateAllMods}
-              onArrowPress={onHeaderArrowPress}
-              className={MOD_LIST_HEADER_CLASSES.oreButton}
-              style={LIST_CONTROL_TEXT_STYLE}
-            >
-              <ArrowUpCircle size={14} className="mr-1.5" />
-              一键更新 ({stats.updates})
+            <OreButton focusKey="mod-btn-update-all" variant="primary" size="auto" disabled={isCheckingModUpdates || isUpdatingAny} onClick={onUpdateAllMods} onArrowPress={onHeaderArrowPress} className={MOD_LIST_HEADER_CLASSES.oreButton} style={LIST_CONTROL_TEXT_STYLE}>
+              <ArrowUpCircle size={14} className="mr-1.5" />一键更新 ({stats.updates})
             </OreButton>
           )}
-          <OreButton
-            focusKey="mod-btn-download"
-            variant="primary"
-            size="auto"
-            onClick={onOpenDownload}
-            onArrowPress={onHeaderArrowPress}
-            className={MOD_LIST_HEADER_CLASSES.oreButton}
-            style={LIST_CONTROL_TEXT_STYLE}
-          >
-            <DownloadCloud size={14} className="mr-1.5" />
-            下载 MOD
-          </OreButton>
         </div>
       </div>
-    </div>
+    </section>
   );
 };

@@ -100,14 +100,29 @@ export const useDownloadDetail = (
     // Its complete project history is filtered once in the modal. CurseForge remains
     // server-filtered because its file endpoint is paginated.
     const request = source === 'curseforge'
-      ? fetchCurseForgeVersions(projectId, activeVersion, activeLoader)
+      ? (async () => {
+          const filteredVersions = await fetchCurseForgeVersions(projectId, activeVersion, activeLoader);
+
+          // Search result metadata can advertise a game version or loader while no
+          // downloadable file matches that exact pair. Keep the detail page useful
+          // by falling back to the project's downloadable history and clearing the
+          // inherited filters instead of presenting a misleading empty list.
+          if (filteredVersions.length === 0 && (activeVersion || activeLoader)) {
+            const fallbackVersions = await fetchCurseForgeVersions(projectId);
+            if (fallbackVersions.length > 0 && active) {
+              setActiveVersion('');
+              setActiveLoader('');
+            }
+            return fallbackVersions;
+          }
+
+          return filteredVersions;
+        })()
       : fetchModrinthVersions(projectId);
 
     request
       .then((data) => {
-        if (active) {
-          setVersions(data || []);
-        }
+        if (active) setVersions(data || []);
       })
       .catch(console.error)
       .finally(() => {

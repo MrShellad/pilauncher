@@ -7,6 +7,7 @@ import {
   getModDisplayName,
   getModFormattedSize,
   getModSourceLabel,
+  MOD_LIST_COMPACT_GRID_CLASS,
   MOD_LIST_TABLE_GRID_CLASS,
   type ModListTheme,
   type ModListViewMode
@@ -278,8 +279,12 @@ export const ModRowView: React.FC<ModRowViewProps> = ({
           </div>
         </div>
 
+        <div className={`min-w-0 truncate text-[1.0625rem] tabular-nums ${secondaryTextClass} ${isEnabled ? '' : 'opacity-55'}`}>
+          {formattedSize}
+        </div>
+
         <div
-          className="flex shrink-0 justify-end pr-5"
+          className="flex shrink-0 justify-end pr-1"
           onClick={(event) => event.stopPropagation()}
           onPointerDown={(event) => event.stopPropagation()}
           onKeyDown={(event) => event.stopPropagation()}
@@ -293,7 +298,7 @@ export const ModRowView: React.FC<ModRowViewProps> = ({
   return (
     <div
       onClick={onClick}
-      className={`group relative grid min-h-[4rem] cursor-pointer select-none grid-cols-[2.875rem_36px_minmax(0,1fr)_auto] items-center gap-[15px] overflow-hidden border-b px-3 py-1 text-left ${borderClass} ${rowBackgroundClass} ${activeClass}`}
+      className={`group relative grid min-h-[4rem] cursor-pointer select-none ${MOD_LIST_COMPACT_GRID_CLASS} items-center gap-[15px] overflow-hidden border-b px-3 py-1 text-left ${borderClass} ${rowBackgroundClass} ${activeClass}`}
     >
       <div className={`absolute inset-y-0 left-0 ${isActive ? 'w-1.5' : 'w-1'} ${accentClass}`} />
 
@@ -340,7 +345,7 @@ export const ModRowView: React.FC<ModRowViewProps> = ({
       </div>
 
       <div
-        className="flex shrink-0 justify-end pr-5"
+        className="flex shrink-0 justify-end pr-1"
         onClick={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
         onKeyDown={(event) => event.stopPropagation()}

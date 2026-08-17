@@ -204,6 +204,7 @@ export const ModList: React.FC<ModListProps> = ({
         sortOrder={sortOrder}
         onSelectAll={onSelectAll}
         onSortClick={onSortClick}
+        viewMode={controller.state.viewMode}
         listTheme={listTheme}
       />
 

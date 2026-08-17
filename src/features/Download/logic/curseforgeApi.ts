@@ -34,6 +34,9 @@ const LOADER_TYPE_MAP: Record<string, number> = {
 
 const KNOWN_LOADERS = Object.keys(LOADER_TYPE_MAP);
 const VERSION_PATTERN = /^(\d+\.\d+(?:\.\d+)?)|(\d{2}w\d{2}[a-z])$/i;
+const CURSEFORGE_FILE_PAGE_SIZE = 50;
+const MAX_CURSEFORGE_FILE_PAGES = 20;
+const DOWNLOAD_URL_CONCURRENCY = 6;
 
 interface CurseForgeEnvelope<T> {
   data: T;
@@ -351,9 +354,7 @@ const mapProjectDetail = (mod: CurseForgeMod): OreProjectDetail => {
   };
 };
 
-const mapProjectVersion = (file: CurseForgeFile): OreProjectVersion | null => {
-  if (!file.downloadUrl) return null;
-
+const mapProjectVersion = (file: CurseForgeFile, downloadUrl: string): OreProjectVersion => {
   return {
     id: String(file.id),
     name: file.displayName || file.fileName,
@@ -363,7 +364,7 @@ const mapProjectVersion = (file: CurseForgeFile): OreProjectVersion | null => {
     loaders: getFileLoaders(file),
     game_versions: getFileGameVersions(file),
     file_name: file.fileName,
-    download_url: file.downloadUrl,
+    download_url: downloadUrl,
     dependencies: (file.dependencies || [])
       .filter((dependency) => dependency.modId)
       .map((dependency) => ({
@@ -374,6 +375,33 @@ const mapProjectVersion = (file: CurseForgeFile): OreProjectVersion | null => {
       })),
     fileFingerprint: file.fileFingerprint
   };
+};
+
+const resolveCurseForgeDownloadUrl = async (projectId: string, file: CurseForgeFile) => {
+  if (file.downloadUrl) return file.downloadUrl;
+
+  try {
+    return await curseForgeFetch<string>(`/mods/${projectId}/files/${file.id}/download-url`);
+  } catch (error) {
+    console.warn(`Unable to resolve CurseForge download URL for file ${file.id}:`, error);
+    return null;
+  }
+};
+
+const mapDownloadableCurseForgeFiles = async (projectId: string, files: CurseForgeFile[]) => {
+  const versions: OreProjectVersion[] = [];
+
+  for (let start = 0; start < files.length; start += DOWNLOAD_URL_CONCURRENCY) {
+    const batch = files.slice(start, start + DOWNLOAD_URL_CONCURRENCY);
+    const mapped = await Promise.all(batch.map(async (file) => {
+      const downloadUrl = await resolveCurseForgeDownloadUrl(projectId, file);
+      return downloadUrl ? mapProjectVersion(file, downloadUrl) : null;
+    }));
+
+    versions.push(...mapped.filter((item): item is OreProjectVersion => !!item));
+  }
+
+  return versions;
 };
 
 const curseForgeFetch = async <T>(
@@ -448,15 +476,24 @@ export const fetchCurseForgeVersions = async (
   gameVersion?: string,
   loader?: string
 ): Promise<OreProjectVersion[]> => {
-  const data = await curseForgeFetch<CurseForgeFile[]>(`/mods/${projectId}/files`, {
-    gameVersion: gameVersion || undefined,
-    modLoaderType: LOADER_TYPE_MAP[loader || ''],
-    pageSize: 50
-  });
+  const files: CurseForgeFile[] = [];
 
-  return data
-    .map(mapProjectVersion)
-    .filter((item): item is OreProjectVersion => !!item)
+  for (let page = 0; page < MAX_CURSEFORGE_FILE_PAGES; page += 1) {
+    const pageFiles = await curseForgeFetch<CurseForgeFile[]>(`/mods/${projectId}/files`, {
+      gameVersion: gameVersion || undefined,
+      modLoaderType: LOADER_TYPE_MAP[loader || ''],
+      index: page * CURSEFORGE_FILE_PAGE_SIZE,
+      pageSize: CURSEFORGE_FILE_PAGE_SIZE
+    });
+
+    files.push(...pageFiles);
+    if (pageFiles.length < CURSEFORGE_FILE_PAGE_SIZE) break;
+  }
+
+  const dedupedFiles = Array.from(new Map(files.map((file) => [file.id, file])).values());
+  const versions = await mapDownloadableCurseForgeFiles(projectId, dedupedFiles);
+
+  return versions
     .sort((a, b) => new Date(b.date_published).getTime() - new Date(a.date_published).getTime());
 };
 
@@ -472,7 +509,7 @@ export const matchCurseForgeFingerprints = async (
   const mapped: Record<number, OreProjectVersion & { project_id: string }> = {};
 
   (data.exactMatches || []).forEach((match) => {
-    const version = mapProjectVersion(match.file);
+    const version = match.file.downloadUrl ? mapProjectVersion(match.file, match.file.downloadUrl) : null;
     if (!version) return;
 
     const fingerprintKey = typeof match.file.fileFingerprint === 'number'

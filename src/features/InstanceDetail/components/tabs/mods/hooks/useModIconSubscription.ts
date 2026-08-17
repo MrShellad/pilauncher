@@ -12,7 +12,8 @@ const getModIconSnapshotKey = (mod: ModMeta) => {
     mod.cacheKey || mod.fileName,
     mod.fileName,
     mod.iconAbsolutePath || '',
-    mod.offlineJarIconAbsolutePath || ''
+    mod.offlineJarIconAbsolutePath || '',
+    mod.networkIconUrl || mod.networkInfo?.icon_url || ''
   ].join('|');
 };
 
@@ -44,16 +45,15 @@ const getRememberedIconSnapshots = (mods: ModMeta[]) => {
 };
 
 const getIconPriority = (
-  visibleIndex: number,
+  isInViewport: boolean,
   modIndex: number,
-  focusedIndex: number,
-  visibleCount: number
+  focusedIndex: number
 ): ModIconPriority => {
   if (focusedIndex >= 0 && Math.abs(modIndex - focusedIndex) <= 2) {
     return 'high';
   }
 
-  if (visibleIndex < Math.min(visibleCount, 10)) {
+  if (isInViewport) {
     return 'high';
   }
 
@@ -68,13 +68,15 @@ interface UseModIconSubscriptionOptions {
   instanceId?: string;
   mods: ModMeta[];
   visibleMods: ModMeta[];
+  viewportMods: ModMeta[];
   focusedRowFileName: string | null;
 }
 
 const getModIconSourceKey = (mod: ModMeta) => {
   return [
     mod.iconAbsolutePath || '',
-    mod.offlineJarIconAbsolutePath || ''
+    mod.offlineJarIconAbsolutePath || '',
+    mod.networkIconUrl || mod.networkInfo?.icon_url || ''
   ].join('|');
 };
 
@@ -82,6 +84,7 @@ export const useModIconSubscription = ({
   instanceId,
   mods,
   visibleMods,
+  viewportMods,
   focusedRowFileName
 }: UseModIconSubscriptionOptions) => {
   const [iconSnapshots, setIconSnapshots] = useState<Record<string, ModIconSnapshot>>(() => (
@@ -95,6 +98,10 @@ export const useModIconSubscription = ({
   const focusedRowIndex = useMemo(() => {
     return mods.findIndex((mod) => mod.fileName === focusedRowFileName);
   }, [focusedRowFileName, mods]);
+
+  const viewportFileNames = useMemo(() => {
+    return new Set(viewportMods.map((mod) => mod.fileName));
+  }, [viewportMods]);
 
   const subscriptionsRef = useRef<Map<string, { unsubscribe: () => void; sourceKey: string; priority: ModIconPriority }>>(new Map());
   const unsubscribeTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -157,7 +164,7 @@ export const useModIconSubscription = ({
       const existing = currentSubs.get(mod.fileName);
       const currentSourceKey = getModIconSourceKey(mod);
       const absoluteIndex = modIndexByFileName.get(mod.fileName) ?? modIndex;
-      const priority = getIconPriority(modIndex, absoluteIndex, focusedRowIndex, visibleMods.length);
+      const priority = getIconPriority(viewportFileNames.has(mod.fileName), absoluteIndex, focusedRowIndex);
 
       if (!existing || existing.sourceKey !== currentSourceKey || existing.priority !== priority) {
         if (existing) {
@@ -205,7 +212,7 @@ export const useModIconSubscription = ({
         });
       }
     });
-  }, [focusedRowIndex, instanceId, modIndexByFileName, visibleMods]);
+  }, [focusedRowIndex, instanceId, modIndexByFileName, viewportFileNames, visibleMods]);
 
   useEffect(() => {
     return () => {

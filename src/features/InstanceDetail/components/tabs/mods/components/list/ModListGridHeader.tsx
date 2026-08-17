@@ -2,7 +2,12 @@ import React from 'react';
 import { CheckSquare, ChevronDown, ChevronUp, Square } from 'lucide-react';
 
 import { type ModSortOrder, type ModSortType } from '../../../../../hooks/useModManager';
-import { MOD_LIST_TABLE_GRID_CLASS, type ModListTheme } from '../../modListShared';
+import {
+  MOD_LIST_COMPACT_GRID_CLASS,
+  MOD_LIST_TABLE_GRID_CLASS,
+  type ModListTheme,
+  type ModListViewMode
+} from '../../modListShared';
 
 interface ModListGridHeaderProps {
   isAllSelected: boolean;
@@ -11,6 +16,7 @@ interface ModListGridHeaderProps {
   sortOrder: ModSortOrder;
   onSelectAll: () => void;
   onSortClick: (type: ModSortType) => void;
+  viewMode: ModListViewMode;
   listTheme: ModListTheme;
 }
 
@@ -76,6 +82,7 @@ export const ModListGridHeader: React.FC<ModListGridHeaderProps> = ({
   sortOrder,
   onSelectAll,
   onSortClick,
+  viewMode,
   listTheme
 }) => {
   const isLightTheme = listTheme === 'light';
@@ -89,8 +96,10 @@ export const ModListGridHeader: React.FC<ModListGridHeaderProps> = ({
     ? 'border-[#1E1E1F] bg-[#F2F2F2] text-[#111214] shadow-[inset_0_-0.125rem_0_#B8BBC2]'
     : 'border-[#313A4D] bg-[#232937] text-[#C7D2E6]';
 
+  const gridClass = viewMode === 'compact' ? MOD_LIST_COMPACT_GRID_CLASS : MOD_LIST_TABLE_GRID_CLASS;
+
   return (
-    <div className={`relative z-20 mx-2 grid min-h-12 ${MOD_LIST_TABLE_GRID_CLASS} items-center gap-2 border px-2 outline outline-2 outline-offset-[-2px] ${headerClass}`}>
+    <div className={`relative z-20 mx-2 grid min-h-12 ${gridClass} items-center gap-2 border px-2 outline outline-2 outline-offset-[-2px] ${headerClass}`}>
       <div className="mx-auto flex min-w-0 items-center gap-1.5">
         <button
           type="button"
@@ -108,35 +117,58 @@ export const ModListGridHeader: React.FC<ModListGridHeaderProps> = ({
         )}
       </div>
 
-      <SortableHeaderCell
-        label={'\u540d\u79f0'}
-        sortKey="name"
-        sortType={sortType}
-        sortOrder={sortOrder}
-        tone="primary"
-        className="justify-start pl-[4.25rem]"
-        onSortClick={onSortClick}
-        listTheme={listTheme}
-      />
-      <SortableHeaderCell
-        label={'\u6587\u4ef6\u540d'}
-        sortKey="fileName"
-        sortType={sortType}
-        sortOrder={sortOrder}
-        onSortClick={onSortClick}
-        listTheme={listTheme}
-      />
-      <SortableHeaderCell
-        label={'\u7248\u672c'}
-        sortKey="version"
-        sortType={sortType}
-        sortOrder={sortOrder}
-        onSortClick={onSortClick}
-        listTheme={listTheme}
-      />
-      <span className={`justify-self-end pr-5 text-[1.0625rem] ${isLightTheme ? 'text-[#4A4C50]' : 'text-[#8B93A7]'}`}>
-        {'\u64cd\u4f5c'}
-      </span>
+      {viewMode === 'compact' ? (
+        <>
+          <span aria-hidden="true" />
+          <SortableHeaderCell
+            label={'\u6a21\u7ec4'}
+            sortKey="name"
+            sortType={sortType}
+            sortOrder={sortOrder}
+            tone="primary"
+            onSortClick={onSortClick}
+            listTheme={listTheme}
+          />
+          <span className={`justify-self-end pr-1 text-[1.0625rem] ${isLightTheme ? 'text-[#4A4C50]' : 'text-[#8B93A7]'}`}>
+            {'\u64cd\u4f5c'}
+          </span>
+        </>
+      ) : (
+        <>
+          <SortableHeaderCell
+            label={'\u540d\u79f0'}
+            sortKey="name"
+            sortType={sortType}
+            sortOrder={sortOrder}
+            tone="primary"
+            className="justify-start pl-[4.25rem]"
+            onSortClick={onSortClick}
+            listTheme={listTheme}
+          />
+          <SortableHeaderCell
+            label={'\u6587\u4ef6\u540d'}
+            sortKey="fileName"
+            sortType={sortType}
+            sortOrder={sortOrder}
+            onSortClick={onSortClick}
+            listTheme={listTheme}
+          />
+          <SortableHeaderCell
+            label={'\u7248\u672c'}
+            sortKey="version"
+            sortType={sortType}
+            sortOrder={sortOrder}
+            onSortClick={onSortClick}
+            listTheme={listTheme}
+          />
+          <span className={`text-[1.0625rem] ${isLightTheme ? 'text-[#4A4C50]' : 'text-[#8B93A7]'}`}>
+            {'\u5927\u5c0f'}
+          </span>
+          <span className={`justify-self-end pr-1 text-[1.0625rem] ${isLightTheme ? 'text-[#4A4C50]' : 'text-[#8B93A7]'}`}>
+            {'\u64cd\u4f5c'}
+          </span>
+        </>
+      )}
     </div>
   );
 };

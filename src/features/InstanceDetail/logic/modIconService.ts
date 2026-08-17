@@ -39,7 +39,7 @@ const EMPTY_ICON: ModIconSnapshot = {
 };
 
 const MAX_MEMORY_ITEMS = 250;
-const MAX_CONCURRENT_TASKS = 4;
+const MAX_CONCURRENT_TASKS = 6;
 const FAILED_RETRY_MS = 30_000;
 const PRIORITY_WEIGHT: Record<ModIconPriority, number> = {
   high: 0,
@@ -86,27 +86,27 @@ class ModIconService {
   }
 
   private async resolveDescriptor(mod: ModMeta): Promise<ModIconDescriptor | null> {
+    const candidates: string[] = [];
+
     if (mod.iconAbsolutePath) {
-      const localUrl = convertFileSrc(mod.iconAbsolutePath);
-      return {
-        cacheId: `local:${mod.iconAbsolutePath}`,
-        candidates: [localUrl]
-      };
+      candidates.push(convertFileSrc(mod.iconAbsolutePath));
     }
 
-    if (
-      typeof navigator !== 'undefined' &&
-      navigator.onLine === false &&
-      mod.offlineJarIconAbsolutePath
-    ) {
-      const localUrl = convertFileSrc(mod.offlineJarIconAbsolutePath);
-      return {
-        cacheId: `jar:${mod.offlineJarIconAbsolutePath}`,
-        candidates: [localUrl]
-      };
+    if (mod.offlineJarIconAbsolutePath) {
+      candidates.push(convertFileSrc(mod.offlineJarIconAbsolutePath));
     }
 
-    return null;
+    const networkIconUrl = mod.networkIconUrl || mod.networkInfo?.icon_url;
+    if (networkIconUrl && (typeof navigator === 'undefined' || navigator.onLine !== false)) {
+      candidates.push(networkIconUrl);
+    }
+
+    if (candidates.length === 0) return null;
+
+    return {
+      cacheId: [mod.iconAbsolutePath, mod.offlineJarIconAbsolutePath, networkIconUrl].filter(Boolean).join('|'),
+      candidates
+    };
   }
 
   private async getIconFromDescriptor(descriptor: ModIconDescriptor, priority: ModIconPriority) {

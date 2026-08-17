@@ -61,7 +61,9 @@ export const ModListSkeleton: React.FC<ModListSkeletonProps> = ({
             <SkeletonBlock className="mt-2 h-4 w-28" listTheme={listTheme} />
           </div>
 
-          <div className="flex justify-end gap-2 pr-5">
+          <SkeletonBlock className="h-4 w-14" listTheme={listTheme} />
+
+          <div className="flex justify-end gap-2 pr-1">
             <SkeletonBlock className="h-8 w-8" listTheme={listTheme} />
             <SkeletonBlock className="h-8 w-8" listTheme={listTheme} />
             <SkeletonBlock className="h-8 w-8" listTheme={listTheme} />

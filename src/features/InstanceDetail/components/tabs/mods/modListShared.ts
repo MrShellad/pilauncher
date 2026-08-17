@@ -28,7 +28,9 @@ export const MOD_LIST_HEADER_CLASSES = {
 } as const;
 
 export const MOD_LIST_TABLE_GRID_CLASS =
-  'grid-cols-[2.875rem_minmax(10rem,1.25fr)_minmax(10rem,1.35fr)_minmax(9rem,1fr)_minmax(9rem,auto)]';
+  'grid-cols-[2.875rem_minmax(13rem,1.5fr)_minmax(11rem,1.2fr)_minmax(8rem,0.75fr)_minmax(5.5rem,0.45fr)_10rem]';
+export const MOD_LIST_COMPACT_GRID_CLASS =
+  'grid-cols-[2.875rem_2.25rem_minmax(0,1fr)_10rem]';
 
 export interface ModListGroup {
   id: ModGroupId;
