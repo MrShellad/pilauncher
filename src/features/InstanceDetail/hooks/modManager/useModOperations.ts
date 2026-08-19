@@ -225,12 +225,16 @@ export const useModOperations = ({
         ? source.platform
         : '') as ModPlatformId | '';
     }
-    const projectId = version?.project_id || source?.projectId || '';
+    const projectId = version?.project_id 
+      || source?.projectId 
+      || (platform ? (mod.manifestEntry?.matchedPlatforms as any)?.[platform]?.projectId : undefined)
+      || mod.modId 
+      || '';
     const targetVersionId = version?.id || mod.updateFileId || '';
     const targetDownloadUrl = version?.download_url || mod.updateDownloadUrl || '';
     const remoteFileName = version?.file_name || mod.updateFileName || '';
 
-    if (!projectId || !targetVersionId || !targetDownloadUrl || !remoteFileName) {
+    if (!targetVersionId || !targetDownloadUrl || !remoteFileName) {
       throw new Error('缺少安装所需的远端文件信息，请先重新检查更新。');
     }
 

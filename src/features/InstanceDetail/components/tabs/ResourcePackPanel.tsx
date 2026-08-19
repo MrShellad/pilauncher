@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { convertFileSrc } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { DownloadCloud, FolderOpen, Loader2, Package, Trash2 } from 'lucide-react';
@@ -14,6 +13,7 @@ import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreConfirmDialog } from '../../../../ui/primitives/OreConfirmDialog';
 import { OreSwitch } from '../../../../ui/primitives/OreSwitch';
 import { useResourceManager } from '../../hooks/useResourceManager';
+import { ResourceIconBox } from './ResourceIconBox';
 
 const TOP_FOCUS_ORDER = ['btn-download-resourcepack', 'btn-open-resourcepack-folder'];
 const ROW_ACTIONS = ['toggle', 'delete'] as const;
@@ -228,13 +228,7 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
           trapFocus={operationRowIndex !== null}
           className="custom-scrollbar flex-1 min-h-0 grid grid-cols-1 gap-2 overflow-y-auto pr-1"
         >
-          {items.map((item, index) => {
-            const cacheKey = item.modifiedAt || item.fileSize || item.fileName;
-            const iconUrl = item.iconAbsolutePath
-              ? `${convertFileSrc(item.iconAbsolutePath)}?t=${cacheKey}`
-              : undefined;
-
-            return (
+          {items.map((item, index) => (
               <FocusItem
                 key={item.fileName || `rp-idx-${index}`}
                 focusKey={getRowFocusKey(index)}
@@ -255,11 +249,11 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
                         item.fileName || '', item.isDirectory ? t('instanceDetail.resourcepacks.directory', '文件夹') : formatSize(item.fileSize || 0),
                       ]}
                       leading={
-                        iconUrl ? (
-                          <img src={iconUrl} alt="icon" className="h-full w-full object-cover" />
-                        ) : (
-                          <Package size={28} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />
-                        )
+                        <ResourceIconBox
+                          item={item}
+                          instanceId={instanceId}
+                          resType="resourcePack"
+                        />
                       }
                       trailingClassName="flex items-center space-x-2"
                       trailing={
@@ -291,8 +285,7 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
                   </div>
                 )}
               </FocusItem>
-            );
-          })}
+            ))}
         </FocusBoundary>
       )}
 

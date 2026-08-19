@@ -545,6 +545,7 @@ pub struct ModMetadata {
     pub offline_jar_icon_absolute_path: Option<String>, // 离线 JAR 兜底图标
     pub network_icon_url: Option<String>,   // 远程图标来源，仅用于缓存
     pub curseforge_fingerprint: Option<u32>,
+    pub sha1: Option<String>,
     pub file_size: u64,
     pub is_enabled: bool, // 状态字段
     pub modified_at: u64, // 记录文件修改时间的时间戳

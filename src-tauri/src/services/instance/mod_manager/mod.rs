@@ -445,6 +445,7 @@ impl ModManagerService {
                     offline_jar_icon_absolute_path: None,
                     network_icon_url,
                     curseforge_fingerprint: cached.curseforge_fingerprint,
+                    sha1: cached.sha1.clone(),
                     file_size: file_size.max(0) as u64,
                     is_enabled,
                     modified_at: modified_at.max(0) as u64,
@@ -477,6 +478,20 @@ impl ModManagerService {
                     let mut m = jar_parser::JarParser::parse_jar_meta(&path_clone);
                     m.is_enabled = is_enabled;
                     m.curseforge_fingerprint = remote_fetcher::RemoteFetcher::resolve_curseforge_fingerprint(None, &path_clone);
+
+                    // Compute SHA1 for Modrinth hash matching
+                    if let Ok(mut file) = std::fs::File::open(&path_clone) {
+                        use sha1::Digest;
+                        let mut hasher = sha1::Sha1::new();
+                        let mut buffer = [0u8; 64 * 1024];
+                        use std::io::Read;
+                        while let Ok(n) = file.read(&mut buffer) {
+                            if n == 0 { break; }
+                            hasher.update(&buffer[..n]);
+                        }
+                        m.sha1 = Some(format!("{:x}", hasher.finalize()));
+                    }
+
                     let cache_key = format!("local_{}", m.mod_id.as_deref().unwrap_or(&file_name_clone));
                     m.cache_key = Some(cache_key.clone());
 
@@ -598,7 +613,7 @@ impl ModManagerService {
                     is_enabled: is_en,
                     file_size: f_size,
                     modified_at: m_time,
-                    sha1: None,
+                    sha1: meta.sha1.clone(),
                     curseforge_fingerprint: meta.curseforge_fingerprint,
                     mod_id: meta.mod_id.clone(),
                     custom_display_name: None,
@@ -749,6 +764,7 @@ impl ModManagerService {
                 offline_jar_icon_absolute_path: None,
                 network_icon_url,
                 curseforge_fingerprint: row.curseforge_fingerprint,
+                sha1: row.sha1,
                 file_size: row.file_size.max(0) as u64,
                 is_enabled: row.is_enabled,
                 modified_at: row.modified_at.max(0) as u64,

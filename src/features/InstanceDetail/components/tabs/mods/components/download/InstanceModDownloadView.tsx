@@ -25,6 +25,7 @@ import {
   type OreProjectVersion
 } from '../../../../../logic/modrinthApi';
 import { getInstalledProjectIds, getInstalledVersionIds, modService } from '../../../../../logic/modService';
+import { eventBus } from '../../../../../../../utils/eventBus';
 import { FocusBoundary } from '../../../../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../../../../ui/focus/FocusItem';
 import { useInputAction } from '../../../../../../../ui/focus/InputDriver';
@@ -40,7 +41,6 @@ import { motion, AnimatePresence } from 'motion/react';
 
 const INSTANCE_DOWNLOAD_ACTION_BAR_FOCUS_PREFIX = 'instance-download-actions';
 const INSTANCE_DOWNLOAD_GRID_FOCUS_PREFIX = 'download-grid-item-';
-
 
 interface MissingDependencyInfo {
   id: string;
@@ -573,8 +573,6 @@ export const InstanceModDownloadView: React.FC<{
         title: version.file_name,
         message: 'Connecting...',
         onCompleted: async () => {
-          if (resourceTab !== 'mod') return;
-
           const projectId = explicitProjectId || selectedProject?.id || '';
           let cachedDetail = projectId ? projectDetailsCache.current.get(projectId) : null;
           if (!cachedDetail && projectId && selectedProject && projectId === selectedProject.id) {
@@ -589,10 +587,10 @@ export const InstanceModDownloadView: React.FC<{
               cachedDetail.title || cachedDetail.name || '',
               cachedDetail.description || cachedDetail.summary || '',
               cachedDetail.icon_url || cachedDetail.logo || ''
-            ).catch((err) => console.error('Failed to update mod cache:', err));
+            ).catch((err) => console.error('Failed to update resource cache:', err));
           }
 
-          if (projectId) {
+          if (projectId && resourceTab === 'mod') {
             await modService.updateModManifest(
               targetInstanceId,
               version.file_name,
@@ -603,9 +601,16 @@ export const InstanceModDownloadView: React.FC<{
             );
           }
 
-          if (targetInstanceId === instanceId) {
+          if (targetInstanceId === instanceId && resourceTab === 'mod') {
             await refreshInstalledMods();
           }
+
+          eventBus.publish('instance-resources-fs-changed', {
+            instanceId: targetInstanceId,
+            resType: resourceTab,
+            action: 'install',
+            fileName: version.file_name,
+          });
         }
       });
     } catch (error) {

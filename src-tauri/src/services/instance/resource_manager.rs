@@ -103,6 +103,10 @@ impl ResourceManager {
         let target_dir = Self::get_target_dir(app, instance_id, &res_type)?;
         let mut items = Vec::new();
 
+        let icons_base_dir = crate::services::instance::mod_manager::icon_storage::IconStorage::get_shared_mods_dir(app)
+            .ok()
+            .map(|d| d.join("icons"));
+
         if let Ok(entries) = fs::read_dir(&target_dir) {
             for entry in entries.filter_map(|value| value.ok()) {
                 let file_name = entry.file_name().to_string_lossy().to_string();
@@ -114,6 +118,25 @@ impl ResourceManager {
                     Ok(m) => m,
                     Err(_) => continue,
                 };
+
+                let is_dir = metadata.is_dir();
+                let lower_name = file_name.to_ascii_lowercase();
+
+                // 过滤非目标资源文件（例如 txt、json、log、properties 等非包文件）
+                let is_valid_resource = match res_type {
+                    ResourceType::Mod => {
+                        lower_name.ends_with(".jar") || lower_name.ends_with(".jar.disabled")
+                    }
+                    ResourceType::ResourcePack | ResourceType::Shader => {
+                        is_dir || lower_name.ends_with(".zip") || lower_name.ends_with(".zip.disabled")
+                    }
+                    ResourceType::Save => is_dir,
+                };
+
+                if !is_valid_resource {
+                    continue;
+                }
+
                 let modified_at = metadata
                     .modified()
                     .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
@@ -121,13 +144,33 @@ impl ResourceManager {
                     .unwrap_or_default()
                     .as_secs() as i64;
 
+                let clean_name = file_name
+                    .trim_end_matches(".disabled")
+                    .trim_end_matches(".zip")
+                    .trim_end_matches(".jar");
+
+                let icon_absolute_path = icons_base_dir
+                    .as_ref()
+                    .and_then(|base| {
+                        crate::services::instance::mod_manager::icon_storage::IconStorage::find_cached_icon_in_buckets(base, clean_name)
+                            .or_else(|| {
+                                let legacy = base.join("offline").join(format!("{}.png", clean_name));
+                                if legacy.is_file() {
+                                    Some(legacy)
+                                } else {
+                                    None
+                                }
+                            })
+                    })
+                    .map(|p| p.to_string_lossy().replace('\\', "/"));
+
                 items.push(ResourceItem {
                     file_name: file_name.clone(),
                     is_enabled: !file_name.ends_with(".disabled"),
                     is_directory: metadata.is_dir(),
                     file_size: metadata.len(),
                     modified_at,
-                    icon_absolute_path: None,
+                    icon_absolute_path,
                     meta: None,
                 });
             }
@@ -159,25 +202,37 @@ impl ResourceManager {
         };
 
         let res = fs::rename(current_path, target_dir.join(&new_file_name)).map_err(|e| e.to_string());
-        if res.is_ok() && res_type == ResourceType::Mod {
-            let db = app.state::<crate::services::db_service::AppDatabase>();
-            let pool = db.pool.clone();
-            let inst_id = instance_id.to_string();
-            let old_f = file_name.to_string();
-            let new_f = new_file_name.clone();
-            tauri::async_runtime::spawn(async move {
-                let _ = crate::services::db_service::DbService::toggle_instance_mod(&pool, &inst_id, &old_f, &new_f, enable).await;
-            });
-
+        if res.is_ok() {
             use tauri::Emitter;
             let _ = app.emit(
-                "instance-mods-fs-changed",
+                "instance-resources-fs-changed",
                 serde_json::json!({
                     "instanceId": instance_id,
+                    "resType": res_type,
                     "action": "toggle",
                     "fileName": new_file_name
                 }),
             );
+
+            if res_type == ResourceType::Mod {
+                let db = app.state::<crate::services::db_service::AppDatabase>();
+                let pool = db.pool.clone();
+                let inst_id = instance_id.to_string();
+                let old_f = file_name.to_string();
+                let new_f = new_file_name.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = crate::services::db_service::DbService::toggle_instance_mod(&pool, &inst_id, &old_f, &new_f, enable).await;
+                });
+
+                let _ = app.emit(
+                    "instance-mods-fs-changed",
+                    serde_json::json!({
+                        "instanceId": instance_id,
+                        "action": "toggle",
+                        "fileName": new_file_name
+                    }),
+                );
+            }
         }
         res
     }
@@ -199,6 +254,17 @@ impl ResourceManager {
             }
         }
 
+        use tauri::Emitter;
+        let _ = app.emit(
+            "instance-resources-fs-changed",
+            serde_json::json!({
+                "instanceId": instance_id,
+                "resType": res_type,
+                "action": "delete",
+                "fileName": file_name
+            }),
+        );
+
         if res_type == ResourceType::Mod {
             let db = app.state::<crate::services::db_service::AppDatabase>();
             let pool = db.pool.clone();
@@ -208,7 +274,6 @@ impl ResourceManager {
                 let _ = crate::services::db_service::DbService::delete_instance_mods(&pool, &inst_id, &[f_name]).await;
             });
 
-            use tauri::Emitter;
             let _ = app.emit(
                 "instance-mods-fs-changed",
                 serde_json::json!({
@@ -338,18 +403,39 @@ impl ResourceManager {
             if let Some(old) = old_f {
                 let _ = crate::services::db_service::DbService::delete_instance_mods(&pool, &inst_id, &[old]).await;
             }
-            let (size, mtime) = if target_path.exists() {
+            let (size, mtime, jar_meta, cf_fp, sha1_str) = if target_path.exists() {
                 let meta = std::fs::metadata(&target_path).ok();
-                (
-                    meta.as_ref().map(|m| m.len() as i64).unwrap_or(0),
-                    meta.as_ref().and_then(|m| m.modified().ok())
-                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                        .map(|d| d.as_secs() as i64)
-                        .unwrap_or(0),
-                )
+                let s = meta.as_ref().map(|m| m.len() as i64).unwrap_or(0);
+                let m_t = meta.as_ref().and_then(|m| m.modified().ok())
+                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or(0);
+                
+                let j_m = crate::services::instance::mod_manager::jar_parser::JarParser::parse_jar_meta(&target_path);
+                let fp = crate::services::instance::mod_manager::remote_fetcher::RemoteFetcher::resolve_curseforge_fingerprint(None, &target_path);
+                
+                let s_hash = if let Ok(mut file) = std::fs::File::open(&target_path) {
+                    use sha1::Digest;
+                    let mut hasher = sha1::Sha1::new();
+                    let mut buffer = [0u8; 64 * 1024];
+                    use std::io::Read;
+                    while let Ok(n) = file.read(&mut buffer) {
+                        if n == 0 { break; }
+                        hasher.update(&buffer[..n]);
+                    }
+                    Some(format!("{:x}", hasher.finalize()))
+                } else {
+                    None
+                };
+
+                (s, m_t, Some(j_m), fp, s_hash)
             } else {
-                (0, 0)
+                (0, 0, None, None, None)
             };
+
+            let effective_mod_id = jar_meta.as_ref().and_then(|m| m.mod_id.clone()).or_else(|| p_id.clone());
+            let effective_version = ver.or_else(|| jar_meta.as_ref().and_then(|m| m.version.clone()));
+            let effective_name = jar_meta.as_ref().and_then(|m| m.name.clone());
 
             let row = crate::services::db_service::InstanceModDbRow {
                 instance_id: inst_id.clone(),
@@ -357,11 +443,11 @@ impl ResourceManager {
                 is_enabled: true,
                 file_size: size,
                 modified_at: mtime,
-                sha1: None,
-                curseforge_fingerprint: None,
-                mod_id: None,
-                custom_display_name: None,
-                version: ver,
+                sha1: sha1_str,
+                curseforge_fingerprint: cf_fp,
+                mod_id: effective_mod_id,
+                custom_display_name: effective_name,
+                version: effective_version,
                 source_platform: p_form.or_else(|| Some(s_kind)),
                 source_project_id: p_id,
                 source_file_id: f_id,

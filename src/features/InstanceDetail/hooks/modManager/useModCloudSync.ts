@@ -215,9 +215,16 @@ export const useModCloudSync = (instanceId: string) => {
       }
     };
 
+    const getModSha1 = (mod: ModMeta): string | undefined => {
+      if (mod.sha1 && mod.sha1.trim().length > 0) return mod.sha1.trim();
+      if (mod.manifestEntry?.hash?.algorithm?.toLowerCase() === 'sha1' && mod.manifestEntry.hash.value) {
+        return mod.manifestEntry.hash.value.trim();
+      }
+      return undefined;
+    };
+
     const sha1Mods = modsToSync.filter((mod) => (
-      mod.manifestEntry?.hash.algorithm?.toLowerCase() === 'sha1'
-      && !!mod.manifestEntry.hash.value
+      !!getModSha1(mod)
       && (options.force || !hasCompletePlatformReference(mod, 'modrinth'))
     ));
 
@@ -274,8 +281,9 @@ export const useModCloudSync = (instanceId: string) => {
     }
 
     try {
+      const sha1Values = sha1Mods.map((mod) => getModSha1(mod)!).filter(Boolean);
       const modrinthMatches = await matchModrinthVersionsByHashes(
-        sha1Mods.map((mod) => mod.manifestEntry!.hash.value),
+        sha1Values,
         'sha1'
       );
 
@@ -284,7 +292,8 @@ export const useModCloudSync = (instanceId: string) => {
         const batch = sha1Mods.slice(i, i + batchSize);
         await Promise.all(batch.map(async (mod) => {
           try {
-            const version = modrinthMatches[mod.manifestEntry!.hash.value];
+            const currentSha1 = getModSha1(mod);
+            const version = currentSha1 ? modrinthMatches[currentSha1] : undefined;
             if (!version?.project_id) return;
 
             let detail: ModrinthProject | undefined;

@@ -61,6 +61,7 @@ impl JarParser {
             offline_jar_icon_absolute_path: None,
             network_icon_url: None,
             curseforge_fingerprint: None,
+            sha1: None,
             file_size,
             is_enabled: true,
             modified_at,
@@ -86,6 +87,18 @@ impl JarParser {
                             }
                             meta.version = json["version"].as_str().map(|s| s.to_string());
                             meta.description = json["description"].as_str().map(|s| s.to_string());
+
+                            if let Some(depends) = json.get("depends").and_then(|d| d.as_object()) {
+                                let mut deps = Vec::new();
+                                for (k, _) in depends {
+                                    if k != "minecraft" && k != "java" && k != "fabricloader" {
+                                        deps.push(k.clone());
+                                    }
+                                }
+                                if !deps.is_empty() {
+                                    meta.dependencies = Some(deps);
+                                }
+                            }
                             parsed = true;
                         }
                     }
@@ -109,6 +122,24 @@ impl JarParser {
                                         meta.description =
                                             metadata["description"].as_str().map(|s| s.to_string());
                                     }
+
+                                    if let Some(depends) = quilt_loader.get("depends").and_then(|d| d.as_array()) {
+                                        let mut deps = Vec::new();
+                                        for item in depends {
+                                            if let Some(id) = item.as_str() {
+                                                if id != "minecraft" && id != "quilt_loader" && id != "java" {
+                                                    deps.push(id.to_string());
+                                                }
+                                            } else if let Some(id) = item.get("id").and_then(|i| i.as_str()) {
+                                                if id != "minecraft" && id != "quilt_loader" && id != "java" {
+                                                    deps.push(id.to_string());
+                                                }
+                                            }
+                                        }
+                                        if !deps.is_empty() {
+                                            meta.dependencies = Some(deps);
+                                        }
+                                    }
                                     parsed = true;
                                 }
                             }
@@ -127,6 +158,13 @@ impl JarParser {
                                 {
                                     if let Some(caps) = id_re.captures(&contents) {
                                         meta.mod_id = Some(caps[1].to_string());
+                                    }
+                                }
+                                if let Ok(name_re) =
+                                    regex::Regex::new(r#"displayName\s*=\s*(?:"|')([^"']+)(?:"|')"#)
+                                {
+                                    if let Some(caps) = name_re.captures(&contents) {
+                                        meta.name = Some(caps[1].to_string());
                                     }
                                 }
                                 if let Ok(version_re) =
@@ -155,6 +193,26 @@ impl JarParser {
                                         }
                                     }
                                 }
+
+                                // 提取 dependencies
+                                let mut deps = Vec::new();
+                                if let Ok(dep_re) = regex::Regex::new(r#"(?m)^\s*modId\s*=\s*(?:"|')([^"']+)(?:"|')"#) {
+                                    for caps in dep_re.captures_iter(&contents) {
+                                        let d_id = caps[1].to_string();
+                                        if meta.mod_id.as_deref() != Some(&d_id)
+                                            && d_id != "minecraft"
+                                            && d_id != "forge"
+                                            && d_id != "neoforge"
+                                            && !deps.contains(&d_id)
+                                        {
+                                            deps.push(d_id);
+                                        }
+                                    }
+                                }
+                                if !deps.is_empty() {
+                                    meta.dependencies = Some(deps);
+                                }
+
                                 parsed = true;
                                 break;
                             }
@@ -257,6 +315,54 @@ impl JarParser {
     }
 
     pub fn extract_icon_to_path(jar_path: &Path, target_path: &Path) -> bool {
+        if jar_path.is_dir() {
+            let fallbacks = [
+                "pack.png",
+                "logo.png",
+                "icon.png",
+                "assets/icon.png",
+                "shaders/pack.png",
+                "shaders/icon.png",
+                "shaders/logo.png",
+                "pack.jpg",
+                "icon.jpg",
+                "logo.jpg",
+            ];
+            for f in fallbacks {
+                let candidate = jar_path.join(f);
+                if candidate.is_file() {
+                    if let Some(parent) = target_path.parent() {
+                        let _ = std::fs::create_dir_all(parent);
+                    }
+                    if std::fs::copy(&candidate, target_path).is_ok() {
+                        return true;
+                    }
+                }
+            }
+
+            // 递归浅层检索一级子目录中的 pack.png / icon.png 等
+            if let Ok(entries) = fs::read_dir(jar_path) {
+                for entry in entries.filter_map(|e| e.ok()) {
+                    let sub = entry.path();
+                    if sub.is_dir() {
+                        for name in &["pack.png", "icon.png", "logo.png", "pack.jpg", "icon.jpg"] {
+                            let candidate = sub.join(name);
+                            if candidate.is_file() {
+                                if let Some(parent) = target_path.parent() {
+                                    let _ = std::fs::create_dir_all(parent);
+                                }
+                                if std::fs::copy(&candidate, target_path).is_ok() {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
         if let Ok(file) = File::open(jar_path) {
             if let Ok(mut archive) = zip::ZipArchive::new(file) {
                 let mut icon_path_in_jar = None;
@@ -335,13 +441,53 @@ impl JarParser {
                     }
                 }
 
-                // 4. Default Fallbacks
+                // 4. Default Fallbacks (包含资源包与光影包常用路径)
                 if icon_path_in_jar.is_none() {
-                    let fallbacks = ["pack.png", "logo.png", "icon.png", "assets/icon.png"];
+                    let fallbacks = [
+                        "pack.png",
+                        "logo.png",
+                        "icon.png",
+                        "assets/icon.png",
+                        "shaders/pack.png",
+                        "shaders/icon.png",
+                        "shaders/logo.png",
+                        "pack.jpg",
+                        "icon.jpg",
+                        "logo.jpg",
+                    ];
                     for f in fallbacks {
                         if archive.by_name(f).is_ok() {
                             icon_path_in_jar = Some(f.to_string());
                             break;
+                        }
+                    }
+                }
+
+                // 5. 递归匹配 ZIP 中任意嵌套层级的 pack.png / icon.png / logo.png 等
+                if icon_path_in_jar.is_none() {
+                    for i in 0..archive.len() {
+                        if let Ok(entry) = archive.by_index(i) {
+                            let entry_name = entry.name().to_string();
+                            let lower = entry_name.to_ascii_lowercase();
+                            if !lower.contains("__macosx") {
+                                let is_image = lower.ends_with(".png")
+                                    || lower.ends_with(".jpg")
+                                    || lower.ends_with(".jpeg")
+                                    || lower.ends_with(".webp");
+                                if is_image {
+                                    let filename = lower.split('/').last().unwrap_or("");
+                                    let stem = filename.split('.').next().unwrap_or("");
+                                    if stem == "pack"
+                                        || stem == "icon"
+                                        || stem == "logo"
+                                        || stem == "preview"
+                                        || stem == "banner"
+                                    {
+                                        icon_path_in_jar = Some(entry_name);
+                                        break;
+                                    }
+                                }
+                            }
                         }
                     }
                 }

@@ -190,21 +190,24 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
               const baseTarget = displayMod || mod;
               const platformProjectId = getPlatformProjectId(baseTarget, activePlatform) || v.project_id;
               const platformFileId = getPlatformFileId(baseTarget, activePlatform);
-              const actionTarget: ModMeta = baseTarget.manifestEntry && platformProjectId
+              const actionTarget: ModMeta = platformProjectId
                 ? {
                     ...baseTarget,
                     manifestEntry: {
-                      ...baseTarget.manifestEntry,
+                      ...(baseTarget.manifestEntry || {
+                        source: { kind: 'launcherDownload' },
+                        hash: { algorithm: 'sha1', value: '' }
+                      }),
                       source: {
-                        ...baseTarget.manifestEntry.source,
+                        ...(baseTarget.manifestEntry?.source || { kind: 'launcherDownload' }),
                         platform: activePlatform,
                         projectId: platformProjectId,
-                        fileId: platformFileId || baseTarget.manifestEntry.source.fileId
+                        fileId: platformFileId || baseTarget.manifestEntry?.source?.fileId
                       },
                       matchedPlatforms: {
-                        ...(baseTarget.manifestEntry.matchedPlatforms || {}),
+                        ...(baseTarget.manifestEntry?.matchedPlatforms || {}),
                         [activePlatform]: {
-                          ...(baseTarget.manifestEntry.matchedPlatforms?.[activePlatform] || {}),
+                          ...(baseTarget.manifestEntry?.matchedPlatforms?.[activePlatform] || {}),
                           projectId: platformProjectId,
                           fileId: platformFileId
                         }

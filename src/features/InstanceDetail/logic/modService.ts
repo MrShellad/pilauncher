@@ -52,6 +52,7 @@ export interface ModMeta {
   offlineJarIconAbsolutePath?: string;
   networkIconUrl?: string; 
   curseforgeFingerprint?: number;
+  sha1?: string;
   fileSize: number;
   isEnabled: boolean; 
   modifiedAt: number;

@@ -375,9 +375,10 @@ export const extractVersionFromCurseForgeFile = (file: CurseForgeFile): string =
   return file.fileName.replace(/\.jar$/i, '');
 };
 
-const mapProjectVersion = (file: CurseForgeFile, downloadUrl: string): OreProjectVersion => {
+const mapProjectVersion = (file: CurseForgeFile, downloadUrl: string, projectId?: string): OreProjectVersion => {
   return {
     id: String(file.id),
+    project_id: projectId ? String(projectId) : (file.modId ? String(file.modId) : undefined),
     name: file.displayName || file.fileName,
     version_number: extractVersionFromCurseForgeFile(file),
     date_published: file.fileDate,
@@ -416,7 +417,7 @@ const mapDownloadableCurseForgeFiles = async (projectId: string, files: CurseFor
     const batch = files.slice(start, start + DOWNLOAD_URL_CONCURRENCY);
     const mapped = await Promise.all(batch.map(async (file) => {
       const downloadUrl = await resolveCurseForgeDownloadUrl(projectId, file);
-      return downloadUrl ? mapProjectVersion(file, downloadUrl) : null;
+      return downloadUrl ? mapProjectVersion(file, downloadUrl, projectId) : null;
     }));
 
     versions.push(...mapped.filter((item): item is OreProjectVersion => !!item));

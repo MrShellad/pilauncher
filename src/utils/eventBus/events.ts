@@ -39,6 +39,13 @@ export interface ModFsChangedPayload {
   fileName?: string;
 }
 
+export interface ResourceFsChangedPayload {
+  instanceId: string;
+  resType?: string;
+  action?: 'install' | 'delete' | 'toggle' | 'import' | 'external' | 'rename';
+  fileName?: string;
+}
+
 export interface ModCloudSyncIncrementalPayload {
   instanceId: string;
   updatedMods: Array<{
@@ -62,6 +69,7 @@ export interface AppEventMap {
   'instance-runtime-verify-progress': VerifyProgressEventPayload;
   'instance-mods-scan-progress': ModScanProgressPayload;
   'instance-mods-fs-changed': ModFsChangedPayload;
+  'instance-resources-fs-changed': ResourceFsChangedPayload;
   'third-party-import-progress': ThirdPartyImportProgressEvent;
   'snapshot-progress': SnapshotProgressEvent;
   'instance-deployment-progress': any;

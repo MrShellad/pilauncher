@@ -25,6 +25,7 @@ pub struct OreProjectDetail {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OreProjectVersion {
     pub id: String,
+    pub project_id: Option<String>,
     pub name: String,
     pub version_number: String,
     pub date_published: String,

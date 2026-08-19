@@ -7,7 +7,18 @@ use tauri::{AppHandle, Manager, Runtime};
 
 pub struct DependencyResolver;
 
+pub const SYSTEM_KEYWORDS: &[&str] = &[
+    "curseforge", "modrinth", "minecraft", "fabricloader", "quiltloader", "quilt_loader",
+    "fabric", "forge", "neoforge", "quilt", "java", "mod", "jar", "all",
+    "api", "lib", "library", "v", "none", "null", ""
+];
+
 impl DependencyResolver {
+    pub fn is_system_keyword(s: &str) -> bool {
+        let clean = s.trim().to_lowercase();
+        clean.is_empty() || clean.len() < 3 || SYSTEM_KEYWORDS.contains(&clean.as_str())
+    }
+
     pub fn normalize_mod_identifier(id: &str) -> String {
         let mut clean = id.trim().to_lowercase();
         if clean.ends_with(".disabled") {
@@ -32,14 +43,16 @@ impl DependencyResolver {
             }
         }
 
-        // Strip trailing version pattern again if loader was in middle
-        if let Ok(re) = regex::Regex::new(r#"[-_+v][0-9].*$"#) {
-            clean = re.replace(&clean, "").to_string();
-        }
+        // Strip trailing version pattern again if loader was in middle (but not for curseforge_xxx or modrinth_xxx)
+        if !clean.starts_with("curseforge") && !clean.starts_with("modrinth") {
+            if let Ok(re) = regex::Regex::new(r#"[-_+v][0-9].*$"#) {
+                clean = re.replace(&clean, "").to_string();
+            }
 
-        for suffix in ["-fabric", "_fabric", "-forge", "_forge", "-neoforge", "_neoforge", "-quilt", "_quilt"] {
-            if clean.ends_with(suffix) {
-                clean = clean[..clean.len() - suffix.len()].to_string();
+            for suffix in ["-fabric", "_fabric", "-forge", "_forge", "-neoforge", "_neoforge", "-quilt", "_quilt"] {
+                if clean.ends_with(suffix) {
+                    clean = clean[..clean.len() - suffix.len()].to_string();
+                }
             }
         }
 
@@ -53,6 +66,10 @@ impl DependencyResolver {
             clean = clean[..clean.len() - 1].to_string();
         }
 
+        if Self::is_system_keyword(&clean) {
+            return String::new();
+        }
+
         clean
     }
 
@@ -63,92 +80,72 @@ impl DependencyResolver {
         let db = app.state::<crate::services::db_service::AppDatabase>();
         let pool = db.pool.clone();
 
-        let mods = super::ModManagerService::get_mod_manifest_cache(app, instance_id).await?;
+        let rows = DbService::query_instance_mods(&pool, instance_id)
+            .await
+            .map_err(|e| e.to_string())?;
 
-        // 1. Gather all mod_ids and candidate keys of installed mods
-        let mut installed_mod_ids = Vec::new();
-        let mut initial_candidate_keys = Vec::new();
+        // 1. Build bidirectional canonical <-> alias maps from SQLite
+        let mut alias_to_canon: HashMap<String, String> = HashMap::new();
+        let mut canon_to_aliases: HashMap<String, std::collections::HashSet<String>> = HashMap::new();
 
-        for m in &mods {
-            let base_file = m.file_name.trim_end_matches(".disabled").trim_end_matches(".jar").to_lowercase();
-            initial_candidate_keys.push(base_file);
-
-            if let Some(ref mid) = m.mod_id {
-                let mid_clean = mid.trim().to_lowercase();
-                if !mid_clean.is_empty() {
-                    installed_mod_ids.push(mid_clean.clone());
-                    initial_candidate_keys.push(mid_clean);
+        if let Ok(alias_rows) = sqlx::query_as::<_, (String, String, Option<String>)>(
+            "SELECT alias, canonical_mod_id, display_name FROM mod_aliases"
+        ).fetch_all(&pool).await {
+            for (alias, canon, disp) in alias_rows {
+                let a_low = alias.trim().to_lowercase();
+                let c_low = canon.trim().to_lowercase();
+                if Self::is_system_keyword(&a_low) || Self::is_system_keyword(&c_low) {
+                    continue;
                 }
-            }
-            if let Some(ref name) = m.name {
-                let name_clean = name.trim().to_lowercase();
-                if !name_clean.is_empty() {
-                    initial_candidate_keys.push(name_clean);
-                }
-            }
-            if let Some(ref entry) = m.manifest_entry {
-                if let Some(ref pid) = entry.source.project_id {
-                    let pid_clean = pid.trim().to_lowercase();
-                    if !pid_clean.is_empty() {
-                        initial_candidate_keys.push(pid_clean);
+                alias_to_canon.insert(a_low.clone(), c_low.clone());
+                canon_to_aliases.entry(c_low.clone()).or_default().insert(a_low);
+                if let Some(d) = disp {
+                    let d_low = d.trim().to_lowercase();
+                    if !Self::is_system_keyword(&d_low) {
+                        canon_to_aliases.entry(c_low).or_default().insert(d_low);
                     }
                 }
-                for (_, matched) in &entry.matched_platforms {
-                    if let Some(ref pid) = matched.project_id {
-                        let pid_clean = pid.trim().to_lowercase();
-                        if !pid_clean.is_empty() {
-                            initial_candidate_keys.push(pid_clean);
+            }
+        }
+
+        if let Ok(meta_rows) = sqlx::query_as::<_, (String, Option<String>, Option<String>, Option<String>, Option<String>)>(
+            "SELECT mod_id, curseforge_project_id, modrinth_project_id, name, aliases FROM mod_global_metadata_cache"
+        ).fetch_all(&pool).await {
+            for (mid, cf_pid, mr_pid, gname, galiases) in meta_rows {
+                let mut keys = vec![Some(mid.clone()), cf_pid, mr_pid, gname];
+                if let Some(ga) = galiases {
+                    if let Ok(arr) = serde_json::from_str::<Vec<String>>(&ga) {
+                        for a in arr {
+                            keys.push(Some(a));
+                        }
+                    }
+                }
+                let valid_keys: Vec<String> = keys
+                    .into_iter()
+                    .flatten()
+                    .map(|k| k.trim().to_lowercase())
+                    .filter(|k| !Self::is_system_keyword(k))
+                    .collect();
+
+                if let Some(primary) = valid_keys.first().cloned() {
+                    for k in &valid_keys {
+                        alias_to_canon.entry(k.clone()).or_insert_with(|| primary.clone());
+                        for other in &valid_keys {
+                            canon_to_aliases.entry(k.clone()).or_default().insert(other.clone());
                         }
                     }
                 }
             }
         }
-        installed_mod_ids.sort();
-        installed_mod_ids.dedup();
-        initial_candidate_keys.sort();
-        initial_candidate_keys.dedup();
 
-        // 2. Query SQLite metadata cache for cross-platform IDs and DB aliases
-        let mut db_cross_platform_map: HashMap<String, (Option<String>, Option<String>, Option<String>)> = HashMap::new();
-        if !installed_mod_ids.is_empty() {
-            let placeholders = installed_mod_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-            let query_str = format!(
-                "SELECT mod_id, modrinth_project_id, curseforge_project_id, name FROM mod_global_metadata_cache WHERE LOWER(mod_id) IN ({})",
-                placeholders
-            );
-            let mut sql_query = sqlx::query(&query_str);
-            for mid in &installed_mod_ids {
-                sql_query = sql_query.bind(mid);
-            }
-            if let Ok(rows) = sql_query.fetch_all(&pool).await {
-                use sqlx::Row;
-                for row in rows {
-                    let mid: String = row.get("mod_id");
-                    let mr_pid: Option<String> = row.get("modrinth_project_id");
-                    let cf_pid: Option<String> = row.get("curseforge_project_id");
-                    let name: Option<String> = row.get("name");
-                    db_cross_platform_map.insert(mid.to_lowercase(), (mr_pid, cf_pid, name));
-                }
-            }
-        }
-
-        // Query all known aliases for installed mod IDs from SQLite mod_aliases table
-        let db_aliases_by_mod_id = DbService::query_aliases_for_mod_ids(&pool, &installed_mod_ids)
-            .await
-            .unwrap_or_default();
-
-        let db_alias_mappings = DbService::query_mod_aliases(&pool, &initial_candidate_keys)
-            .await
-            .unwrap_or_default();
-
-        // 3. Build Multi-Key Index for all installed mods
+        // 2. Build Multi-Key Index for all installed mods
         let mut installed_exact_to_files: HashMap<String, Vec<String>> = HashMap::new();
         let mut installed_norm_to_files: HashMap<String, Vec<String>> = HashMap::new();
-        let mut all_source_identifiers = Vec::new();
+        let mut all_source_identifiers = std::collections::HashSet::new();
 
         let mut register_installed_alias = |exact_key: &str, file_name: &str| {
             let exact_clean = exact_key.trim().to_lowercase();
-            if exact_clean.is_empty() {
+            if Self::is_system_keyword(&exact_clean) {
                 return;
             }
             let files = installed_exact_to_files.entry(exact_clean.clone()).or_default();
@@ -157,7 +154,7 @@ impl DependencyResolver {
             }
 
             let norm = Self::normalize_mod_identifier(&exact_clean);
-            if !norm.is_empty() {
+            if !norm.is_empty() && !Self::is_system_keyword(&norm) {
                 let n_files = installed_norm_to_files.entry(norm).or_default();
                 if !n_files.contains(&file_name.to_string()) {
                     n_files.push(file_name.to_string());
@@ -165,83 +162,82 @@ impl DependencyResolver {
             }
         };
 
-        for m in &mods {
-            let file_name = &m.file_name;
+        for r in &rows {
+            let file_name = &r.file_name;
+            let mut keys_to_expand = std::collections::HashSet::new();
+
             let base_file = file_name.trim_end_matches(".disabled").trim_end_matches(".jar").to_lowercase();
-            register_installed_alias(&base_file, file_name);
+            keys_to_expand.insert(base_file.clone());
+            all_source_identifiers.insert(base_file);
 
-            if let Some(ref mid) = m.mod_id {
+            if let Some(ref mid) = r.mod_id {
                 let mid_clean = mid.trim().to_lowercase();
-                if !mid_clean.is_empty() {
-                    register_installed_alias(&mid_clean, file_name);
-                    all_source_identifiers.push(mid_clean.clone());
+                if !Self::is_system_keyword(&mid_clean) {
+                    keys_to_expand.insert(mid_clean.clone());
+                    all_source_identifiers.insert(mid_clean);
+                }
+            }
 
-                    // Inject DB aliases from mod_aliases
-                    if let Some(aliases) = db_aliases_by_mod_id.get(&mid_clean) {
+            if let Some(ref pid) = r.source_project_id {
+                let pid_clean = pid.trim().to_lowercase();
+                if !Self::is_system_keyword(&pid_clean) {
+                    keys_to_expand.insert(pid_clean.clone());
+                    all_source_identifiers.insert(pid_clean);
+                }
+            }
+
+            if let Some(ref name) = r.name {
+                let name_clean = name.trim().to_lowercase();
+                if !Self::is_system_keyword(&name_clean) {
+                    keys_to_expand.insert(name_clean.clone());
+                    all_source_identifiers.insert(name_clean);
+                }
+            }
+
+            if let Some(ref aliases_str) = r.aliases {
+                if let Ok(arr) = serde_json::from_str::<Vec<String>>(aliases_str) {
+                    for a in arr {
+                        let a_clean = a.trim().to_lowercase();
+                        if !Self::is_system_keyword(&a_clean) {
+                            keys_to_expand.insert(a_clean.clone());
+                            all_source_identifiers.insert(a_clean);
+                        }
+                    }
+                }
+            }
+
+            // Expand with all known aliases
+            let initial_keys: Vec<String> = keys_to_expand.iter().cloned().collect();
+            for k in initial_keys {
+                if let Some(canon) = alias_to_canon.get(&k) {
+                    if !Self::is_system_keyword(canon) {
+                        keys_to_expand.insert(canon.clone());
+                    }
+                    if let Some(aliases) = canon_to_aliases.get(canon) {
                         for a in aliases {
-                            register_installed_alias(a, file_name);
-                            all_source_identifiers.push(a.clone());
+                            if !Self::is_system_keyword(a) {
+                                keys_to_expand.insert(a.clone());
+                            }
                         }
                     }
-
-                    // Inject DB cross-platform project IDs from mod_global_metadata_cache
-                    if let Some((mr_pid, cf_pid, db_name)) = db_cross_platform_map.get(&mid_clean) {
-                        if let Some(ref pid) = mr_pid {
-                            register_installed_alias(pid, file_name);
-                            all_source_identifiers.push(pid.clone());
-                        }
-                        if let Some(ref pid) = cf_pid {
-                            register_installed_alias(pid, file_name);
-                            all_source_identifiers.push(pid.clone());
-                        }
-                        if let Some(ref name) = db_name {
-                            register_installed_alias(name, file_name);
+                }
+                if let Some(aliases) = canon_to_aliases.get(&k) {
+                    for a in aliases {
+                        if !Self::is_system_keyword(a) {
+                            keys_to_expand.insert(a.clone());
                         }
                     }
                 }
             }
 
-            if let Some(ref name) = m.name {
-                register_installed_alias(name, file_name);
-            }
-
-            if let Some(ref entry) = m.manifest_entry {
-                if let Some(ref pid) = entry.source.project_id {
-                    let pid_clean = pid.trim().to_string();
-                    if !pid_clean.is_empty() {
-                        register_installed_alias(&pid_clean, file_name);
-                        all_source_identifiers.push(pid_clean);
-                    }
-                }
-                for (_, matched) in &entry.matched_platforms {
-                    if let Some(ref pid) = matched.project_id {
-                        let pid_clean = pid.trim().to_string();
-                        if !pid_clean.is_empty() {
-                            register_installed_alias(&pid_clean, file_name);
-                            all_source_identifiers.push(pid_clean);
-                        }
-                    }
-                }
-            }
-
-            if let Some(ref aliases) = m.aliases {
-                for a in aliases {
-                    register_installed_alias(a, file_name);
-                    all_source_identifiers.push(a.clone());
-                }
-            }
-
-            // Register any matching canonical aliases from db_alias_mappings
-            if let Some((canon_id, canon_name)) = db_alias_mappings.get(&base_file) {
-                register_installed_alias(canon_id, file_name);
-                register_installed_alias(canon_name, file_name);
+            for k in keys_to_expand {
+                register_installed_alias(&k, file_name);
+                all_source_identifiers.insert(k);
             }
         }
 
-        all_source_identifiers.sort();
-        all_source_identifiers.dedup();
-
-        let forward_relations = DbService::query_mod_dependencies(&pool, &all_source_identifiers)
+        let all_src_vec: Vec<String> = all_source_identifiers.into_iter().collect();
+        let forward_relations = DbService::query_mod_dependencies(&pool, &all_src_vec)
             .await
             .unwrap_or_default();
 
@@ -249,65 +245,6 @@ impl DependencyResolver {
         let mut instance_dependents: HashMap<String, Vec<String>> = HashMap::new();
         let mut declared_dependencies: HashMap<String, Vec<DependencySummaryInfo>> = HashMap::new();
         let mut conflicts: Vec<ConflictPairInfo> = Vec::new();
-
-        let is_system_dep = |id: &str| {
-            let lower = id.to_lowercase();
-            lower == "minecraft" || lower == "fabricloader" || lower == "quilt_loader" || lower == "java"
-        };
-
-        // 4. Pre-query SQLite mod_aliases and mod_global_metadata_cache for target Project IDs
-        let mut target_ids_to_resolve = Vec::new();
-        for rel in &forward_relations {
-            let tgt_lower = rel.target_identifier.trim().to_lowercase();
-            if !is_system_dep(&tgt_lower) && !installed_exact_to_files.contains_key(&tgt_lower) {
-                target_ids_to_resolve.push(tgt_lower);
-            }
-        }
-        target_ids_to_resolve.sort();
-        target_ids_to_resolve.dedup();
-
-        let mut target_alias_map = DbService::query_mod_aliases(&pool, &target_ids_to_resolve)
-            .await
-            .unwrap_or_default();
-
-        let mut target_id_to_mod_id: HashMap<String, (String, String)> = HashMap::new();
-        if !target_ids_to_resolve.is_empty() {
-            let placeholders = target_ids_to_resolve.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-            let query_str = format!(
-                "SELECT curseforge_project_id, modrinth_project_id, mod_id, name FROM mod_global_metadata_cache 
-                 WHERE curseforge_project_id IN ({}) OR LOWER(modrinth_project_id) IN ({})",
-                placeholders, placeholders
-            );
-            let mut sql_query = sqlx::query(&query_str);
-            for id in &target_ids_to_resolve {
-                sql_query = sql_query.bind(id);
-            }
-            for id in &target_ids_to_resolve {
-                sql_query = sql_query.bind(id);
-            }
-            if let Ok(rows) = sql_query.fetch_all(&pool).await {
-                use sqlx::Row;
-                for row in rows {
-                    let cf_pid: Option<String> = row.get("curseforge_project_id");
-                    let mr_pid: Option<String> = row.get("modrinth_project_id");
-                    let mid: String = row.get("mod_id");
-                    let name: Option<String> = row.get("name");
-                    let name_str = name.unwrap_or_else(|| mid.clone());
-
-                    if let Some(cf) = cf_pid {
-                        target_id_to_mod_id.insert(cf.trim().to_lowercase(), (mid.clone(), name_str.clone()));
-                    }
-                    if let Some(mr) = mr_pid {
-                        target_id_to_mod_id.insert(mr.trim().to_lowercase(), (mid.clone(), name_str.clone()));
-                    }
-                }
-            }
-        }
-
-        // Merge target alias mapping
-        for (tgt_id, (canon_id, display_name)) in target_alias_map.drain() {
-            target_id_to_mod_id.entry(tgt_id).or_insert((canon_id, display_name));
-        }
 
         struct EvalDep {
             target_identifier: String,
@@ -321,18 +258,24 @@ impl DependencyResolver {
         let mut file_dep_groups: HashMap<String, HashMap<String, EvalDep>> = HashMap::new();
 
         for rel in forward_relations {
-            let src_lower = rel.source_identifier.trim().to_lowercase();
-            let src_norm = Self::normalize_mod_identifier(&src_lower);
             let tgt_lower = rel.target_identifier.trim().to_lowercase();
-            let tgt_norm = Self::normalize_mod_identifier(&tgt_lower);
-
-            if is_system_dep(&tgt_lower) {
+            if Self::is_system_keyword(&tgt_lower) {
                 continue;
             }
 
+            let src_lower = rel.source_identifier.trim().to_lowercase();
+            let src_norm = Self::normalize_mod_identifier(&src_lower);
+            let tgt_norm = Self::normalize_mod_identifier(&tgt_lower);
+
             // Find source files (by exact match or normalized match)
             let source_files = installed_exact_to_files.get(&src_lower)
-                .or_else(|| installed_norm_to_files.get(&src_norm))
+                .or_else(|| {
+                    if !src_norm.is_empty() {
+                        installed_norm_to_files.get(&src_norm)
+                    } else {
+                        None
+                    }
+                })
                 .cloned()
                 .unwrap_or_default();
 
@@ -340,45 +283,73 @@ impl DependencyResolver {
                 continue;
             }
 
-            // Resolve target mod_id and title from SQLite metadata and alias tables
-            let mut target_name_hint = rel.target_name_hint.clone();
-            let db_resolved = target_id_to_mod_id.get(&tgt_lower);
-            if let Some((_resolved_mid, resolved_name)) = db_resolved {
-                if target_name_hint.is_none() || target_name_hint.as_ref().map(|s| s.is_empty() || s.chars().all(|c| c.is_ascii_digit())).unwrap_or(false) {
-                    target_name_hint = Some(resolved_name.clone());
+            // Expand target aliases to check installation
+            let mut target_candidate_keys = std::collections::HashSet::new();
+            target_candidate_keys.insert(tgt_lower.clone());
+            if !tgt_norm.is_empty() {
+                target_candidate_keys.insert(tgt_norm.clone());
+            }
+
+            if let Some(canon) = alias_to_canon.get(&tgt_lower) {
+                if !Self::is_system_keyword(canon) {
+                    target_candidate_keys.insert(canon.clone());
+                    let cn = Self::normalize_mod_identifier(canon);
+                    if !cn.is_empty() {
+                        target_candidate_keys.insert(cn);
+                    }
+                }
+                if let Some(aliases) = canon_to_aliases.get(canon) {
+                    for a in aliases {
+                        if !Self::is_system_keyword(a) {
+                            target_candidate_keys.insert(a.clone());
+                            let an = Self::normalize_mod_identifier(a);
+                            if !an.is_empty() {
+                                target_candidate_keys.insert(an);
+                            }
+                        }
+                    }
+                }
+            }
+            if let Some(aliases) = canon_to_aliases.get(&tgt_lower) {
+                for a in aliases {
+                    if !Self::is_system_keyword(a) {
+                        target_candidate_keys.insert(a.clone());
+                        let an = Self::normalize_mod_identifier(a);
+                        if !an.is_empty() {
+                            target_candidate_keys.insert(an);
+                        }
+                    }
                 }
             }
 
-            // Canonical key for grouping identical targets
-            let canonical_target_key = if let Some((resolved_mid, _)) = db_resolved {
-                Self::normalize_mod_identifier(resolved_mid)
-            } else if let Some(ref hint) = target_name_hint {
-                let h_norm = Self::normalize_mod_identifier(hint);
-                if !h_norm.is_empty() && !h_norm.chars().all(|c| c.is_ascii_digit()) {
-                    h_norm
-                } else {
-                    tgt_norm.clone()
+            let mut matched_target_files: Vec<String> = Vec::new();
+            for tk in &target_candidate_keys {
+                if let Some(files) = installed_exact_to_files.get(tk) {
+                    for f in files {
+                        if !matched_target_files.contains(f) {
+                            matched_target_files.push(f.clone());
+                        }
+                    }
                 }
-            } else {
-                tgt_norm.clone()
-            };
+                if let Some(files) = installed_norm_to_files.get(tk) {
+                    for f in files {
+                        if !matched_target_files.contains(f) {
+                            matched_target_files.push(f.clone());
+                        }
+                    }
+                }
+            }
 
-            // Find matching target installed files (exact -> normalized -> canonical DB resolved)
-            let target_files = if let Some(files) = installed_exact_to_files.get(&tgt_lower) {
-                Some(files.clone())
-            } else if let Some(files) = installed_norm_to_files.get(&tgt_norm) {
-                Some(files.clone())
-            } else if let Some((resolved_mid, _)) = db_resolved {
-                let r_lower = resolved_mid.to_lowercase();
-                let r_norm = Self::normalize_mod_identifier(&r_lower);
-                installed_exact_to_files.get(&r_lower)
-                    .or_else(|| installed_norm_to_files.get(&r_norm))
-                    .cloned()
-            } else {
-                None
-            };
+            let is_target_installed = !matched_target_files.is_empty();
+            let target_files = if is_target_installed { Some(matched_target_files) } else { None };
 
-            let is_target_installed = target_files.is_some();
+            let target_name_hint = rel.target_name_hint.clone().or_else(|| {
+                alias_to_canon.get(&tgt_lower).cloned()
+            });
+
+            let canonical_target_key = alias_to_canon.get(&tgt_lower)
+                .cloned()
+                .unwrap_or_else(|| if !tgt_norm.is_empty() { tgt_norm.clone() } else { tgt_lower.clone() });
 
             for src_file in &source_files {
                 let group = file_dep_groups.entry(src_file.clone()).or_default();
@@ -390,7 +361,6 @@ impl DependencyResolver {
                             existing.target_files = target_files.clone();
                         }
                     }
-                    // Keep the most informative name hint
                     if existing.target_name_hint.is_none() || existing.target_name_hint.as_ref().map(|s| s.chars().all(|c| c.is_ascii_digit())).unwrap_or(false) {
                         if target_name_hint.is_some() {
                             existing.target_name_hint = target_name_hint.clone();

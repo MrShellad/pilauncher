@@ -93,7 +93,23 @@ pub async fn open_resource_folder<R: tauri::Runtime>(
     Ok(())
 }
 
-/// 提取资源包内的 pack.png，缓存到 base_path/shared_mods/icons/
+#[tauri::command]
+pub async fn ensure_offline_resource_icon<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    instance_id: String,
+    res_type: ResourceType,
+    file_name: String,
+) -> Result<Option<String>, String> {
+    crate::services::instance::mod_manager::icon_storage::IconStorage::ensure_offline_resource_icon(
+        &app,
+        &instance_id,
+        res_type.folder_name(),
+        &file_name,
+    )
+    .await
+}
+
+/// 提取资源包内的 pack.png，缓存到分桶目录
 /// 返回图标文件的绝对路径（若已缓存则直接返回）
 #[tauri::command]
 pub async fn extract_resourcepack_icon<R: tauri::Runtime>(
@@ -101,73 +117,7 @@ pub async fn extract_resourcepack_icon<R: tauri::Runtime>(
     instance_id: String,
     file_name: String,
 ) -> Result<Option<String>, String> {
-    use std::io::Read;
-
-    let base_path = crate::services::config_service::ConfigService::get_base_path(&app)
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "尚未配置基础数据目录".to_string())?;
-
-    // 图标缓存目录： base_path/shared_mods/icons/
-    let icons_dir = std::path::PathBuf::from(&base_path)
-        .join("shared_mods")
-        .join("icons");
-    std::fs::create_dir_all(&icons_dir).map_err(|e| e.to_string())?;
-
-    // 缓存文件：以 file_name (stripped) 为 key
-    let clean_name = file_name.trim_end_matches(".disabled");
-    let cache_key = format!("{}.png", clean_name.replace(['/', '\\', ':'], "_"));
-    let icon_path = icons_dir.join(&cache_key);
-
-    // 已缓存则直接返回
-    if icon_path.exists() {
-        return Ok(Some(icon_path.to_string_lossy().to_string()));
-    }
-
-    let mut pack_root = std::path::PathBuf::from(&base_path)
-        .join("instances")
-        .join(&instance_id);
-    let json_path = pack_root.join("instance.json");
-    if let Ok(content) = std::fs::read_to_string(json_path) {
-        if let Ok(config) =
-            serde_json::from_str::<crate::domain::instance::InstanceConfig>(&content)
-        {
-            if let Some(tp) = config.third_party_path {
-                pack_root = std::path::PathBuf::from(tp);
-            }
-        }
-    }
-
-    // 资源包目录
-    let pack_path = pack_root.join("resourcepacks").join(&file_name);
-
-    if !pack_path.exists() {
-        return Ok(None);
-    }
-
-    // 如果是目录形式资源包，直接读 pack.png
-    if pack_path.is_dir() {
-        let img_path = pack_path.join("pack.png");
-        if img_path.exists() {
-            std::fs::copy(&img_path, &icon_path).map_err(|e| e.to_string())?;
-            return Ok(Some(icon_path.to_string_lossy().to_string()));
-        }
-        return Ok(None);
-    }
-
-    // ZIP 格式：提取 pack.png
-    let file = std::fs::File::open(&pack_path).map_err(|e| e.to_string())?;
-    let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
-
-    let result = match archive.by_name("pack.png") {
-        Ok(mut entry) => {
-            let mut buf = Vec::new();
-            entry.read_to_end(&mut buf).map_err(|e| e.to_string())?;
-            std::fs::write(&icon_path, &buf).map_err(|e| e.to_string())?;
-            Ok(Some(icon_path.to_string_lossy().to_string()))
-        }
-        Err(_) => Ok(None), // 没有 pack.png 是合法的
-    };
-    result
+    ensure_offline_resource_icon(app, instance_id, ResourceType::ResourcePack, file_name).await
 }
 
 #[tauri::command]

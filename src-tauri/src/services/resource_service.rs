@@ -51,6 +51,8 @@ struct ModrinthRawDependency {
 #[derive(Deserialize)]
 struct ModrinthRawVersion {
     id: String,
+    #[serde(default)]
+    project_id: Option<String>,
     name: String,
     version_number: String,
     date_published: String,
@@ -320,6 +322,7 @@ impl ResourceService {
 
                 clean_versions.push(OreProjectVersion {
                     id: v.id,
+                    project_id: v.project_id.or_else(|| Some(project_id.to_string())),
                     name: v.name,
                     version_number: v.version_number,
                     date_published: v.date_published,

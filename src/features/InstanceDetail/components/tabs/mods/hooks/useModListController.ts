@@ -212,7 +212,9 @@ export const useModListController = ({
       mod,
       iconSnapshot: getIconSnapshot(mod.fileName),
       missingDependencies: dependencyHealth?.missingDependencies?.[mod.fileName],
-      dependentsCount: mod.dependentsCount ?? dependencyHealth?.instanceDependents?.[mod.fileName]?.length,
+      dependentsCount: dependencyHealth?.instanceDependents?.[mod.fileName] !== undefined
+        ? dependencyHealth.instanceDependents[mod.fileName].length
+        : (mod.dependentsCount || 0),
       focusedRowFileName,
       operationRowFileName,
       requiresRowOperation,

@@ -172,12 +172,57 @@ export const useModPanelDialogs = ({
     void toggleMod(fileName, currentEnabled);
   }, [toggleMod]);
 
+  const openDeleteConfirm = useCallback((fileNames: string[]) => {
+    if (fileNames.length === 0) {
+      return;
+    }
+
+    const currentFocusKey = getCurrentFocusKey();
+    if (currentFocusKey && currentFocusKey !== 'SN:ROOT') {
+      setLastDeleteFocusKey(currentFocusKey);
+    }
+
+    const isBatch = fileNames.length > 1;
+    setPendingDelete({
+      fileNames,
+      title: isBatch ? `删除 ${fileNames.length} 个模组` : '删除模组',
+      description: isBatch
+        ? `这会从当前实例中永久删除选中的 ${fileNames.length} 个模组文件。`
+        : `这会从当前实例中永久删除 "${fileNames[0]}"。`
+    });
+  }, []);
+
+  const closeDeleteConfirm = useCallback(() => {
+    setPendingDelete(null);
+    window.setTimeout(() => {
+      if (lastDeleteFocusKey && doesFocusableExist(lastDeleteFocusKey)) {
+        setFocus(lastDeleteFocusKey);
+      }
+    }, 50);
+  }, [lastDeleteFocusKey]);
+
   const deleteModFromDetail = useCallback((fileName: string) => {
-    setSelectedModKey(null);
-    setSelectedModSnapshot(null);
-    onDeleteComplete?.([fileName]);
-    void deleteMod(fileName);
-  }, [deleteMod, onDeleteComplete]);
+    openDeleteConfirm([fileName]);
+  }, [openDeleteConfirm]);
+
+  const confirmDelete = useCallback(() => {
+    if (!pendingDelete) {
+      return;
+    }
+
+    if (pendingDelete.fileNames.length === 1) {
+      void deleteMod(pendingDelete.fileNames[0]);
+    } else {
+      void deleteMods(pendingDelete.fileNames);
+    }
+
+    if (selectedMod && pendingDelete.fileNames.includes(selectedMod.fileName)) {
+      setSelectedModKey(null);
+      setSelectedModSnapshot(null);
+    }
+    onDeleteComplete?.(pendingDelete.fileNames);
+    closeDeleteConfirm();
+  }, [closeDeleteConfirm, deleteMod, deleteMods, onDeleteComplete, pendingDelete, selectedMod]);
 
   const openHistoryModal = useCallback(async () => {
     try {
@@ -235,54 +280,6 @@ export const useModPanelDialogs = ({
       }));
     }
   }, [addToast, doRollback, fetchHistory, t]);
-
-  const openDeleteConfirm = useCallback((fileNames: string[]) => {
-    if (fileNames.length === 0) {
-      return;
-    }
-
-    const currentFocusKey = getCurrentFocusKey();
-    if (currentFocusKey && currentFocusKey !== 'SN:ROOT') {
-      setLastDeleteFocusKey(currentFocusKey);
-    }
-
-    const isBatch = fileNames.length > 1;
-    setPendingDelete({
-      fileNames,
-      title: isBatch ? `删除 ${fileNames.length} 个模组` : '删除模组',
-      description: isBatch
-        ? `这会从当前实例中永久删除选中的 ${fileNames.length} 个模组文件。`
-        : `这会从当前实例中永久删除 "${fileNames[0]}"。`
-    });
-  }, []);
-
-  const closeDeleteConfirm = useCallback(() => {
-    setPendingDelete(null);
-    window.setTimeout(() => {
-      if (lastDeleteFocusKey && doesFocusableExist(lastDeleteFocusKey)) {
-        setFocus(lastDeleteFocusKey);
-      }
-    }, 50);
-  }, [lastDeleteFocusKey]);
-
-  const confirmDelete = useCallback(() => {
-    if (!pendingDelete) {
-      return;
-    }
-
-    if (pendingDelete.fileNames.length === 1) {
-      void deleteMod(pendingDelete.fileNames[0]);
-    } else {
-      void deleteMods(pendingDelete.fileNames);
-    }
-
-    if (selectedMod && pendingDelete.fileNames.includes(selectedMod.fileName)) {
-      setSelectedModKey(null);
-      setSelectedModSnapshot(null);
-    }
-    onDeleteComplete?.(pendingDelete.fileNames);
-    closeDeleteConfirm();
-  }, [closeDeleteConfirm, deleteMod, deleteMods, onDeleteComplete, pendingDelete, selectedMod]);
 
   return {
     state: {

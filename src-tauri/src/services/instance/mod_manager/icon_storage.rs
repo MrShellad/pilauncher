@@ -329,9 +329,29 @@ impl IconStorage {
         Ok(cached_icon_path)
     }
 
-    pub async fn ensure_offline_jar_icon<R: Runtime>(
+    pub fn extract_icon_to_bucket(
+        archive_or_dir_path: &Path,
+        icons_base_dir: &Path,
+        cache_key: &str,
+    ) -> Option<PathBuf> {
+        if let Some(cached) = Self::find_cached_icon_in_buckets(icons_base_dir, cache_key) {
+            return Some(cached);
+        }
+
+        let bucket_dir = Self::get_or_create_available_bucket(icons_base_dir);
+        let target_path = bucket_dir.join(format!("{}.png", cache_key));
+
+        if super::jar_parser::JarParser::extract_icon_to_path(archive_or_dir_path, &target_path) {
+            Some(target_path)
+        } else {
+            None
+        }
+    }
+
+    pub async fn ensure_offline_resource_icon<R: Runtime>(
         app: &AppHandle<R>,
         instance_id: &str,
+        folder_name: &str,
         file_name: &str,
     ) -> Result<Option<String>, String> {
         let instance_dir = super::ModManagerService::get_instance_dir(app, instance_id)?;
@@ -349,43 +369,74 @@ impl IconStorage {
 
         let safe_file_name = Path::new(file_name)
             .file_name()
-            .ok_or_else(|| "invalid mod file name".to_string())?
+            .ok_or_else(|| "invalid resource file name".to_string())?
             .to_string_lossy()
             .to_string();
-        let jar_path = game_dir.join("mods").join(&safe_file_name);
-        if !jar_path.is_file() {
+        let mut item_path = game_dir.join(folder_name).join(&safe_file_name);
+        if !item_path.exists() {
+            if folder_name == "shaderpacks" {
+                let alt = game_dir.join("shaders").join(&safe_file_name);
+                if alt.exists() {
+                    item_path = alt;
+                }
+            } else if folder_name == "resourcepacks" {
+                let alt = game_dir.join("texturepacks").join(&safe_file_name);
+                if alt.exists() {
+                    item_path = alt;
+                }
+            }
+        }
+        if !item_path.exists() {
             return Ok(None);
         }
 
-        let shared_mods_dir = Self::get_shared_mods_dir(app)?;
-        let target_dir = shared_mods_dir.join("icons").join("offline");
-        fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
-        let target_path = target_dir.join(format!(
-            "{}.png",
-            safe_file_name
-                .trim_end_matches(".disabled")
-                .trim_end_matches(".jar")
-        ));
+        let clean_name = safe_file_name
+            .trim_end_matches(".disabled")
+            .trim_end_matches(".zip")
+            .trim_end_matches(".jar")
+            .to_string();
 
-        if target_path.is_file()
-            && fs::metadata(&target_path)
+        let shared_mods_dir = Self::get_shared_mods_dir(app)?;
+        let icons_base_dir = shared_mods_dir.join("icons");
+
+        // 1. 检查分桶缓存
+        if let Some(cached_path) = Self::find_cached_icon_in_buckets(&icons_base_dir, &clean_name) {
+            return Ok(Some(cached_path.to_string_lossy().replace('\\', "/")));
+        }
+
+        // 2. 检查旧 offline 目录缓存
+        let legacy_offline = icons_base_dir.join("offline").join(format!("{}.png", clean_name));
+        if legacy_offline.is_file()
+            && fs::metadata(&legacy_offline)
                 .map(|m| m.len() > 0)
                 .unwrap_or(false)
         {
-            return Ok(Some(target_path.to_string_lossy().replace('\\', "/")));
+            return Ok(Some(legacy_offline.to_string_lossy().replace('\\', "/")));
         }
 
-        let extraction_target = target_path.clone();
-        let extracted = tokio::task::spawn_blocking(move || {
-            super::jar_parser::JarParser::extract_icon_to_path(&jar_path, &extraction_target)
+        // 3. 解压并存储至可用分桶
+        let icons_base_dir_clone = icons_base_dir.clone();
+        let clean_name_clone = clean_name.clone();
+        let path_clone = item_path.clone();
+
+        let extracted_opt = tokio::task::spawn_blocking(move || {
+            Self::extract_icon_to_bucket(&path_clone, &icons_base_dir_clone, &clean_name_clone)
         })
         .await
         .map_err(|e| e.to_string())?;
 
-        if extracted {
+        if let Some(target_path) = extracted_opt {
             Ok(Some(target_path.to_string_lossy().replace('\\', "/")))
         } else {
             Ok(None)
         }
+    }
+
+    pub async fn ensure_offline_jar_icon<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        file_name: &str,
+    ) -> Result<Option<String>, String> {
+        Self::ensure_offline_resource_icon(app, instance_id, "mods", file_name).await
     }
 }

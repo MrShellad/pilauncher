@@ -13,6 +13,7 @@ import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreConfirmDialog } from '../../../../ui/primitives/OreConfirmDialog';
 import { OreSwitch } from '../../../../ui/primitives/OreSwitch';
 import { useResourceManager } from '../../hooks/useResourceManager';
+import { ResourceIconBox } from './ResourceIconBox';
 
 const TOP_FOCUS_ORDER = ['btn-download-shader', 'btn-open-shader-folder'];
 const ROW_ACTIONS = ['toggle', 'delete'] as const;
@@ -245,7 +246,13 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
                       title={(item.fileName || '').replace('.zip', '').replace('.disabled', '')}
                       description={item.isDirectory ? t('instanceDetail.shader.folderShaderPack', { defaultValue: '文件夹光影包' }) : t('instanceDetail.shader.zipShaderPack', { defaultValue: 'ZIP 光影包' })}
                       metaItems={[item.fileName || '', formatSize(item.fileSize || 0)]}
-                      leading={<ImageIcon size={28} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />}
+                      leading={
+                        <ResourceIconBox
+                          item={item}
+                          instanceId={instanceId}
+                          resType="shader"
+                        />
+                      }
                       trailingClassName="flex items-center space-x-2"
                       trailing={
                         <>

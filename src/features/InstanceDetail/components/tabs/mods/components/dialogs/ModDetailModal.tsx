@@ -1,6 +1,5 @@
-// src/features/InstanceDetail/components/tabs/mods/components/dialogs/ModDetailModal.tsx
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, Power, Settings2, Star, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Power, Settings2, Star, Trash2 } from 'lucide-react';
 import {
   getCurrentFocusKey,
   doesFocusableExist,
@@ -11,7 +10,7 @@ import { DownloadDetailModal } from '../../../../../../Download/components/Downl
 import { runResourceDownloadTask } from '../../../../../../Download/logic/resourceDownloadTask';
 import { OreModal } from '../../../../../../../ui/primitives/OreModal';
 import { OreButton } from '../../../../../../../ui/primitives/OreButton';
-import { FocusBoundary } from '../../../../../../../ui/focus/FocusBoundary';
+import { OreOverlayScrollArea } from '../../../../../../../ui/primitives/OreOverlayScrollArea';
 import { FocusItem } from '../../../../../../../ui/focus/FocusItem';
 import {
   getModPreferredPlatform,
@@ -30,7 +29,6 @@ import { useModVersions } from './hooks/useModVersions';
 import { ModHeader } from './components/ModHeader';
 import { ModVersionHistory } from './components/ModVersionHistory';
 import { ModMetadataSettingsModal } from './components/ModMetadataSettingsModal';
-import { ModDeleteConfirmModal } from './components/ModDeleteConfirmModal';
 
 interface ModDetailModalProps {
   mod: ModMeta | null;
@@ -77,9 +75,9 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
   const { t } = useTranslation();
   const [activePlatform, setActivePlatform] = useState<ModPlatformId>('modrinth');
   const [showMetadataSettings, setShowMetadataSettings] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [selectedDependencyProject, setSelectedDependencyProject] = useState<ModrinthProject | null>(null);
   const [isFetchingDependencyProject, setIsFetchingDependencyProject] = useState(false);
+  const [isDependentsExpanded, setIsDependentsExpanded] = useState(false);
 
   const installedVersionIds = React.useMemo(() => {
     const ids: string[] = [];
@@ -152,7 +150,6 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
   }, []);
 
   const lastFocusBeforeModalRef = useRef<string | null>(null);
-  const lastFocusBeforeDeleteRef = useRef<string | null>(null);
 
   // Hook for loading metadata
   const {
@@ -167,105 +164,99 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
     isLoadingVersions
   } = useModVersions(displayMod, activePlatform, instanceConfig);
 
-  const [dependencies, setDependencies] = useState<DependencyItem[]>([]);
-  const [isLoadingDeps, setIsLoadingDeps] = useState(false);
-
   // Computed instance dependents (mods in this instance that depend on displayMod)
   const instanceDependents = React.useMemo(() => {
     if (!displayMod || !dependencyHealth?.instanceDependents) return [];
     return dependencyHealth.instanceDependents[displayMod.fileName] || [];
   }, [displayMod, dependencyHealth]);
 
-  const displayDescription = displayMod?.description || displayMod?.networkInfo?.description || '';
+  // RESOLVE DEPENDENCIES: 100% synchronous derived memory state, eliminating state oscillation & skeleton flickering
+  const dependencies = React.useMemo<DependencyItem[]>(() => {
+    if (!displayMod) return [];
 
-  // RESOLVE DEPENDENCIES: 100% unified with backend SQLite-backed dependencyHealth pipeline
-  useEffect(() => {
-    if (!displayMod) return;
+    const itemsMap = new Map<string, DependencyItem>();
 
-    let disposed = false;
-    setIsLoadingDeps(true);
+    // 1. Authoritative primary source: SQLite dependency graph from backend
+    const declaredDeps = dependencyHealth?.declaredDependencies?.[displayMod.fileName] || [];
+    for (const dep of declaredDeps) {
+      itemsMap.set(dep.targetIdentifier.toLowerCase(), {
+        id: dep.targetIdentifier,
+        name: dep.targetNameHint || dep.targetIdentifier,
+        type: dep.relationType || 'required',
+        isInstalled: !!dep.isInstalledInInstance
+      });
+    }
 
-    const resolveDependencies = async () => {
-      const itemsMap = new Map<string, DependencyItem>();
+    // 2. Supplementary local dependencies from jar parsing if not already in graph
+    const localDeps = displayMod.dependencies || [];
+    for (const depId of localDeps) {
+      const cleanId = depId.toLowerCase();
+      if (itemsMap.has(cleanId)) continue;
 
-      // 1. Authoritative primary source: SQLite dependency graph from backend
-      const declaredDeps = dependencyHealth?.declaredDependencies?.[displayMod.fileName] || [];
-      for (const dep of declaredDeps) {
-        itemsMap.set(dep.targetIdentifier.toLowerCase(), {
-          id: dep.targetIdentifier,
-          name: dep.targetNameHint || dep.targetIdentifier,
-          type: dep.relationType || 'required',
-          isInstalled: !!dep.isInstalledInInstance
-        });
-      }
+      const installedMod = (allMods || []).find((m) => {
+        const modIdLower = m.modId?.toLowerCase();
+        const fileNameClean = m.fileName.toLowerCase().replace(/\.jar|\.disabled/g, '');
+        const hasAlias = m.aliases?.some((a) => a.toLowerCase() === cleanId);
+        return modIdLower === cleanId || fileNameClean.includes(cleanId) || hasAlias;
+      });
+      const name = installedMod ? (installedMod.name || installedMod.networkInfo?.title || depId) : depId;
 
-      // 2. Supplementary local dependencies from jar parsing if not already in graph
-      const localDeps = displayMod.dependencies || [];
-      for (const depId of localDeps) {
-        const cleanId = depId.toLowerCase();
-        if (itemsMap.has(cleanId)) continue;
+      itemsMap.set(cleanId, {
+        id: depId,
+        name,
+        type: 'required',
+        isInstalled: !!installedMod
+      });
+    }
 
-        const installedMod = (allMods || []).find(
-          (m) => m.modId?.toLowerCase() === cleanId || m.fileName.toLowerCase().replace(/\.jar|\.disabled/g, '').includes(cleanId)
-        );
-        const name = installedMod ? (installedMod.name || installedMod.networkInfo?.title || depId) : depId;
+    // 3. Fallback: version cloud dependencies only if local graph has no items
+    if (itemsMap.size === 0 && modVersions && modVersions.length > 0) {
+      const activeVersion = modVersions.find(
+        (v) =>
+          v.version_number === displayMod.version ||
+          v.id === displayMod.manifestEntry?.source?.fileId
+      ) || modVersions[0];
 
-        itemsMap.set(cleanId, {
-          id: depId,
-          name,
-          type: 'required',
-          isInstalled: !!installedMod
-        });
-      }
+      if (activeVersion && activeVersion.dependencies) {
+        const netDeps: any[] = activeVersion.dependencies;
 
-      // 3. Fallback: version cloud dependencies only if local graph has no items
-      if (itemsMap.size === 0 && modVersions && modVersions.length > 0) {
-        const activeVersion = modVersions.find(
-          (v) =>
-            v.version_number === displayMod.version ||
-            v.id === displayMod.manifestEntry?.source?.fileId
-        ) || modVersions[0];
+        for (const dep of netDeps) {
+          if (!dep.project_id) continue;
+          const depProjectId = String(dep.project_id);
+          const cleanId = depProjectId.toLowerCase();
+          if (itemsMap.has(cleanId)) continue;
 
-        if (activeVersion && activeVersion.dependencies) {
-          const netDeps: any[] = activeVersion.dependencies;
-
-          for (const dep of netDeps) {
-            if (!dep.project_id) continue;
-            const depProjectId = String(dep.project_id);
-            const cleanId = depProjectId.toLowerCase();
-            if (itemsMap.has(cleanId)) continue;
-
-            const installedMod = (allMods || []).find(
-              (m) =>
-                m.manifestEntry?.source?.projectId === depProjectId ||
-                m.modId?.toLowerCase() === cleanId
+          const installedMod = (allMods || []).find((m) => {
+            const mrId = m.manifestEntry?.matchedPlatforms?.modrinth?.projectId;
+            const cfId = m.manifestEntry?.matchedPlatforms?.curseforge?.projectId;
+            const srcId = m.manifestEntry?.source?.projectId;
+            const modIdLower = m.modId?.toLowerCase();
+            const fileNameClean = m.fileName.toLowerCase().replace(/\.jar|\.disabled/g, '');
+            const hasAlias = m.aliases?.some((a) => a.toLowerCase() === cleanId);
+            return (
+              srcId === depProjectId ||
+              mrId === depProjectId ||
+              cfId === depProjectId ||
+              modIdLower === cleanId ||
+              fileNameClean.includes(cleanId) ||
+              hasAlias
             );
+          });
 
-            itemsMap.set(cleanId, {
-              id: depProjectId,
-              name: installedMod ? (installedMod.name || installedMod.networkInfo?.title || installedMod.fileName) : (dep.file_name || `前置 (${depProjectId})`),
-              type: dep.dependency_type || 'required',
-              isInstalled: !!installedMod
-            });
-          }
+          itemsMap.set(cleanId, {
+            id: depProjectId,
+            name: installedMod ? (installedMod.name || installedMod.networkInfo?.title || installedMod.fileName) : (dep.file_name || `前置 (${depProjectId})`),
+            type: dep.dependency_type || 'required',
+            isInstalled: !!installedMod
+          });
         }
       }
+    }
 
-      if (!disposed) {
-        const selfModId = displayMod.modId?.toLowerCase();
-        const finalDeps = Array.from(itemsMap.values()).filter(
-          (item) => item?.id && item.id.toLowerCase() !== selfModId
-        );
-        setDependencies(finalDeps);
-        setIsLoadingDeps(false);
-      }
-    };
-
-    resolveDependencies();
-
-    return () => {
-      disposed = true;
-    };
+    const selfModId = displayMod.modId?.toLowerCase();
+    return Array.from(itemsMap.values()).filter(
+      (item) => item?.id && item.id.toLowerCase() !== selfModId
+    );
   }, [displayMod, modVersions, allMods, dependencyHealth]);
 
   // Sync activePlatform with mod's preferred platform upon opening
@@ -278,6 +269,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
   // Initial focus management when opening the modal
   useEffect(() => {
     if (mod) {
+      setIsDependentsExpanded(false);
       const currentFocus = getCurrentFocusKey();
       if (currentFocus && currentFocus !== 'SN:ROOT') {
         lastFocusBeforeModalRef.current = currentFocus;
@@ -287,20 +279,8 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
           setFocus('btn-mod-toggle');
         }
       }, 150);
-    } else {
-      setShowDeleteConfirm(false);
     }
   }, [mod]);
-
-  // Save the focused key before showing deletion confirmation modal
-  useEffect(() => {
-    if (showDeleteConfirm) {
-      const currentFocus = getCurrentFocusKey();
-      if (currentFocus && currentFocus !== 'SN:ROOT') {
-        lastFocusBeforeDeleteRef.current = currentFocus;
-      }
-    }
-  }, [showDeleteConfirm]);
 
   // Open metadata settings if requested on load
   useEffect(() => {
@@ -319,25 +299,6 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
         setFocus(lastFocus);
       }
     }, 50);
-  };
-
-  const handleCloseDeleteConfirm = () => {
-    setShowDeleteConfirm(false);
-    setTimeout(() => {
-      const lastFocus = lastFocusBeforeDeleteRef.current;
-      if (lastFocus && doesFocusableExist(lastFocus)) {
-        setFocus(lastFocus);
-      } else {
-        setFocus('btn-mod-delete');
-      }
-    }, 50);
-  };
-
-  const handleExecuteDelete = () => {
-    if (!mod) return;
-    onDelete(mod.fileName);
-    setShowDeleteConfirm(false);
-    handleClose();
   };
 
   const openMetadataSettings = useCallback(() => {
@@ -372,7 +333,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
         focusKey="btn-mod-delete"
         variant="danger"
         size="auto"
-        onClick={() => setShowDeleteConfirm(true)}
+        onClick={() => onDelete(mod.fileName)}
       >
         <Trash2 size={14} className="mr-1.5" /> {t('instanceDetail.mods.detail.delete', { defaultValue: '删除' })}
       </OreButton>
@@ -406,54 +367,63 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
   return (
     <>
       <OreModal
-        isOpen={!!mod && !showDeleteConfirm}
+        isOpen={!!mod}
         onClose={handleClose}
         hideTitleBar
         defaultFocusKey="btn-mod-toggle"
-        className="ore-download-detail-modal max-w-4xl w-[95vw] h-[85vh] max-h-[50rem] border-[3px] border-[var(--ore-downloadDetail-modalBorder)] bg-[var(--ore-downloadDetail-surface)] p-0"
-        contentClassName="ore-download-detail-modal__content flex flex-1 min-h-0 flex-col overflow-hidden bg-[var(--ore-downloadDetail-surface)] p-0"
-        actionsClassName="!justify-center bg-[var(--ore-downloadDetail-surface)] border-t-[3px] border-[var(--ore-downloadDetail-divider)] px-4 py-2.5 gap-2"
+        className="ore-download-detail-modal border-[0.1875rem] border-[#1E1E1F]"
+        contentClassName="ore-download-detail-modal__content flex flex-1 min-h-0 flex-col overflow-hidden bg-[#313233] p-0"
+        actionsClassName="!justify-center bg-[var(--ore-downloadDetail-surface)] border-t-[2px] border-[var(--ore-downloadDetail-divider)] px-4 py-2.5 gap-2"
         actions={modalActions}
       >
-        <FocusBoundary
-          id="mod-detail-boundary"
-          trapFocus
-          onEscape={handleClose}
-          className="flex flex-col min-h-0 h-full bg-[var(--ore-downloadDetail-surface)]"
-        >
-          {/* Header Info Block */}
-          <ModHeader mod={mod} displayMod={displayMod} instanceId={instanceId} />
+        {/* Header Info Block */}
+        <ModHeader mod={mod} displayMod={displayMod} instanceId={instanceId} />
 
-          {/* Dependencies Section & Version History */}
-          <div className="flex flex-col flex-1 min-h-0 p-4 sm:p-5 gap-3.5 overflow-y-auto custom-scrollbar">
-            {/* Mod Description */}
-            {displayDescription && (
-              <div className="rounded-sm border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] p-3 text-xs text-[var(--ore-downloadDetail-rowText)] font-minecraft leading-relaxed max-h-24 overflow-y-auto custom-scrollbar shrink-0 select-text">
-                {displayDescription}
-              </div>
-            )}
-
+          {/* Body Content with OreOverlayScrollArea (Unified with DownloadDetailModal) */}
+          <OreOverlayScrollArea
+            className="relative z-10 flex-1 w-full bg-[var(--ore-downloadDetail-surface)] min-h-0"
+            viewportClassName="shadow-[inset_0_0.625rem_1.25rem_-0.625rem_rgba(0,0,0,0.55)] p-4 sm:p-5 flex flex-col gap-3.5"
+            contentSafePaddingRight={6}
+          >
             {/* Dependents Section (if any installed mods depend on this mod) */}
             {instanceDependents.length > 0 && (
-              <div className="flex flex-col gap-1.5 border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] p-3 rounded-sm shrink-0 font-minecraft">
-                <div className="flex items-center gap-1.5 text-xs font-minecraft text-[#91CAFF] font-bold">
-                  <span>🧩 {t('instanceDetail.mods.detail.dependents', { defaultValue: '作为以下 {{count}} 个已安装模组的前置:', count: instanceDependents.length })}</span>
-                </div>
-                <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto custom-scrollbar pt-1">
-                  {instanceDependents.map((depFileName) => {
-                    const dependentMod = (allMods || []).find((m) => m.fileName === depFileName);
-                    const name = dependentMod?.name || dependentMod?.networkInfo?.title || depFileName;
-                    return (
-                      <span
-                        key={depFileName}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 border-[2px] border-[#183B63] bg-[#112A45] text-[#91CAFF] text-[11px] font-minecraft rounded-sm tracking-wide shadow-sm"
-                        title={depFileName}
-                      >
-                        {name}
-                      </span>
-                    );
-                  })}
-                </div>
+              <div className="flex flex-col border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] rounded-sm shrink-0 font-minecraft transition-all">
+                <button
+                  type="button"
+                  onClick={() => setIsDependentsExpanded(!isDependentsExpanded)}
+                  className="flex items-center justify-between w-full p-2.5 sm:p-3 text-left hover:bg-white/[0.03] transition-colors cursor-pointer outline-none select-none"
+                >
+                  <div className="flex items-center gap-1.5 text-xs font-minecraft text-[#91CAFF] font-bold">
+                    <span>🧩 {t('instanceDetail.mods.detail.dependents', { defaultValue: '作为以下 {{count}} 个已安装模组的前置', count: instanceDependents.length })}</span>
+                    <span className="text-[10px] bg-[#112A45] border border-[#183B63] text-[#91CAFF] px-1.5 py-0.2 rounded font-mono font-normal">
+                      {instanceDependents.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px] text-[#91CAFF]/80 font-normal">
+                    <span>{isDependentsExpanded ? t('common.collapse', { defaultValue: '折叠' }) : t('common.expand', { defaultValue: '展开' })}</span>
+                    {isDependentsExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </div>
+                </button>
+
+                {isDependentsExpanded && (
+                  <div className="px-3 pb-3 pt-0 border-t border-[var(--ore-downloadDetail-divider)]/50">
+                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar pt-2">
+                      {instanceDependents.map((depFileName) => {
+                        const dependentMod = (allMods || []).find((m) => m.fileName === depFileName);
+                        const name = dependentMod?.name || dependentMod?.networkInfo?.title || depFileName;
+                        return (
+                          <span
+                            key={depFileName}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 border-[2px] border-[#183B63] bg-[#112A45] text-[#91CAFF] text-[11px] font-minecraft rounded-sm tracking-wide shadow-sm"
+                            title={depFileName}
+                          >
+                            {name}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -475,19 +445,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
                 )}
               </div>
 
-              {isLoadingDeps ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 px-1 py-1">
-                  {[1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="h-[36px] border-[2px] border-[var(--ore-downloadDetail-divider)] bg-white/[0.03] rounded-sm animate-pulse flex items-center px-3"
-                    >
-                      <div className="w-2 h-2 rounded-full bg-white/10 mr-2 shrink-0" />
-                      <div className="h-3.5 bg-white/10 rounded w-24" />
-                    </div>
-                  ))}
-                </div>
-              ) : dependencies.length > 0 ? (
+              {dependencies.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-36 overflow-y-auto px-0.5 py-1 custom-scrollbar">
                   {dependencies.map((dep, idx) => (
                     <FocusItem key={dep.id} focusKey={`mod-dependency-${idx}`} onEnter={() => handleDependencyClick(dep)}>
@@ -513,7 +471,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
                             ) : dep.type === 'optional' ? (
                               <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
                             ) : (
-                              <span className="w-2 h-2 rounded-full bg-[#FFB84D] shrink-0 animate-pulse" />
+                              <span className="w-2 h-2 rounded-full bg-[#FFB84D] shrink-0" />
                             )}
                             <span className="truncate font-medium">{dep.name}</span>
                           </div>
@@ -544,8 +502,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
               modVersions={modVersions}
               onInstallVersion={onInstallVersion}
             />
-          </div>
-        </FocusBoundary>
+          </OreOverlayScrollArea>
       </OreModal>
 
       <ModMetadataSettingsModal
@@ -555,13 +512,6 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
         onSaveMetadataSettings={onSaveMetadataSettings}
         onReidentifyMod={onReidentifyMod}
         onSettingsUpdated={handleSettingsUpdated}
-      />
-
-      <ModDeleteConfirmModal
-        isOpen={showDeleteConfirm}
-        onClose={handleCloseDeleteConfirm}
-        fileName={displayMod?.fileName}
-        onConfirm={handleExecuteDelete}
       />
 
       {selectedDependencyProject && (

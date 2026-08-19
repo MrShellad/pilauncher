@@ -27,7 +27,11 @@ export const resourceService = {
   openFolder: (id: string, resType: ResourceType) => 
     invoke('open_resource_folder', { id, resType }),
 
-  /** 提取资源包图标，命中缓存时秒返回 */
+  /** 提取离线资源图标（支持资源包、光影包等），存入分桶并返回路径 */
+  ensureOfflineResourceIcon: (instanceId: string, resType: ResourceType, fileName: string) =>
+    invoke<string | null>('ensure_offline_resource_icon', { instanceId, resType, fileName }),
+
+  /** 提取资源包图标（兼容旧接口） */
   extractResourcepackIcon: (instanceId: string, fileName: string) =>
-    invoke<string | null>('extract_resourcepack_icon', { instanceId, fileName }),
+    invoke<string | null>('ensure_offline_resource_icon', { instanceId, resType: 'resourcePack', fileName }),
 };

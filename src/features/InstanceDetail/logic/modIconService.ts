@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 
-import { modService, type ModMeta } from './modService';
+import type { ModMeta } from './modService';
+import { resourceService, type ResourceType } from './resourceService';
 
 export type ModIconPriority = 'high' | 'medium' | 'low';
 export type ModIconStatus = 'idle' | 'loading' | 'ready' | 'failed';
@@ -11,6 +12,17 @@ export interface ModIconSnapshot {
   src: string | null;
   status: ModIconStatus;
   isPlaceholder: boolean;
+}
+
+export interface IconTargetItem {
+  fileName: string;
+  cacheKey?: string | null;
+  iconAbsolutePath?: string | null;
+  offlineJarIconAbsolutePath?: string | null;
+  networkIconUrl?: string | null;
+  networkInfo?: { icon_url?: string } | null;
+  fileSize?: number;
+  modifiedAt?: number;
 }
 
 interface ModIconDescriptor {
@@ -69,7 +81,7 @@ class ModIconService {
   private emitFrame: number | null = null;
 
   async connect(
-    mod: ModMeta,
+    mod: IconTargetItem,
     priority: ModIconPriority,
     listener: (snapshot: ModIconSnapshot) => void
   ) {
@@ -85,7 +97,7 @@ class ModIconService {
     return unsubscribe;
   }
 
-  private async resolveDescriptor(mod: ModMeta): Promise<ModIconDescriptor | null> {
+  private async resolveDescriptor(mod: IconTargetItem): Promise<ModIconDescriptor | null> {
     const candidates: string[] = [];
 
     if (mod.iconAbsolutePath) {
@@ -279,46 +291,75 @@ class ModIconService {
 
 const modIconService = new ModIconService();
 
+export interface SubscribeResourceIconOptions {
+  instanceId?: string;
+  resType?: ResourceType;
+}
+
+export const subscribeToResourceIcon = (
+  item: IconTargetItem,
+  priority: ModIconPriority,
+  listener: (snapshot: ModIconSnapshot) => void,
+  options?: SubscribeResourceIconOptions | string
+) => {
+  const opts: SubscribeResourceIconOptions =
+    typeof options === 'string'
+      ? { instanceId: options, resType: 'mod' }
+      : options || {};
+  const { instanceId, resType = 'mod' } = opts;
+
+  const resolveIconItem = async () => {
+    if (
+      instanceId &&
+      !item.iconAbsolutePath &&
+      !item.offlineJarIconAbsolutePath
+    ) {
+      try {
+        const path = await resourceService.ensureOfflineResourceIcon(instanceId, resType, item.fileName);
+        return path ? { ...item, offlineJarIconAbsolutePath: path, iconAbsolutePath: path } : item;
+      } catch (error) {
+        console.warn('Offline resource icon extraction failed', error);
+      }
+    }
+
+    return item;
+  };
+
+  return resolveIconItem().then((resolvedItem) => (
+    modIconService.connect(resolvedItem, priority, listener)
+  ));
+};
+
 export const subscribeToModIcon = (
   mod: ModMeta,
   priority: ModIconPriority,
   listener: (snapshot: ModIconSnapshot) => void,
   instanceId?: string
 ) => {
-  const resolveIconMod = async () => {
-    if (
-      instanceId &&
-      typeof navigator !== 'undefined' &&
-      navigator.onLine === false &&
-      !mod.offlineJarIconAbsolutePath
-    ) {
-      try {
-        const path = await modService.ensureOfflineJarIcon(instanceId, mod.fileName);
-        return path ? { ...mod, offlineJarIconAbsolutePath: path } : mod;
-      } catch (error) {
-        console.warn('Offline JAR icon fallback failed', error);
-      }
-    }
-
-    return mod;
-  };
-
-  return resolveIconMod().then((resolvedMod) => (
-    modIconService.connect(resolvedMod, priority, listener)
-  ));
+  return subscribeToResourceIcon(mod, priority, listener, { instanceId, resType: 'mod' });
 };
 
-export const useModIcon = (mod: ModMeta, priority: ModIconPriority, instanceId?: string) => {
+export const useResourceIcon = (
+  item: IconTargetItem,
+  priority: ModIconPriority = 'medium',
+  options?: SubscribeResourceIconOptions | string
+) => {
   const [snapshot, setSnapshot] = useState<ModIconSnapshot>(EMPTY_ICON);
+  const opts: SubscribeResourceIconOptions =
+    typeof options === 'string'
+      ? { instanceId: options, resType: 'mod' }
+      : options || {};
+  const { instanceId, resType = 'mod' } = opts;
+
   useEffect(() => {
     let disposed = false;
     let unsubscribe = () => {};
 
-    void subscribeToModIcon(mod, priority, (nextSnapshot) => {
+    void subscribeToResourceIcon(item, priority, (nextSnapshot) => {
       if (!disposed) {
         setSnapshot(nextSnapshot);
       }
-    }, instanceId).then((disconnect) => {
+    }, { instanceId, resType }).then((disconnect) => {
       if (disposed) {
         disconnect();
         return;
@@ -331,15 +372,20 @@ export const useModIcon = (mod: ModMeta, priority: ModIconPriority, instanceId?:
       unsubscribe();
     };
   }, [
-    mod.cacheKey,
-    mod.fileName,
-    mod.fileSize,
-    mod.modifiedAt,
-    mod.iconAbsolutePath,
-    mod.offlineJarIconAbsolutePath,
+    item.cacheKey,
+    item.fileName,
+    item.fileSize,
+    item.modifiedAt,
+    item.iconAbsolutePath,
+    item.offlineJarIconAbsolutePath,
     priority,
-    instanceId
+    instanceId,
+    resType
   ]);
 
   return snapshot;
+};
+
+export const useModIcon = (mod: ModMeta, priority: ModIconPriority, instanceId?: string) => {
+  return useResourceIcon(mod, priority, { instanceId, resType: 'mod' });
 };
