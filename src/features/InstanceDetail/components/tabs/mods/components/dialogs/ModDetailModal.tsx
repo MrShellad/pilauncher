@@ -254,7 +254,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
       if (!disposed) {
         const selfModId = displayMod.modId?.toLowerCase();
         const finalDeps = Array.from(itemsMap.values()).filter(
-          (item) => item.id.toLowerCase() !== selfModId
+          (item) => item?.id && item.id.toLowerCase() !== selfModId
         );
         setDependencies(finalDeps);
         setIsLoadingDeps(false);

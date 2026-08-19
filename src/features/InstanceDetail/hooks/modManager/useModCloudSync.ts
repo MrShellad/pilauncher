@@ -160,7 +160,7 @@ const persistPlatformMatches = async (
       await modService.updateModManifest(
         instanceId,
         mod.fileName,
-        mod.manifestEntry?.source.kind || 'externalImport',
+        mod.manifestEntry?.source?.kind || 'externalImport',
         primaryPlatform,
         primaryMatch.projectId,
         primaryMatch.fileId,

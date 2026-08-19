@@ -64,7 +64,7 @@ export const getManagedUpdateReference = (mod: ModMeta) => {
 
   addCandidate(preferred);
   if (!locked) {
-    addCandidate(mod.manifestEntry?.source.platform);
+    addCandidate(mod.manifestEntry?.source?.platform);
     addCandidate('modrinth');
     addCandidate('curseforge');
   }

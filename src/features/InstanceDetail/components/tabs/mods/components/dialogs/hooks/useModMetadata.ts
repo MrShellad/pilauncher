@@ -22,7 +22,7 @@ export const useModMetadata = (
   const initialMetadataPlatform = useMemo<ModPlatformId>(() => {
     if (!mod) return 'modrinth';
     const sourcePlatform = getModPreferredPlatform(mod, 'metadata') 
-      || mod.manifestEntry?.source.platform
+      || mod.manifestEntry?.source?.platform
       || instanceConfig?.globalMetadataSettings?.metadataPlatform;
     return sourcePlatform === 'curseforge' ? 'curseforge' : 'modrinth';
   }, [mod, instanceConfig]);

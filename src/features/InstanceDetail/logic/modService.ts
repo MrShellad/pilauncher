@@ -162,7 +162,7 @@ export const getModPreferredPlatform = (
     if (locked) return undefined;
   }
 
-  const sourcePlatform = mod.manifestEntry?.source.platform;
+  const sourcePlatform = mod.manifestEntry?.source?.platform;
   if (
     (sourcePlatform === 'modrinth' || sourcePlatform === 'curseforge')
     && hasReference(sourcePlatform)
@@ -210,7 +210,7 @@ export const getInstalledProjectIds = (mods: ModMeta[]): string[] => {
 
   for (const mod of mods) {
     const directId = normalizeInstalledKey(mod.modId);
-    const manifestProjectId = normalizeInstalledKey(mod.manifestEntry?.source.projectId);
+    const manifestProjectId = normalizeInstalledKey(mod.manifestEntry?.source?.projectId);
     const modrinthProjectId = normalizeInstalledKey(getModPlatformReference(mod, 'modrinth')?.projectId);
     const curseforgeProjectId = normalizeInstalledKey(getModPlatformReference(mod, 'curseforge')?.projectId);
 
@@ -227,7 +227,7 @@ export const getInstalledVersionIds = (mods: ModMeta[]): string[] => {
   const ids = new Set<string>();
 
   for (const mod of mods) {
-    const manifestFileId = normalizeInstalledKey(mod.manifestEntry?.source.fileId);
+    const manifestFileId = normalizeInstalledKey(mod.manifestEntry?.source?.fileId);
     const modrinthFileId = normalizeInstalledKey(getModPlatformReference(mod, 'modrinth')?.fileId);
     const curseforgeFileId = normalizeInstalledKey(getModPlatformReference(mod, 'curseforge')?.fileId);
     const fileName = normalizeInstalledKey(mod.fileName);
@@ -252,7 +252,7 @@ export class InstalledModIndex {
   constructor(mods: ModMeta[]) {
     for (const mod of mods) {
       if (mod.modId) this.projectIds.add(normalizeInstalledKey(mod.modId));
-      if (mod.manifestEntry?.source.projectId) {
+      if (mod.manifestEntry?.source?.projectId) {
         this.projectIds.add(normalizeInstalledKey(mod.manifestEntry.source.projectId));
       }
       const modrinthProjectId = normalizeInstalledKey(getModPlatformReference(mod, 'modrinth')?.projectId);

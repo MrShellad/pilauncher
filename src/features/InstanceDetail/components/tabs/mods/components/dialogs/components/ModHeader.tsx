@@ -60,9 +60,9 @@ export const ModHeader: React.FC<ModHeaderProps> = ({ mod, displayMod, instanceI
     ? PLATFORM_LABELS[preferredMetadataPlatform]
     : displayMod?.networkInfo?.source === 'curseforge'
       ? 'CurseForge'
-      : displayMod?.networkInfo?.source === 'modrinth' || displayMod?.manifestEntry?.source.platform === 'modrinth'
+      : displayMod?.networkInfo?.source === 'modrinth' || displayMod?.manifestEntry?.source?.platform === 'modrinth'
       ? 'Modrinth'
-      : displayMod?.manifestEntry?.source.platform || t('instanceDetail.mods.header.sourceLocal', { defaultValue: '本地' });
+      : displayMod?.manifestEntry?.source?.platform || t('instanceDetail.mods.header.sourceLocal', { defaultValue: '本地' });
 
   const detailIconUrl = iconSnapshot.src || '';
 
