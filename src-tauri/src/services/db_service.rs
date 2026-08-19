@@ -1306,8 +1306,6 @@ struct RawInstanceModQueryResult {
     source_platform: Option<String>,
     source_project_id: Option<String>,
     source_file_id: Option<String>,
-    dependents_count: Option<i64>,
-    dependencies_json: Option<String>,
 }
 
 impl DbService {
@@ -1315,37 +1313,12 @@ impl DbService {
         pool: &SqlitePool,
         instance_id: &str,
     ) -> Result<Vec<EnrichedInstanceModRow>, sqlx::Error> {
-        let rows = sqlx::query_as::<_, RawInstanceModQueryResult>(
+        let raw_rows = sqlx::query_as::<_, RawInstanceModQueryResult>(
             "SELECT 
                 im.file_name, im.is_enabled, im.file_size, im.modified_at, im.sha1, im.curseforge_fingerprint,
                 im.mod_id, COALESCE(im.custom_display_name, g.name) AS name, im.version,
                 g.description, g.icon_rel_path, g.icon_source, g.aliases,
-                im.source_platform, im.source_project_id, im.source_file_id,
-                COALESCE((
-                    SELECT COUNT(DISTINCT r.source_identifier)
-                    FROM mod_relations r
-                    JOIN instance_mods im2 ON (
-                        lower(r.source_identifier) = lower(im2.mod_id) 
-                        OR lower(r.source_identifier) = lower(im2.file_name)
-                        OR (im2.source_project_id IS NOT NULL AND lower(r.source_identifier) = lower(im2.source_project_id))
-                    ) AND im2.instance_id = im.instance_id
-                    WHERE (
-                        (im.mod_id IS NOT NULL AND lower(r.target_identifier) = lower(im.mod_id))
-                        OR lower(r.target_identifier) = lower(im.file_name)
-                        OR (im.source_project_id IS NOT NULL AND lower(r.target_identifier) = lower(im.source_project_id))
-                    )
-                    AND r.relation_type = 'required'
-                ), 0) AS dependents_count,
-                (
-                    SELECT json_group_array(DISTINCT r.target_identifier)
-                    FROM mod_relations r
-                    WHERE (
-                        (im.mod_id IS NOT NULL AND lower(r.source_identifier) = lower(im.mod_id))
-                        OR lower(r.source_identifier) = lower(im.file_name)
-                        OR (im.source_project_id IS NOT NULL AND lower(r.source_identifier) = lower(im.source_project_id))
-                    )
-                    AND r.relation_type = 'required'
-                ) AS dependencies_json
+                im.source_platform, im.source_project_id, im.source_file_id
              FROM instance_mods im
              LEFT JOIN mod_global_metadata_cache g ON im.mod_id = g.mod_id
              WHERE im.instance_id = ?
@@ -1355,13 +1328,83 @@ impl DbService {
         .fetch_all(pool)
         .await?;
 
-        let result = rows
+        if raw_rows.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // 收集当前实例中所有的标识符，批量走索引查询关系表
+        let mut instance_all_identifiers = std::collections::HashSet::new();
+        for r in &raw_rows {
+            if let Some(ref mid) = r.mod_id {
+                let trimmed = mid.trim().to_lowercase();
+                if !trimmed.is_empty() {
+                    instance_all_identifiers.insert(trimmed);
+                }
+            }
+            let fn_trim = r.file_name.trim().to_lowercase();
+            if !fn_trim.is_empty() {
+                instance_all_identifiers.insert(fn_trim);
+            }
+            if let Some(ref pid) = r.source_project_id {
+                let pid_trim = pid.trim().to_lowercase();
+                if !pid_trim.is_empty() {
+                    instance_all_identifiers.insert(pid_trim);
+                }
+            }
+        }
+
+        let identifiers_vec: Vec<String> = instance_all_identifiers.iter().cloned().collect();
+        let forward_relations = Self::query_mod_dependencies(pool, &identifiers_vec).await.unwrap_or_default();
+        let reverse_relations = Self::query_mod_dependents(pool, &identifiers_vec).await.unwrap_or_default();
+
+        // 1. 构建前向必需依赖映射: source_id -> Vec<target_id>
+        let mut forward_map: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+        for rel in forward_relations {
+            if rel.relation_type == "required" {
+                forward_map.entry(rel.source_identifier.to_lowercase()).or_default().push(rel.target_identifier);
+            }
+        }
+
+        // 2. 构建反向附属映射: target_id -> Set of source_identifiers (仅限本实例已安装的 mod)
+        let mut reverse_map: std::collections::HashMap<String, std::collections::HashSet<String>> = std::collections::HashMap::new();
+        for rel in reverse_relations {
+            let src_lower = rel.source_identifier.to_lowercase();
+            if rel.relation_type == "required" && instance_all_identifiers.contains(&src_lower) {
+                reverse_map.entry(rel.target_identifier.to_lowercase()).or_default().insert(src_lower);
+            }
+        }
+
+        let result = raw_rows
             .into_iter()
             .map(|r| {
-                let dependencies = r.dependencies_json
-                    .as_deref()
-                    .and_then(|s| serde_json::from_str::<Vec<String>>(s).ok())
-                    .filter(|v| !v.is_empty());
+                let mut deps = Vec::new();
+                let mut matched_dependents = std::collections::HashSet::new();
+
+                let keys = [
+                    r.mod_id.as_deref(),
+                    Some(r.file_name.as_str()),
+                    r.source_project_id.as_deref(),
+                ];
+
+                for k in keys.into_iter().flatten() {
+                    let lower_k = k.trim().to_lowercase();
+                    if let Some(targets) = forward_map.get(&lower_k) {
+                        for t in targets {
+                            if !deps.contains(t) {
+                                deps.push(t.clone());
+                            }
+                        }
+                    }
+                    if let Some(srcs) = reverse_map.get(&lower_k) {
+                        for s in srcs {
+                            matched_dependents.insert(s.clone());
+                        }
+                    }
+                }
+
+                let dependents_count = matched_dependents.len() as i64;
+                let dependencies = if deps.is_empty() { None } else { Some(deps) };
+
                 EnrichedInstanceModRow {
                     file_name: r.file_name,
                     is_enabled: r.is_enabled,
@@ -1379,7 +1422,7 @@ impl DbService {
                     source_platform: r.source_platform,
                     source_project_id: r.source_project_id,
                     source_file_id: r.source_file_id,
-                    dependents_count: r.dependents_count.unwrap_or(0),
+                    dependents_count,
                     dependencies,
                 }
             })
