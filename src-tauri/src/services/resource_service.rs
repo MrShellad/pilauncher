@@ -204,13 +204,24 @@ impl ResourceService {
     /// 获取并清洗项目详情
     pub async fn fetch_project_detail(project_id: &str) -> Result<OreProjectDetail, String> {
         let url = format!("https://api.modrinth.com/v2/project/{}", project_id);
-        let client = Client::new();
+        let client = Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .build()
+            .map_err(|e| e.to_string())?;
 
-        let raw: ModrinthRawProject = client
+        let res = client
             .get(&url)
+            .header("User-Agent", "PiLauncher/0.1.50 (contact@pilauncher.internal)")
+            .header("Accept", "application/json")
             .send()
             .await
-            .map_err(|e| e.to_string())?
+            .map_err(|e| e.to_string())?;
+
+        if !res.status().is_success() {
+            return Err(format!("Modrinth API error ({}): {}", res.status(), url));
+        }
+
+        let raw: ModrinthRawProject = res
             .json()
             .await
             .map_err(|e| e.to_string())?;
@@ -258,13 +269,29 @@ impl ResourceService {
             }
         }
 
-        let client = Client::new();
-        let raw_versions: Vec<ModrinthRawVersion> = client
+        let client = Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .build()
+            .map_err(|e| e.to_string())?;
+
+        let res = client
             .get(&url)
+            .header("User-Agent", "PiLauncher/0.1.50 (contact@pilauncher.internal)")
+            .header("Accept", "application/json")
             .query(&query)
             .send()
             .await
-            .map_err(|e| e.to_string())?
+            .map_err(|e| e.to_string())?;
+
+        if res.status() == reqwest::StatusCode::NOT_FOUND {
+            return Ok(Vec::new());
+        }
+
+        if !res.status().is_success() {
+            return Err(format!("Modrinth API error ({}): {}", res.status(), url));
+        }
+
+        let raw_versions: Vec<ModrinthRawVersion> = res
             .json()
             .await
             .map_err(|e| e.to_string())?;
