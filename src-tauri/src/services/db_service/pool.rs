@@ -24,14 +24,14 @@ pub async fn init_db(config_dir: &Path) -> Result<SqlitePool, String> {
         .busy_timeout(std::time::Duration::from_secs(30));
 
     let pool = SqlitePoolOptions::new()
-        .max_connections(30)
-        .min_connections(2)
+        .max_connections(10)
+        .min_connections(1)
         .acquire_timeout(std::time::Duration::from_secs(30))
         .connect_with(connect_options)
         .await
         .map_err(|e| e.to_string())?;
 
-    let _ = sqlx::query("PRAGMA foreign_keys=ON;").execute(&pool).await;
+    let _ = sqlx::query("PRAGMA foreign_keys = ON; PRAGMA temp_store = MEMORY; PRAGMA cache_size = -20000;").execute(&pool).await;
 
     // Run SQLx declarative migrations embedded from src-tauri/migrations/
     sqlx::migrate!("./migrations")

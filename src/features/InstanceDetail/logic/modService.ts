@@ -7,6 +7,14 @@ export interface ModPlatformMatch {
   fileId?: string;
 }
 
+export interface ModPlatformMatchBatchItem {
+  fileName: string;
+  sourcePlatform?: string | null;
+  sourceProjectId?: string | null;
+  sourceFileId?: string | null;
+  version?: string | null;
+}
+
 export type ModPlatformId = 'modrinth' | 'curseforge';
 export type ModPlatformPreference = 'auto' | ModPlatformId;
 
@@ -468,6 +476,26 @@ export const modService = {
       });
   },
 
+  updateModPlatformMatchesBatch: (
+    instanceId: string,
+    updates: ModPlatformMatchBatchItem[]
+  ) => {
+    if (!updates || updates.length === 0) return Promise.resolve();
+    modManifestCache.delete(instanceId);
+    return invoke('update_mod_platform_matches_batch', {
+      instanceId,
+      updates: updates.map((u) => ({
+        file_name: u.fileName,
+        source_platform: u.sourcePlatform ?? null,
+        source_project_id: u.sourceProjectId ?? null,
+        source_file_id: u.sourceFileId ?? null,
+        version: u.version ?? null,
+      })),
+    })
+      .finally(() => {
+        modManifestCache.delete(instanceId);
+      });
+  },
 
   updateModMetadataSettings: (
     instanceId: string,

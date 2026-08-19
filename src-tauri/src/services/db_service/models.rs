@@ -19,6 +19,15 @@ pub struct InstanceModDbRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModPlatformMatchBatchItem {
+    pub file_name: String,
+    pub source_platform: Option<String>,
+    pub source_project_id: Option<String>,
+    pub source_file_id: Option<String>,
+    pub version: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnrichedInstanceModRow {
     pub instance_id: String,
     pub file_name: String,

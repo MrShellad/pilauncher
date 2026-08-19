@@ -11,6 +11,7 @@ import {
   modService,
   type ModMeta,
   type ModPlatformMatch,
+  type ModPlatformMatchBatchItem,
   type ModRelationRecord
 } from '../../logic/modService';
 import { eventBus } from '../../../../utils/eventBus';
@@ -121,13 +122,12 @@ const buildMatchedManifestEntry = (
   };
 };
 
-const persistPlatformMatches = async (
-  instanceId: string,
+const buildPlatformMatchBatchItem = (
   mod: ModMeta,
   matches: Partial<MatchedPlatforms>,
   version?: string,
   globalMetadataPlatform?: string
-) => {
+): ModPlatformMatchBatchItem => {
   const entry = mod.manifestEntry;
   const preferred = getModPreferredPlatformWithGlobal(mod, globalMetadataPlatform);
   const source = entry?.source;
@@ -156,22 +156,37 @@ const persistPlatformMatches = async (
   const primaryMatch = primaryPlatform ? matchedPlatforms[primaryPlatform] : undefined;
 
   if (shouldUpdatePrimary && primaryPlatform && primaryMatch?.projectId && primaryMatch.fileId) {
-    try {
-      await modService.updateModManifest(
-        instanceId,
-        mod.fileName,
-        mod.manifestEntry?.source?.kind || 'externalImport',
-        primaryPlatform,
-        primaryMatch.projectId,
-        primaryMatch.fileId,
-        version
-      );
-    } catch (error) {
-      console.error('Persist primary mod platform failed', error);
-    }
+    return {
+      fileName: mod.fileName,
+      sourcePlatform: primaryPlatform,
+      sourceProjectId: primaryMatch.projectId,
+      sourceFileId: primaryMatch.fileId,
+      version: version || null,
+    };
   }
 
-  await modService.updateModPlatformMatches(instanceId, mod.fileName, matches);
+  if (matches.modrinth?.projectId) {
+    return {
+      fileName: mod.fileName,
+      sourcePlatform: 'modrinth',
+      sourceProjectId: matches.modrinth.projectId,
+      sourceFileId: matches.modrinth.fileId || null,
+      version: version || null,
+    };
+  } else if (matches.curseforge?.projectId) {
+    return {
+      fileName: mod.fileName,
+      sourcePlatform: 'curseforge',
+      sourceProjectId: matches.curseforge.projectId,
+      sourceFileId: matches.curseforge.fileId || null,
+      version: version || null,
+    };
+  }
+
+  return {
+    fileName: mod.fileName,
+    version: version || null,
+  };
 };
 
 export const useModCloudSync = (instanceId: string) => {
@@ -184,6 +199,7 @@ export const useModCloudSync = (instanceId: string) => {
     const versionByFileName = new Map<string, string>();
     const modrinthDetailCache = new Map<string, Promise<ModrinthProject>>();
     const curseForgeDetailCache = new Map<string, ReturnType<typeof getCurseForgeProjectDetails>>();
+    const allPendingRelations: ModRelationRecord[] = [];
     const globalPlatform = options.globalMetadataPlatform;
 
     const recordMatch = (
@@ -385,7 +401,7 @@ export const useModCloudSync = (instanceId: string) => {
                 });
               }
               if (relations.length > 0) {
-                void modService.saveModRelations(relations);
+                allPendingRelations.push(...relations);
               }
             }
           } finally {
@@ -502,7 +518,7 @@ export const useModCloudSync = (instanceId: string) => {
                   });
                 }
                 if (relations.length > 0) {
-                  void modService.saveModRelations(relations);
+                  allPendingRelations.push(...relations);
                 }
               }
             } finally {
@@ -586,21 +602,34 @@ export const useModCloudSync = (instanceId: string) => {
       emitIncrementalUpdates();
     }
 
+    if (allPendingRelations.length > 0) {
+      try {
+        await modService.saveModRelations(allPendingRelations);
+      } catch (error) {
+        console.error('Save all pending mod relations failed', error);
+      }
+    }
+
     if (platformMatchesByFileName.size === 0 && matchedByFileName.size === 0) {
       return modsToSync;
     }
 
-    await Promise.all(modsToSync.map(async (mod) => {
+    const batchUpdates: ModPlatformMatchBatchItem[] = [];
+    for (const mod of modsToSync) {
       const matches = platformMatchesByFileName.get(mod.fileName);
-      if (!matches) return;
+      if (!matches) continue;
 
+      const matchedVersion = versionByFileName.get(mod.fileName);
+      batchUpdates.push(buildPlatformMatchBatchItem(mod, matches, matchedVersion, globalPlatform));
+    }
+
+    if (batchUpdates.length > 0) {
       try {
-        const matchedVersion = versionByFileName.get(mod.fileName);
-        await persistPlatformMatches(instanceId, mod, matches, matchedVersion, globalPlatform);
+        await modService.updateModPlatformMatchesBatch(instanceId, batchUpdates);
       } catch (error) {
-        console.error('Persist mod platform matches failed', error);
+        console.error('Persist mod platform matches batch failed', error);
       }
-    }));
+    }
 
     emitIncrementalUpdates(true);
 

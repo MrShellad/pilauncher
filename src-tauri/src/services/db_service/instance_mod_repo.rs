@@ -249,3 +249,41 @@ pub async fn toggle_instance_mod(
 
     Ok(())
 }
+
+pub async fn update_mod_platform_matches_batch(
+    pool: &SqlitePool,
+    instance_id: &str,
+    updates: &[super::models::ModPlatformMatchBatchItem],
+) -> Result<(), sqlx::Error> {
+    if updates.is_empty() {
+        return Ok(());
+    }
+
+    let mut tx = pool.begin().await?;
+    let now = chrono::Utc::now().timestamp();
+
+    for item in updates {
+        sqlx::query(
+            "UPDATE instance_mods 
+             SET source_platform = COALESCE(?, source_platform),
+                 source_project_id = COALESCE(?, source_project_id),
+                 source_file_id = COALESCE(?, source_file_id),
+                 version = COALESCE(?, version),
+                 updated_at = ?
+             WHERE instance_id = ? AND file_name = ?;"
+        )
+        .bind(&item.source_platform)
+        .bind(&item.source_project_id)
+        .bind(&item.source_file_id)
+        .bind(&item.version)
+        .bind(now)
+        .bind(instance_id)
+        .bind(&item.file_name)
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    tx.commit().await?;
+    Ok(())
+}
+

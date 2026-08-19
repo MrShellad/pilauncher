@@ -6,7 +6,7 @@ pub mod pool;
 pub mod seeds;
 pub mod tag_repo;
 
-pub use models::{EnrichedInstanceModRow, InstanceModDbRow, ModRelationRecord};
+pub use models::{EnrichedInstanceModRow, InstanceModDbRow, ModPlatformMatchBatchItem, ModRelationRecord};
 pub use pool::AppDatabase;
 
 use sqlx::SqlitePool;
@@ -95,6 +95,14 @@ impl DbService {
         mods: &[InstanceModDbRow],
     ) -> Result<(), sqlx::Error> {
         instance_mod_repo::upsert_instance_mods(pool, instance_id, mods).await
+    }
+
+    pub async fn update_mod_platform_matches_batch(
+        pool: &SqlitePool,
+        instance_id: &str,
+        updates: &[ModPlatformMatchBatchItem],
+    ) -> Result<(), sqlx::Error> {
+        instance_mod_repo::update_mod_platform_matches_batch(pool, instance_id, updates).await
     }
 
     pub async fn delete_instance_mods(

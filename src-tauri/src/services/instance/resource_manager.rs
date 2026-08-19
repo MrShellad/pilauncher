@@ -532,6 +532,27 @@ impl ResourceManager {
         Ok(())
     }
 
+    pub fn update_mod_platform_matches_batch<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        items: Vec<crate::services::db_service::ModPlatformMatchBatchItem>,
+    ) -> Result<(), String> {
+        let db = app.state::<crate::services::db_service::AppDatabase>();
+        let pool = db.pool.clone();
+        let inst_id = instance_id.to_string();
+
+        tauri::async_runtime::spawn(async move {
+            let _ = crate::services::db_service::DbService::update_mod_platform_matches_batch(
+                &pool,
+                &inst_id,
+                &items,
+            )
+            .await;
+        });
+
+        Ok(())
+    }
+
     pub fn update_mod_metadata_settings<R: Runtime>(
         _app: &AppHandle<R>,
         _instance_id: &str,

@@ -173,6 +173,15 @@ pub async fn update_mod_platform_matches<R: Runtime>(
 }
 
 #[tauri::command]
+pub async fn update_mod_platform_matches_batch<R: Runtime>(
+    app: AppHandle<R>,
+    instance_id: String,
+    updates: Vec<crate::services::db_service::ModPlatformMatchBatchItem>,
+) -> Result<(), String> {
+    ResourceManager::update_mod_platform_matches_batch(&app, &instance_id, updates)
+}
+
+#[tauri::command]
 pub async fn update_mod_metadata_settings<R: Runtime>(
     app: AppHandle<R>,
     instance_id: String,
