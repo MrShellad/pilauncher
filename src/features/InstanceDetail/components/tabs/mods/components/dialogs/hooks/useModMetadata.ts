@@ -1,32 +1,23 @@
 // src/features/InstanceDetail/components/tabs/mods/components/dialogs/hooks/useModMetadata.ts
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  fetchModrinthInfo,
-  fetchModrinthProjectById
-} from '../../../../../../logic/modrinthApi';
-import { getCurseForgeProjectDetails } from '../../../../../../../Download/logic/curseforgeApi';
-import {
   getModPreferredPlatform,
-  modService,
   type ModMeta,
   type ModPlatformId
 } from '../../../../../../logic/modService';
-import {
-  getPlatformFileId,
-  getPlatformProjectId,
-  resolveProjectIdByHash,
-  toNetworkInfo
-} from '../utils/modDetailUtils';
+import { useModCloudSync } from '../../../../../../hooks/modManager/useModCloudSync';
 
 export const useModMetadata = (
   mod: ModMeta | null,
   onMetadataResolved?: (mod: ModMeta) => void,
-  instanceConfig?: any
+  instanceConfig?: any,
+  instanceId?: string
 ) => {
   const [displayMod, setDisplayMod] = useState<ModMeta | null>(null);
   const lastOpenedFileNameRef = useRef<string | null>(null);
   const fetchedMetadataKeysRef = useRef<Set<string>>(new Set());
   const modRef = useRef<ModMeta | null>(mod);
+  const { syncCloudMetadata } = useModCloudSync(instanceId || '');
 
   const initialMetadataPlatform = useMemo<ModPlatformId>(() => {
     if (!mod) return 'modrinth';
@@ -38,18 +29,7 @@ export const useModMetadata = (
 
   const metadataRequestKey = useMemo(() => {
     if (!mod) return '';
-
-    return [
-      mod.fileName,
-      mod.cacheKey || '',
-      initialMetadataPlatform,
-      getPlatformProjectId(mod, initialMetadataPlatform) || '',
-      getPlatformFileId(mod, initialMetadataPlatform) || '',
-      mod.manifestEntry?.hash?.algorithm || '',
-      mod.manifestEntry?.hash?.value || '',
-      mod.curseforgeFingerprint ?? '',
-      mod.modId || ''
-    ].join('|');
+    return `${mod.fileName}|${initialMetadataPlatform}|${mod.manifestEntry?.source?.projectId || ''}|${mod.curseforgeFingerprint || ''}|${mod.manifestEntry?.hash?.value || ''}`;
   }, [initialMetadataPlatform, mod]);
 
   // Sync displayMod when mod changes
@@ -103,80 +83,49 @@ export const useModMetadata = (
     modRef.current = mod;
   }, [mod]);
 
-  // Fetch metadata details from APIs
+  // Fetch metadata details using unified cloud sync pipeline if missing
   useEffect(() => {
     const requestMod = modRef.current;
-    if (requestMod && metadataRequestKey) {
-      let disposed = false;
-
-      if (fetchedMetadataKeysRef.current.has(metadataRequestKey)) {
-        return;
-      }
-      fetchedMetadataKeysRef.current.add(metadataRequestKey);
-
-      const fetchMetadata = async () => {
-        let projectId = getPlatformProjectId(requestMod, initialMetadataPlatform);
-        if (!projectId) {
-          projectId = await resolveProjectIdByHash(requestMod, initialMetadataPlatform);
-        }
-
-        if (projectId) {
-          return initialMetadataPlatform === 'curseforge'
-            ? getCurseForgeProjectDetails(projectId).then((detail) => toNetworkInfo(detail, 'curseforge'))
-            : fetchModrinthProjectById(projectId);
-        } else {
-          const query =
-            requestMod.modId ||
-            requestMod.fileName.replace('.jar', '').replace('.disabled', '').replace(/[-_v0-9\.]+$/, '');
-          return fetchModrinthInfo(query);
-        }
-      };
-
-      fetchMetadata().then(async netInfo => {
-        if (disposed) {
-          return;
-        }
-
-        if (netInfo) {
-          const cachedIconPath = requestMod.cacheKey && netInfo.icon_url
-            ? await modService.updateModCache(
-              requestMod.cacheKey,
-              netInfo.title,
-              netInfo.description,
-              netInfo.icon_url
-            ).catch(() => null)
-            : null;
-
-          const resolvedMod: ModMeta = {
-            ...requestMod,
-            networkInfo: netInfo,
-            networkIconUrl: netInfo.icon_url || requestMod.networkIconUrl,
-            iconAbsolutePath: cachedIconPath || requestMod.iconAbsolutePath,
-            isFetchingNetwork: false
-          };
-
-          setDisplayMod(prev => prev ? {
-            ...prev,
-            networkInfo: netInfo,
-            networkIconUrl: netInfo.icon_url || prev.networkIconUrl,
-            iconAbsolutePath: cachedIconPath || prev.iconAbsolutePath,
-            isFetchingNetwork: false
-          } : null);
-          onMetadataResolved?.(resolvedMod);
-
-        }
-      }).catch((error) => {
-        if (!disposed) {
-          fetchedMetadataKeysRef.current.delete(metadataRequestKey);
-        }
-        console.error(error);
-      });
-
-      return () => {
-        disposed = true;
-      };
+    if (!requestMod || !metadataRequestKey || !instanceId) {
+      return;
     }
-  }, [initialMetadataPlatform, metadataRequestKey, onMetadataResolved]);
+
+    // 1. If already has networkInfo for the active platform, do not refetch
+    if (requestMod.networkInfo && requestMod.networkInfo.source === initialMetadataPlatform) {
+      return;
+    }
+
+    // 2. If already has full local metadata (description and icon), prioritize local and avoid network call
+    if (requestMod.description && (requestMod.iconAbsolutePath || requestMod.offlineJarIconAbsolutePath)) {
+      return;
+    }
+
+    if (fetchedMetadataKeysRef.current.has(metadataRequestKey)) {
+      return;
+    }
+    fetchedMetadataKeysRef.current.add(metadataRequestKey);
+
+    let disposed = false;
+
+    syncCloudMetadata([requestMod], {
+      force: false,
+      globalMetadataPlatform: instanceConfig?.globalMetadataSettings?.metadataPlatform
+    }).then((syncedMods: ModMeta[]) => {
+      if (disposed || !syncedMods || syncedMods.length === 0) return;
+      const synced = syncedMods[0];
+      setDisplayMod(synced);
+      onMetadataResolved?.(synced);
+    }).catch((err: unknown) => {
+      if (!disposed) {
+        fetchedMetadataKeysRef.current.delete(metadataRequestKey);
+      }
+      console.error('Unified metadata resolution in detail modal failed:', err);
+    });
+
+    return () => {
+      disposed = true;
+    };
+  }, [initialMetadataPlatform, metadataRequestKey, onMetadataResolved, syncCloudMetadata, instanceConfig, instanceId]);
 
   return {
     displayMod,

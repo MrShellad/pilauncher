@@ -242,94 +242,111 @@ const InstanceDetail: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden relative flex flex-col">
-          <div className={activeTab === 'overview' ? 'w-full h-full flex flex-col min-h-0' : 'hidden'}>
-            <FocusBoundary
-              id="tab-boundary-overview"
-              isActive={activeTab === 'overview'}
-              trapFocus
-              defaultFocusKey={tabFallbackFocusKeys.overview}
-              className="w-full h-full"
-            >
-              <OverviewPanel
-                data={data}
-                currentImageIndex={currentImageIndex}
-                heroLogoUrl={heroLogoUrl}
-                onOpenFolder={handleOpenFolder}
-                onUpdateHeroLogo={handleUpdateHeroLogo}
-              />
-            </FocusBoundary>
-          </div>
+        <div className="relative flex flex-1 min-h-0 flex-col overflow-hidden">
+          <FocusBoundary
+            id="tab-boundary-overview"
+            isActive={activeTab === 'overview'}
+            trapFocus
+            defaultFocusKey={tabFallbackFocusKeys.overview}
+            className={activeTab === 'overview' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}
+          >
+            <OverviewPanel
+              data={data}
+              currentImageIndex={currentImageIndex}
+              heroLogoUrl={heroLogoUrl}
+              onOpenFolder={handleOpenFolder}
+              onUpdateHeroLogo={handleUpdateHeroLogo}
+            />
+          </FocusBoundary>
 
-          <div className={activeTab === 'basic' ? 'w-full h-full flex flex-col min-h-0' : 'hidden'}>
-            <FocusBoundary id="tab-boundary-basic" isActive={activeTab === 'basic'} trapFocus className="w-full h-full">
-              <BasicPanel
-                data={data}
-                isInitializing={isInitializing}
-                onUpdateName={handleUpdateName}
-                onUpdateCover={handleUpdateCover}
-                onUpdateCustomButtons={handleUpdateCustomButtons}
-                onUpdateTags={handleUpdateTags}
-                onUpdateServerBinding={handleUpdateServerBinding}
-                onUpdateAutoJoinServer={handleUpdateAutoJoinServer}
-                onVerifyFiles={handleVerifyFiles}
-                onRepairFiles={handleRepairRuntime}
-                onDelete={async (skipConfirm?: boolean) => {
-                  const success = await handleDeleteInstance(skipConfirm);
-                  if (success) setActiveTabGlobal('instances');
-                }}
-              />
-            </FocusBoundary>
-          </div>
+          <FocusBoundary
+            id="tab-boundary-basic"
+            isActive={activeTab === 'basic'}
+            trapFocus
+            className={activeTab === 'basic' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}
+          >
+            <BasicPanel
+              data={data}
+              isInitializing={isInitializing}
+              onUpdateName={handleUpdateName}
+              onUpdateCover={handleUpdateCover}
+              onUpdateCustomButtons={handleUpdateCustomButtons}
+              onUpdateTags={handleUpdateTags}
+              onUpdateServerBinding={handleUpdateServerBinding}
+              onUpdateAutoJoinServer={handleUpdateAutoJoinServer}
+              onVerifyFiles={handleVerifyFiles}
+              onRepairFiles={handleRepairRuntime}
+              onDelete={async (skipConfirm?: boolean) => {
+                const success = await handleDeleteInstance(skipConfirm);
+                if (success) setActiveTabGlobal('instances');
+              }}
+            />
+          </FocusBoundary>
 
-          <div className={activeTab === 'java' ? 'w-full h-full flex flex-col min-h-0' : 'hidden'}>
-            <FocusBoundary id="tab-boundary-java" isActive={activeTab === 'java'} trapFocus className="w-full h-full">
-              <JavaPanel
-                instanceId={instanceId}
-                isActive={activeTab === 'java'}
-                data={data}
-                isInitializing={isInitializing}
-                onUpdateEnvironment={handleUpdateEnvironment}
-              />
-            </FocusBoundary>
-          </div>
+          <FocusBoundary
+            id="tab-boundary-java"
+            isActive={activeTab === 'java'}
+            trapFocus
+            className={activeTab === 'java' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}
+          >
+            <JavaPanel
+              instanceId={instanceId}
+              isActive={activeTab === 'java'}
+              data={data}
+              isInitializing={isInitializing}
+              onUpdateEnvironment={handleUpdateEnvironment}
+            />
+          </FocusBoundary>
 
-          <div className={activeTab === 'mods' ? 'w-full h-full flex flex-col min-h-0' : 'hidden'}>
-            <FocusBoundary id="tab-boundary-mods" isActive={activeTab === 'mods'} trapFocus className="w-full h-full">
-              <ModPanel instanceId={instanceId} />
-            </FocusBoundary>
-          </div>
+          <FocusBoundary
+            id="tab-boundary-mods"
+            isActive={activeTab === 'mods'}
+            trapFocus
+            className={activeTab === 'mods' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}
+          >
+            <ModPanel instanceId={instanceId} />
+          </FocusBoundary>
 
-          <div className={activeTab === 'saves' ? 'w-full h-full flex flex-col min-h-0' : 'hidden'}>
-            <FocusBoundary id="tab-boundary-saves" isActive={activeTab === 'saves'} trapFocus className="w-full h-full">
-              <SavePanel instanceId={instanceId} />
-            </FocusBoundary>
-          </div>
+          <FocusBoundary
+            id="tab-boundary-saves"
+            isActive={activeTab === 'saves'}
+            trapFocus
+            className={activeTab === 'saves' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}
+          >
+            <SavePanel instanceId={instanceId} />
+          </FocusBoundary>
 
-          <div className={activeTab === 'resourcepacks' ? 'w-full h-full flex flex-col min-h-0' : 'hidden'}>
-            <FocusBoundary id="tab-boundary-resourcepacks" isActive={activeTab === 'resourcepacks'} trapFocus className="w-full h-full">
-              <ResourcePackPanel instanceId={instanceId} />
-            </FocusBoundary>
-          </div>
+          <FocusBoundary
+            id="tab-boundary-resourcepacks"
+            isActive={activeTab === 'resourcepacks'}
+            trapFocus
+            className={activeTab === 'resourcepacks' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}
+          >
+            <ResourcePackPanel instanceId={instanceId} />
+          </FocusBoundary>
 
-          <div className={activeTab === 'shaders' ? 'w-full h-full flex flex-col min-h-0' : 'hidden'}>
-            <FocusBoundary id="tab-boundary-shaders" isActive={activeTab === 'shaders'} trapFocus className="w-full h-full">
-              <ShaderPanel instanceId={instanceId} />
-            </FocusBoundary>
-          </div>
+          <FocusBoundary
+            id="tab-boundary-shaders"
+            isActive={activeTab === 'shaders'}
+            trapFocus
+            className={activeTab === 'shaders' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}
+          >
+            <ShaderPanel instanceId={instanceId} />
+          </FocusBoundary>
 
-          {activeTab === 'export' && (
-            <div className="w-full h-full flex flex-col min-h-0">
-              <FocusBoundary id="tab-boundary-export" isActive={activeTab === 'export'} trapFocus className="w-full h-full">
-                <ExportPanel
-                  instanceId={instanceId}
-                  defaultName={data.name}
-                  defaultHeroLogo={heroLogoUrl || undefined}
-                  defaultVersion={data.description?.match(/1\.\d+\.\d+/)?.[0] || '1.0.0'}
-                />
-              </FocusBoundary>
-            </div>
-          )}
+          <FocusBoundary
+            id="tab-boundary-export"
+            isActive={activeTab === 'export'}
+            trapFocus
+            className={activeTab === 'export' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}
+          >
+            <ExportPanel
+              instanceId={instanceId}
+              defaultName={data.name}
+              defaultHeroLogo={heroLogoUrl || undefined}
+              defaultVersion={data.description?.match(/1\.\d+\.\d+/)?.[0] || '1.0.0'}
+            />
+          </FocusBoundary>
         </div>
       </div>
     </FocusContext.Provider>

@@ -32,17 +32,44 @@ export const normalizePreference = (value?: string): ModPlatformPreference => (
   value === 'modrinth' || value === 'curseforge' ? value : 'auto'
 );
 
-export const getPlatformProjectId = (mod: ModMeta | null, platform: ModPlatformId) => {
+export const getPlatformProjectId = (mod: ModMeta | null, platform: ModPlatformId): string | undefined => {
   if (!mod) return undefined;
-  return (mod.networkInfo?.source === platform ? mod.networkInfo.id : undefined)
-    || getModPlatformReference(mod, platform)?.projectId
-    || (mod.manifestEntry?.source.platform === platform ? mod.manifestEntry.source.projectId : undefined);
+  if (mod.networkInfo?.source === platform && (mod.networkInfo.id || mod.networkInfo.project_id)) {
+    return String(mod.networkInfo.id || mod.networkInfo.project_id);
+  }
+  const ref = getModPlatformReference(mod, platform);
+  if (ref?.projectId) {
+    return String(ref.projectId);
+  }
+
+  if (mod.manifestEntry?.source?.platform === platform && mod.manifestEntry.source.projectId) {
+    return String(mod.manifestEntry.source.projectId);
+  }
+
+  if (mod.cacheKey) {
+    if (platform === 'modrinth' && mod.cacheKey.startsWith('modrinth_')) {
+      return mod.cacheKey.replace(/^modrinth_/, '');
+    }
+    if (platform === 'curseforge' && mod.cacheKey.startsWith('curseforge_')) {
+      return mod.cacheKey.replace(/^curseforge_/, '');
+    }
+  }
+
+  return undefined;
 };
 
-export const getPlatformFileId = (mod: ModMeta | null, platform: ModPlatformId) => {
+export const getPlatformFileId = (mod: ModMeta | null, platform: ModPlatformId): string | undefined => {
   if (!mod) return undefined;
-  return getModPlatformReference(mod, platform)?.fileId
-    || (mod.manifestEntry?.source.platform === platform ? mod.manifestEntry.source.fileId : undefined);
+  const ref = getModPlatformReference(mod, platform);
+  if (ref?.fileId) {
+    return String(ref.fileId);
+  }
+
+  if (mod.manifestEntry?.source?.platform === platform && mod.manifestEntry.source.fileId) {
+    return String(mod.manifestEntry.source.fileId);
+  }
+
+  return undefined;
 };
 
 export const toNetworkInfo = (detail: OreProjectDetail, source: 'modrinth' | 'curseforge'): ModrinthProject => ({
@@ -70,8 +97,10 @@ export const resolveProjectIdByHash = async (
   platform: ModPlatformId
 ): Promise<string | undefined> => {
   if (platform === 'modrinth') {
-    const sha1 = mod.manifestEntry?.hash?.value;
-    if (sha1 && mod.manifestEntry?.hash?.algorithm === 'sha1') {
+    const sha1 = mod.manifestEntry?.hash?.algorithm?.toLowerCase() === 'sha1'
+      ? mod.manifestEntry.hash.value
+      : undefined;
+    if (sha1) {
       try {
         const matches = await matchModrinthVersionsByHashes([sha1], 'sha1');
         return matches[sha1]?.project_id;

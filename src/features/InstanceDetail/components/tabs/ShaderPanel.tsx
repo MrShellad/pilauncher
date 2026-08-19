@@ -8,7 +8,6 @@ import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { useInputMode } from '../../../../ui/focus/FocusProvider';
 import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
-import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { OreAssetRow } from '../../../../ui/primitives/OreAssetRow';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreConfirmDialog } from '../../../../ui/primitives/OreConfirmDialog';
@@ -176,114 +175,110 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
   }, [deleteItem, pendingDelete, restoreDeleteFocus]);
 
   return (
-    <>
-      <SettingsPageLayout width="wide">
-        <div className="relative flex h-full w-full flex-col">
-          <div className="mb-6 mx-1.5 flex items-center justify-between border-2 border-[#2A2A2C] bg-[#18181B] py-4 pl-4 pr-[26px]">
-            <div>
-              <h3 className="flex items-center font-minecraft text-white">
-                <ImageIcon size={18} className="mr-2 text-ore-green" />
-                {t('instanceDetail.shader.title', { defaultValue: '本地光影包' })}
-              </h3>
-              <p className="mt-1 text-sm text-ore-text-muted">
-                {t('instanceDetail.shader.subtitle', { defaultValue: '使用前请确保实例已安装 OptiFine、Iris 或 Oculus。' })}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <OreButton
-                focusKey="btn-download-shader"
-                variant="primary"
-                size="auto"
-                className="!h-10 !min-h-10"
-                onArrowPress={handleTopArrow}
-                onClick={() => {
-                  setInstanceDownloadTarget('shader');
-                  setActiveTab('instance-mod-download');
-                }}
-              >
-                <DownloadCloud size={16} className="mr-2" />
-                {t('instanceDetail.shader.downloadShader', { defaultValue: '下载光影' })}
-              </OreButton>
-
-              <OreButton
-                focusKey="btn-open-shader-folder"
-                variant="secondary"
-                size="auto"
-                className="!h-10 !min-h-10"
-                onArrowPress={handleTopArrow}
-                onClick={openFolder}
-              >
-                <FolderOpen size={16} className="mr-2" />
-                {t('instanceDetail.shader.openShaderFolder', { defaultValue: '打开光影目录' })}
-              </OreButton>
-            </div>
-          </div>
-
-          {isLoading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 size={32} className="animate-spin text-ore-green" />
-            </div>
-          ) : (
-            <FocusBoundary
-              id="shader-list"
-              trapFocus={operationRowIndex !== null}
-              className="custom-scrollbar grid grid-cols-1 gap-2 overflow-y-auto px-1.5 pt-1.5 pb-4"
-            >
-              {items.map((item, index) => (
-                <FocusItem
-                  key={item.fileName}
-                  focusKey={getRowFocusKey(index)}
-                  onEnter={() => enterRowOperation(index)}
-                  onArrowPress={handleRowNavigation}
-                >
-                  {({ ref, focused }) => (
-                    <div ref={ref as React.RefObject<HTMLDivElement>}>
-                      <OreAssetRow
-                          focusable={false}
-                          focused={focused}
-                          operationActive={operationRowIndex === index}
-                          inactive={!item.isEnabled}
-                          selected={item.isEnabled}
-                          title={item.fileName.replace('.zip', '').replace('.disabled', '')}
-                          description={item.isDirectory ? t('instanceDetail.shader.folderShaderPack', { defaultValue: '文件夹光影包' }) : t('instanceDetail.shader.zipShaderPack', { defaultValue: 'ZIP 光影包' })}
-                          metaItems={[item.fileName, formatSize(item.fileSize)]}
-                          leading={<ImageIcon size={28} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />}
-                          trailingClassName="flex items-center space-x-2"
-                          trailing={
-                            <>
-                              <OreSwitch
-                                focusKey={getActionFocusKey(index, 'toggle')}
-                                checked={item.isEnabled}
-                                onArrowPress={(direction) => handleActionArrow(index, 'toggle', direction)}
-                                onChange={() => toggleItem(item.fileName, item.isEnabled)}
-                              />
-
-                              <OreButton
-                                focusKey={getActionFocusKey(index, 'delete')}
-                                variant="danger"
-                                size="auto"
-                                className="!h-10 !min-h-10 !min-w-10 !w-10 !px-0"
-                                onArrowPress={(direction) => handleActionArrow(index, 'delete', direction)}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  setPendingDelete({ fileName: item.fileName, rowIndex: index });
-                                }}
-                                title={t('instanceDetail.shader.deleteShaderPack', { defaultValue: '删除光影包' })}
-                              >
-                                <Trash2 size={16} />
-                              </OreButton>
-                            </>
-                          }
-                      />
-                    </div>
-                  )}
-                </FocusItem>
-              ))}
-            </FocusBoundary>
-          )}
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden p-3 gap-3">
+      <div className="flex shrink-0 items-center justify-between border-2 border-[#2A2A2C] bg-[#18181B] py-3.5 px-4">
+        <div>
+          <h3 className="flex items-center font-minecraft text-white">
+            <ImageIcon size={18} className="mr-2 text-ore-green" />
+            {t('instanceDetail.shader.title', { defaultValue: '本地光影包' })}
+          </h3>
+          <p className="mt-1 text-sm text-ore-text-muted">
+            {t('instanceDetail.shader.subtitle', { defaultValue: '使用前请确保实例已安装 OptiFine、Iris 或 Oculus。' })}
+          </p>
         </div>
-      </SettingsPageLayout>
+
+        <div className="flex items-center gap-3">
+          <OreButton
+            focusKey="btn-download-shader"
+            variant="primary"
+            size="auto"
+            className="!h-10 !min-h-10"
+            onArrowPress={handleTopArrow}
+            onClick={() => {
+              setInstanceDownloadTarget('shader');
+              setActiveTab('instance-mod-download');
+            }}
+          >
+            <DownloadCloud size={16} className="mr-2" />
+            {t('instanceDetail.shader.downloadShader', { defaultValue: '下载光影' })}
+          </OreButton>
+
+          <OreButton
+            focusKey="btn-open-shader-folder"
+            variant="secondary"
+            size="auto"
+            className="!h-10 !min-h-10"
+            onArrowPress={handleTopArrow}
+            onClick={openFolder}
+          >
+            <FolderOpen size={16} className="mr-2" />
+            {t('instanceDetail.shader.openShaderFolder', { defaultValue: '打开光影目录' })}
+          </OreButton>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex flex-1 items-center justify-center py-12">
+          <Loader2 size={32} className="animate-spin text-ore-green" />
+        </div>
+      ) : (
+        <FocusBoundary
+          id="shader-list"
+          trapFocus={operationRowIndex !== null}
+          className="custom-scrollbar flex-1 min-h-0 grid grid-cols-1 gap-2 overflow-y-auto pr-1"
+        >
+          {items.map((item, index) => (
+            <FocusItem
+              key={item.fileName || `shader-idx-${index}`}
+              focusKey={getRowFocusKey(index)}
+              onEnter={() => enterRowOperation(index)}
+              onArrowPress={handleRowNavigation}
+            >
+              {({ ref, focused }) => (
+                <div ref={ref as React.RefObject<HTMLDivElement>}>
+                  <OreAssetRow
+                      focusable={false}
+                      focused={focused}
+                      operationActive={operationRowIndex === index}
+                      inactive={!item.isEnabled}
+                      selected={item.isEnabled}
+                      title={(item.fileName || '').replace('.zip', '').replace('.disabled', '')}
+                      description={item.isDirectory ? t('instanceDetail.shader.folderShaderPack', { defaultValue: '文件夹光影包' }) : t('instanceDetail.shader.zipShaderPack', { defaultValue: 'ZIP 光影包' })}
+                      metaItems={[item.fileName || '', formatSize(item.fileSize || 0)]}
+                      leading={<ImageIcon size={28} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />}
+                      trailingClassName="flex items-center space-x-2"
+                      trailing={
+                        <>
+                          <OreSwitch
+                            focusKey={getActionFocusKey(index, 'toggle')}
+                            checked={item.isEnabled}
+                            onArrowPress={(direction) => handleActionArrow(index, 'toggle', direction)}
+                            onChange={() => toggleItem(item.fileName, item.isEnabled)}
+                          />
+
+                          <OreButton
+                            focusKey={getActionFocusKey(index, 'delete')}
+                            variant="danger"
+                            size="auto"
+                            className="!h-10 !min-h-10 !min-w-10 !w-10 !px-0"
+                            onArrowPress={(direction) => handleActionArrow(index, 'delete', direction)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setPendingDelete({ fileName: item.fileName, rowIndex: index });
+                            }}
+                            title={t('instanceDetail.shader.deleteShaderPack', { defaultValue: '删除光影包' })}
+                          >
+                            <Trash2 size={16} />
+                          </OreButton>
+                        </>
+                      }
+                  />
+                </div>
+              )}
+            </FocusItem>
+          ))}
+        </FocusBoundary>
+      )}
 
       <OreConfirmDialog
         isOpen={pendingDelete !== null}
@@ -302,6 +297,6 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
         confirmationNote={t('instanceDetail.shader.deleteConfirmNote', { defaultValue: '删除操作不可恢复，请确认当前实例确实不再需要该光影包。' })}
         confirmationNoteTone="danger"
       />
-    </>
+    </div>
   );
 };

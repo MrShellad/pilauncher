@@ -20,17 +20,17 @@ export const DEFAULT_INCREMENTAL_PAGE_SIZE = 20;
 export const DEFAULT_MOD_LIST_EXIT_FOCUS_KEY = 'mod-btn-history';
 
 export const MOD_LIST_HEADER_CLASSES = {
-  button: 'h-9 min-h-9',
-  iconButton: 'h-9 min-h-9 w-9 min-w-9',
-  oreButton: '!h-9 !min-h-9 !min-w-0 !px-3 text-[1.0625rem]',
-  segmentGroup: 'relative z-10 flex h-9 shrink-0 overflow-hidden rounded-[6px] border border-[#313A4D] bg-[#232937]',
-  segmentButton: 'flex h-full items-center px-3 text-[1.0625rem] outline-none transition-colors'
+  button: 'h-8 min-h-8',
+  iconButton: 'h-8 min-h-8 w-8 min-w-8',
+  oreButton: '!h-8 !min-h-8 !min-w-0 !px-3 font-minecraft text-[12px] font-bold uppercase',
+  segmentGroup: 'relative z-10 flex h-8 shrink-0 overflow-hidden border-[2px] border-[#1E1E1F] bg-[#232937] shadow-[inset_0_-2px_0_rgba(0,0,0,0.4)]',
+  segmentButton: 'flex h-full items-center px-3 font-minecraft text-[12px] font-bold uppercase outline-none transition-colors'
 } as const;
 
 export const MOD_LIST_TABLE_GRID_CLASS =
-  'grid-cols-[2.875rem_minmax(13rem,1.5fr)_minmax(11rem,1.2fr)_minmax(8rem,0.75fr)_minmax(5.5rem,0.45fr)_10rem]';
+  'grid-cols-[2.5rem_3.5rem_minmax(11rem,0.9fr)_minmax(9.5rem,0.8fr)_4.5rem_6.5rem]';
 export const MOD_LIST_COMPACT_GRID_CLASS =
-  'grid-cols-[2.875rem_2.25rem_minmax(0,1fr)_10rem]';
+  'grid-cols-[2.5rem_2.75rem_minmax(0,1fr)_6.5rem]';
 
 export interface ModListGroup {
   id: ModGroupId;
@@ -104,23 +104,23 @@ const getModSearchText = (mod: ModMeta) => {
   ].map(normalizeText).join(' ');
 };
 
-const CATEGORY_ORDER: ModGroupId[] = ['libraries', 'performance', 'content', 'uncategorized'];
+const CATEGORY_ORDER: ModGroupId[] = ['content', 'performance', 'libraries', 'uncategorized'];
 
 const GROUP_META: Record<ModGroupId, Pick<ModListGroup, 'id' | 'label' | 'description'>> = {
-  libraries: {
-    id: 'libraries',
-    label: '基础库',
-    description: 'API、前置库与联动依赖'
+  content: {
+    id: 'content',
+    label: '游戏内容',
+    description: '玩法、物品、生物、维度与各类扩展 Mod'
   },
   performance: {
     id: 'performance',
     label: '性能优化',
     description: '渲染、内存、服务端性能与修复类 Mod'
   },
-  content: {
-    id: 'content',
-    label: '游戏内容',
-    description: '玩法、物品、生物、维度与体验扩展'
+  libraries: {
+    id: 'libraries',
+    label: '基础依赖库',
+    description: 'API、前置库与联动依赖'
   },
   uncategorized: {
     id: 'uncategorized',
@@ -133,9 +133,11 @@ const LIBRARY_PATTERNS = [
   'api',
   'architectury',
   'cloth-config',
+  'cloth_config',
   'collective',
   'core',
   'fabric-api',
+  'fabric_api',
   'forge-config',
   'geckolib',
   'kotlin',
@@ -144,14 +146,22 @@ const LIBRARY_PATTERNS = [
   'owo',
   'patchouli',
   'resourceful',
-  'terrablender'
+  'terrablender',
+  'balm',
+  'curios',
+  'puzzles-lib',
+  'puzzleslib',
+  'yungs-api'
 ];
 
 const PERFORMANCE_PATTERNS = [
   'c2me',
   'dynamic fps',
+  'dynamicfps',
   'embeddium',
   'entity culling',
+  'entityculling',
+  'entity-culling',
   'ferritecore',
   'fps',
   'iris',
@@ -161,62 +171,43 @@ const PERFORMANCE_PATTERNS = [
   'optimization',
   'performance',
   'sodium',
-  'starlight'
-];
-
-const CONTENT_PATTERNS = [
-  'adventure',
-  'biome',
-  'building',
-  'content',
-  'decoration',
-  'dimension',
-  'equipment',
-  'food',
-  'magic',
-  'mobs',
-  'technology',
-  'utility',
-  'worldgen'
+  'starlight',
+  'krypton',
+  'immediatelyfast',
+  'exordium',
+  'noisium',
+  'smoothboot',
+  'fastsuite',
+  'clumps',
+  'chunky'
 ];
 
 const includesAnyPattern = (text: string, patterns: string[]) => {
   return patterns.some((pattern) => text.includes(pattern));
 };
 
-export const isExternalMod = (mod: ModMeta) => {
-  const sourceKind = mod.manifestEntry?.source.kind;
-  return !sourceKind || sourceKind === 'externalImport' || sourceKind === 'unknown';
-};
-
-export const getModSourceLabel = (mod: ModMeta) => {
+export const getModMatchedPlatforms = (mod: ModMeta): string[] => {
   const source = mod.manifestEntry?.source;
   const platform = source?.platform;
   const matchedPlatforms = mod.manifestEntry?.matchedPlatforms || {};
-  const platformLabels = [
+  return [
     platform === 'modrinth' || matchedPlatforms.modrinth?.projectId ? 'Modrinth' : '',
     platform === 'curseforge' || matchedPlatforms.curseforge?.projectId ? 'CurseForge' : ''
   ].filter(Boolean);
-
-  if (platformLabels.length > 0) {
-    return platformLabels.join(' / ');
-  }
-
-  if (source?.kind === 'launcherDownload') return '启动器';
-  if (source?.kind === 'modpackDeployment') return '整合包';
-  if (source?.kind === 'externalImport') return '手动';
-
-  return '外部';
 };
 
 export const getModGroupId = (mod: ModMeta): ModGroupId => {
+  if (mod.dependentsCount && mod.dependentsCount > 0) {
+    return 'libraries';
+  }
+
   const text = getModSearchText(mod);
 
   if (includesAnyPattern(text, LIBRARY_PATTERNS)) return 'libraries';
   if (includesAnyPattern(text, PERFORMANCE_PATTERNS)) return 'performance';
-  if (includesAnyPattern(text, CONTENT_PATTERNS)) return 'content';
 
-  return 'uncategorized';
+  // 其它所有 mod 均归入游戏内容分组
+  return 'content';
 };
 
 export const buildModGroups = (mods: ModMeta[]) => {

@@ -2,6 +2,7 @@ use sqlx::{
     sqlite::{SqliteConnectOptions, SqlitePoolOptions},
     Row, SqlitePool,
 };
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
@@ -12,7 +13,7 @@ pub struct AppDatabase {
 pub struct DbService;
 
 impl DbService {
-    const CURRENT_SCHEMA_VERSION: i64 = 5;
+    const CURRENT_SCHEMA_VERSION: i64 = 8;
 
     pub async fn init_db(config_dir: &Path) -> Result<SqlitePool, String> {
         if !config_dir.exists() {
@@ -203,6 +204,75 @@ impl DbService {
                 updated_at INTEGER NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS mod_global_metadata_cache (
+                mod_id TEXT PRIMARY KEY,
+                curseforge_fingerprint INTEGER,
+                modrinth_hash TEXT,
+                curseforge_project_id TEXT,
+                modrinth_project_id TEXT,
+                name TEXT,
+                description TEXT,
+                icon_rel_path TEXT NOT NULL,
+                icon_source TEXT,
+                aliases TEXT,
+                updated_at INTEGER NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_mod_cache_cf_fp ON mod_global_metadata_cache(curseforge_fingerprint);
+            CREATE INDEX IF NOT EXISTS idx_mod_cache_mr_hash ON mod_global_metadata_cache(modrinth_hash);
+            CREATE INDEX IF NOT EXISTS idx_mod_cache_mr_pid ON mod_global_metadata_cache(modrinth_project_id);
+            CREATE INDEX IF NOT EXISTS idx_mod_cache_cf_pid ON mod_global_metadata_cache(curseforge_project_id);
+
+            CREATE TABLE IF NOT EXISTS mod_aliases (
+                alias TEXT PRIMARY KEY,
+                canonical_mod_id TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                source TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_mod_aliases_canonical ON mod_aliases(canonical_mod_id);
+
+            CREATE TABLE IF NOT EXISTS mod_relations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_identifier TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                target_identifier TEXT NOT NULL,
+                target_type TEXT NOT NULL,
+                relation_type TEXT NOT NULL,
+                version_requirement TEXT,
+                target_name_hint TEXT,
+                source_provider TEXT NOT NULL,
+                updated_at INTEGER NOT NULL,
+                UNIQUE (source_identifier, target_identifier, relation_type)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_mod_relations_forward ON mod_relations(source_identifier, relation_type);
+            CREATE INDEX IF NOT EXISTS idx_mod_relations_reverse ON mod_relations(target_identifier, relation_type);
+
+            CREATE TABLE IF NOT EXISTS instance_mods (
+                instance_id TEXT NOT NULL,
+                file_name TEXT NOT NULL,
+                is_enabled BOOLEAN NOT NULL DEFAULT 1,
+                file_size INTEGER NOT NULL,
+                modified_at INTEGER NOT NULL,
+                sha1 TEXT,
+                curseforge_fingerprint INTEGER,
+                mod_id TEXT,
+                custom_display_name TEXT,
+                version TEXT,
+                source_platform TEXT,
+                source_project_id TEXT,
+                source_file_id TEXT,
+                updated_at INTEGER NOT NULL,
+                PRIMARY KEY (instance_id, file_name)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_instance_mods_query ON instance_mods(instance_id, is_enabled);
+            CREATE INDEX IF NOT EXISTS idx_instance_mods_mod_id ON instance_mods(mod_id);
+            CREATE INDEX IF NOT EXISTS idx_instance_mods_fp ON instance_mods(curseforge_fingerprint);
+            CREATE INDEX IF NOT EXISTS idx_instance_mods_sha1 ON instance_mods(sha1);
+
             CREATE TABLE IF NOT EXISTS instances (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -322,6 +392,22 @@ impl DbService {
         if !Self::is_migration_applied(pool, 5).await? {
             Self::migrate_library_resource_mappings(pool).await?;
             Self::record_migration(pool, 5, "library_resource_mappings").await?;
+        }
+
+        if !Self::is_migration_applied(pool, 6).await? {
+            Self::migrate_mod_global_metadata_cache(pool).await?;
+            Self::record_migration(pool, 6, "mod_global_metadata_cache").await?;
+        }
+
+        if !Self::is_migration_applied(pool, 7).await? {
+            Self::migrate_mod_relations(pool).await?;
+            Self::record_migration(pool, 7, "mod_relations").await?;
+        }
+
+        if !Self::is_migration_applied(pool, 8).await? {
+            Self::migrate_mod_aliases(pool).await?;
+            Self::seed_essential_aliases(pool).await?;
+            Self::record_migration(pool, 8, "mod_aliases_and_seeds").await?;
         }
 
         sqlx::query(
@@ -698,5 +784,872 @@ impl DbService {
 
         tx.commit().await?;
         Ok(())
+    }
+
+    async fn migrate_mod_global_metadata_cache(pool: &SqlitePool) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS mod_global_metadata_cache (
+                mod_id TEXT PRIMARY KEY,
+                curseforge_fingerprint INTEGER,
+                modrinth_hash TEXT,
+                curseforge_project_id TEXT,
+                modrinth_project_id TEXT,
+                name TEXT,
+                description TEXT,
+                icon_rel_path TEXT NOT NULL,
+                icon_source TEXT,
+                updated_at INTEGER NOT NULL
+            );",
+        )
+        .execute(pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_mod_cache_cf_fp ON mod_global_metadata_cache(curseforge_fingerprint);",
+        )
+        .execute(pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_mod_cache_mr_hash ON mod_global_metadata_cache(modrinth_hash);",
+        )
+        .execute(pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_mod_cache_mr_pid ON mod_global_metadata_cache(modrinth_project_id);",
+        )
+        .execute(pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_mod_cache_cf_pid ON mod_global_metadata_cache(curseforge_project_id);",
+        )
+        .execute(pool)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn migrate_mod_relations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS mod_relations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_identifier TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                target_identifier TEXT NOT NULL,
+                target_type TEXT NOT NULL,
+                relation_type TEXT NOT NULL,
+                version_requirement TEXT,
+                target_name_hint TEXT,
+                source_provider TEXT NOT NULL,
+                updated_at INTEGER NOT NULL,
+                UNIQUE (source_identifier, target_identifier, relation_type)
+            );",
+        )
+        .execute(pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_mod_relations_forward ON mod_relations(source_identifier, relation_type);",
+        )
+        .execute(pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_mod_relations_reverse ON mod_relations(target_identifier, relation_type);",
+        )
+        .execute(pool)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn migrate_mod_aliases(pool: &SqlitePool) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS mod_aliases (
+                alias TEXT PRIMARY KEY,
+                canonical_mod_id TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                source TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+            );",
+        )
+        .execute(pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_mod_aliases_canonical ON mod_aliases(canonical_mod_id);",
+        )
+        .execute(pool)
+        .await?;
+
+        // Check if aliases column exists on mod_global_metadata_cache
+        let pragma_rows = sqlx::query("PRAGMA table_info(mod_global_metadata_cache);")
+            .fetch_all(pool)
+            .await?;
+
+        let has_aliases_col = pragma_rows.iter().any(|row| {
+            let name: String = row.get("name");
+            name == "aliases"
+        });
+
+        if !has_aliases_col {
+            let _ = sqlx::query("ALTER TABLE mod_global_metadata_cache ADD COLUMN aliases TEXT;")
+                .execute(pool)
+                .await;
+        }
+
+        Ok(())
+    }
+
+    pub async fn save_mod_aliases(
+        pool: &SqlitePool,
+        canonical_mod_id: &str,
+        display_name: &str,
+        aliases: &[String],
+        source: &str,
+    ) -> Result<(), sqlx::Error> {
+        let clean_canonical = canonical_mod_id.trim().to_lowercase();
+        if clean_canonical.is_empty() || aliases.is_empty() {
+            return Ok(());
+        }
+
+        let mut tx = pool.begin().await?;
+        let now = chrono::Utc::now().timestamp();
+
+        for raw_alias in aliases {
+            let clean_alias = raw_alias.trim().to_lowercase();
+            if clean_alias.is_empty() {
+                continue;
+            }
+
+            sqlx::query(
+                "INSERT INTO mod_aliases (alias, canonical_mod_id, display_name, source, updated_at)
+                 VALUES (?, ?, ?, ?, ?)
+                 ON CONFLICT(alias) DO UPDATE SET
+                    canonical_mod_id = excluded.canonical_mod_id,
+                    display_name = excluded.display_name,
+                    source = excluded.source,
+                    updated_at = excluded.updated_at;",
+            )
+            .bind(&clean_alias)
+            .bind(&clean_canonical)
+            .bind(display_name)
+            .bind(source)
+            .bind(now)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    pub async fn query_mod_aliases(
+        pool: &SqlitePool,
+        aliases: &[String],
+    ) -> Result<HashMap<String, (String, String)>, sqlx::Error> {
+        if aliases.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let mut clean_list: Vec<String> = aliases
+            .iter()
+            .map(|a| a.trim().to_lowercase())
+            .filter(|a| !a.is_empty())
+            .collect();
+        clean_list.sort();
+        clean_list.dedup();
+
+        if clean_list.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let placeholders = clean_list.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let sql = format!(
+            "SELECT alias, canonical_mod_id, display_name FROM mod_aliases WHERE alias IN ({})",
+            placeholders
+        );
+
+        let mut query = sqlx::query_as::<_, (String, String, String)>(&sql);
+        for a in &clean_list {
+            query = query.bind(a);
+        }
+
+        let rows = query.fetch_all(pool).await?;
+        let mut map = HashMap::new();
+        for (alias, canonical_id, name) in rows {
+            map.insert(alias, (canonical_id, name));
+        }
+
+        Ok(map)
+    }
+
+    pub async fn query_aliases_for_mod_ids(
+        pool: &SqlitePool,
+        mod_ids: &[String],
+    ) -> Result<HashMap<String, Vec<String>>, sqlx::Error> {
+        if mod_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let mut clean_list: Vec<String> = mod_ids
+            .iter()
+            .map(|m| m.trim().to_lowercase())
+            .filter(|m| !m.is_empty())
+            .collect();
+        clean_list.sort();
+        clean_list.dedup();
+
+        if clean_list.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let placeholders = clean_list.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let sql = format!(
+            "SELECT alias, canonical_mod_id FROM mod_aliases WHERE canonical_mod_id IN ({})",
+            placeholders
+        );
+
+        let mut query = sqlx::query_as::<_, (String, String)>(&sql);
+        for m in &clean_list {
+            query = query.bind(m);
+        }
+
+        let rows = query.fetch_all(pool).await?;
+        let mut map: HashMap<String, Vec<String>> = HashMap::new();
+        for (alias, canonical_id) in rows {
+            map.entry(canonical_id).or_default().push(alias);
+        }
+
+        Ok(map)
+    }
+
+    pub async fn seed_essential_aliases(pool: &SqlitePool) -> Result<(), sqlx::Error> {
+        let seeds: &[(&str, &str, &[&str])] = &[
+            ("cloth-config", "Cloth Config", &[
+                "cloth-config", "cloth_config", "clothconfig",
+                "cloth-config2", "cloth_config2", "clothconfig2",
+                "499980", "9s6osm5g", "cloth-config-fabric", "cloth-config-forge",
+            ]),
+            ("fabric-api", "Fabric API", &[
+                "fabric-api", "fabric_api", "fabricapi", "fabric",
+                "306612", "P7dR8mBk", "fabric-api-base",
+            ]),
+            ("architectury", "Architectury API", &[
+                "architectury", "architectury-api", "architectury_api", "architecturyapi",
+                "419699", "lhGA9TYQ",
+            ]),
+            ("geckolib", "GeckoLib", &[
+                "geckolib", "geckolib3", "geckolib4", "geckolib-fabric", "geckolib-forge",
+                "388172", "8BmcYKb2",
+            ]),
+            ("curios", "Curios API", &[
+                "curios", "curios-api", "curios_api", "curiosapi", "309927",
+            ]),
+            ("jei", "Just Enough Items", &[
+                "jei", "just-enough-items", "justenoughitems", "238222", "u6dRKJwZ",
+            ]),
+            ("rei", "Roughly Enough Items", &[
+                "rei", "roughly-enough-items", "roughlyenoughitems", "310111", "nfn13YXw",
+            ]),
+            ("emi", "EMI", &[
+                "emi", "580555", "fRiHVvU7",
+            ]),
+            ("patchouli", "Patchouli", &[
+                "patchouli", "306770", "n6XB85cy",
+            ]),
+            ("citresewn", "CIT Resewn", &[
+                "citresewn", "cit-resewn", "cit_resewn", "510842", "otVJHGxO",
+            ]),
+            ("indium", "Indium", &[
+                "indium", "540608", "Orvt0mII",
+            ]),
+            ("iris", "Iris Shaders", &[
+                "iris", "iris-shaders", "irisshaders", "455508", "YL57xq9U",
+            ]),
+            ("sodium", "Sodium / Embeddium", &[
+                "sodium", "rubidium", "embeddium", "394468", "1103431", "908741", "AANobbMI",
+            ]),
+            ("fabric-language-kotlin", "Fabric Language Kotlin", &[
+                "fabric-language-kotlin", "kotlin", "kotlinforforge", "fabric_language_kotlin",
+                "308769", "Ha28R6CL",
+            ]),
+            ("terrablender", "TerraBlender", &[
+                "terrablender", "563928", "mOgUt4GM",
+            ]),
+            ("yungs-api", "YUNG's API", &[
+                "yungs-api", "yung-api", "yungsapi", "yungapi", "379965", "O5705Jpv",
+            ]),
+            ("balm", "Balm", &[
+                "balm", "balm-fabric", "balm-forge", "balm_fabric", "balm_forge",
+                "531761", "MBAknsWE",
+            ]),
+            ("collective", "Collective", &[
+                "collective", "409026", "e0M1Uh0y",
+            ]),
+            ("resourceful-lib", "Resourceful Lib", &[
+                "resourceful-lib", "resourcefullib", "resourceful_lib", "570073", "G1epqFG1",
+            ]),
+            ("owo-lib", "oωo (owo-lib)", &[
+                "owo-lib", "owo", "owolib", "530898", "ccKDOlHs",
+            ]),
+            ("cardinal-components", "Cardinal Components", &[
+                "cardinal-components", "cardinal-components-base", "cardinal_components",
+                "312812", "P67965P6",
+            ]),
+            ("yacl", "YetAnotherConfigLib", &[
+                "yacl", "yet-another-config-lib", "yetanotherconfiglib", "587483", "1eAoo2KR",
+            ]),
+            ("bookshelf", "Bookshelf", &[
+                "bookshelf", "416954", "5ZwdcRci",
+            ]),
+            ("citadel", "Citadel", &[
+                "citadel", "419286", "gvQqBUqZ",
+            ]),
+            ("puzzles-lib", "Puzzles Lib", &[
+                "puzzleslib", "puzzles-lib", "puzzles_lib", "63823", "kKmKFzv5",
+            ]),
+            ("malilib", "MaLiLib", &[
+                "malilib", "60089", "fE4bR1Sr",
+            ]),
+            ("appleskin", "AppleSkin", &[
+                "appleskin", "248787", "rOu7bqlL",
+            ]),
+            ("ferritecore", "FerriteCore", &[
+                "ferritecore", "504107", "NNAgCjsB",
+            ]),
+            ("modernfix", "ModernFix", &[
+                "modernfix", "636180", "ohNO6lps",
+            ]),
+            ("c2me", "C2ME", &[
+                "c2me", "c2me-fabric", "c2me_fabric", "437778", "PtjYWJxP",
+            ]),
+        ];
+
+        let mut tx = pool.begin().await?;
+        let now = chrono::Utc::now().timestamp();
+
+        for (canon_id, name, aliases) in seeds {
+            for alias in *aliases {
+                sqlx::query(
+                    "INSERT INTO mod_aliases (alias, canonical_mod_id, display_name, source, updated_at)
+                     VALUES (?, ?, ?, 'system_seed', ?)
+                     ON CONFLICT(alias) DO NOTHING;",
+                )
+                .bind(alias.to_lowercase())
+                .bind(canon_id.to_lowercase())
+                .bind(*name)
+                .bind(now)
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    pub async fn save_mod_relations(
+        pool: &SqlitePool,
+        relations: &[ModRelationRecord],
+    ) -> Result<(), sqlx::Error> {
+        if relations.is_empty() {
+            return Ok(());
+        }
+
+        let mut tx = pool.begin().await?;
+        let now = chrono::Utc::now().timestamp();
+
+        for rel in relations {
+            let src_id = if rel.source_type == "mod_id" {
+                rel.source_identifier.trim().to_lowercase()
+            } else {
+                rel.source_identifier.trim().to_string()
+            };
+            let tgt_id = if rel.target_type == "mod_id" {
+                rel.target_identifier.trim().to_lowercase()
+            } else {
+                rel.target_identifier.trim().to_string()
+            };
+
+            if src_id.is_empty() || tgt_id.is_empty() || src_id == tgt_id {
+                continue;
+            }
+
+            sqlx::query(
+                "INSERT INTO mod_relations (
+                    source_identifier, source_type, target_identifier, target_type,
+                    relation_type, version_requirement, target_name_hint, source_provider, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (source_identifier, target_identifier, relation_type) DO UPDATE SET
+                    target_type = excluded.target_type,
+                    version_requirement = COALESCE(excluded.version_requirement, mod_relations.version_requirement),
+                    target_name_hint = COALESCE(excluded.target_name_hint, mod_relations.target_name_hint),
+                    source_provider = excluded.source_provider,
+                    updated_at = excluded.updated_at;",
+            )
+            .bind(&src_id)
+            .bind(&rel.source_type)
+            .bind(&tgt_id)
+            .bind(&rel.target_type)
+            .bind(&rel.relation_type)
+            .bind(&rel.version_requirement)
+            .bind(&rel.target_name_hint)
+            .bind(&rel.source_provider)
+            .bind(now)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    pub async fn query_mod_dependencies(
+        pool: &SqlitePool,
+        identifiers: &[String],
+    ) -> Result<Vec<ModRelationRecord>, sqlx::Error> {
+        if identifiers.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let placeholders = identifiers.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let sql = format!(
+            "SELECT source_identifier, source_type, target_identifier, target_type,
+                    relation_type, version_requirement, target_name_hint, source_provider
+             FROM mod_relations
+             WHERE source_identifier IN ({})",
+            placeholders
+        );
+
+        let mut query = sqlx::query_as::<_, (String, String, String, String, String, Option<String>, Option<String>, String)>(&sql);
+        for id in identifiers {
+            query = query.bind(id.trim().to_lowercase());
+        }
+
+        let rows = query.fetch_all(pool).await?;
+        let result = rows
+            .into_iter()
+            .map(|(src_id, src_type, tgt_id, tgt_type, rel_type, ver, hint, prov)| ModRelationRecord {
+                source_identifier: src_id,
+                source_type: src_type,
+                target_identifier: tgt_id,
+                target_type: tgt_type,
+                relation_type: rel_type,
+                version_requirement: ver,
+                target_name_hint: hint,
+                source_provider: prov,
+            })
+            .collect();
+
+        Ok(result)
+    }
+
+    pub async fn query_mod_dependents(
+        pool: &SqlitePool,
+        identifiers: &[String],
+    ) -> Result<Vec<ModRelationRecord>, sqlx::Error> {
+        if identifiers.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let placeholders = identifiers.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let sql = format!(
+            "SELECT source_identifier, source_type, target_identifier, target_type,
+                    relation_type, version_requirement, target_name_hint, source_provider
+             FROM mod_relations
+             WHERE target_identifier IN ({})",
+            placeholders
+        );
+
+        let mut query = sqlx::query_as::<_, (String, String, String, String, String, Option<String>, Option<String>, String)>(&sql);
+        for id in identifiers {
+            query = query.bind(id.trim().to_lowercase());
+        }
+
+        let rows = query.fetch_all(pool).await?;
+        let result = rows
+            .into_iter()
+            .map(|(src_id, src_type, tgt_id, tgt_type, rel_type, ver, hint, prov)| ModRelationRecord {
+                source_identifier: src_id,
+                source_type: src_type,
+                target_identifier: tgt_id,
+                target_type: tgt_type,
+                relation_type: rel_type,
+                version_requirement: ver,
+                target_name_hint: hint,
+                source_provider: prov,
+            })
+            .collect();
+
+        Ok(result)
+    }
+}
+
+#[derive(sqlx::FromRow)]
+struct RawInstanceModQueryResult {
+    file_name: String,
+    is_enabled: bool,
+    file_size: i64,
+    modified_at: i64,
+    sha1: Option<String>,
+    curseforge_fingerprint: Option<i64>,
+    mod_id: Option<String>,
+    name: Option<String>,
+    version: Option<String>,
+    description: Option<String>,
+    icon_rel_path: Option<String>,
+    icon_source: Option<String>,
+    aliases: Option<String>,
+    source_platform: Option<String>,
+    source_project_id: Option<String>,
+    source_file_id: Option<String>,
+    dependents_count: Option<i64>,
+    dependencies_json: Option<String>,
+}
+
+impl DbService {
+    pub async fn query_instance_mods(
+        pool: &SqlitePool,
+        instance_id: &str,
+    ) -> Result<Vec<EnrichedInstanceModRow>, sqlx::Error> {
+        let rows = sqlx::query_as::<_, RawInstanceModQueryResult>(
+            "SELECT 
+                im.file_name, im.is_enabled, im.file_size, im.modified_at, im.sha1, im.curseforge_fingerprint,
+                im.mod_id, COALESCE(im.custom_display_name, g.name) AS name, im.version,
+                g.description, g.icon_rel_path, g.icon_source, g.aliases,
+                im.source_platform, im.source_project_id, im.source_file_id,
+                COALESCE((
+                    SELECT COUNT(DISTINCT r.source_identifier)
+                    FROM mod_relations r
+                    JOIN instance_mods im2 ON (
+                        lower(r.source_identifier) = lower(im2.mod_id) 
+                        OR lower(r.source_identifier) = lower(im2.file_name)
+                        OR (im2.source_project_id IS NOT NULL AND lower(r.source_identifier) = lower(im2.source_project_id))
+                    ) AND im2.instance_id = im.instance_id
+                    WHERE (
+                        (im.mod_id IS NOT NULL AND lower(r.target_identifier) = lower(im.mod_id))
+                        OR lower(r.target_identifier) = lower(im.file_name)
+                        OR (im.source_project_id IS NOT NULL AND lower(r.target_identifier) = lower(im.source_project_id))
+                    )
+                    AND r.relation_type = 'required'
+                ), 0) AS dependents_count,
+                (
+                    SELECT json_group_array(DISTINCT r.target_identifier)
+                    FROM mod_relations r
+                    WHERE (
+                        (im.mod_id IS NOT NULL AND lower(r.source_identifier) = lower(im.mod_id))
+                        OR lower(r.source_identifier) = lower(im.file_name)
+                        OR (im.source_project_id IS NOT NULL AND lower(r.source_identifier) = lower(im.source_project_id))
+                    )
+                    AND r.relation_type = 'required'
+                ) AS dependencies_json
+             FROM instance_mods im
+             LEFT JOIN mod_global_metadata_cache g ON im.mod_id = g.mod_id
+             WHERE im.instance_id = ?
+             ORDER BY im.is_enabled DESC, im.file_name ASC;"
+        )
+        .bind(instance_id)
+        .fetch_all(pool)
+        .await?;
+
+        let result = rows
+            .into_iter()
+            .map(|r| {
+                let dependencies = r.dependencies_json
+                    .as_deref()
+                    .and_then(|s| serde_json::from_str::<Vec<String>>(s).ok())
+                    .filter(|v| !v.is_empty());
+                EnrichedInstanceModRow {
+                    file_name: r.file_name,
+                    is_enabled: r.is_enabled,
+                    file_size: r.file_size,
+                    modified_at: r.modified_at,
+                    sha1: r.sha1,
+                    curseforge_fingerprint: r.curseforge_fingerprint.map(|v| v as u32),
+                    mod_id: r.mod_id,
+                    name: r.name,
+                    version: r.version,
+                    description: r.description,
+                    icon_rel_path: r.icon_rel_path,
+                    icon_source: r.icon_source,
+                    aliases: r.aliases,
+                    source_platform: r.source_platform,
+                    source_project_id: r.source_project_id,
+                    source_file_id: r.source_file_id,
+                    dependents_count: r.dependents_count.unwrap_or(0),
+                    dependencies,
+                }
+            })
+            .collect();
+
+        Ok(result)
+    }
+
+    pub async fn upsert_instance_mods(
+        pool: &SqlitePool,
+        instance_id: &str,
+        mods: &[InstanceModDbRow],
+    ) -> Result<(), sqlx::Error> {
+        if mods.is_empty() {
+            return Ok(());
+        }
+
+        let mut tx = pool.begin().await?;
+        let now = chrono::Utc::now().timestamp();
+
+        for m in mods {
+            sqlx::query(
+                "INSERT INTO instance_mods (
+                    instance_id, file_name, is_enabled, file_size, modified_at,
+                    sha1, curseforge_fingerprint, mod_id, custom_display_name, version,
+                    source_platform, source_project_id, source_file_id, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(instance_id, file_name) DO UPDATE SET
+                    is_enabled = excluded.is_enabled,
+                    file_size = excluded.file_size,
+                    modified_at = excluded.modified_at,
+                    sha1 = COALESCE(excluded.sha1, instance_mods.sha1),
+                    curseforge_fingerprint = COALESCE(excluded.curseforge_fingerprint, instance_mods.curseforge_fingerprint),
+                    mod_id = COALESCE(excluded.mod_id, instance_mods.mod_id),
+                    custom_display_name = COALESCE(excluded.custom_display_name, instance_mods.custom_display_name),
+                    version = COALESCE(excluded.version, instance_mods.version),
+                    source_platform = COALESCE(excluded.source_platform, instance_mods.source_platform),
+                    source_project_id = COALESCE(excluded.source_project_id, instance_mods.source_project_id),
+                    source_file_id = COALESCE(excluded.source_file_id, instance_mods.source_file_id),
+                    updated_at = excluded.updated_at;"
+            )
+            .bind(instance_id)
+            .bind(&m.file_name)
+            .bind(m.is_enabled)
+            .bind(m.file_size)
+            .bind(m.modified_at)
+            .bind(&m.sha1)
+            .bind(m.curseforge_fingerprint.map(|v| v as i64))
+            .bind(&m.mod_id)
+            .bind(&m.custom_display_name)
+            .bind(&m.version)
+            .bind(&m.source_platform)
+            .bind(&m.source_project_id)
+            .bind(&m.source_file_id)
+            .bind(now)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    pub async fn delete_instance_mods(
+        pool: &SqlitePool,
+        instance_id: &str,
+        file_names: &[String],
+    ) -> Result<(), sqlx::Error> {
+        if file_names.is_empty() {
+            return Ok(());
+        }
+
+        let placeholders = file_names.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let sql = format!(
+            "DELETE FROM instance_mods WHERE instance_id = ? AND file_name IN ({})",
+            placeholders
+        );
+
+        let mut query = sqlx::query(&sql).bind(instance_id);
+        for f in file_names {
+            query = query.bind(f);
+        }
+
+        query.execute(pool).await?;
+        Ok(())
+    }
+
+    pub async fn toggle_instance_mod(
+        pool: &SqlitePool,
+        instance_id: &str,
+        old_file_name: &str,
+        new_file_name: &str,
+        is_enabled: bool,
+    ) -> Result<(), sqlx::Error> {
+        let now = chrono::Utc::now().timestamp();
+        sqlx::query(
+            "UPDATE instance_mods 
+             SET file_name = ?, is_enabled = ?, updated_at = ?
+             WHERE instance_id = ? AND file_name = ?;"
+        )
+        .bind(new_file_name)
+        .bind(is_enabled)
+        .bind(now)
+        .bind(instance_id)
+        .bind(old_file_name)
+        .execute(pool)
+        .await?;
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct InstanceModDbRow {
+    pub instance_id: String,
+    pub file_name: String,
+    pub is_enabled: bool,
+    pub file_size: i64,
+    pub modified_at: i64,
+    pub sha1: Option<String>,
+    pub curseforge_fingerprint: Option<u32>,
+    pub mod_id: Option<String>,
+    pub custom_display_name: Option<String>,
+    pub version: Option<String>,
+    pub source_platform: Option<String>,
+    pub source_project_id: Option<String>,
+    pub source_file_id: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct EnrichedInstanceModRow {
+    pub file_name: String,
+    pub is_enabled: bool,
+    pub file_size: i64,
+    pub modified_at: i64,
+    pub sha1: Option<String>,
+    pub curseforge_fingerprint: Option<u32>,
+    pub mod_id: Option<String>,
+    pub name: Option<String>,
+    pub version: Option<String>,
+    pub description: Option<String>,
+    pub icon_rel_path: Option<String>,
+    pub icon_source: Option<String>,
+    pub aliases: Option<String>,
+    pub source_platform: Option<String>,
+    pub source_project_id: Option<String>,
+    pub source_file_id: Option<String>,
+    pub dependents_count: i64,
+    pub dependencies: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModRelationRecord {
+    pub source_identifier: String,
+    pub source_type: String,
+    pub target_identifier: String,
+    pub target_type: String,
+    pub relation_type: String,
+    pub version_requirement: Option<String>,
+    pub target_name_hint: Option<String>,
+    pub source_provider: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_mod_relations_uniqueness_and_queries() {
+        let pool = SqlitePoolOptions::new()
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+
+        DbService::create_tables(&pool).await.unwrap();
+        DbService::run_migrations(&pool).await.unwrap();
+
+        let relations = vec![
+            ModRelationRecord {
+                source_identifier: "iris".into(),
+                source_type: "mod_id".into(),
+                target_identifier: "sodium".into(),
+                target_type: "mod_id".into(),
+                relation_type: "required".into(),
+                version_requirement: Some(">=0.5.0".into()),
+                target_name_hint: Some("Sodium".into()),
+                source_provider: "jar_meta".into(),
+            },
+            ModRelationRecord {
+                source_identifier: "sodium_extra".into(),
+                source_type: "mod_id".into(),
+                target_identifier: "sodium".into(),
+                target_type: "mod_id".into(),
+                relation_type: "required".into(),
+                version_requirement: None,
+                target_name_hint: Some("Sodium".into()),
+                source_provider: "jar_meta".into(),
+            },
+            // Duplicate item with different version/provider (should UPSERT without duplicate creation)
+            ModRelationRecord {
+                source_identifier: "iris".into(),
+                source_type: "mod_id".into(),
+                target_identifier: "sodium".into(),
+                target_type: "mod_id".into(),
+                relation_type: "required".into(),
+                version_requirement: Some(">=0.5.8".into()),
+                target_name_hint: Some("Sodium (Updated)".into()),
+                source_provider: "modrinth".into(),
+            },
+        ];
+
+        DbService::save_mod_relations(&pool, &relations).await.unwrap();
+
+        // Query Iris dependencies (Forward query)
+        let iris_deps = DbService::query_mod_dependencies(&pool, &["iris".into()]).await.unwrap();
+        assert_eq!(iris_deps.len(), 1, "Should have exactly 1 dependency for iris due to UPSERT uniqueness");
+        assert_eq!(iris_deps[0].target_identifier, "sodium");
+        assert_eq!(iris_deps[0].version_requirement, Some(">=0.5.8".into()));
+
+        // Query Sodium dependents (Reverse query)
+        let sodium_dependents = DbService::query_mod_dependents(&pool, &["sodium".into()]).await.unwrap();
+        assert_eq!(sodium_dependents.len(), 2, "Sodium should have 2 dependents (iris and sodium_extra)");
+        let dep_sources: Vec<_> = sodium_dependents.iter().map(|d| d.source_identifier.as_str()).collect();
+        assert!(dep_sources.contains(&"iris"));
+        assert!(dep_sources.contains(&"sodium_extra"));
+    }
+
+    #[tokio::test]
+    async fn test_mod_aliases_seeding_and_queries() {
+        let pool = SqlitePoolOptions::new()
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+
+        DbService::create_tables(&pool).await.unwrap();
+        DbService::run_migrations(&pool).await.unwrap();
+
+        // 1. Verify seeds are loaded
+        let query_result = DbService::query_mod_aliases(&pool, &["499980".into(), "9s6osm5g".into(), "cloth_config".into()])
+            .await
+            .unwrap();
+
+        assert_eq!(query_result.len(), 3);
+        assert_eq!(query_result.get("499980").unwrap().0, "cloth-config");
+        assert_eq!(query_result.get("499980").unwrap().1, "Cloth Config");
+        assert_eq!(query_result.get("9s6osm5g").unwrap().0, "cloth-config");
+
+        let cloth_aliases = DbService::query_aliases_for_mod_ids(&pool, &["cloth-config".into()])
+            .await
+            .unwrap();
+        let aliases_list = cloth_aliases.get("cloth-config").unwrap();
+        assert!(aliases_list.contains(&"499980".to_string()));
+        assert!(aliases_list.contains(&"cloth-config2".to_string()));
+
+        // 2. Dynamic registration of new aliases
+        DbService::save_mod_aliases(
+            &pool,
+            "custom-mod",
+            "Custom Mod Name",
+            &["custom_mod".into(), "123456".into()],
+            "user_sync",
+        )
+        .await
+        .unwrap();
+
+        let custom_query = DbService::query_mod_aliases(&pool, &["123456".into()])
+            .await
+            .unwrap();
+        assert_eq!(custom_query.get("123456").unwrap().0, "custom-mod");
+        assert_eq!(custom_query.get("123456").unwrap().1, "Custom Mod Name");
     }
 }

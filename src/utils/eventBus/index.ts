@@ -20,6 +20,7 @@ class TypedEventBus {
     'save-backup-progress',
     'instance-runtime-verify-progress',
     'instance-mods-scan-progress',
+    'instance-mods-fs-changed',
     'third-party-import-progress',
     'snapshot-progress',
     'instance-deployment-progress',

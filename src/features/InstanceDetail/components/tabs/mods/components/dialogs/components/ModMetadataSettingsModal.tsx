@@ -135,42 +135,77 @@ export const ModMetadataSettingsModal: React.FC<ModMetadataSettingsModalProps> =
         id="mod-metadata-settings-boundary"
         trapFocus
         onEscape={onClose}
-        className="space-y-5 bg-transparent font-minecraft"
+        className="space-y-4 bg-transparent font-minecraft"
       >
-        <div className="rounded-sm border-[2px] border-[var(--ore-border-color)] bg-[var(--ore-color-background-surface-panel)] p-4">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <h3 className="text-sm text-white">{t('instanceDetail.mods.metadataSettings.platform', { defaultValue: '元数据平台' })}</h3>
-            {displayMod.manifestEntry?.metadataSettings?.metadataLocked && (
-              <span className="rounded-sm border-[2px] border-[var(--ore-border-color)] bg-[#7AA2FF]/10 px-2 py-1 text-xs text-[#AFC4FF]">
-                {t('instanceDetail.mods.metadataSettings.locked', { defaultValue: '已锁定' })}
+        {/* Linked project summary info */}
+        <div className="rounded-sm border-[2px] border-[var(--ore-border-color)] bg-[var(--ore-color-background-surface-panel)] p-3 flex flex-col gap-1.5 text-xs">
+          <div className="flex items-center justify-between text-white">
+            <span className="font-bold truncate">{displayMod.name || displayMod.fileName}</span>
+            <span className="text-[10px] text-gray-400 font-mono">{displayMod.fileName}</span>
+          </div>
+          <div className="flex flex-wrap gap-2 pt-1 text-[11px]">
+            {displayMod.manifestEntry?.matchedPlatforms?.modrinth?.projectId && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 border border-[#1E1E1F] bg-[#113824] text-[#1BD96A] rounded-sm">
+                Modrinth: {displayMod.manifestEntry.matchedPlatforms.modrinth.projectId}
+              </span>
+            )}
+            {displayMod.manifestEntry?.matchedPlatforms?.curseforge?.projectId && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 border border-[#1E1E1F] bg-[#3B1F14] text-[#F16436] rounded-sm">
+                CurseForge: {displayMod.manifestEntry.matchedPlatforms.curseforge.projectId}
+              </span>
+            )}
+            {!displayMod.manifestEntry?.matchedPlatforms?.modrinth?.projectId && !displayMod.manifestEntry?.matchedPlatforms?.curseforge?.projectId && (
+              <span className="text-gray-400">
+                {t('instanceDetail.mods.metadataSettings.notLinked', { defaultValue: '尚未链接至云端平台，点击“重新识别”可自动从 Modrinth / CurseForge 获取元数据与依赖' })}
               </span>
             )}
           </div>
-          <OreToggleButton
-            options={toggleOptions}
-            value={metadataPlatformDraft}
-            onChange={(id) => setMetadataPlatformDraft(id as ModPlatformPreference)}
-            focusKeyPrefix="metadata-platform"
-            size="sm"
-          />
         </div>
 
         <div className="rounded-sm border-[2px] border-[var(--ore-border-color)] bg-[var(--ore-color-background-surface-panel)] p-4">
           <div className="mb-2 flex items-center justify-between gap-3">
-            <h3 className="text-sm text-white">{t('instanceDetail.mods.metadataSettings.updateSource', { defaultValue: '更新来源' })}</h3>
-            {displayMod.manifestEntry?.metadataSettings?.updateLocked && (
-              <span className="rounded-sm border-[2px] border-[var(--ore-border-color)] bg-[#7AA2FF]/10 px-2 py-1 text-xs text-[#AFC4FF]">
+            <div>
+              <h3 className="text-sm text-white font-bold">{t('instanceDetail.mods.metadataSettings.platform', { defaultValue: '元数据平台偏好' })}</h3>
+              <p className="text-[11px] text-gray-400 mt-0.5">{t('instanceDetail.mods.metadataSettings.platformDesc', { defaultValue: '选择模组名称、图标、简介与依赖解析优先使用的云端平台' })}</p>
+            </div>
+            {displayMod.manifestEntry?.metadataSettings?.metadataLocked && (
+              <span className="rounded-sm border-[2px] border-[var(--ore-border-color)] bg-[#7AA2FF]/10 px-2 py-1 text-xs text-[#AFC4FF] shrink-0">
                 {t('instanceDetail.mods.metadataSettings.locked', { defaultValue: '已锁定' })}
               </span>
             )}
           </div>
-          <OreToggleButton
-            options={toggleOptions}
-            value={updatePlatformDraft}
-            onChange={(id) => setUpdatePlatformDraft(id as ModPlatformPreference)}
-            focusKeyPrefix="update-platform"
-            size="sm"
-          />
+          <div className="pt-2">
+            <OreToggleButton
+              options={toggleOptions}
+              value={metadataPlatformDraft}
+              onChange={(id) => setMetadataPlatformDraft(id as ModPlatformPreference)}
+              focusKeyPrefix="metadata-platform"
+              size="sm"
+            />
+          </div>
+        </div>
+
+        <div className="rounded-sm border-[2px] border-[var(--ore-border-color)] bg-[var(--ore-color-background-surface-panel)] p-4">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm text-white font-bold">{t('instanceDetail.mods.metadataSettings.updateSource', { defaultValue: '更新检查来源' })}</h3>
+              <p className="text-[11px] text-gray-400 mt-0.5">{t('instanceDetail.mods.metadataSettings.updateSourceDesc', { defaultValue: '选择检查版本更新与升级时优先查询的平台' })}</p>
+            </div>
+            {displayMod.manifestEntry?.metadataSettings?.updateLocked && (
+              <span className="rounded-sm border-[2px] border-[var(--ore-border-color)] bg-[#7AA2FF]/10 px-2 py-1 text-xs text-[#AFC4FF] shrink-0">
+                {t('instanceDetail.mods.metadataSettings.locked', { defaultValue: '已锁定' })}
+              </span>
+            )}
+          </div>
+          <div className="pt-2">
+            <OreToggleButton
+              options={toggleOptions}
+              value={updatePlatformDraft}
+              onChange={(id) => setUpdatePlatformDraft(id as ModPlatformPreference)}
+              focusKeyPrefix="update-platform"
+              size="sm"
+            />
+          </div>
         </div>
       </FocusBoundary>
     </OreModal>

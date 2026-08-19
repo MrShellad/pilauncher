@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { OreConfirmDialog } from '../../../../../../../ui/primitives/OreConfirmDialog';
 
-import type { ModMeta, ModMetadataSettings, ModVersionInstallAction } from '../../../../../logic/modService';
+import type { InstanceDependencyHealth, ModMeta, ModMetadataSettings, ModVersionInstallAction } from '../../../../../logic/modService';
 import type { OreProjectVersion } from '../../../../../logic/modrinthApi';
 import { ModSnapshotModal } from '../../../ModSnapshotModal';
 import { ModDetailModal } from './ModDetailModal';
@@ -15,6 +15,7 @@ interface ModPanelDialogsProps {
   instanceConfig: any;
   instanceId?: string;
   mods: ModMeta[];
+  dependencyHealth?: InstanceDependencyHealth | null;
   snapshotState: 'idle' | 'snapshotting' | 'rolling_back';
   state: ModPanelDialogState;
   actions: ModPanelDialogActions;
@@ -31,6 +32,7 @@ export const ModPanelDialogs: React.FC<ModPanelDialogsProps> = ({
   instanceConfig,
   instanceId,
   mods,
+  dependencyHealth,
   snapshotState,
   state,
   actions,
@@ -68,6 +70,7 @@ export const ModPanelDialogs: React.FC<ModPanelDialogsProps> = ({
       <ModDetailModal
         mod={state.selectedMod}
         allMods={stableMods}
+        dependencyHealth={dependencyHealth}
         instanceConfig={instanceConfig}
         instanceId={instanceId}
         onClose={actions.closeModDetail}

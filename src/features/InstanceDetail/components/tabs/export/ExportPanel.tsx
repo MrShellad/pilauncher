@@ -123,7 +123,7 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({
       className="flex h-full w-full flex-col gap-4 overflow-hidden px-4 py-4 font-minecraft text-white md:px-6 md:py-5 xl:px-8"
       style={{ backgroundColor: 'var(--ore-modal-bg, #313233)' }}
     >
-      <div className="mx-auto flex min-h-0 w-full max-w-[72rem] flex-1 flex-col overflow-hidden rounded-sm border-2 border-[#18181B] bg-[#48494A] shadow-[inset_0_0.25rem_0.5rem_-0.125rem_rgba(0,0,0,0.3)]">
+      <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden border-2 border-[#18181B] bg-[#48494A] shadow-[inset_0_0.25rem_0.5rem_-0.125rem_rgba(0,0,0,0.3)]">
         <AnimatePresence initial={false} custom={navigationDirection} mode="wait">
           <motion.div
             key={step}
@@ -168,7 +168,7 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({
         </AnimatePresence>
       </div>
 
-      <div className="mx-auto w-full max-w-[72rem] rounded-sm border-2 border-[#18181B] bg-[#313233] p-4 shadow-[inset_0.125rem_0.125rem_rgba(255,255,255,0.05)] sm:p-5">
+      <div className="w-full border-2 border-[#18181B] bg-[#313233] p-4 shadow-[inset_0.125rem_0.125rem_rgba(255,255,255,0.05)] sm:p-5">
         <div className="-mx-1 overflow-x-auto px-1 pb-1">
           <div className="grid min-w-[42rem] grid-cols-4 gap-3">
             {stepLabels.map((label, index) => {

@@ -33,6 +33,22 @@ export interface NativeGamepadEventPayload {
   axis_value?: number | null;
 }
 
+export interface ModFsChangedPayload {
+  instanceId: string;
+  action?: 'install' | 'delete' | 'toggle' | 'import' | 'external';
+  fileName?: string;
+}
+
+export interface ModCloudSyncIncrementalPayload {
+  instanceId: string;
+  updatedMods: Array<{
+    fileName: string;
+    patch: Record<string, any>;
+  }>;
+  isCompleted: boolean;
+  progress?: { current: number; total: number; stage: string };
+}
+
 export interface AppEventMap {
   // --- Tauri IPC Backend Events ---
   'game-log': string;
@@ -45,6 +61,7 @@ export interface AppEventMap {
   'save-backup-progress': SaveBackupProgress;
   'instance-runtime-verify-progress': VerifyProgressEventPayload;
   'instance-mods-scan-progress': ModScanProgressPayload;
+  'instance-mods-fs-changed': ModFsChangedPayload;
   'third-party-import-progress': ThirdPartyImportProgressEvent;
   'snapshot-progress': SnapshotProgressEvent;
   'instance-deployment-progress': any;
@@ -58,4 +75,5 @@ export interface AppEventMap {
   'ore-dropdown-toggle': string;
   'ore-gamepad-connected': { id: string };
   'ore-controller-scroll': { deltaY: number };
+  'mod-cloud-sync-incremental': ModCloudSyncIncrementalPayload;
 }

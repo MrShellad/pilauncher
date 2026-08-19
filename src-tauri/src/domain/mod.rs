@@ -10,6 +10,8 @@ pub mod loader;
 pub mod manifest;
 pub mod minecraft;
 pub mod minecraft_json;
+pub mod mod_cleanup;
+pub mod mod_health;
 pub mod mod_manifest;
 pub mod modpack;
 pub mod resource;

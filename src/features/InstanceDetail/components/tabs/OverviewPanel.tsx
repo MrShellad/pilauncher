@@ -250,8 +250,8 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
       {/* ==========================================
           内容区
           ========================================== */}
-      <div className="flex-1 p-4 sm:p-6 md:p-8">
-        <div className="max-w-4xl mx-auto space-y-8 pb-12">
+      <div className="flex-1 p-4 sm:p-6">
+        <div className="w-full space-y-6 pb-12">
 
           {/* 自定义链接管理 */}
           {data.customButtons && data.customButtons.length > 0 && (

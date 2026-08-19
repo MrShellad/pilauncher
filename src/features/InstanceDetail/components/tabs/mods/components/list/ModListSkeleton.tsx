@@ -12,7 +12,7 @@ const SkeletonBlock: React.FC<{ className: string; listTheme: ModListTheme }> = 
   listTheme
 }) => (
   <div
-    className={`animate-pulse rounded-[3px] ${className}`}
+    className={`animate-pulse ${className}`}
     style={{
       backgroundColor: listTheme === 'light' ? 'rgba(30,30,31,0.16)' : 'rgba(255,255,255,0.09)'
     }}
@@ -21,52 +21,51 @@ const SkeletonBlock: React.FC<{ className: string; listTheme: ModListTheme }> = 
 
 export const ModListSkeleton: React.FC<ModListSkeletonProps> = ({
   listTheme,
-  rowCount = 9
+  rowCount = 10
 }) => {
   const isLightTheme = listTheme === 'light';
-  const rowBackgroundClass = isLightTheme ? 'bg-[#C6C8CB]' : 'bg-[#1A1D24]';
-  const borderClass = isLightTheme ? 'border-[#A9ABAE]' : 'border-[#242B38]';
+  const rowBackgroundClass = isLightTheme ? 'bg-[#C6C8CB]' : 'bg-[#181C25]';
+  const borderClass = isLightTheme ? 'border-b-[#A9ABAE]' : 'border-b-[#1E2430]';
   const headerClass = isLightTheme
-    ? 'border-[#1E1E1F] bg-[#A9ABAE]'
-    : 'border-[#242B38] bg-[#111318]';
+    ? 'border-[#1E1E1F] bg-[#B8BBC2]'
+    : 'border-[#1E1E1F] bg-[#1A1F29]';
 
   return (
     <div className="h-full overflow-hidden px-2 pb-1 pt-[2px]" aria-busy="true" aria-label="正在加载模组">
-      <div className={`mb-1 flex h-10 items-center border-b px-3 ${headerClass}`}>
-        <SkeletonBlock className="h-4 w-28" listTheme={listTheme} />
+      <div className={`mb-1 flex h-8 items-center border-[2px] px-3 ${headerClass}`}>
+        <SkeletonBlock className="h-3 w-28" listTheme={listTheme} />
         <SkeletonBlock className="ml-4 h-3 w-44" listTheme={listTheme} />
       </div>
 
       {Array.from({ length: rowCount }).map((_, index) => (
         <div
           key={index}
-          className={`grid min-h-[5.5rem] ${MOD_LIST_TABLE_GRID_CLASS} items-center gap-2 overflow-hidden border-b px-2 ${borderClass} ${rowBackgroundClass}`}
+          className={`grid min-h-[4rem] ${MOD_LIST_TABLE_GRID_CLASS} items-center gap-2.5 overflow-hidden border-b-[2px] px-2 py-1.5 ${borderClass} ${rowBackgroundClass}`}
         >
           <div className="flex items-center justify-center">
             <SkeletonBlock className="h-4 w-4" listTheme={listTheme} />
           </div>
 
-          <div className="flex min-w-0 items-center gap-[11px] pl-2">
-            <SkeletonBlock className="h-[3.25rem] w-[3.25rem]" listTheme={listTheme} />
-            <div className="min-w-0 flex-1">
-              <SkeletonBlock className="h-4 w-3/4" listTheme={listTheme} />
-              <SkeletonBlock className="mt-2 h-3 w-1/2" listTheme={listTheme} />
-            </div>
+          <div className="flex items-center justify-center">
+            <SkeletonBlock className="h-12 w-12 border-[2px] border-[#1E1E1F]" listTheme={listTheme} />
           </div>
 
-          <SkeletonBlock className="h-4 w-4/5" listTheme={listTheme} />
-
-          <div>
-            <SkeletonBlock className="h-5 w-20" listTheme={listTheme} />
-            <SkeletonBlock className="mt-2 h-4 w-28" listTheme={listTheme} />
+          <div className="min-w-0 pr-2">
+            <SkeletonBlock className="h-4 w-3/4" listTheme={listTheme} />
+            <SkeletonBlock className="mt-1.5 h-3 w-1/2" listTheme={listTheme} />
           </div>
 
-          <SkeletonBlock className="h-4 w-14" listTheme={listTheme} />
+          <div className="flex items-center gap-1">
+            <SkeletonBlock className="h-4 w-12" listTheme={listTheme} />
+          </div>
 
-          <div className="flex justify-end gap-2 pr-1">
-            <SkeletonBlock className="h-8 w-8" listTheme={listTheme} />
-            <SkeletonBlock className="h-8 w-8" listTheme={listTheme} />
-            <SkeletonBlock className="h-8 w-8" listTheme={listTheme} />
+          <div className="min-w-0">
+            <SkeletonBlock className="h-3 w-10" listTheme={listTheme} />
+          </div>
+
+          <div className="flex justify-end gap-1.5 pr-1">
+            <SkeletonBlock className="h-7 w-7" listTheme={listTheme} />
+            <SkeletonBlock className="h-7 w-7" listTheme={listTheme} />
           </div>
         </div>
       ))}

@@ -43,7 +43,7 @@ export const ModRowActionCluster: React.FC<ModRowActionClusterProps> = ({
     : 'opacity-100 pointer-events-auto';
 
   return (
-    <div className={`flex items-center gap-3 transition-opacity ${isActionLocked ? 'opacity-80' : 'opacity-100'}`}>
+    <div className={`flex items-center gap-2 transition-opacity ${isActionLocked ? 'opacity-80' : 'opacity-100'}`}>
       {canUpgrade && (
         <OreButton
           focusKey={getActionFocusKey(fileName, 'upgrade')}
@@ -59,12 +59,12 @@ export const ModRowActionCluster: React.FC<ModRowActionClusterProps> = ({
             event.stopPropagation();
             onUpgradeMod();
           }}
-          className="!h-8 !min-h-8 !min-w-8 !w-8 !px-0"
+          className="!h-7 !min-h-7 !min-w-7 !w-7 !px-0"
         >
           {isUpdating ? (
-            <Loader2 size={16} className="animate-spin" />
+            <Loader2 size={14} className="animate-spin" />
           ) : (
-            <ArrowUpCircle size={16} />
+            <ArrowUpCircle size={14} />
           )}
         </OreButton>
       )}
@@ -87,7 +87,7 @@ export const ModRowActionCluster: React.FC<ModRowActionClusterProps> = ({
         focusKey={getActionFocusKey(fileName, 'delete')}
         variant="danger"
         size="auto"
-        title="鍒犻櫎妯＄粍"
+        title="删除模组"
         onArrowPress={(direction) => onActionArrow(fileName, 'delete', direction)}
         onClick={(event) => {
           if (onPreventLockedAction(fileName, event)) {
@@ -96,9 +96,9 @@ export const ModRowActionCluster: React.FC<ModRowActionClusterProps> = ({
           event.stopPropagation();
           onDeleteMod(fileName);
         }}
-        className={`!h-8 !min-h-8 !min-w-8 !w-8 !px-0 ${actionVisibilityClass}`}
+        className={`!h-7 !min-h-7 !min-w-7 !w-7 !px-0 ${actionVisibilityClass}`}
       >
-        <Trash2 size={18} />
+        <Trash2 size={14} />
       </OreButton>
     </div>
   );

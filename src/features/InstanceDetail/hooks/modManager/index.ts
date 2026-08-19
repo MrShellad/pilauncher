@@ -35,6 +35,7 @@ export const useModManager = (instanceId: string) => {
     mods,
     setMods,
     isLoading,
+    setIsLoading,
     instanceConfig,
     setInstanceConfig,
     flushPendingScanMods,
@@ -77,7 +78,7 @@ export const useModManager = (instanceId: string) => {
 
       void (async () => {
         const syncedMods = await syncCloudMetadata(enrichedMods, {
-          globalMetadataPlatform: config?.globalMetadataSettings?.metadataPlatform
+          globalMetadataPlatform: config?.globalMetadataSettings?.metadataPlatform,
         });
         if (syncedMods !== enrichedMods) {
           setMods((current) => mergeModBatch(current, syncedMods));
@@ -110,6 +111,21 @@ export const useModManager = (instanceId: string) => {
 
     const loadInitialMods = async () => {
       try {
+        // 1. 0ms 第一屏渲染：先从本地 manifest 缓存读取
+        let hasCache = false;
+        try {
+          const cached = await modService.getCachedModManifest(instanceId);
+          if (cancelled) return;
+          if (cached && cached.length > 0) {
+            setMods(cached);
+            setIsLoading(false);
+            hasCache = true;
+          }
+        } catch {
+          // ignore cache read error and fall through
+        }
+
+        // 2. 获取实例配置
         const config = await modService.getInstanceDetail(instanceId);
         if (cancelled) {
           return;
@@ -124,7 +140,8 @@ export const useModManager = (instanceId: string) => {
           autoUpdateCheckedKeys.add(scopeKey);
         }
 
-        await loadMods({ checkUpdates: shouldAutoCheckUpdates });
+        // 3. 静默（如果有缓存）或常规扫描后端文件系统，自动核对是否有 mod 被外部删除
+        await loadMods({ silent: hasCache, checkUpdates: shouldAutoCheckUpdates });
       } catch (error) {
         console.error(error);
         await loadMods();
@@ -137,7 +154,7 @@ export const useModManager = (instanceId: string) => {
       cancelled = true;
       cancelUpdateCheck();
     };
-  }, [cancelUpdateCheck, instanceId, loadMods]);
+  }, [cancelUpdateCheck, instanceId, loadMods, setIsLoading, setMods]);
 
   useEffect(() => {
     const handleOnline = () => {

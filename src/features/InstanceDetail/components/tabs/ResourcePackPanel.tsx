@@ -9,7 +9,6 @@ import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { useInputMode } from '../../../../ui/focus/FocusProvider';
 import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
-import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { OreAssetRow } from '../../../../ui/primitives/OreAssetRow';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreConfirmDialog } from '../../../../ui/primitives/OreConfirmDialog';
@@ -177,10 +176,8 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
   }, [deleteItem, pendingDelete, restoreDeleteFocus]);
 
   return (
-    <>
-      <SettingsPageLayout width="wide">
-        <div className="relative flex h-full w-full flex-col">
-          <div className="mb-6 mx-1.5 flex items-center justify-between border-2 border-[#2A2A2C] bg-[#18181B] py-4 pl-4 pr-[26px]">
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden p-3 gap-3">
+      <div className="flex shrink-0 items-center justify-between border-2 border-[#2A2A2C] bg-[#18181B] py-3.5 px-4">
             <div>
               <h3 className="flex items-center font-minecraft text-white">
                 <Package size={18} className="mr-2 text-ore-green" />
@@ -221,85 +218,83 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
             </div>
           </div>
 
-          {isLoading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 size={32} className="animate-spin text-ore-green" />
-            </div>
-          ) : (
-            <FocusBoundary
-              id="resourcepack-list"
-              trapFocus={operationRowIndex !== null}
-              className="custom-scrollbar grid grid-cols-1 gap-2 overflow-y-auto px-1.5 pt-1.5 pb-4"
-            >
-              {items.map((item, index) => {
-                const cacheKey = item.modifiedAt || item.fileSize || item.fileName;
-                const iconUrl = item.iconAbsolutePath
-                  ? `${convertFileSrc(item.iconAbsolutePath)}?t=${cacheKey}`
-                  : undefined;
-
-                return (
-                  <FocusItem
-                    key={item.fileName}
-                    focusKey={getRowFocusKey(index)}
-                    onEnter={() => enterRowOperation(index)}
-                    onArrowPress={handleRowNavigation}
-                  >
-                    {({ ref, focused }) => (
-                      <div ref={ref as React.RefObject<HTMLDivElement>}>
-                        <OreAssetRow
-                          focusable={false}
-                          focused={focused}
-                          operationActive={operationRowIndex === index}
-                          inactive={!item.isEnabled}
-                          selected={item.isEnabled}
-                          title={item.fileName.replace('.zip', '').replace('.disabled', '')}
-                          description={item.isDirectory ? t('instanceDetail.resourcepacks.directoryPack', '文件夹资源包') : t('instanceDetail.resourcepacks.zipPack', 'ZIP 资源包')}
-                          metaItems={[
-                            item.fileName, item.isDirectory ? t('instanceDetail.resourcepacks.directory', '文件夹') : formatSize(item.fileSize),
-                          ]}
-                          leading={
-                            iconUrl ? (
-                              <img src={iconUrl} alt="icon" className="h-full w-full object-cover" />
-                            ) : (
-                              <Package size={28} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />
-                            )
-                          }
-                          trailingClassName="flex items-center space-x-2"
-                          trailing={
-                            <>
-                              <OreSwitch
-                                focusKey={getActionFocusKey(index, 'toggle')}
-                                checked={item.isEnabled}
-                                onArrowPress={(direction) => handleActionArrow(index, 'toggle', direction)}
-                                onChange={() => toggleItem(item.fileName, item.isEnabled)}
-                              />
-
-                              <OreButton
-                                focusKey={getActionFocusKey(index, 'delete')}
-                                variant="danger"
-                                size="auto"
-                                className="!h-10 !min-h-10 !min-w-10 !w-10 !px-0"
-                                onArrowPress={(direction) => handleActionArrow(index, 'delete', direction)}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  setPendingDelete({ fileName: item.fileName, rowIndex: index });
-                                }}
-                                title={t('instanceDetail.resourcepacks.deleteTitle', '删除资源包')}
-                              >
-                                <Trash2 size={16} />
-                              </OreButton>
-                            </>
-                          }
-                        />
-                      </div>
-                    )}
-                  </FocusItem>
-                );
-              })}
-            </FocusBoundary>
-          )}
+      {isLoading ? (
+        <div className="flex flex-1 items-center justify-center py-12">
+          <Loader2 size={32} className="animate-spin text-ore-green" />
         </div>
-      </SettingsPageLayout>
+      ) : (
+        <FocusBoundary
+          id="resourcepack-list"
+          trapFocus={operationRowIndex !== null}
+          className="custom-scrollbar flex-1 min-h-0 grid grid-cols-1 gap-2 overflow-y-auto pr-1"
+        >
+          {items.map((item, index) => {
+            const cacheKey = item.modifiedAt || item.fileSize || item.fileName;
+            const iconUrl = item.iconAbsolutePath
+              ? `${convertFileSrc(item.iconAbsolutePath)}?t=${cacheKey}`
+              : undefined;
+
+            return (
+              <FocusItem
+                key={item.fileName || `rp-idx-${index}`}
+                focusKey={getRowFocusKey(index)}
+                onEnter={() => enterRowOperation(index)}
+                onArrowPress={handleRowNavigation}
+              >
+                {({ ref, focused }) => (
+                  <div ref={ref as React.RefObject<HTMLDivElement>}>
+                    <OreAssetRow
+                      focusable={false}
+                      focused={focused}
+                      operationActive={operationRowIndex === index}
+                      inactive={!item.isEnabled}
+                      selected={item.isEnabled}
+                      title={(item.fileName || '').replace('.zip', '').replace('.disabled', '')}
+                      description={item.isDirectory ? t('instanceDetail.resourcepacks.directoryPack', '文件夹资源包') : t('instanceDetail.resourcepacks.zipPack', 'ZIP 资源包')}
+                      metaItems={[
+                        item.fileName || '', item.isDirectory ? t('instanceDetail.resourcepacks.directory', '文件夹') : formatSize(item.fileSize || 0),
+                      ]}
+                      leading={
+                        iconUrl ? (
+                          <img src={iconUrl} alt="icon" className="h-full w-full object-cover" />
+                        ) : (
+                          <Package size={28} className="text-[var(--ore-downloadDetail-labelText)] drop-shadow-md" />
+                        )
+                      }
+                      trailingClassName="flex items-center space-x-2"
+                      trailing={
+                        <>
+                          <OreSwitch
+                            focusKey={getActionFocusKey(index, 'toggle')}
+                            checked={item.isEnabled}
+                            onArrowPress={(direction) => handleActionArrow(index, 'toggle', direction)}
+                            onChange={() => toggleItem(item.fileName, item.isEnabled)}
+                          />
+
+                          <OreButton
+                            focusKey={getActionFocusKey(index, 'delete')}
+                            variant="danger"
+                            size="auto"
+                            className="!h-10 !min-h-10 !min-w-10 !w-10 !px-0"
+                            onArrowPress={(direction) => handleActionArrow(index, 'delete', direction)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setPendingDelete({ fileName: item.fileName, rowIndex: index });
+                            }}
+                            title={t('instanceDetail.resourcepacks.deleteTitle', '删除资源包')}
+                          >
+                            <Trash2 size={16} />
+                          </OreButton>
+                        </>
+                      }
+                    />
+                  </div>
+                )}
+              </FocusItem>
+            );
+          })}
+        </FocusBoundary>
+      )}
 
       <OreConfirmDialog
         isOpen={pendingDelete !== null}
@@ -318,6 +313,6 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
         confirmationNote={t('instanceDetail.resourcepacks.deleteNote', '删除操作不可恢复，请确认当前实例确实不再需要该资源包。')}
         confirmationNoteTone="danger"
       />
-    </>
+    </div>
   );
 };

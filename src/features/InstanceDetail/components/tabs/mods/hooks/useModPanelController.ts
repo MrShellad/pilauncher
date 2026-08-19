@@ -1,7 +1,7 @@
-import { listen } from '@tauri-apps/api/event';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useEvent } from '../../../../../../hooks/useEvent';
 import { useLauncherStore } from '../../../../../../store/useLauncherStore';
 import { useToastStore } from '../../../../../../store/useToastStore';
 import { useModManager, type ModSortType } from '../../../../hooks/useModManager';
@@ -17,7 +17,7 @@ import {
   toggleSelectedModFile,
   type ModFileCleanupItem
 } from '../../../../logic/modPanelService';
-import { modService, type ModMeta, type ModMetadataSettings, type ModVersionInstallAction } from '../../../../logic/modService';
+import { modService, type ModMeta, type ModMetadataSettings, type ModVersionInstallAction, type InstanceDependencyHealth } from '../../../../logic/modService';
 import type { OreProjectVersion } from '../../../../logic/modrinthApi';
 import { useModPanelDialogs } from './useModPanelDialogs';
 
@@ -93,8 +93,29 @@ export const useModPanelController = (instanceId: string) => {
   const [pendingUpgradeVersion, setPendingUpgradeVersion] = useState<OreProjectVersion | null>(null);
   const [pendingUpgradeAction, setPendingUpgradeAction] = useState<ModVersionInstallAction>('upgrade');
   const [isPreparingUpgradeSnapshot, setIsPreparingUpgradeSnapshot] = useState(false);
+  const [dependencyHealth, setDependencyHealth] = useState<InstanceDependencyHealth | null>(null);
   const upgradeSnapshotPromptHandledRef = useRef(false);
   const isBatchUpgradeRunningRef = useRef(false);
+
+  const refreshDependencyHealth = useCallback(async () => {
+    if (!instanceId) return;
+    try {
+      const health = await modService.getInstanceDependencyHealth(instanceId);
+      setDependencyHealth(health);
+    } catch (error) {
+      console.error('Failed to get instance dependency health', error);
+    }
+  }, [instanceId]);
+
+  const dependencyStateSignature = useMemo(() => {
+    return mods.map((m) => `${m.fileName}:${m.modId || ''}:${m.isEnabled ? '1' : '0'}:${m.manifestEntry?.source?.projectId || ''}:${m.manifestEntry?.matchedPlatforms?.curseforge?.projectId || ''}:${m.manifestEntry?.matchedPlatforms?.modrinth?.projectId || ''}:${m.networkInfo?.id || ''}`).join(';');
+  }, [mods]);
+
+  useEffect(() => {
+    if (!isLoading && mods.length > 0) {
+      void refreshDependencyHealth();
+    }
+  }, [instanceId, dependencyStateSignature, isLoading, refreshDependencyHealth]);
 
   useEffect(() => {
     upgradeSnapshotPromptHandledRef.current = false;
@@ -131,65 +152,61 @@ export const useModPanelController = (instanceId: string) => {
     openGlobalMetadata
   } = dialogActions;
 
-  useEffect(() => {
-    let disposed = false;
-    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
-    let isRefreshing = false;
-    let refreshAgain = false;
-    let lastDoneKey = '';
-    let lastDoneAt = 0;
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isRefreshingRef = useRef(false);
+  const refreshAgainRef = useRef(false);
+  const lastDoneKeyRef = useRef('');
+  const lastDoneAtRef = useRef(0);
 
-    const runRefresh = async () => {
-      if (disposed) return;
+  const scheduleRefresh = useCallback(() => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = setTimeout(async () => {
+      refreshTimerRef.current = null;
       if (isBatchUpgradeRunningRef.current) return;
 
-      if (isRefreshing) {
-        refreshAgain = true;
+      if (isRefreshingRef.current) {
+        refreshAgainRef.current = true;
         return;
       }
 
-      isRefreshing = true;
+      isRefreshingRef.current = true;
       try {
         await loadMods({ silent: true });
+        await refreshDependencyHealth();
       } finally {
-        isRefreshing = false;
-        if (refreshAgain && !disposed) {
-          refreshAgain = false;
+        isRefreshingRef.current = false;
+        if (refreshAgainRef.current) {
+          refreshAgainRef.current = false;
           scheduleRefresh();
         }
       }
-    };
+    }, RESOURCE_REFRESH_DELAY_MS);
+  }, [loadMods, refreshDependencyHealth]);
 
-    const scheduleRefresh = () => {
-      if (refreshTimer) clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(() => {
-        refreshTimer = null;
-        void runRefresh();
-      }, RESOURCE_REFRESH_DELAY_MS);
-    };
-
-    const unlistenPromise = listen<ResourceDownloadProgressPayload>(
-      'resource-download-progress',
-      ({ payload }) => {
-        if (!isCompletedResourceDownload(payload)) return;
-        if (isBatchUpgradeRunningRef.current) return;
-
-        const doneKey = getResourceProgressKey(payload);
-        const now = Date.now();
-        if (doneKey === lastDoneKey && now - lastDoneAt < RESOURCE_DONE_DEDUPE_MS) return;
-
-        lastDoneKey = doneKey;
-        lastDoneAt = now;
-        scheduleRefresh();
-      }
-    );
-
+  useEffect(() => {
     return () => {
-      disposed = true;
-      if (refreshTimer) clearTimeout(refreshTimer);
-      void unlistenPromise.then((unlisten) => unlisten());
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     };
-  }, [loadMods]);
+  }, []);
+
+  useEvent('instance-mods-fs-changed', (payload) => {
+    if (payload.instanceId !== instanceId) return;
+    if (isBatchUpgradeRunningRef.current) return;
+    scheduleRefresh();
+  });
+
+  useEvent('resource-download-progress', (payload) => {
+    if (!isCompletedResourceDownload(payload)) return;
+    if (isBatchUpgradeRunningRef.current) return;
+
+    const doneKey = getResourceProgressKey(payload);
+    const now = Date.now();
+    if (doneKey === lastDoneKeyRef.current && now - lastDoneAtRef.current < RESOURCE_DONE_DEDUPE_MS) return;
+
+    lastDoneKeyRef.current = doneKey;
+    lastDoneAtRef.current = now;
+    scheduleRefresh();
+  });
 
   useEffect(() => {
     setSelectedMods((current) => pruneUnavailableModSelections(mods, current));
@@ -383,9 +400,12 @@ export const useModPanelController = (instanceId: string) => {
         return nextMod;
       });
 
+      if (changed) {
+        void refreshDependencyHealth();
+      }
       return changed ? nextMods : current;
     });
-  }, [setMods]);
+  }, [setMods, refreshDependencyHealth]);
 
   const getInstallActionLabel = useCallback((action: ModVersionInstallAction) => {
     if (action === 'downgrade') return t('instanceDetail.mods.actionDowngrade', '降级');
@@ -581,24 +601,52 @@ export const useModPanelController = (instanceId: string) => {
     }
   }, [instanceId, loadMods, addToast, t]);
 
-  const reidentifyAllMods = useCallback(async (onProgress?: (current: number, total: number) => void) => {
+  const [isReidentifyingAll, setIsReidentifyingAll] = useState(false);
+
+  const reidentifyAllMods = useCallback(async (progressCallback?: unknown) => {
+    if (isReidentifyingAll) return;
+    setIsReidentifyingAll(true);
+    const onProgress = typeof progressCallback === 'function' ? (progressCallback as (current: number, total: number) => void) : undefined;
     try {
       await modService.resetAllModsPlatformMetadata(instanceId);
-      addToast('success', t('instanceDetail.mods.metadataResetStart', '元数据已重置，正在重新云端匹配所有模组...'));
+      addToast('info', t('instanceDetail.mods.metadataResetStart', '元数据已重置，正在重新云端匹配所有模组...'));
       const freshMods = await modService.getMods(instanceId);
       const synced = await syncCloudMetadata(freshMods, {
         force: true,
         onProgress,
+        onIncrementalUpdate: (updatedMap) => {
+          setMods((currentMods) => currentMods.map((mod) => {
+            const updated = updatedMap.get(mod.fileName);
+            if (!updated) return mod;
+            return {
+              ...mod,
+              ...updated,
+              manifestEntry: updated.manifestEntry
+                ? ({
+                    ...(mod.manifestEntry || {}),
+                    ...updated.manifestEntry,
+                    matchedPlatforms: {
+                      ...(mod.manifestEntry?.matchedPlatforms || {}),
+                      ...(updated.manifestEntry.matchedPlatforms || {})
+                    }
+                  } as any)
+                : mod.manifestEntry
+            };
+          }));
+        },
         globalMetadataPlatform: instanceConfig?.globalMetadataSettings?.metadataPlatform
       });
       setMods(synced);
-      addToast('success', t('instanceDetail.mods.cloudMatchComplete', '云端匹配完成'));
+      void refreshDependencyHealth();
+      addToast('success', t('instanceDetail.mods.cloudMatchComplete', '云端元数据拉取完成'));
     } catch (error) {
       console.error(error);
       addToast('error', t('instanceDetail.mods.cloudMatchFailed', '重新匹配失败'));
       throw error;
+    } finally {
+      setIsReidentifyingAll(false);
     }
-  }, [instanceId, syncCloudMetadata, setMods, addToast, t, instanceConfig]);
+  }, [instanceId, syncCloudMetadata, setMods, addToast, t, instanceConfig, isReidentifyingAll, refreshDependencyHealth]);
 
   const filteredMods = useMemo(() => {
     return filterModsByQuery(mods, searchQuery);
@@ -632,7 +680,11 @@ export const useModPanelController = (instanceId: string) => {
     modActions: {
       onInstallVersion: handleUpgradeMod,
       onSaveMetadataSettings: saveModMetadataSettings,
-      onReidentifyMod: reidentifyMod,
+      onReidentifyMod: async (mod: ModMeta) => {
+        const res = await reidentifyMod(mod);
+        void refreshDependencyHealth();
+        return res;
+      },
       onMetadataResolved: handleMetadataResolved
     },
     topBar: {
@@ -647,11 +699,13 @@ export const useModPanelController = (instanceId: string) => {
     list: {
       instanceId,
       mods,
+      dependencyHealth,
       isLoading,
       selectedMods,
       isBatchMode,
       isAllSelected,
       isCheckingModUpdates,
+      isReidentifyingAll,
       searchQuery,
       searchPlaceholder,
       sortType,
@@ -670,6 +724,7 @@ export const useModPanelController = (instanceId: string) => {
       onBatchDelete: handleBatchDelete,
       onExitBatchMode: exitBatchMode,
       onOpenModMetadataSettings: openGlobalMetadata,
+      onReidentifyAllMods: reidentifyAllMods,
       onCheckModUpdates: handleCheckModUpdates,
       onUpdateAllMods: handleUpdateAllMods,
       emptyMessage

@@ -338,6 +338,7 @@ const mapProjectDetail = (mod: CurseForgeMod): OreProjectDetail => {
 
   return {
     id: String(mod.id),
+    slug: mod.slug,
     title: mod.name,
     author: mod.authors?.[0]?.name || 'Unknown',
     description: mod.summary || '',
@@ -354,11 +355,31 @@ const mapProjectDetail = (mod: CurseForgeMod): OreProjectDetail => {
   };
 };
 
+export const extractVersionFromCurseForgeFile = (file: CurseForgeFile): string => {
+  const rawText = file.displayName || file.fileName || '';
+  const clean = rawText
+    .replace(/\[.*?\]|\(.*?\)/g, ' ')
+    .replace(/(?:fabric|forge|neoforge|quilt|mc\s*\d+\.\d+(?:\.\d+)?)/gi, ' ')
+    .trim();
+
+  const match = clean.match(/(?:^|[-_+v\s])(\d+(?:\.\d+)+(?:[-_+.][0-9A-Za-z]+)*)/i);
+  if (match?.[1]) {
+    return match[1].replace(/^v(?=\d)/i, '');
+  }
+
+  const fallbackMatch = rawText.match(/(\d+(?:\.\d+)+(?:[a-zA-Z0-9_.-]+)?)/);
+  if (fallbackMatch?.[1]) {
+    return fallbackMatch[1].replace(/^v(?=\d)/i, '');
+  }
+
+  return file.fileName.replace(/\.jar$/i, '');
+};
+
 const mapProjectVersion = (file: CurseForgeFile, downloadUrl: string): OreProjectVersion => {
   return {
     id: String(file.id),
     name: file.displayName || file.fileName,
-    version_number: file.fileName,
+    version_number: extractVersionFromCurseForgeFile(file),
     date_published: file.fileDate,
     changelog: file.changelog || null,
     loaders: getFileLoaders(file),

@@ -95,6 +95,17 @@ pub async fn ensure_account_skin<R: tauri::Runtime>(
 }
 
 #[tauri::command]
+pub async fn ensure_account_cape<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    uuid: String,
+    cape_url: Option<String>,
+) -> Result<String, String> {
+    crate::services::auth::ensure_account_cape(&app, &uuid, cape_url.as_deref())
+        .await
+        .map(|p| p.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 pub async fn get_wardrobe_profile<R: Runtime>(
     app: AppHandle<R>,
     access_token: String,

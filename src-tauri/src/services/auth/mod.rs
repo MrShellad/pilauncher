@@ -217,6 +217,7 @@ pub use wardrobe::set_wardrobe_skin_asset_variant;
 // ==========================================
 
 pub use minecraft::cache_account_assets;
+pub use minecraft::ensure_account_cape;
 pub use minecraft::ensure_account_skin;
 pub use minecraft::fetch_and_save_mojang_skin;
 pub use minecraft::get_or_fetch_account_avatar;

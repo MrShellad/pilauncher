@@ -226,17 +226,34 @@ const syncMicrosoftAppearance = async (
 };
 
 const loadAccountCape = async (engine: SkinEngine, account: SkinViewerAccount | null) => {
-  const capeUrl = toLoadableSkinUrl(account?.capeUrl, getCacheBuster(account?.capeUrl));
-  if (!capeUrl) {
+  const rawCapeUrl = stripSkinUrlQuery(account?.capeUrl);
+  if (!rawCapeUrl) {
     engine.clearCape();
     return;
   }
 
   try {
-    await engine.loadCape(`account-cape:${stripSkinUrlQuery(account?.capeUrl)}:${getCacheBuster(account?.capeUrl)}`, capeUrl);
+    const cacheBuster = getCacheBuster(account?.capeUrl);
+    const cachedCapePath = account?.uuid
+      ? await invoke<string>('ensure_account_cape', {
+          uuid: account.uuid,
+          capeUrl: rawCapeUrl,
+        })
+      : null;
+    const capeUrl = cachedCapePath
+      ? appendCacheBuster(convertFileSrc(cachedCapePath), cacheBuster)
+      : toLoadableSkinUrl(account?.capeUrl, cacheBuster);
+
+    await engine.loadCape(`account-cape:${rawCapeUrl}:${cacheBuster}`, capeUrl);
   } catch (e) {
-    console.warn('[useSkinViewer] 加载账号披风失败，已清空披风:', e);
-    engine.clearCape();
+    // 缓存下载失败时保留远程 URL 兜底，兼容暂时不可写的旧数据目录。
+    const capeUrl = toLoadableSkinUrl(account?.capeUrl, getCacheBuster(account?.capeUrl));
+    try {
+      await engine.loadCape(`account-cape:${rawCapeUrl}:${getCacheBuster(account?.capeUrl)}`, capeUrl);
+    } catch (fallbackError) {
+      console.warn('[useSkinViewer] 加载账号披风失败，已清空披风:', fallbackError);
+      engine.clearCape();
+    }
   }
 };
 

@@ -118,6 +118,8 @@ pub struct ModManifestEntry {
     pub metadata_settings: Option<ModMetadataSettings>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dependencies: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub aliases: Option<Vec<String>>,
 }
 
 pub type ModManifest = HashMap<String, ModManifestEntry>;
@@ -159,6 +161,8 @@ pub struct RawModManifestEntry {
     pub metadata_settings: Option<ModMetadataSettings>,
     #[serde(default)]
     pub dependencies: Option<Vec<String>>,
+    #[serde(default)]
+    pub aliases: Option<Vec<String>>,
 }
 
 pub type RawModManifest = HashMap<String, RawModManifestEntry>;
@@ -329,6 +333,7 @@ pub fn build_manifest_entry(
         matched_platforms: HashMap::new(),
         metadata_settings: None,
         dependencies: None,
+        aliases: None,
     }
 }
 
@@ -453,6 +458,7 @@ fn copy_cached_metadata_from_raw(raw: Option<&RawModManifestEntry>, entry: &mut 
     entry.matched_platforms = raw.matched_platforms.clone();
     entry.metadata_settings = raw.metadata_settings.clone();
     entry.dependencies = raw.dependencies.clone();
+    entry.aliases = raw.aliases.clone();
 }
 
 pub fn merge_cached_metadata(target: &mut ModManifestEntry, source: &ModManifestEntry) {
@@ -467,6 +473,9 @@ pub fn merge_cached_metadata(target: &mut ModManifestEntry, source: &ModManifest
     }
     if target.dependencies.is_none() {
         target.dependencies = source.dependencies.clone();
+    }
+    if target.aliases.is_none() {
+        target.aliases = source.aliases.clone();
     }
     if target.description.is_none() {
         target.description = source.description.clone();
@@ -522,6 +531,45 @@ fn merge_cached_metadata_from_value(target: &mut ModManifestEntry, value: &serde
         copy_cached_metadata_from_raw(Some(&raw), &mut existing);
         merge_cached_metadata(target, &existing);
     }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ModMetadata {
+    pub file_name: String,
+    pub mod_id: Option<String>,
+    pub name: Option<String>,
+    pub version: Option<String>,
+    pub description: Option<String>,
+    pub icon_absolute_path: Option<String>, // 网络获取并缓存的标准图标
+    pub offline_jar_icon_absolute_path: Option<String>, // 离线 JAR 兜底图标
+    pub network_icon_url: Option<String>,   // 远程图标来源，仅用于缓存
+    pub curseforge_fingerprint: Option<u32>,
+    pub file_size: u64,
+    pub is_enabled: bool, // 状态字段
+    pub modified_at: u64, // 记录文件修改时间的时间戳
+    pub manifest_entry: Option<ModManifestEntry>,
+    pub cache_key: Option<String>,
+    pub dependencies: Option<Vec<String>>,
+    pub aliases: Option<Vec<String>>,
+    pub dependents_count: Option<i64>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ModScanProgress {
+    pub instance_id: String,
+    pub request_id: Option<String>,
+    pub mods: Vec<ModMetadata>,
+    pub complete: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Default, sqlx::FromRow, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ModCacheInfo {
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub icon_url: Option<String>,
 }
 
 #[cfg(test)]

@@ -3,7 +3,6 @@ import { FolderOpen, HardDrive, History, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
-import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 
 import { saveService } from '../../logic/saveService';
@@ -49,56 +48,55 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
     : null;
 
   return (
-    <SettingsPageLayout width="wide">
-      <div className="relative flex h-full w-full flex-col">
-        <div className="mb-6 mx-1.5 flex items-center justify-between border-2 border-[#2A2A2C] bg-[#18181B] py-4 pl-4 pr-[26px]">
-          <div>
-            <h3 className="flex items-center font-minecraft text-white">
-              <HardDrive size={18} className="mr-2 text-ore-green" />
-              {t('instanceDetail.saves.title', '存档备份')}
-            </h3>
-            <p className="mt-1 text-sm text-ore-text-muted">
-              {t('instanceDetail.saves.summary', '共发现 {{worldCount}} 个世界，已有 {{backupCount}} 个历史备份。', { worldCount: saves.length, backupCount: backups.length })}
-            </p>
-          </div>
-
-          <div className="flex space-x-3">
-            <OreButton
-              focusKey="save-btn-history"
-              variant="secondary"
-              size="auto"
-              className="!h-10 !min-h-10"
-              onArrowPress={actions.handleTopArrow}
-              onClick={() => actions.openBackupList(t('instanceDetail.saves.restoreCenter', '恢复中心'), null, 'save-btn-history')}
-            >
-              <History size={16} className="mr-2" />
-              {t('instanceDetail.saves.restoreCenter', '恢复中心')}
-            </OreButton>
-
-            <OreButton
-              focusKey="save-btn-folder"
-              variant="secondary"
-              size="auto"
-              className="!h-10 !min-h-10"
-              onArrowPress={actions.handleTopArrow}
-              onClick={handleOpenFolder}
-            >
-              <FolderOpen size={16} className="mr-2" />
-              {t('instanceDetail.saves.openFolder', '打开目录')}
-            </OreButton>
-          </div>
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden p-3 gap-3">
+      <div className="flex shrink-0 items-center justify-between border-2 border-[#2A2A2C] bg-[#18181B] py-3.5 px-4">
+        <div>
+          <h3 className="flex items-center font-minecraft text-white">
+            <HardDrive size={18} className="mr-2 text-ore-green" />
+            {t('instanceDetail.saves.title', '存档备份')}
+          </h3>
+          <p className="mt-1 text-sm text-ore-text-muted">
+            {t('instanceDetail.saves.summary', '共发现 {{worldCount}} 个世界，已有 {{backupCount}} 个历史备份。', { worldCount: saves.length, backupCount: backups.length })}
+          </p>
         </div>
 
-        {isLoading ? (
-          <div className="flex justify-center py-12 text-ore-green">
-            <Loader2 size={32} className="animate-spin" />
-          </div>
-        ) : (
-          <FocusBoundary
-            id="save-list"
-            trapFocus={state.operationRowIndex !== null}
-            className="grid grid-cols-1 gap-2 overflow-y-auto px-1.5 pt-1.5 pb-4 custom-scrollbar"
+        <div className="flex space-x-3">
+          <OreButton
+            focusKey="save-btn-history"
+            variant="secondary"
+            size="auto"
+            className="!h-10 !min-h-10"
+            onArrowPress={actions.handleTopArrow}
+            onClick={() => actions.openBackupList(t('instanceDetail.saves.restoreCenter', '恢复中心'), null, 'save-btn-history')}
           >
+            <History size={16} className="mr-2" />
+            {t('instanceDetail.saves.restoreCenter', '恢复中心')}
+          </OreButton>
+
+          <OreButton
+            focusKey="save-btn-folder"
+            variant="secondary"
+            size="auto"
+            className="!h-10 !min-h-10"
+            onArrowPress={actions.handleTopArrow}
+            onClick={handleOpenFolder}
+          >
+            <FolderOpen size={16} className="mr-2" />
+            {t('instanceDetail.saves.openFolder', '打开目录')}
+          </OreButton>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex flex-1 items-center justify-center py-12 text-ore-green">
+          <Loader2 size={32} className="animate-spin" />
+        </div>
+      ) : (
+        <FocusBoundary
+          id="save-list"
+          trapFocus={state.operationRowIndex !== null}
+          className="custom-scrollbar flex-1 min-h-0 grid grid-cols-1 gap-2 overflow-y-auto pr-1"
+        >
             {saves.map((save, index) => {
               const summary =
                 state.backupSummaryByWorld.get(save.worldUuid) ??
@@ -238,7 +236,6 @@ export const SavePanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
             actions.restoreSavePanelFocus();
           }}
         />
-      </div>
-    </SettingsPageLayout>
+    </div>
   );
 };

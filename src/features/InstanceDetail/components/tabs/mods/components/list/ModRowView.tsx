@@ -1,21 +1,23 @@
 import React from 'react';
-import { ArrowUpCircle, FileArchive, Loader2 } from 'lucide-react';
+import { AlertTriangle, ArrowUpCircle, Loader2 } from 'lucide-react';
 
 import type { ModIconSnapshot } from '../../../../../logic/modIconService';
-import type { ModMeta } from '../../../../../logic/modService';
+import type { MissingDependencyInfo, ModMeta } from '../../../../../logic/modService';
 import {
   getModDisplayName,
   getModFormattedSize,
-  getModSourceLabel,
   MOD_LIST_COMPACT_GRID_CLASS,
   MOD_LIST_TABLE_GRID_CLASS,
   type ModListTheme,
   type ModListViewMode
 } from '../../modListShared';
+import { ModPlatformBadges } from './ModPlatformBadges';
 
 interface ModRowViewProps {
   mod: ModMeta;
   iconSnapshot?: ModIconSnapshot;
+  missingDependencies?: MissingDependencyInfo[];
+  dependentsCount?: number;
   focused: boolean;
   hasFocusedChild: boolean;
   isPrimaryRow: boolean;
@@ -30,7 +32,31 @@ interface ModRowViewProps {
   onClick: () => void;
 }
 
+export const getCompactVersionLabel = (value?: string) => {
+  let label = value?.trim();
+  if (!label) return '';
+
+  label = label.replace(/\.disabled$/i, '').replace(/\.jar$/i, '');
+  label = label.replace(/\[.*?\]|\(.*?\)/g, ' ').trim();
+
+  const matches = Array.from(label.matchAll(/(?:^|[-_+v\s])(\d+(?:\.\d+)+(?:[-+._][0-9A-Za-z]+)*)/gi));
+  if (matches.length > 0) {
+    const candidates = matches.map((m) => m[1]);
+    const nonMcCandidate = candidates.filter((c) => !c.match(/^1\.\d{1,2}(?:\.\d{1,2})?$/));
+    const chosen = nonMcCandidate.length > 0 ? nonMcCandidate[nonMcCandidate.length - 1] : candidates[candidates.length - 1];
+    return chosen.replace(/^v(?=\d)/i, '');
+  }
+
+  const simpleMatch = label.match(/(\d+(?:\.\d+)+)/);
+  if (simpleMatch) {
+    return simpleMatch[1];
+  }
+
+  return label.replace(/^v(?=\d)/i, '');
+};
+
 interface ModIconBoxProps {
+  mod: ModMeta;
   iconUrl: string | null;
   isIconLoading: boolean;
   isEnabled: boolean;
@@ -48,55 +74,97 @@ const VersionBadge: React.FC<{ version?: string; size?: 'sm' | 'md'; listTheme: 
   if (!version) return null;
 
   const isLightTheme = listTheme === 'light';
+  const displayVersion = getCompactVersionLabel(version);
   const sizeClass = size === 'md'
-    ? 'px-2 py-1 text-[1.0625rem]'
-    : 'px-1.5 py-0.5 text-[1.0625rem]';
+    ? 'px-1.5 py-0.5 text-[11px]'
+    : 'px-1 py-0.5 text-[10px]';
   const colorClass = isLightTheme
-    ? 'border-[#1E1E1F] bg-[#F2F2F2] text-[#111214] shadow-[inset_0_-0.125rem_0_#B8BBC2]'
-    : 'border-[#313A4D] bg-[#232937] text-[#C7D2E6]';
+    ? 'border-[#1E1E1F] bg-[#F2F2F2] text-[#111214] shadow-[inset_0_-2px_0_#B8BBC2]'
+    : 'border-[#1E1E1F] bg-[#232937] text-[#C7D2E6] shadow-[inset_0_-2px_0_rgba(0,0,0,0.4)]';
 
   return (
-    <span className={`inline-flex shrink-0 items-center rounded-[6px] border font-semibold leading-none ${colorClass} ${sizeClass}`}>
-      v{version}
+    <span
+      title={version}
+      className={`inline-flex shrink-0 items-center border-[2px] font-minecraft font-bold uppercase leading-none tracking-wider ${colorClass} ${sizeClass}`}
+    >
+      v{displayVersion}
     </span>
   );
 };
 
 const UpdateBadge: React.FC<{
-  currentVersion?: string;
   hasUpdate?: boolean;
   updateVersionName?: string;
   size?: 'sm' | 'md';
-  targetOnly?: boolean;
 }> = ({
-  currentVersion,
   hasUpdate,
   updateVersionName,
-  size = 'sm',
-  targetOnly = false
+  size = 'sm'
 }) => {
   const sizeClass = size === 'md'
-    ? 'px-2 py-1 text-[1.0625rem]'
-    : 'px-1.5 py-0.5 text-[1.0625rem]';
+    ? 'max-w-[10rem] px-1.5 py-0.5 text-[11px]'
+    : 'max-w-[8rem] px-1 py-0.5 text-[10px]';
 
   if (!hasUpdate) return null;
 
-  let updateLabel = '可更新';
-  if (targetOnly && updateVersionName) {
-    updateLabel = updateVersionName;
-  } else if (currentVersion && updateVersionName) {
-    updateLabel = `${currentVersion} -> ${updateVersionName}`;
-  } else if (updateVersionName) {
-    updateLabel = `可更新到 ${updateVersionName}`;
-  }
+  const displayVersion = getCompactVersionLabel(updateVersionName);
+  const updateLabel = displayVersion ? `→ ${displayVersion}` : '可更新';
 
   return (
     <span
-      title={updateLabel}
-      className={`inline-flex min-w-0 shrink-0 items-center gap-1 rounded-[6px] border border-[#8CFFB3]/80 bg-[#57D38C] font-semibold leading-none text-[#06140B] shadow-[0_0_12px_rgba(87,211,140,0.22)] ${sizeClass}`}
+      title={updateVersionName ? `可更新到 ${updateVersionName}` : updateLabel}
+      className={`inline-flex min-w-0 shrink-0 items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#57D38C] font-minecraft font-bold uppercase leading-none text-[#06140B] shadow-[inset_0_-2px_0_#38985B] ${sizeClass}`}
     >
-      <ArrowUpCircle size={11} />
+      <ArrowUpCircle size={11} strokeWidth={2.5} />
       <span className="truncate">{updateLabel}</span>
+    </span>
+  );
+};
+
+const MissingDependencyBadge: React.FC<{
+  missing?: MissingDependencyInfo[];
+  size?: 'sm' | 'md';
+}> = ({ missing, size = 'sm' }) => {
+  if (!missing || missing.length === 0) return null;
+
+  const names = missing.map((m) => m.targetNameHint || m.targetIdentifier).join(', ');
+  const label = missing.length === 1 ? `缺前置: ${names}` : `缺 ${missing.length} 个前置`;
+  const sizeClass = size === 'md'
+    ? 'max-w-[14rem] px-1.5 py-0.5 text-[11px]'
+    : 'max-w-[10rem] px-1 py-0.5 text-[10px]';
+
+  return (
+    <span
+      title={`缺失前置依赖: ${names}`}
+      className={`inline-flex min-w-0 shrink-0 items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#FFA940] font-minecraft font-bold uppercase leading-none text-[#2A1200] shadow-[inset_0_-2px_0_#D46B08] ${sizeClass}`}
+    >
+      <AlertTriangle size={11} strokeWidth={2.5} />
+      <span className="truncate">{label}</span>
+    </span>
+  );
+};
+
+const DependentsBadge: React.FC<{
+  dependentsCount?: number;
+  size?: 'sm' | 'md';
+  listTheme: ModListTheme;
+}> = ({ dependentsCount, size = 'sm', listTheme }) => {
+  if (!dependentsCount || dependentsCount <= 0) return null;
+
+  const isLightTheme = listTheme === 'light';
+  const sizeClass = size === 'md'
+    ? 'px-1.5 py-0.5 text-[11px]'
+    : 'px-1 py-0.5 text-[10px]';
+  const colorClass = isLightTheme
+    ? 'border-[#1E1E1F] bg-[#E6F4FF] text-[#003A8C] shadow-[inset_0_-2px_0_#91CAFF]'
+    : 'border-[#1E1E1F] bg-[#112A45] text-[#91CAFF] shadow-[inset_0_-2px_0_rgba(0,0,0,0.5)]';
+
+  return (
+    <span
+      title={`被 ${dependentsCount} 个模组作为前置依赖`}
+      className={`inline-flex shrink-0 items-center gap-1 border-[2px] font-minecraft font-bold uppercase leading-none tracking-wider ${colorClass} ${sizeClass}`}
+    >
+      <span>🧩 {dependentsCount} 附属</span>
     </span>
   );
 };
@@ -118,6 +186,7 @@ const getHashHue = (value: string) => {
 };
 
 const ModIconBox: React.FC<ModIconBoxProps> = ({
+  mod,
   iconUrl,
   isIconLoading,
   isEnabled,
@@ -134,10 +203,12 @@ const ModIconBox: React.FC<ModIconBoxProps> = ({
 
   return (
     <div
-      className={`relative shrink-0 overflow-hidden border border-[#2A3140] bg-[#161A22] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${className} ${
-        isEnabled ? '' : 'grayscale'
+      className={`relative shrink-0 overflow-hidden border-[2px] border-[#1E1E1F] bg-[#14171E] shadow-[inset_0_-2px_0_rgba(0,0,0,0.6),inset_1px_1px_0_rgba(255,255,255,0.06)] ${className} ${
+        isEnabled ? '' : 'grayscale opacity-75'
       }`}
     >
+      <ModPlatformBadges mod={mod} />
+
       {iconUrl ? (
         <img src={iconUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
       ) : (
@@ -147,13 +218,13 @@ const ModIconBox: React.FC<ModIconBoxProps> = ({
         >
           <span
             className="font-minecraft font-bold leading-none text-white/90"
-            style={{ fontSize: Math.max(13, fallbackIconSize - 4) }}
+            style={{ fontSize: Math.max(16, fallbackIconSize) }}
           >
             {initial}
           </span>
           {isIconLoading && (
-            <span className="absolute bottom-0.5 right-0.5 rounded-sm bg-[#111318]/80 p-0.5">
-              <Loader2 size={Math.max(10, fallbackIconSize - 10)} className="animate-spin text-[#AFC4FF]" />
+            <span className="absolute bottom-0.5 right-0.5 bg-[#111318]/90 p-0.5">
+              <Loader2 size={Math.max(9, fallbackIconSize - 10)} className="animate-spin text-[#AFC4FF]" />
             </span>
           )}
         </div>
@@ -165,6 +236,8 @@ const ModIconBox: React.FC<ModIconBoxProps> = ({
 export const ModRowView: React.FC<ModRowViewProps> = ({
   mod,
   iconSnapshot,
+  missingDependencies,
+  dependentsCount,
   focused,
   hasFocusedChild,
   isPrimaryRow,
@@ -179,57 +252,58 @@ export const ModRowView: React.FC<ModRowViewProps> = ({
 }) => {
   const displayName = getModDisplayName(mod);
   const formattedSize = getModFormattedSize(mod);
-  const sourceLabel = getModSourceLabel(mod);
   const iconUrl = iconSnapshot?.src || null;
   const isIconLoading = iconSnapshot?.status === 'loading' || (!!mod.isFetchingNetwork && !iconUrl);
   const isActive = focused || hasFocusedChild || isRowInOperationMode;
   const isLightTheme = listTheme === 'light';
+
   const accentClass = isRowInOperationMode
     ? 'bg-[#7AA2FF]'
     : isSelected
       ? 'bg-[#57D38C]'
       : isEnabled
         ? 'bg-[#5B8CFF]'
-        : 'bg-[#8B93A7]';
+        : 'bg-[#5A6375]';
+
   const activeClass = isLightTheme
     ? isActive
-      ? 'z-20 bg-[#EEF0F2] outline outline-2 outline-[#1D4D13] outline-offset-[-2px] shadow-[inset_0_-0.25rem_0_#B8BBC2,inset_0.125rem_0.125rem_0_rgba(255,255,255,0.78)]'
-      : 'hover:bg-[#DDE0E3]'
+      ? 'z-20 bg-[#DDE0E3] outline outline-[2px] outline-[#1D4D13] outline-offset-[-2px] shadow-[inset_0_-2px_0_#B8BBC2,inset_1px_1px_0_rgba(255,255,255,0.78)]'
+      : 'hover:bg-[#D4D7DB]'
     : isActive
-      ? 'z-20 bg-[#2B3346] outline outline-2 outline-[#7AA2FF] outline-offset-[-2px] shadow-[inset_0_0_0_1px_rgba(122,162,255,0.28),inset_0_1px_0_rgba(255,255,255,0.06)]'
-      : 'hover:bg-[#222734]';
+      ? 'z-20 bg-[#2B3447] outline outline-[2px] outline-[#7AA2FF] outline-offset-[-2px] shadow-[inset_0_-2px_0_rgba(0,0,0,0.5),inset_1px_1px_0_rgba(255,255,255,0.08)]'
+      : 'hover:bg-[#202532]';
+
   const rowBackgroundClass = isLightTheme
     ? isEnabled ? 'bg-[#C6C8CB]' : 'bg-[#B8BBC2]'
-    : isEnabled ? 'bg-[#1A1D24]' : 'bg-[#171A21]';
-  const borderClass = isLightTheme ? 'border-[#A9ABAE]' : 'border-[#242B38]';
+    : isEnabled ? 'bg-[#181C25]' : 'bg-[#14171E]';
+
+  const borderClass = isLightTheme ? 'border-b-[#A9ABAE]' : 'border-b-[#1E2430]';
+
   const titleTextClass = isLightTheme
-    ? isEnabled ? 'text-[#111214]' : 'text-[#313233]'
-    : isPrimaryRow
-      ? 'text-[#F3F6FC]'
-      : isEnabled
-        ? 'text-[#DCE3F1]'
-        : 'text-[#C8D2E6]';
+    ? isEnabled ? 'text-[#111214]' : 'text-[#5A5C60]'
+    : isPrimaryRow || isEnabled
+      ? 'text-[#FFFFFF]'
+      : 'text-[#8A93A6]';
+
   const secondaryTextClass = isLightTheme
     ? 'text-[#4A4C50]'
-    : isActive
-      ? 'text-[#B8C2D9]'
-      : isEnabled
-        ? 'text-[#8D96A8]'
-        : 'text-[#AAB4C8]';
+    : isEnabled
+      ? 'text-[#8D96A8]'
+      : 'text-[#616B7E]';
+
   const fileNameTextClass = isLightTheme
-    ? isActive ? 'text-[#1E1E1F]' : 'text-[#313233]'
-    : isActive
-      ? 'text-[#B8C2D9]'
-      : isEnabled
-        ? 'text-[#9AA6BA]'
-        : 'text-[#AAB4C8]';
+    ? 'text-[#4A4C50]'
+    : isEnabled
+      ? 'text-[#8D96A8]'
+      : 'text-[#616B7E]';
+
   const mutedDividerClass = isLightTheme ? 'text-[#8C8D90]' : 'text-[#313A4D]';
 
   if (viewMode === 'standard') {
     return (
       <div
         onClick={onClick}
-        className={`group relative grid min-h-[5.5rem] cursor-pointer select-none ${MOD_LIST_TABLE_GRID_CLASS} items-center gap-2 overflow-hidden border-b px-2 text-left ${borderClass} ${rowBackgroundClass} ${activeClass}`}
+        className={`group relative grid min-h-[4.5rem] cursor-pointer select-none ${MOD_LIST_TABLE_GRID_CLASS} items-center gap-2.5 border-b-[2px] px-2 py-2.5 text-left transition-colors ${borderClass} ${rowBackgroundClass} ${activeClass}`}
       >
         <div className={`absolute inset-y-0 left-0 ${isActive ? 'w-1.5' : 'w-1'} ${accentClass}`} />
 
@@ -242,44 +316,46 @@ export const ModRowView: React.FC<ModRowViewProps> = ({
           {leading}
         </div>
 
-        <div className="flex min-w-0 items-center gap-[11px] pl-2">
+        <div className="flex items-center justify-center shrink-0">
           <ModIconBox
+            mod={mod}
             iconUrl={iconUrl}
             isIconLoading={isIconLoading}
             isEnabled={isEnabled}
-            className={`h-[3.5rem] w-[3.5rem] ${isSelected ? 'border-[#57D38C]' : isLightTheme ? 'border-[#1E1E1F]' : 'border-[#2A3140]'}`}
-            fallbackIconSize={26}
+            className={`h-12 w-12 ${isSelected ? 'border-[#57D38C]' : 'border-[#1E1E1F]'}`}
+            fallbackIconSize={22}
             placeholderLabel={displayName || mod.fileName}
             placeholderSeed={mod.cacheKey || mod.fileName}
           />
-          <div className={`min-w-0 ${isEnabled ? '' : 'opacity-55'}`}>
-            <div className={`truncate text-[1.125rem] font-bold leading-tight ${titleTextClass}`}>
-              {displayName}
-            </div>
-            <div className={`mt-0.5 truncate text-[1.0625rem] ${secondaryTextClass}`}>
-              {sourceLabel}
-            </div>
+        </div>
+
+        <div className={`min-w-0 pr-2 ${isEnabled ? '' : 'opacity-65'}`}>
+          <div className={`truncate font-minecraft text-[15px] font-bold leading-snug tracking-wide ${titleTextClass}`}>
+            {displayName}
+          </div>
+          <div className={`mt-1 truncate font-minecraft text-[12px] leading-tight ${fileNameTextClass}`}>
+            {mod.fileName}
           </div>
         </div>
 
-        <div className={`min-w-0 truncate text-[1.0625rem] leading-tight ${fileNameTextClass} ${isEnabled ? '' : 'opacity-55'}`}>
-          {mod.fileName}
-        </div>
-
-        <div className="min-w-0">
-          <div className={`flex min-w-0 flex-col items-start gap-1 ${isEnabled ? '' : 'opacity-55'}`}>
+        <div className="min-w-0 flex flex-col justify-center gap-1.5">
+          <div className={`flex min-w-0 flex-wrap items-center gap-1.5 ${isEnabled ? '' : 'opacity-65'}`}>
             <VersionBadge version={mod.version} size="md" listTheme={listTheme} />
             <UpdateBadge
-              currentVersion={mod.version}
               hasUpdate={mod.hasUpdate}
               updateVersionName={mod.updateVersionName}
               size="md"
-              targetOnly
             />
           </div>
+          {((missingDependencies && missingDependencies.length > 0) || (dependentsCount && dependentsCount > 0)) ? (
+            <div className={`flex min-w-0 flex-wrap items-center gap-1.5 ${isEnabled ? '' : 'opacity-65'}`}>
+              <MissingDependencyBadge missing={missingDependencies} size="sm" />
+              <DependentsBadge dependentsCount={dependentsCount} size="sm" listTheme={listTheme} />
+            </div>
+          ) : null}
         </div>
 
-        <div className={`min-w-0 truncate text-[1.0625rem] tabular-nums ${secondaryTextClass} ${isEnabled ? '' : 'opacity-55'}`}>
+        <div className={`min-w-0 truncate font-minecraft text-[12px] tabular-nums ${secondaryTextClass} ${isEnabled ? '' : 'opacity-65'}`}>
           {formattedSize}
         </div>
 
@@ -298,7 +374,7 @@ export const ModRowView: React.FC<ModRowViewProps> = ({
   return (
     <div
       onClick={onClick}
-      className={`group relative grid min-h-[4rem] cursor-pointer select-none ${MOD_LIST_COMPACT_GRID_CLASS} items-center gap-[15px] overflow-hidden border-b px-3 py-1 text-left ${borderClass} ${rowBackgroundClass} ${activeClass}`}
+      className={`group relative grid min-h-[3.125rem] cursor-pointer select-none ${MOD_LIST_COMPACT_GRID_CLASS} items-center gap-2.5 border-b-[2px] px-2 py-1 text-left transition-colors ${borderClass} ${rowBackgroundClass} ${activeClass}`}
     >
       <div className={`absolute inset-y-0 left-0 ${isActive ? 'w-1.5' : 'w-1'} ${accentClass}`} />
 
@@ -311,36 +387,36 @@ export const ModRowView: React.FC<ModRowViewProps> = ({
         {leading}
       </div>
 
-      <ModIconBox
-        iconUrl={iconUrl}
-        isIconLoading={isIconLoading}
-        isEnabled={isEnabled}
-        className="h-9 w-9"
-        fallbackIconSize={20}
-        placeholderLabel={displayName || mod.fileName}
-        placeholderSeed={mod.cacheKey || mod.fileName}
-      />
+      <div className="flex items-center justify-center shrink-0">
+        <ModIconBox
+          mod={mod}
+          iconUrl={iconUrl}
+          isIconLoading={isIconLoading}
+          isEnabled={isEnabled}
+          className="h-9 w-9"
+          fallbackIconSize={16}
+          placeholderLabel={displayName || mod.fileName}
+          placeholderSeed={mod.cacheKey || mod.fileName}
+        />
+      </div>
 
-      <div className={`min-w-0 ${isEnabled ? '' : 'opacity-55'}`}>
-        <div className="flex min-w-0 items-center gap-1.5">
-          <span className={`truncate text-[1.0625rem] leading-tight ${titleTextClass}`}>
+      <div className={`min-w-0 pr-2 ${isEnabled ? '' : 'opacity-65'}`}>
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <span className={`truncate font-minecraft text-[15px] font-bold leading-tight tracking-wide ${titleTextClass}`}>
             {displayName}
           </span>
           <VersionBadge version={mod.version} listTheme={listTheme} />
+          <MissingDependencyBadge missing={missingDependencies} size="sm" />
+          <DependentsBadge dependentsCount={dependentsCount} size="sm" listTheme={listTheme} />
           <UpdateBadge
-            currentVersion={mod.version}
             hasUpdate={mod.hasUpdate}
             updateVersionName={mod.updateVersionName}
           />
         </div>
-        <div className={`mt-0.5 flex min-w-0 items-center gap-2 text-[1.0625rem] leading-none ${fileNameTextClass}`}>
+        <div className={`mt-0.5 flex min-w-0 items-center gap-2 font-minecraft text-[11px] leading-none ${fileNameTextClass}`}>
           <span className="truncate">{mod.fileName}</span>
           <span className={`shrink-0 ${mutedDividerClass}`}>|</span>
           <span className="shrink-0">{formattedSize}</span>
-          <span className={`hidden shrink-0 items-center gap-1 lg:inline-flex ${secondaryTextClass}`}>
-            <FileArchive size={11} />
-            {sourceLabel}
-          </span>
         </div>
       </div>
 

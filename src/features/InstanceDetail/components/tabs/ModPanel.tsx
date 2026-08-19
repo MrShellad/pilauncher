@@ -2,7 +2,6 @@ import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { OreConfirmDialog } from '../../../../ui/primitives/OreConfirmDialog';
-import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 
 import { ModList } from './mods/components/list/ModList';
 import { ModPanelDialogs } from './mods/components/dialogs/ModPanelDialogs';
@@ -244,11 +243,7 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   }, []);
 
   return (
-    <SettingsPageLayout
-      width="wide"
-      scrollable={false}
-      className="[&_.ore-settings-page-layout__content]:gap-2"
-    >
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
       <ModList
         {...controller.list}
         instanceId={instanceId}
@@ -271,6 +266,7 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         instanceConfig={controller.state.instanceConfig}
         instanceId={instanceId}
         mods={controller.state.mods}
+        dependencyHealth={controller.list.dependencyHealth}
         snapshotState={controller.state.snapshotState}
         state={controller.dialogs.state}
         actions={controller.dialogs.actions}
@@ -348,6 +344,6 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
           controller.list.onExitBatchMode();
         }}
       />
-    </SettingsPageLayout>
+    </div>
   );
 };

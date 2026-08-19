@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { FocusBoundary } from '../../../../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../../../../ui/focus/FocusItem';
 import { type ModSortOrder, type ModSortType } from '../../../../../hooks/useModManager';
-import type { ModMeta } from '../../../../../logic/modService';
+import type { InstanceDependencyHealth, ModMeta } from '../../../../../logic/modService';
 import {
   LIST_ENTRY_FOCUS_KEY,
   LIST_GUARD_BOTTOM,
@@ -23,6 +23,7 @@ import { useModListController } from '../../hooks/useModListController';
 export interface ModListProps {
   instanceId?: string;
   mods: ModMeta[];
+  dependencyHealth?: InstanceDependencyHealth | null;
   isLoading: boolean;
   selectedMods: Set<string>;
   onToggleSelection: (fileName: string) => void;
@@ -46,7 +47,9 @@ export interface ModListProps {
   onBatchDelete: () => void;
   onBatchFavorite?: () => void;
   onExitBatchMode: () => void;
-  onOpenModMetadataSettings: () => void;
+  onOpenModMetadataSettings?: () => void;
+  onReidentifyAllMods?: () => void | Promise<void>;
+  isReidentifyingAll?: boolean;
   onCheckModUpdates: () => void;
   onUpdateAllMods?: () => void;
   isCheckingModUpdates: boolean;
@@ -67,6 +70,7 @@ export interface ModListProps {
 export const ModList: React.FC<ModListProps> = ({
   instanceId,
   mods,
+  dependencyHealth,
   isLoading,
   selectedMods,
   onToggleSelection,
@@ -91,6 +95,8 @@ export const ModList: React.FC<ModListProps> = ({
   onBatchFavorite,
   onExitBatchMode,
   onOpenModMetadataSettings,
+  onReidentifyAllMods,
+  isReidentifyingAll,
   onCheckModUpdates,
   onUpdateAllMods,
   isCheckingModUpdates,
@@ -111,6 +117,7 @@ export const ModList: React.FC<ModListProps> = ({
   const controller = useModListController({
     instanceId,
     mods,
+    dependencyHealth,
     searchQuery,
     isLoading,
     selectedMods,
@@ -179,6 +186,8 @@ export const ModList: React.FC<ModListProps> = ({
         onBatchFavorite={onBatchFavorite || (() => {})}
         onExitBatchMode={onExitBatchMode}
         onOpenModMetadataSettings={onOpenModMetadataSettings}
+        onReidentifyAllMods={onReidentifyAllMods}
+        isReidentifyingAll={isReidentifyingAll}
         onCheckModUpdates={onCheckModUpdates}
         isCheckingModUpdates={isCheckingModUpdates}
         isUpdatingAny={mods.some((m) => m.isUpdatingMod)}
@@ -195,6 +204,7 @@ export const ModList: React.FC<ModListProps> = ({
         onOpenModFolder={onOpenModFolder}
         onAnalyzeCleanup={onAnalyzeCleanup}
         onOpenDownload={onOpenDownload}
+        onTopBarCollapseChange={onTopBarCollapseChange}
       />
 
       <ModListGridHeader
@@ -213,7 +223,7 @@ export const ModList: React.FC<ModListProps> = ({
         trapFocus={controller.focus.trapFocus}
         onEscape={controller.focus.handleCancelHierarchy}
         defaultFocusKey={controller.focus.defaultFocusKey}
-        className="relative pt-[2px] min-h-[18rem] flex-1 overflow-hidden px-2 pb-1"
+        className="relative flex min-h-0 flex-1 flex-col overflow-hidden px-2 pb-1 pt-[2px]"
       >
         <FocusItem focusKey={LIST_GUARD_TOP} onFocus={() => controller.focus.restoreSafeFocus('first')}>
           {({ ref }) => (

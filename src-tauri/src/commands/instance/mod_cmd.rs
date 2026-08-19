@@ -1,5 +1,5 @@
 use crate::services::instance::mod_manager::{ModManagerService, ModMetadata};
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Manager, Runtime};
 
 #[tauri::command]
 pub async fn get_instance_mods<R: Runtime>(
@@ -15,7 +15,7 @@ pub async fn get_instance_mod_manifest_cache<R: Runtime>(
     app: AppHandle<R>,
     id: String,
 ) -> Result<Vec<ModMetadata>, String> {
-    ModManagerService::get_mod_manifest_cache(&app, &id)
+    ModManagerService::get_mod_manifest_cache(&app, &id).await
 }
 
 #[tauri::command]
@@ -25,9 +25,23 @@ pub async fn update_mod_cache<R: tauri::Runtime>(
     name: String,
     desc: String,
     icon_url: String,
+    mod_id: Option<String>,
+    curseforge_fingerprint: Option<u32>,
+    modrinth_hash: Option<String>,
+    curseforge_project_id: Option<String>,
+    modrinth_project_id: Option<String>,
 ) -> Result<Option<String>, String> {
     crate::services::instance::mod_manager::ModManagerService::update_mod_cache(
-        &app, &cache_key, &name, &desc, &icon_url,
+        &app,
+        &cache_key,
+        &name,
+        &desc,
+        &icon_url,
+        mod_id.as_deref(),
+        curseforge_fingerprint,
+        modrinth_hash.as_deref(),
+        curseforge_project_id.as_deref(),
+        modrinth_project_id.as_deref(),
     )
     .await
 }
@@ -104,4 +118,26 @@ pub async fn execute_mod_file_cleanup<R: Runtime>(
         &app, &id, items,
     )
     .await
+}
+
+#[tauri::command]
+pub async fn get_instance_dependency_health<R: Runtime>(
+    app: AppHandle<R>,
+    id: String,
+) -> Result<crate::services::instance::mod_manager::InstanceDependencyHealth, String> {
+    crate::services::instance::mod_manager::ModManagerService::get_instance_dependency_health(
+        &app, &id,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn save_mod_relations<R: Runtime>(
+    app: AppHandle<R>,
+    relations: Vec<crate::services::db_service::ModRelationRecord>,
+) -> Result<(), String> {
+    let db = app.state::<crate::services::db_service::AppDatabase>();
+    crate::services::db_service::DbService::save_mod_relations(&db.pool, &relations)
+        .await
+        .map_err(|e| e.to_string())
 }

@@ -143,9 +143,18 @@ export async function loadModrinthTexture(
     }
   }
 
-  const loader = new THREE.TextureLoader();
-  loader.setCrossOrigin('anonymous');
-  const texture = await loader.loadAsync(finalSrc);
+  // TextureLoader would request the image a second time.  In packaged WebView2
+  // builds that second CORS request can fail for asset:// and CDN-backed skins,
+  // even though the first image loaded successfully.  Reuse the decoded image.
+  const textureImage = finalSrc === textureUrl
+    ? img
+    : await new Promise<HTMLImageElement>((resolve, reject) => {
+        const normalizedImage = new Image();
+        normalizedImage.onload = () => resolve(normalizedImage);
+        normalizedImage.onerror = () => reject(new Error(`Failed to load normalized skin image: ${textureUrl}`));
+        normalizedImage.src = finalSrc;
+      });
+  const texture = new THREE.Texture(textureImage);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.flipY = false;
   texture.magFilter = THREE.NearestFilter;
@@ -358,4 +367,3 @@ export function syncDamageFlashShader(scene: THREE.Object3D | null, intensity: n
     });
   });
 }
-

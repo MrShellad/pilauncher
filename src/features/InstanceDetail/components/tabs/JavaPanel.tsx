@@ -6,7 +6,6 @@ import { useTranslation } from 'react-i18next';
 
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { focusManager } from '../../../../ui/focus/FocusManager';
-import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { RuntimeSettingsForm } from '../../../runtime/components/RuntimeSettingsForm';
 import type { RuntimeConfig } from '../../../runtime/types';
 
@@ -129,81 +128,79 @@ export const JavaPanel: React.FC<JavaPanelProps> = ({
   }
 
   return (
-    <SettingsPageLayout width="wide">
-      <div className="relative flex flex-col w-full h-full overflow-x-hidden">
-        <FocusItem focusKey="java-guard-top" onFocus={() => setFocus('java-entry-point')}>
-          {({ ref }) => (
-            <div
-              ref={ref as any}
-              className="absolute top-0 left-0 w-full h-[1px] opacity-0 pointer-events-none"
-              tabIndex={-1}
-            />
-          )}
-        </FocusItem>
-        <FocusItem focusKey="java-guard-left" onFocus={() => setFocus('java-entry-point')}>
-          {({ ref }) => (
-            <div
-              ref={ref as any}
-              className="absolute top-0 left-0 w-[1px] h-full opacity-0 pointer-events-none"
-              tabIndex={-1}
-            />
-          )}
-        </FocusItem>
-        <FocusItem focusKey="java-guard-right" onFocus={() => setFocus('java-entry-point')}>
-          {({ ref }) => (
-            <div
-              ref={ref as any}
-              className="absolute top-0 right-0 w-[1px] h-full opacity-0 pointer-events-none"
-              tabIndex={-1}
-            />
-          )}
-        </FocusItem>
-        <FocusItem focusKey="java-guard-bottom" onFocus={() => setFocus('java-entry-point')}>
-          {({ ref }) => (
-            <div
-              ref={ref as any}
-              className="absolute bottom-0 left-0 w-full h-[1px] opacity-0 pointer-events-none"
-              tabIndex={-1}
-            />
-          )}
-        </FocusItem>
-
-        <div className="flex justify-end h-6 mb-2 pr-6 font-minecraft transition-opacity duration-300">
-          {(isSaving || isEnvSaving) && (
-            <span className="text-ore-text-muted text-sm flex items-center">
-              <Loader2 size={14} className="animate-spin mr-1.5" /> {t('instanceDetail.java.savingLocal', '正在保存...')}
-            </span>
-          )}
-          {(saveSuccess || envSuccess) && !isSaving && !isEnvSaving && (
-            <span className="text-ore-green text-sm flex items-center drop-shadow-[0_0_5px_rgba(56,133,39,0.5)]">
-              <CheckCircle2 size={14} className="mr-1.5" /> {t('instanceDetail.java.autoSaveSuccess', '自动保存成功')}
-            </span>
-          )}
-        </div>
-
-        <div className="space-y-[clamp(1.5rem,2vw,2rem)] pb-8">
-          <EnvironmentSection
-            currentGameVersion={data.version}
-            currentLoaderType={data.loader}
-            currentLoaderVersion={data.loaderVersion}
-            isInitializing={isInitializing}
-            onUpdateEnvironment={onUpdateEnvironment}
-            onSuccess={triggerEnvSuccess}
-            isGlobalSaving={isEnvSaving}
-            setIsGlobalSaving={setIsEnvSaving}
+    <div className="custom-scrollbar relative flex flex-1 min-h-0 flex-col w-full overflow-y-auto overflow-x-hidden p-4">
+      <FocusItem focusKey="java-guard-top" onFocus={() => setFocus('java-entry-point')}>
+        {({ ref }) => (
+          <div
+            ref={ref as any}
+            className="absolute top-0 left-0 w-full h-[1px] opacity-0 pointer-events-none"
+            tabIndex={-1}
           />
-
-          <RuntimeSettingsForm
-            mode="instance"
-            config={config}
-            onChange={handleConfigChange}
-            mcVersion={mcVersion}
-            recommendedJavaMajor={recommendedJavaMajor}
+        )}
+      </FocusItem>
+      <FocusItem focusKey="java-guard-left" onFocus={() => setFocus('java-entry-point')}>
+        {({ ref }) => (
+          <div
+            ref={ref as any}
+            className="absolute top-0 left-0 w-[1px] h-full opacity-0 pointer-events-none"
+            tabIndex={-1}
           />
+        )}
+      </FocusItem>
+      <FocusItem focusKey="java-guard-right" onFocus={() => setFocus('java-entry-point')}>
+        {({ ref }) => (
+          <div
+            ref={ref as any}
+            className="absolute top-0 right-0 w-[1px] h-full opacity-0 pointer-events-none"
+            tabIndex={-1}
+          />
+        )}
+      </FocusItem>
+      <FocusItem focusKey="java-guard-bottom" onFocus={() => setFocus('java-entry-point')}>
+        {({ ref }) => (
+          <div
+            ref={ref as any}
+            className="absolute bottom-0 left-0 w-full h-[1px] opacity-0 pointer-events-none"
+            tabIndex={-1}
+          />
+        )}
+      </FocusItem>
 
-          <KeymapSection instanceId={instanceId} />
-        </div>
+      <div className="flex justify-end h-6 mb-2 pr-6 font-minecraft transition-opacity duration-300">
+        {(isSaving || isEnvSaving) && (
+          <span className="text-ore-text-muted text-sm flex items-center">
+            <Loader2 size={14} className="animate-spin mr-1.5" /> {t('instanceDetail.java.savingLocal', '正在保存...')}
+          </span>
+        )}
+        {(saveSuccess || envSuccess) && !isSaving && !isEnvSaving && (
+          <span className="text-ore-green text-sm flex items-center drop-shadow-[0_0_5px_rgba(56,133,39,0.5)]">
+            <CheckCircle2 size={14} className="mr-1.5" /> {t('instanceDetail.java.autoSaveSuccess', '自动保存成功')}
+          </span>
+        )}
       </div>
-    </SettingsPageLayout>
+
+      <div className="space-y-6 pb-8 w-full">
+        <EnvironmentSection
+          currentGameVersion={data.version}
+          currentLoaderType={data.loader}
+          currentLoaderVersion={data.loaderVersion}
+          isInitializing={isInitializing}
+          onUpdateEnvironment={onUpdateEnvironment}
+          onSuccess={triggerEnvSuccess}
+          isGlobalSaving={isEnvSaving}
+          setIsGlobalSaving={setIsEnvSaving}
+        />
+
+        <RuntimeSettingsForm
+          mode="instance"
+          config={config}
+          onChange={handleConfigChange}
+          mcVersion={mcVersion}
+          recommendedJavaMajor={recommendedJavaMajor}
+        />
+
+        <KeymapSection instanceId={instanceId} />
+      </div>
+    </div>
   );
 };

@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 
 import { FocusItem } from '../../../../../../../ui/focus/FocusItem';
 import type { ModIconSnapshot } from '../../../../../logic/modIconService';
-import type { ModMeta } from '../../../../../logic/modService';
+import type { MissingDependencyInfo, ModMeta } from '../../../../../logic/modService';
 import { ModRowActionCluster } from './ModRowActionCluster';
 import type { ModListTheme, ModListViewMode, RowAction } from '../../modListShared';
 import { ModRowView } from './ModRowView';
@@ -11,6 +11,8 @@ import { ModRowView } from './ModRowView';
 interface ModRowItemProps {
   mod: ModMeta;
   iconSnapshot?: ModIconSnapshot;
+  missingDependencies?: MissingDependencyInfo[];
+  dependentsCount?: number;
   focusedRowFileName: string | null;
   operationRowFileName: string | null;
   requiresRowOperation: boolean;
@@ -36,6 +38,8 @@ interface ModRowItemProps {
 const ModRowItemComponent: React.FC<ModRowItemProps> = ({
   mod,
   iconSnapshot,
+  missingDependencies,
+  dependentsCount,
   focusedRowFileName,
   operationRowFileName,
   requiresRowOperation,
@@ -75,13 +79,15 @@ const ModRowItemComponent: React.FC<ModRowItemProps> = ({
       {({ ref, focused, hasFocusedChild }) => (
         <motion.div
           ref={ref as any}
-          initial={{ opacity: 0, y: -6 }}
+          initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.18, ease: 'easeOut' }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
         >
           <ModRowView
             mod={mod}
             iconSnapshot={iconSnapshot}
+            missingDependencies={missingDependencies}
+            dependentsCount={dependentsCount}
             focused={focused}
             hasFocusedChild={hasFocusedChild}
             isPrimaryRow={focusedRowFileName === mod.fileName}
@@ -95,11 +101,11 @@ const ModRowItemComponent: React.FC<ModRowItemProps> = ({
             leading={
               (
                 <div 
-                  className={`flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-[0.125rem] transition-colors ${isSelected
-                    ? 'border border-[#57D38C] bg-[#57D38C]'
+                  className={`flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center border-[2px] transition-colors ${isSelected
+                    ? 'border-[#1E1E1F] bg-[#57D38C] text-[#06140B] shadow-[inset_0_-1px_0_#38985B]'
                     : listTheme === 'light'
-                      ? 'border border-[#1E1E1F] bg-[#E4E5E7] hover:bg-white'
-                      : 'border border-[#313A4D] bg-[#232937] hover:bg-[#2B3447]'
+                      ? 'border-[#1E1E1F] bg-[#E4E5E7] hover:bg-white shadow-[inset_0_-1px_0_#B8BBC2]'
+                      : 'border-[#1E1E1F] bg-[#232937] hover:bg-[#2B3447] shadow-[inset_0_-1px_0_rgba(0,0,0,0.4)]'
                   }`}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -107,7 +113,7 @@ const ModRowItemComponent: React.FC<ModRowItemProps> = ({
                   }}
                 >
                   {isSelected && (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="square" strokeLinejoin="miter" className="h-3 w-3">
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   )}
@@ -159,6 +165,8 @@ const areRowPropsEqual = (prev: ModRowItemProps, next: ModRowItemProps) => {
     prev.mod.networkInfo?.description === next.mod.networkInfo?.description &&
     prev.mod.networkInfo?.icon_url === next.mod.networkInfo?.icon_url &&
     prev.mod.networkInfo?.source === next.mod.networkInfo?.source &&
+    prev.missingDependencies === next.missingDependencies &&
+    prev.dependentsCount === next.dependentsCount &&
     prev.iconSnapshot === next.iconSnapshot &&
     prev.focusedRowFileName === next.focusedRowFileName &&
     prev.operationRowFileName === next.operationRowFileName &&

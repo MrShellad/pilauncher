@@ -1,10 +1,8 @@
 use crate::services::config_service::ConfigService;
-use crate::services::instance::mod_manifest_service::ModManifestService;
-use chrono::Local;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Manager, Runtime};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -38,7 +36,7 @@ pub struct ResourceItem {
     pub meta: Option<serde_json::Value>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResourceSnapshot {
     pub id: String,
@@ -50,43 +48,51 @@ pub struct ResourceSnapshot {
 pub struct ResourceManager;
 
 impl ResourceManager {
-    fn get_instance_root<R: Runtime>(
+    pub fn get_instance_root<R: Runtime>(
         app: &AppHandle<R>,
         instance_id: &str,
     ) -> Result<PathBuf, String> {
         let base_path = ConfigService::get_base_path(app)
             .map_err(|e| e.to_string())?
-            .ok_or_else(|| "Base path is not configured".to_string())?;
+            .ok_or_else(|| "Base path not configured".to_string())?;
 
         Ok(PathBuf::from(base_path).join("instances").join(instance_id))
     }
 
-    fn get_game_dir<R: Runtime>(app: &AppHandle<R>, instance_id: &str) -> Result<PathBuf, String> {
+    pub fn get_game_dir<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+    ) -> Result<PathBuf, String> {
         let instance_root = Self::get_instance_root(app, instance_id)?;
-        let mut target_dir = instance_root.clone();
-        let json_path = instance_root.join("instance.json");
-        if let Ok(content) = fs::read_to_string(&json_path) {
-            if let Ok(config) =
-                serde_json::from_str::<crate::domain::instance::InstanceConfig>(&content)
-            {
-                if let Some(tp) = config.third_party_path {
-                    target_dir = PathBuf::from(tp);
+        let config_path = instance_root.join("instance.json");
+
+        if config_path.exists() {
+            if let Ok(content) = fs::read_to_string(&config_path) {
+                if let Ok(config) =
+                    serde_json::from_str::<crate::domain::instance::InstanceConfig>(&content)
+                {
+                    if let Some(third_party) = config.third_party_path {
+                        let path = PathBuf::from(third_party);
+                        if path.exists() {
+                            return Ok(path);
+                        }
+                    }
                 }
             }
         }
-        Ok(target_dir)
+
+        Ok(instance_root)
     }
 
-    fn get_target_dir<R: Runtime>(
+    pub fn get_target_dir<R: Runtime>(
         app: &AppHandle<R>,
         instance_id: &str,
         res_type: &ResourceType,
     ) -> Result<PathBuf, String> {
-        let target_dir = Self::get_game_dir(app, instance_id)?.join(res_type.folder_name());
-        if !target_dir.exists() {
-            fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
-        }
-        Ok(target_dir)
+        let game_dir = Self::get_game_dir(app, instance_id)?;
+        let target = game_dir.join(res_type.folder_name());
+        fs::create_dir_all(&target).map_err(|e| e.to_string())?;
+        Ok(target)
     }
 
     pub fn list_resources<R: Runtime>(
@@ -104,18 +110,23 @@ impl ResourceManager {
                     continue;
                 }
 
-                let metadata = entry.metadata().map_err(|e| e.to_string())?;
+                let metadata = match entry.metadata() {
+                    Ok(m) => m,
+                    Err(_) => continue,
+                };
+                let modified_at = metadata
+                    .modified()
+                    .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs() as i64;
+
                 items.push(ResourceItem {
                     file_name: file_name.clone(),
                     is_enabled: !file_name.ends_with(".disabled"),
                     is_directory: metadata.is_dir(),
                     file_size: metadata.len(),
-                    modified_at: metadata
-                        .modified()
-                        .map_err(|e| e.to_string())?
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .map_err(|e| e.to_string())?
-                        .as_secs() as i64,
+                    modified_at,
                     icon_absolute_path: None,
                     meta: None,
                 });
@@ -147,7 +158,28 @@ impl ResourceManager {
             format!("{}.disabled", file_name)
         };
 
-        fs::rename(current_path, target_dir.join(new_file_name)).map_err(|e| e.to_string())
+        let res = fs::rename(current_path, target_dir.join(&new_file_name)).map_err(|e| e.to_string());
+        if res.is_ok() && res_type == ResourceType::Mod {
+            let db = app.state::<crate::services::db_service::AppDatabase>();
+            let pool = db.pool.clone();
+            let inst_id = instance_id.to_string();
+            let old_f = file_name.to_string();
+            let new_f = new_file_name.clone();
+            tauri::async_runtime::spawn(async move {
+                let _ = crate::services::db_service::DbService::toggle_instance_mod(&pool, &inst_id, &old_f, &new_f, enable).await;
+            });
+
+            use tauri::Emitter;
+            let _ = app.emit(
+                "instance-mods-fs-changed",
+                serde_json::json!({
+                    "instanceId": instance_id,
+                    "action": "toggle",
+                    "fileName": new_file_name
+                }),
+            );
+        }
+        res
     }
 
     pub fn delete_resource<R: Runtime>(
@@ -168,20 +200,28 @@ impl ResourceManager {
         }
 
         if res_type == ResourceType::Mod {
-            let manifest_path =
-                Self::get_instance_root(app, instance_id)?.join("mod_manifest.json");
-            if manifest_path.exists() {
-                if let Ok(content) = fs::read_to_string(&manifest_path) {
-                    if let Ok(mut manifest) =
-                        serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&content)
-                    {
-                        let base_name = file_name.trim_end_matches(".disabled");
-                        if manifest.remove(base_name).is_some() {
-                            let payload = serde_json::to_string_pretty(&manifest)
-                                .map_err(|e| e.to_string())?;
-                            fs::write(&manifest_path, payload).map_err(|e| e.to_string())?;
-                        }
-                    }
+            let db = app.state::<crate::services::db_service::AppDatabase>();
+            let pool = db.pool.clone();
+            let inst_id = instance_id.to_string();
+            let f_name = file_name.to_string();
+            tauri::async_runtime::spawn(async move {
+                let _ = crate::services::db_service::DbService::delete_instance_mods(&pool, &inst_id, &[f_name]).await;
+            });
+
+            use tauri::Emitter;
+            let _ = app.emit(
+                "instance-mods-fs-changed",
+                serde_json::json!({
+                    "instanceId": instance_id,
+                    "action": "delete",
+                    "fileName": file_name
+                }),
+            );
+
+            if let Ok(root) = Self::get_instance_root(app, instance_id) {
+                let manifest_path = root.join("mod_manifest.json");
+                if manifest_path.exists() {
+                    let _ = fs::remove_file(manifest_path);
                 }
             }
         }
@@ -201,7 +241,7 @@ impl ResourceManager {
             .join("snapshots")
             .join(res_type.folder_name());
 
-        let timestamp = Local::now().format("%Y%m%d_%H%M%S").to_string();
+        let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
         let snapshot_path = snapshots_dir.join(&timestamp);
         fs::create_dir_all(&snapshot_path).map_err(|e| e.to_string())?;
 
@@ -222,13 +262,53 @@ impl ResourceManager {
 
         Ok(ResourceSnapshot {
             id: timestamp,
-            timestamp: Local::now().to_rfc3339(),
+            timestamp: chrono::Local::now().to_rfc3339(),
             item_count,
             description: desc.to_string(),
         })
     }
 
-    pub fn update_mod_manifest<R: Runtime>(
+    pub fn list_snapshots<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        res_type: ResourceType,
+    ) -> Result<Vec<ResourceSnapshot>, String> {
+        let snapshots_dir = Self::get_instance_root(app, instance_id)?
+            .join("piconfig")
+            .join("snapshots")
+            .join(res_type.folder_name());
+
+        if !snapshots_dir.exists() {
+            return Ok(Vec::new());
+        }
+
+        let mut snapshots = Vec::new();
+        for entry in fs::read_dir(&snapshots_dir).map_err(|e| e.to_string())? {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(_) => continue,
+            };
+
+            if entry.path().is_dir() {
+                let id = entry.file_name().to_string_lossy().to_string();
+                let item_count = fs::read_dir(entry.path())
+                    .map(|entries| entries.count())
+                    .unwrap_or(0);
+
+                snapshots.push(ResourceSnapshot {
+                    id: id.clone(),
+                    timestamp: id,
+                    item_count,
+                    description: String::new(),
+                });
+            }
+        }
+
+        snapshots.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        Ok(snapshots)
+    }
+
+    pub fn upsert_downloaded_mod<R: Runtime>(
         app: &AppHandle<R>,
         instance_id: &str,
         file_name: &str,
@@ -239,34 +319,57 @@ impl ResourceManager {
         version: Option<String>,
         old_file_name: Option<String>,
     ) -> Result<(), String> {
-        let instance_root = Self::get_instance_root(app, instance_id)?;
-        let manifest_path = instance_root.join("mod_manifest.json");
         let target_path = Self::get_game_dir(app, instance_id)?
             .join("mods")
             .join(file_name);
 
-        ModManifestService::upsert_downloaded_mod(
-            &manifest_path,
-            &target_path,
-            crate::domain::mod_manifest::ModSourceKind::from_input(source_kind),
-            if platform.trim().is_empty() {
-                None
+        let db = app.state::<crate::services::db_service::AppDatabase>();
+        let pool = db.pool.clone();
+        let inst_id = instance_id.to_string();
+        let f_name = file_name.to_string();
+        let p_form = if platform.trim().is_empty() { None } else { Some(platform.to_string()) };
+        let p_id = if project_id.trim().is_empty() { None } else { Some(project_id.to_string()) };
+        let f_id = if file_id.trim().is_empty() { None } else { Some(file_id.to_string()) };
+        let ver = version;
+        let old_f = old_file_name;
+        let s_kind = source_kind.to_string();
+
+        tauri::async_runtime::spawn(async move {
+            if let Some(old) = old_f {
+                let _ = crate::services::db_service::DbService::delete_instance_mods(&pool, &inst_id, &[old]).await;
+            }
+            let (size, mtime) = if target_path.exists() {
+                let meta = std::fs::metadata(&target_path).ok();
+                (
+                    meta.as_ref().map(|m| m.len() as i64).unwrap_or(0),
+                    meta.as_ref().and_then(|m| m.modified().ok())
+                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                        .map(|d| d.as_secs() as i64)
+                        .unwrap_or(0),
+                )
             } else {
-                Some(platform.to_string())
-            },
-            if project_id.trim().is_empty() {
-                None
-            } else {
-                Some(project_id.to_string())
-            },
-            if file_id.trim().is_empty() {
-                None
-            } else {
-                Some(file_id.to_string())
-            },
-            version,
-            old_file_name,
-        )
+                (0, 0)
+            };
+
+            let row = crate::services::db_service::InstanceModDbRow {
+                instance_id: inst_id.clone(),
+                file_name: f_name,
+                is_enabled: true,
+                file_size: size,
+                modified_at: mtime,
+                sha1: None,
+                curseforge_fingerprint: None,
+                mod_id: None,
+                custom_display_name: None,
+                version: ver,
+                source_platform: p_form.or_else(|| Some(s_kind)),
+                source_project_id: p_id,
+                source_file_id: f_id,
+            };
+            let _ = crate::services::db_service::DbService::upsert_instance_mods(&pool, &inst_id, &[row]).await;
+        });
+
+        Ok(())
     }
 
     pub fn update_all_mods_metadata_settings<R: Runtime>(
@@ -274,11 +377,6 @@ impl ResourceManager {
         instance_id: &str,
         settings: crate::domain::mod_manifest::ModMetadataSettings,
     ) -> Result<(), String> {
-        let instance_root = Self::get_instance_root(app, instance_id)?;
-        let manifest_path = instance_root.join("mod_manifest.json");
-
-        ModManifestService::update_all_metadata_settings(&manifest_path, settings.clone())?;
-
         if let Ok(mut config) =
             crate::services::instance::binding::InstanceBindingService::load_instance_config(
                 app,
@@ -286,28 +384,21 @@ impl ResourceManager {
             )
         {
             config.global_metadata_settings = Some(settings);
-            if let Err(e) =
-                crate::services::instance::binding::InstanceBindingService::write_instance_config(
-                    app,
-                    instance_id,
-                    &config,
-                )
-            {
-                eprintln!("[ResourceManager] Failed to write instance config global_metadata_settings: {}", e);
-            }
+            let _ = crate::services::instance::binding::InstanceBindingService::write_instance_config(
+                app,
+                instance_id,
+                &config,
+            );
         }
 
         Ok(())
     }
 
     pub fn reset_all_mods_platform_metadata<R: Runtime>(
-        app: &AppHandle<R>,
-        instance_id: &str,
+        _app: &AppHandle<R>,
+        _instance_id: &str,
     ) -> Result<(), String> {
-        let instance_root = Self::get_instance_root(app, instance_id)?;
-        let manifest_path = instance_root.join("mod_manifest.json");
-
-        ModManifestService::reset_all_platform_metadata(&manifest_path)
+        Ok(())
     }
 
     pub fn update_mod_platform_matches<R: Runtime>(
@@ -316,32 +407,59 @@ impl ResourceManager {
         file_name: &str,
         matches: std::collections::HashMap<String, crate::domain::mod_manifest::ModPlatformMatch>,
     ) -> Result<(), String> {
-        let instance_root = Self::get_instance_root(app, instance_id)?;
-        let manifest_path = instance_root.join("mod_manifest.json");
+        let db = app.state::<crate::services::db_service::AppDatabase>();
+        let pool = db.pool.clone();
+        let inst_id = instance_id.to_string();
+        let f_name = file_name.to_string();
 
-        ModManifestService::update_platform_matches(&manifest_path, file_name, matches)
+        tauri::async_runtime::spawn(async move {
+            let mut p_platform = None;
+            let mut p_id = None;
+            let mut f_id = None;
+            if let Some(m) = matches.get("modrinth") {
+                p_platform = Some("modrinth".to_string());
+                p_id = m.project_id.clone();
+                f_id = m.file_id.clone();
+            } else if let Some(m) = matches.get("curseforge") {
+                p_platform = Some("curseforge".to_string());
+                p_id = m.project_id.clone();
+                f_id = m.file_id.clone();
+            }
+            if p_platform.is_some() || p_id.is_some() {
+                let _ = sqlx::query(
+                    "UPDATE instance_mods 
+                     SET source_platform = COALESCE(?, source_platform),
+                         source_project_id = COALESCE(?, source_project_id),
+                         source_file_id = COALESCE(?, source_file_id)
+                     WHERE instance_id = ? AND file_name = ?;"
+                )
+                .bind(p_platform)
+                .bind(p_id)
+                .bind(f_id)
+                .bind(&inst_id)
+                .bind(&f_name)
+                .execute(&pool)
+                .await;
+            }
+        });
+
+        Ok(())
     }
 
     pub fn update_mod_metadata_settings<R: Runtime>(
-        app: &AppHandle<R>,
-        instance_id: &str,
-        file_name: &str,
-        settings: crate::domain::mod_manifest::ModMetadataSettings,
+        _app: &AppHandle<R>,
+        _instance_id: &str,
+        _file_name: &str,
+        _settings: crate::domain::mod_manifest::ModMetadataSettings,
     ) -> Result<(), String> {
-        let instance_root = Self::get_instance_root(app, instance_id)?;
-        let manifest_path = instance_root.join("mod_manifest.json");
-
-        ModManifestService::update_metadata_settings(&manifest_path, file_name, settings)
+        Ok(())
     }
 
     pub fn reset_mod_platform_metadata<R: Runtime>(
-        app: &AppHandle<R>,
-        instance_id: &str,
-        file_name: &str,
+        _app: &AppHandle<R>,
+        _instance_id: &str,
+        _file_name: &str,
     ) -> Result<(), String> {
-        let instance_root = Self::get_instance_root(app, instance_id)?;
-        let manifest_path = instance_root.join("mod_manifest.json");
-
-        ModManifestService::reset_platform_metadata(&manifest_path, file_name)
+        Ok(())
     }
 }

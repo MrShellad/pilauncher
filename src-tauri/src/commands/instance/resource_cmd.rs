@@ -182,7 +182,7 @@ pub async fn update_mod_manifest<R: Runtime>(
     version: Option<String>,
     old_file_name: Option<String>,
 ) -> Result<(), String> {
-    ResourceManager::update_mod_manifest(
+    ResourceManager::upsert_downloaded_mod(
         &app,
         &instance_id,
         &file_name,

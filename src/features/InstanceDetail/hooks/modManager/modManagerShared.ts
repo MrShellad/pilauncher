@@ -153,7 +153,8 @@ export const buildUpdateCacheEntry = (
 
   return {
     hasUpdate: true,
-    updateVersionName: latest.name || latest.version_number,
+    // `name` 经常是“MOD 名称 + 版本号”的展示文案；列表标签应只使用版本号。
+    updateVersionName: latest.version_number || latest.name,
     updateDownloadUrl: latest.download_url,
     updateFileId: latest.id,
     updateFileName: latest.file_name,

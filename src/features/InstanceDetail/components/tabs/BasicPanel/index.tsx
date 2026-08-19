@@ -3,7 +3,6 @@ import { Loader2, CheckCircle2 } from 'lucide-react';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { useTranslation } from 'react-i18next';
 
-import { SettingsPageLayout } from '../../../../../ui/layout/SettingsPageLayout';
 import { FocusItem } from '../../../../../ui/focus/FocusItem';
 
 import { BasicInfoSection } from './components/BasicInfoSection';
@@ -32,8 +31,7 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
   const { isSaving, setIsSaving, successMsg, triggerSuccess } = useBasicPanelStatus();
 
   return (
-    <SettingsPageLayout>
-      <div className="relative flex flex-col w-full h-full gap-[clamp(1.5rem,2vw,2rem)]">
+    <div className="custom-scrollbar relative flex flex-1 min-h-0 flex-col w-full overflow-y-auto overflow-x-hidden p-4 gap-6">
 
         <FocusItem focusKey="basic-guard-top" onFocus={() => setFocus('basic-input-name')}>
           {({ ref }) => <div ref={ref as React.RefObject<HTMLDivElement>} className="absolute top-0 left-0 w-full h-[0.0625rem] opacity-0 pointer-events-none" tabIndex={-1} />}
@@ -118,8 +116,6 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
           isGlobalSaving={isSaving}
           setIsGlobalSaving={setIsSaving}
         />
-
-      </div>
-    </SettingsPageLayout>
+    </div>
   );
 };

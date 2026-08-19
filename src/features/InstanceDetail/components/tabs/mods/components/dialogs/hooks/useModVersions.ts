@@ -1,5 +1,5 @@
 // src/features/InstanceDetail/components/tabs/mods/components/dialogs/hooks/useModVersions.ts
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   fetchModrinthVersions,
   searchModrinth
@@ -27,32 +27,13 @@ export const useModVersions = (
 ) => {
   const [modVersions, setModVersions] = useState<any[]>([]);
   const [isLoadingVersions, setIsLoadingVersions] = useState(false);
-  
-  // Cache versions fetched during the lifetime of the opened dialog.
-  // Using useRef ensures updating cache does not trigger effect cycles.
-  const cacheRef = useRef<Record<string, any[]>>({});
-
-  // Invalidate cache when displayMod changes.
-  useEffect(() => {
-    cacheRef.current = {};
-  }, [displayMod?.fileName]);
 
   useEffect(() => {
     if (displayMod && instanceConfig) {
-      const cacheKey = activePlatform;
-      
-      // If version history for the active platform is already cached, return immediately
-      if (cacheRef.current[cacheKey]) {
-        setModVersions(cacheRef.current[cacheKey]);
-        setIsLoadingVersions(false);
-        return;
-      }
-
       setIsLoadingVersions(true);
 
       const fetchPlatformVersions = async () => {
         if (activePlatform === 'curseforge' && !hasCurseForgeApiKey()) {
-          cacheRef.current[cacheKey] = [];
           setModVersions([]);
           return;
         }
@@ -78,7 +59,6 @@ export const useModVersions = (
         }
 
         if (!currentProjectId) {
-          cacheRef.current[cacheKey] = [];
           setModVersions([]);
           return;
         }
@@ -90,14 +70,12 @@ export const useModVersions = (
           : fetchModrinthVersions;
 
         const res = await fetchVersions(currentProjectId, targetMc, targetLoader);
-        cacheRef.current[cacheKey] = res;
         setModVersions(res);
       };
 
       fetchPlatformVersions()
         .catch(err => {
           console.error("获取版本失败:", err);
-          cacheRef.current[cacheKey] = [];
           setModVersions([]);
         })
         .finally(() => setIsLoadingVersions(false));

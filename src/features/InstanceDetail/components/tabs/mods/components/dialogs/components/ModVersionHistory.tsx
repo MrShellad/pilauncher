@@ -4,7 +4,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { CheckCircle2, Clock3, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { OreToggleButton } from '../../../../../../../../ui/primitives/OreToggleButton';
+import { CurseforgeIcon, ModrinthIcon } from '../../../../../../../Download/components/Icons';
 import { OreButton } from '../../../../../../../../ui/primitives/OreButton';
 import { FocusItem } from '../../../../../../../../ui/focus/FocusItem';
 import { OreOverlayScrollArea } from '../../../../../../../../ui/primitives/OreOverlayScrollArea';
@@ -15,7 +15,6 @@ import {
 } from '../../../../../../logic/modService';
 import { type OreProjectVersion } from '../../../../../../logic/modrinthApi';
 import {
-  HISTORY_PLATFORM_TABS,
   getPlatformFileId,
   getPlatformProjectId
 } from '../utils/modDetailUtils';
@@ -99,11 +98,6 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
     return index < currentVersionIndex ? 'upgrade' : 'downgrade';
   };
 
-  const toggleOptions = HISTORY_PLATFORM_TABS.map((tab) => ({
-    label: tab.label,
-    value: tab.id
-  }));
-
   const parentRef = useRef<HTMLDivElement>(null);
 
   const rowVirtualizer = useVirtualizer({
@@ -114,17 +108,54 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
   });
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 border-t border-white/5 pt-4 font-minecraft">
-      <div className="flex flex-col items-center justify-center mb-4 shrink-0">
-        <OreToggleButton
-          options={toggleOptions}
-          value={activePlatform}
-          onChange={(id) => setActivePlatform(id as ModPlatformId)}
-          focusKeyPrefix="active-platform"
-          uiScale="adaptive"
-          size="sm"
-          className="[--ore-toggle-height:2rem] [--ore-toggle-min-width:6.5rem] [--ore-toggle-px:0.75rem] [--ore-toggle-font-size:0.8125rem]"
-        />
+    <div className="flex-1 flex flex-col min-h-[14rem] border-t-[2px] border-[var(--ore-downloadDetail-divider)] pt-3 font-minecraft">
+      <div className="flex items-center justify-between mb-2.5 shrink-0 gap-3">
+        <h3 className="font-minecraft text-white text-xs sm:text-sm tracking-wide font-bold flex items-center gap-1.5 min-w-0">
+          <span className="truncate">📜 {t('instanceDetail.mods.versionHistory.title', { defaultValue: '版本历史' })}</span>
+          {modVersions.length > 0 && (
+            <span className="text-[10px] bg-white/10 text-gray-300 px-1.5 py-0.2 rounded font-mono shrink-0">
+              {modVersions.length}
+            </span>
+          )}
+        </h3>
+
+        {/* Compact platform tabs with spatial navigation */}
+        <div className="inline-flex p-0.5 rounded-[2px] bg-black/40 border border-[var(--ore-downloadDetail-divider)] shrink-0">
+          <FocusItem focusKey="platform-tab-modrinth" onEnter={() => setActivePlatform('modrinth')}>
+            {({ ref, focused }) => (
+              <button
+                ref={ref}
+                type="button"
+                onClick={() => setActivePlatform('modrinth')}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-minecraft tracking-wide rounded-[2px] transition-all select-none outline-none ${
+                  activePlatform === 'modrinth'
+                    ? 'bg-[#183822] text-[#1BD96A] border border-[#1BD96A]/50 font-bold shadow-sm'
+                    : 'text-gray-400 hover:text-white border border-transparent'
+                } ${focused ? 'outline outline-2 outline-white z-10 brightness-110' : ''}`}
+              >
+                <ModrinthIcon className="text-[12px] text-[#1BD96A]" />
+                <span>Modrinth</span>
+              </button>
+            )}
+          </FocusItem>
+          <FocusItem focusKey="platform-tab-curseforge" onEnter={() => setActivePlatform('curseforge')}>
+            {({ ref, focused }) => (
+              <button
+                ref={ref}
+                type="button"
+                onClick={() => setActivePlatform('curseforge')}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-minecraft tracking-wide rounded-[2px] transition-all select-none outline-none ${
+                  activePlatform === 'curseforge'
+                    ? 'bg-[#3A1F14] text-[#F16436] border border-[#F16436]/50 font-bold shadow-sm'
+                    : 'text-gray-400 hover:text-white border border-transparent'
+                } ${focused ? 'outline outline-2 outline-white z-10 brightness-110' : ''}`}
+              >
+                <CurseforgeIcon className="text-[12px] text-[#F16436]" />
+                <span>CurseForge</span>
+              </button>
+            )}
+          </FocusItem>
+        </div>
       </div>
       {isLoadingVersions ? (
         <VersionListSkeleton />
@@ -225,15 +256,31 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
 
                         <div className="flex min-w-0 flex-1 flex-col pl-2">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="truncate font-minecraft text-[0.9375rem] leading-5 text-[var(--ore-downloadDetail-rowText)]">
+                            <span className="truncate font-minecraft text-[0.9375rem] leading-5 text-[var(--ore-downloadDetail-rowText)] font-bold">
                               {v.name}
                             </span>
-                            <span className="border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] px-2 py-0.5 font-mono text-[0.625rem] text-white">
+                            <span className="border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] px-2 py-0.5 font-mono text-[0.625rem] text-white rounded-[2px]">
                               {v.version_number}
                             </span>
+                            {v.version_type && (
+                              <span className={`px-1.5 py-0.2 border text-[9px] font-minecraft uppercase tracking-wider rounded-[2px] ${
+                                v.version_type === 'release'
+                                  ? 'bg-[#1E3A1A] text-[#6CC349] border-[#3C8527]'
+                                  : v.version_type === 'beta'
+                                  ? 'bg-[#112A45] text-[#91CAFF] border-[#183B63]'
+                                  : 'bg-[#3B2500] text-[#FFB84D] border-[#B26B00]'
+                              }`}>
+                                {v.version_type}
+                              </span>
+                            )}
+                            {isInstalled && (
+                              <span className="px-1.5 py-0.2 border border-[#3C8527] bg-[#6CC349] text-black font-bold text-[9px] font-minecraft uppercase tracking-wider rounded-[2px]">
+                                {t('instanceDetail.mods.versionHistory.current', { defaultValue: '当前版本' })}
+                              </span>
+                            )}
                           </div>
 
-                          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.625rem] font-minecraft uppercase tracking-[0.08em] text-[var(--ore-downloadDetail-rowMutedText)]">
+                          <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[0.625rem] font-minecraft uppercase tracking-[0.08em] text-[var(--ore-downloadDetail-rowMutedText)]">
                             <span className="inline-flex items-center gap-1">
                               <Clock3 size={11} />
                               {formatDate(v.date_published)}

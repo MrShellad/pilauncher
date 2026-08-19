@@ -1,6 +1,6 @@
-import { listen } from '@tauri-apps/api/event';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { useEvent } from '../../../../hooks/useEvent';
 import type { ModMeta } from '../../logic/modService';
 import { getModIdentityKey } from '../../logic/modService';
 import {
@@ -8,8 +8,7 @@ import {
   LOADING_EXIT_DELAY_MS,
   mergeModBatch,
   SCAN_STATE_FLUSH_INTERVAL_MS,
-  type ModScanContext,
-  type ModScanProgressPayload
+  type ModScanContext
 } from './modManagerShared';
 
 export const useModListState = (instanceId: string) => {
@@ -186,39 +185,55 @@ export const useModListState = (instanceId: string) => {
     };
   }, []);
 
-  useEffect(() => {
-    const unlistenPromise = listen<ModScanProgressPayload>(
-      'instance-mods-scan-progress',
-      ({ payload }) => {
-        if (payload.instanceId !== instanceId || payload.requestId !== activeModScanRequestRef.current) {
-          return;
-        }
+  useEvent('instance-mods-scan-progress', (payload) => {
+    if (payload.instanceId !== instanceId || payload.requestId !== activeModScanRequestRef.current) {
+      return;
+    }
 
-        const context = modScanContextRef.current;
-        const nextMods = payload.mods.map((mod) => (
-          applyCachedUpdateState(mod, context?.cache)
-        ));
+    const context = modScanContextRef.current;
+    const nextMods = payload.mods.map((mod) => (
+      applyCachedUpdateState(mod, context?.cache)
+    ));
 
-        if (payload.complete) {
-          flushPendingScanMods();
-          setMods(nextMods);
-          return;
-        }
+    if (payload.complete) {
+      flushPendingScanMods();
+      setMods(nextMods);
+      return;
+    }
 
-        pendingScanModsRef.current = mergeModBatch(pendingScanModsRef.current, nextMods);
-        scheduleScanFlush();
-      }
-    );
+    pendingScanModsRef.current = mergeModBatch(pendingScanModsRef.current, nextMods);
+    scheduleScanFlush();
+  });
 
-    return () => {
-      void unlistenPromise.then((unlisten) => unlisten());
-    };
-  }, [flushPendingScanMods, instanceId, scheduleScanFlush, setMods]);
+  useEvent('mod-cloud-sync-incremental', ({ instanceId: eventInstanceId, updatedMods }) => {
+    if (eventInstanceId !== instanceId || updatedMods.length === 0) return;
+
+    const patchMap = new Map(updatedMods.map((u) => [u.fileName, u.patch]));
+    setMods((currentMods) => currentMods.map((mod) => {
+      const patch = patchMap.get(mod.fileName);
+      if (!patch) return mod;
+      return {
+        ...mod,
+        ...patch,
+        manifestEntry: patch.manifestEntry
+          ? ({
+              ...(mod.manifestEntry || {}),
+              ...patch.manifestEntry,
+              matchedPlatforms: {
+                ...(mod.manifestEntry?.matchedPlatforms || {}),
+                ...(patch.manifestEntry?.matchedPlatforms || {})
+              }
+            } as any)
+          : mod.manifestEntry
+      };
+    }));
+  });
 
   return {
     mods,
     setMods,
     isLoading,
+    setIsLoading,
     instanceConfig,
     setInstanceConfig,
     flushPendingScanMods,

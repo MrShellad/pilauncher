@@ -92,6 +92,7 @@ export const searchModrinth = async (params: SearchParams): Promise<{ hits: Modr
 // ==========================================
 export interface OreProjectDetail {
   id: string;
+  slug?: string;
   title: string;
   author: string;
   description: string;

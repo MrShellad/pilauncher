@@ -39,6 +39,7 @@ export interface ModManifestEntry {
   matchedPlatforms?: Record<string, ModPlatformMatch>;
   metadataSettings?: ModMetadataSettings;
   dependencies?: string[];
+  aliases?: string[];
 }
 
 export interface ModMeta {
@@ -67,6 +68,8 @@ export interface ModMeta {
   isUpdatingMod?: boolean;
   cacheKey?: string;
   dependencies?: string[];
+  aliases?: string[];
+  dependentsCount?: number;
 }
 
 export type ModVersionInstallAction = 'install' | 'upgrade' | 'downgrade' | 'reinstall';
@@ -381,8 +384,28 @@ export const modService = {
   rollbackInstance: (id: string, snapshotId: string) => 
     invoke<SnapshotRollbackResult>('rollback_instance', { instanceId: id, snapshotId }),
     
-  updateModCache: (cacheKey: string, name: string, desc: string, iconUrl: string) =>
-    invoke<string | null>('update_mod_cache', { cacheKey, name, desc, iconUrl }),
+  updateModCache: (
+    cacheKey: string,
+    name: string,
+    desc: string,
+    iconUrl: string,
+    modId?: string,
+    curseforgeFingerprint?: number,
+    modrinthHash?: string,
+    curseforgeProjectId?: string,
+    modrinthProjectId?: string
+  ) =>
+    invoke<string | null>('update_mod_cache', {
+      cacheKey,
+      name,
+      desc,
+      iconUrl,
+      modId,
+      curseforgeFingerprint,
+      modrinthHash,
+      curseforgeProjectId,
+      modrinthProjectId
+    }),
 
   ensureOfflineJarIcon: (instanceId: string, fileName: string) =>
     invoke<string | null>('ensure_offline_jar_icon', { instanceId, fileName }),
@@ -444,6 +467,7 @@ export const modService = {
       });
   },
 
+
   updateModMetadataSettings: (
     instanceId: string,
     fileName: string,
@@ -464,6 +488,8 @@ export const modService = {
       });
   },
 
+
+
   downloadResource: (url: string, fileName: string, instanceId: string, subFolder: string, taskId?: string) =>
     invoke('download_resource', { url, fileName, instanceId, subFolder, taskId }),
 
@@ -476,5 +502,49 @@ export const modService = {
       .finally(() => {
         modManifestCache.delete(id);
       });
-  }
+  },
+
+  getInstanceDependencyHealth: (id: string): Promise<InstanceDependencyHealth> =>
+    invoke<InstanceDependencyHealth>('get_instance_dependency_health', { id }),
+
+  saveModRelations: (relations: ModRelationRecord[]): Promise<void> =>
+    invoke('save_mod_relations', { relations })
 };
+
+export interface MissingDependencyInfo {
+  targetIdentifier: string;
+  targetNameHint?: string;
+  versionRequirement?: string;
+  relationType: string;
+}
+
+export interface DependencySummaryInfo {
+  targetIdentifier: string;
+  targetNameHint?: string;
+  relationType: string;
+  isInstalledInInstance: boolean;
+}
+
+export interface ConflictPairInfo {
+  modAFileName: string;
+  modBFileName: string;
+  reason?: string;
+}
+
+export interface InstanceDependencyHealth {
+  missingDependencies: Record<string, MissingDependencyInfo[]>;
+  instanceDependents: Record<string, string[]>;
+  declaredDependencies: Record<string, DependencySummaryInfo[]>;
+  conflicts: ConflictPairInfo[];
+}
+
+export interface ModRelationRecord {
+  sourceIdentifier: string;
+  sourceType: string;
+  targetIdentifier: string;
+  targetType: string;
+  relationType: string;
+  versionRequirement?: string;
+  targetNameHint?: string;
+  sourceProvider: string;
+}

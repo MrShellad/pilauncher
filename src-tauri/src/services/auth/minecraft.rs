@@ -362,6 +362,58 @@ pub async fn ensure_account_skin<R: Runtime>(
     Err("账号皮肤缓存不存在，且无法从账号皮肤 URL 获取".to_string())
 }
 
+/// 确保账号当前披风已缓存到 `{base}/runtime/accounts/{uuid}/cape.png`。
+///
+/// 皮肤预览运行在 WebView 中；将披风先缓存为本地资源可避免打包版中
+/// 远程图片的 CORS 策略导致纹理加载失败。
+pub async fn ensure_account_cape<R: Runtime>(
+    app: &AppHandle<R>,
+    uuid: &str,
+    cape_url: Option<&str>,
+) -> Result<PathBuf, String> {
+    let target_dir = paths::account_runtime_dir(app, uuid)?;
+    fs::create_dir_all(&target_dir).map_err(|e| format!("创建账号资源目录失败: {}", e))?;
+
+    let cape_path = target_dir.join("cape.png");
+
+    let source = cape_url
+        .map(|url| url.split('?').next().unwrap_or("").trim())
+        .filter(|url| !url.is_empty())
+        .ok_or_else(|| "账号没有正在使用的披风".to_string())?;
+
+    if !(source.starts_with("http://") || source.starts_with("https://")) {
+        return Err("账号披风 URL 无效".to_string());
+    }
+
+    let response = get_client()
+        .get(source)
+        .send()
+        .await
+        .map_err(|e| format_reqwest_error("下载账号披风失败", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("下载账号披风失败: HTTP {}", response.status()));
+    }
+
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("读取账号披风失败: {}", e))?;
+
+    if !content_type.starts_with("image/") || !skin_png::is_png(&bytes) {
+        return Err("下载的账号披风不是有效的 PNG 图片".to_string());
+    }
+
+    fs::write(&cape_path, bytes).map_err(|e| format!("写入披风缓存失败: {}", e))?;
+    Ok(cape_path)
+}
+
 /// 获取或下载账号头像
 pub async fn get_or_fetch_account_avatar<R: Runtime>(
     app: &AppHandle<R>,

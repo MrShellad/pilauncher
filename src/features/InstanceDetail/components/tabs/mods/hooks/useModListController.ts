@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { useInputMode } from '../../../../../../ui/focus/FocusProvider';
 import type { ModIconSnapshot } from '../../../../logic/modIconService';
-import type { ModMeta } from '../../../../logic/modService';
+import type { InstanceDependencyHealth, ModMeta } from '../../../../logic/modService';
 import { useModListData } from './useModListData';
 import {
   type ModGroupId,
@@ -16,6 +16,7 @@ import { useModListFocus } from './useModListFocus';
 interface UseModListControllerOptions {
   instanceId?: string;
   mods: ModMeta[];
+  dependencyHealth?: InstanceDependencyHealth | null;
   searchQuery: string;
   isLoading: boolean;
   selectedMods: Set<string>;
@@ -35,6 +36,7 @@ interface VirtualRange {
 export const useModListController = ({
   instanceId,
   mods,
+  dependencyHealth,
   searchQuery,
   isLoading,
   selectedMods,
@@ -209,6 +211,8 @@ export const useModListController = ({
     return {
       mod,
       iconSnapshot: getIconSnapshot(mod.fileName),
+      missingDependencies: dependencyHealth?.missingDependencies?.[mod.fileName],
+      dependentsCount: mod.dependentsCount ?? dependencyHealth?.instanceDependents?.[mod.fileName]?.length,
       focusedRowFileName,
       operationRowFileName,
       requiresRowOperation,
@@ -229,6 +233,7 @@ export const useModListController = ({
       getActionFocusKey: getActionFocusKey as (fileName: string, action: RowAction) => string
     };
   }, [
+    dependencyHealth,
     enterRowOperation,
     focusedRowFileName,
     getActionFocusKey,
