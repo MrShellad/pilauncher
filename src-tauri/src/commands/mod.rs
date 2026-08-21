@@ -55,6 +55,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         settings_cmd::get_settings,
         settings_cmd::save_settings,
         system_cmd::start_deferred_services,
+        system_cmd::record_startup_mark,
         system_cmd::get_system_fonts,
         settings_cmd::import_background_image,
         settings_cmd::delete_background_image,

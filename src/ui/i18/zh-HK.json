@@ -1409,7 +1409,8 @@
       "title": "使用者授權協議",
       "subtitle": "為了繼續使用 PiLauncher，您必須閱讀並同意以下條款",
       "updateWarning": "由於使用者協議或隱私權政策發生了變更，請您重新閱讀並同意後方可繼續使用。",
-      "agree": "我已閱讀並完全同意"
+      "agree": "我已閱讀並完全同意",
+      "decline": "拒絕並退出"
     },
     "donate": {
       "title": "支援 PiLauncher 開發",

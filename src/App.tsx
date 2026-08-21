@@ -33,6 +33,7 @@ import { RuntimeRepairDialogHost } from './features/runtime/components/RuntimeRe
 import { StartupUpdateChecker } from './features/Settings/components/StartupUpdateChecker';
 import { useWebDavAutoSync } from './hooks/useWebDavAutoSync';
 import { useScreenDensity } from './hooks/ui/useScreenDensity';
+import { markStartup } from './services/startupDiagnostics';
 
 const News = lazy(() => import('./pages/News'));
 const Instances = lazy(() => import('./pages/Instances'));
@@ -145,6 +146,20 @@ const App: React.FC = () => {
   const showGameLog = game?.showGameLog ?? true;
   const isCrashed = useGameLogStore((s) => s.gameState === 'crashed');
   const shouldShowSidebar = showGameLog || isCrashed;
+
+  useLayoutEffect(() => {
+    markStartup('frontend.react_first_commit');
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+
+    markStartup('frontend.settings_hydrated');
+    const frameId = requestAnimationFrame(() => {
+      markStartup('frontend.first_animation_frame');
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, [hasHydrated]);
 
   useLayoutEffect(() => {
     injectDesignTokens();

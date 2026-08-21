@@ -34,7 +34,9 @@ export const useSetupWizard = () => {
     invoke<string | null>('get_base_directory')
       .then(async (res) => {
         const { settings } = useSettingsStore.getState();
-        const eulaNeedsUpdate = settings.general.lastAgreedLegalDate !== CURRENT_EULA_DATE;
+        const lastAgreedLegalDate = settings.general.lastAgreedLegalDate;
+        const isFirstRun = !lastAgreedLegalDate;
+        const eulaNeedsUpdate = !isFirstRun && lastAgreedLegalDate !== CURRENT_EULA_DATE;
 
         let pathVal = res || '';
         if (!pathVal) {
@@ -46,13 +48,18 @@ export const useSetupWizard = () => {
         }
         setBasePath(pathVal);
 
-        if (!res || eulaNeedsUpdate) {
+        // A base path alone does not mean the user completed onboarding: a
+        // legacy startup path may have created the default directory before
+        // the wizard was displayed. First run must always begin with the
+        // directory choice so the user explicitly owns that decision.
+        if (!res || isFirstRun) {
           setNeedsSetup(true);
-          if (res) {
-            // 如果 basePath 已有，说明仅是因为协议没签，直接跳到协议那一步
-            setStep('legal_agreement');
-            updateGeneralSetting('basePath', res);
-          }
+          setStep('directory');
+        } else if (eulaNeedsUpdate) {
+          setNeedsSetup(true);
+          // 已完成过目录选择，仅在协议更新时跳到协议确认。
+          setStep('legal_agreement');
+          updateGeneralSetting('basePath', res);
         } else {
           updateGeneralSetting('basePath', res);
         }

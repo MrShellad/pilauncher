@@ -78,6 +78,7 @@ fn apply_linux_compat_env_vars() {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let _ = lighty_core::app_state::AppState::init("PiLauncher");
+    let startup_trace = commands::system_cmd::StartupTrace::new();
 
     #[cfg(all(target_os = "linux", not(target_os = "android")))]
     apply_linux_compat_env_vars();
@@ -108,6 +109,7 @@ pub fn run() {
                 ))
                 .build(),
         )
+        .manage(startup_trace)
         .manage(lan_state.clone());
 
     builder = commands::register(builder);
@@ -115,12 +117,13 @@ pub fn run() {
     let app = builder
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
-            let base_path = services::config_service::ConfigService::ensure_base_path(app.handle())
-                .map_err(|error| {
-                    log::error!("failed to initialize base directory: {error}");
-                    std::io::Error::other(format!("failed to initialize base directory: {error}"))
-                })?;
-            log::info!("initialized launcher data directory: {base_path}");
+            app.state::<commands::system_cmd::StartupTrace>()
+                .mark("native.setup.begin");
+            // Do not create or select a game data directory during native
+            // startup. Doing so writes a default `base_path` before the
+            // frontend can present the first-run directory wizard, and can
+            // replace a missing/corrupt user selection with the default.
+            // The wizard owns this choice via `set_base_directory`.
 
             // ==========================================
             // 挂载异步的 SQLite 数据库
@@ -130,6 +133,8 @@ pub fn run() {
                 std::io::Error::other(format!("failed to resolve application data directory: {error}"))
             })?;
             let db_config_dir = app_dir.join("config");
+            app.state::<commands::system_cmd::StartupTrace>()
+                .mark("native.database.initialize.begin");
 
             let pool = tauri::async_runtime::block_on(async {
                 services::db_service::DbService::init_db(&db_config_dir).await
@@ -142,6 +147,8 @@ pub fn run() {
                 ))
             })?;
             log::info!("database initialized in {}", db_config_dir.display());
+            app.state::<commands::system_cmd::StartupTrace>()
+                .mark("native.database.initialize.complete");
 
             app.manage(services::db_service::AppDatabase { pool: pool.clone() });
             app.manage(services::deferred_startup::DeferredStartupState {
@@ -193,6 +200,22 @@ pub fn run() {
             // Non-critical LAN and gamepad services are started by the frontend after the
             // first rendered frame via start_deferred_services.
 
+            app.state::<commands::system_cmd::StartupTrace>()
+                .mark("native.setup.complete");
+
+            let frontend_timeout_trace = app
+                .state::<commands::system_cmd::StartupTrace>()
+                .inner()
+                .clone();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                if !frontend_timeout_trace.has_frontend_connection() {
+                    log::warn!(
+                        "[StartupTrace] frontend handshake timed out after 5s; inspect the Vite/WebView load path"
+                    );
+                }
+            });
+
             Ok(())
         })
         .build(tauri::generate_context!());
@@ -205,7 +228,12 @@ pub fn run() {
         }
     };
 
-    app.run(|_app_handle: &tauri::AppHandle, _event| {
+    app.run(|app_handle: &tauri::AppHandle, event| {
+        if matches!(event, tauri::RunEvent::Ready) {
+            app_handle
+                .state::<commands::system_cmd::StartupTrace>()
+                .mark("native.run_event.ready");
+        }
         // NOTE: Terracotta sidecar cleanup disabled — no child process to kill.
     });
 }

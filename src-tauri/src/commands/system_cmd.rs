@@ -1,5 +1,7 @@
 // src-tauri/src/commands/system_cmd.rs
 use std::collections::HashSet;
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::time::Instant;
 // ✅ 核心修复：导入缺失的路径和文件操作模块
 use std::fs;
 use std::path::Path;
@@ -9,6 +11,34 @@ use tauri::{AppHandle, Runtime, State};
 use crate::services::deferred_startup::DeferredStartupState;
 
 const FLATPAK_APP_ID: &str = "com.mrshell.PiLauncher";
+
+#[derive(Clone)]
+pub struct StartupTrace {
+    started_at: Instant,
+    frontend_connected: Arc<AtomicBool>,
+}
+
+impl StartupTrace {
+    pub fn new() -> Self {
+        Self {
+            started_at: Instant::now(),
+            frontend_connected: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    pub fn mark(&self, stage: &str) {
+        log::info!("[StartupTrace] +{}ms {}", self.started_at.elapsed().as_millis(), stage);
+    }
+
+    pub fn mark_frontend(&self, stage: &str) {
+        self.frontend_connected.store(true, Ordering::Release);
+        self.mark(&format!("frontend.{stage}"));
+    }
+
+    pub fn has_frontend_connection(&self) -> bool {
+        self.frontend_connected.load(Ordering::Acquire)
+    }
+}
 
 struct SteamShortcutTarget {
     exe: String,
@@ -39,6 +69,19 @@ pub async fn start_deferred_services(
     deferred_startup: State<'_, DeferredStartupState>,
 ) -> Result<(), String> {
     deferred_startup.start();
+    Ok(())
+}
+
+#[tauri::command]
+pub fn record_startup_mark(
+    startup_trace: State<'_, StartupTrace>,
+    mark: String,
+) -> Result<(), String> {
+    if mark.is_empty() || mark.len() > 160 {
+        return Err("invalid startup trace marker".to_string());
+    }
+
+    startup_trace.mark_frontend(&mark);
     Ok(())
 }
 #[command]

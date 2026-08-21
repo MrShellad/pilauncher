@@ -126,7 +126,11 @@ export const SetupWizard: React.FC = () => {
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="relative flex w-[33.75rem] max-w-[95vw] max-h-[90vh] flex-col items-center overflow-hidden rounded-[2px] border-[3px] border-ore-gray-border bg-[#18181B] p-6 sm:p-8 shadow-2xl"
+              className={`relative flex min-h-0 flex-col items-center overflow-hidden rounded-[2px] border-[3px] border-ore-gray-border bg-[#18181B] p-6 sm:p-8 shadow-2xl ${
+                step === 'legal_agreement'
+                  ? 'w-[48rem] max-w-[96vw] max-h-[94vh]'
+                  : 'w-[33.75rem] max-w-[95vw] max-h-[90vh]'
+              }`}
             >
               {step === 'directory' && (
                 <DirectoryStep

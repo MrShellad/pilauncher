@@ -1436,7 +1436,8 @@
       "title": "用户许可协议",
       "subtitle": "为了继续使用 PiLauncher，您必须阅读并同意以下条款",
       "updateWarning": "由于用户协议或隐私政策发生了变更，请您重新阅读并同意后方可继续使用。",
-      "agree": "我已阅读并完全同意"
+      "agree": "我已阅读并完全同意",
+      "decline": "拒绝并退出"
     },
     "donate": {
       "title": "支持 PiLauncher 开发",

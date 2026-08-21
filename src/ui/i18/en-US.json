@@ -1431,7 +1431,8 @@
       "title": "End User License Agreement",
       "subtitle": "To continue using PiLauncher, you must read and agree to the following terms",
       "updateWarning": "Due to changes in the EULA or Privacy Policy, you must read and agree again before continuing.",
-      "agree": "I have read and fully agree"
+      "agree": "I have read and fully agree",
+      "decline": "Decline and Exit"
     },
     "donate": {
       "title": "Sponsor PiLauncher Development",
