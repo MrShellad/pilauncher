@@ -1,11 +1,12 @@
 // src/features/Settings/components/tabs/AS/AccountCard.tsx
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { convertFileSrc, invoke } from '@tauri-apps/api/core';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import { CheckCircle2, ImagePlus, Pencil, Server, ShieldCheck, Trash2, UserRound } from 'lucide-react';
 
 import { FocusItem } from '../../../../../ui/focus/FocusItem';
 import defaultAvatar from '../../../../../assets/home/account/128.png';
+import { resolveAccountAvatarAsset } from '../../../../../services/accountAppearance';
 
 interface AccountCardProps {
   account: {
@@ -44,18 +45,9 @@ export const AccountCard: React.FC<AccountCardProps> = ({
 
   useEffect(() => {
     const fetchBackendAvatar = async () => {
-      try {
-        const validId = isValidUuid ? rawUuid : '8667ba71b85a4004af54457a9734eed7';
-        const localPath = await invoke<string>('get_or_fetch_account_avatar', {
-          uuid: validId,
-          username: account.name
-        });
-        const cacheBuster = account.skinUrl?.split('?t=')[1] || 'init';
-        setAvatarSrc(`${convertFileSrc(localPath)}?t=${cacheBuster}`);
-      } catch (error) {
-        console.error('[AccountCard] avatar fetch failed:', error);
-        setAvatarSrc(defaultAvatar);
-      }
+      const validId = isValidUuid ? rawUuid : '8667ba71b85a4004af54457a9734eed7';
+      const avatar = await resolveAccountAvatarAsset({ ...account, uuid: validId });
+      setAvatarSrc(avatar || defaultAvatar);
     };
 
     fetchBackendAvatar();

@@ -24,6 +24,15 @@ pub struct DownloadTuning {
 }
 
 impl DownloadTuning {
+    /// Uses the resumable single-connection transfer path without Range segments.
+    pub const fn single_stream() -> Self {
+        Self {
+            chunked_enabled: false,
+            chunked_threads: 1,
+            chunked_threshold_bytes: u64::MAX,
+        }
+    }
+
     pub fn should_use_chunked(self, total_size: u64) -> bool {
         self.chunked_enabled
             && self.chunked_threads >= CHUNKED_MIN_SEGMENTS
@@ -942,6 +951,14 @@ pub async fn download_file_with_control<R: Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn single_stream_tuning_never_uses_chunked_transfer() {
+        let tuning = DownloadTuning::single_stream();
+
+        assert!(!tuning.chunked_enabled);
+        assert!(!tuning.should_use_chunked(u64::MAX));
+    }
 
     #[tokio::test]
     async fn pause_blocks_until_resume() {

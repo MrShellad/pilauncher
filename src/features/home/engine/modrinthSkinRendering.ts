@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import bundledSteveTextureUrl from '../../../assets/models/steve.png?url';
 
 const modelCache = new Map<string, GLTF>();
 const textureCache = new Map<string, THREE.Texture>();
@@ -10,7 +11,19 @@ export async function loadModrinthModel(modelUrl: string): Promise<GLTF> {
   const cached = modelCache.get(modelUrl);
   if (cached) return cached;
 
-  const loader = new GLTFLoader();
+  // The player GLTF files reference `steve.png` and `cape` as relative files.
+  // Vite hashes assets in production, so those original paths do not exist in
+  // the packaged WebView. Map both references to an explicitly bundled image;
+  // the player/cape textures are replaced immediately after model loading.
+  const manager = new THREE.LoadingManager();
+  manager.setURLModifier((url) => {
+    const path = url.split(/[?#]/, 1)[0].replace(/\\/g, '/');
+    if (path.endsWith('/steve.png') || path.endsWith('/cape') || path === 'steve.png' || path === 'cape') {
+      return bundledSteveTextureUrl;
+    }
+    return url;
+  });
+  const loader = new GLTFLoader(manager);
   const gltf = await loader.loadAsync(modelUrl);
   modelCache.set(modelUrl, gltf);
   return gltf;
@@ -128,7 +141,11 @@ export async function loadModrinthTexture(
   // Load the image first to check size and normalize if legacy 64x32
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
     const i = new Image();
-    i.crossOrigin = 'anonymous';
+    // `asset://` is a local Tauri protocol. Requesting it with CORS mode can
+    // make WebView2 reject an otherwise valid cached skin in production.
+    if (/^https?:/i.test(textureUrl)) {
+      i.crossOrigin = 'anonymous';
+    }
     i.onload = () => resolve(i);
     i.onerror = () => reject(new Error(`Failed to load skin image: ${textureUrl}`));
     i.src = textureUrl;

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { convertFileSrc, invoke } from '@tauri-apps/api/core';
+import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import {
   ArrowLeft,
@@ -28,6 +28,7 @@ import type {
 import { useLan } from '../../../hooks/useLan';
 import { useAccountStore } from '../../../store/useAccountStore';
 import { useSettingsStore } from '../../../store/useSettingsStore';
+import { resolveAccountAvatarAsset } from '../../../services/accountAppearance';
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { useInputAction } from '../../../ui/focus/InputDriver';
@@ -446,16 +447,8 @@ export const MicrosoftAccountSidebar: React.FC<MicrosoftAccountSidebarProps> = (
     }
 
     const fetchAvatar = async () => {
-      try {
-        const localPath = await invoke<string>('get_or_fetch_account_avatar', {
-          uuid: currentAccount.uuid,
-          username: currentAccount.name,
-        });
-        const cacheBuster = currentAccount.skinUrl?.split('?t=')[1] || 'init';
-        setAvatarSrc(`${convertFileSrc(localPath)}?t=${cacheBuster}`);
-      } catch {
-        setAvatarSrc(defaultAvatar);
-      }
+      const avatar = await resolveAccountAvatarAsset(currentAccount);
+      setAvatarSrc(avatar || defaultAvatar);
     };
 
     void fetchAvatar();

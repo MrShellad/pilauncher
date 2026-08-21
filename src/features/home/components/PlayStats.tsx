@@ -1,6 +1,6 @@
 // src/features/home/components/PlayStats.tsx
 import React, { useState, useEffect } from 'react';
-import { invoke, convertFileSrc } from '@tauri-apps/api/core';
+import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
 import { OreMotionTokens } from '../../../style/tokens/motion';
@@ -13,6 +13,7 @@ import { openExternalLink } from '../../../utils/openExternalLink';
 import { formatPlayTime, formatRelativeTime } from '../../../utils/formatters';
 
 import { useAccountStore } from '../../../store/useAccountStore';
+import { resolveAccountAvatarAsset } from '../../../services/accountAppearance';
 import { useMicrosoftAuth } from '../../Settings/hooks/useMicrosoftAuth';
 import { MicrosoftAuthModal } from '../../Settings/components/modals/MicrosoftAuthModal';
 import { MicrosoftAccountSidebar } from './MicrosoftAccountSidebar';
@@ -65,19 +66,8 @@ export const PlayStats: React.FC<PlayStatsProps> = ({ instanceId, playTime, last
   useEffect(() => {
     if (currentAccount) {
       const fetchAvatar = async () => {
-        try {
-          const localPath = await invoke<string>('get_or_fetch_account_avatar', {
-            uuid: currentAccount.uuid,
-            username: currentAccount.name
-          });
-
-          // ✅ 核心修复：使用与 3D 皮肤同源的稳定时间戳，杜绝切页重载
-          const cacheBuster = currentAccount.skinUrl?.split('?t=')[1] || 'init';
-          setAvatarSrc(`${convertFileSrc(localPath)}?t=${cacheBuster}`);
-
-        } catch (e) {
-          setAvatarSrc(defaultAvatar);
-        }
+        const avatar = await resolveAccountAvatarAsset(currentAccount);
+        setAvatarSrc(avatar || defaultAvatar);
       };
       fetchAvatar();
     }

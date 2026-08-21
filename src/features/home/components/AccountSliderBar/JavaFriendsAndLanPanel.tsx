@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { invoke, convertFileSrc } from '@tauri-apps/api/core';
+import { invoke } from '@tauri-apps/api/core';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   ChevronDown,
@@ -18,6 +18,7 @@ import type { DiscoveredDevice, TrustedDevice } from '../../../../hooks/useLan';
 import type { MinecraftAccount } from '../../../../store/useAccountStore';
 import { useAccountStore } from '../../../../store/useAccountStore';
 import { useSettingsStore } from '../../../../store/useSettingsStore';
+import { resolveAccountAvatarAsset, resolveLanAvatarAsset } from '../../../../services/accountAppearance';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import defaultAvatarSvg from '../../../../assets/icons/user.svg';
 
@@ -136,7 +137,25 @@ const JavaFriendsAndLanItem: React.FC<{
 
   // Load LAN avatar if applicable
   useEffect(() => {
-    if (!item.isLan || !device) {
+    const javaFriend = item.javaFriend;
+    if (!item.isLan) {
+      if (!javaFriend?.uuid || !javaFriend.name) {
+        setAvatarSrc(null);
+        return;
+      }
+
+      let cancelled = false;
+      void resolveAccountAvatarAsset({ uuid: javaFriend.uuid, name: javaFriend.name })
+        .then((avatar) => {
+          if (!cancelled) setAvatarSrc(avatar);
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (!device) {
       setAvatarSrc(null);
       return;
     }
@@ -150,40 +169,14 @@ const JavaFriendsAndLanItem: React.FC<{
     }
 
     const fetchAvatar = async () => {
-      try {
-        const lanAvatarPath = await invoke<string>('sync_lan_avatar', {
-          targetIp: device.ip,
-          targetPort: device.port,
-          userUuid,
-        });
-
-        if (!cancelled) {
-          setAvatarSrc(`${convertFileSrc(lanAvatarPath)}?t=${Date.now()}`);
-        }
-        return;
-      } catch {
-        // fall back to Mojang / local account avatar
-      }
-
-      if (!username) {
-        if (!cancelled) {
-          setAvatarSrc(null);
-        }
-        return;
-      }
-
-      try {
-        const onlineAvatarPath = await invoke<string>('get_or_fetch_account_avatar', {
-          uuid: userUuid,
-          username,
-        });
-        if (!cancelled) {
-          setAvatarSrc(`${convertFileSrc(onlineAvatarPath)}?t=${Date.now()}`);
-        }
-      } catch {
-        if (!cancelled) {
-          setAvatarSrc(null);
-        }
+      const avatar = await resolveLanAvatarAsset({
+        targetIp: device.ip,
+        targetPort: device.port,
+        uuid: userUuid,
+        username,
+      });
+      if (!cancelled) {
+        setAvatarSrc(avatar);
       }
     };
 
@@ -191,13 +184,14 @@ const JavaFriendsAndLanItem: React.FC<{
     return () => {
       cancelled = true;
     };
-  }, [item.isLan, device?.ip, device?.port, relationship?.userUuid, richInfo?.userUuid, username]);
+  }, [item.isLan, item.javaFriend?.uuid, item.javaFriend?.name, device?.ip, device?.port, relationship?.userUuid, richInfo?.userUuid, username]);
 
   const getAvatarUrl = () => {
     if (item.isLan) {
       return avatarSrc || defaultAvatarSvg;
     }
     if (item.javaFriend) {
+      if (avatarSrc) return avatarSrc;
       if (item.javaFriend.avatarUrl) {
         return item.javaFriend.avatarUrl;
       }

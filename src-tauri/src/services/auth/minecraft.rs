@@ -14,6 +14,16 @@ use super::http::{format_reqwest_error, get_client};
 use super::{paths, skin_png, wardrobe};
 use crate::services::config_service::ConfigService;
 
+fn cached_source_matches(marker_path: &PathBuf, source: &str) -> bool {
+    fs::read_to_string(marker_path)
+        .map(|cached| cached == source)
+        .unwrap_or(false)
+}
+
+fn record_cached_source(marker_path: &PathBuf, source: &str) {
+    let _ = fs::write(marker_path, source);
+}
+
 /// 使用 XSTS Token + UHS 换取 Minecraft Access Token
 pub async fn auth_minecraft(xsts_token: &str, uhs: &str) -> Result<String, String> {
     let client = get_client();
@@ -312,8 +322,18 @@ pub async fn ensure_account_skin<R: Runtime>(
 
     let skin_path = target_dir.join("skin.png");
     let existing_valid = skin_path.exists() && skin_png::is_valid_skin_png_file(&skin_path);
+    let source_marker_path = target_dir.join("skin.source");
+    let requested_source = skin_url.map(str::trim).filter(|source| !source.is_empty());
 
-    if let Some(raw_url) = skin_url {
+    if existing_valid
+        && requested_source
+            .map(|source| cached_source_matches(&source_marker_path, source))
+            .unwrap_or(true)
+    {
+        return Ok(skin_path);
+    }
+
+    if let Some(raw_url) = requested_source {
         let source = raw_url.split('?').next().unwrap_or("").trim();
 
         if source.starts_with("http://") || source.starts_with("https://") {
@@ -324,6 +344,8 @@ pub async fn ensure_account_skin<R: Runtime>(
                     fs::copy(&local_asset_path, &skin_path)
                         .map_err(|e| format!("澶嶅埗鐨偆缂撳瓨澶辫触: {}", e))?;
                 }
+                record_cached_source(&source_marker_path, raw_url);
+                let _ = fs::remove_file(target_dir.join("avatar.png"));
                 return Ok(skin_path);
             }
 
@@ -334,6 +356,8 @@ pub async fn ensure_account_skin<R: Runtime>(
                         if skin_png::is_valid_skin_png_bytes(&bytes) {
                             fs::write(&skin_path, &bytes)
                                 .map_err(|e| format!("写入皮肤缓存失败: {}", e))?;
+                            record_cached_source(&source_marker_path, raw_url);
+                            let _ = fs::remove_file(target_dir.join("avatar.png"));
                             return Ok(skin_path);
                         }
                     }
@@ -346,6 +370,8 @@ pub async fn ensure_account_skin<R: Runtime>(
                     fs::copy(&source_path, &skin_path)
                         .map_err(|e| format!("复制皮肤缓存失败: {}", e))?;
                 }
+                record_cached_source(&source_marker_path, raw_url);
+                let _ = fs::remove_file(target_dir.join("avatar.png"));
                 return Ok(skin_path);
             }
         }
@@ -375,14 +401,23 @@ pub async fn ensure_account_cape<R: Runtime>(
     fs::create_dir_all(&target_dir).map_err(|e| format!("创建账号资源目录失败: {}", e))?;
 
     let cape_path = target_dir.join("cape.png");
+    let source_marker_path = target_dir.join("cape.source");
 
-    let source = cape_url
-        .map(|url| url.split('?').next().unwrap_or("").trim())
+    let requested_source = cape_url
+        .map(str::trim)
         .filter(|url| !url.is_empty())
         .ok_or_else(|| "账号没有正在使用的披风".to_string())?;
+    let source = requested_source.split('?').next().unwrap_or("").trim();
 
     if !(source.starts_with("http://") || source.starts_with("https://")) {
         return Err("账号披风 URL 无效".to_string());
+    }
+
+    if cape_path.exists()
+        && skin_png::is_png(&fs::read(&cape_path).unwrap_or_default())
+        && cached_source_matches(&source_marker_path, requested_source)
+    {
+        return Ok(cape_path);
     }
 
     let response = get_client()
@@ -411,6 +446,7 @@ pub async fn ensure_account_cape<R: Runtime>(
     }
 
     fs::write(&cape_path, bytes).map_err(|e| format!("写入披风缓存失败: {}", e))?;
+    record_cached_source(&source_marker_path, requested_source);
     Ok(cape_path)
 }
 

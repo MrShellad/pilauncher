@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import {
   ChevronDown,
   ChevronUp,
@@ -14,6 +13,7 @@ import {
 
 import type { DiscoveredDevice, TrustedDevice } from '../../../../hooks/useLan';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
+import { resolveLanAvatarAsset } from '../../../../services/accountAppearance';
 import defaultAvatarSvg from '../../../../assets/icons/user.svg';
 
 export interface DeviceInitInfo {
@@ -75,40 +75,14 @@ export const LanDeviceItem: React.FC<LanDeviceItemProps> = ({
     }
 
     const fetchAvatar = async () => {
-      try {
-        const lanAvatarPath = await invoke<string>('sync_lan_avatar', {
-          targetIp: device.ip,
-          targetPort: device.port,
-          userUuid,
-        });
-
-        if (!cancelled) {
-          setAvatarSrc(`${convertFileSrc(lanAvatarPath)}?t=${Date.now()}`);
-        }
-        return;
-      } catch {
-        // fall back to Mojang / local account avatar
-      }
-
-      if (!username) {
-        if (!cancelled) {
-          setAvatarSrc(null);
-        }
-        return;
-      }
-
-      try {
-        const onlineAvatarPath = await invoke<string>('get_or_fetch_account_avatar', {
-          uuid: userUuid,
-          username,
-        });
-        if (!cancelled) {
-          setAvatarSrc(`${convertFileSrc(onlineAvatarPath)}?t=${Date.now()}`);
-        }
-      } catch {
-        if (!cancelled) {
-          setAvatarSrc(null);
-        }
+      const avatar = await resolveLanAvatarAsset({
+        targetIp: device.ip,
+        targetPort: device.port,
+        uuid: userUuid,
+        username,
+      });
+      if (!cancelled) {
+        setAvatarSrc(avatar);
       }
     };
 

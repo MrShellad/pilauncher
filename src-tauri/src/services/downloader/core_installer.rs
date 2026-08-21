@@ -534,11 +534,9 @@ pub async fn install_vanilla_core<R: Runtime>(
     } else {
         None
     };
-    let tuning = DownloadTuning {
-        chunked_enabled: dl_settings.chunked_download_enabled,
-        chunked_threads: dl_settings.chunked_download_threads.max(1),
-        chunked_threshold_bytes: ConfigService::chunked_download_min_size_bytes(&dl_settings),
-    };
+    // Vanilla core mirrors frequently reject or inconsistently serve parallel
+    // Range requests. Keep resume support, but download the game JAR as one stream.
+    let tuning = DownloadTuning::single_stream();
 
     let mut success = false;
     let mut last_error: Option<String> = None;

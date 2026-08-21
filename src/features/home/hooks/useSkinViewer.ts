@@ -6,9 +6,15 @@
 // ════════════════════════════════════════════════════════════════
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { invoke, convertFileSrc } from '@tauri-apps/api/core';
+import { invoke } from '@tauri-apps/api/core';
 import { useAccountStore } from '../../../store/useAccountStore';
 import { useLauncherStore } from '../../../store/useLauncherStore';
+import {
+  getAppearanceRevision,
+  resolveAccountCapeAsset,
+  resolveAccountSkinAsset,
+  toAppearanceAssetUrl,
+} from '../../../services/accountAppearance';
 import { SkinEngine, type AnimationPreset } from '../engine/SkinEngine';
 
 const DEFAULT_SKIN_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAdVBMVEUAAAAAaGgAf38ApKQAr68AzMwDenoElZUFiIgKvLwkGAgmGgooKCgrHg0zJBE0JRI3Nzc6MYk/KhU/Pz9BNZtCHQpGOqVJJRBKSkpSPYlVVVVqQDB2SzN3QjWBUzmPXj6QWT+UYD6bY0mqclmzeV63g2v///9KLpkGAAAAAXRSTlMAQObYZgAAAvdJREFUWMPtlu1aozAQhWtBSdmSBYpVV4Vs0vX+L3HPmUmUdqsN/bsOSCc8zst8BGZWqyhNY3HaZoyyWiqN7XES8AK5BgBjHu5FxF3hAQLA3/WARoNwGsJygGUOm74fHVPopuWAXmKw06jHFTmwzGMzTg+QcVoQOyxrXnsICFgwHG4LaE1O9pu6trYmwfKoa91UPe/3WbHLDvKHP4fgf8q6Z0FJtvayB/QYz/ThcAgheLHSMCSQrA3UOF+Ht6fgn95C7Z3csrWAbE79be0hITw/wwNILf4jFUzHRUDd1M5P4283Pby+3kMZJ+9wk4AmBzA62JMw3j/co/4OC++4HX9AMt/KDtK2221a3wYgfLjtoqT7ZVkWCDWcBWy3bfsOgD0IZwFIk7vswWeADQE5HnwSQiEhnHgwDN2w3+87/AxQugqC56CsRal6gStMYVzgZw3h4gPQfQDwu6+MqcqyCoFX0WFZvtuX65ubNdQ5QAyHBDB3d6aACS/USSCrFPOiEgAW5wE47yDJiDrjhl6so9xA+HsEYBgkMGE0wtMJMBFQSfK8dzxEsDj2gCch+KPbBu4SEEMQh/im4kAN+NrMSplif8+BkcwVeKxJOpdiBYQAcM7KeAxg5g3dZvmgC6CIgCAAd+RBJ4ZDSsRQwcZUkrdKNKlfZcR/fd2PAY+Pab89ilRiVkkeKbSGvQkKCPrpmAHaHax+0XRHdafFgD8GZlQQEZS9ArwC/BzQtjsa7lrR2rilURZjNC9g4coCaA6dIFbf8l/KRoX7uiihfGfkW7LmhXmzZU/i52gRYN7uCXD+TFvP92BTnp0LFnhQuNzvoM4LQ+rWg84D2tqP5oKvAGKpc8Ne23kkzOeCrwBd7PcJUEVjQvI9IABamgeSpO9B+j78CziZF3Qe0HbCvnjZA+2xOrJAZy+Ko0HIKuVRCJA4EKTpICxIos4LLo0ksT1nbKK0EzQWl/q5zwSczgvJPiXhIuB0XkjzQErDZcDJvKAVZPp0Pjj9/7/jX3fLYvZOsQAAAABJRU5ErkJggg==';
@@ -63,7 +69,12 @@ interface UseSkinViewerOptions {
 export const detectSkinModel = (url: string): Promise<'classic' | 'slim'> => {
   return new Promise((resolve) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    // Cached skins use Tauri's local asset protocol in production. CORS mode
+    // is only necessary for remote images and can prevent WebView2 from
+    // loading local `asset:` resources.
+    if (/^https?:/i.test(url)) {
+      img.crossOrigin = 'anonymous';
+    }
     img.onload = () => {
       if (img.width !== 64 || img.height !== 64) {
         resolve('classic');
@@ -100,22 +111,6 @@ export const detectSkinModel = (url: string): Promise<'classic' | 'slim'> => {
 
 const stripSkinUrlQuery = (url?: string | null) => (url || '').split('?')[0].trim();
 
-const appendCacheBuster = (url: string, cacheBuster: string) => {
-  if (!cacheBuster || cacheBuster === 'init') return url;
-  return `${url}${url.includes('?') ? '&' : '?'}t=${encodeURIComponent(cacheBuster)}`;
-};
-
-const toLoadableSkinUrl = (url?: string | null, cacheBuster = 'init') => {
-  const rawUrl = stripSkinUrlQuery(url);
-  if (!rawUrl) return '';
-
-  if (/^(https?:|asset:|data:|blob:)/i.test(rawUrl)) {
-    return appendCacheBuster(rawUrl, cacheBuster);
-  }
-
-  return appendCacheBuster(convertFileSrc(rawUrl), cacheBuster);
-};
-
 const findActiveSkin = (profile: WardrobeProfile | null) =>
   profile?.skins.find((skin) => skin.state === 'ACTIVE') ?? profile?.skins[0] ?? null;
 
@@ -127,15 +122,6 @@ const resolveSkinModel = (variant?: string | null): 'classic' | 'slim' =>
 
 const isMicrosoftAccount = (account?: SkinViewerAccount | null) =>
   account?.type?.toLowerCase() === 'microsoft';
-
-const getCacheBuster = (url?: string | null) => {
-  const query = url?.split('?')[1] || '';
-  const timestamp = query
-    .split('&')
-    .map((part) => part.split('='))
-    .find(([key]) => key === 't')?.[1];
-  return timestamp ? decodeURIComponent(timestamp) : 'init';
-};
 
 const sameUrlWithoutQuery = (left?: string | null, right?: string | null) =>
   stripSkinUrlQuery(left) === stripSkinUrlQuery(right);
@@ -227,29 +213,27 @@ const syncMicrosoftAppearance = async (
 
 const loadAccountCape = async (engine: SkinEngine, account: SkinViewerAccount | null) => {
   const rawCapeUrl = stripSkinUrlQuery(account?.capeUrl);
-  if (!rawCapeUrl) {
+  if (!account || !rawCapeUrl) {
     engine.clearCape();
     return;
   }
 
   try {
-    const cacheBuster = getCacheBuster(account?.capeUrl);
-    const cachedCapePath = account?.uuid
-      ? await invoke<string>('ensure_account_cape', {
-          uuid: account.uuid,
-          capeUrl: rawCapeUrl,
-        })
-      : null;
-    const capeUrl = cachedCapePath
-      ? appendCacheBuster(convertFileSrc(cachedCapePath), cacheBuster)
-      : toLoadableSkinUrl(account?.capeUrl, cacheBuster);
+    const cacheBuster = getAppearanceRevision(account?.capeUrl);
+    const capeUrl = await resolveAccountCapeAsset(account) || toAppearanceAssetUrl(rawCapeUrl, cacheBuster);
+    if (!capeUrl) throw new Error('Missing cape URL');
 
     await engine.loadCape(`account-cape:${rawCapeUrl}:${cacheBuster}`, capeUrl);
   } catch (e) {
     // 缓存下载失败时保留远程 URL 兜底，兼容暂时不可写的旧数据目录。
-    const capeUrl = toLoadableSkinUrl(account?.capeUrl, getCacheBuster(account?.capeUrl));
+    const cacheBuster = getAppearanceRevision(account?.capeUrl);
+    const capeUrl = toAppearanceAssetUrl(rawCapeUrl, cacheBuster);
+    if (!capeUrl) {
+      engine.clearCape();
+      return;
+    }
     try {
-      await engine.loadCape(`account-cape:${rawCapeUrl}:${getCacheBuster(account?.capeUrl)}`, capeUrl);
+      await engine.loadCape(`account-cape:${rawCapeUrl}:${cacheBuster}`, capeUrl);
     } catch (fallbackError) {
       console.warn('[useSkinViewer] 加载账号披风失败，已清空披风:', fallbackError);
       engine.clearCape();
@@ -260,7 +244,7 @@ const loadAccountCape = async (engine: SkinEngine, account: SkinViewerAccount | 
 export const loadAccountSkin = async (engine: SkinEngine, currentAccount: unknown) => {
   const account = currentAccount as SkinViewerAccount | null;
   const uuid = account?.uuid ?? '';
-  const cacheBuster = getCacheBuster(account?.skinUrl);
+  const cacheBuster = getAppearanceRevision(account?.skinUrl);
   const skinKey = uuid ? `${uuid}:${cacheBuster}` : 'default:steve';
 
   if (!account) {
@@ -276,12 +260,8 @@ export const loadAccountSkin = async (engine: SkinEngine, currentAccount: unknow
   }
 
   try {
-    if (uuid) {
-      const cachedSkinPath = await invoke<string>('ensure_account_skin', {
-        uuid,
-        skinUrl: stripSkinUrlQuery(account.skinUrl)
-      });
-      const cachedSkinUrl = appendCacheBuster(convertFileSrc(cachedSkinPath), cacheBuster);
+    const cachedSkinUrl = await resolveAccountSkinAsset(account);
+    if (cachedSkinUrl) {
       const modelToLoad = metadataModel || await detectSkinModel(cachedSkinUrl);
       await engine.loadSkin(skinKey, cachedSkinUrl, modelToLoad);
       await loadAccountCape(engine, account);
@@ -291,7 +271,9 @@ export const loadAccountSkin = async (engine: SkinEngine, currentAccount: unknow
     console.warn('[useSkinViewer] 加载账号皮肤缓存失败，尝试账号皮肤 URL:', e);
   }
 
-  const accountSkinUrl = toLoadableSkinUrl(account.skinUrl, cacheBuster);
+  const accountSkinUrl = account.skinUrl
+    ? toAppearanceAssetUrl(account.skinUrl, cacheBuster)
+    : null;
   if (accountSkinUrl) {
     try {
       const modelToLoad = metadataModel || await detectSkinModel(accountSkinUrl);

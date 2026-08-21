@@ -1,4 +1,5 @@
 import React, { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import './style/app.css';
 import { initGamepadModRegistry } from './services/gamepadModService';
 import { AnimatePresence, motion } from 'motion/react';
 

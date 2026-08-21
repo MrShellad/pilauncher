@@ -190,7 +190,10 @@ export default defineConfig({
         }
       : undefined,
     watch: {
-      ignored: ['**/flatpak/**']
+      // Cargo output can contain hundreds of thousands of files. Letting
+      // Chokidar traverse it blocks Vite's event loop before the first page
+      // response, leaving the Tauri WebView on a black/white screen.
+      ignored: ['**/flatpak/**', '**/src-tauri/target/**', '**/build/**']
     }
   }
 })

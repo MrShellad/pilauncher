@@ -91,13 +91,20 @@ pub async fn run_downloads<R: Runtime>(
 
     let dl_settings = crate::services::config_service::ConfigService::get_download_settings(app);
     let auto_switch_sources = dl_settings.auto_check_latency;
-    let chunked_tuning = DownloadTuning {
-        chunked_enabled: dl_settings.chunked_download_enabled,
-        chunked_threads: dl_settings.chunked_download_threads.max(1),
-        chunked_threshold_bytes:
-            crate::services::config_service::ConfigService::chunked_download_min_size_bytes(
-                &dl_settings,
-            ),
+    // Minecraft libraries and assets come from a broad mix of Mojang and mirror
+    // hosts. Some advertise Range but fail parallel segments, so these deployment
+    // resources always use the resilient single-stream path. Mod downloads retain
+    // the user's chunked-download preference.
+    let chunked_tuning = match stage {
+        DownloadStage::Libraries | DownloadStage::Assets => DownloadTuning::single_stream(),
+        DownloadStage::Mods => DownloadTuning {
+            chunked_enabled: dl_settings.chunked_download_enabled,
+            chunked_threads: dl_settings.chunked_download_threads.max(1),
+            chunked_threshold_bytes:
+                crate::services::config_service::ConfigService::chunked_download_min_size_bytes(
+                    &dl_settings,
+                ),
+        },
     };
 
     let completed = Arc::new(tokio::sync::Mutex::new(0u64));
