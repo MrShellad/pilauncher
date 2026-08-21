@@ -95,6 +95,19 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
+        // Release binaries use the Windows GUI subsystem and do not have a
+        // console. Keep a file logger enabled there too, otherwise a startup
+        // failure looks like an unexplained flash-and-exit.
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Info)
+                .target(tauri_plugin_log::Target::new(
+                    tauri_plugin_log::TargetKind::LogDir {
+                        file_name: Some("startup".into()),
+                    },
+                ))
+                .build(),
+        )
         .manage(lan_state.clone());
 
     builder = commands::register(builder);
@@ -102,28 +115,33 @@ pub fn run() {
     let app = builder
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
-
-            services::config_service::ConfigService::ensure_base_path(app.handle()).map_err(
-                |error| std::io::Error::other(format!("failed to initialize base directory: {}", error)),
-            )?;
+            let base_path = services::config_service::ConfigService::ensure_base_path(app.handle())
+                .map_err(|error| {
+                    log::error!("failed to initialize base directory: {error}");
+                    std::io::Error::other(format!("failed to initialize base directory: {error}"))
+                })?;
+            log::info!("initialized launcher data directory: {base_path}");
 
             // ==========================================
             // 挂载异步的 SQLite 数据库
             // ==========================================
-            let app_dir = app.path().app_data_dir().expect("无法获取系统应用数据目录");
+            let app_dir = app.path().app_data_dir().map_err(|error| {
+                log::error!("failed to resolve application data directory: {error}");
+                std::io::Error::other(format!("failed to resolve application data directory: {error}"))
+            })?;
             let db_config_dir = app_dir.join("config");
 
             let pool = tauri::async_runtime::block_on(async {
                 services::db_service::DbService::init_db(&db_config_dir).await
             })
-            .expect("数据库初始化崩溃！请检查文件读写权限！");
+            .map_err(|error| {
+                log::error!("database initialization failed in {}: {error}", db_config_dir.display());
+                std::io::Error::other(format!(
+                    "database initialization failed in {}: {error}",
+                    db_config_dir.display()
+                ))
+            })?;
+            log::info!("database initialized in {}", db_config_dir.display());
 
             app.manage(services::db_service::AppDatabase { pool: pool.clone() });
             app.manage(services::deferred_startup::DeferredStartupState {
@@ -177,8 +195,15 @@ pub fn run() {
 
             Ok(())
         })
-        .build(tauri::generate_context!())
-        .expect("error while building tauri application");
+        .build(tauri::generate_context!());
+
+    let app = match app {
+        Ok(app) => app,
+        Err(error) => {
+            log::error!("failed to build Tauri application: {error}");
+            return;
+        }
+    };
 
     app.run(|_app_handle: &tauri::AppHandle, _event| {
         // NOTE: Terracotta sidecar cleanup disabled — no child process to kill.
