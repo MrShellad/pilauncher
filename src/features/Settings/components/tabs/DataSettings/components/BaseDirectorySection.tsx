@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Database, Edit2, FileX, LogOut, Trash2, FolderKanban, Layers } from 'lucide-react';
+import { AlertTriangle, Database, Edit2, FileX, LogOut, Trash2, FolderKanban, Layers, Loader2 } from 'lucide-react';
 
 import { FormRow } from '../../../../../../ui/layout/FormRow';
 import { SettingsSection } from '../../../../../../ui/layout/SettingsSection';
@@ -9,6 +9,8 @@ import type { ArrowPressHandler } from '../types';
 
 interface BaseDirectorySectionProps {
   basePath: string;
+  isMigrating: boolean;
+  migrationWarning: string | null;
   onOpenBrowser: () => void;
   onOpenRename: () => void;
   onOpenCleanLogs: () => void;
@@ -20,6 +22,8 @@ interface BaseDirectorySectionProps {
 
 export const BaseDirectorySection: React.FC<BaseDirectorySectionProps> = ({
   basePath,
+  isMigrating,
+  migrationWarning,
   onOpenBrowser,
   onOpenRename,
   onOpenCleanLogs,
@@ -34,7 +38,17 @@ export const BaseDirectorySection: React.FC<BaseDirectorySectionProps> = ({
     <SettingsSection title={t('settings.data.sections.core')} icon={<Database size={18} />}>
       <FormRow
         label={t('settings.data.coreLocation')}
-        description={t('settings.data.currentLoc', { path: basePath || t('settings.java.selector.placeholder') })}
+        description={
+          <div className="space-y-2">
+            <div>{t('settings.data.currentLoc', { path: basePath || t('settings.java.selector.placeholder') })}</div>
+            {migrationWarning && (
+              <div className="flex items-start gap-2 text-amber-300">
+                <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+                <span>{migrationWarning}</span>
+              </div>
+            )}
+          </div>
+        }
         vertical={false}
         control={
           <OreButton
@@ -42,9 +56,11 @@ export const BaseDirectorySection: React.FC<BaseDirectorySectionProps> = ({
             onClick={onOpenBrowser}
             focusKey="settings-data-modify-dir"
             onArrowPress={onArrowPress}
+            disabled={isMigrating}
             className="w-[240px] justify-center whitespace-nowrap"
           >
-            <LogOut size={16} className="mr-1.5" /> {t('settings.data.btnModify')}
+            {isMigrating ? <Loader2 size={16} className="mr-1.5 animate-spin" /> : <LogOut size={16} className="mr-1.5" />}
+            {isMigrating ? t('settings.data.migrating') : t('settings.data.btnModify')}
           </OreButton>
         }
       />
@@ -59,6 +75,7 @@ export const BaseDirectorySection: React.FC<BaseDirectorySectionProps> = ({
             onClick={onOpenRename}
             focusKey="settings-data-rename-dir"
             onArrowPress={onArrowPress}
+            disabled={isMigrating}
             className="w-[240px] justify-center whitespace-nowrap"
           >
             <Edit2 size={16} className="mr-1.5" /> {t('settings.data.btnRename')}

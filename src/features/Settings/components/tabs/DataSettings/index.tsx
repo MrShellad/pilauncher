@@ -259,6 +259,8 @@ export const DataSettings: React.FC = () => {
 
       <BaseDirectorySection
         basePath={basePath}
+        isMigrating={coreDirectory.isMigrating}
+        migrationWarning={coreDirectory.migrationWarning}
         onOpenBrowser={coreDirectory.openBrowser}
         onOpenRename={coreDirectory.openRenameModal}
         onOpenCleanLogs={logCleaner.openConfirm}

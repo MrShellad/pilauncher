@@ -195,6 +195,52 @@ impl Default for GameSettings {
 pub struct ConfigService;
 
 impl ConfigService {
+    fn read_base_path_from_meta(path: &Path) -> Option<String> {
+        let content = fs::read_to_string(path).ok()?;
+        let json = serde_json::from_str::<serde_json::Value>(&content).ok()?;
+        json.get("base_path")?.as_str().map(str::to_string)
+    }
+
+    fn write_meta_atomically(meta_path: &Path, data: &[u8]) -> Result<(), String> {
+        let parent = meta_path
+            .parent()
+            .ok_or_else(|| "无法解析系统配置目录".to_string())?;
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+
+        let temp_path = meta_path.with_extension("json.tmp");
+        let backup_path = meta_path.with_extension("json.bak");
+        if temp_path.exists() {
+            fs::remove_file(&temp_path).map_err(|e| format!("清理临时配置失败: {e}"))?;
+        }
+
+        fs::write(&temp_path, data).map_err(|e| format!("写入临时配置失败: {e}"))?;
+        fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&temp_path)
+            .and_then(|file| file.sync_all())
+            .map_err(|e| format!("同步临时配置失败: {e}"))?;
+
+        if backup_path.exists() {
+            fs::remove_file(&backup_path).map_err(|e| format!("清理旧配置备份失败: {e}"))?;
+        }
+        if meta_path.exists() {
+            fs::rename(meta_path, &backup_path).map_err(|e| format!("备份当前配置失败: {e}"))?;
+        }
+
+        if let Err(error) = fs::rename(&temp_path, meta_path) {
+            if backup_path.exists() {
+                let _ = fs::rename(&backup_path, meta_path);
+            }
+            return Err(format!("提交数据目录配置失败: {error}"));
+        }
+
+        if backup_path.exists() {
+            fs::remove_file(&backup_path).map_err(|e| format!("清理配置备份失败: {e}"))?;
+        }
+        Ok(())
+    }
+
     pub fn download_speed_limit_bytes_per_sec(dl_settings: &DownloadSettings) -> u64 {
         if dl_settings.speed_limit == 0 {
             0
@@ -235,13 +281,16 @@ impl ConfigService {
 
     pub fn get_base_path<R: Runtime>(app: &AppHandle<R>) -> AppResult<Option<String>> {
         let path = Self::get_meta_path(app)?;
-        if path.exists() {
-            let content = fs::read_to_string(path)?;
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                if let Some(bp) = json["base_path"].as_str() {
-                    return Ok(Some(bp.to_string()));
-                }
-            }
+        if let Some(base_path) = Self::read_base_path_from_meta(&path) {
+            return Ok(Some(base_path));
+        }
+
+        // A process may have stopped between moving the old metadata aside and
+        // committing the replacement. Keep the backup readable so first-run
+        // detection never mistakes an interrupted settings write for a clean install.
+        let backup_path = path.with_extension("json.bak");
+        if let Some(base_path) = Self::read_base_path_from_meta(&backup_path) {
+            return Ok(Some(base_path));
         }
         Ok(None)
     }
@@ -395,13 +444,11 @@ impl ConfigService {
 
         Self::ensure_base_layout(target)?;
 
-        let meta_path = Self::get_meta_path(app).map_err(|e| e.to_string())?;
-        if let Some(parent) = meta_path.parent() {
-            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-        }
-        let data = serde_json::json!({ "base_path": target_path });
-        fs::write(meta_path, data.to_string()).map_err(|e| e.to_string())?;
         Self::ensure_shared_download_filter_config_in_base_path(target)?;
+        let meta_path = Self::get_meta_path(app).map_err(|e| e.to_string())?;
+        let data = serde_json::to_vec(&serde_json::json!({ "base_path": target_path }))
+            .map_err(|e| e.to_string())?;
+        Self::write_meta_atomically(&meta_path, &data)?;
         Ok(())
     }
 
@@ -429,6 +476,49 @@ impl ConfigService {
 #[cfg(test)]
 mod tests {
     use super::{ConfigService, DownloadSettings};
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn unique_test_root(label: &str) -> std::path::PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock should be after epoch")
+            .as_nanos();
+        std::env::temp_dir().join(format!("pilauncher-{label}-{unique}"))
+    }
+
+    #[test]
+    fn atomically_replaces_base_path_metadata_and_removes_temporary_files() {
+        let root = unique_test_root("meta-atomic");
+        fs::create_dir_all(&root).unwrap();
+        let meta_path = root.join("meta.json");
+        fs::write(&meta_path, r#"{"base_path":"old"}"#).unwrap();
+
+        ConfigService::write_meta_atomically(&meta_path, br#"{"base_path":"new"}"#).unwrap();
+
+        assert_eq!(
+            ConfigService::read_base_path_from_meta(&meta_path).as_deref(),
+            Some("new")
+        );
+        assert!(!meta_path.with_extension("json.tmp").exists());
+        assert!(!meta_path.with_extension("json.bak").exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn backup_metadata_remains_readable_after_an_interrupted_commit() {
+        let root = unique_test_root("meta-backup");
+        fs::create_dir_all(&root).unwrap();
+        let meta_path = root.join("meta.json");
+        let backup_path = meta_path.with_extension("json.bak");
+        fs::write(&backup_path, r#"{"base_path":"recoverable"}"#).unwrap();
+
+        assert_eq!(
+            ConfigService::read_base_path_from_meta(&backup_path).as_deref(),
+            Some("recoverable")
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn converts_speed_limits_using_the_selected_unit() {

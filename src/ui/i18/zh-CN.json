@@ -1052,8 +1052,10 @@
         "deleteConfirmHeadline": "确定要彻底删除该实例吗？",
         "deleteConfirmDesc": "该操作不可逆！实例的全部配置文件、MOD 以及单人存档都将被永久清除。"
       },
-      "migrateConfirm": "是否将当前目录下的所有游戏数据（实例、配置等）完整移动到新目录？\n\n选择【是】将移动所有数据\n选择【否】仅复制基本配置文件(settings.json)，旧数据予以保留",
+      "migrateConfirm": "是否将当前目录下缺失的游戏数据（实例、配置等）安全合并到新目录？\n\n选择【是】复制缺失数据，目标目录已有文件优先，原目录保留\n选择【否】仅复制基本配置文件(settings.json)，原目录保留",
       "migrateTitle": "数据迁移确认",
+      "migrating": "正在安全迁移…",
+      "migrationInterrupted": "上次数据目录迁移被中断，当前仍使用原目录，可重新选择目标目录后重试。",
       "migrateSuccess": "数据目录迁移成功！为了确保游戏运行正常，PiLauncher 将退出，请重新启动启动器。",
       "migrateSuccessTitle": "迁移成功",
       "migrateError": "目录修改过程中出错: {{error}}",

@@ -1047,8 +1047,10 @@
         "deleteConfirmHeadline": "Are you sure you want to delete this instance?",
         "deleteConfirmDesc": "This action is irreversible! All configuration files, mods, and singleplayer worlds will be permanently removed."
       },
-      "migrateConfirm": "Would you like to move all game data (instances, configs, etc.) from the current directory to the new one?\n\nSelect [Yes] to move all data.\nSelect [No] to only copy the basic configuration file (settings.json), keeping old data.",
+      "migrateConfirm": "Safely merge missing game data (instances, configs, etc.) into the new directory?\n\nSelect [Yes] to copy missing data while preserving existing target files and the source directory.\nSelect [No] to copy only settings.json and preserve the source directory.",
       "migrateTitle": "Data Migration Confirmation",
+      "migrating": "Migrating safely…",
+      "migrationInterrupted": "The previous data-directory migration was interrupted. The original directory remains active and the migration can be retried.",
       "migrateSuccess": "Data directory migration successful! To ensure normal game operation, PiLauncher will exit. Please restart the launcher.",
       "migrateSuccessTitle": "Migration Successful",
       "migrateError": "Error during directory modification: {{error}}",

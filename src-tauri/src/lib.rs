@@ -119,6 +119,11 @@ pub fn run() {
         .setup(move |app| {
             app.state::<commands::system_cmd::StartupTrace>()
                 .mark("native.setup.begin");
+            if let Err(error) =
+                commands::config_cmd::recover_interrupted_base_directory_migration(app.handle())
+            {
+                log::error!("failed to recover interrupted base directory migration: {error}");
+            }
             // Do not create or select a game data directory during native
             // startup. Doing so writes a default `base_path` before the
             // frontend can present the first-run directory wizard, and can
