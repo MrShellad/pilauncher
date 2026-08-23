@@ -1,6 +1,6 @@
 [package]
 name = "PiLauncher"
-version = "0.1.53"
+version = "0.1.54"
 description = "A Minecraft Launcher"
 authors = ["mrshell"]
 license = ""
@@ -17,6 +17,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2.5.4", features = [] }
 serde_json = "1.0"
+sha2 = "0.11.0"
 
 [dependencies]
 serde_json = "1.0"

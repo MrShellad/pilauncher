@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
 pub mod commands;
 pub mod domain;
@@ -117,6 +118,11 @@ pub fn run() {
     let app = builder
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
+            log::info!(
+                "starting PiLauncher {} with initial schema {}",
+                env!("CARGO_PKG_VERSION"),
+                env!("PILAUNCHER_INITIAL_SCHEMA_SHA384")
+            );
             app.state::<commands::system_cmd::StartupTrace>()
                 .mark("native.setup.begin");
             if let Err(error) =
@@ -141,16 +147,38 @@ pub fn run() {
             app.state::<commands::system_cmd::StartupTrace>()
                 .mark("native.database.initialize.begin");
 
-            let pool = tauri::async_runtime::block_on(async {
+            let pool = match tauri::async_runtime::block_on(async {
                 services::db_service::DbService::init_db(&db_config_dir).await
-            })
-            .map_err(|error| {
-                log::error!("database initialization failed in {}: {error}", db_config_dir.display());
-                std::io::Error::other(format!(
-                    "database initialization failed in {}: {error}",
-                    db_config_dir.display()
-                ))
-            })?;
+            }) {
+                Ok(pool) => pool,
+                Err(error) => {
+                    log::error!(
+                        "database initialization failed in {}: {error}",
+                        db_config_dir.display()
+                    );
+                    let log_path = app
+                        .path()
+                        .app_log_dir()
+                        .map(|path| path.join("startup.log"))
+                        .ok();
+                    let log_hint = log_path
+                        .as_ref()
+                        .map(|path| format!("\n\nStartup log: {}", path.display()))
+                        .unwrap_or_default();
+                    app.dialog()
+                        .message(format!(
+                            "PiLauncher could not initialize its database. Your data was not deleted.\n\n{error}{log_hint}"
+                        ))
+                        .title("PiLauncher startup failed")
+                        .kind(MessageDialogKind::Error)
+                        .blocking_show();
+                    return Err(std::io::Error::other(format!(
+                        "database initialization failed in {}: {error}",
+                        db_config_dir.display()
+                    ))
+                    .into());
+                }
+            };
             log::info!("database initialized in {}", db_config_dir.display());
             app.state::<commands::system_cmd::StartupTrace>()
                 .mark("native.database.initialize.complete");

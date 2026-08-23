@@ -1,7 +1,12 @@
+use sha2::{Digest, Sha384};
 use std::{
     env, fs,
     path::{Path, PathBuf},
 };
+
+const INITIAL_SCHEMA_MIGRATION: &str = "migrations/20260101000001_initial_schema.sql";
+const LOCKED_INITIAL_SCHEMA_SHA384: &str =
+    "2F4351D8BFDF1226B0125A0A585343653F47A3977F69324ADE7D90455F67A5579596546C20EAD73AC09FB2ACFF7C7C13";
 
 const CLIENT_ID_KEY: &str = "MICROSOFT_CLIENT_ID";
 const CURSEFORGE_KEY: &str = "CURSEFORGE_API_KEY";
@@ -23,6 +28,7 @@ const TMT_PROJECT_ID_KEY: &str = "TMT_PROJECT_ID";
 fn main() {
     let manifest_dir =
         PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("missing CARGO_MANIFEST_DIR"));
+    verify_immutable_initial_schema(&manifest_dir);
     let root_env_path = manifest_dir
         .parent()
         .expect("src-tauri should have a project root parent")
@@ -122,6 +128,28 @@ fn main() {
     // setup_terracotta_sidecar();
 
     tauri_build::build()
+}
+
+fn verify_immutable_initial_schema(manifest_dir: &Path) {
+    let migration_path = manifest_dir.join(INITIAL_SCHEMA_MIGRATION);
+    println!("cargo:rerun-if-changed={}", migration_path.display());
+
+    let migration = fs::read(&migration_path).unwrap_or_else(|error| {
+        panic!(
+            "failed to read immutable migration {}: {error}",
+            migration_path.display()
+        )
+    });
+    let actual = Sha384::digest(migration)
+        .iter()
+        .map(|byte| format!("{byte:02X}"))
+        .collect::<String>();
+
+    assert_eq!(
+        actual, LOCKED_INITIAL_SCHEMA_SHA384,
+        "published migration {INITIAL_SCHEMA_MIGRATION} was modified; restore it exactly and add a new versioned migration instead"
+    );
+    println!("cargo:rustc-env=PILAUNCHER_INITIAL_SCHEMA_SHA384={actual}");
 }
 
 fn read_first_env_value(env_path: &Path, keys: &[&str]) -> Option<String> {
