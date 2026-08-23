@@ -1,0 +1,5 @@
+# SQLx migration checksums are computed from the exact file bytes. Keep every
+# migration on LF across Windows, macOS, and Linux so all release artifacts
+# embed the same checksum.
+/src-tauri/migrations/*.sql text eol=lf
+
