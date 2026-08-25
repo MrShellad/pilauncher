@@ -24,8 +24,13 @@ import {
   type OreProjectDependency,
   type OreProjectVersion
 } from '../../../../../logic/modrinthApi';
-import { getInstalledProjectIds, getInstalledVersionIds, modService } from '../../../../../logic/modService';
+import {
+  getInstalledVersionIds,
+  InstalledModIndex,
+  modService
+} from '../../../../../logic/modService';
 import { eventBus } from '../../../../../../../utils/eventBus';
+import { useToastStore } from '../../../../../../../store/useToastStore';
 import { FocusBoundary } from '../../../../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../../../../ui/focus/FocusItem';
 import { useInputAction } from '../../../../../../../ui/focus/InputDriver';
@@ -303,6 +308,7 @@ export const InstanceModDownloadView: React.FC<{
     loadMoreFailed,
     retryLoadMore
   } = useResourceDownload(instanceId, { lockInstanceEnvironment: true });
+  const addToast = useToastStore((state) => state.addToast);
 
   const [selectedProject, setSelectedProject] = useState<ModrinthProject | null>(null);
   const [selectedProjectIdForTransition, setSelectedProjectIdForTransition] = useState<string | undefined>(undefined);
@@ -412,6 +418,7 @@ export const InstanceModDownloadView: React.FC<{
   const toggleProjectSelection = useInstanceDownloadSelectionStore((state) => state.toggleProject);
   const clearDownloadSelection = useInstanceDownloadSelectionStore((state) => state.clearSelection);
   const pendingDepIdsRef = React.useRef<Set<string>>(new Set());
+  const pendingDownloadProjectIdsRef = React.useRef<Set<string>>(new Set());
   const lastListFocusBeforeActionBarRef = React.useRef<string>('download-grid-item-0');
   const lastFocusBeforeModalRef = React.useRef<string>('inst-filter-search');
   const projectDetailsCache = React.useRef<Map<string, any>>(new Map());
@@ -421,7 +428,7 @@ export const InstanceModDownloadView: React.FC<{
   const targetLoader = resourceTab === 'mod'
     ? (resolvedLoaderType || resolveInstanceLoaderType(instanceConfig))
     : '';
-  const installedModIds = useMemo(() => getInstalledProjectIds(installedMods), [installedMods]);
+  const installedModIndex = useMemo(() => new InstalledModIndex(installedMods), [installedMods]);
   const installedVersionIds = useMemo(() => getInstalledVersionIds(installedMods), [installedMods]);
   const yHintText = useMemo(() => '回到顶部', []);
   const subFolder = resourceTab === 'shader'
@@ -564,7 +571,69 @@ export const InstanceModDownloadView: React.FC<{
     /* Legacy task initialization is owned by runResourceDownloadTask.
       message: '正在建立连接...',
     */
+    const projectId = explicitProjectId || version.project_id || selectedProject?.id || '';
+    const platform = source === 'curseforge' ? 'curseforge' : 'modrinth';
+    const downloadIdentity = projectId ? `${platform}:${projectId.toLowerCase()}` : '';
+    const shouldGuardInstalledMod = resourceTab === 'mod' && targetInstanceId === instanceId && !!projectId;
+
+    if (shouldGuardInstalledMod && pendingDownloadProjectIdsRef.current.has(downloadIdentity)) {
+      addToast('info', '该 Mod 已在下载队列中，已跳过重复任务');
+      return;
+    }
+
+    if (shouldGuardInstalledMod) {
+      pendingDownloadProjectIdsRef.current.add(downloadIdentity);
+    }
+
     try {
+      if (shouldGuardInstalledMod) {
+        // Final authoritative check immediately before creating the download task.
+        // This closes the gap between opening the dependency dialog and confirming it.
+        let actualMods;
+        try {
+          actualMods = await modService.getCachedModManifest(targetInstanceId, true);
+        } catch (error) {
+          console.error('下载前扫描实例 Mod 失败:', error);
+          addToast('error', '无法确认实例内已有 Mod，已取消下载以避免重复');
+          return;
+        }
+        let detail = projectDetailsCache.current.get(projectId) as { slug?: string; title?: string } | undefined;
+        if (!detail) {
+          try {
+            detail = source === 'curseforge'
+              ? await getCurseForgeProjectDetails(projectId)
+              : await getProjectDetails(projectId);
+            projectDetailsCache.current.set(projectId, detail);
+          } catch {
+            // Exact platform project IDs can still be checked without project details.
+          }
+        }
+
+        const installedMatch = new InstalledModIndex(actualMods).matchDependency(
+          {
+            projectId,
+            slug: detail?.slug,
+            name: detail?.title || version.file_name
+          },
+          platform
+        );
+        const installedFileIds = new Set(
+          getInstalledVersionIds(actualMods).map((value) => value.toLowerCase())
+        );
+        const exactFileInstalled = installedFileIds.has(version.id.toLowerCase())
+          || installedFileIds.has(version.file_name.toLowerCase());
+        if (installedMatch.status !== 'missing' || exactFileInstalled) {
+          addToast(
+            'info',
+            installedMatch.status === 'disabled'
+              ? '该 Mod 已存在但当前被禁用，已跳过重复下载'
+              : '当前实例已安装该 Mod，已跳过重复下载'
+          );
+          await refreshInstalledMods();
+          return;
+        }
+      }
+
       await runResourceDownloadTask({
         url: version.download_url,
         fileName: version.file_name,
@@ -573,14 +642,12 @@ export const InstanceModDownloadView: React.FC<{
         title: version.file_name,
         message: 'Connecting...',
         onCompleted: async () => {
-          const projectId = explicitProjectId || selectedProject?.id || '';
           let cachedDetail = projectId ? projectDetailsCache.current.get(projectId) : null;
           if (!cachedDetail && projectId && selectedProject && projectId === selectedProject.id) {
             cachedDetail = selectedProject;
           }
 
           if (projectId && cachedDetail) {
-            const platform = source === 'curseforge' ? 'curseforge' : 'modrinth';
             const cacheKey = `${platform}_${projectId}`;
             await modService.updateModCache(
               cacheKey,
@@ -623,33 +690,60 @@ export const InstanceModDownloadView: React.FC<{
       });
       */
       throw error;
+    } finally {
+      if (shouldGuardInstalledMod) {
+        pendingDownloadProjectIdsRef.current.delete(downloadIdentity);
+      }
     }
-  }, [instanceId, refreshInstalledMods, resourceTab, selectedProject, source, subFolder]);
+  }, [addToast, instanceId, refreshInstalledMods, resourceTab, selectedProject, source, subFolder]);
 
-  const resolveMissingDependencyInfo = useCallback(async (
+  const resolveMissingDependencies = useCallback(async (
     dependencies: OreProjectDependency[],
-    activeSource: DownloadSource
-  ): Promise<MissingDependencyInfo[]> => {
-    return Promise.all(
+    activeSource: DownloadSource,
+    identityIndex: InstalledModIndex = installedModIndex
+  ): Promise<{ entries: OreProjectDependency[]; info: MissingDependencyInfo[] }> => {
+    const inspected = await Promise.all(
       dependencies.map(async (dependency) => {
         const dependencyId = dependency.project_id!;
+        const exactMatch = identityIndex.matchDependency(
+          { projectId: dependencyId },
+          activeSource
+        );
+        if (exactMatch.status !== 'missing') return null;
 
         try {
-          if (activeSource === 'curseforge') {
-            const detail = await getCurseForgeProjectDetails(dependencyId);
-            projectDetailsCache.current.set(dependencyId, detail);
-            return { id: dependencyId, name: detail.title };
-          }
-
-          const detail = await getProjectDetails(dependencyId);
+          const detail = activeSource === 'curseforge'
+            ? await getCurseForgeProjectDetails(dependencyId)
+            : await getProjectDetails(dependencyId);
           projectDetailsCache.current.set(dependencyId, detail);
-          return { id: dependencyId, name: detail.title };
+          const localMatch = identityIndex.matchDependency(
+            {
+              projectId: dependencyId,
+              slug: detail.slug,
+              name: detail.title
+            },
+            activeSource
+          );
+          if (localMatch.status !== 'missing') return null;
+          return {
+            dependency,
+            info: { id: dependencyId, name: detail.title }
+          };
         } catch {
-          return { id: dependencyId, name: `未知前置 (${dependencyId})` };
+          return {
+            dependency,
+            info: { id: dependencyId, name: `未知前置 (${dependencyId})` }
+          };
         }
       })
     );
-  }, []);
+
+    const missing = inspected.filter((item): item is NonNullable<typeof item> => item !== null);
+    return {
+      entries: missing.map((item) => item.dependency),
+      info: missing.map((item) => item.info)
+    };
+  }, [installedModIndex]);
 
   const downloadWithDependencies = useCallback(async (
     version: OreProjectVersion,
@@ -721,28 +815,35 @@ export const InstanceModDownloadView: React.FC<{
       return;
     }
 
-    const missingDependencyEntries = requiredDependencies.filter(
-      (dependency) => 
-        !installedModIds.includes(dependency.project_id || '') &&
-        dependency.project_id &&
-        !pendingDepIdsRef.current.has(dependency.project_id)
+    const dependencyCandidates = requiredDependencies.filter(
+      (dependency) =>
+        dependency.project_id && !pendingDepIdsRef.current.has(dependency.project_id)
     );
 
-    if (missingDependencyEntries.length === 0) {
+    if (dependencyCandidates.length === 0) {
       await downloadWithDependencies(version, targetInstanceId, [], primaryProjectId);
       return;
     }
 
-    setPendingDependencyVersion(version);
-    setPendingDependencyEntries(missingDependencyEntries);
-    setPendingDependencyProjectId(primaryProjectId);
-    setMissingDeps([]);
-    setAutoInstallDeps(true);
     setIsCheckingDeps(true);
 
     try {
-      const resolvedMissingDeps = await resolveMissingDependencyInfo(missingDependencyEntries, source);
-      setMissingDeps(resolvedMissingDeps);
+      const latestInstalledMods = await refreshInstalledMods();
+      const missing = await resolveMissingDependencies(
+        dependencyCandidates,
+        source,
+        new InstalledModIndex(latestInstalledMods)
+      );
+      if (missing.entries.length === 0) {
+        await downloadWithDependencies(version, targetInstanceId, [], primaryProjectId);
+        return;
+      }
+
+      setPendingDependencyVersion(version);
+      setPendingDependencyEntries(missing.entries);
+      setPendingDependencyProjectId(primaryProjectId);
+      setMissingDeps(missing.info);
+      setAutoInstallDeps(true);
     } catch (error) {
       console.error('分析前置依赖失败:', error);
       closeDependencyModal();
@@ -755,9 +856,9 @@ export const InstanceModDownloadView: React.FC<{
     closeDependencyModal,
     downloadWithDependencies,
     instanceId,
-    installedModIds,
     pendingDependencyEntries,
-    resolveMissingDependencyInfo,
+    refreshInstalledMods,
+    resolveMissingDependencies,
     resourceTab,
     source
   ]);
@@ -850,8 +951,30 @@ export const InstanceModDownloadView: React.FC<{
   ]);
 
   const handleBatchDownload = useCallback(async () => {
-    const targets = [...selectedProjects];
+    let targets = [...selectedProjects];
     if (targets.length === 0) return;
+
+    if (resourceTab === 'mod') {
+      try {
+        const actualMods = await modService.getCachedModManifest(instanceId, true);
+        const actualIndex = new InstalledModIndex(actualMods);
+        const beforeCount = targets.length;
+        targets = targets.filter((project) => !actualIndex.isInstalled(project));
+        const skippedCount = beforeCount - targets.length;
+        if (skippedCount > 0) {
+          addToast('info', `已跳过 ${skippedCount} 个当前实例中已存在的 Mod`);
+        }
+      } catch (error) {
+        console.error('批量下载前扫描实例 Mod 失败:', error);
+        addToast('error', '无法确认实例内已有 Mod，已取消下载以避免重复');
+        return;
+      }
+    }
+
+    if (targets.length === 0) {
+      clearSelection();
+      return;
+    }
 
     targets.forEach((project) => {
       const key = project.id || (project as any).project_id;
@@ -906,7 +1029,6 @@ export const InstanceModDownloadView: React.FC<{
           const depId = dep.project_id!;
           if (
             !downloadableProjectIds.has(depId) &&
-            !installedModIds.includes(depId) &&
             !pendingDepIdsRef.current.has(depId)
           ) {
             allRequiredDepsMap.set(depId, dep);
@@ -914,9 +1036,9 @@ export const InstanceModDownloadView: React.FC<{
         }
       }
 
-      const missingDependencyEntries = Array.from(allRequiredDepsMap.values());
+      const dependencyCandidates = Array.from(allRequiredDepsMap.values());
 
-      if (missingDependencyEntries.length === 0) {
+      if (dependencyCandidates.length === 0) {
         await Promise.allSettled(
           downloadable.map(({ version, projectId }) =>
             enqueueDownload(version, instanceId, projectId)
@@ -927,10 +1049,25 @@ export const InstanceModDownloadView: React.FC<{
         return;
       }
 
-      setPendingDependencyEntries(missingDependencyEntries);
+      const latestInstalledMods = await refreshInstalledMods();
+      const missing = await resolveMissingDependencies(
+        dependencyCandidates,
+        source,
+        new InstalledModIndex(latestInstalledMods)
+      );
+      if (missing.entries.length === 0) {
+        await Promise.allSettled(
+          downloadable.map(({ version, projectId }) =>
+            enqueueDownload(version, instanceId, projectId)
+          )
+        );
+        closeDependencyModal();
+        clearSelection();
+        return;
+      }
 
-      const resolvedMissingDeps = await resolveMissingDependencyInfo(missingDependencyEntries, source);
-      setMissingDeps(resolvedMissingDeps);
+      setPendingDependencyEntries(missing.entries);
+      setMissingDeps(missing.info);
       setIsCheckingDeps(false);
     } catch (error) {
       console.error('批量下载依赖分析失败:', error);
@@ -938,12 +1075,13 @@ export const InstanceModDownloadView: React.FC<{
       clearSelection();
     }
   }, [
+    addToast,
     selectedProjects,
     fetchLatestProjectVersion,
     resourceTab,
-    installedModIds,
     source,
-    resolveMissingDependencyInfo,
+    refreshInstalledMods,
+    resolveMissingDependencies,
     enqueueDownload,
     instanceId,
     closeDependencyModal,

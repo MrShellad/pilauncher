@@ -161,19 +161,21 @@ export const useResourceDownload = (
   const loadInstalledMods = useCallback(async (forceRefresh = false) => {
     if (!instanceId) {
       setInstalledMods([]);
-      return;
+      return [] as ModMeta[];
     }
 
     try {
       const mods = await modService.getCachedModManifest(instanceId, forceRefresh);
-      setInstalledMods(mods || []);
+      const resolvedMods = mods || [];
+      setInstalledMods(resolvedMods);
+      return resolvedMods;
     } catch {
-      setInstalledMods([]);
+      return modService.getManifestModsSnapshot(instanceId) ?? [];
     }
   }, [instanceId]);
 
   const refreshInstalledMods = useCallback(async () => {
-    await loadInstalledMods(true);
+    return loadInstalledMods(true);
   }, [loadInstalledMods]);
 
   useEffect(() => {
@@ -183,10 +185,13 @@ export const useResourceDownload = (
     const loadInstalledManifest = async () => {
       if (!instanceId) return;
       try {
-        const mods = await modService.getCachedModManifest(instanceId);
+        // The download page must reflect the physical mods directory, including JARs
+        // copied in outside the launcher. A DB-only snapshot is not authoritative here.
+        const mods = await modService.getCachedModManifest(instanceId, true);
         if (!cancelled) setInstalledMods(mods || []);
       } catch {
-        if (!cancelled) setInstalledMods([]);
+        // Keep the last known list on transient scan failures instead of making every
+        // project appear uninstalled.
       }
     };
 
@@ -198,8 +203,8 @@ export const useResourceDownload = (
       }
 
       if (isCacheValid) {
-        setIsEnvLoaded(true);
-        void loadInstalledManifest();
+        await loadInstalledManifest();
+        if (!cancelled) setIsEnvLoaded(true);
         return;
       }
 
@@ -215,10 +220,8 @@ export const useResourceDownload = (
       } catch (error) {
         console.error('获取实例环境失败:', error);
       } finally {
-        if (!cancelled) {
-          setIsEnvLoaded(true);
-          void loadInstalledManifest();
-        }
+        await loadInstalledManifest();
+        if (!cancelled) setIsEnvLoaded(true);
       }
     };
 

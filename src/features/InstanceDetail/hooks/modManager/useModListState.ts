@@ -7,6 +7,7 @@ import {
   applyCachedUpdateState,
   LOADING_EXIT_DELAY_MS,
   mergeModBatch,
+  mergeModManifestEntry,
   SCAN_STATE_FLUSH_INTERVAL_MS,
   type ModScanContext
 } from './modManagerShared';
@@ -34,6 +35,8 @@ export const useModListState = (instanceId: string) => {
       && left.isFetchingNetwork === right.isFetchingNetwork
       && left.hasUpdate === right.hasUpdate
       && left.updateVersionName === right.updateVersionName
+      && left.updatePlatform === right.updatePlatform
+      && left.updateProjectId === right.updateProjectId
       && left.updateFileId === right.updateFileId
       && left.updateFileName === right.updateFileName
       && left.updateDownloadUrl === right.updateDownloadUrl
@@ -75,9 +78,14 @@ export const useModListState = (instanceId: string) => {
             isFetchingNetwork: newMod.isFetchingNetwork ?? existing.isFetchingNetwork,
             hasUpdate: newMod.hasUpdate ?? existing.hasUpdate,
             updateVersionName: newMod.updateVersionName ?? existing.updateVersionName,
+            updatePlatform: newMod.updatePlatform ?? existing.updatePlatform,
+            updateProjectId: newMod.updateProjectId ?? existing.updateProjectId,
             updateDownloadUrl: newMod.updateDownloadUrl ?? existing.updateDownloadUrl,
             updateFileId: newMod.updateFileId ?? existing.updateFileId,
             updateFileName: newMod.updateFileName ?? existing.updateFileName,
+            manifestEntry: (!existing.sha1 || !newMod.sha1 || existing.sha1 === newMod.sha1)
+              ? mergeModManifestEntry(existing.manifestEntry, newMod.manifestEntry)
+              : newMod.manifestEntry,
           };
 
           if (areEquivalent(existing, merged)) {

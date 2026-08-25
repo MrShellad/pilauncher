@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react';
 
+import { useEvent } from '../../../../hooks/useEvent';
 import {
   modService,
   resolveInstanceGameVersion,
@@ -164,6 +165,12 @@ export const useModManager = (instanceId: string) => {
     window.addEventListener('online', handleOnline);
     return () => window.removeEventListener('online', handleOnline);
   }, [loadMods]);
+
+  useEvent('instance-resources-fs-changed', (payload) => {
+    if (payload.instanceId !== instanceId || payload.resType !== 'mod') return;
+    modService.invalidateModManifestCache(instanceId);
+    void loadMods({ silent: true });
+  });
 
   const checkModUpdates = useCallback(async () => {
     const config = await modService.getInstanceDetail(instanceId);

@@ -143,6 +143,7 @@ pub async fn update_mod_manifest<R: Runtime>(
         version,
         old_file_name,
     )
+    .await
 }
 
 #[tauri::command]

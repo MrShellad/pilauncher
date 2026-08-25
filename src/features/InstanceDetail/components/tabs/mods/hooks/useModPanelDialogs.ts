@@ -72,6 +72,8 @@ const mergeSelectedModFromList = (current: ModMeta, matched: ModMeta) => {
     current.isFetchingNetwork === next.isFetchingNetwork &&
     current.hasUpdate === next.hasUpdate &&
     current.updateVersionName === next.updateVersionName &&
+    current.updatePlatform === next.updatePlatform &&
+    current.updateProjectId === next.updateProjectId &&
     current.updateFileId === next.updateFileId &&
     current.updateFileName === next.updateFileName &&
     current.updateDownloadUrl === next.updateDownloadUrl &&

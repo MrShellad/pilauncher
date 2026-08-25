@@ -70,6 +70,8 @@ export interface ModMeta {
   // Update fields
   hasUpdate?: boolean;
   updateVersionName?: string;
+  updatePlatform?: ModPlatformId;
+  updateProjectId?: string;
   updateFileId?: string;
   updateFileName?: string;
   updateDownloadUrl?: string;
@@ -99,14 +101,49 @@ export const resolveInstanceLoader = (config: any): string => {
 
 const normalizeInstalledKey = (value?: string | null) => String(value || '').trim();
 
+const normalizeModIdentity = (value?: string | null): string => {
+  let normalized = normalizeInstalledKey(value).toLowerCase();
+  normalized = normalized.replace(/\.disabled$/i, '').replace(/\.(jar|zip)$/i, '');
+  normalized = normalized.replace(/[-_+](?:fabric|forge|neoforge|quilt)(?=[-_+]|$).*$/i, '');
+  normalized = normalized.replace(/[-_+]v?\d+(?:[._+-]\w+)*.*$/i, '');
+  return normalized.replace(/[^a-z0-9]/g, '');
+};
+
+const getModIdentityVariants = (value?: string | null): string[] => {
+  const normalized = normalizeModIdentity(value);
+  if (!normalized) return [];
+
+  const variants = new Set([normalized]);
+  if (normalized.endsWith('v2') && normalized.length > 3) {
+    variants.add(normalized.slice(0, -2));
+  } else if (normalized.endsWith('2') && normalized.length > 3) {
+    variants.add(normalized.slice(0, -1));
+  }
+  return [...variants];
+};
+
+export interface ModDependencyIdentity {
+  projectId: string;
+  slug?: string | null;
+  name?: string | null;
+}
+
+export type InstalledDependencyStatus = 'installed' | 'disabled' | 'missing';
+
+export interface InstalledDependencyMatch {
+  status: InstalledDependencyStatus;
+  matchedBy?: 'projectId' | 'alias';
+}
+
 export const getModPlatformReference = (
   mod: ModMeta,
   platform: ModPlatformId
 ): ModPlatformMatch | undefined => {
   const source = mod.manifestEntry?.source;
   const matched = mod.manifestEntry?.matchedPlatforms?.[platform];
+  const sourcePlatform = source?.platform?.trim().toLowerCase();
 
-  if (source?.platform === platform && (source.projectId || source.fileId)) {
+  if (sourcePlatform === platform && (source?.projectId || source?.fileId)) {
     return {
       projectId: source.projectId || matched?.projectId,
       fileId: source.fileId || matched?.fileId
@@ -203,15 +240,12 @@ export const getModPreferredPlatformReference = (
   return { platform, reference };
 };
 
-export const buildLockedModMetadataSettings = (
-  platform: ModPlatformId,
+export const buildAutomaticUpdateMetadataSettings = (
   previous?: ModMetadataSettings
 ): ModMetadataSettings => ({
   ...(previous || {}),
-  metadataPlatform: platform,
-  updatePlatform: platform,
-  metadataLocked: true,
-  updateLocked: true
+  updatePlatform: 'auto',
+  updateLocked: false
 });
 
 export const getInstalledProjectIds = (mods: ModMeta[]): string[] => {
@@ -257,36 +291,93 @@ export const getInstalledVersionIds = (mods: ModMeta[]): string[] => {
 export class InstalledModIndex {
   public projectIds: Set<string> = new Set();
   public fileNames: string[] = [];
+  private enabledProjectIdsByPlatform = new Map<string, Set<string>>();
+  private disabledProjectIdsByPlatform = new Map<string, Set<string>>();
+  private enabledAliases = new Set<string>();
+  private disabledAliases = new Set<string>();
 
   constructor(mods: ModMeta[]) {
     for (const mod of mods) {
-      if (mod.modId) this.projectIds.add(normalizeInstalledKey(mod.modId));
-      if (mod.manifestEntry?.source?.projectId) {
-        this.projectIds.add(normalizeInstalledKey(mod.manifestEntry.source.projectId));
-      }
-      const modrinthProjectId = normalizeInstalledKey(getModPlatformReference(mod, 'modrinth')?.projectId);
-      const curseforgeProjectId = normalizeInstalledKey(getModPlatformReference(mod, 'curseforge')?.projectId);
-      if (modrinthProjectId) this.projectIds.add(modrinthProjectId);
-      if (curseforgeProjectId) this.projectIds.add(curseforgeProjectId);
+      const aliasTarget = mod.isEnabled ? this.enabledAliases : this.disabledAliases;
+      const projectTarget = mod.isEnabled
+        ? this.enabledProjectIdsByPlatform
+        : this.disabledProjectIdsByPlatform;
+      const registerAlias = (value?: string | null) => {
+        getModIdentityVariants(value).forEach((identity) => aliasTarget.add(identity));
+      };
+      const registerProject = (platform: string, projectId?: string | null) => {
+        const normalizedProjectId = normalizeInstalledKey(projectId).toLowerCase();
+        if (!normalizedProjectId) return;
+        const platformKey = platform.trim().toLowerCase();
+        if (!projectTarget.has(platformKey)) projectTarget.set(platformKey, new Set());
+        projectTarget.get(platformKey)!.add(normalizedProjectId);
+        this.projectIds.add(normalizedProjectId);
+      };
+
+      registerAlias(mod.modId);
+      registerAlias(mod.name);
+      registerAlias(mod.fileName);
+      registerAlias(mod.cacheKey?.replace(/^(?:local|file|modrinth|curseforge)_/i, ''));
+      mod.aliases?.forEach(registerAlias);
+      mod.manifestEntry?.aliases?.forEach(registerAlias);
+
+      const source = mod.manifestEntry?.source;
+      if (source?.platform) registerProject(source.platform, source.projectId);
+      registerProject('modrinth', getModPlatformReference(mod, 'modrinth')?.projectId);
+      registerProject('curseforge', getModPlatformReference(mod, 'curseforge')?.projectId);
+
+      if (mod.modId) this.projectIds.add(normalizeInstalledKey(mod.modId).toLowerCase());
       this.fileNames.push(normalizeInstalledKey(mod.fileName).toLowerCase());
     }
   }
 
+  public matchDependency(
+    dependency: ModDependencyIdentity,
+    platform: ModPlatformId
+  ): InstalledDependencyMatch {
+    const projectId = normalizeInstalledKey(dependency.projectId).toLowerCase();
+    const platformKey = platform.toLowerCase();
+
+    if (projectId && this.enabledProjectIdsByPlatform.get(platformKey)?.has(projectId)) {
+      return { status: 'installed', matchedBy: 'projectId' };
+    }
+    if (projectId && this.disabledProjectIdsByPlatform.get(platformKey)?.has(projectId)) {
+      return { status: 'disabled', matchedBy: 'projectId' };
+    }
+
+    const aliases = new Set<string>();
+    [dependency.slug, dependency.name, dependency.projectId].forEach((value) => {
+      getModIdentityVariants(value).forEach((identity) => aliases.add(identity));
+    });
+
+    for (const alias of aliases) {
+      if (this.enabledAliases.has(alias)) {
+        return { status: 'installed', matchedBy: 'alias' };
+      }
+    }
+    for (const alias of aliases) {
+      if (this.disabledAliases.has(alias)) {
+        return { status: 'disabled', matchedBy: 'alias' };
+      }
+    }
+
+    return { status: 'missing' };
+  }
+
   public isInstalled(project: ModrinthProject): boolean {
-    const pId1 = normalizeInstalledKey(project.id);
-    const pId2 = normalizeInstalledKey(project.project_id);
+    const pId1 = normalizeInstalledKey(project.id).toLowerCase();
+    const pId2 = normalizeInstalledKey(project.project_id).toLowerCase();
     
     if (pId1 && this.projectIds.has(pId1)) return true;
     if (pId2 && this.projectIds.has(pId2)) return true;
 
-    const projectSlug = normalizeInstalledKey(project.slug).toLowerCase();
-    if (!projectSlug) return false;
-    
-    for (const fileName of this.fileNames) {
-      if (fileName.includes(projectSlug)) return true;
-    }
-    
-    return false;
+    const projectAliases = new Set<string>();
+    [project.slug, project.title].forEach((value) => {
+      getModIdentityVariants(value).forEach((identity) => projectAliases.add(identity));
+    });
+    return [...projectAliases].some((alias) => (
+      this.enabledAliases.has(alias) || this.disabledAliases.has(alias)
+    ));
   }
 }
 
@@ -361,7 +452,9 @@ export const modService = {
       if (cached) return cloneModList(cached);
     }
 
-    const mods = await invoke<ModMeta[]>('get_instance_mod_manifest_cache', { id });
+    const mods = forceRefresh
+      ? await invoke<ModMeta[]>('get_instance_mods', { id, requestId: null })
+      : await invoke<ModMeta[]>('get_instance_mod_manifest_cache', { id });
     modManifestCache.set(id, mods || []);
     return cloneModList(mods || []);
   },

@@ -3,7 +3,7 @@ import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { runResourceDownloadTask } from '../../../Download/logic/resourceDownloadTask';
 import { useToastStore } from '../../../../store/useToastStore';
 import {
-  buildLockedModMetadataSettings,
+  buildAutomaticUpdateMetadataSettings,
   modService,
   type ModMeta,
   type ModPlatformId,
@@ -211,7 +211,7 @@ export const useModOperations = ({
     options: ModInstallOptions = {}
   ) => {
     const source = mod.manifestEntry?.source;
-    let platform = '' as ModPlatformId | '';
+    let platform = mod.updatePlatform || '' as ModPlatformId | '';
     if (version?.download_url) {
       const url = version.download_url.toLowerCase();
       if (url.includes('modrinth') || url.includes('cdn.modrinth.com')) {
@@ -225,9 +225,10 @@ export const useModOperations = ({
         ? source.platform
         : '') as ModPlatformId | '';
     }
-    const projectId = version?.project_id 
-      || source?.projectId 
-      || (platform ? (mod.manifestEntry?.matchedPlatforms as any)?.[platform]?.projectId : undefined)
+    const projectId = version?.project_id
+      || mod.updateProjectId
+      || (platform ? mod.manifestEntry?.matchedPlatforms?.[platform]?.projectId : undefined)
+      || (source?.platform === platform ? source.projectId : undefined)
       || mod.modId 
       || '';
     const targetVersionId = version?.id || mod.updateFileId || '';
@@ -291,8 +292,7 @@ export const useModOperations = ({
             fileId: targetVersionId
           }
         };
-        const metadataSettings = buildLockedModMetadataSettings(
-          platform,
+        const metadataSettings = buildAutomaticUpdateMetadataSettings(
           mod.manifestEntry?.metadataSettings
         );
         await modService.updateModPlatformMatches(instanceId, targetFileName, matchedPlatforms);
@@ -331,12 +331,14 @@ export const useModOperations = ({
                   }
                 : mod.manifestEntry.matchedPlatforms,
               metadataSettings: platform
-                ? buildLockedModMetadataSettings(platform, mod.manifestEntry.metadataSettings)
+                ? buildAutomaticUpdateMetadataSettings(mod.manifestEntry.metadataSettings)
                 : mod.manifestEntry.metadataSettings
             }
           : mod.manifestEntry,
         hasUpdate: false,
         updateVersionName: undefined,
+        updatePlatform: undefined,
+        updateProjectId: undefined,
         updateFileId: undefined,
         updateFileName: undefined,
         updateDownloadUrl: undefined,

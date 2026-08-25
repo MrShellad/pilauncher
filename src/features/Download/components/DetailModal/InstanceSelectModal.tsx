@@ -14,7 +14,12 @@ import { OreCheckbox } from '../../../../ui/primitives/OreCheckbox';
 import { getProjectDetails, type OreProjectVersion } from '../../../InstanceDetail/logic/modrinthApi';
 import { getCurseForgeProjectDetails } from '../../logic/curseforgeApi';
 import type { DownloadSource } from '../../hooks/useResourceDownload';
-import { getInstalledProjectIds, getInstalledVersionIds, modService } from '../../../InstanceDetail/logic/modService';
+import {
+  getInstalledProjectIds,
+  getInstalledVersionIds,
+  InstalledModIndex,
+  modService
+} from '../../../InstanceDetail/logic/modService';
 
 interface CompatibleInstance {
   id: string;
@@ -278,15 +283,45 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
 
       try {
         const missingDepIds = new Set<string>();
+        const dependencyIdentities = await Promise.all(
+          requiredDeps.map(async (dependency) => {
+            const dependencyId = dependency.project_id!;
+            try {
+              const fetchDetails = source === 'curseforge'
+                ? getCurseForgeProjectDetails
+                : getProjectDetails;
+              const detail = await fetchDetails(dependencyId);
+              return {
+                dependencyId,
+                identity: {
+                  projectId: dependencyId,
+                  slug: detail.slug,
+                  name: detail.title
+                },
+                name: detail.title
+              };
+            } catch {
+              return {
+                dependencyId,
+                identity: { projectId: dependencyId },
+                name: t('download.instanceSelect.unknownDependency', {
+                  id: dependencyId,
+                  defaultValue: `未知前置 (${dependencyId})`
+                })
+              };
+            }
+          })
+        );
 
         await Promise.all(
           selectedIds.map(async (instanceId) => {
-            const installedMods = await modService.getCachedModManifest(instanceId).catch(() => []);
-            const installedModIds = new Set(getInstalledProjectIds(installedMods));
+            const installedMods = await modService
+              .getCachedModManifest(instanceId, true)
+              .catch(() => []);
+            const installedIndex = new InstalledModIndex(installedMods);
 
-            requiredDeps.forEach((dependency) => {
-              const dependencyId = dependency.project_id;
-              if (dependencyId && !installedModIds.has(dependencyId)) {
+            dependencyIdentities.forEach(({ dependencyId, identity }) => {
+              if (installedIndex.matchDependency(identity, source).status === 'missing') {
                 missingDepIds.add(dependencyId);
               }
             });
@@ -300,17 +335,9 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
           return;
         }
 
-        const resolvedMissingDeps = await Promise.all(
-          [...missingDepIds].map(async (dependencyId) => {
-            try {
-              const fetchDetails = source === 'curseforge' ? getCurseForgeProjectDetails : getProjectDetails;
-              const detail = await fetchDetails(dependencyId);
-              return { id: dependencyId, name: detail.title };
-            } catch {
-              return { id: dependencyId, name: t('download.instanceSelect.unknownDependency', { id: dependencyId, defaultValue: `未知前置 (${dependencyId})` }) };
-            }
-          })
-        );
+        const resolvedMissingDeps = dependencyIdentities
+          .filter(({ dependencyId }) => missingDepIds.has(dependencyId))
+          .map(({ dependencyId, name }) => ({ id: dependencyId, name }));
 
         if (!cancelled) {
           setMissingDeps(resolvedMissingDeps.sort((a, b) => a.name.localeCompare(b.name)));
@@ -332,7 +359,7 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, selectedIds, version]);
+  }, [isOpen, selectedIds, source, t, version]);
 
   useEffect(() => {
     if (!isOpen) return;

@@ -34,7 +34,6 @@ export const ModMetadataSettingsModal: React.FC<ModMetadataSettingsModalProps> =
 }) => {
   const { t } = useTranslation();
   const [metadataPlatformDraft, setMetadataPlatformDraft] = useState<ModPlatformPreference>('auto');
-  const [updatePlatformDraft, setUpdatePlatformDraft] = useState<ModPlatformPreference>('auto');
   const [isSaving, setIsSaving] = useState(false);
   const [isReidentifying, setIsReidentifying] = useState(false);
 
@@ -43,7 +42,6 @@ export const ModMetadataSettingsModal: React.FC<ModMetadataSettingsModalProps> =
     if (isOpen && displayMod) {
       const settings = displayMod.manifestEntry?.metadataSettings;
       setMetadataPlatformDraft(normalizePreference(settings?.metadataPlatform));
-      setUpdatePlatformDraft(normalizePreference(settings?.updatePlatform));
       setTimeout(() => setFocus('metadata-platform-0'), 100);
     }
   }, [isOpen, displayMod]);
@@ -55,9 +53,9 @@ export const ModMetadataSettingsModal: React.FC<ModMetadataSettingsModalProps> =
     const settings: ModMetadataSettings = {
       ...(previousSettings || {}),
       metadataPlatform: metadataPlatformDraft,
-      updatePlatform: updatePlatformDraft,
+      updatePlatform: 'auto',
       metadataLocked: metadataPlatformDraft === 'auto' ? false : !!previousSettings?.metadataLocked,
-      updateLocked: updatePlatformDraft === 'auto' ? false : !!previousSettings?.updateLocked
+      updateLocked: false
     };
 
     setIsSaving(true);
@@ -185,27 +183,8 @@ export const ModMetadataSettingsModal: React.FC<ModMetadataSettingsModalProps> =
           </div>
         </div>
 
-        <div className="rounded-sm border-[2px] border-[var(--ore-border-color)] bg-[var(--ore-color-background-surface-panel)] p-4">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm text-white font-bold">{t('instanceDetail.mods.metadataSettings.updateSource', { defaultValue: '更新检查来源' })}</h3>
-              <p className="text-[11px] text-gray-400 mt-0.5">{t('instanceDetail.mods.metadataSettings.updateSourceDesc', { defaultValue: '选择检查版本更新与升级时优先查询的平台' })}</p>
-            </div>
-            {displayMod.manifestEntry?.metadataSettings?.updateLocked && (
-              <span className="rounded-sm border-[2px] border-[var(--ore-border-color)] bg-[#7AA2FF]/10 px-2 py-1 text-xs text-[#AFC4FF] shrink-0">
-                {t('instanceDetail.mods.metadataSettings.locked', { defaultValue: '已锁定' })}
-              </span>
-            )}
-          </div>
-          <div className="pt-2">
-            <OreToggleButton
-              options={toggleOptions}
-              value={updatePlatformDraft}
-              onChange={(id) => setUpdatePlatformDraft(id as ModPlatformPreference)}
-              focusKeyPrefix="update-platform"
-              size="sm"
-            />
-          </div>
+        <div className="rounded-sm border border-ore-green/30 bg-ore-green/10 px-3 py-2 text-[11px] text-ore-green leading-relaxed">
+          {t('instanceDetail.mods.metadataSettings.autoUpdateSource', { defaultValue: '更新检查始终使用自动模式：同时查询所有已识别平台，并选择最新的兼容版本。' })}
         </div>
       </FocusBoundary>
     </OreModal>

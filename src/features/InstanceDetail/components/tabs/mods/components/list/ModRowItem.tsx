@@ -154,6 +154,8 @@ const areRowPropsEqual = (prev: ModRowItemProps, next: ModRowItemProps) => {
     prev.mod.isEnabled === next.mod.isEnabled &&
     prev.mod.hasUpdate === next.mod.hasUpdate &&
     prev.mod.updateVersionName === next.mod.updateVersionName &&
+    prev.mod.updatePlatform === next.mod.updatePlatform &&
+    prev.mod.updateProjectId === next.mod.updateProjectId &&
     prev.mod.updateFileId === next.mod.updateFileId &&
     prev.mod.updateFileName === next.mod.updateFileName &&
     prev.mod.updateDownloadUrl === next.mod.updateDownloadUrl &&

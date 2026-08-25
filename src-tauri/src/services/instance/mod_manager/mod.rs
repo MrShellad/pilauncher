@@ -14,10 +14,11 @@ pub use crate::domain::mod_health::{
     ConflictPairInfo, DependencySummaryInfo, InstanceDependencyHealth, MissingDependencyInfo,
 };
 pub use crate::domain::mod_manifest::{
-    ModCacheInfo, ModFileHash, ModFileState,
-    ModManifestEntry, ModMetadata, ModScanProgress, ModSourceKind,
+    ModCacheInfo, ModFileHash, ModFileState, ModManifestEntry, ModMetadata, ModScanProgress,
+    ModSourceKind,
 };
 
+use crate::domain::mod_manifest::{build_manifest_entry, build_manifest_source, ModPlatformMatch};
 use crate::services::config_service::ConfigService;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
@@ -55,6 +56,124 @@ pub struct ModSnapshot {
 pub struct ModManagerService;
 
 impl ModManagerService {
+    fn manifest_entry_from_db_row(
+        row: &crate::services::db_service::EnrichedInstanceModRow,
+    ) -> ModManifestEntry {
+        let platform = row
+            .source_platform
+            .as_deref()
+            .map(str::trim)
+            .map(str::to_ascii_lowercase)
+            .filter(|value| matches!(value.as_str(), "modrinth" | "curseforge"));
+        let source_kind = row
+            .source_platform
+            .as_deref()
+            .map(ModSourceKind::from_input)
+            .unwrap_or_default();
+        let hash = row
+            .sha1
+            .clone()
+            .filter(|value| !value.trim().is_empty())
+            .map(ModFileHash::sha1)
+            .unwrap_or(ModFileHash {
+                algorithm: "none".to_string(),
+                value: "none".to_string(),
+            });
+        let mut entry = build_manifest_entry(
+            build_manifest_source(
+                source_kind,
+                platform.clone(),
+                row.source_project_id.clone(),
+                row.source_file_id.clone(),
+            ),
+            hash,
+            ModFileState {
+                size: row.file_size.max(0) as u64,
+                modified_at: row.modified_at.max(0) as u64,
+            },
+        );
+        entry.mod_id = row.mod_id.clone();
+        entry.name = row.name.clone();
+        entry.version = row.version.clone();
+        entry.description = row.description.clone();
+        entry.curseforge_fingerprint = row.curseforge_fingerprint;
+        entry.dependencies = row.dependencies.clone();
+        entry.aliases = row
+            .aliases
+            .as_deref()
+            .and_then(|aliases| serde_json::from_str(aliases).ok());
+
+        if let (Some(platform), Some(project_id)) = (platform, row.source_project_id.clone()) {
+            entry.matched_platforms.insert(
+                platform,
+                ModPlatformMatch {
+                    project_id: Some(project_id),
+                    file_id: row.source_file_id.clone(),
+                },
+            );
+        }
+
+        entry
+    }
+
+    fn merge_cached_platform_identity(meta: &mut ModMetadata, cached: &ModGlobalMetadataCacheRow) {
+        let fallback_entry = build_manifest_entry(
+            build_manifest_source(ModSourceKind::ExternalImport, None, None, None),
+            meta.sha1
+                .clone()
+                .map(ModFileHash::sha1)
+                .unwrap_or(ModFileHash {
+                    algorithm: "none".to_string(),
+                    value: "none".to_string(),
+                }),
+            ModFileState {
+                size: meta.file_size,
+                modified_at: meta.modified_at,
+            },
+        );
+        let entry = meta.manifest_entry.get_or_insert(fallback_entry);
+
+        for (platform, project_id) in [
+            ("modrinth", cached.modrinth_project_id.as_ref()),
+            ("curseforge", cached.curseforge_project_id.as_ref()),
+        ] {
+            let Some(project_id) = project_id.filter(|value| !value.trim().is_empty()) else {
+                continue;
+            };
+            entry.matched_platforms.insert(
+                platform.to_string(),
+                ModPlatformMatch {
+                    project_id: Some(project_id.clone()),
+                    file_id: None,
+                },
+            );
+            if entry.source.project_id.is_none() {
+                entry.source.platform = Some(platform.to_string());
+                entry.source.project_id = Some(project_id.clone());
+            }
+        }
+
+        if entry.aliases.is_none() {
+            entry.aliases = cached
+                .aliases
+                .as_deref()
+                .and_then(|aliases| serde_json::from_str(aliases).ok());
+        }
+    }
+
+    fn restore_known_download_identity(
+        meta: &mut ModMetadata,
+        known_sha1: &str,
+        known_entry: ModManifestEntry,
+    ) -> bool {
+        if meta.sha1.as_deref() != Some(known_sha1) {
+            return false;
+        }
+
+        meta.manifest_entry = Some(known_entry);
+        true
+    }
+
     pub fn emit_mod_scan_progress<R: Runtime>(
         app: &AppHandle<R>,
         instance_id: &str,
@@ -267,7 +386,10 @@ impl ModManagerService {
                     modrinth_project_id = COALESCE(excluded.modrinth_project_id, mod_global_metadata_cache.modrinth_project_id),
                     name = COALESCE(excluded.name, mod_global_metadata_cache.name),
                     description = COALESCE(excluded.description, mod_global_metadata_cache.description),
-                    icon_rel_path = excluded.icon_rel_path,
+                    icon_rel_path = CASE
+                        WHEN excluded.icon_rel_path <> '' THEN excluded.icon_rel_path
+                        ELSE mod_global_metadata_cache.icon_rel_path
+                    END,
                     icon_source = COALESCE(excluded.icon_source, mod_global_metadata_cache.icon_source),
                     aliases = COALESCE(excluded.aliases, mod_global_metadata_cache.aliases),
                     updated_at = excluded.updated_at
@@ -307,7 +429,7 @@ impl ModManagerService {
                     description = excluded.description,
                     icon_url = excluded.icon_url,
                     updated_at = excluded.updated_at
-                "#
+                "#,
             )
             .bind(key)
             .bind(name)
@@ -354,11 +476,17 @@ impl ModManagerService {
         }
 
         // 1. Read existing records from SQLite instance_mods
-        let db_mods = crate::services::db_service::DbService::query_instance_mods(&pool, instance_id)
-            .await
-            .unwrap_or_default();
-        let db_mod_map: std::collections::HashMap<String, crate::services::db_service::EnrichedInstanceModRow> =
-            db_mods.into_iter().map(|m| (m.file_name.clone(), m)).collect();
+        let db_mods =
+            crate::services::db_service::DbService::query_instance_mods(&pool, instance_id)
+                .await
+                .unwrap_or_default();
+        let db_mod_map: std::collections::HashMap<
+            String,
+            crate::services::db_service::EnrichedInstanceModRow,
+        > = db_mods
+            .into_iter()
+            .map(|m| (m.file_name.clone(), m))
+            .collect();
 
         // 2. Read physical mods directory
         let mut actual_files = std::collections::HashMap::new();
@@ -366,7 +494,11 @@ impl ModManagerService {
             for entry in entries.filter_map(|e| e.ok()) {
                 let path = entry.path();
                 if path.is_file() {
-                    let file_name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                    let file_name = path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
                     if file_name.ends_with(".jar") || file_name.ends_with(".jar.disabled") {
                         let is_enabled = !file_name.ends_with(".disabled");
                         let meta_res = fs::metadata(&path).ok();
@@ -390,7 +522,12 @@ impl ModManagerService {
             .cloned()
             .collect();
         if !deleted_files.is_empty() {
-            let _ = crate::services::db_service::DbService::delete_instance_mods(&pool, instance_id, &deleted_files).await;
+            let _ = crate::services::db_service::DbService::delete_instance_mods(
+                &pool,
+                instance_id,
+                &deleted_files,
+            )
+            .await;
         }
 
         let mut tasks = Vec::new();
@@ -416,7 +553,8 @@ impl ModManagerService {
                     } else if !rel.is_empty() {
                         let abs_path = shared_mods_dir.join(rel);
                         if abs_path.is_file() {
-                            icon_absolute_path = Some(abs_path.to_string_lossy().replace('\\', "/"));
+                            icon_absolute_path =
+                                Some(abs_path.to_string_lossy().replace('\\', "/"));
                         }
                     }
                 }
@@ -425,15 +563,24 @@ impl ModManagerService {
                     if let Some(ref mid) = cached.mod_id {
                         let trimmed = mid.trim();
                         if !trimmed.is_empty() {
-                            if let Some(cached_path) = icon_storage::IconStorage::find_cached_icon_in_buckets(&icons_base_dir, trimmed) {
-                                icon_absolute_path = Some(cached_path.to_string_lossy().replace('\\', "/"));
+                            if let Some(cached_path) =
+                                icon_storage::IconStorage::find_cached_icon_in_buckets(
+                                    &icons_base_dir,
+                                    trimmed,
+                                )
+                            {
+                                icon_absolute_path =
+                                    Some(cached_path.to_string_lossy().replace('\\', "/"));
                             }
                         }
                     }
                 }
 
                 let cache_key = format!("local_{}", cached.mod_id.as_deref().unwrap_or(&file_name));
-                let aliases = cached.aliases.as_deref().and_then(|s| serde_json::from_str(s).ok());
+                let aliases = cached
+                    .aliases
+                    .as_deref()
+                    .and_then(|s| serde_json::from_str(s).ok());
 
                 let meta = ModMetadata {
                     file_name: file_name.clone(),
@@ -450,7 +597,7 @@ impl ModManagerService {
                     is_enabled,
                     modified_at: modified_at.max(0) as u64,
                     cache_key: Some(cache_key),
-                    manifest_entry: None,
+                    manifest_entry: Some(Self::manifest_entry_from_db_row(cached)),
                     dependencies: cached.dependencies.clone(),
                     aliases,
                     dependents_count: Some(cached.dependents_count),
@@ -459,7 +606,13 @@ impl ModManagerService {
                 mods.push(meta.clone());
                 pending_fast_emit.push(meta);
                 if pending_fast_emit.len() >= 16 {
-                    Self::emit_mod_scan_progress(app, instance_id, request_id_ref, &pending_fast_emit, false);
+                    Self::emit_mod_scan_progress(
+                        app,
+                        instance_id,
+                        request_id_ref,
+                        &pending_fast_emit,
+                        false,
+                    );
                     pending_fast_emit.clear();
                 }
                 continue;
@@ -471,68 +624,109 @@ impl ModManagerService {
             let pool_clone = pool.clone();
             let path_clone = path.clone();
             let file_name_clone = file_name.clone();
+            // A timestamp-only change must not erase a previously confirmed download source.
+            // Carry it into the slow path, but only restore it after the file hash proves that
+            // this is still the same archive.
+            let known_download_identity = db_entry.and_then(|cached| {
+                cached
+                    .sha1
+                    .as_ref()
+                    .map(|sha1| (sha1.clone(), Self::manifest_entry_from_db_row(cached)))
+            });
 
             tasks.push(tokio::spawn(async move {
                 let shared_mods_dir_for_blocking = shared_mods_dir_clone.clone();
-                let (mut meta, mut extracted_icon_rel_path, bucket_dir) = tokio::task::spawn_blocking(move || {
-                    let mut m = jar_parser::JarParser::parse_jar_meta(&path_clone);
-                    m.is_enabled = is_enabled;
-                    m.curseforge_fingerprint = remote_fetcher::RemoteFetcher::resolve_curseforge_fingerprint(None, &path_clone);
+                let (mut meta, mut extracted_icon_rel_path, bucket_dir) =
+                    tokio::task::spawn_blocking(move || {
+                        let mut m = jar_parser::JarParser::parse_jar_meta(&path_clone);
+                        m.is_enabled = is_enabled;
+                        m.curseforge_fingerprint =
+                            remote_fetcher::RemoteFetcher::resolve_curseforge_fingerprint(
+                                None,
+                                &path_clone,
+                            );
 
-                    // Compute SHA1 for Modrinth hash matching
-                    if let Ok(mut file) = std::fs::File::open(&path_clone) {
-                        use sha1::Digest;
-                        let mut hasher = sha1::Sha1::new();
-                        let mut buffer = [0u8; 64 * 1024];
-                        use std::io::Read;
-                        while let Ok(n) = file.read(&mut buffer) {
-                            if n == 0 { break; }
-                            hasher.update(&buffer[..n]);
+                        // Compute SHA1 for Modrinth hash matching
+                        if let Ok(mut file) = std::fs::File::open(&path_clone) {
+                            use sha1::Digest;
+                            let mut hasher = sha1::Sha1::new();
+                            let mut buffer = [0u8; 64 * 1024];
+                            use std::io::Read;
+                            while let Ok(n) = file.read(&mut buffer) {
+                                if n == 0 {
+                                    break;
+                                }
+                                hasher.update(&buffer[..n]);
+                            }
+                            m.sha1 = Some(format!("{:x}", hasher.finalize()));
                         }
-                        m.sha1 = Some(format!("{:x}", hasher.finalize()));
-                    }
 
-                    let cache_key = format!("local_{}", m.mod_id.as_deref().unwrap_or(&file_name_clone));
-                    m.cache_key = Some(cache_key.clone());
+                        let cache_key =
+                            format!("local_{}", m.mod_id.as_deref().unwrap_or(&file_name_clone));
+                        m.cache_key = Some(cache_key.clone());
 
-                    let mut rel_path = None;
-                    let mut icon_resolved = false;
-                    let mut allocated_bucket = None;
+                        let mut rel_path = None;
+                        let mut icon_resolved = false;
+                        let mut allocated_bucket = None;
 
-                    if let Some(ref mod_id) = m.mod_id {
-                        let trimmed = mod_id.trim();
-                        if !trimmed.is_empty() {
-                            if let Some(cached_path) = icon_storage::IconStorage::find_cached_icon_in_buckets(&icons_base_dir_clone, trimmed) {
-                                m.icon_absolute_path = Some(cached_path.to_string_lossy().to_string());
-                                if let Ok(rel) = cached_path.strip_prefix(&shared_mods_dir_for_blocking) {
+                        if let Some(ref mod_id) = m.mod_id {
+                            let trimmed = mod_id.trim();
+                            if !trimmed.is_empty() {
+                                if let Some(cached_path) =
+                                    icon_storage::IconStorage::find_cached_icon_in_buckets(
+                                        &icons_base_dir_clone,
+                                        trimmed,
+                                    )
+                                {
+                                    m.icon_absolute_path =
+                                        Some(cached_path.to_string_lossy().to_string());
+                                    if let Ok(rel) =
+                                        cached_path.strip_prefix(&shared_mods_dir_for_blocking)
+                                    {
+                                        rel_path = Some(rel.to_string_lossy().replace('\\', "/"));
+                                        if let Some(parent) = cached_path.parent() {
+                                            allocated_bucket = Some(parent.to_path_buf());
+                                        }
+                                    }
+                                    icon_resolved = true;
+                                }
+                            }
+                        }
+
+                        if !icon_resolved {
+                            if let Some(cached_path) =
+                                icon_storage::IconStorage::find_cached_icon_in_buckets(
+                                    &icons_base_dir_clone,
+                                    &cache_key,
+                                )
+                            {
+                                m.icon_absolute_path =
+                                    Some(cached_path.to_string_lossy().to_string());
+                                if let Ok(rel) =
+                                    cached_path.strip_prefix(&shared_mods_dir_for_blocking)
+                                {
                                     rel_path = Some(rel.to_string_lossy().replace('\\', "/"));
                                     if let Some(parent) = cached_path.parent() {
                                         allocated_bucket = Some(parent.to_path_buf());
                                     }
                                 }
-                                icon_resolved = true;
                             }
                         }
-                    }
 
-                    if !icon_resolved {
-                        if let Some(cached_path) = icon_storage::IconStorage::find_cached_icon_in_buckets(&icons_base_dir_clone, &cache_key) {
-                            m.icon_absolute_path = Some(cached_path.to_string_lossy().to_string());
-                            if let Ok(rel) = cached_path.strip_prefix(&shared_mods_dir_for_blocking) {
-                                rel_path = Some(rel.to_string_lossy().replace('\\', "/"));
-                                if let Some(parent) = cached_path.parent() {
-                                    allocated_bucket = Some(parent.to_path_buf());
-                                }
-                            }
-                        }
-                    }
+                        let bucket_dir = allocated_bucket.unwrap_or_else(|| {
+                            icon_storage::IconStorage::get_or_create_available_bucket(
+                                &icons_base_dir_clone,
+                            )
+                        });
 
-                    let bucket_dir = allocated_bucket.unwrap_or_else(|| {
-                        icon_storage::IconStorage::get_or_create_available_bucket(&icons_base_dir_clone)
-                    });
+                        (m, rel_path, bucket_dir)
+                    })
+                    .await
+                    .unwrap();
 
-                    (m, rel_path, bucket_dir)
-                }).await.unwrap();
+                if let Some((known_sha1, known_entry)) = known_download_identity {
+                    Self::restore_known_download_identity(&mut meta, &known_sha1, known_entry);
+                }
 
                 let cached_row = Self::query_cached_metadata(
                     &pool_clone,
@@ -542,35 +736,44 @@ impl ModManagerService {
                     None,
                     None,
                     meta.cache_key.as_deref(),
-                ).await;
+                )
+                .await;
 
                 if let Some(row) = cached_row {
+                    Self::merge_cached_platform_identity(&mut meta, &row);
                     if meta.name.is_none() {
-                        meta.name = row.name;
+                        meta.name = row.name.clone();
                     }
                     if meta.description.is_none() {
-                        meta.description = row.description;
+                        meta.description = row.description.clone();
                     }
                     if meta.icon_absolute_path.is_none() && !row.icon_rel_path.is_empty() {
                         if row.icon_rel_path.starts_with("http") {
-                            meta.network_icon_url = Some(row.icon_rel_path);
+                            meta.network_icon_url = Some(row.icon_rel_path.clone());
                         } else {
                             let abs_path = shared_mods_dir_clone.join(&row.icon_rel_path);
                             if abs_path.is_file() {
-                                meta.icon_absolute_path = Some(abs_path.to_string_lossy().replace('\\', "/"));
+                                meta.icon_absolute_path =
+                                    Some(abs_path.to_string_lossy().replace('\\', "/"));
                                 extracted_icon_rel_path = Some(row.icon_rel_path.clone());
                             }
                         }
                     }
                     if meta.aliases.is_none() && row.aliases.is_some() {
-                        meta.aliases = row.aliases.as_deref().and_then(|s| serde_json::from_str(s).ok());
+                        meta.aliases = row
+                            .aliases
+                            .as_deref()
+                            .and_then(|s| serde_json::from_str(s).ok());
                     }
                 }
 
                 let meta_mod_id = meta.mod_id.clone();
                 if let Some(ref mod_id) = meta_mod_id {
                     if meta.name.is_none() || meta.icon_absolute_path.is_none() {
-                        let cache_key_str = meta.cache_key.clone().unwrap_or_else(|| format!("local_{}", mod_id));
+                        let cache_key_str = meta
+                            .cache_key
+                            .clone()
+                            .unwrap_or_else(|| format!("local_{}", mod_id));
                         let client = reqwest::Client::builder()
                             .timeout(std::time::Duration::from_secs(5))
                             .build()
@@ -583,17 +786,33 @@ impl ModManagerService {
                             &shared_mods_dir_clone,
                             &mut meta,
                             &mut extracted_icon_rel_path,
-                        ).await;
+                        )
+                        .await;
                     }
                 }
 
-                let db_icon_val = extracted_icon_rel_path.clone().or_else(|| meta.network_icon_url.clone());
-                (file_name, is_enabled, file_size, modified_at, meta, db_icon_val)
+                let db_icon_val = extracted_icon_rel_path
+                    .clone()
+                    .or_else(|| meta.network_icon_url.clone());
+                (
+                    file_name,
+                    is_enabled,
+                    file_size,
+                    modified_at,
+                    meta,
+                    db_icon_val,
+                )
             }));
         }
 
         if !pending_fast_emit.is_empty() {
-            Self::emit_mod_scan_progress(app, instance_id, request_id_ref, &pending_fast_emit, false);
+            Self::emit_mod_scan_progress(
+                app,
+                instance_id,
+                request_id_ref,
+                &pending_fast_emit,
+                false,
+            );
             pending_fast_emit.clear();
         }
 
@@ -607,6 +826,7 @@ impl ModManagerService {
 
         while let Some(res) = pending_tasks.next().await {
             if let Ok((f_name, is_en, f_size, m_time, meta, db_icon_val)) = res {
+                let source = meta.manifest_entry.as_ref().map(|entry| &entry.source);
                 new_instance_mods.push(crate::services::db_service::InstanceModDbRow {
                     instance_id: instance_id.to_string(),
                     file_name: f_name.clone(),
@@ -618,9 +838,9 @@ impl ModManagerService {
                     mod_id: meta.mod_id.clone(),
                     custom_display_name: None,
                     version: meta.version.clone(),
-                    source_platform: None,
-                    source_project_id: None,
-                    source_file_id: None,
+                    source_platform: source.and_then(|value| value.platform.clone()),
+                    source_project_id: source.and_then(|value| value.project_id.clone()),
+                    source_file_id: source.and_then(|value| value.file_id.clone()),
                 });
 
                 cache_updates.push((
@@ -638,7 +858,12 @@ impl ModManagerService {
         }
 
         if !new_instance_mods.is_empty() {
-            let _ = crate::services::db_service::DbService::upsert_instance_mods(&pool, instance_id, &new_instance_mods).await;
+            let _ = crate::services::db_service::DbService::upsert_instance_mods(
+                &pool,
+                instance_id,
+                &new_instance_mods,
+            )
+            .await;
         }
 
         if !cache_updates.is_empty() {
@@ -647,7 +872,9 @@ impl ModManagerService {
                 .unwrap_or_default()
                 .as_secs() as i64;
             if let Ok(mut tx) = pool.begin().await {
-                for (mod_id_opt, cf_fp_opt, name_opt, desc_opt, icon_val_opt, cache_key_opt) in cache_updates {
+                for (mod_id_opt, cf_fp_opt, name_opt, desc_opt, icon_val_opt, cache_key_opt) in
+                    cache_updates
+                {
                     if let Some(ref icon_rel) = icon_val_opt {
                         if let Some(ref mod_id) = mod_id_opt {
                             let _ = sqlx::query::<sqlx::Sqlite>(
@@ -726,6 +953,7 @@ impl ModManagerService {
 
         let mut mods = Vec::with_capacity(rows.len());
         for row in rows {
+            let manifest_entry = Self::manifest_entry_from_db_row(&row);
             let mut icon_absolute_path = None;
             let mut network_icon_url = None;
 
@@ -744,15 +972,24 @@ impl ModManagerService {
                 if let Some(ref mid) = row.mod_id {
                     let trimmed = mid.trim();
                     if !trimmed.is_empty() {
-                        if let Some(cached_path) = icon_storage::IconStorage::find_cached_icon_in_buckets(&icons_base_dir, trimmed) {
-                            icon_absolute_path = Some(cached_path.to_string_lossy().replace('\\', "/"));
+                        if let Some(cached_path) =
+                            icon_storage::IconStorage::find_cached_icon_in_buckets(
+                                &icons_base_dir,
+                                trimmed,
+                            )
+                        {
+                            icon_absolute_path =
+                                Some(cached_path.to_string_lossy().replace('\\', "/"));
                         }
                     }
                 }
             }
 
             let cache_key = format!("local_{}", row.mod_id.as_deref().unwrap_or(&row.file_name));
-            let aliases = row.aliases.as_deref().and_then(|s| serde_json::from_str(s).ok());
+            let aliases = row
+                .aliases
+                .as_deref()
+                .and_then(|s| serde_json::from_str(s).ok());
 
             mods.push(ModMetadata {
                 file_name: row.file_name,
@@ -769,7 +1006,7 @@ impl ModManagerService {
                 is_enabled: row.is_enabled,
                 modified_at: row.modified_at.max(0) as u64,
                 cache_key: Some(cache_key),
-                manifest_entry: None,
+                manifest_entry: Some(manifest_entry),
                 dependencies: row.dependencies,
                 aliases,
                 dependents_count: Some(row.dependents_count),
@@ -897,5 +1134,145 @@ impl ModManagerService {
         _snapshot_id: &str,
     ) -> Result<(), String> {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod identity_tests {
+    use super::*;
+    use crate::services::db_service::EnrichedInstanceModRow;
+
+    fn installed_row() -> EnrichedInstanceModRow {
+        EnrichedInstanceModRow {
+            instance_id: "instance".to_string(),
+            file_name: "fabric-api.jar".to_string(),
+            is_enabled: true,
+            file_size: 42,
+            modified_at: 123,
+            sha1: Some("abc123".to_string()),
+            curseforge_fingerprint: Some(77),
+            mod_id: Some("fabric-api".to_string()),
+            custom_display_name: None,
+            name: Some("Fabric API".to_string()),
+            version: Some("1.0.0".to_string()),
+            description: None,
+            icon_rel_path: None,
+            icon_source: None,
+            aliases: Some("[\"fabric_api\"]".to_string()),
+            source_platform: Some("modrinth".to_string()),
+            source_project_id: Some("P7dR8mSH".to_string()),
+            source_file_id: Some("version-1".to_string()),
+            dependents_count: 0,
+            dependencies: None,
+        }
+    }
+
+    fn parsed_meta(sha1: &str) -> ModMetadata {
+        ModMetadata {
+            file_name: "fabric-api.jar".to_string(),
+            mod_id: Some("fabric-api".to_string()),
+            name: None,
+            version: None,
+            description: None,
+            icon_absolute_path: None,
+            offline_jar_icon_absolute_path: None,
+            network_icon_url: None,
+            curseforge_fingerprint: Some(77),
+            sha1: Some(sha1.to_string()),
+            file_size: 42,
+            is_enabled: true,
+            modified_at: 123,
+            manifest_entry: None,
+            cache_key: None,
+            dependencies: None,
+            aliases: None,
+            dependents_count: None,
+        }
+    }
+
+    #[test]
+    fn cached_instance_row_preserves_platform_identity() {
+        let entry = ModManagerService::manifest_entry_from_db_row(&installed_row());
+
+        assert_eq!(entry.source.platform.as_deref(), Some("modrinth"));
+        assert_eq!(entry.source.project_id.as_deref(), Some("P7dR8mSH"));
+        assert_eq!(entry.source.file_id.as_deref(), Some("version-1"));
+        assert_eq!(entry.mod_id.as_deref(), Some("fabric-api"));
+        assert_eq!(entry.aliases, Some(vec!["fabric_api".to_string()]));
+        assert_eq!(
+            entry
+                .matched_platforms
+                .get("modrinth")
+                .and_then(|matched| matched.project_id.as_deref()),
+            Some("P7dR8mSH")
+        );
+    }
+
+    #[test]
+    fn hash_matched_cache_adds_both_platform_project_ids() {
+        let mut meta = parsed_meta("abc123");
+        let cached = ModGlobalMetadataCacheRow {
+            mod_id: "fabric-api".to_string(),
+            curseforge_fingerprint: Some(77),
+            modrinth_hash: Some("abc123".to_string()),
+            curseforge_project_id: Some("306612".to_string()),
+            modrinth_project_id: Some("P7dR8mSH".to_string()),
+            name: Some("Fabric API".to_string()),
+            description: None,
+            icon_rel_path: String::new(),
+            icon_source: None,
+            aliases: Some("[\"fabric_api\"]".to_string()),
+            updated_at: 0,
+        };
+
+        ModManagerService::merge_cached_platform_identity(&mut meta, &cached);
+
+        let entry = meta.manifest_entry.expect("manifest identity");
+        assert_eq!(
+            entry
+                .matched_platforms
+                .get("modrinth")
+                .and_then(|matched| matched.project_id.as_deref()),
+            Some("P7dR8mSH")
+        );
+        assert_eq!(
+            entry
+                .matched_platforms
+                .get("curseforge")
+                .and_then(|matched| matched.project_id.as_deref()),
+            Some("306612")
+        );
+        assert_eq!(entry.aliases, Some(vec!["fabric_api".to_string()]));
+    }
+
+    #[test]
+    fn slow_scan_preserves_download_identity_for_the_same_archive() {
+        let mut meta = parsed_meta("abc123");
+        let known_entry = ModManagerService::manifest_entry_from_db_row(&installed_row());
+
+        assert!(ModManagerService::restore_known_download_identity(
+            &mut meta,
+            "abc123",
+            known_entry,
+        ));
+        assert_eq!(
+            meta.manifest_entry
+                .as_ref()
+                .and_then(|entry| entry.source.project_id.as_deref()),
+            Some("P7dR8mSH")
+        );
+    }
+
+    #[test]
+    fn slow_scan_does_not_copy_identity_to_a_replaced_archive() {
+        let mut meta = parsed_meta("replacement-hash");
+        let known_entry = ModManagerService::manifest_entry_from_db_row(&installed_row());
+
+        assert!(!ModManagerService::restore_known_download_identity(
+            &mut meta,
+            "abc123",
+            known_entry,
+        ));
+        assert!(meta.manifest_entry.is_none());
     }
 }

@@ -5,7 +5,7 @@ import {
   buildUpdateCacheEntry,
   canCheckManagedUpdate,
   fetchManagedVersions,
-  getManagedUpdateReference,
+  getManagedUpdateReferences,
   getModUpdateCacheKey,
   getOrCreateUpdateCache,
   isFreshUpdateCacheEntry,
@@ -46,9 +46,7 @@ export const useModUpdateEngine = ({ setMods }: UseModUpdateEngineOptions) => {
     const targetsByCacheKey = new Map<string, ModMeta>();
 
     for (const mod of modsToCheck) {
-      const updateReference = getManagedUpdateReference(mod);
-
-      if (!canCheckManagedUpdate(mod) || !updateReference) {
+      if (!canCheckManagedUpdate(mod)) {
         continue;
       }
 
@@ -94,6 +92,8 @@ export const useModUpdateEngine = ({ setMods }: UseModUpdateEngineOptions) => {
           ...item,
           hasUpdate: cacheEntry.hasUpdate,
           updateVersionName: cacheEntry.updateVersionName,
+          updatePlatform: cacheEntry.updatePlatform,
+          updateProjectId: cacheEntry.updateProjectId,
           updateDownloadUrl: cacheEntry.updateDownloadUrl,
           updateFileId: cacheEntry.updateFileId,
           updateFileName: cacheEntry.updateFileName
@@ -115,11 +115,10 @@ export const useModUpdateEngine = ({ setMods }: UseModUpdateEngineOptions) => {
         }
 
         const [cacheKey, mod] = target;
-        const updateReference = getManagedUpdateReference(mod);
-        if (!updateReference) {
+        const updateReferences = getManagedUpdateReferences(mod);
+        if (updateReferences.length === 0) {
           continue;
         }
-        const { platform, reference } = updateReference;
 
         let cacheEntry: ModUpdateCacheEntry = {
           hasUpdate: false,
@@ -127,20 +126,64 @@ export const useModUpdateEngine = ({ setMods }: UseModUpdateEngineOptions) => {
         };
 
         try {
-          const versions = await fetchManagedVersions(platform, reference.projectId!, targetMc, targetLoader);
-          const versionList = versions || [];
-          const latest = versionList[0];
-          const currentIndex = versionList.findIndex((version) => version.id === reference.fileId);
-          cacheEntry = buildUpdateCacheEntry(latest, reference.fileId!);
+          const platformResults = await Promise.allSettled(updateReferences.map(async ({ platform, reference }) => {
+            const versions = await fetchManagedVersions(
+              platform,
+              reference.projectId!,
+              targetMc,
+              targetLoader
+            );
+            const versionList = versions || [];
+            const latest = versionList[0];
+            const currentIndex = versionList.findIndex((version) => version.id === reference.fileId);
 
-          if (currentIndex === 0) {
-            cacheEntry = {
-              hasUpdate: false,
-              checkedAt: Date.now()
+            return {
+              platform,
+              reference,
+              current: currentIndex >= 0 ? versionList[currentIndex] : undefined,
+              latest: currentIndex === 0 ? undefined : latest
             };
+          }));
+
+          const newestCurrentPublishedAt = Math.max(
+            0,
+            ...platformResults.flatMap((result) => {
+              if (result.status !== 'fulfilled' || !result.value.current) return [];
+              const publishedAt = new Date(result.value.current.date_published).getTime();
+              return Number.isFinite(publishedAt) ? [publishedAt] : [];
+            })
+          );
+          const candidates = platformResults
+            .flatMap((result) => (
+              result.status === 'fulfilled' && result.value.latest ? [result.value] : []
+            ))
+            .filter((result) => {
+              if (!newestCurrentPublishedAt) return true;
+              const publishedAt = new Date(result.latest!.date_published).getTime();
+              return Number.isFinite(publishedAt) && publishedAt > newestCurrentPublishedAt;
+            })
+            .sort((left, right) => (
+              new Date(right.latest!.date_published).getTime()
+              - new Date(left.latest!.date_published).getTime()
+            ));
+
+          if (platformResults.every((result) => result.status === 'rejected')) {
+            throw platformResults.find((result) => result.status === 'rejected')?.reason;
+          }
+
+          const winner = candidates[0];
+          if (winner?.latest) {
+            cacheEntry = buildUpdateCacheEntry(
+              winner.latest,
+              winner.reference.fileId!,
+              winner.platform,
+              winner.reference.projectId
+            );
           }
         } catch (error) {
           console.error('Update check failed', error);
+          completed += 1;
+          continue;
         }
 
         cache.set(cacheKey, cacheEntry);

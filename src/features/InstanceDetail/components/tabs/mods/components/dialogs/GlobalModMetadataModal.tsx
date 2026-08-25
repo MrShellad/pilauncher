@@ -27,7 +27,6 @@ export const GlobalModMetadataModal: React.FC<GlobalModMetadataModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const [metadataPlatformDraft, setMetadataPlatformDraft] = useState<ModPlatformPreference>('auto');
-  const [updatePlatformDraft, setUpdatePlatformDraft] = useState<ModPlatformPreference>('auto');
   const [isSaving, setIsSaving] = useState(false);
   const [isReidentifying, setIsReidentifying] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
@@ -36,7 +35,6 @@ export const GlobalModMetadataModal: React.FC<GlobalModMetadataModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setMetadataPlatformDraft(currentSettings?.metadataPlatform ?? 'auto');
-      setUpdatePlatformDraft(currentSettings?.updatePlatform ?? 'auto');
       setIsSaving(false);
       setIsReidentifying(false);
       setProgress(null);
@@ -48,9 +46,9 @@ export const GlobalModMetadataModal: React.FC<GlobalModMetadataModalProps> = ({
     try {
       await onSaveMetadataSettings({
         metadataPlatform: metadataPlatformDraft,
-        updatePlatform: updatePlatformDraft,
+        updatePlatform: 'auto',
         metadataLocked: metadataPlatformDraft !== 'auto',
-        updateLocked: updatePlatformDraft !== 'auto'
+        updateLocked: false
       });
       onClose();
     } catch (error) {
@@ -67,9 +65,9 @@ export const GlobalModMetadataModal: React.FC<GlobalModMetadataModalProps> = ({
       // Auto save draft settings first, skipping loadMods() to avoid concurrent mod scanning race conditions
       await onSaveMetadataSettings({
         metadataPlatform: metadataPlatformDraft,
-        updatePlatform: updatePlatformDraft,
+        updatePlatform: 'auto',
         metadataLocked: metadataPlatformDraft !== 'auto',
-        updateLocked: updatePlatformDraft !== 'auto'
+        updateLocked: false
       }, true);
 
       await onReidentifyAllMods((current, total) => {
@@ -132,20 +130,11 @@ export const GlobalModMetadataModal: React.FC<GlobalModMetadataModalProps> = ({
             />
           </div>
 
-          <div className="border-t border-[#2A2A2C] pt-3.5">
-            <h3 className="text-xs font-minecraft font-bold text-gray-300 mb-2">{t('instanceDetail.mods.globalMetadata.updateLabel', { defaultValue: '全局更新来源' })}</h3>
-            <OreToggleButton
-              options={platformOptions}
-              value={updatePlatformDraft}
-              onChange={(val) => setUpdatePlatformDraft(val as ModPlatformPreference)}
-              focusKeyPrefix="global-update-platform"
-            />
-          </div>
         </div>
 
         {/* 提示信息区域 */}
         <div className="rounded-sm border border-ore-green/30 bg-ore-green/10 px-3 py-2 text-[11px] text-ore-green font-minecraft leading-relaxed">
-          {t('instanceDetail.mods.globalMetadata.tip', { defaultValue: '提示：此设置将应用于当前实例中的所有模组。如果您选择特定 platform，将锁定它们的元数据或更新来源。' })}
+          {t('instanceDetail.mods.globalMetadata.tip', { defaultValue: '更新检查会自动查询所有已识别平台，并选择最新的兼容版本；这里仅设置名称、图标和简介的优先来源。' })}
         </div>
 
         {/* 危险操作 / 维护区域 */}

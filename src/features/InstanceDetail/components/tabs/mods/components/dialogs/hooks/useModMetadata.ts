@@ -59,6 +59,8 @@ export const useModMetadata = (
         current.isFetchingNetwork === nextMod.isFetchingNetwork &&
         current.hasUpdate === nextMod.hasUpdate &&
         current.updateVersionName === nextMod.updateVersionName &&
+        current.updatePlatform === nextMod.updatePlatform &&
+        current.updateProjectId === nextMod.updateProjectId &&
         current.updateFileId === nextMod.updateFileId &&
         current.updateFileName === nextMod.updateFileName &&
         current.updateDownloadUrl === nextMod.updateDownloadUrl &&
