@@ -8,8 +8,11 @@ interface OreSliderProps {
   max?: number;
   step?: number;
   onChange: (value: number) => void;
-  label?: string;            
-  valueFormatter?: (val: number) => string; 
+  label?: string;
+  description?: string;
+  valueFormatter?: (val: number) => string;
+  showCounter?: boolean;
+  segments?: number;
   disabled?: boolean;
   className?: string;
   focusKey?: string;
@@ -26,13 +29,16 @@ export const OreSlider: React.FC<OreSliderProps> = ({
   step = 1,
   onChange,
   label,
+  description,
   valueFormatter,
+  showCounter = false,
+  segments,
   disabled = false,
   className = '',
   focusKey,
   onArrowPress,
-  fillColorClass = '',  
-  thumbColorClass = '', 
+  fillColorClass = '',
+  thumbColorClass = '',
   'aria-label': ariaLabel,
 }) => {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -71,15 +77,30 @@ export const OreSlider: React.FC<OreSliderProps> = ({
     e.currentTarget.releasePointerCapture(e.pointerId);
   };
 
+  const formattedValue = valueFormatter
+    ? valueFormatter(value)
+    : showCounter
+    ? String(Math.round(value)).padStart(3, '0')
+    : value;
+
   return (
     <div className={`flex flex-col w-full ${className}`}>
-      {label && (
-        <div className="flex justify-between items-end mb-2 px-1 select-none">
-          <span className="font-minecraft font-bold text-ore-text-muted ore-text-shadow">
-            {label}
-          </span>
-          <span className="font-minecraft text-white ore-text-shadow">
-            {valueFormatter ? valueFormatter(value) : value}
+      {(label || description) && (
+        <div className="flex justify-between items-start mb-2 px-1 select-none font-minecraft">
+          <div className="flex flex-col gap-0.5 min-w-0 flex-1 pr-2">
+            {label && (
+              <span className="font-bold text-white text-sm uppercase tracking-wide ore-text-shadow">
+                {label}
+              </span>
+            )}
+            {description && (
+              <span className="text-[11px] text-[var(--ore-color-text-muted-default)] tracking-wide">
+                {description}
+              </span>
+            )}
+          </div>
+          <span className="font-mono font-bold text-sm text-white ore-text-shadow shrink-0">
+            {formattedValue}
           </span>
         </div>
       )}
@@ -108,7 +129,7 @@ export const OreSlider: React.FC<OreSliderProps> = ({
             aria-valuenow={value}
             aria-valuemin={min}
             aria-valuemax={max}
-            aria-valuetext={valueFormatter ? valueFormatter(value) : String(value)}
+            aria-valuetext={String(formattedValue)}
             aria-label={ariaLabel || label}
             aria-disabled={disabled}
             tabIndex={tabIndex}
@@ -118,10 +139,8 @@ export const OreSlider: React.FC<OreSliderProps> = ({
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
             onKeyDown={(e) => {
-              // ✅ 核心修复：只有当空间引擎将焦点落在该组件上时，才允许响应按键，否则直接拦截
               if (disabled || !focused) return; 
               
-              // 手柄拦截：阻止事件冒泡，防止空间引擎切走焦点，将其转化为数据调整
               if (e.key === 'ArrowLeft') {
                 e.stopPropagation(); e.preventDefault();
                 onChange(Math.max(min, value - step));
@@ -139,9 +158,22 @@ export const OreSlider: React.FC<OreSliderProps> = ({
                 transition={isDragging ? { duration: 0 } : { type: 'spring', stiffness: 350, damping: 30 }}
                 style={{ transition: 'none' }}
               />
+
+              {/* 分段刻度标记 (Segmented Ticks) */}
+              {segments && segments > 1 && (
+                <div className="ore-slider-segments" aria-hidden="true">
+                  {Array.from({ length: segments - 1 }).map((_, idx) => (
+                    <div
+                      key={idx}
+                      className="ore-slider-segment-tick"
+                      style={{ left: `${((idx + 1) / segments) * 100}%` }}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
  
-            {/* 物理滑块 */}
+            {/* 物理正方形滑块 (无 Scale 缩放，保持 OreUI 直角像素) */}
             <motion.div 
               className={`
                 ore-slider-thumb 
@@ -151,13 +183,11 @@ export const OreSlider: React.FC<OreSliderProps> = ({
               animate={{ left: `${Math.round(percentage)}%` }}
               transition={isDragging ? { duration: 0 } : { type: 'spring', stiffness: 350, damping: 30 }}
               style={{ transition: 'none', x: '-50%', y: '-50%' }}
-              whileHover={disabled ? undefined : { scale: 1.15 }}
-              whileTap={disabled ? undefined : { scale: 1.25 }}
             />
           </div>
-
         )}
       </FocusItem>
     </div>
   );
 };
+

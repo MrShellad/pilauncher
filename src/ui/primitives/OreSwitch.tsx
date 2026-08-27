@@ -66,8 +66,18 @@ export const OreSwitch: React.FC<OreSwitchProps> = ({
           )}
 
           {/* 开关滑轨 */}
-          <div className="ore-switch-track">
-            {/* 物理推钮 (使用 transform 进行 GPU 加速平移，避免 animate left 引起的 reflow 抖动) */}
+          <div className={`ore-switch-track ${checked ? 'is-on' : 'is-off'}`}>
+            {/* 左侧 "I" 状态刻印 (开启) */}
+            <div className="ore-switch-glyph-slot ore-switch-slot-left" aria-hidden="true">
+              <span className="ore-switch-glyph-i" />
+            </div>
+
+            {/* 右侧 "O" 状态刻印 (关闭) */}
+            <div className="ore-switch-glyph-slot ore-switch-slot-right" aria-hidden="true">
+              <span className="ore-switch-glyph-o" />
+            </div>
+
+            {/* 物理推钮 (使用 transform 进行 GPU 加速平移) */}
             <motion.div 
               className="ore-switch-thumb"
               initial={false}

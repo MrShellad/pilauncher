@@ -1,6 +1,6 @@
 /* /src/style/ui/primitives/OreSwitch.css */
 @layer components {
-  /* 寮€鍏虫渶澶栧眰瀹瑰櫒锛岀粺涓€绠＄悊鐐瑰嚮鍜岀鐢ㄧ姸鎬?*/
+  /* 开关最外层容器，统一管理点击和禁用状态 */
   .ore-switch-wrapper {
     @apply inline-flex items-center cursor-pointer select-none outline-none transition-none;
   }
@@ -9,7 +9,7 @@
   }
 
   /* ============================================== */
-  /* 鉁?楂樺厜鐒︾偣瀵艰埅鐜?(瀹岀編瀵规帴 HDR 绌洪棿瀵艰埅) */
+  /* 🟩 高光焦点导航环 */
   /* ============================================== */
   .ore-switch-wrapper.is-focused .ore-switch-track {
     outline: 2px solid var(--ore-focus-ringFallback);
@@ -19,23 +19,57 @@
   }
 
   /* ============================================== */
-  /* 鉁?杞ㄩ亾鑳屾櫙 (Track) */
+  /* 🔲 轨道背景 (Track) */
   /* ============================================== */
   .ore-switch-track {
-    @apply relative block w-[58px] h-[24px] border-[2px] transition-none overflow-visible;
+    @apply relative flex w-[58px] h-[24px] border-[2px] transition-none overflow-visible;
     border-color: var(--ore-border-color);
-    /* 缁忓吀鍩哄博鐗堣鏁堬細宸﹀崐缁匡紝鍙冲崐鐏般€傛粦鍧楅伄浣忎竴鍗婇湶鍑哄彟涓€鍗?*/
-    background: linear-gradient(to right, var(--ore-btn-primary-bg) 50%, #8C8D90 50%);
+    /* 经典基岩版视效：左半绿，右半灰。滑块遮住一半露出另一半 */
+    background: linear-gradient(to right, #3C8527 50%, #48494A 50%);
     box-shadow: inset 2px 2px rgba(255, 255, 255, 0.2), inset -2px -2px rgba(255, 255, 255, 0.1);
   }
 
-  /* 绂佺敤鏃剁殑搴曡建鑳屾櫙 */
+  /* 禁用时的底轨背景 */
   .ore-switch-wrapper.disabled .ore-switch-track {
-    background: var(--ore-btn-secondary-bg); 
+    background: var(--ore-btn-disabled-bg); 
   }
 
   /* ============================================== */
-  /* 鉁?婊戝潡 (Thumb) */
+  /* 🔤 刻印槽位与 I / O 标志 (草图 2 规范) */
+  /* ============================================== */
+  .ore-switch-glyph-slot {
+    @apply relative flex h-full w-[29px] items-center justify-center pointer-events-none select-none;
+  }
+
+  .ore-switch-slot-left {
+    @apply justify-center;
+  }
+
+  .ore-switch-slot-right {
+    @apply justify-center;
+  }
+
+  /* "I" 标志（开启）：纯白 2px 像素粗短线 */
+  .ore-switch-glyph-i {
+    @apply block w-[2px] h-[10px] bg-white;
+    box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+  }
+
+  /* "O" 标志（关闭）：深灰/黑色 2px 边框方块圈 */
+  .ore-switch-glyph-o {
+    @apply block w-[8px] h-[8px] border-[2px] border-[#1E1E1F] bg-transparent;
+    box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  .ore-switch-wrapper.disabled .ore-switch-glyph-i {
+    @apply bg-[#8C8D90];
+  }
+  .ore-switch-wrapper.disabled .ore-switch-glyph-o {
+    @apply border-[#8C8D90];
+  }
+
+  /* ============================================== */
+  /* 🔲 滑块 (Thumb) */
   /* ============================================== */
   .ore-switch-thumb {
     @apply absolute w-[28px] h-[28px] border-[2px] z-10;
@@ -43,20 +77,19 @@
     left: -2px;
     border-color: var(--ore-border-color);
     background-color: var(--ore-btn-secondary-bg);
-    /* 鍏ㄩ潰浣跨敤 CSS Token 鏇夸唬 theme() */
     box-shadow: 
       inset 0 -4px var(--ore-btn-secondary-shadow), 
       inset 2px 2px var(--ore-btn-secondary-highlight), 
       inset -2px -6px rgba(255, 255, 255, 0.4);
   }
 
-  /* 寮€鍚姸鎬佷笅婊戝潡浣嶇Щ */
+  /* 开启状态下滑块位移 */
   .ore-switch-wrapper.is-on .ore-switch-thumb {
     left: 28px;
   }
 
   /* ============================================== */
-  /* 鉁?鎮仠涓庤仛鐒︽€?*/
+  /* 🔆 悬停与聚焦态 */
   /* ============================================== */
   .ore-switch-wrapper:hover:not(.disabled) .ore-switch-thumb,
   .ore-switch-wrapper.is-focused:not(.disabled) .ore-switch-thumb {
@@ -67,7 +100,7 @@
       inset -2px -6px rgba(255, 255, 255, 0.6);
   }
 
-  /* 榧犳爣鎸夊帇鏃剁殑鐪熷疄鐗╃悊涓嬫矇鏁堟灉 */
+  /* 鼠标按压时的真实物理下沉效果 */
   .ore-switch-wrapper:active:not(.disabled) .ore-switch-thumb {
     background-color: var(--ore-btn-secondary-hover);
     top: -2px;
@@ -78,11 +111,11 @@
   }
 
   /* ============================================== */
-  /* 鉁?绂佺敤鎬佹粦鍧?*/
+  /* 🚫 禁用态滑块 */
   /* ============================================== */
   .ore-switch-wrapper.disabled .ore-switch-thumb {
     background-color: var(--ore-btn-disabled-bg);
     border-color: var(--ore-border-color);
     box-shadow: inset 0 -4px var(--ore-btn-disabled-shadow);
   }
-}
+}

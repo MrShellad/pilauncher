@@ -1,0 +1,81 @@
+/* /src/style/ui/primitives/OreBanner.css */
+@layer components {
+  .ore-banner {
+    @apply relative flex w-full items-center justify-between border-[2px] px-4 py-2.5 font-minecraft text-xs uppercase tracking-wide select-none box-border;
+    border-color: var(--ore-border-color);
+  }
+
+  .ore-banner-content {
+    @apply flex min-w-0 flex-1 items-center gap-2;
+  }
+
+  .ore-banner-icon {
+    @apply flex shrink-0 items-center justify-center;
+  }
+
+  .ore-banner-text {
+    @apply min-w-0 flex-1 font-minecraft font-bold tracking-wide;
+  }
+
+  .ore-banner-action {
+    @apply ml-3 flex shrink-0 items-center gap-2;
+  }
+
+  .ore-banner-close-btn {
+    @apply ml-2 flex h-5 w-5 shrink-0 items-center justify-center border-0 bg-transparent font-minecraft text-base font-bold transition-none cursor-pointer outline-none;
+  }
+
+  /* ============================================== */
+  /* 🟨 Important Variant (草图 2 明黄横幅) */
+  /* ============================================== */
+  .ore-banner-important {
+    background-color: #FFE866;
+    color: #000000;
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.4), inset 0 -2px 0 rgba(0, 0, 0, 0.15);
+  }
+
+  .ore-banner-important .ore-banner-close-btn {
+    color: #000000;
+  }
+  .ore-banner-important .ore-banner-close-btn:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+  }
+
+  /* ============================================== */
+  /* 🟦 Info Variant (草图 2 纯蓝横幅) */
+  /* ============================================== */
+  .ore-banner-info {
+    background-color: #2E6BE5;
+    color: #FFFFFF;
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.25), inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+  }
+
+  .ore-banner-info .ore-banner-text {
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+  }
+
+  .ore-banner-info .ore-banner-close-btn {
+    color: #FFFFFF;
+  }
+  .ore-banner-info .ore-banner-close-btn:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  /* ============================================== */
+  /* 🟧 Warning Variant */
+  /* ============================================== */
+  .ore-banner-warning {
+    background-color: #E0A33A;
+    color: #000000;
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.3), inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+  }
+
+  /* ============================================== */
+  /* 🟥 Danger Variant */
+  /* ============================================== */
+  .ore-banner-danger {
+    background-color: #C33636;
+    color: #FFFFFF;
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.2), inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+  }
+}

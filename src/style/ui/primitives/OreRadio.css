@@ -1,0 +1,98 @@
+/* /src/style/ui/primitives/OreRadio.css */
+@layer components {
+  /* 外层容器 */
+  .ore-radio-wrapper {
+    @apply inline-flex items-center cursor-pointer select-none outline-none transition-none;
+  }
+
+  .ore-radio-wrapper.disabled {
+    @apply opacity-80 cursor-not-allowed;
+  }
+
+  /* 标签文字样式 */
+  .ore-radio-label {
+    @apply ml-[0.625rem] font-minecraft font-bold transition-none text-white text-[0.875rem] uppercase tracking-[0.08em] select-none;
+    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.6);
+  }
+
+  /* 聚焦状态时的文字 */
+  .ore-radio-wrapper.is-focused .ore-radio-label {
+    @apply text-white brightness-110;
+  }
+
+  /* 禁用状态时的文字 */
+  .ore-radio-wrapper.disabled .ore-radio-label {
+    @apply !text-[#5A5A5A];
+  }
+
+  /* ============================================== */
+  /* ◆ Radio 菱形盒体容器 (Diamond) */
+  /* ============================================== */
+  .ore-radio-diamond-container {
+    @apply relative flex items-center justify-center w-[20px] h-[20px] flex-shrink-0;
+  }
+
+  .ore-radio-diamond {
+    @apply relative flex items-center justify-center w-[13px] h-[13px] border-[2px] transition-none rotate-45 flex-shrink-0;
+    border-color: var(--ore-border-color);
+    background-color: #8B8B8D; /* Off + Normal 默认灰色 */
+    box-shadow: inset 1px 1px rgba(255, 255, 255, 0.2);
+  }
+
+  /* Normal + On */
+  .ore-radio-wrapper.is-checked .ore-radio-diamond {
+    background-color: var(--ore-btn-primary-bg); /* 经典绿色 */
+  }
+
+  /* Hovered + Off */
+  .ore-radio-wrapper:hover:not(.disabled):not(.is-checked) .ore-radio-diamond {
+    background-color: #A5A5A7;
+  }
+
+  /* Hovered + On */
+  .ore-radio-wrapper.is-checked:hover:not(.disabled) .ore-radio-diamond {
+    background-color: var(--ore-btn-primary-hover);
+  }
+
+  /* Focused (无论是 On 还是 Off) */
+  .ore-radio-wrapper.is-focused .ore-radio-diamond {
+    outline: 2px solid var(--ore-focus-ringFallback);
+    outline: 2px solid var(--ore-focus-ring);
+    outline-offset: 1px;
+    filter: drop-shadow(0 0 4px var(--ore-focus-glow)) brightness(1.1);
+  }
+
+  /* Pressed + Off */
+  .ore-radio-wrapper:active:not(.disabled):not(.is-checked) .ore-radio-diamond {
+    background-color: #525254;
+  }
+
+  /* Pressed + On */
+  .ore-radio-wrapper.is-checked:active:not(.disabled) .ore-radio-diamond {
+    background-color: var(--ore-btn-primary-active);
+  }
+
+  /* Disabled + Off */
+  .ore-radio-wrapper.disabled:not(.is-checked) .ore-radio-diamond {
+    background-color: #BDBDBD;
+    border-color: #8B8B8D;
+  }
+
+  /* Disabled + On */
+  .ore-radio-wrapper.is-checked.disabled .ore-radio-diamond {
+    background-color: #8B8B8D;
+    border-color: #5A5A5A;
+  }
+
+  /* ============================================== */
+  /* 🟩 菱形中心圆点 (Dot) */
+  /* ============================================== */
+  .ore-radio-dot {
+    @apply w-[5px] h-[5px] bg-white transition-none;
+    box-shadow: 0 0 1px rgba(0, 0, 0, 0.5);
+  }
+
+  .ore-radio-wrapper.disabled .ore-radio-dot {
+    @apply bg-[#B5B5B5];
+  }
+}

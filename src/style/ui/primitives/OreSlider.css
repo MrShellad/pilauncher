@@ -66,7 +66,19 @@
   }
 
   /* ============================================== */
-  /* 绂佺敤鎬?(Disabled) */
+  /* 📏 分段刻度标记 (Segmented Ticks - 草图 1 规范) */
+  /* ============================================== */
+  .ore-slider-segments {
+    @apply absolute inset-0 pointer-events-none;
+  }
+
+  .ore-slider-segment-tick {
+    @apply absolute top-0 bottom-0 w-[2px] -translate-x-1/2;
+    background-color: var(--ore-border-color);
+  }
+
+  /* ============================================== */
+  /* 🚫 禁用态 (Disabled) */
   /* ============================================== */
   .ore-slider-wrapper.disabled .ore-slider-track {
     background-color: #CFD0D4;

@@ -9,6 +9,8 @@
 @import './ui/primitives/OreAccordion.css';
 @import './ui/primitives/OreSwitch.css';
 @import './ui/primitives/OreCheckbox.css';
+@import './ui/primitives/OreRadio.css';
+@import './ui/primitives/OreBanner.css';
 @import './ui/primitives/OreSlider.css';
 @import './ui/primitives/OreOverlayScrollArea.css';
 @import './ui/primitives/OreDropdown.css';
