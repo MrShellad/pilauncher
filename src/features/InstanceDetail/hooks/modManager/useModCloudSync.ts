@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 
 import {
-  getCurseForgeProjectDetails,
+  getCurseForgeProjectsBatch,
   hasCurseForgeApiKey,
   matchCurseForgeFingerprints
 } from '../../../Download/logic/curseforgeApi';
@@ -9,13 +9,18 @@ import {
   getModPreferredPlatform,
   getModPlatformReference,
   modService,
+  type ModCacheUpdateItem,
   type ModMeta,
   type ModPlatformMatch,
   type ModPlatformMatchBatchItem,
   type ModRelationRecord
 } from '../../logic/modService';
 import { eventBus } from '../../../../utils/eventBus';
-import { fetchModrinthProjectById, type ModrinthProject, matchModrinthVersionsByHashes } from '../../logic/modrinthApi';
+import {
+  fetchModrinthProjectsBatch,
+  type ModrinthProject,
+  matchModrinthVersionsByHashes
+} from '../../logic/modrinthApi';
 
 type MatchPlatform = 'modrinth' | 'curseforge';
 type MatchedPlatforms = Record<MatchPlatform, ModPlatformMatch>;
@@ -197,8 +202,8 @@ export const useModCloudSync = (instanceId: string) => {
     const matchedByFileName = new Map<string, Partial<ModMeta>>();
     const platformMatchesByFileName = new Map<string, Partial<MatchedPlatforms>>();
     const versionByFileName = new Map<string, string>();
-    const modrinthDetailCache = new Map<string, Promise<ModrinthProject>>();
-    const curseForgeDetailCache = new Map<string, ReturnType<typeof getCurseForgeProjectDetails>>();
+    const modrinthDetailMap = new Map<string, ModrinthProject>();
+    const curseForgeDetailMap = new Map<string, any>();
     const allPendingRelations: ModRelationRecord[] = [];
     const globalPlatform = options.globalMetadataPlatform;
 
@@ -296,243 +301,316 @@ export const useModCloudSync = (instanceId: string) => {
       notifyProgress(0, total);
     }
 
-    try {
-      const sha1Values = sha1Mods.map((mod) => getModSha1(mod)!).filter(Boolean);
-      const modrinthMatches = await matchModrinthVersionsByHashes(
-        sha1Values,
-        'sha1'
-      );
+    // ========================================================
+    // 1. Modrinth 批量匹配版本与项目详情
+    // ========================================================
+    if (sha1Mods.length > 0) {
+      try {
+        const sha1Values = sha1Mods.map((mod) => getModSha1(mod)!).filter(Boolean);
+        const modrinthMatches = await matchModrinthVersionsByHashes(
+          sha1Values,
+          'sha1'
+        );
 
-      const batchSize = 5;
-      for (let i = 0; i < sha1Mods.length; i += batchSize) {
-        const batch = sha1Mods.slice(i, i + batchSize);
-        await Promise.all(batch.map(async (mod) => {
-          try {
-            const currentSha1 = getModSha1(mod);
-            const version = currentSha1 ? modrinthMatches[currentSha1] : undefined;
-            if (!version?.project_id) return;
+        // 1.1 收集所有需要获取详情的 project_id（包含自身及前向依赖）
+        const modrinthProjectIdsToFetch = new Set<string>();
+        const validModrinthMods: Array<{ mod: ModMeta; version: any }> = [];
 
-            let detail: ModrinthProject | undefined;
-            let cachedIconPath: string | null = null;
-            try {
-              if (!modrinthDetailCache.has(version.project_id)) {
-                modrinthDetailCache.set(version.project_id, fetchModrinthProjectById(version.project_id));
-              }
-              detail = await modrinthDetailCache.get(version.project_id);
-              if (detail) {
-                const dbIcon = detail.icon_url || mod.networkIconUrl || '';
-                const cacheKey = `modrinth_${version.project_id}`;
-                cachedIconPath = await modService.updateModCache(
-                  cacheKey,
-                  detail.title,
-                  detail.description,
-                  dbIcon,
-                  mod.modId,
-                  mod.curseforgeFingerprint,
-                  mod.manifestEntry?.hash?.algorithm?.toLowerCase() === 'sha1' ? mod.manifestEntry.hash.value : undefined,
-                  undefined,
-                  version.project_id
-                );
-              }
-            } catch (error) {
-              console.error('Modrinth cloud metadata sync failed', error);
+        for (const mod of sha1Mods) {
+          const currentSha1 = getModSha1(mod);
+          const version = currentSha1 ? modrinthMatches[currentSha1] : undefined;
+          if (version?.project_id) {
+            validModrinthMods.push({ mod, version });
+            if (!modrinthDetailMap.has(version.project_id)) {
+              modrinthProjectIdsToFetch.add(version.project_id);
             }
-
-              recordMatch(mod, 'modrinth', {
-              projectId: version.project_id,
-              fileId: version.id
-            }, detail
-              ? {
-                  name: detail.title || mod.name,
-                  description: mod.description || detail.description,
-                  networkIconUrl: detail.icon_url || mod.networkIconUrl,
-                  iconAbsolutePath: cachedIconPath || mod.iconAbsolutePath
-                }
-              : undefined, version.version_number);
-
-            if (version.dependencies && version.dependencies.length > 0) {
-              const relations: ModRelationRecord[] = [];
+            if (version.dependencies) {
               for (const d of version.dependencies) {
-                if (!d.project_id) continue;
-                const targetProjectId = String(d.project_id);
-                let depDetail: ModrinthProject | undefined;
-                try {
-                  if (!modrinthDetailCache.has(targetProjectId)) {
-                    modrinthDetailCache.set(targetProjectId, fetchModrinthProjectById(targetProjectId));
-                  }
-                  depDetail = await modrinthDetailCache.get(targetProjectId);
-                  if (depDetail) {
-                    const depSlug = depDetail.slug || targetProjectId;
-                    void modService.updateModCache(
-                      `modrinth_${targetProjectId}`,
-                      depDetail.title,
-                      depDetail.description,
-                      depDetail.icon_url,
-                      depSlug,
-                      undefined,
-                      undefined,
-                      undefined,
-                      targetProjectId
-                    );
-                  }
-                } catch {
-                  // Non-blocking detail prefetch
+                if (d.project_id && !modrinthDetailMap.has(String(d.project_id))) {
+                  modrinthProjectIdsToFetch.add(String(d.project_id));
                 }
+              }
+            }
+          }
+        }
 
-                const installedTarget = (modsToSync || []).find(
-                  (m) =>
-                    m.manifestEntry?.source?.projectId === targetProjectId ||
-                    m.manifestEntry?.matchedPlatforms?.modrinth?.projectId === targetProjectId ||
-                    m.modId?.toLowerCase() === targetProjectId.toLowerCase() ||
-                    (depDetail?.slug && m.modId?.toLowerCase() === depDetail.slug.toLowerCase())
-                );
-                const nameHint = depDetail?.title || installedTarget?.name || installedTarget?.networkInfo?.title || d.file_name || undefined;
-                const canonicalTargetId = depDetail?.slug || installedTarget?.modId || targetProjectId;
+        // 1.2 批量调用 Modrinth Projects API 获取详情
+        if (modrinthProjectIdsToFetch.size > 0) {
+          const fetchedList = await fetchModrinthProjectsBatch(Array.from(modrinthProjectIdsToFetch));
+          for (const p of fetchedList) {
+            modrinthDetailMap.set(p.id, p);
+          }
+        }
 
-                relations.push({
-                  sourceIdentifier: mod.modId || version.project_id || mod.fileName,
-                  sourceType: 'mod_id',
-                  targetIdentifier: canonicalTargetId,
-                  targetType: canonicalTargetId === targetProjectId ? 'modrinth' : 'mod_id',
-                  relationType: d.dependency_type || 'required',
-                  versionRequirement: d.version_id || undefined,
-                  targetNameHint: nameHint,
-                  sourceProvider: 'modrinth'
+        // 1.3 组装并批量写入 SQLite 数据库缓存
+        const cacheUpdateItems: ModCacheUpdateItem[] = [];
+        const cachedIconPathMap = new Map<string, string | null>();
+
+        for (const { mod, version } of validModrinthMods) {
+          const detail = modrinthDetailMap.get(version.project_id);
+          if (detail) {
+            const dbIcon = detail.icon_url || mod.networkIconUrl || '';
+            cacheUpdateItems.push({
+              cacheKey: `modrinth_${version.project_id}`,
+              name: detail.title,
+              desc: detail.description,
+              iconUrl: dbIcon,
+              modId: mod.modId || null,
+              curseforgeFingerprint: mod.curseforgeFingerprint || null,
+              modrinthHash: mod.manifestEntry?.hash?.algorithm?.toLowerCase() === 'sha1' ? mod.manifestEntry.hash.value : null,
+              curseforgeProjectId: null,
+              modrinthProjectId: version.project_id
+            });
+          }
+
+          if (version.dependencies) {
+            for (const d of version.dependencies) {
+              if (!d.project_id) continue;
+              const targetProjectId = String(d.project_id);
+              const depDetail = modrinthDetailMap.get(targetProjectId);
+              if (depDetail) {
+                const depSlug = depDetail.slug || targetProjectId;
+                cacheUpdateItems.push({
+                  cacheKey: `modrinth_${targetProjectId}`,
+                  name: depDetail.title,
+                  desc: depDetail.description,
+                  iconUrl: depDetail.icon_url,
+                  modId: depSlug,
+                  curseforgeFingerprint: null,
+                  modrinthHash: null,
+                  curseforgeProjectId: null,
+                  modrinthProjectId: targetProjectId
                 });
               }
-              if (relations.length > 0) {
-                allPendingRelations.push(...relations);
-              }
             }
-          } finally {
-            processed += 1;
-            notifyProgress(processed, total);
           }
-        }));
+        }
+
+        if (cacheUpdateItems.length > 0) {
+          try {
+            const iconPaths = await modService.updateModCacheBatch(cacheUpdateItems);
+            for (const [key, p] of Object.entries(iconPaths)) {
+              cachedIconPathMap.set(key, p);
+            }
+          } catch (e) {
+            console.warn('[useModCloudSync] Modrinth batch cache update failed:', e);
+          }
+        }
+
+        // 1.4 记录匹配与依赖关系
+        for (const { mod, version } of validModrinthMods) {
+          const detail = modrinthDetailMap.get(version.project_id);
+          const cachedIconPath = cachedIconPathMap.get(`modrinth_${version.project_id}`);
+
+          recordMatch(mod, 'modrinth', {
+            projectId: version.project_id,
+            fileId: version.id
+          }, detail ? {
+            name: detail.title || mod.name,
+            description: mod.description || detail.description,
+            networkIconUrl: detail.icon_url || mod.networkIconUrl,
+            iconAbsolutePath: cachedIconPath || mod.iconAbsolutePath
+          } : undefined, version.version_number);
+
+          if (version.dependencies && version.dependencies.length > 0) {
+            const relations: ModRelationRecord[] = [];
+            for (const d of version.dependencies) {
+              if (!d.project_id) continue;
+              const targetProjectId = String(d.project_id);
+              const depDetail = modrinthDetailMap.get(targetProjectId);
+
+              const installedTarget = (modsToSync || []).find(
+                (m) =>
+                  m.manifestEntry?.source?.projectId === targetProjectId ||
+                  m.manifestEntry?.matchedPlatforms?.modrinth?.projectId === targetProjectId ||
+                  m.modId?.toLowerCase() === targetProjectId.toLowerCase() ||
+                  (depDetail?.slug && m.modId?.toLowerCase() === depDetail.slug.toLowerCase())
+              );
+              const nameHint = depDetail?.title || installedTarget?.name || installedTarget?.networkInfo?.title || d.file_name || undefined;
+              const canonicalTargetId = depDetail?.slug || installedTarget?.modId || targetProjectId;
+
+              relations.push({
+                sourceIdentifier: mod.modId || version.project_id || mod.fileName,
+                sourceType: 'mod_id',
+                targetIdentifier: canonicalTargetId,
+                targetType: canonicalTargetId === targetProjectId ? 'modrinth' : 'mod_id',
+                relationType: d.dependency_type || 'required',
+                versionRequirement: d.version_id || undefined,
+                targetNameHint: nameHint,
+                sourceProvider: 'modrinth'
+              });
+            }
+            if (relations.length > 0) {
+              allPendingRelations.push(...relations);
+            }
+          }
+
+          processed += 1;
+          notifyProgress(processed, total);
+        }
+
         emitIncrementalUpdates();
+      } catch (error) {
+        console.error('Modrinth hash match failed', error);
       }
-    } catch (error) {
-      console.error('Modrinth hash match failed', error);
     }
 
+    // ========================================================
+    // 2. CurseForge 批量匹配指纹与项目详情
+    // ========================================================
     if (curseForgeMods.length > 0) {
       try {
         const curseForgeMatches = await matchCurseForgeFingerprints(
           curseForgeMods.map((mod) => mod.curseforgeFingerprint!)
         );
 
-        const batchSize = 5;
-        for (let i = 0; i < curseForgeMods.length; i += batchSize) {
-          const batch = curseForgeMods.slice(i, i + batchSize);
-          await Promise.all(batch.map(async (mod) => {
-            try {
-              const version = curseForgeMatches[mod.curseforgeFingerprint!];
-              if (!version?.project_id) return;
+        // 2.1 收集所有需要获取详情的 project_id
+        const curseForgeProjectIdsToFetch = new Set<string>();
+        const validCurseForgeMods: Array<{ mod: ModMeta; version: any }> = [];
 
-              let detail: Awaited<ReturnType<typeof getCurseForgeProjectDetails>> | undefined;
-              let cachedIconPath: string | null = null;
-              try {
-                if (!curseForgeDetailCache.has(version.project_id)) {
-                  curseForgeDetailCache.set(version.project_id, getCurseForgeProjectDetails(version.project_id));
-                }
-                detail = await curseForgeDetailCache.get(version.project_id);
-                if (detail) {
-                  const dbIcon = detail.icon_url || mod.networkIconUrl || '';
-                  const cacheKey = `curseforge_${version.project_id}`;
-                  cachedIconPath = await modService.updateModCache(
-                    cacheKey,
-                    detail.title,
-                    detail.description,
-                    dbIcon,
-                    mod.modId,
-                    mod.curseforgeFingerprint,
-                    mod.manifestEntry?.hash?.algorithm?.toLowerCase() === 'sha1' ? mod.manifestEntry.hash.value : undefined,
-                    version.project_id,
-                    undefined
-                  );
-                }
-              } catch (error) {
-                console.error('CurseForge cloud metadata sync failed', error);
-              }
-
-              recordMatch(mod, 'curseforge', {
-                projectId: version.project_id,
-                fileId: version.id
-              }, detail
-                ? {
-                    name: detail.title || mod.name,
-                    description: mod.description || detail.description,
-                    networkIconUrl: detail.icon_url || mod.networkIconUrl,
-                    iconAbsolutePath: cachedIconPath || mod.iconAbsolutePath
-                  }
-                : undefined, version.version_number);
-
-              if (version.dependencies && version.dependencies.length > 0) {
-                const relations: ModRelationRecord[] = [];
-                for (const d of version.dependencies) {
-                  if (!d.project_id) continue;
-                  const targetProjectId = String(d.project_id);
-                  let depDetail: Awaited<ReturnType<typeof getCurseForgeProjectDetails>> | undefined;
-                  try {
-                    if (!curseForgeDetailCache.has(targetProjectId)) {
-                      curseForgeDetailCache.set(targetProjectId, getCurseForgeProjectDetails(targetProjectId));
-                    }
-                    depDetail = await curseForgeDetailCache.get(targetProjectId);
-                    if (depDetail) {
-                      const depSlug = depDetail.slug || depDetail.title.toLowerCase().replace(/[^a-z0-9_-]/g, '') || targetProjectId;
-                      void modService.updateModCache(
-                        `curseforge_${targetProjectId}`,
-                        depDetail.title,
-                        depDetail.description,
-                        depDetail.icon_url || '',
-                        depSlug,
-                        undefined,
-                        undefined,
-                        targetProjectId,
-                        undefined
-                      );
-                    }
-                  } catch {
-                    // Non-blocking detail prefetch
-                  }
-
-                  const installedTarget = (modsToSync || []).find(
-                    (m) =>
-                      m.manifestEntry?.source?.projectId === targetProjectId ||
-                      m.manifestEntry?.matchedPlatforms?.curseforge?.projectId === targetProjectId ||
-                      m.modId?.toLowerCase() === targetProjectId.toLowerCase() ||
-                      (depDetail?.slug && m.modId?.toLowerCase() === depDetail.slug.toLowerCase())
-                  );
-                  const nameHint = depDetail?.title || installedTarget?.name || installedTarget?.networkInfo?.title || d.file_name || undefined;
-                  const canonicalTargetId = depDetail?.slug || installedTarget?.modId || targetProjectId;
-
-                  relations.push({
-                    sourceIdentifier: mod.modId || version.project_id || mod.fileName,
-                    sourceType: 'mod_id',
-                    targetIdentifier: canonicalTargetId,
-                    targetType: canonicalTargetId === targetProjectId ? 'curseforge' : 'mod_id',
-                    relationType: d.dependency_type || 'required',
-                    versionRequirement: d.version_id || undefined,
-                    targetNameHint: nameHint,
-                    sourceProvider: 'curseforge'
-                  });
-                }
-                if (relations.length > 0) {
-                  allPendingRelations.push(...relations);
-                }
-              }
-            } finally {
-              processed += 1;
-              notifyProgress(processed, total);
+        for (const mod of curseForgeMods) {
+          const version = curseForgeMatches[mod.curseforgeFingerprint!];
+          if (version?.project_id) {
+            validCurseForgeMods.push({ mod, version });
+            if (!curseForgeDetailMap.has(String(version.project_id))) {
+              curseForgeProjectIdsToFetch.add(String(version.project_id));
             }
-          }));
-          emitIncrementalUpdates();
+            if (version.dependencies) {
+              for (const d of version.dependencies) {
+                if (d.project_id && !curseForgeDetailMap.has(String(d.project_id))) {
+                  curseForgeProjectIdsToFetch.add(String(d.project_id));
+                }
+              }
+            }
+          }
         }
+
+        // 2.2 批量调用 CurseForge Projects API 获取详情
+        if (curseForgeProjectIdsToFetch.size > 0) {
+          const fetchedList = await getCurseForgeProjectsBatch(Array.from(curseForgeProjectIdsToFetch));
+          for (const p of fetchedList) {
+            curseForgeDetailMap.set(String(p.id), p);
+          }
+        }
+
+        // 2.3 组装并批量写入 SQLite 数据库缓存
+        const cacheUpdateItems: ModCacheUpdateItem[] = [];
+        const cachedIconPathMap = new Map<string, string | null>();
+
+        for (const { mod, version } of validCurseForgeMods) {
+          const strProjectId = String(version.project_id);
+          const detail = curseForgeDetailMap.get(strProjectId);
+          if (detail) {
+            const dbIcon = detail.icon_url || mod.networkIconUrl || '';
+            cacheUpdateItems.push({
+              cacheKey: `curseforge_${strProjectId}`,
+              name: detail.title,
+              desc: detail.description,
+              iconUrl: dbIcon,
+              modId: mod.modId || null,
+              curseforgeFingerprint: mod.curseforgeFingerprint || null,
+              modrinthHash: mod.manifestEntry?.hash?.algorithm?.toLowerCase() === 'sha1' ? mod.manifestEntry.hash.value : null,
+              curseforgeProjectId: strProjectId,
+              modrinthProjectId: null
+            });
+          }
+
+          if (version.dependencies) {
+            for (const d of version.dependencies) {
+              if (!d.project_id) continue;
+              const targetProjectId = String(d.project_id);
+              const depDetail = curseForgeDetailMap.get(targetProjectId);
+              if (depDetail) {
+                const depSlug = depDetail.slug || depDetail.title.toLowerCase().replace(/[^a-z0-9_-]/g, '') || targetProjectId;
+                cacheUpdateItems.push({
+                  cacheKey: `curseforge_${targetProjectId}`,
+                  name: depDetail.title,
+                  desc: depDetail.description,
+                  iconUrl: depDetail.icon_url || '',
+                  modId: depSlug,
+                  curseforgeFingerprint: null,
+                  modrinthHash: null,
+                  curseforgeProjectId: targetProjectId,
+                  modrinthProjectId: null
+                });
+              }
+            }
+          }
+        }
+
+        if (cacheUpdateItems.length > 0) {
+          try {
+            const iconPaths = await modService.updateModCacheBatch(cacheUpdateItems);
+            for (const [key, p] of Object.entries(iconPaths)) {
+              cachedIconPathMap.set(key, p);
+            }
+          } catch (e) {
+            console.warn('[useModCloudSync] CurseForge batch cache update failed:', e);
+          }
+        }
+
+        // 2.4 记录匹配与依赖关系
+        for (const { mod, version } of validCurseForgeMods) {
+          const strProjectId = String(version.project_id);
+          const detail = curseForgeDetailMap.get(strProjectId);
+          const cachedIconPath = cachedIconPathMap.get(`curseforge_${strProjectId}`);
+
+          recordMatch(mod, 'curseforge', {
+            projectId: version.project_id,
+            fileId: version.id
+          }, detail ? {
+            name: detail.title || mod.name,
+            description: mod.description || detail.description,
+            networkIconUrl: detail.icon_url || mod.networkIconUrl,
+            iconAbsolutePath: cachedIconPath || mod.iconAbsolutePath
+          } : undefined, version.version_number);
+
+          if (version.dependencies && version.dependencies.length > 0) {
+            const relations: ModRelationRecord[] = [];
+            for (const d of version.dependencies) {
+              if (!d.project_id) continue;
+              const targetProjectId = String(d.project_id);
+              const depDetail = curseForgeDetailMap.get(targetProjectId);
+
+              const installedTarget = (modsToSync || []).find(
+                (m) =>
+                  m.manifestEntry?.source?.projectId === targetProjectId ||
+                  m.manifestEntry?.matchedPlatforms?.curseforge?.projectId === targetProjectId ||
+                  m.modId?.toLowerCase() === targetProjectId.toLowerCase() ||
+                  (depDetail?.slug && m.modId?.toLowerCase() === depDetail.slug.toLowerCase())
+              );
+              const nameHint = depDetail?.title || installedTarget?.name || installedTarget?.networkInfo?.title || d.file_name || undefined;
+              const canonicalTargetId = depDetail?.slug || installedTarget?.modId || targetProjectId;
+
+              relations.push({
+                sourceIdentifier: mod.modId || version.project_id || mod.fileName,
+                sourceType: 'mod_id',
+                targetIdentifier: canonicalTargetId,
+                targetType: canonicalTargetId === targetProjectId ? 'curseforge' : 'mod_id',
+                relationType: d.dependency_type || 'required',
+                versionRequirement: d.version_id || undefined,
+                targetNameHint: nameHint,
+                sourceProvider: 'curseforge'
+              });
+            }
+            if (relations.length > 0) {
+              allPendingRelations.push(...relations);
+            }
+          }
+
+          processed += 1;
+          notifyProgress(processed, total);
+        }
+
+        emitIncrementalUpdates();
       } catch (error) {
         console.error('CurseForge fingerprint match failed', error);
       }
     }
 
+    // ========================================================
+    // 3. 补全已有项目平台引用的图标与元数据 (批量更新)
+    // ========================================================
     const knownIconMods = modsToSync.filter((mod) => {
       if (mod.iconAbsolutePath || matchedByFileName.get(mod.fileName)?.iconAbsolutePath) {
         return false;
@@ -545,60 +623,89 @@ export const useModCloudSync = (instanceId: string) => {
       return !!platform && !!projectId && !platformMatchesByFileName.has(mod.fileName);
     });
 
-    for (let i = 0; i < knownIconMods.length; i += 5) {
-      const batch = knownIconMods.slice(i, i + 5);
-      await Promise.all(batch.map(async (mod) => {
+    if (knownIconMods.length > 0) {
+      const modrinthIds = new Set<string>();
+      const curseForgeIds = new Set<string>();
+
+      for (const mod of knownIconMods) {
         const platform = getModPreferredPlatformWithGlobal(mod, globalPlatform);
-        const projectId = platform
-          ? getModPlatformReference(mod, platform)?.projectId
-          : undefined;
-        if (!platform || !projectId) return;
-
-        try {
-          let title = mod.name || '';
-          let description = mod.description || '';
-          let iconUrl = mod.networkIconUrl || '';
-
-          if (platform === 'modrinth') {
-            const detail = modrinthDetailCache.has(projectId)
-              ? await modrinthDetailCache.get(projectId)
-              : await fetchModrinthProjectById(projectId);
-            title = detail?.title || title;
-            description = detail?.description || description;
-            iconUrl = detail?.icon_url || iconUrl;
-          } else {
-            const detail = curseForgeDetailCache.has(projectId)
-              ? await curseForgeDetailCache.get(projectId)
-              : await getCurseForgeProjectDetails(projectId);
-            title = detail?.title || title;
-            description = detail?.description || description;
-            iconUrl = detail?.icon_url || iconUrl;
-          }
-
-          const cachedIconPath = iconUrl
-            ? await modService.updateModCache(
-              `${platform}_${projectId}`,
-              title,
-              description,
-              iconUrl,
-              mod.modId,
-              mod.curseforgeFingerprint,
-              mod.manifestEntry?.hash?.algorithm?.toLowerCase() === 'sha1' ? mod.manifestEntry.hash.value : undefined,
-              platform === 'curseforge' ? projectId : undefined,
-              platform === 'modrinth' ? projectId : undefined
-            )
-            : null;
-
-          matchedByFileName.set(mod.fileName, {
-            name: title || mod.name,
-            description: description || mod.description,
-            networkIconUrl: iconUrl || mod.networkIconUrl,
-            iconAbsolutePath: cachedIconPath || mod.iconAbsolutePath
-          });
-        } catch (error) {
-          console.error('Known mod icon hydration failed', error);
+        const projectId = platform ? getModPlatformReference(mod, platform)?.projectId : undefined;
+        if (platform === 'modrinth' && projectId && !modrinthDetailMap.has(projectId)) {
+          modrinthIds.add(projectId);
+        } else if (platform === 'curseforge' && projectId && !curseForgeDetailMap.has(projectId)) {
+          curseForgeIds.add(projectId);
         }
-      }));
+      }
+
+      if (modrinthIds.size > 0) {
+        const mrList = await fetchModrinthProjectsBatch(Array.from(modrinthIds));
+        for (const p of mrList) modrinthDetailMap.set(p.id, p);
+      }
+      if (curseForgeIds.size > 0) {
+        const cfList = await getCurseForgeProjectsBatch(Array.from(curseForgeIds));
+        for (const p of cfList) curseForgeDetailMap.set(String(p.id), p);
+      }
+
+      const knownCacheUpdates: ModCacheUpdateItem[] = [];
+      for (const mod of knownIconMods) {
+        const platform = getModPreferredPlatformWithGlobal(mod, globalPlatform);
+        const projectId = platform ? getModPlatformReference(mod, platform)?.projectId : undefined;
+        if (!platform || !projectId) continue;
+
+        let title = mod.name || '';
+        let description = mod.description || '';
+        let iconUrl = mod.networkIconUrl || '';
+
+        if (platform === 'modrinth') {
+          const detail = modrinthDetailMap.get(projectId);
+          title = detail?.title || title;
+          description = detail?.description || description;
+          iconUrl = detail?.icon_url || iconUrl;
+        } else {
+          const detail = curseForgeDetailMap.get(projectId);
+          title = detail?.title || title;
+          description = detail?.description || description;
+          iconUrl = detail?.icon_url || iconUrl;
+        }
+
+        if (iconUrl) {
+          knownCacheUpdates.push({
+            cacheKey: `${platform}_${projectId}`,
+            name: title,
+            desc: description,
+            iconUrl,
+            modId: mod.modId || null,
+            curseforgeFingerprint: mod.curseforgeFingerprint || null,
+            modrinthHash: mod.manifestEntry?.hash?.algorithm?.toLowerCase() === 'sha1' ? mod.manifestEntry.hash.value : null,
+            curseforgeProjectId: platform === 'curseforge' ? projectId : null,
+            modrinthProjectId: platform === 'modrinth' ? projectId : null
+          });
+        }
+      }
+
+      if (knownCacheUpdates.length > 0) {
+        try {
+          const iconPaths = await modService.updateModCacheBatch(knownCacheUpdates);
+          for (const mod of knownIconMods) {
+            const platform = getModPreferredPlatformWithGlobal(mod, globalPlatform);
+            const projectId = platform ? getModPlatformReference(mod, platform)?.projectId : undefined;
+            if (!platform || !projectId) continue;
+
+            const detail = platform === 'modrinth' ? modrinthDetailMap.get(projectId) : curseForgeDetailMap.get(projectId);
+            const cachedIconPath = iconPaths[`${platform}_${projectId}`];
+            const iconUrl = detail?.icon_url || mod.networkIconUrl || '';
+
+            matchedByFileName.set(mod.fileName, {
+              name: detail?.title || mod.name,
+              description: detail?.description || mod.description,
+              networkIconUrl: iconUrl || mod.networkIconUrl,
+              iconAbsolutePath: cachedIconPath || mod.iconAbsolutePath
+            });
+          }
+        } catch (e) {
+          console.warn('[useModCloudSync] Known mods batch cache update failed:', e);
+        }
+      }
       emitIncrementalUpdates();
     }
 

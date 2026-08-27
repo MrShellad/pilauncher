@@ -20,7 +20,6 @@ import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { focusManager } from '../ui/focus/FocusManager';
 import { useInputAction } from '../ui/focus/InputDriver';
 
-import { InstanceDetailHeader } from '../features/InstanceDetail/components/header/InstanceDetailHeader';
 import { InstanceHeroSidebar } from '../features/InstanceDetail/components/sidebar/InstanceHeroSidebar';
 
 import { BasicPanel } from '../features/InstanceDetail/components/tabs/BasicPanel';
@@ -177,30 +176,20 @@ const InstanceDetail: React.FC = () => {
 
   return (
     <FocusContext.Provider value={focusKey}>
-      <div ref={pageFocusRef} className="relative w-full h-full flex flex-col overflow-hidden bg-[#242425]">
+      <div ref={pageFocusRef} className="relative w-full h-full flex overflow-hidden bg-[#242425]">
         {/* =========================================================================
-            1. 顶栏 (TopBar)
+            主内容双栏平铺容器 (Full-Width Edge-to-Edge Tiled Viewport)
             ========================================================================= */}
-        <InstanceDetailHeader
-          instanceName={data.name}
-          onBack={() => setActiveTabGlobal('instances')}
-        />
-
-        {/* =========================================================================
-            2. 主内容双栏平铺容器 (Full-Width Edge-to-Edge Tiled Viewport)
-            ========================================================================= */}
-        <div className="relative flex flex-1 min-h-0 w-full overflow-hidden">
-          {/* 左侧常驻 Hero 控制台与导航树 (响应式宽度缩放: 300px ~ 420px) */}
-          <div className="w-[300px] lg:w-[340px] xl:w-[380px] 2xl:w-[420px] h-full flex-shrink-0">
-            <InstanceHeroSidebar
-              data={data}
-              activeTab={normalizedTab}
-              onSelectTab={handleTabSelect}
-              onOpenFolder={handleOpenFolder}
-              onUpdateCover={handleUpdateCover}
-              tabs={TABS}
-            />
-          </div>
+        {/* 左侧常驻 Hero 控制台与导航树 (响应式宽度缩放: 280px ~ 380px) */}
+        <div className="w-[280px] lg:w-[320px] xl:w-[360px] 2xl:w-[400px] h-full flex-shrink-0">
+          <InstanceHeroSidebar
+            data={data}
+            activeTab={normalizedTab}
+            onSelectTab={handleTabSelect}
+            onOpenFolder={handleOpenFolder}
+            tabs={TABS}
+          />
+        </div>
 
           {/* 右侧独立内容视口 (占满全屏剩余空间，无缝平铺) */}
           <main className="relative flex-1 min-w-0 h-full overflow-hidden bg-[#242425]">
@@ -301,7 +290,6 @@ const InstanceDetail: React.FC = () => {
               />
             </FocusBoundary>
           </main>
-        </div>
       </div>
     </FocusContext.Provider>
   );

@@ -15,6 +15,18 @@ export interface ModPlatformMatchBatchItem {
   version?: string | null;
 }
 
+export interface ModCacheUpdateItem {
+  cacheKey: string;
+  name: string;
+  desc: string;
+  iconUrl: string;
+  modId?: string | null;
+  curseforgeFingerprint?: number | null;
+  modrinthHash?: string | null;
+  curseforgeProjectId?: string | null;
+  modrinthProjectId?: string | null;
+}
+
 export type ModPlatformId = 'modrinth' | 'curseforge';
 export type ModPlatformPreference = 'auto' | ModPlatformId;
 
@@ -486,6 +498,9 @@ export const modService = {
   rollbackInstance: (id: string, snapshotId: string) => 
     invoke<SnapshotRollbackResult>('rollback_instance', { instanceId: id, snapshotId }),
     
+  updateModCacheBatch: (items: ModCacheUpdateItem[]): Promise<Record<string, string | null>> =>
+    invoke<Record<string, string | null>>('update_mod_cache_batch', { items }),
+
   updateModCache: (
     cacheKey: string,
     name: string,

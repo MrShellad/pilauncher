@@ -38,11 +38,9 @@ import { OreModal } from '../../../../../../../ui/primitives/OreModal';
 import { OreButton } from '../../../../../../../ui/primitives/OreButton';
 import { OreOverlayScrollArea } from '../../../../../../../ui/primitives/OreOverlayScrollArea';
 import { InstanceFilterBar } from './InstanceFilterBar';
-import { ResourceGrid, ResourceCardSkeleton } from './ResourceGrid';
-import { ShimmerOverlay } from '../../../../../../Download/components/ShimmerOverlay';
+import { ResourceGrid } from './ResourceGrid';
 import { useInstanceDownloadSelectionStore } from '../../hooks/useInstanceDownloadSelectionStore';
 import { GamepadButtonIcon } from '../../../../../../../ui/components/GamepadButtonIcon';
-import { motion, AnimatePresence } from 'motion/react';
 
 const INSTANCE_DOWNLOAD_ACTION_BAR_FOCUS_PREFIX = 'instance-download-actions';
 const INSTANCE_DOWNLOAD_GRID_FOCUS_PREFIX = 'download-grid-item-';
@@ -200,71 +198,7 @@ const MissingDependenciesModal: React.FC<{
   );
 };
 
-const InstanceModDownloadViewSkeleton: React.FC<{
-  showBackButton?: boolean;
-}> = ({ showBackButton = true }) => {
 
-  return (
-    <div className="relative flex h-full w-full flex-col bg-transparent text-white">
-      {/* 1. FilterBar Skeleton */}
-      <div className="mb-4 flex-shrink-0 border-2 border-[#2A2A2C] bg-[#18181B] p-4 shadow-md">
-        <div className="flex flex-col gap-4">
-          {/* ROW 1: BACK BTN, TITLE, ENVIRONMENT */}
-          <div className="flex w-full items-center justify-between gap-4">
-            <div className="flex flex-1 justify-start">
-              {showBackButton && (
-                <div className="relative overflow-hidden h-[2.75rem] w-24 bg-[#48494A]/30 border border-white/5">
-                  <ShimmerOverlay />
-                </div>
-              )}
-            </div>
-            <div className="flex flex-1 justify-center">
-              <div className="relative overflow-hidden h-5 w-48 bg-[#48494A]/30">
-                <ShimmerOverlay />
-              </div>
-            </div>
-            <div className="flex flex-1 justify-end">
-              <div className="relative overflow-hidden h-9 w-48 bg-[#48494A]/25 border border-ore-green/20">
-                <ShimmerOverlay />
-              </div>
-            </div>
-          </div>
-
-          {/* ROW 2: FILTERS & SEARCH */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative overflow-hidden h-[2.75rem] w-[15rem] shrink-0 bg-[#48494A]/25 border-[0.125rem] border-[#141516]">
-              <ShimmerOverlay />
-            </div>
-            <div className="relative overflow-hidden h-[2.75rem] min-w-[7.5rem] max-w-[10rem] flex-1 bg-[#48494A]/25 border-[0.125rem] border-[#141516]">
-              <ShimmerOverlay />
-            </div>
-            <div className="relative overflow-hidden h-[2.75rem] min-w-[7.5rem] max-w-[10rem] flex-1 bg-[#48494A]/25 border-[0.125rem] border-[#141516]">
-              <ShimmerOverlay />
-            </div>
-            <div className="relative overflow-hidden h-[2.75rem] min-w-[11.25rem] flex-1 bg-[#48494A]/25 border-[0.125rem] border-[#141516]">
-              <ShimmerOverlay />
-            </div>
-            <div className="relative overflow-hidden h-[2.75rem] w-[6.25rem] shrink-0 bg-[#48494A]/30 border-[0.125rem] border-[#141516]">
-              <ShimmerOverlay />
-            </div>
-            <div className="relative overflow-hidden h-[2.75rem] w-[5.625rem] shrink-0 bg-[#48494A]/30 border-[0.125rem] border-[#141516]">
-              <ShimmerOverlay />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Grid Skeleton */}
-      <div className="relative flex-1 min-h-0 flex-col overflow-hidden rounded-sm border-2 border-[#1E1E1F] bg-black/20 p-4 pt-6 shadow-inner">
-        <div className="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] pb-[1.5rem]">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <ResourceCardSkeleton key={i} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export const InstanceModDownloadView: React.FC<{
   instanceId: string;
@@ -403,13 +337,6 @@ export const InstanceModDownloadView: React.FC<{
     };
   }, [handleBackFromAuthor]);
 
-  const [hasInitialLoaded, setHasInitialLoaded] = useState(() => isEnvLoaded && syncStep >= 3 && !isLoading);
-
-  useEffect(() => {
-    if (isEnvLoaded && syncStep >= 3 && !isLoading) {
-      setHasInitialLoaded(true);
-    }
-  }, [isEnvLoaded, syncStep, isLoading]);
   const selectedProjectIds = useInstanceDownloadSelectionStore((state) => state.selectedProjectIds);
   const selectedProjectsById = useInstanceDownloadSelectionStore((state) => state.selectedProjects);
   const selectedCount = useInstanceDownloadSelectionStore((state) => state.selectedCount);
@@ -1228,32 +1155,6 @@ export const InstanceModDownloadView: React.FC<{
           onCreated={clearSelection}
         />
       </FocusBoundary>
-
-      {/* Full-Page Loading Skeleton Overlay (wipes away from left to right) */}
-      <AnimatePresence>
-        {!hasInitialLoaded && (
-          <motion.div
-            key="page-skeleton-overlay"
-            initial={{ opacity: 1, ["--wipe" as any]: "-120%" }}
-            exit={{ 
-              ["--wipe" as any]: "120%",
-              pointerEvents: "none"
-            }}
-            transition={{ 
-              ["--wipe" as any]: { duration: 0.7, ease: "easeInOut" }
-            }}
-            style={{
-              maskImage: 'linear-gradient(to right, transparent var(--wipe), black calc(var(--wipe) + 100%))',
-              WebkitMaskImage: 'linear-gradient(to right, transparent var(--wipe), black calc(var(--wipe) + 100%))'
-            }}
-            className="absolute inset-0 z-50 bg-[#313233]"
-          >
-            <InstanceModDownloadViewSkeleton
-              showBackButton={showFilterBackButton}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

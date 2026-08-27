@@ -1,6 +1,7 @@
 pub mod dependency_resolver;
 pub mod gamepad;
 pub mod icon_storage;
+pub use icon_storage::{IconStorage, ModCacheUpdateItem};
 pub mod installer;
 pub mod jar_parser;
 pub mod remote_fetcher;
@@ -836,7 +837,6 @@ impl ModManagerService {
                     sha1: meta.sha1.clone(),
                     curseforge_fingerprint: meta.curseforge_fingerprint,
                     mod_id: meta.mod_id.clone(),
-                    custom_display_name: None,
                     version: meta.version.clone(),
                     source_platform: source.and_then(|value| value.platform.clone()),
                     source_project_id: source.and_then(|value| value.project_id.clone()),
@@ -1051,6 +1051,13 @@ impl ModManagerService {
         .await
     }
 
+    pub async fn update_mod_cache_batch<R: Runtime>(
+        app: &AppHandle<R>,
+        items: Vec<ModCacheUpdateItem>,
+    ) -> Result<std::collections::HashMap<String, Option<String>>, String> {
+        icon_storage::IconStorage::update_mod_cache_batch(app, items).await
+    }
+
     pub async fn ensure_offline_jar_icon<R: Runtime>(
         app: &AppHandle<R>,
         instance_id: &str,
@@ -1152,7 +1159,6 @@ mod identity_tests {
             sha1: Some("abc123".to_string()),
             curseforge_fingerprint: Some(77),
             mod_id: Some("fabric-api".to_string()),
-            custom_display_name: None,
             name: Some("Fabric API".to_string()),
             version: Some("1.0.0".to_string()),
             description: None,

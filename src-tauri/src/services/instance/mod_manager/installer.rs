@@ -171,7 +171,6 @@ impl ModInstaller {
             sha1: None,
             curseforge_fingerprint: None,
             mod_id: None,
-            custom_display_name: None,
             version: None,
             source_platform: Some("launcher_download".to_string()),
             source_project_id: None,

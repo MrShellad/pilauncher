@@ -511,7 +511,6 @@ impl ResourceManager {
             sha1: sha1_str,
             curseforge_fingerprint: cf_fp,
             mod_id: effective_mod_id,
-            custom_display_name: effective_name,
             version: effective_version,
             source_platform: p_form.or_else(|| Some(s_kind)),
             source_project_id: p_id,

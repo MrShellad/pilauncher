@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { motion } from 'motion/react';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Blocks, Image as ImageIcon, Package, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -12,8 +12,7 @@ import { DownloadDetailModal } from '../features/Download/components/DownloadDet
 import { FavoritePlaceholderModal } from '../features/Download/components/FavoritePlaceholderModal';
 import { FilterBar } from '../features/Download/components/FilterBar';
 import { InstanceSelectModal } from '../features/Download/components/DetailModal/InstanceSelectModal';
-import { ResourceGrid, ResourceCardSkeleton } from '../features/Download/components/ResourceGrid';
-import { ShimmerOverlay } from '../features/Download/components/ShimmerOverlay';
+import { ResourceGrid } from '../features/Download/components/ResourceGrid';
 import { fetchCurseForgeVersions } from '../features/Download/logic/curseforgeApi';
 import { runResourceDownloadTask } from '../features/Download/logic/resourceDownloadTask';
 import { useResourceDownload, type DownloadSource, type TabType } from '../features/Download/hooks/useResourceDownload';
@@ -29,61 +28,14 @@ import { focusManager } from '../ui/focus/FocusManager';
 const DOWNLOAD_ACTION_BAR_FOCUS_PREFIX = 'resource-download-actions';
 const DOWNLOAD_GRID_FOCUS_PREFIX = 'download-grid-item-';
 
-const ResourceDownloadPageSkeleton = () => {
-  return (
-    <div className="relative flex h-full w-full flex-col bg-transparent text-white">
-      {/* 1. FilterBar Skeleton */}
-      <div className="flex-shrink-0 border-b-[0.125rem] border-[#1E1E1F] bg-[#313233] px-4 pt-4 pb-[1rem] shadow-[inset_0_0.125rem_0_rgba(255,255,255,0.08)]">
-        <div className="mx-auto flex w-full max-w-[93.75rem] flex-col gap-3">
-          <div className="flex h-10 items-center justify-center gap-2">
-            <div className="relative overflow-hidden h-10 w-32 bg-[#48494A]/30 border-[0.125rem] border-[#141516]">
-              <ShimmerOverlay />
-            </div>
-            <div className="relative overflow-hidden h-10 w-32 bg-[#48494A]/30 border-[0.125rem] border-[#141516]">
-              <ShimmerOverlay />
-            </div>
-            <div className="relative overflow-hidden h-10 w-32 bg-[#48494A]/30 border-[0.125rem] border-[#141516]">
-              <ShimmerOverlay />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-x-2 gap-y-2 md:grid-cols-2 lg:grid-cols-12">
-            <div className="relative overflow-hidden h-10 lg:col-span-3 bg-[#48494A]/25 border-[0.125rem] border-[#141516]">
-              <ShimmerOverlay />
-            </div>
-            <div className="relative overflow-hidden h-10 lg:col-span-6 bg-[#48494A]/25 border-[0.125rem] border-[#141516]">
-              <ShimmerOverlay />
-            </div>
-            <div className="relative overflow-hidden h-10 lg:col-span-3 bg-[#48494A]/25 border-[0.125rem] border-[#141516]">
-              <ShimmerOverlay />
-            </div>
-            
-            <div className="relative overflow-hidden h-10 lg:col-span-3 bg-[#48494A]/25 border-[0.125rem] border-[#141516]">
-              <ShimmerOverlay />
-            </div>
-            <div className="relative overflow-hidden h-10 lg:col-span-3 bg-[#48494A]/25 border-[0.125rem] border-[#141516]">
-              <ShimmerOverlay />
-            </div>
-            <div className="relative overflow-hidden h-10 lg:col-span-3 bg-[#48494A]/25 border-[0.125rem] border-[#141516]">
-              <ShimmerOverlay />
-            </div>
-            <div className="relative overflow-hidden h-10 lg:col-span-3 bg-[#48494A]/25 border-[0.125rem] border-[#141516]">
-              <ShimmerOverlay />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Grid Skeleton */}
-      <div className="h-full min-h-0 flex-1 overflow-hidden px-4 pt-6">
-        <div className="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] pb-[1.5rem]">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <ResourceCardSkeleton key={i} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
+interface DownloadHistoryItem {
+  query: string;
+  category: string;
+  results: ModrinthProject[];
+  offset: number;
+  hasMore: boolean;
+  scrollTop: number;
+}
 
 const ResourceDownloadPage: React.FC = () => {
   const { t } = useTranslation();
@@ -135,14 +87,6 @@ const ResourceDownloadPage: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<ModrinthProject | null>(null);
   const [selectedProjectIdForTransition, setSelectedProjectIdForTransition] = useState<string | undefined>(undefined);
 
-  const [hasInitialLoaded, setHasInitialLoaded] = useState(() => isEnvLoaded && !isLoading);
-
-  useEffect(() => {
-    if (isEnvLoaded && !isLoading) {
-      setHasInitialLoaded(true);
-    }
-  }, [isEnvLoaded, isLoading]);
-
   useEffect(() => {
     if (selectedProject) {
       setSelectedProjectIdForTransition(selectedProject.id || (selectedProject as any).project_id);
@@ -157,15 +101,6 @@ const ResourceDownloadPage: React.FC = () => {
   const [isFavoriteModalOpen, setIsFavoriteModalOpen] = useState(false);
   const [isBatchInstanceModalOpen, setIsBatchInstanceModalOpen] = useState(false);
   const [resultsScrollTop, setResultsScrollTop] = useState(0);
-
-  interface DownloadHistoryItem {
-    query: string;
-    category: string;
-    results: ModrinthProject[];
-    offset: number;
-    hasMore: boolean;
-    scrollTop: number;
-  }
 
   const [historyStack, setHistoryStack] = useState<DownloadHistoryItem[]>([]);
   const [prevActiveTab, setPrevActiveTab] = useState(activeTab);
@@ -698,30 +633,6 @@ const ResourceDownloadPage: React.FC = () => {
           />
         </FocusBoundary>
       </motion.div>
-
-      {/* Full-Page Loading Skeleton Overlay (wipes away from left to right) */}
-      <AnimatePresence>
-        {!hasInitialLoaded && (
-          <motion.div
-            key="page-skeleton-overlay"
-            initial={{ opacity: 1, ["--wipe" as any]: "-120%" }}
-            exit={{ 
-              ["--wipe" as any]: "120%",
-              pointerEvents: "none"
-            }}
-            transition={{ 
-              ["--wipe" as any]: { duration: 0.7, ease: "easeInOut" }
-            }}
-            style={{
-              maskImage: 'linear-gradient(to right, transparent var(--wipe), black calc(var(--wipe) + 100%))',
-              WebkitMaskImage: 'linear-gradient(to right, transparent var(--wipe), black calc(var(--wipe) + 100%))'
-            }}
-            className="absolute inset-0 z-50 bg-[#313233]"
-          >
-            <ResourceDownloadPageSkeleton />
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

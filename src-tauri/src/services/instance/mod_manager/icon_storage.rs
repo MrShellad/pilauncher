@@ -6,6 +6,20 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, Runtime};
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModCacheUpdateItem {
+    pub cache_key: String,
+    pub name: String,
+    pub desc: String,
+    pub icon_url: String,
+    pub mod_id: Option<String>,
+    pub curseforge_fingerprint: Option<u32>,
+    pub modrinth_hash: Option<String>,
+    pub curseforge_project_id: Option<String>,
+    pub modrinth_project_id: Option<String>,
+}
+
 pub struct IconStorage;
 
 impl IconStorage {
@@ -209,6 +223,253 @@ impl IconStorage {
             }
         }
         None
+    }
+
+    pub async fn update_mod_cache_batch<R: Runtime>(
+        app: &AppHandle<R>,
+        items: Vec<ModCacheUpdateItem>,
+    ) -> Result<std::collections::HashMap<String, Option<String>>, String> {
+        let db = app.state::<crate::services::db_service::AppDatabase>();
+        let shared_mods_dir_res = Self::get_shared_mods_dir(app);
+        let mut results = std::collections::HashMap::new();
+
+        if items.is_empty() {
+            return Ok(results);
+        }
+
+        let shared_mods_dir = shared_mods_dir_res.ok();
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap_or_default();
+
+        // 1. 处理所有图标下载/本地路径解析
+        let mut prepared_items = Vec::with_capacity(items.len());
+        for item in items {
+            let mut final_icon_url = item.icon_url.clone();
+            let mut cached_icon_path = None;
+
+            if (item.icon_url.starts_with("http://") || item.icon_url.starts_with("https://"))
+                && shared_mods_dir.is_some()
+            {
+                let s_dir = shared_mods_dir.as_ref().unwrap();
+                // 1. Try finding in DB global_mod_cache first
+                if let Ok(Some(row)) = sqlx::query_as::<_, ModCacheInfo>(
+                    "SELECT name, description, icon_url FROM global_mod_cache WHERE cache_key = ?",
+                )
+                .bind(&item.cache_key)
+                .fetch_optional(&db.pool)
+                .await
+                {
+                    if let Some(rel) = row.icon_url.filter(|value| value.starts_with("icons/")) {
+                        let existing_path = s_dir.join(&rel);
+                        if existing_path.is_file()
+                            && fs::metadata(&existing_path)
+                                .map(|meta| meta.len() > 0)
+                                .unwrap_or(false)
+                        {
+                            cached_icon_path =
+                                Some(existing_path.to_string_lossy().replace('\\', "/"));
+                            final_icon_url = rel;
+                        }
+                    }
+                }
+
+                // 2. If not found, try querying mod_global_metadata_cache
+                if cached_icon_path.is_none() {
+                    if let Some(row) = super::ModManagerService::query_cached_metadata(
+                        &db.pool,
+                        item.mod_id.as_deref(),
+                        item.curseforge_fingerprint,
+                        item.modrinth_hash.as_deref(),
+                        item.modrinth_project_id.as_deref(),
+                        item.curseforge_project_id.as_deref(),
+                        Some(&item.cache_key),
+                    )
+                    .await
+                    {
+                        if !row.icon_rel_path.is_empty() && !row.icon_rel_path.starts_with("http") {
+                            let existing_path = s_dir.join(&row.icon_rel_path);
+                            if existing_path.is_file()
+                                && fs::metadata(&existing_path)
+                                    .map(|meta| meta.len() > 0)
+                                    .unwrap_or(false)
+                            {
+                                cached_icon_path =
+                                    Some(existing_path.to_string_lossy().replace('\\', "/"));
+                                final_icon_url = row.icon_rel_path;
+                            }
+                        }
+                    }
+                }
+
+                // 3. If still not cached, download into bucket
+                if cached_icon_path.is_none() {
+                    let icons_base_dir = s_dir.join("icons");
+                    let bucket_dir = Self::get_or_create_available_bucket(&icons_base_dir);
+                    let icon_filename_key = item.mod_id.as_deref().unwrap_or(&item.cache_key);
+                    if let Some(abs_path_str) = Self::download_icon_to_bucket(
+                        &client,
+                        &item.icon_url,
+                        &bucket_dir,
+                        icon_filename_key,
+                    )
+                    .await
+                    {
+                        cached_icon_path = Some(abs_path_str.clone());
+                        let abs_path = std::path::Path::new(&abs_path_str);
+                        if let Ok(rel) = abs_path.strip_prefix(s_dir) {
+                            final_icon_url = rel.to_string_lossy().replace('\\', "/");
+                        }
+                    }
+                }
+            }
+
+            results.insert(item.cache_key.clone(), cached_icon_path);
+            prepared_items.push((item, final_icon_url));
+        }
+
+        // 2. 批量事务写入 SQLite
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+
+        if let Ok(mut tx) = db.pool.begin().await {
+            for (item, final_icon_url) in prepared_items {
+                let (inferred_mod_id, cf_pid, mr_pid, icon_source) =
+                    if let Some(stripped) = item.cache_key.strip_prefix("modrinth_") {
+                        (
+                            item.mod_id.as_deref(),
+                            item.curseforge_project_id.as_deref(),
+                            Some(stripped),
+                            Some("modrinth"),
+                        )
+                    } else if let Some(stripped) = item.cache_key.strip_prefix("curseforge_") {
+                        (
+                            item.mod_id.as_deref(),
+                            Some(stripped),
+                            item.modrinth_project_id.as_deref(),
+                            Some("curseforge"),
+                        )
+                    } else if let Some(stripped) = item.cache_key.strip_prefix("local_") {
+                        (
+                            Some(stripped),
+                            item.curseforge_project_id.as_deref(),
+                            item.modrinth_project_id.as_deref(),
+                            None,
+                        )
+                    } else {
+                        (
+                            item.mod_id.as_deref(),
+                            item.curseforge_project_id.as_deref(),
+                            item.modrinth_project_id.as_deref(),
+                            None,
+                        )
+                    };
+
+                let effective_id = inferred_mod_id
+                    .filter(|s| !s.trim().is_empty())
+                    .map(|s| s.to_string())
+                    .or_else(|| cf_pid.map(|p| format!("curseforge_{}", p)))
+                    .or_else(|| mr_pid.map(|p| format!("modrinth_{}", p)))
+                    .or_else(|| Some(item.cache_key.clone()));
+
+                if let Some(id) = effective_id {
+                    let display_title = if !item.name.is_empty() {
+                        item.name.as_str()
+                    } else {
+                        id.as_str()
+                    };
+                    let mut auto_aliases = Vec::new();
+                    if let Some(m) = inferred_mod_id {
+                        auto_aliases.push(m.to_string());
+                    }
+                    if let Some(cf) = cf_pid {
+                        auto_aliases.push(cf.to_string());
+                    }
+                    if let Some(mr) = mr_pid {
+                        auto_aliases.push(mr.to_string());
+                    }
+                    if !item.name.is_empty() {
+                        auto_aliases.push(item.name.clone());
+                    }
+                    auto_aliases.push(item.cache_key.clone());
+
+                    let aliases_json = serde_json::to_string(&auto_aliases).ok();
+
+                    let _ = sqlx::query::<sqlx::Sqlite>(
+                        r#"
+                        INSERT INTO mod_global_metadata_cache (
+                            mod_id, curseforge_fingerprint, modrinth_hash,
+                            curseforge_project_id, modrinth_project_id,
+                            name, description, icon_rel_path, icon_source, aliases, updated_at
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(mod_id) DO UPDATE SET
+                            curseforge_fingerprint = COALESCE(excluded.curseforge_fingerprint, mod_global_metadata_cache.curseforge_fingerprint),
+                            modrinth_hash = COALESCE(excluded.modrinth_hash, mod_global_metadata_cache.modrinth_hash),
+                            curseforge_project_id = COALESCE(excluded.curseforge_project_id, mod_global_metadata_cache.curseforge_project_id),
+                            modrinth_project_id = COALESCE(excluded.modrinth_project_id, mod_global_metadata_cache.modrinth_project_id),
+                            name = COALESCE(excluded.name, mod_global_metadata_cache.name),
+                            description = COALESCE(excluded.description, mod_global_metadata_cache.description),
+                            icon_rel_path = CASE
+                                WHEN excluded.icon_rel_path <> '' THEN excluded.icon_rel_path
+                                ELSE mod_global_metadata_cache.icon_rel_path
+                            END,
+                            icon_source = COALESCE(excluded.icon_source, mod_global_metadata_cache.icon_source),
+                            aliases = COALESCE(excluded.aliases, mod_global_metadata_cache.aliases),
+                            updated_at = excluded.updated_at
+                        "#
+                    )
+                    .bind(&id)
+                    .bind(item.curseforge_fingerprint.map(|v| v as i64))
+                    .bind(item.modrinth_hash.as_deref())
+                    .bind(cf_pid)
+                    .bind(mr_pid)
+                    .bind(&item.name)
+                    .bind(&item.desc)
+                    .bind(&final_icon_url)
+                    .bind(icon_source)
+                    .bind(aliases_json)
+                    .bind(now)
+                    .execute(&mut *tx)
+                    .await;
+
+                    let _ = crate::services::db_service::DbService::save_mod_aliases(
+                        &db.pool,
+                        &id,
+                        display_title,
+                        &auto_aliases,
+                        "metadata_sync",
+                    )
+                    .await;
+                }
+
+                let _ = sqlx::query::<sqlx::Sqlite>(
+                    r#"
+                    INSERT INTO global_mod_cache (cache_key, name, description, icon_url, updated_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(cache_key) DO UPDATE SET
+                        name = excluded.name,
+                        description = excluded.description,
+                        icon_url = excluded.icon_url,
+                        updated_at = excluded.updated_at
+                    "#,
+                )
+                .bind(&item.cache_key)
+                .bind(&item.name)
+                .bind(&item.desc)
+                .bind(&final_icon_url)
+                .bind(now)
+                .execute(&mut *tx)
+                .await;
+            }
+
+            let _ = tx.commit().await;
+        }
+
+        Ok(results)
     }
 
     pub async fn update_mod_cache<R: Runtime>(

@@ -1,6 +1,6 @@
 // /src/features/InstanceDetail/components/sidebar/InstanceHeroSidebar.tsx
 import React, { useState } from 'react';
-import { Play, FolderOpen, ImagePlus, type LucideIcon } from 'lucide-react';
+import { Play, FolderOpen, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { useGameLaunch } from '../../../../hooks/useGameLaunch';
@@ -15,7 +15,6 @@ interface InstanceHeroSidebarProps {
   activeTab: DetailTab;
   onSelectTab: (tab: DetailTab) => void;
   onOpenFolder?: () => void;
-  onUpdateCover?: () => Promise<void>;
   tabs: { id: DetailTab; label: string; icon: LucideIcon }[];
 }
 
@@ -24,12 +23,10 @@ export const InstanceHeroSidebar: React.FC<InstanceHeroSidebarProps> = ({
   activeTab,
   onSelectTab,
   onOpenFolder,
-  onUpdateCover,
   tabs,
 }) => {
   const { t } = useTranslation();
   const [showNoAccountModal, setShowNoAccountModal] = useState(false);
-  const [isUpdatingCover, setIsUpdatingCover] = useState(false);
 
   const { isLaunching, launchGame } = useGameLaunch();
   const inputMode = useInputMode();
@@ -51,25 +48,13 @@ export const InstanceHeroSidebar: React.FC<InstanceHeroSidebarProps> = ({
     launchGame(data.id, inputMode === 'controller', e);
   };
 
-  const handleCoverClick = async () => {
-    if (!onUpdateCover || isUpdatingCover) return;
-    try {
-      setIsUpdatingCover(true);
-      await onUpdateCover();
-    } catch {
-      // 静默处理
-    } finally {
-      setIsUpdatingCover(false);
-    }
-  };
-
   return (
     <>
-      <aside className="flex h-full w-full flex-col border-r-[2px] border-[#1E1E1F] bg-[#313233] p-3.5 select-none overflow-y-auto custom-scrollbar shadow-[inset_-2px_0_rgba(0,0,0,0.3)]">
+      <aside className="flex h-full w-full flex-col border-r-[2px] border-[#1E1E1F] bg-[#313233] p-3 select-none overflow-y-auto custom-scrollbar shadow-[inset_-2px_0_rgba(0,0,0,0.3)]">
         {/* =========================================================================
-            1. 实例形象卡片 (Hero Card 16:9)
+            1. 实例形象卡片 (Hero Card 16:9 + 实例名称置于封面底部)
             ========================================================================= */}
-        <div className="relative mb-3 w-full aspect-video flex-shrink-0 overflow-hidden border-[2px] border-[#1E1E1F] bg-black shadow-[inset_0_2px_rgba(255,255,255,0.1),inset_0_-2px_rgba(0,0,0,0.6)]">
+        <div className="relative mb-2.5 w-full aspect-video flex-shrink-0 overflow-hidden border-[2px] border-[#1E1E1F] bg-[#141415] shadow-[inset_0_2px_rgba(255,255,255,0.1),inset_0_-2px_rgba(0,0,0,0.6)]">
           <img
             src={coverImage}
             alt={data.name}
@@ -82,37 +67,22 @@ export const InstanceHeroSidebar: React.FC<InstanceHeroSidebarProps> = ({
             <span className="text-[#D0D1D4]">{versionString}</span>
           </div>
 
-          {/* 左下角更换封面悬浮按钮 */}
-          {onUpdateCover && (
-            <FocusItem
-              focusKey="sidebar-btn-change-cover"
-              onEnter={handleCoverClick}
+          {/* 底部遮罩渐变与实例名称 */}
+          <div className="absolute inset-x-0 bottom-0 flex flex-col justify-end bg-gradient-to-t from-[#101010]/95 via-[#101010]/70 to-transparent px-2.5 pt-6 pb-2">
+            <h2
+              className="font-minecraft text-sm lg:text-[15px] font-bold text-white tracking-wide truncate ore-text-shadow leading-snug"
+              title={data.name}
             >
-              {({ ref, focused, tabIndex }) => (
-                <button
-                  ref={ref as any}
-                  type="button"
-                  tabIndex={tabIndex}
-                  onClick={handleCoverClick}
-                  disabled={isUpdatingCover}
-                  title={t('instanceDetail.changeCover', '更改封面')}
-                  aria-label={t('instanceDetail.changeCover', '更改封面')}
-                  className={`absolute bottom-1.5 left-1.5 flex h-7 w-7 items-center justify-center border-[2px] border-[#1E1E1F] bg-[#48494A]/90 text-white transition-none cursor-pointer outline-none hover:bg-[#58585A] active:bg-[#38383A] ${
-                    focused ? 'outline outline-2 outline-white outline-offset-1 z-10' : ''
-                  }`}
-                >
-                  <ImagePlus size={14} className="text-white" />
-                </button>
-              )}
-            </FocusItem>
-          )}
+              {data.name}
+            </h2>
+          </div>
         </div>
 
         {/* =========================================================================
-            2. 全局启动与快捷操作动作区
+            2. 全局启动与快捷操作动作区 (强化高度与水平/垂直视觉居中)
             ========================================================================= */}
-        <div className="mb-4 flex flex-col gap-2.5 flex-shrink-0">
-          {/* PLAY 主启动按钮 (大幅增大 + 居中文本 + 去掉按键提示) */}
+        <div className="mb-3 flex flex-col gap-2.5 flex-shrink-0">
+          {/* PLAY 主启动按钮 */}
           <FocusItem
             focusKey="sidebar-btn-play"
             onEnter={handlePlayClick}
@@ -124,21 +94,23 @@ export const InstanceHeroSidebar: React.FC<InstanceHeroSidebarProps> = ({
                 tabIndex={tabIndex}
                 onClick={handlePlayClick}
                 disabled={isLaunching}
-                className={`relative flex h-[54px] w-full items-center justify-center gap-3 border-[2px] border-[#1E1E1F] bg-[#3C8527] px-4 font-minecraft text-base font-bold uppercase tracking-wider text-white transition-none cursor-pointer outline-none shadow-[inset_0_-4px_#1D4D13,inset_2px_2px_rgba(255,255,255,0.3),inset_-2px_-6px_rgba(255,255,255,0.2)] hover:bg-[#4A9E2D] active:bg-[#255517] active:shadow-[inset_2px_2px_rgba(0,0,0,0.4)] ${
+                className={`relative flex h-[54px] w-full items-center justify-center border-[2px] border-[#1E1E1F] bg-[#3C8527] px-4 pb-1 transition-none cursor-pointer outline-none shadow-[inset_0_-4px_#1D4D13,inset_2px_2px_rgba(255,255,255,0.3),inset_-2px_-6px_rgba(255,255,255,0.2)] hover:bg-[#4A9E2D] active:bg-[#255517] active:pt-1 active:pb-0 active:shadow-[inset_2px_2px_rgba(0,0,0,0.4)] ${
                   focused ? 'outline outline-2 outline-white outline-offset-1 z-10' : ''
                 } ${isLaunching ? 'opacity-80 cursor-wait' : ''}`}
               >
-                <Play size={20} className="fill-white" />
-                <span className="ore-text-shadow">
-                  {isLaunching
-                    ? t('instanceDetail.launching', '启动中...')
-                    : t('instanceDetail.play', '启动游戏')}
-                </span>
+                <div className="flex items-center justify-center gap-2.5">
+                  <Play size={20} className="fill-white shrink-0" />
+                  <span className="font-minecraft text-base font-bold uppercase tracking-normal text-white ore-text-shadow leading-none">
+                    {isLaunching
+                      ? t('instanceDetail.launching', '启动中...')
+                      : t('instanceDetail.play', '启动游戏')}
+                  </span>
+                </div>
               </button>
             )}
           </FocusItem>
 
-          {/* 打开目录按钮 (标准 OreUI 灰色按钮设计 + 居中文本与图标) */}
+          {/* 打开目录按钮 */}
           {onOpenFolder && (
             <FocusItem
               focusKey="sidebar-btn-open-folder"
@@ -150,12 +122,16 @@ export const InstanceHeroSidebar: React.FC<InstanceHeroSidebarProps> = ({
                   type="button"
                   tabIndex={tabIndex}
                   onClick={onOpenFolder}
-                  className={`flex h-[44px] w-full items-center justify-center gap-2.5 border-[2px] border-[#1E1E1F] bg-[#D0D1D4] px-4 font-minecraft text-sm font-bold uppercase tracking-wider text-black transition-none cursor-pointer outline-none shadow-[inset_0_-4px_#58585A,inset_2px_2px_rgba(255,255,255,0.6),inset_-2px_-6px_rgba(255,255,255,0.4)] hover:bg-white active:bg-[#8C8D90] ${
+                  className={`relative flex h-[46px] w-full items-center justify-center border-[2px] border-[#1E1E1F] bg-[#D0D1D4] px-4 pb-1 transition-none cursor-pointer outline-none shadow-[inset_0_-4px_#58585A,inset_2px_2px_rgba(255,255,255,0.6),inset_-2px_-6px_rgba(255,255,255,0.4)] hover:bg-white active:bg-[#8C8D90] active:pt-1 active:pb-0 active:shadow-[inset_2px_2px_rgba(0,0,0,0.3)] ${
                     focused ? 'outline outline-2 outline-white outline-offset-1 z-10' : ''
                   }`}
                 >
-                  <FolderOpen size={18} className="text-black" />
-                  <span>{t('instanceDetail.openFolder', '打开实例目录')}</span>
+                  <div className="flex items-center justify-center gap-2.5">
+                    <FolderOpen size={18} className="text-black shrink-0" />
+                    <span className="font-minecraft text-sm font-bold uppercase tracking-normal text-black leading-none">
+                      {t('instanceDetail.openFolder', '打开实例目录')}
+                    </span>
+                  </div>
                 </button>
               )}
             </FocusItem>
@@ -163,21 +139,24 @@ export const InstanceHeroSidebar: React.FC<InstanceHeroSidebarProps> = ({
         </div>
 
         {/* =========================================================================
-            3. 垂直功能导航树 (严格对齐基岩版 OreUI 规范: 贴合列表 + 方形图标槽 + 实体石灰高亮)
+            3. 垂直功能导航树 (像素对齐优化: 实体框体内嵌 + 方形图标槽 + 紧凑对齐)
             ========================================================================= */}
-        <nav className="flex flex-1 flex-col min-h-0 -mx-3.5 mt-1 border-t border-b border-[#1E1E1F] divide-y divide-[#1E1E1F]" aria-label="实例配置导航">
+        <nav
+          className="flex flex-1 flex-col min-h-0 w-full border-[2px] border-[#1E1E1F] bg-[#242425] shadow-[inset_0_2px_rgba(0,0,0,0.3)] divide-y-[2px] divide-[#1E1E1F] overflow-hidden"
+          aria-label="实例配置导航"
+        >
           {tabs.map((tab) => {
             const isCurrent = activeTab === tab.id;
             const Icon = tab.icon;
 
             const iconColors: Record<string, string> = {
-              basic: '#C8995C', // 齿轮/通用 棕褐
-              java: '#58B2DC', // 熔炉/运行时 蓝青
-              mods: '#67B346', // 草方块/MOD 亮绿
+              basic: '#C8995C', // 齿轮/常规 棕褐
+              java: '#58B2DC', // 咖啡/Java 蓝青
+              mods: '#67B346', // 方块/MOD 亮绿
               resourcepacks: '#E0A33A', // 箱子/资源包 矿石黄
-              shaders: '#4EB8DE', // 钻石/光影 青蓝
-              saves: '#5EBA46', // 地球/世界存档 鲜绿
-              export: '#E8B834', // 指南针/导出 金黄
+              shaders: '#4EB8DE', // 图像/光影 青蓝
+              saves: '#5EBA46', // 文件夹/存档 鲜绿
+              export: '#E8B834', // 下载/导出 金黄
             };
 
             return (
@@ -192,18 +171,18 @@ export const InstanceHeroSidebar: React.FC<InstanceHeroSidebarProps> = ({
                     type="button"
                     tabIndex={tabIndex}
                     onClick={() => onSelectTab(tab.id)}
-                    className={`relative flex h-[54px] w-full items-center gap-3.5 px-4 font-minecraft text-[15px] font-bold tracking-wide text-left transition-none cursor-pointer outline-none select-none ${
+                    className={`relative flex h-[46px] w-full items-center gap-3 px-3 font-minecraft text-xs lg:text-[13px] font-bold tracking-wide text-left transition-none cursor-pointer outline-none select-none ${
                       isCurrent
-                        ? 'bg-[#48494A] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)]'
-                        : 'bg-[#313233] text-[#E2E2E3] hover:bg-[#48494A] hover:text-white'
+                        ? 'bg-[#48494A] text-white shadow-[inset_3px_0_0_#3C8527,inset_0_1px_0_rgba(255,255,255,0.15),inset_0_-1px_0_rgba(0,0,0,0.25)]'
+                        : 'bg-[#2B2B2C] text-[#C6C6C8] hover:bg-[#38383A] hover:text-white'
                     } ${
                       focused ? 'outline outline-2 outline-white outline-offset-[-2px] z-10' : ''
                     }`}
                   >
-                    {/* 像素化深色图标盒体 (Square Pixel Well) */}
-                    <div className="flex h-[32px] w-[32px] items-center justify-center border-[2px] border-[#1E1E1F] bg-[#18181A] shadow-[inset_1px_1px_rgba(255,255,255,0.08)] flex-shrink-0">
+                    {/* 像素化深色图标盒体 */}
+                    <div className="flex h-[28px] w-[28px] items-center justify-center border-[2px] border-[#1E1E1F] bg-[#18181A] shadow-[inset_1px_1px_rgba(255,255,255,0.08)] flex-shrink-0">
                       <Icon
-                        size={18}
+                        size={15}
                         style={{ color: iconColors[tab.id] || '#FFFFFF' }}
                       />
                     </div>

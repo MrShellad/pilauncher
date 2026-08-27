@@ -10,7 +10,7 @@ pub async fn query_instance_mods(
     let raw_rows = sqlx::query_as::<_, RawInstanceModQueryResult>(
         "SELECT 
             im.file_name, im.is_enabled, im.file_size, im.modified_at, im.sha1, im.curseforge_fingerprint,
-            im.mod_id, COALESCE(im.custom_display_name, g.name) AS name, im.version,
+            im.mod_id, g.name AS name, im.version,
             g.description, g.icon_rel_path, g.icon_source, g.aliases,
             im.source_platform, im.source_project_id, im.source_file_id
          FROM instance_mods im
@@ -128,7 +128,6 @@ pub async fn query_instance_mods(
                 sha1: r.sha1,
                 curseforge_fingerprint: r.curseforge_fingerprint.map(|v| v as u32),
                 mod_id: r.mod_id,
-                custom_display_name: r.custom_display_name,
                 name: r.name,
                 version: r.version,
                 description: r.description,
@@ -163,9 +162,9 @@ pub async fn upsert_instance_mods(
         sqlx::query(
             "INSERT INTO instance_mods (
                 instance_id, file_name, is_enabled, file_size, modified_at,
-                sha1, curseforge_fingerprint, mod_id, custom_display_name, version,
+                sha1, curseforge_fingerprint, mod_id, version,
                 source_platform, source_project_id, source_file_id, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(instance_id, file_name) DO UPDATE SET
                 is_enabled = excluded.is_enabled,
                 file_size = excluded.file_size,
@@ -173,7 +172,6 @@ pub async fn upsert_instance_mods(
                 sha1 = COALESCE(excluded.sha1, instance_mods.sha1),
                 curseforge_fingerprint = COALESCE(excluded.curseforge_fingerprint, instance_mods.curseforge_fingerprint),
                 mod_id = COALESCE(excluded.mod_id, instance_mods.mod_id),
-                custom_display_name = COALESCE(excluded.custom_display_name, instance_mods.custom_display_name),
                 version = COALESCE(excluded.version, instance_mods.version),
                 source_platform = COALESCE(excluded.source_platform, instance_mods.source_platform),
                 source_project_id = COALESCE(excluded.source_project_id, instance_mods.source_project_id),
@@ -188,7 +186,6 @@ pub async fn upsert_instance_mods(
         .bind(&m.sha1)
         .bind(m.curseforge_fingerprint.map(|v| v as i64))
         .bind(&m.mod_id)
-        .bind(&m.custom_display_name)
         .bind(&m.version)
         .bind(&m.source_platform)
         .bind(&m.source_project_id)

@@ -375,6 +375,7 @@ export const ProjectDescriptionModal: React.FC<ProjectDescriptionModalProps> = (
       isOpen={isOpen}
       onClose={onClose}
       hideCloseButton
+      disableScrollArea
       title={project.title}
       className="w-[min(54rem,calc(100vw-2rem))]"
       contentClassName="p-[1rem] bg-[var(--ore-modal-bg)] overflow-hidden flex flex-col min-h-0"

@@ -47,6 +47,15 @@ pub async fn update_mod_cache<R: tauri::Runtime>(
 }
 
 #[tauri::command]
+pub async fn update_mod_cache_batch<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    items: Vec<crate::services::instance::mod_manager::ModCacheUpdateItem>,
+) -> Result<std::collections::HashMap<String, Option<String>>, String> {
+    crate::services::instance::mod_manager::ModManagerService::update_mod_cache_batch(&app, items)
+        .await
+}
+
+#[tauri::command]
 pub async fn ensure_offline_jar_icon<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     instance_id: String,

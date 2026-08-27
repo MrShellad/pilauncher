@@ -163,6 +163,58 @@ export const fetchModrinthProjectById = async (projectId: string): Promise<Modri
   return toModrinthProject(detail);
 };
 
+export const fetchModrinthProjectsBatch = async (
+  projectIds: string[]
+): Promise<ModrinthProject[]> => {
+  if (!projectIds || projectIds.length === 0) return [];
+  const uniqueIds = Array.from(new Set(projectIds.map((id) => id.trim()).filter(Boolean)));
+  if (uniqueIds.length === 0) return [];
+
+  const CHUNK_SIZE = 100;
+  const results: ModrinthProject[] = [];
+
+  for (let i = 0; i < uniqueIds.length; i += CHUNK_SIZE) {
+    const chunk = uniqueIds.slice(i, i + CHUNK_SIZE);
+    try {
+      const url = new URL('https://api.modrinth.com/v2/projects');
+      url.searchParams.set('ids', JSON.stringify(chunk));
+
+      const rawProjects = await invoke<any[]>('proxy_fetch', {
+        url: url.toString(),
+        method: 'GET',
+        headers: { Accept: 'application/json' }
+      });
+
+      if (Array.isArray(rawProjects)) {
+        for (const p of rawProjects) {
+          results.push({
+            id: p.id,
+            project_id: p.id,
+            slug: p.slug || p.id,
+            title: p.title || p.slug || p.id,
+            description: p.description || '',
+            icon_url: p.icon_url || '',
+            author: p.team || '',
+            downloads: p.downloads || 0,
+            date_modified: p.updated || p.published || '',
+            client_side: p.client_side || 'optional',
+            server_side: p.server_side || 'optional',
+            loaders: p.loaders || [],
+            categories: p.categories || [],
+            display_categories: p.display_categories || p.categories || [],
+            source: 'modrinth',
+            gallery_urls: p.gallery || []
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('[fetchModrinthProjectsBatch] Chunk fetch failed:', e);
+    }
+  }
+
+  return results;
+};
+
 export const fetchModrinthVersions = async (projectId: string, gameVersion?: string, loader?: string): Promise<OreProjectVersion[]> => {
   return await invoke<OreProjectVersion[]>('get_ore_project_versions', { 
     projectId, 

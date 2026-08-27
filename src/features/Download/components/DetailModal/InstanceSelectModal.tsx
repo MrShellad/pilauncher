@@ -416,6 +416,7 @@ export const InstanceSelectModal: React.FC<InstanceSelectModalProps> = ({
       onClose={handleClose}
       title={t('download.instanceSelect.title', { defaultValue: '选择安装目标' })}
       hideCloseButton
+      disableScrollArea
       defaultFocusKey={initialFocusKey}
       className="h-[min(42rem,85vh)] w-[44rem] max-w-[calc(100vw-2rem)] border-[0.1875rem] border-[#1E1E1F] bg-[var(--ore-modal-bg)] sm:max-w-[calc(100vw-3rem)]"
       contentClassName="flex flex-col overflow-hidden p-0"

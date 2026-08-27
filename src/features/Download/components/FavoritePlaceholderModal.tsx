@@ -339,6 +339,7 @@ export const FavoritePlaceholderModal: React.FC<FavoritePlaceholderModalProps> =
       isOpen={isOpen}
       onClose={onClose}
       title={copy.title}
+      disableScrollArea
       defaultFocusKey="favorite-save"
       className="h-[min(46rem,calc(100vh-2rem))] w-[72rem] max-w-[calc(100vw-2rem)] border-[0.1875rem] border-[#1E1E1F] bg-[var(--ore-modal-bg)]"
       contentClassName="min-h-0 overflow-visible p-0"

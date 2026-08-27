@@ -356,6 +356,7 @@ export const VersionChangelogModal: React.FC<VersionChangelogModalProps> = ({
       isOpen={isOpen && !!version}
       onClose={onClose}
       hideCloseButton
+      disableScrollArea
       title={t('download.versionChangelog.title', { defaultValue: 'Version Changelog' })}
       className="w-[min(54rem,calc(100vw-2rem))]"
       contentClassName="p-[1rem] bg-[var(--ore-modal-bg)] overflow-hidden flex flex-col min-h-0"

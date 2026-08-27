@@ -28,6 +28,7 @@ interface OreModalProps {
   wrapperClassName?: string;
   role?: 'dialog' | 'alertdialog';
   'aria-describedby'?: string;
+  disableScrollArea?: boolean;
 }
 
 export const OreModal: React.FC<OreModalProps> = ({
@@ -46,6 +47,7 @@ export const OreModal: React.FC<OreModalProps> = ({
   wrapperClassName = 'z-[100]',
   role = 'dialog',
   'aria-describedby': ariaDescribedby,
+  disableScrollArea = false,
 }) => {
   const density = useScreenDensity();
   const modalId = useId();
@@ -221,13 +223,22 @@ export const OreModal: React.FC<OreModalProps> = ({
                 </div>
               )}
 
-              <OreOverlayScrollArea
-                className="flex-1 min-h-0 z-10"
-                contentClassName={`font-minecraft text-[var(--ore-modal-content-text)] ${contentClassName || 'p-6'}`}
-                style={{ boxShadow: 'var(--ore-modal-content-shadow)' }}
-              >
-                {children}
-              </OreOverlayScrollArea>
+              {disableScrollArea ? (
+                <div
+                  className={`flex-1 min-h-0 z-10 flex flex-col font-minecraft text-[var(--ore-modal-content-text)] ${contentClassName || 'p-6'}`}
+                  style={{ boxShadow: 'var(--ore-modal-content-shadow)' }}
+                >
+                  {children}
+                </div>
+              ) : (
+                <OreOverlayScrollArea
+                  className="flex-1 min-h-0 z-10"
+                  contentClassName={`font-minecraft text-[var(--ore-modal-content-text)] ${contentClassName || 'p-6'}`}
+                  style={{ boxShadow: 'var(--ore-modal-content-shadow)' }}
+                >
+                  {children}
+                </OreOverlayScrollArea>
+              )}
 
               {actions && (
                 <div

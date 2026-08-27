@@ -372,6 +372,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
         isOpen={!!mod}
         onClose={handleClose}
         hideTitleBar
+        disableScrollArea
         defaultFocusKey="btn-mod-toggle"
         className="ore-download-detail-modal border-[0.1875rem] border-[#1E1E1F]"
         contentClassName="ore-download-detail-modal__content flex flex-1 min-h-0 flex-col overflow-hidden bg-[#313233] p-0"

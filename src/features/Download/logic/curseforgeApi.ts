@@ -486,6 +486,40 @@ export const getCurseForgeProjectDetails = async (projectId: string): Promise<Or
   return mapProjectDetail(data);
 };
 
+export const getCurseForgeProjectsBatch = async (
+  projectIds: (number | string)[]
+): Promise<OreProjectDetail[]> => {
+  if (!projectIds || projectIds.length === 0) return [];
+  const numericIds = Array.from(
+    new Set(
+      projectIds
+        .map((id) => Number(id))
+        .filter((id) => Number.isInteger(id) && id > 0)
+    )
+  );
+  if (numericIds.length === 0) return [];
+
+  const CHUNK_SIZE = 100;
+  const results: OreProjectDetail[] = [];
+
+  for (let i = 0; i < numericIds.length; i += CHUNK_SIZE) {
+    const chunk = numericIds.slice(i, i + CHUNK_SIZE);
+    try {
+      const data = await curseForgeFetch<CurseForgeMod[]>('/mods', undefined, {
+        method: 'POST',
+        body: JSON.stringify({ modIds: chunk })
+      });
+      if (Array.isArray(data)) {
+        results.push(...data.map(mapProjectDetail));
+      }
+    } catch (e) {
+      console.warn('[getCurseForgeProjectsBatch] Chunk fetch failed:', e);
+    }
+  }
+
+  return results;
+};
+
 export const fetchCurseForgeVersions = async (
   projectId: string,
   gameVersion?: string,

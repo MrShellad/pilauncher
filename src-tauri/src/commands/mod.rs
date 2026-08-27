@@ -111,6 +111,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         instance::snapshot_cmd::calculate_snapshot_diff,
         instance::snapshot_cmd::rollback_instance,
         instance::mod_cmd::update_mod_cache,
+        instance::mod_cmd::update_mod_cache_batch,
         instance::mod_cmd::ensure_offline_jar_icon,
         instance::mod_cmd::open_mod_folder,
         instance::mod_cmd::execute_mod_file_cleanup,

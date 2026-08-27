@@ -3,6 +3,9 @@ import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import bundledSteveTextureUrl from '../../../assets/models/steve.png?url';
 
+export const DEFAULT_SKIN_URL = bundledSteveTextureUrl;
+export { bundledSteveTextureUrl };
+
 const modelCache = new Map<string, GLTF>();
 const textureCache = new Map<string, THREE.Texture>();
 const ALPHA_TEST_THRESHOLD = 0.5;
