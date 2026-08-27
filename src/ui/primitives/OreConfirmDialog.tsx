@@ -4,6 +4,7 @@ import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
 import { OreButton } from './OreButton';
 import { OreModal } from './OreModal';
+import { OreBanner } from './OreBanner';
 
 type ConfirmVariant = 'primary' | 'secondary' | 'danger' | 'purple' | 'hero' | 'ghost';
 type DialogTone = 'danger' | 'warning' | 'info';
@@ -43,28 +44,13 @@ interface OreConfirmDialogProps {
   confirmationNote?: React.ReactNode;
   confirmationNoteTone?: NoteTone;
   hideCancelButton?: boolean;
+  hideCloseButton?: boolean;
 }
 
-const toneClasses: Record<DialogTone, { shell: string; icon: string }> = {
-  danger: {
-    shell: 'bg-red-500/10 border-red-500/20 shadow-[inset_0_0_15px_rgba(239,68,68,0.2)]',
-    icon: 'text-red-500'
-  },
-  warning: {
-    shell: 'bg-yellow-500/10 border-yellow-500/20 shadow-[inset_0_0_15px_rgba(234,179,8,0.18)]',
-    icon: 'text-yellow-400'
-  },
-  info: {
-    shell: 'bg-sky-500/10 border-sky-500/20 shadow-[inset_0_0_15px_rgba(14,165,233,0.18)]',
-    icon: 'text-sky-400'
-  }
-};
-
-const noteToneClasses: Record<NoteTone, string> = {
-  danger: 'border-red-500/30 bg-red-500/10 text-red-300',
-  warning: 'border-yellow-500/30 bg-yellow-500/10 text-yellow-200',
-  info: 'border-sky-500/30 bg-sky-500/10 text-sky-200',
-  neutral: 'border-white/10 bg-white/5 text-gray-300'
+const toneIconColors: Record<DialogTone, string> = {
+  danger: '#EF4444',
+  warning: '#EAB308',
+  info: '#38BDF8',
 };
 
 export const OreConfirmDialog: React.FC<OreConfirmDialogProps> = ({
@@ -84,42 +70,38 @@ export const OreConfirmDialog: React.FC<OreConfirmDialogProps> = ({
   confirmIcon,
   dialogIcon,
   isConfirming = false,
-  className = 'w-[450px]',
+  className = 'w-[580px] max-w-[92vw]',
   modalContentClassName,
-  bodyClassName = 'flex flex-col items-center justify-center py-4 text-center',
+  bodyClassName = 'flex flex-col items-center justify-center py-2 text-center',
   closeOnOutsideClick = true,
   tertiaryAction,
   confirmationNote,
   confirmationNoteTone = 'neutral',
-  hideCancelButton = false
+  hideCancelButton = false,
+  hideCloseButton = false,
 }) => {
-  const palette = toneClasses[tone];
-  const resolvedDialogIcon = dialogIcon ?? <AlertTriangle size={32} className={palette.icon} />;
+  const iconColor = toneIconColors[tone];
+  const resolvedDialogIcon = dialogIcon ?? <AlertTriangle size={28} style={{ color: iconColor }} />;
   const tertiaryFocusKey = tertiaryAction?.focusKey ?? 'ore-confirm-dialog-tertiary';
   const defaultFocusKey = hideCancelButton ? confirmFocusKey : cancelFocusKey;
   const actionKeys = [
-    hideCancelButton ? null : { key: cancelFocusKey, disabled: false },
+    { key: confirmFocusKey, disabled: isConfirming },
     tertiaryAction ? { key: tertiaryFocusKey, disabled: !!tertiaryAction.disabled } : null,
-    { key: confirmFocusKey, disabled: isConfirming }
+    hideCancelButton ? null : { key: cancelFocusKey, disabled: false },
   ].filter((item): item is { key: string; disabled: boolean } => Boolean(item));
   const enabledActionKeys = actionKeys.filter((item) => !item.disabled).map((item) => item.key);
 
   const handleActionArrow = useCallback((currentKey: string, direction: string) => {
     if (enabledActionKeys.length === 0) return false;
 
-    if (direction === 'left' || direction === 'right') {
+    if (direction === 'up' || direction === 'down') {
       const currentIndex = enabledActionKeys.indexOf(currentKey);
       const safeIndex = currentIndex >= 0 ? currentIndex : 0;
-      const nextIndex = direction === 'right'
+      const nextIndex = direction === 'down'
         ? Math.min(enabledActionKeys.length - 1, safeIndex + 1)
         : Math.max(0, safeIndex - 1);
 
       setFocus(enabledActionKeys[nextIndex]);
-      return false;
-    }
-
-    if (direction === 'up' || direction === 'down') {
-      setFocus(enabledActionKeys.includes(currentKey) ? currentKey : enabledActionKeys[0]);
       return false;
     }
 
@@ -133,48 +115,23 @@ export const OreConfirmDialog: React.FC<OreConfirmDialogProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={title}
-      hideCloseButton={true}
+      hideCloseButton={hideCloseButton}
       className={className}
       contentClassName={modalContentClassName}
       defaultFocusKey={defaultFocusKey}
       closeOnOutsideClick={closeOnOutsideClick}
       role="alertdialog"
       aria-describedby={descriptionId}
+      actionsClassName="flex flex-col gap-2.5 w-full !items-stretch !px-6 !py-4"
       actions={
         <>
-          {!hideCancelButton && (
-            <OreButton
-              focusKey={cancelFocusKey}
-              variant="secondary"
-              size="full"
-              onClick={onClose}
-              onArrowPress={(direction) => handleActionArrow(cancelFocusKey, direction)}
-              className="flex-1"
-            >
-              {cancelLabel}
-            </OreButton>
-          )}
-          {tertiaryAction && (
-            <OreButton
-              focusKey={tertiaryFocusKey}
-              variant={tertiaryAction.variant ?? 'ghost'}
-              size="full"
-              onClick={tertiaryAction.onClick}
-              onArrowPress={(direction) => handleActionArrow(tertiaryFocusKey, direction)}
-              className="flex-1"
-              disabled={tertiaryAction.disabled}
-            >
-              {tertiaryAction.icon}
-              {tertiaryAction.label}
-            </OreButton>
-          )}
           <OreButton
             focusKey={confirmFocusKey}
             variant={confirmVariant}
             size="full"
             onClick={onConfirm}
             onArrowPress={(direction) => handleActionArrow(confirmFocusKey, direction)}
-            className="flex-1"
+            className="w-full !h-11 font-minecraft font-bold uppercase tracking-wider"
             disabled={isConfirming}
           >
             {isConfirming
@@ -182,29 +139,63 @@ export const OreConfirmDialog: React.FC<OreConfirmDialogProps> = ({
               : confirmIcon}
             {confirmLabel}
           </OreButton>
+
+          {tertiaryAction && (
+            <OreButton
+              focusKey={tertiaryFocusKey}
+              variant={tertiaryAction.variant ?? 'ghost'}
+              size="full"
+              onClick={tertiaryAction.onClick}
+              onArrowPress={(direction) => handleActionArrow(tertiaryFocusKey, direction)}
+              className="w-full !h-11 font-minecraft font-bold uppercase tracking-wider"
+              disabled={tertiaryAction.disabled}
+            >
+              {tertiaryAction.icon}
+              {tertiaryAction.label}
+            </OreButton>
+          )}
+
+          {!hideCancelButton && (
+            <OreButton
+              focusKey={cancelFocusKey}
+              variant="secondary"
+              size="full"
+              onClick={onClose}
+              onArrowPress={(direction) => handleActionArrow(cancelFocusKey, direction)}
+              className="w-full !h-11 font-minecraft font-bold uppercase tracking-wider"
+            >
+              {cancelLabel}
+            </OreButton>
+          )}
         </>
       }
     >
       <div className={bodyClassName} id={descriptionId}>
-        <div className={`mb-4 flex h-16 w-16 items-center justify-center rounded-full border-2 ${palette.shell}`}>
+        {/* 方形深色像素警告图标盒体 (Square Pixel Well) */}
+        <div className="mb-4 flex h-14 w-14 items-center justify-center border-[2px] border-[#1E1E1F] bg-[#18181A] shadow-[inset_1px_1px_rgba(255,255,255,0.08)] flex-shrink-0">
           {resolvedDialogIcon}
         </div>
 
         {headline && (
-          <div className="mb-2 font-minecraft text-lg text-white">
+          <div className="mb-2 font-minecraft font-bold text-base md:text-lg text-white ore-text-shadow text-center text-balance break-words">
             {headline}
           </div>
         )}
 
         {description && (
-          <div className="px-4 text-sm text-ore-text-muted">
+          <div className="px-2 font-minecraft text-xs md:text-sm text-[#D0D1D4] text-center leading-relaxed text-balance break-words">
             {description}
           </div>
         )}
 
         {confirmationNote && (
-          <div className={`mt-4 w-full rounded-sm border px-4 py-3 text-sm leading-relaxed ${noteToneClasses[confirmationNoteTone]}`}>
-            {confirmationNote}
+          <div className="mt-4 w-full text-left">
+            <OreBanner
+              variant={confirmationNoteTone === 'danger' ? 'danger' : confirmationNoteTone === 'warning' ? 'warning' : 'important'}
+              className="font-minecraft text-xs leading-relaxed text-pretty break-words"
+            >
+              {confirmationNote}
+            </OreBanner>
           </div>
         )}
 
@@ -213,3 +204,4 @@ export const OreConfirmDialog: React.FC<OreConfirmDialogProps> = ({
     </OreModal>
   );
 };
+

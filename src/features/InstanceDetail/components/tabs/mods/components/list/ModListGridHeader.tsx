@@ -2,12 +2,7 @@ import React from 'react';
 import { CheckSquare, ChevronDown, ChevronUp, Square } from 'lucide-react';
 
 import { type ModSortOrder, type ModSortType } from '../../../../../hooks/useModManager';
-import {
-  MOD_LIST_COMPACT_GRID_CLASS,
-  MOD_LIST_TABLE_GRID_CLASS,
-  type ModListTheme,
-  type ModListViewMode
-} from '../../modListShared';
+import { type ModListTheme } from '../../modListShared';
 
 interface ModListGridHeaderProps {
   isAllSelected: boolean;
@@ -16,7 +11,6 @@ interface ModListGridHeaderProps {
   sortOrder: ModSortOrder;
   onSelectAll: () => void;
   onSortClick: (type: ModSortType) => void;
-  viewMode: ModListViewMode;
   listTheme: ModListTheme;
 }
 
@@ -82,7 +76,6 @@ export const ModListGridHeader: React.FC<ModListGridHeaderProps> = ({
   sortOrder,
   onSelectAll,
   onSortClick,
-  viewMode,
   listTheme
 }) => {
   const isLightTheme = listTheme === 'light';
@@ -96,11 +89,9 @@ export const ModListGridHeader: React.FC<ModListGridHeaderProps> = ({
     ? 'border-[2px] border-[#1E1E1F] bg-[#F2F2F2] text-[#111214] shadow-[inset_0_-2px_0_#B8BBC2]'
     : 'border-[2px] border-[#1E1E1F] bg-[#232937] text-[#C7D2E6] shadow-[inset_0_-2px_0_rgba(0,0,0,0.4)]';
 
-  const gridClass = viewMode === 'compact' ? MOD_LIST_COMPACT_GRID_CLASS : MOD_LIST_TABLE_GRID_CLASS;
-
   return (
-    <div className={`relative z-20 mx-2 grid min-h-8 ${gridClass} items-center gap-2 px-2 ${headerClass}`}>
-      <div className="mx-auto flex min-w-0 items-center gap-1.5">
+    <div className={`relative z-20 mx-2 flex min-h-8 items-center gap-3 px-3 py-1 ${headerClass}`}>
+      <div className="flex shrink-0 items-center gap-2">
         <button
           type="button"
           tabIndex={-1}
@@ -117,34 +108,20 @@ export const ModListGridHeader: React.FC<ModListGridHeaderProps> = ({
         )}
       </div>
 
-      {viewMode === 'compact' ? (
-        <>
-          <span aria-hidden="true" />
-          <SortableHeaderCell
-            label={'模组'}
-            sortKey="name"
-            sortType={sortType}
-            sortOrder={sortOrder}
-            tone="primary"
-            onSortClick={onSortClick}
-            listTheme={listTheme}
-          />
-          <span className={`justify-self-end pr-1 font-minecraft text-[12px] font-bold uppercase tracking-wider ${isLightTheme ? 'text-[#4A4C50]' : 'text-[#8B93A7]'}`}>
-            {'操作'}
-          </span>
-        </>
-      ) : (
-        <>
-          <span aria-hidden="true" />
-          <SortableHeaderCell
-            label={'模组'}
-            sortKey="name"
-            sortType={sortType}
-            sortOrder={sortOrder}
-            tone="primary"
-            onSortClick={onSortClick}
-            listTheme={listTheme}
-          />
+      <div className="flex-1 min-w-0">
+        <SortableHeaderCell
+          label={'模组'}
+          sortKey="name"
+          sortType={sortType}
+          sortOrder={sortOrder}
+          tone="primary"
+          onSortClick={onSortClick}
+          listTheme={listTheme}
+        />
+      </div>
+
+      <div className="flex shrink-0 items-center gap-3">
+        <div className="w-32 lg:w-36 shrink-0">
           <SortableHeaderCell
             label={'版本'}
             sortKey="version"
@@ -153,14 +130,31 @@ export const ModListGridHeader: React.FC<ModListGridHeaderProps> = ({
             onSortClick={onSortClick}
             listTheme={listTheme}
           />
-          <span className={`font-minecraft text-[12px] font-bold uppercase tracking-wider ${isLightTheme ? 'text-[#4A4C50]' : 'text-[#8B93A7]'}`}>
+        </div>
+
+        <div className="w-20 lg:w-24 shrink-0 font-minecraft text-[12px] font-bold uppercase tracking-wider">
+          <span className={isLightTheme ? 'text-[#4A4C50]' : 'text-[#8B93A7]'}>
             {'大小'}
           </span>
-          <span className={`justify-self-end pr-1 font-minecraft text-[12px] font-bold uppercase tracking-wider ${isLightTheme ? 'text-[#4A4C50]' : 'text-[#8B93A7]'}`}>
-            {'操作'}
-          </span>
-        </>
-      )}
+        </div>
+
+        <div className="w-24 lg:w-28 shrink-0 font-minecraft text-[12px] font-bold uppercase tracking-wider">
+          <SortableHeaderCell
+            label={'修改时间'}
+            sortKey="time"
+            sortType={sortType}
+            sortOrder={sortOrder}
+            onSortClick={onSortClick}
+            listTheme={listTheme}
+          />
+        </div>
+      </div>
+
+      <div className="w-32 shrink-0 text-right pr-2 font-minecraft text-[12px] font-bold uppercase tracking-wider">
+        <span className={isLightTheme ? 'text-[#4A4C50]' : 'text-[#8B93A7]'}>
+          {'操作'}
+        </span>
+      </div>
     </div>
   );
 };

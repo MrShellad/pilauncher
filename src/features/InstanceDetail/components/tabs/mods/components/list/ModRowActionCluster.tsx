@@ -43,7 +43,7 @@ export const ModRowActionCluster: React.FC<ModRowActionClusterProps> = ({
     : 'opacity-100 pointer-events-auto';
 
   return (
-    <div className={`flex items-center gap-2 transition-opacity ${isActionLocked ? 'opacity-80' : 'opacity-100'}`}>
+    <div className={`flex items-center gap-2.5 transition-opacity ${isActionLocked ? 'opacity-80' : 'opacity-100'}`}>
       {canUpgrade && (
         <OreButton
           focusKey={getActionFocusKey(fileName, 'upgrade')}
@@ -59,12 +59,12 @@ export const ModRowActionCluster: React.FC<ModRowActionClusterProps> = ({
             event.stopPropagation();
             onUpgradeMod();
           }}
-          className="!h-7 !min-h-7 !min-w-7 !w-7 !px-0"
+          className="!h-9 !min-h-9 !min-w-9 !w-9 !px-0 flex items-center justify-center"
         >
           {isUpdating ? (
-            <Loader2 size={14} className="animate-spin" />
+            <Loader2 size={16} className="animate-spin" />
           ) : (
-            <ArrowUpCircle size={14} />
+            <ArrowUpCircle size={16} />
           )}
         </OreButton>
       )}
@@ -96,9 +96,9 @@ export const ModRowActionCluster: React.FC<ModRowActionClusterProps> = ({
           event.stopPropagation();
           onDeleteMod(fileName);
         }}
-        className={`!h-7 !min-h-7 !min-w-7 !w-7 !px-0 ${actionVisibilityClass}`}
+        className={`!h-9 !min-h-9 !min-w-9 !w-9 !px-0 flex items-center justify-center ${actionVisibilityClass}`}
       >
-        <Trash2 size={14} />
+        <Trash2 size={16} />
       </OreButton>
     </div>
   );

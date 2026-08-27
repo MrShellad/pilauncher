@@ -12,6 +12,7 @@ import { OreAssetRow } from '../../../../ui/primitives/OreAssetRow';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreConfirmDialog } from '../../../../ui/primitives/OreConfirmDialog';
 import { OreSwitch } from '../../../../ui/primitives/OreSwitch';
+import { OreOverlayScrollArea } from '../../../../ui/primitives/OreOverlayScrollArea';
 import { useResourceManager } from '../../hooks/useResourceManager';
 import { ResourceIconBox } from './ResourceIconBox';
 
@@ -175,60 +176,74 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
     restoreDeleteFocus(rowIndex);
   }, [deleteItem, pendingDelete, restoreDeleteFocus]);
 
+  const enabledCount = useMemo(() => items.filter((i) => i.isEnabled).length, [items]);
+
   return (
-    <div className="flex flex-1 min-h-0 flex-col overflow-hidden p-3 gap-3">
-      <div className="flex shrink-0 items-center justify-between border-2 border-[#2A2A2C] bg-[#18181B] py-3.5 px-4">
-            <div>
-              <h3 className="flex items-center font-minecraft text-white">
-                <Package size={18} className="mr-2 text-ore-green" />
-                {t('instanceDetail.resourcepacks.title', '本地资源包')}
-              </h3>
-              <p className="mt-1 text-sm text-ore-text-muted">
-                {t('instanceDetail.resourcepacks.summary', '共 {{count}} 个资源包，支持拖拽 zip 到列表安装。', { count: items.length })}
-              </p>
-            </div>
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden p-3.5 gap-3">
+      {/* 顶部控制台 (Header & Global Action Bar) */}
+      <div className="flex shrink-0 items-center justify-between border-[2px] border-[#1E1E1F] bg-[#313233] p-3.5 shadow-[inset_0_1px_rgba(255,255,255,0.1),inset_0_-2px_rgba(0,0,0,0.3)]">
+        <div>
+          <h3 className="flex items-center font-minecraft font-bold text-base text-white ore-text-shadow">
+            <Package size={18} className="mr-2 text-[#E0A33A]" />
+            {t('instanceDetail.resourcepacks.title', '本地资源包')}
+          </h3>
+          <p className="mt-1 font-minecraft text-xs text-[#D0D1D4]">
+            {t('instanceDetail.resourcepacks.summary', '已启用 {{enabled}} / 共 {{count}} 个资源包 · 支持拖拽 .zip 文件安装', { enabled: enabledCount, count: items.length })}
+          </p>
+        </div>
 
-            <div className="flex items-center gap-3">
-              <OreButton
-                focusKey="btn-download-resourcepack"
-                variant="primary"
-                size="auto"
-                className="!h-10 !min-h-10"
-                onArrowPress={handleTopArrow}
-                onClick={() => {
-                  setInstanceDownloadTarget('resourcepack');
-                  setActiveTab('instance-mod-download');
-                }}
-              >
-                <DownloadCloud size={16} className="mr-2" />
-                {t('instanceDetail.resourcepacks.downloadBtn', '下载资源包')}
-              </OreButton>
+        <div className="flex items-center gap-2.5">
+          <OreButton
+            focusKey="btn-download-resourcepack"
+            variant="primary"
+            size="auto"
+            className="!h-10 !min-h-10 px-4 font-minecraft font-bold uppercase tracking-wide text-xs"
+            onArrowPress={handleTopArrow}
+            onClick={() => {
+              setInstanceDownloadTarget('resourcepack');
+              setActiveTab('instance-mod-download');
+            }}
+          >
+            <DownloadCloud size={16} className="mr-2" />
+            {t('instanceDetail.resourcepacks.downloadBtn', '下载资源包')}
+          </OreButton>
 
-              <OreButton
-                focusKey="btn-open-resourcepack-folder"
-                variant="secondary"
-                size="auto"
-                className="!h-10 !min-h-10"
-                onArrowPress={handleTopArrow}
-                onClick={openFolder}
-              >
-                <FolderOpen size={16} className="mr-2" />
-                {t('instanceDetail.resourcepacks.openFolderBtn', '打开资源包目录')}
-              </OreButton>
-            </div>
-          </div>
+          <OreButton
+            focusKey="btn-open-resourcepack-folder"
+            variant="secondary"
+            size="auto"
+            className="!h-10 !min-h-10 px-4 font-minecraft font-bold uppercase tracking-wide text-xs"
+            onArrowPress={handleTopArrow}
+            onClick={openFolder}
+          >
+            <FolderOpen size={16} className="mr-2" />
+            {t('instanceDetail.resourcepacks.openFolderBtn', '打开资源包目录')}
+          </OreButton>
+        </div>
+      </div>
 
       {isLoading ? (
         <div className="flex flex-1 items-center justify-center py-12">
           <Loader2 size={32} className="animate-spin text-ore-green" />
         </div>
+      ) : items.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center border-[2px] border-dashed border-[#48494A] bg-[#222224]/60 p-12 text-center select-none">
+          <Package size={48} className="text-[#68696B] mb-3" />
+          <span className="font-minecraft font-bold text-base text-[#D0D1D4] ore-text-shadow mb-1">
+            {t('instanceDetail.resourcepacks.emptyTitle', '暂无资源包')}
+          </span>
+          <span className="font-minecraft text-xs text-[#8C8D90] max-w-sm leading-relaxed">
+            {t('instanceDetail.resourcepacks.emptyDesc', '点击右上角「下载资源包」获取社区材质，或直接将 .zip 资源包文件拖入此窗口即可快速安装。')}
+          </span>
+        </div>
       ) : (
         <FocusBoundary
           id="resourcepack-list"
           trapFocus={operationRowIndex !== null}
-          className="custom-scrollbar flex-1 min-h-0 grid grid-cols-1 gap-2 overflow-y-auto pr-1"
+          className="flex-1 min-h-0 flex flex-col"
         >
-          {items.map((item, index) => (
+          <OreOverlayScrollArea className="flex-1 min-h-0" contentClassName="flex flex-col gap-2 pr-1">
+            {items.map((item, index) => (
               <FocusItem
                 key={item.fileName || `rp-idx-${index}`}
                 focusKey={getRowFocusKey(index)}
@@ -255,7 +270,7 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
                           resType="resourcePack"
                         />
                       }
-                      trailingClassName="flex items-center space-x-2"
+                      trailingClassName="flex items-center space-x-2.5"
                       trailing={
                         <>
                           <OreSwitch
@@ -269,7 +284,7 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
                             focusKey={getActionFocusKey(index, 'delete')}
                             variant="danger"
                             size="auto"
-                            className="!h-10 !min-h-10 !min-w-10 !w-10 !px-0"
+                            className="!h-9 !w-9 !min-h-9 !min-w-9 !px-0 flex items-center justify-center"
                             onArrowPress={(direction) => handleActionArrow(index, 'delete', direction)}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -286,6 +301,7 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
                 )}
               </FocusItem>
             ))}
+          </OreOverlayScrollArea>
         </FocusBoundary>
       )}
 
@@ -302,7 +318,7 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
         tone="danger"
         cancelFocusKey="resourcepack-delete-cancel"
         confirmFocusKey="resourcepack-delete-confirm"
-        className="w-full max-w-lg"
+        className="w-[580px] max-w-[92vw]"
         confirmationNote={t('instanceDetail.resourcepacks.deleteNote', '删除操作不可恢复，请确认当前实例确实不再需要该资源包。')}
         confirmationNoteTone="danger"
       />

@@ -8,6 +8,7 @@ import { X } from 'lucide-react';
 import { FocusBoundary } from '../focus/FocusBoundary';
 import { FocusItem } from '../focus/FocusItem';
 import { focusManager } from '../focus/FocusManager';
+import { OreOverlayScrollArea } from './OreOverlayScrollArea';
 import '../../style/tokens/designToken';
 import { useScreenDensity } from '../../hooks/ui/useScreenDensity';
 
@@ -36,7 +37,7 @@ export const OreModal: React.FC<OreModalProps> = ({
   hideTitleBar = false,
   hideCloseButton = false,
   defaultFocusKey,
-  className = 'w-[480px]',
+  className = 'w-[540px] max-w-[92vw]',
   contentClassName,
   children,
   actions,
@@ -191,7 +192,7 @@ export const OreModal: React.FC<OreModalProps> = ({
                   </h2>
 
                   {!hideCloseButton && (
-                    <div className="absolute right-0 top-0 bottom-0 flex items-center justify-center p-1.5 z-50">
+                    <div className="absolute right-2 top-0 bottom-0 flex items-center justify-center z-50">
                       <FocusItem focusKey={closeFocusKey} onEnter={onClose}>
                         {({ ref, focused, tabIndex }) => (
                           <button
@@ -204,14 +205,14 @@ export const OreModal: React.FC<OreModalProps> = ({
                             tabIndex={tabIndex}
                             aria-label="关闭对话框"
                             className={`
-                              relative flex items-center justify-center p-1.5 rounded-sm transition-none outline-none cursor-pointer
+                              relative flex items-center justify-center w-8 h-8 rounded-[2px] border-[2px] border-[#1E1E1F] bg-[#48494A] text-white transition-none outline-none cursor-pointer shadow-[inset_0_-2px_#333334,inset_1px_1px_rgba(255,255,255,0.2)] hover:bg-[#58585A] active:bg-[#38383A]
                               ${focused
-                                ? 'bg-[var(--ore-btn-secondary-hover)] outline outline-[2px] outline-[var(--ore-focus-ringFallback)] outline-offset-1 z-10 drop-shadow-[0_0_6px_var(--ore-focus-glow)] brightness-110'
-                                : 'text-gray-300 hover:text-white hover:bg-white/10'
+                                ? 'outline outline-2 outline-white outline-offset-1 z-10'
+                                : ''
                               }
                             `}
                           >
-                            <X size={22} strokeWidth={2} className="pointer-events-none" />
+                            <X size={18} strokeWidth={2.5} className="pointer-events-none text-white" />
                           </button>
                         )}
                       </FocusItem>
@@ -220,12 +221,13 @@ export const OreModal: React.FC<OreModalProps> = ({
                 </div>
               )}
 
-              <div
-                className={`flex-1 font-minecraft text-[var(--ore-modal-content-text)] z-10 ${contentClassName || 'p-6 overflow-y-auto custom-scrollbar'}`}
+              <OreOverlayScrollArea
+                className="flex-1 min-h-0 z-10"
+                contentClassName={`font-minecraft text-[var(--ore-modal-content-text)] ${contentClassName || 'p-6'}`}
                 style={{ boxShadow: 'var(--ore-modal-content-shadow)' }}
               >
                 {children}
-              </div>
+              </OreOverlayScrollArea>
 
               {actions && (
                 <div

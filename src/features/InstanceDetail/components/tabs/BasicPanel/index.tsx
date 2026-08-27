@@ -4,6 +4,7 @@ import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { useTranslation } from 'react-i18next';
 
 import { FocusItem } from '../../../../../ui/focus/FocusItem';
+import { OreOverlayScrollArea } from '../../../../../ui/primitives/OreOverlayScrollArea';
 
 import { BasicInfoSection } from './components/BasicInfoSection';
 import { CustomLinksSection } from './components/CustomLinksSection';
@@ -31,8 +32,12 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
   const { isSaving, setIsSaving, successMsg, triggerSuccess } = useBasicPanelStatus();
 
   return (
-    <div className="custom-scrollbar relative flex flex-1 min-h-0 flex-col w-full overflow-y-auto overflow-x-hidden p-4 gap-6">
-
+    <OreOverlayScrollArea
+      className="relative flex-1 min-h-0 w-full"
+      viewportClassName="p-4 overflow-x-hidden"
+      contentClassName="flex flex-col gap-6"
+    >
+      <div className="relative flex flex-col w-full gap-6">
         <FocusItem focusKey="basic-guard-top" onFocus={() => setFocus('basic-input-name')}>
           {({ ref }) => <div ref={ref as React.RefObject<HTMLDivElement>} className="absolute top-0 left-0 w-full h-[0.0625rem] opacity-0 pointer-events-none" tabIndex={-1} />}
         </FocusItem>
@@ -69,8 +74,6 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
           isGlobalSaving={isSaving}
           setIsGlobalSaving={setIsSaving}
         />
-
-        {/* EnvironmentSection was moved to JavaPanel (renamed as Game) */}
 
         <CustomLinksSection
           initialButtons={data.customButtons}
@@ -116,6 +119,7 @@ export const BasicPanel: React.FC<BasicPanelProps> = ({
           isGlobalSaving={isSaving}
           setIsGlobalSaving={setIsSaving}
         />
-    </div>
+      </div>
+    </OreOverlayScrollArea>
   );
 };

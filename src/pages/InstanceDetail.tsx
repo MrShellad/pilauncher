@@ -1,7 +1,6 @@
 // /src/pages/InstanceDetail.tsx
-import React, { useEffect, useMemo, useCallback, useState } from 'react';
+import React, { useEffect, useMemo, useCallback } from 'react';
 import {
-  LayoutTemplate,
   Settings,
   Coffee,
   FolderOpen,
@@ -20,10 +19,10 @@ import { useLauncherStore } from '../store/useLauncherStore';
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { focusManager } from '../ui/focus/FocusManager';
 import { useInputAction } from '../ui/focus/InputDriver';
-import { OreToggleButton, type ToggleOption } from '../ui/primitives/OreToggleButton';
-import { GamepadButtonIcon } from '../ui/components/GamepadButtonIcon';
 
-import { OverviewPanel } from '../features/InstanceDetail/components/tabs/OverviewPanel';
+import { InstanceDetailHeader } from '../features/InstanceDetail/components/header/InstanceDetailHeader';
+import { InstanceHeroSidebar } from '../features/InstanceDetail/components/sidebar/InstanceHeroSidebar';
+
 import { BasicPanel } from '../features/InstanceDetail/components/tabs/BasicPanel';
 import { JavaPanel } from '../features/InstanceDetail/components/tabs/JavaPanel';
 import { ModPanel } from '../features/InstanceDetail/components/tabs/ModPanel';
@@ -33,14 +32,13 @@ import { ShaderPanel } from '../features/InstanceDetail/components/tabs/ShaderPa
 import { ExportPanel } from '../features/InstanceDetail/components/tabs/export';
 
 const TABS: { id: DetailTab; label: string; icon: LucideIcon }[] = [
-  { id: 'overview', label: '概览', icon: LayoutTemplate },
-  { id: 'basic', label: '基础', icon: Settings },
-  { id: 'java', label: '游戏', icon: Coffee },
-  { id: 'saves', label: '存档', icon: FolderOpen },
-  { id: 'mods', label: 'MOD', icon: Blocks },
+  { id: 'basic', label: '常规与基础', icon: Settings },
+  { id: 'java', label: '游戏与 Java', icon: Coffee },
+  { id: 'mods', label: 'MOD 管理', icon: Blocks },
   { id: 'resourcepacks', label: '资源包', icon: Package },
-  { id: 'shaders', label: '光影', icon: ImageIcon },
-  { id: 'export', label: '导出', icon: Download },
+  { id: 'shaders', label: '光影包', icon: ImageIcon },
+  { id: 'saves', label: '世界存档', icon: FolderOpen },
+  { id: 'export', label: '导出与备份', icon: Download },
 ];
 
 const InstanceDetail: React.FC = () => {
@@ -53,13 +51,11 @@ const InstanceDetail: React.FC = () => {
     setActiveTab,
     data,
     isInitializing,
-    currentImageIndex,
     heroLogoUrl,
     handleOpenFolder,
     handleUpdateName,
     handleUpdateCover,
     handleUpdateEnvironment,
-    handleUpdateHeroLogo,
     handleUpdateCustomButtons,
     handleUpdateTags,
     handleUpdateServerBinding,
@@ -69,18 +65,16 @@ const InstanceDetail: React.FC = () => {
     handleDeleteInstance,
   } = useInstanceDetail(instanceId);
 
+  const normalizedTab: DetailTab = activeTab === 'overview' ? 'basic' : activeTab;
+
   const { ref: pageFocusRef, focusKey } = useFocusable();
 
-  const [pressingLT, setPressingLT] = useState(false);
-  const [pressingRT, setPressingRT] = useState(false);
-
-  const tabFallbackFocusKeys = useMemo<Record<DetailTab, string | undefined>>(
+  const tabFallbackFocusKeys = useMemo<Record<string, string | undefined>>(
     () => ({
-      overview: 'overview-btn-play',
       basic: 'basic-input-name',
-      java: 'java-entry-point', // ✅ 核心修复 1：将旧 of java-loading-anchor 修正为现在的 java-entry-point
-      saves: 'save-btn-history',
+      java: 'java-entry-point',
       mods: 'mod-btn-history',
+      saves: 'save-btn-history',
       resourcepacks: 'btn-open-resourcepack-folder',
       shaders: 'btn-open-shader-folder',
       export: undefined,
@@ -90,8 +84,9 @@ const InstanceDetail: React.FC = () => {
 
   const restoreTabFocus = useCallback(
     (tab: DetailTab) => {
-      const boundaryId = `tab-boundary-${tab}`;
-      const fallbackKey = tabFallbackFocusKeys[tab];
+      const targetTab = tab === 'overview' ? 'basic' : tab;
+      const boundaryId = `tab-boundary-${targetTab}`;
+      const fallbackKey = tabFallbackFocusKeys[targetTab];
 
       const attempt = () => {
         if (!fallbackKey) {
@@ -111,31 +106,17 @@ const InstanceDetail: React.FC = () => {
     [tabFallbackFocusKeys]
   );
 
-  const toggleOptions: ToggleOption[] = useMemo(
-    () =>
-      TABS.map((tab) => ({
-        value: tab.id,
-        label: (
-          <div className="flex items-center justify-center whitespace-nowrap gap-2 px-1 pointer-events-none">
-            <tab.icon size="1rem" className={activeTab === tab.id ? 'text-ore-black' : 'text-inherit'} />
-            <span>{t(`instanceDetail.tabs.${tab.id}`, tab.label)}</span>
-          </div>
-        ),
-      })),
-    [activeTab, t]
-  );
-
   const handleTabSelect = useCallback(
-    (id: string) => {
-      setActiveTab(id as DetailTab);
+    (id: DetailTab) => {
+      setActiveTab(id);
     },
     [setActiveTab]
   );
 
   useEffect(() => {
     if (!data) return;
-    return restoreTabFocus(activeTab);
-  }, [data, activeTab, restoreTabFocus]);
+    return restoreTabFocus(normalizedTab);
+  }, [data, normalizedTab, restoreTabFocus]);
 
   const isTextEntryActive = useCallback(() => {
     const el = document.activeElement as HTMLElement | null;
@@ -150,19 +131,12 @@ const InstanceDetail: React.FC = () => {
       if (isModalOpen()) return;
       if (isTextEntryActive()) return;
 
-      if (direction === -1) {
-        setPressingLT(true);
-        setTimeout(() => setPressingLT(false), 150);
-      } else {
-        setPressingRT(true);
-        setTimeout(() => setPressingRT(false), 150);
-      }
-
-      const currentIndex = TABS.findIndex((t) => t.id === activeTab);
-      const nextIndex = (currentIndex + direction + TABS.length) % TABS.length;
+      const currentIndex = TABS.findIndex((t) => t.id === normalizedTab);
+      const safeIndex = currentIndex === -1 ? 0 : currentIndex;
+      const nextIndex = (safeIndex + direction + TABS.length) % TABS.length;
       handleTabSelect(TABS[nextIndex].id);
     },
-    [activeTab, isModalOpen, isTextEntryActive, handleTabSelect]
+    [normalizedTab, isModalOpen, isTextEntryActive, handleTabSelect]
   );
 
   useInputAction('PAGE_LEFT', () => handleSwitchTab(-1));
@@ -202,151 +176,122 @@ const InstanceDetail: React.FC = () => {
 
   return (
     <FocusContext.Provider value={focusKey}>
-      <div ref={pageFocusRef} className="w-full h-full flex flex-col overflow-hidden">
-        <h1 className="sr-only">{t('instanceDetail.title', '实例详情')}</h1>
-        <div className="flex flex-col flex-shrink-0 z-20 border-b-[0.1875rem] border-[#18181B] bg-[#1E1E1F] shadow-md">
-          <div className="w-full bg-[#18181B] px-[clamp(1rem,2vw,2rem)] py-[clamp(0.75rem,1.6vh,1.25rem)]">
-            <div className="mx-auto grid w-full max-w-[120rem] grid-cols-[minmax(0,1fr)] items-center gap-[clamp(0.625rem,1.4vw,1.25rem)] md:grid-cols-[clamp(4rem,5vw,5.25rem)_minmax(0,1fr)_clamp(4rem,5vw,5.25rem)]">
-              <div
-                className={`hidden md:flex cursor-pointer items-center justify-center transition-transform duration-150 ${
-                  pressingLT ? 'scale-75' : 'scale-90 hover:scale-100 active:scale-75'
-                }`}
-                onClick={() => handleSwitchTab(-1)}
-              >
-                <GamepadButtonIcon button="LT" tone={pressingLT ? 'green' : 'dark'} size="lg" />
-              </div>
+      <div ref={pageFocusRef} className="relative w-full h-full flex flex-col overflow-hidden bg-[#242425]">
+        {/* =========================================================================
+            1. 顶栏 (TopBar)
+            ========================================================================= */}
+        <InstanceDetailHeader
+          instanceName={data.name}
+          onBack={() => setActiveTabGlobal('instances')}
+        />
 
-              <div className="min-w-0 overflow-x-auto custom-scrollbar">
-                <div className="flex min-w-full justify-center">
-                  <OreToggleButton
-                    options={toggleOptions}
-                    value={activeTab}
-                    onChange={handleTabSelect}
-                    size="lg"
-                    uiScale="adaptive"
-                    focusable={false}
-                    className="w-full ore-tab-nav-toggle max-w-[88rem]"
-                  />
-                </div>
-              </div>
-
-              <div
-                className={`hidden md:flex cursor-pointer items-center justify-center transition-transform duration-150 ${
-                  pressingRT ? 'scale-75' : 'scale-90 hover:scale-100 active:scale-75'
-                }`}
-                onClick={() => handleSwitchTab(1)}
-              >
-                <GamepadButtonIcon button="RT" tone={pressingRT ? 'green' : 'dark'} size="lg" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="relative flex flex-1 min-h-0 flex-col overflow-hidden">
-          <FocusBoundary
-            id="tab-boundary-overview"
-            isActive={activeTab === 'overview'}
-            trapFocus
-            defaultFocusKey={tabFallbackFocusKeys.overview}
-            className={activeTab === 'overview' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}
-          >
-            <OverviewPanel
+        {/* =========================================================================
+            2. 主内容双栏平铺容器 (Full-Width Edge-to-Edge Tiled Viewport)
+            ========================================================================= */}
+        <div className="relative flex flex-1 min-h-0 w-full overflow-hidden">
+          {/* 左侧常驻 Hero 控制台与导航树 (响应式宽度缩放: 300px ~ 420px) */}
+          <div className="w-[300px] lg:w-[340px] xl:w-[380px] 2xl:w-[420px] h-full flex-shrink-0">
+            <InstanceHeroSidebar
               data={data}
-              currentImageIndex={currentImageIndex}
-              heroLogoUrl={heroLogoUrl}
+              activeTab={normalizedTab}
+              onSelectTab={handleTabSelect}
               onOpenFolder={handleOpenFolder}
-              onUpdateHeroLogo={handleUpdateHeroLogo}
-            />
-          </FocusBoundary>
-
-          <FocusBoundary
-            id="tab-boundary-basic"
-            isActive={activeTab === 'basic'}
-            trapFocus
-            className={activeTab === 'basic' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}
-          >
-            <BasicPanel
-              data={data}
-              isInitializing={isInitializing}
-              onUpdateName={handleUpdateName}
               onUpdateCover={handleUpdateCover}
-              onUpdateCustomButtons={handleUpdateCustomButtons}
-              onUpdateTags={handleUpdateTags}
-              onUpdateServerBinding={handleUpdateServerBinding}
-              onUpdateAutoJoinServer={handleUpdateAutoJoinServer}
-              onVerifyFiles={handleVerifyFiles}
-              onRepairFiles={handleRepairRuntime}
-              onDelete={async (skipConfirm?: boolean) => {
-                const success = await handleDeleteInstance(skipConfirm);
-                if (success) setActiveTabGlobal('instances');
-              }}
+              tabs={TABS}
             />
-          </FocusBoundary>
+          </div>
 
-          <FocusBoundary
-            id="tab-boundary-java"
-            isActive={activeTab === 'java'}
-            trapFocus
-            className={activeTab === 'java' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}
-          >
-            <JavaPanel
-              instanceId={instanceId}
-              isActive={activeTab === 'java'}
-              data={data}
-              isInitializing={isInitializing}
-              onUpdateEnvironment={handleUpdateEnvironment}
-            />
-          </FocusBoundary>
+          {/* 右侧独立内容视口 (占满全屏剩余空间，无缝平铺) */}
+          <main className="relative flex-1 min-w-0 h-full overflow-hidden bg-[#242425]">
+            <FocusBoundary
+              id="tab-boundary-basic"
+              isActive={normalizedTab === 'basic'}
+              trapFocus
+              className={normalizedTab === 'basic' ? 'flex flex-1 h-full min-h-0 flex-col overflow-hidden' : 'hidden'}
+            >
+              <BasicPanel
+                data={data}
+                isInitializing={isInitializing}
+                onUpdateName={handleUpdateName}
+                onUpdateCover={handleUpdateCover}
+                onUpdateCustomButtons={handleUpdateCustomButtons}
+                onUpdateTags={handleUpdateTags}
+                onUpdateServerBinding={handleUpdateServerBinding}
+                onUpdateAutoJoinServer={handleUpdateAutoJoinServer}
+                onVerifyFiles={handleVerifyFiles}
+                onRepairFiles={handleRepairRuntime}
+                onDelete={async (skipConfirm?: boolean) => {
+                  const success = await handleDeleteInstance(skipConfirm);
+                  if (success) setActiveTabGlobal('instances');
+                }}
+              />
+            </FocusBoundary>
 
-          <FocusBoundary
-            id="tab-boundary-mods"
-            isActive={activeTab === 'mods'}
-            trapFocus
-            className={activeTab === 'mods' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}
-          >
-            <ModPanel instanceId={instanceId} />
-          </FocusBoundary>
+            <FocusBoundary
+              id="tab-boundary-java"
+              isActive={normalizedTab === 'java'}
+              trapFocus
+              className={normalizedTab === 'java' ? 'flex flex-1 h-full min-h-0 flex-col overflow-hidden' : 'hidden'}
+            >
+              <JavaPanel
+                instanceId={instanceId}
+                isActive={normalizedTab === 'java'}
+                data={data}
+                isInitializing={isInitializing}
+                onUpdateEnvironment={handleUpdateEnvironment}
+              />
+            </FocusBoundary>
 
-          <FocusBoundary
-            id="tab-boundary-saves"
-            isActive={activeTab === 'saves'}
-            trapFocus
-            className={activeTab === 'saves' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}
-          >
-            <SavePanel instanceId={instanceId} />
-          </FocusBoundary>
+            <FocusBoundary
+              id="tab-boundary-mods"
+              isActive={normalizedTab === 'mods'}
+              trapFocus
+              className={normalizedTab === 'mods' ? 'flex flex-1 h-full min-h-0 flex-col overflow-hidden' : 'hidden'}
+            >
+              <ModPanel instanceId={instanceId} />
+            </FocusBoundary>
 
-          <FocusBoundary
-            id="tab-boundary-resourcepacks"
-            isActive={activeTab === 'resourcepacks'}
-            trapFocus
-            className={activeTab === 'resourcepacks' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}
-          >
-            <ResourcePackPanel instanceId={instanceId} />
-          </FocusBoundary>
+            <FocusBoundary
+              id="tab-boundary-saves"
+              isActive={normalizedTab === 'saves'}
+              trapFocus
+              className={normalizedTab === 'saves' ? 'flex flex-1 h-full min-h-0 flex-col overflow-hidden' : 'hidden'}
+            >
+              <SavePanel instanceId={instanceId} />
+            </FocusBoundary>
 
-          <FocusBoundary
-            id="tab-boundary-shaders"
-            isActive={activeTab === 'shaders'}
-            trapFocus
-            className={activeTab === 'shaders' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}
-          >
-            <ShaderPanel instanceId={instanceId} />
-          </FocusBoundary>
+            <FocusBoundary
+              id="tab-boundary-resourcepacks"
+              isActive={normalizedTab === 'resourcepacks'}
+              trapFocus
+              className={normalizedTab === 'resourcepacks' ? 'flex flex-1 h-full min-h-0 flex-col overflow-hidden' : 'hidden'}
+            >
+              <ResourcePackPanel instanceId={instanceId} />
+            </FocusBoundary>
 
-          <FocusBoundary
-            id="tab-boundary-export"
-            isActive={activeTab === 'export'}
-            trapFocus
-            className={activeTab === 'export' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}
-          >
-            <ExportPanel
-              instanceId={instanceId}
-              defaultName={data.name}
-              defaultHeroLogo={heroLogoUrl || undefined}
-              defaultVersion={data.description?.match(/1\.\d+\.\d+/)?.[0] || '1.0.0'}
-            />
-          </FocusBoundary>
+            <FocusBoundary
+              id="tab-boundary-shaders"
+              isActive={normalizedTab === 'shaders'}
+              trapFocus
+              className={normalizedTab === 'shaders' ? 'flex flex-1 h-full min-h-0 flex-col overflow-hidden' : 'hidden'}
+            >
+              <ShaderPanel instanceId={instanceId} />
+            </FocusBoundary>
+
+            <FocusBoundary
+              id="tab-boundary-export"
+              isActive={normalizedTab === 'export'}
+              trapFocus
+              className={normalizedTab === 'export' ? 'flex flex-1 h-full min-h-0 flex-col overflow-hidden' : 'hidden'}
+            >
+              <ExportPanel
+                instanceId={instanceId}
+                defaultName={data.name}
+                defaultHeroLogo={heroLogoUrl || undefined}
+                defaultVersion={data.description?.match(/1\.\d+\.\d+/)?.[0] || '1.0.0'}
+              />
+            </FocusBoundary>
+          </main>
         </div>
       </div>
     </FocusContext.Provider>
@@ -354,3 +299,4 @@ const InstanceDetail: React.FC = () => {
 };
 
 export default InstanceDetail;
+

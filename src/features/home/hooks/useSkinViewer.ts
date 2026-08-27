@@ -16,8 +16,9 @@ import {
   toAppearanceAssetUrl,
 } from '../../../services/accountAppearance';
 import { SkinEngine, type AnimationPreset } from '../engine/SkinEngine';
+import { isRemoteHttpUrl } from '../engine/modrinthSkinRendering';
 
-const DEFAULT_SKIN_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAdVBMVEUAAAAAaGgAf38ApKQAr68AzMwDenoElZUFiIgKvLwkGAgmGgooKCgrHg0zJBE0JRI3Nzc6MYk/KhU/Pz9BNZtCHQpGOqVJJRBKSkpSPYlVVVVqQDB2SzN3QjWBUzmPXj6QWT+UYD6bY0mqclmzeV63g2v///9KLpkGAAAAAXRSTlMAQObYZgAAAvdJREFUWMPtlu1aozAQhWtBSdmSBYpVV4Vs0vX+L3HPmUmUdqsN/bsOSCc8zst8BGZWqyhNY3HaZoyyWiqN7XES8AK5BgBjHu5FxF3hAQLA3/WARoNwGsJygGUOm74fHVPopuWAXmKw06jHFTmwzGMzTg+QcVoQOyxrXnsICFgwHG4LaE1O9pu6trYmwfKoa91UPe/3WbHLDvKHP4fgf8q6Z0FJtvayB/QYz/ThcAgheLHSMCSQrA3UOF+Ht6fgn95C7Z3csrWAbE79be0hITw/wwNILf4jFUzHRUDd1M5P4283Pby+3kMZJ+9wk4AmBzA62JMw3j/co/4OC++4HX9AMt/KDtK2221a3wYgfLjtoqT7ZVkWCDWcBWy3bfsOgD0IZwFIk7vswWeADQE5HnwSQiEhnHgwDN2w3+87/AxQugqC56CsRal6gStMYVzgZw3h4gPQfQDwu6+MqcqyCoFX0WFZvtuX65ubNdQ5QAyHBDB3d6aACS/USSCrFPOiEgAW5wE47yDJiDrjhl6so9xA+HsEYBgkMGE0wtMJMBFQSfK8dzxEsDj2gCch+KPbBu4SEEMQh/im4kAN+NrMSplif8+BkcwVeKxJOpdiBYQAcM7KeAxg5g3dZvmgC6CIgCAAd+RBJ4ZDSsRQwcZUkrdKNKlfZcR/fd2PAY+Pab89ilRiVkkeKbSGvQkKCPrpmAHaHax+0XRHdafFgD8GZlQQEZS9ArwC/BzQtjsa7lrR2rilURZjNC9g4coCaA6dIFbf8l/KRoX7uiihfGfkW7LmhXmzZU/i52gRYN7uCXD+TFvP92BTnp0LFnhQuNzvoM4LQ+rWg84D2tqP5oKvAGKpc8Ne23kkzOeCrwBd7PcJUEVjQvI9IABamgeSpO9B+j78CziZF3Qe0HbCvnjZA+2xOrJAZy+Ko0HIKuVRCJA4EKTpICxIos4LLo0ksT1nbKK0EzQWl/q5zwSczgvJPiXhIuB0XkjzQErDZcDJvKAVZPp0Pjj9/7/jX3fLYvZOsQAAAABJRU5ErkJggg==';
+const DEFAULT_SKIN_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAdVBMVEUAAAAAaGgAf38ApKQAr68AzMwDenoElZUFiIgKvLwkGAgmGgooKCgrHg0zJBE0JRI3Nzc6MYk/KhU/Pz9BNZtCHQpGOqVJJRBKSkpSPYlVVVVqQDB2SzN3QjWBUzmPXj6QWT+UYD6bY0mqclmzeV63g2v///9KLpkGAAAAAXRSTlMAQObYZgAAAvdJREFUWMPtlu1aozAQhWtBSdmSBYpVV4Vs0vX+L3HPmUmUdqsN/bsOSCc8zst8BGZWqyhNY3HaZoyyWiqN7XES8AK5BgBjHu5FxF3hAQLA3/WARoNwGsJygGUOm74fHVPopuWAXmKw06jHFTmwzGMzTg+QcVoQOyxrXnsICFgwHG4LaE1O9pu6trYmwfKoa91UPe/3WbHLDvKHP4fgf8q6Z0FJtvayB/QYz/ThcAgheLHSMCSQrA3UOF+Ht6fgn95C7Z3csrWAbE79be0hITw/wwNILf4jFUzHRUDd1M5P4283Pby+3kMZJ+9wk4AmBzA62JMw3j/co/4OC++4HX9AMt/KDtK2221a3wYgfLjtoqT7ZVkWCDWcBWy3bfsOgD0IZwFIk7vswWeADQE5HnwSQiEhnHgwDN2w3+87/AxQugqC56CsRal6gStMYVzgZw3h4gPQfQDwu6+MqcqyCoFX0WFZvtuX65ubNdQ5QAyHBDB3d6aACS/USSCrFPOiEgAW5wE47yDJiDrjhl6so9xA+HsEYBgkMGE0wtMJMBFQSfK8dzxEsDj2gCch+KPbBu4SEEMQh/im4kAN+NrMSplif8+BkcwVeKxJOpdiBYQAcM7KeAxg5g3dZvmgC6CIgCAAd+RBJ4ZDSsRQwcZUkrdKNKlfZcR/fd2PAY+Pab89ilRiVkkeKbSGvQkKCPrpmAHaHax+0XRHdafFgD8GZlQQEZS9ArwC/BzQtjsa7lrR2rilURZjNC9g4coCaA6dIFbf8l/KRoX7uiihfGfkW7LmhXmzZU/i52gRYN7uCXD+TFvP92BTnp0LFnhQuNzvoM4LQ+rWg84D2tqP5oKvAGKpc8Ne23kkzOeCrwBd7PcJUEVjQvI9IABamgeSpO9B+j78CziZF3Qe0HbCvnjZA+2xOrJAZy+Ko0HIKuVRCJA4EKTICxIos4LLo0ksT1nbKK0EzQWl/q5zwSczgvJPiXhIuB0XkjzQErDZcDJvKAVZPp0Pjj9/7/jX3fLYvZOsQAAAABJRU5ErkJggg==';
 
 interface SkinViewerAccount {
   uuid?: string;
@@ -68,43 +69,59 @@ interface UseSkinViewerOptions {
 
 export const detectSkinModel = (url: string): Promise<'classic' | 'slim'> => {
   return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result: 'classic' | 'slim') => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        resolve(result);
+      }
+    };
+
+    const timer = setTimeout(() => finish('classic'), 3000);
+
     const img = new Image();
-    // Cached skins use Tauri's local asset protocol in production. CORS mode
-    // is only necessary for remote images and can prevent WebView2 from
-    // loading local `asset:` resources.
-    if (/^https?:/i.test(url)) {
+    // Only genuine remote HTTP/HTTPS endpoints need CORS anonymous mode.
+    // Local asset protocols (asset.localhost, data:, blob:) should not use CORS
+    // to avoid WebView2 canvas security restrictions.
+    if (isRemoteHttpUrl(url)) {
       img.crossOrigin = 'anonymous';
     }
     img.onload = () => {
-      if (img.width !== 64 || img.height !== 64) {
-        resolve('classic');
-        return;
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = 64;
-      canvas.height = 64;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        resolve('classic');
-        return;
-      }
-      ctx.drawImage(img, 0, 0);
-
-      // 检测 slim 透明列：
-      // 右臂区域中 x=54,55 并且 y=20~31 的列
-      // 对于 classic (4px 宽)，这些像素有颜色。
-      // 对于 slim (3px 宽)，全透明。
-      const imgData = ctx.getImageData(54, 20, 2, 12);
-      let isSlim = true;
-      for (let i = 3; i < imgData.data.length; i += 4) {
-        if (imgData.data[i] !== 0) { // 不是全透明
-          isSlim = false;
-          break;
+      try {
+        if (img.width !== 64 || img.height !== 64) {
+          finish('classic');
+          return;
         }
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          finish('classic');
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+
+        // 检测 slim 透明列：
+        // 右臂区域中 x=54,55 并且 y=20~31 的列
+        // 对于 classic (4px 宽)，这些像素有颜色。
+        // 对于 slim (3px 宽)，全透明。
+        const imgData = ctx.getImageData(54, 20, 2, 12);
+        let isSlim = true;
+        for (let i = 3; i < imgData.data.length; i += 4) {
+          if (imgData.data[i] !== 0) { // 不是全透明
+            isSlim = false;
+            break;
+          }
+        }
+        finish(isSlim ? 'slim' : 'classic');
+      } catch (err) {
+        console.warn('[detectSkinModel] 读取皮肤像素失败，降级为 classic:', err);
+        finish('classic');
       }
-      resolve(isSlim ? 'slim' : 'classic');
     };
-    img.onerror = () => resolve('classic');
+    img.onerror = () => finish('classic');
     img.src = url;
   });
 };
@@ -145,7 +162,7 @@ const toAccountData = (rawAccount: Record<string, any>, fallback: SkinViewerAcco
 
 const isSessionExpiredError = (error: unknown): boolean => {
   const message = String(error);
-  return message.includes('HTTP 401') || message.includes('会话已过期') || message.includes('浼氳瘽宸茶繃鏈');
+  return message.includes('HTTP 401') || message.includes('会话已过期');
 };
 
 const syncMicrosoftAppearance = async (
@@ -410,9 +427,14 @@ export function useSkinViewer(visibleTab = 'home', options: UseSkinViewerOptions
     if (!engine || engine.isDisposed || !isHydrated) return;
     
     setIsSkinLoaded(false);
-    void loadAccountSkin(engine, currentAccount).then(() => {
-      setIsSkinLoaded(true);
-    });
+    void loadAccountSkin(engine, currentAccount)
+      .catch((error) => {
+        console.warn('[useSkinViewer] 加载账号皮肤失败，使用默认皮肤兜底:', error);
+        return engine.resetToDefaultSkin();
+      })
+      .finally(() => {
+        setIsSkinLoaded(true);
+      });
   }, [currentAccount, isHydrated]);
 
   useEffect(() => {

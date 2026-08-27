@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { CheckSquare, Power, Star, Trash2, X } from 'lucide-react';
 
 import { FocusBoundary } from '../../../../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../../../../ui/focus/FocusItem';
+import { OreButton } from '../../../../../../../ui/primitives/OreButton';
+import { useSettingsStore } from '../../../../../../../store/useSettingsStore';
 import { type ModSortOrder, type ModSortType } from '../../../../../hooks/useModManager';
 import type { InstanceDependencyHealth, ModMeta } from '../../../../../logic/modService';
 import {
@@ -78,7 +81,7 @@ export const ModList: React.FC<ModListProps> = ({
   onUpgradeMod,
   onSelectMod,
   onDeleteMod,
-  isBatchMode,
+  isBatchMode: _isBatchMode,
   isAllSelected,
   searchQuery,
   searchPlaceholder,
@@ -102,17 +105,35 @@ export const ModList: React.FC<ModListProps> = ({
   isCheckingModUpdates,
   emptyMessage = '当前没有可用模组。',
   onNavigateOut,
-  onTopBarCollapseChange,
-  isTopBarCollapsed,
-  snapshotState,
-  snapshotProgressPhase,
-  onCreateSnapshot,
+  onTopBarCollapseChange: _onTopBarCollapseChange,
+  isTopBarCollapsed: _isTopBarCollapsed,
+  snapshotState: _snapshotState,
+  snapshotProgressPhase: _snapshotProgressPhase,
+  onCreateSnapshot: _onCreateSnapshot,
   onOpenHistory,
   onOpenModFolder,
   onAnalyzeCleanup,
   onOpenDownload
 }) => {
-  const [listTheme, setListTheme] = useState<ModListTheme>('dark');
+  const themeSetting = useSettingsStore((state) => state.settings.appearance.theme);
+  const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return 'dark';
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => {
+      setSystemTheme(e.matches ? 'dark' : 'light');
+    };
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
+
+  const listTheme: ModListTheme = themeSetting === 'system' ? systemTheme : themeSetting === 'light' ? 'light' : 'dark';
   const [hasShownReadyList, setHasShownReadyList] = useState(false);
   const controller = useModListController({
     instanceId,
@@ -139,23 +160,6 @@ export const ModList: React.FC<ModListProps> = ({
     }
   }, [isCheckingModUpdates, isLoading, mods.length]);
 
-  useEffect(() => {
-    if (
-      shouldShowSkeleton ||
-      controller.state.showInitialLoading ||
-      controller.state.showEmptyState ||
-      controller.state.showFilteredEmptyState
-    ) {
-      onTopBarCollapseChange?.(false);
-    }
-  }, [
-    controller.state.showEmptyState,
-    controller.state.showFilteredEmptyState,
-    controller.state.showInitialLoading,
-    onTopBarCollapseChange,
-    shouldShowSkeleton
-  ]);
-
   return (
     <div
       data-mod-list-theme={listTheme}
@@ -171,20 +175,13 @@ export const ModList: React.FC<ModListProps> = ({
 
       <ModListHeader
         stats={controller.state.stats}
-        isBatchMode={isBatchMode}
         searchQuery={searchQuery}
         searchPlaceholder={searchPlaceholder}
         quickFilter={controller.state.quickFilter}
         filterOptions={controller.state.filterOptions}
-        viewMode={controller.state.viewMode}
         onHeaderArrowPress={onHeaderArrowPress}
         onSearchQueryChange={onSearchQueryChange}
         onClearSearch={onClearSearch}
-        onBatchEnable={onBatchEnable}
-        onBatchDisable={onBatchDisable}
-        onBatchDelete={onBatchDelete}
-        onBatchFavorite={onBatchFavorite || (() => {})}
-        onExitBatchMode={onExitBatchMode}
         onOpenModMetadataSettings={onOpenModMetadataSettings}
         onReidentifyAllMods={onReidentifyAllMods}
         isReidentifyingAll={isReidentifyingAll}
@@ -193,18 +190,11 @@ export const ModList: React.FC<ModListProps> = ({
         isUpdatingAny={mods.some((m) => m.isUpdatingMod)}
         onUpdateAllMods={onUpdateAllMods}
         onQuickFilterChange={controller.controls.onQuickFilterChange}
-        onViewModeChange={controller.controls.onViewModeChange}
         listTheme={listTheme}
-        onThemeChange={setListTheme}
-        isTopBarCollapsed={isTopBarCollapsed}
-        snapshotState={snapshotState}
-        snapshotProgressPhase={snapshotProgressPhase}
-        onCreateSnapshot={onCreateSnapshot}
         onOpenHistory={onOpenHistory}
         onOpenModFolder={onOpenModFolder}
         onAnalyzeCleanup={onAnalyzeCleanup}
         onOpenDownload={onOpenDownload}
-        onTopBarCollapseChange={onTopBarCollapseChange}
       />
 
       <ModListGridHeader
@@ -214,7 +204,6 @@ export const ModList: React.FC<ModListProps> = ({
         sortOrder={sortOrder}
         onSelectAll={onSelectAll}
         onSortClick={onSortClick}
-        viewMode={controller.state.viewMode}
         listTheme={listTheme}
       />
 
@@ -284,9 +273,6 @@ export const ModList: React.FC<ModListProps> = ({
           <ModAccordionVirtualList
             renderEntries={controller.state.renderEntries}
             listTheme={listTheme}
-            onTopStateChange={(atTop) => {
-              onTopBarCollapseChange?.(!atTop);
-            }}
             onRangeChanged={controller.controls.onRangeChanged}
             getGroupHeaderFocusKey={controller.focus.getGroupHeaderFocusKey}
             onToggleGroup={controller.controls.onToggleGroup}
@@ -295,6 +281,91 @@ export const ModList: React.FC<ModListProps> = ({
           />
         )}
       </FocusBoundary>
+
+      {/* 底部浮动多选操作栏 Overlay (仅在有选中项时弹出) */}
+      <div
+        className={`pointer-events-none absolute inset-x-0 bottom-5 z-50 flex justify-center px-6 transition-all duration-200 ease-out ${
+          selectedMods.size > 0 ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'
+        }`}
+      >
+        <div
+          className={`flex max-w-[calc(100vw-3rem)] flex-wrap items-center gap-3 border-[0.1875rem] border-[#1E1E1F] px-4 py-2.5 transition-all duration-200 ${
+            listTheme === 'light'
+              ? 'bg-[#D0D1D4] text-[#111214] shadow-[0_1rem_2.25rem_rgba(0,0,0,0.3),inset_0_0.125rem_0_rgba(255,255,255,0.7),inset_0_-0.25rem_0_#A9ABAE]'
+              : 'bg-[#313233] text-white shadow-[0_1rem_2.25rem_rgba(0,0,0,0.5),inset_0_0.125rem_0_rgba(255,255,255,0.14),inset_0_-0.25rem_0_rgba(0,0,0,0.28)]'
+          } ${
+            selectedMods.size > 0 ? 'pointer-events-auto scale-100' : 'pointer-events-none scale-95'
+          }`}
+        >
+          <div className="flex h-9 min-w-[8rem] items-center gap-2.5 border-2 border-[#1E1E1F] bg-[#1E1E1F] px-3 text-white shadow-[inset_0_0.125rem_0_rgba(255,255,255,0.08)]">
+            <CheckSquare size={16} className="text-[#57D38C]" />
+            <div className="font-minecraft text-sm leading-none">
+              已选择 <span className="text-[#57D38C] font-bold">{selectedMods.size}</span> 项
+            </div>
+          </div>
+
+          <OreButton
+            focusKey="mod-btn-batch-enable"
+            variant="secondary"
+            size="auto"
+            onClick={onBatchEnable}
+            className="!h-9"
+          >
+            <Power size={13} className="mr-1 text-[#57D38C]" />
+            全部启用
+          </OreButton>
+
+          <OreButton
+            focusKey="mod-btn-batch-disable"
+            variant="secondary"
+            size="auto"
+            onClick={onBatchDisable}
+            className="!h-9"
+          >
+            <Power size={13} className="mr-1 opacity-50" />
+            全部禁用
+          </OreButton>
+
+          {onBatchFavorite && (
+            <OreButton
+              focusKey="mod-btn-batch-favorite"
+              variant="secondary"
+              size="auto"
+              onClick={onBatchFavorite}
+              className="!h-9"
+            >
+              <Star size={13} className="mr-1 text-[#E5B54E]" />
+              收藏
+            </OreButton>
+          )}
+
+          <OreButton
+            focusKey="mod-btn-batch-delete"
+            variant="danger"
+            size="auto"
+            onClick={onBatchDelete}
+            className="!h-9"
+          >
+            <Trash2 size={13} className="mr-1" />
+            删除
+          </OreButton>
+
+          <OreButton
+            focusKey="mod-btn-batch-clear"
+            variant="ghost"
+            size="auto"
+            onClick={onExitBatchMode}
+            title="取消选择"
+            className={`!h-9 !w-9 !min-w-0 !border-[#1E1E1F] !px-0 shadow-[inset_0_-0.25rem_0_rgba(0,0,0,0.32),inset_0.125rem_0.125rem_0_rgba(255,255,255,0.12)] ${
+              listTheme === 'light'
+                ? '!bg-[#C2C4C9] !text-[#313233] hover:!bg-[#DDE0E3] hover:!text-[#111214]'
+                : '!bg-[#48494A] !text-[#D0D1D4] hover:!bg-[#58585A] hover:!text-white'
+            }`}
+          >
+            <X size={16} />
+          </OreButton>
+        </div>
+      </div>
     </div>
   );
 };

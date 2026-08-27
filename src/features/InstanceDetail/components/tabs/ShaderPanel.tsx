@@ -12,6 +12,7 @@ import { OreAssetRow } from '../../../../ui/primitives/OreAssetRow';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreConfirmDialog } from '../../../../ui/primitives/OreConfirmDialog';
 import { OreSwitch } from '../../../../ui/primitives/OreSwitch';
+import { OreOverlayScrollArea } from '../../../../ui/primitives/OreOverlayScrollArea';
 import { useResourceManager } from '../../hooks/useResourceManager';
 import { ResourceIconBox } from './ResourceIconBox';
 
@@ -175,25 +176,28 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
     restoreDeleteFocus(rowIndex);
   }, [deleteItem, pendingDelete, restoreDeleteFocus]);
 
+  const enabledCount = useMemo(() => items.filter((i) => i.isEnabled).length, [items]);
+
   return (
-    <div className="flex flex-1 min-h-0 flex-col overflow-hidden p-3 gap-3">
-      <div className="flex shrink-0 items-center justify-between border-2 border-[#2A2A2C] bg-[#18181B] py-3.5 px-4">
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden p-3.5 gap-3">
+      {/* 顶部控制台 (Header & Global Actions) */}
+      <div className="flex shrink-0 items-center justify-between border-[2px] border-[#1E1E1F] bg-[#313233] p-3.5 shadow-[inset_0_1px_rgba(255,255,255,0.1),inset_0_-2px_rgba(0,0,0,0.3)]">
         <div>
-          <h3 className="flex items-center font-minecraft text-white">
-            <ImageIcon size={18} className="mr-2 text-ore-green" />
+          <h3 className="flex items-center font-minecraft font-bold text-base text-white ore-text-shadow">
+            <ImageIcon size={18} className="mr-2 text-[#4EB8DE]" />
             {t('instanceDetail.shader.title', { defaultValue: '本地光影包' })}
           </h3>
-          <p className="mt-1 text-sm text-ore-text-muted">
-            {t('instanceDetail.shader.subtitle', { defaultValue: '使用前请确保实例已安装 OptiFine、Iris 或 Oculus。' })}
+          <p className="mt-1 font-minecraft text-xs text-[#D0D1D4]">
+            {t('instanceDetail.shader.subtitle', { defaultValue: '已启用 {{enabled}} / 共 {{count}} 个光影包 · 请确保已安装 OptiFine/Iris/Oculus', enabled: enabledCount, count: items.length })}
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <OreButton
             focusKey="btn-download-shader"
             variant="primary"
             size="auto"
-            className="!h-10 !min-h-10"
+            className="!h-10 !min-h-10 px-4 font-minecraft font-bold uppercase tracking-wide text-xs"
             onArrowPress={handleTopArrow}
             onClick={() => {
               setInstanceDownloadTarget('shader');
@@ -208,7 +212,7 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
             focusKey="btn-open-shader-folder"
             variant="secondary"
             size="auto"
-            className="!h-10 !min-h-10"
+            className="!h-10 !min-h-10 px-4 font-minecraft font-bold uppercase tracking-wide text-xs"
             onArrowPress={handleTopArrow}
             onClick={openFolder}
           >
@@ -222,22 +226,33 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
         <div className="flex flex-1 items-center justify-center py-12">
           <Loader2 size={32} className="animate-spin text-ore-green" />
         </div>
+      ) : items.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center border-[2px] border-dashed border-[#48494A] bg-[#222224]/60 p-12 text-center select-none">
+          <ImageIcon size={48} className="text-[#68696B] mb-3" />
+          <span className="font-minecraft font-bold text-base text-[#D0D1D4] ore-text-shadow mb-1">
+            {t('instanceDetail.shader.emptyTitle', { defaultValue: '暂无光影包' })}
+          </span>
+          <span className="font-minecraft text-xs text-[#8C8D90] max-w-sm leading-relaxed">
+            {t('instanceDetail.shader.emptyDesc', { defaultValue: '点击右上角「下载光影」获取社区光影包，或直接将 .zip 文件拖入此窗口即可快速安装。' })}
+          </span>
+        </div>
       ) : (
         <FocusBoundary
           id="shader-list"
           trapFocus={operationRowIndex !== null}
-          className="custom-scrollbar flex-1 min-h-0 grid grid-cols-1 gap-2 overflow-y-auto pr-1"
+          className="flex-1 min-h-0 flex flex-col"
         >
-          {items.map((item, index) => (
-            <FocusItem
-              key={item.fileName || `shader-idx-${index}`}
-              focusKey={getRowFocusKey(index)}
-              onEnter={() => enterRowOperation(index)}
-              onArrowPress={handleRowNavigation}
-            >
-              {({ ref, focused }) => (
-                <div ref={ref as React.RefObject<HTMLDivElement>}>
-                  <OreAssetRow
+          <OreOverlayScrollArea className="flex-1 min-h-0" contentClassName="flex flex-col gap-2 pr-1">
+            {items.map((item, index) => (
+              <FocusItem
+                key={item.fileName || `shader-idx-${index}`}
+                focusKey={getRowFocusKey(index)}
+                onEnter={() => enterRowOperation(index)}
+                onArrowPress={handleRowNavigation}
+              >
+                {({ ref, focused }) => (
+                  <div ref={ref as React.RefObject<HTMLDivElement>}>
+                    <OreAssetRow
                       focusable={false}
                       focused={focused}
                       operationActive={operationRowIndex === index}
@@ -253,7 +268,7 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
                           resType="shader"
                         />
                       }
-                      trailingClassName="flex items-center space-x-2"
+                      trailingClassName="flex items-center space-x-2.5"
                       trailing={
                         <>
                           <OreSwitch
@@ -267,7 +282,7 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
                             focusKey={getActionFocusKey(index, 'delete')}
                             variant="danger"
                             size="auto"
-                            className="!h-10 !min-h-10 !min-w-10 !w-10 !px-0"
+                            className="!h-9 !w-9 !min-h-9 !min-w-9 !px-0 flex items-center justify-center"
                             onArrowPress={(direction) => handleActionArrow(index, 'delete', direction)}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -279,11 +294,12 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
                           </OreButton>
                         </>
                       }
-                  />
-                </div>
-              )}
-            </FocusItem>
-          ))}
+                    />
+                  </div>
+                )}
+              </FocusItem>
+            ))}
+          </OreOverlayScrollArea>
         </FocusBoundary>
       )}
 
@@ -300,7 +316,7 @@ export const ShaderPanel: React.FC<{ instanceId: string }> = ({ instanceId }) =>
         tone="danger"
         cancelFocusKey="shader-delete-cancel"
         confirmFocusKey="shader-delete-confirm"
-        className="w-full max-w-lg"
+        className="w-[580px] max-w-[92vw]"
         confirmationNote={t('instanceDetail.shader.deleteConfirmNote', { defaultValue: '删除操作不可恢复，请确认当前实例确实不再需要该光影包。' })}
         confirmationNoteTone="danger"
       />

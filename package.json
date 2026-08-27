@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@noriginmedia/norigin-spatial-navigation": "^2.3.0",
+    "@react-facet/core": "^18.6.0",
     "@tanstack/react-virtual": "^3.14.7",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-dialog": "^2.7.2",
@@ -33,11 +34,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2.11.4",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@tailwindcss/vite": "^4.3.3",
     "@types/three": "0.185.1",
     "@vitejs/plugin-react": "^6.0.3",
     "eslint": "^10.7.0",

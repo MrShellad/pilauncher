@@ -101,7 +101,7 @@ const ModRowItemComponent: React.FC<ModRowItemProps> = ({
             leading={
               (
                 <div 
-                  className={`flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center border-[2px] transition-colors ${isSelected
+                  className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center border-[2px] transition-colors ${isSelected
                     ? 'border-[#1E1E1F] bg-[#57D38C] text-[#06140B] shadow-[inset_0_-1px_0_#38985B]'
                     : listTheme === 'light'
                       ? 'border-[#1E1E1F] bg-[#E4E5E7] hover:bg-white shadow-[inset_0_-1px_0_#B8BBC2]'
@@ -113,7 +113,7 @@ const ModRowItemComponent: React.FC<ModRowItemProps> = ({
                   }}
                 >
                   {isSelected && (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="square" strokeLinejoin="miter" className="h-3 w-3">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="square" strokeLinejoin="miter" className="h-3.5 w-3.5">
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   )}

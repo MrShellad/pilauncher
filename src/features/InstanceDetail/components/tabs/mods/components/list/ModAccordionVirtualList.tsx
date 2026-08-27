@@ -55,7 +55,7 @@ export const ModAccordionVirtualList: React.FC<ModAccordionVirtualListProps> = (
     getScrollElement: () => parentRef.current,
     estimateSize: (index) => {
       const entry = renderEntries[index];
-      return entry?.type === 'group' ? 40 : 72;
+      return entry?.type === 'group' ? 40 : 88;
     },
     overscan: 10,
   });
