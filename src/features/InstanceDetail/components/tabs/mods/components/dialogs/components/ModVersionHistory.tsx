@@ -1,7 +1,7 @@
 // src/features/InstanceDetail/components/tabs/mods/components/dialogs/components/ModVersionHistory.tsx
 import React, { useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { CheckCircle2, Clock3, Download } from 'lucide-react';
+import { CheckCircle2, Clock3, Download, History } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { CurseforgeIcon, ModrinthIcon } from '../../../../../../../Download/components/Icons';
@@ -33,20 +33,20 @@ interface ModVersionHistoryProps {
 
 const VersionListSkeleton = () => {
   return (
-    <div className="border-[2px] border-[var(--ore-downloadDetail-divider)] rounded-sm overflow-hidden flex-1 flex flex-col min-h-0 animate-pulse bg-transparent">
+    <div className="border-[2px] border-[var(--ore-downloadDetail-divider)] rounded-[2px] overflow-hidden flex-1 flex flex-col min-h-0 animate-pulse bg-transparent">
       {Array.from({ length: 5 }).map((_, index) => (
         <div
           key={index}
           className={`flex flex-col sm:flex-row justify-between sm:items-center py-3.5 px-3 sm:px-4 border-b-[2px] border-[var(--ore-downloadDetail-divider)] ${index === 4 ? 'border-b-0' : ''} gap-3 sm:gap-0 bg-[var(--ore-downloadDetail-rowBg)]/50`}
         >
           <div className="flex items-center flex-1 min-w-0 pr-0 sm:pr-4">
-            <div className="hidden sm:block w-2 h-2 rounded-full mr-3 flex-shrink-0 bg-gray-700"></div>
+            <div className="hidden sm:block w-2 h-2 mr-3 flex-shrink-0 bg-gray-700"></div>
             <div className="flex flex-col flex-1 gap-2 min-w-0">
-              <div className="h-3.5 bg-gray-700 rounded-sm w-[45%] sm:w-[55%]"></div>
-              <div className="h-2.5 bg-gray-800 rounded-sm w-[25%] sm:w-[35%]"></div>
+              <div className="h-3.5 bg-gray-700 rounded-[2px] w-[45%] sm:w-[55%]"></div>
+              <div className="h-2.5 bg-gray-800 rounded-[2px] w-[25%] sm:w-[35%]"></div>
             </div>
           </div>
-          <div className="w-full sm:w-20 h-8 bg-gray-700 rounded-sm shrink-0"></div>
+          <div className="w-full sm:w-20 h-8 bg-gray-700 rounded-[2px] shrink-0"></div>
         </div>
       ))}
     </div>
@@ -111,27 +111,28 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
     <div className="flex-1 flex flex-col min-h-[14rem] border-t-[2px] border-[var(--ore-downloadDetail-divider)] pt-3 font-minecraft">
       <div className="flex items-center justify-between mb-2.5 shrink-0 gap-3">
         <h3 className="font-minecraft text-white text-xs sm:text-sm tracking-wide font-bold flex items-center gap-1.5 min-w-0">
-          <span className="truncate">📜 {t('instanceDetail.mods.versionHistory.title', { defaultValue: '版本历史' })}</span>
+          <History size={14} className="shrink-0 text-white/80" />
+          <span className="truncate">{t('instanceDetail.mods.versionHistory.title', { defaultValue: '版本历史' })}</span>
           {modVersions.length > 0 && (
-            <span className="text-[10px] bg-white/10 text-gray-300 px-1.5 py-0.2 rounded font-mono shrink-0">
+            <span className="text-[10px] bg-[var(--ore-color-background-surface-sunken)] border-[2px] border-[var(--ore-border-color)] text-gray-300 px-1.5 py-0.5 rounded-[2px] font-mono shrink-0">
               {modVersions.length}
             </span>
           )}
         </h3>
 
         {/* Compact platform tabs with spatial navigation */}
-        <div className="inline-flex p-0.5 rounded-[2px] bg-black/40 border border-[var(--ore-downloadDetail-divider)] shrink-0">
+        <div className="inline-flex p-0.5 rounded-[2px] bg-[var(--ore-downloadDetail-base)] border-[2px] border-[var(--ore-downloadDetail-divider)] shrink-0">
           <FocusItem focusKey="platform-tab-modrinth" onEnter={() => setActivePlatform('modrinth')}>
             {({ ref, focused }) => (
               <button
                 ref={ref}
                 type="button"
                 onClick={() => setActivePlatform('modrinth')}
-                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-minecraft tracking-wide rounded-[2px] transition-all select-none outline-none ${
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-minecraft tracking-wide rounded-[2px] transition-none select-none outline-none cursor-pointer ${
                   activePlatform === 'modrinth'
-                    ? 'bg-[#183822] text-[#1BD96A] border border-[#1BD96A]/50 font-bold shadow-sm'
-                    : 'text-gray-400 hover:text-white border border-transparent'
-                } ${focused ? 'outline outline-2 outline-white z-10 brightness-110' : ''}`}
+                    ? 'bg-[var(--ore-downloadDetail-surface)] text-[#1BD96A] border-[2px] border-[var(--ore-downloadDetail-divider)] font-bold shadow-[inset_0_2px_0_rgba(255,255,255,0.12)]'
+                    : 'text-gray-400 hover:text-white border-[2px] border-transparent hover:bg-white/5'
+                } ${focused ? 'outline outline-2 outline-white outline-offset-1 z-10 brightness-110' : ''}`}
               >
                 <ModrinthIcon className="text-[12px] text-[#1BD96A]" />
                 <span>Modrinth</span>
@@ -144,11 +145,11 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
                 ref={ref}
                 type="button"
                 onClick={() => setActivePlatform('curseforge')}
-                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-minecraft tracking-wide rounded-[2px] transition-all select-none outline-none ${
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-minecraft tracking-wide rounded-[2px] transition-none select-none outline-none cursor-pointer ${
                   activePlatform === 'curseforge'
-                    ? 'bg-[#3A1F14] text-[#F16436] border border-[#F16436]/50 font-bold shadow-sm'
-                    : 'text-gray-400 hover:text-white border border-transparent'
-                } ${focused ? 'outline outline-2 outline-white z-10 brightness-110' : ''}`}
+                    ? 'bg-[var(--ore-downloadDetail-surface)] text-[#F16436] border-[2px] border-[var(--ore-downloadDetail-divider)] font-bold shadow-[inset_0_2px_0_rgba(255,255,255,0.12)]'
+                    : 'text-gray-400 hover:text-white border-[2px] border-transparent hover:bg-white/5'
+                } ${focused ? 'outline outline-2 outline-white outline-offset-1 z-10 brightness-110' : ''}`}
               >
                 <CurseforgeIcon className="text-[12px] text-[#F16436]" />
                 <span>CurseForge</span>
@@ -160,7 +161,7 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
       {isLoadingVersions ? (
         <VersionListSkeleton />
       ) : isCfKeyMissing ? (
-        <div className="text-center text-ore-text-muted py-8 font-minecraft text-sm border-[2px] border-dashed border-[var(--ore-downloadDetail-divider)] bg-transparent rounded-sm flex flex-col items-center justify-center gap-2 px-4" style={{ boxShadow: 'var(--ore-downloadDetail-sectionShadow)' }}>
+        <div className="text-center text-ore-text-muted py-8 font-minecraft text-sm border-[2px] border-dashed border-[var(--ore-downloadDetail-divider)] bg-transparent rounded-[2px] flex flex-col items-center justify-center gap-2 px-4" style={{ boxShadow: 'var(--ore-downloadDetail-sectionShadow)' }}>
           <span className="text-red-400/90">{t('download.apiKeyMissing', { defaultValue: '未配置 VITE_CURSEFORGE_API_KEY，CurseForge 接口不可用。' })}</span>
         </div>
       ) : modVersions.length > 0 ? (
@@ -239,11 +240,11 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
                         className={`
                           group relative flex items-center justify-between gap-3 overflow-hidden border-[2px]
                           border-[var(--ore-downloadDetail-divider)] px-4 py-3 rounded-[2px]
-                          transition-[filter,outline] duration-100 cursor-pointer hover:brightness-[1.06]
+                          transition-none cursor-pointer hover:brightness-[1.06]
                           ${isInstalled
                             ? 'bg-[var(--ore-downloadDetail-installedBg)]'
                             : 'bg-[var(--ore-downloadDetail-rowBg)]'}
-                          ${focused ? 'z-20 outline outline-2 outline-offset-[3px] outline-white brightness-[1.06]' : ''}
+                          ${focused ? 'z-20 outline outline-2 outline-offset-1 outline-white brightness-[1.06]' : ''}
                         `}
                         style={{
                           boxShadow: isInstalled
@@ -251,13 +252,7 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
                             : 'var(--ore-downloadDetail-rowShadow)'
                         }}
                       >
-                        <div
-                          className={`absolute inset-y-0 left-0 w-2 ${
-                            isInstalled ? 'bg-[var(--ore-downloadDetail-installedAccent)]' : 'bg-[var(--ore-downloadDetail-idleAccent)]'
-                          }`}
-                        />
-
-                        <div className="flex min-w-0 flex-1 flex-col pl-2">
+                        <div className="flex min-w-0 flex-1 flex-col">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="truncate font-minecraft text-[0.9375rem] leading-5 text-[var(--ore-downloadDetail-rowText)] font-bold">
                               {v.name}
@@ -266,7 +261,7 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
                               {v.version_number}
                             </span>
                             {v.version_type && (
-                              <span className={`px-1.5 py-0.2 border text-[9px] font-minecraft uppercase tracking-wider rounded-[2px] ${
+                              <span className={`px-1.5 py-0.5 border-[2px] text-[9px] font-minecraft uppercase tracking-wider rounded-[2px] ${
                                 v.version_type === 'release'
                                   ? 'bg-[#1E3A1A] text-[#6CC349] border-[#3C8527]'
                                   : v.version_type === 'beta'
@@ -277,7 +272,7 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
                               </span>
                             )}
                             {isInstalled && (
-                              <span className="px-1.5 py-0.2 border border-[#3C8527] bg-[#6CC349] text-black font-bold text-[9px] font-minecraft uppercase tracking-wider rounded-[2px]">
+                              <span className="px-1.5 py-0.5 border-[2px] border-[#3C8527] bg-[#3C8527] text-white font-bold text-[9px] font-minecraft uppercase tracking-wider rounded-[2px] shadow-sm">
                                 {t('instanceDetail.mods.versionHistory.current', { defaultValue: '当前版本' })}
                               </span>
                             )}
@@ -324,7 +319,7 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
           </div>
         </OreOverlayScrollArea>
       ) : (
-        <div className="text-center text-ore-text-muted py-8 font-minecraft text-sm border-[2px] border-dashed border-[var(--ore-downloadDetail-divider)] bg-transparent rounded-sm flex items-center justify-center" style={{ boxShadow: 'var(--ore-downloadDetail-sectionShadow)' }}>
+        <div className="text-center text-ore-text-muted py-8 font-minecraft text-sm border-[2px] border-dashed border-[var(--ore-downloadDetail-divider)] bg-transparent rounded-[2px] flex items-center justify-center" style={{ boxShadow: 'var(--ore-downloadDetail-sectionShadow)' }}>
           {t('instanceDetail.mods.versionHistory.empty', { defaultValue: '暂无在 {{platform}} 上的版本记录', platform: activePlatform })}
         </div>
       )}

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, ChevronDown, ChevronRight, Power, Settings2, Star, Trash2 } from 'lucide-react';
+import { Boxes, Check, ChevronDown, ChevronRight, Link2, Power, Settings2, Star, Trash2 } from 'lucide-react';
 import {
   getCurrentFocusKey,
   doesFocusableExist,
@@ -132,9 +132,6 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
     _autoInstallRequiredDeps?: boolean
   ) => {
     const singleId = (Array.isArray(targetInstanceIdOrName) ? targetInstanceIdOrName[0] : targetInstanceIdOrName) || instanceId || '';
-    /* Legacy task initialization is owned by runResourceDownloadTask.
-      message: '正在建立连接...',
-    */
     try {
       await runResourceDownloadTask({
         url: version.download_url,
@@ -142,7 +139,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
         instanceId: singleId,
         subFolder: 'mods',
         title: version.file_name,
-        message: '姝ｅ湪寤虹珛杩炴帴...'
+        message: '正在建立连接...'
       });
     } catch (err) {
       console.error('Failed to download dependency:', err);
@@ -320,48 +317,53 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
   if (!mod) return null;
 
   const modalActions = (
-    <>
-      <OreButton
-        focusKey="btn-mod-toggle"
-        variant={displayMod?.isEnabled ? 'secondary' : 'primary'}
-        size="auto"
-        onClick={() => onToggle(mod.fileName, !!displayMod?.isEnabled)}
-      >
-        <Power size={14} className="mr-1.5" /> {displayMod?.isEnabled ? t('instanceDetail.mods.detail.disable', { defaultValue: '禁用' }) : t('instanceDetail.mods.detail.enable', { defaultValue: '启用' })}
-      </OreButton>
-      <OreButton
-        focusKey="btn-mod-delete"
-        variant="danger"
-        size="auto"
-        onClick={() => onDelete(mod.fileName)}
-      >
-        <Trash2 size={14} className="mr-1.5" /> {t('instanceDetail.mods.detail.delete', { defaultValue: '删除' })}
-      </OreButton>
-      <OreButton
-        focusKey="btn-mod-favorite"
-        variant="secondary"
-        size="auto"
-        onClick={() => onAddFavorite?.(mod)}
-      >
-        <Star size={14} className="mr-1.5" /> {t('instanceDetail.mods.detail.favorite', { defaultValue: '收藏' })}
-      </OreButton>
-      <OreButton
-        focusKey="btn-mod-metadata-settings"
-        variant="secondary"
-        size="auto"
-        onClick={openMetadataSettings}
-      >
-        <Settings2 size={14} className="mr-1.5" /> {t('instanceDetail.mods.detail.metadata', { defaultValue: '元数据' })}
-      </OreButton>
-      <OreButton
-        focusKey="btn-mod-cancel"
-        variant="secondary"
-        size="auto"
-        onClick={handleClose}
-      >
-        {t('instanceDetail.mods.detail.cancel', { defaultValue: '取消' })}
-      </OreButton>
-    </>
+    <div className="flex w-full items-center justify-between gap-3">
+      <div className="flex items-center gap-2">
+        <OreButton
+          focusKey="btn-mod-delete"
+          variant="danger"
+          size="auto"
+          onClick={() => onDelete(mod.fileName)}
+        >
+          <Trash2 size={14} className="mr-1.5" /> {t('instanceDetail.mods.detail.delete', { defaultValue: '删除' })}
+        </OreButton>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <OreButton
+          focusKey="btn-mod-toggle"
+          variant={displayMod?.isEnabled ? 'secondary' : 'primary'}
+          size="auto"
+          onClick={() => onToggle(mod.fileName, !!displayMod?.isEnabled)}
+        >
+          <Power size={14} className="mr-1.5" /> {displayMod?.isEnabled ? t('instanceDetail.mods.detail.disable', { defaultValue: '禁用' }) : t('instanceDetail.mods.detail.enable', { defaultValue: '启用' })}
+        </OreButton>
+        <OreButton
+          focusKey="btn-mod-favorite"
+          variant="secondary"
+          size="auto"
+          onClick={() => onAddFavorite?.(mod)}
+        >
+          <Star size={14} className="mr-1.5" /> {t('instanceDetail.mods.detail.favorite', { defaultValue: '收藏' })}
+        </OreButton>
+        <OreButton
+          focusKey="btn-mod-metadata-settings"
+          variant="secondary"
+          size="auto"
+          onClick={openMetadataSettings}
+        >
+          <Settings2 size={14} className="mr-1.5" /> {t('instanceDetail.mods.detail.metadata', { defaultValue: '元数据' })}
+        </OreButton>
+        <OreButton
+          focusKey="btn-mod-cancel"
+          variant="secondary"
+          size="auto"
+          onClick={handleClose}
+        >
+          {t('instanceDetail.mods.detail.cancel', { defaultValue: '取消' })}
+        </OreButton>
+      </div>
+    </div>
   );
 
   return (
@@ -373,11 +375,11 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
         defaultFocusKey="btn-mod-toggle"
         className="ore-download-detail-modal border-[0.1875rem] border-[#1E1E1F]"
         contentClassName="ore-download-detail-modal__content flex flex-1 min-h-0 flex-col overflow-hidden bg-[#313233] p-0"
-        actionsClassName="!justify-center bg-[var(--ore-downloadDetail-surface)] border-t-[2px] border-[var(--ore-downloadDetail-divider)] px-4 py-2.5 gap-2"
+        actionsClassName="bg-[var(--ore-downloadDetail-surface)] border-t-[2px] border-[var(--ore-downloadDetail-divider)] px-4 py-2.5"
         actions={modalActions}
       >
         {/* Header Info Block */}
-        <ModHeader mod={mod} displayMod={displayMod} instanceId={instanceId} />
+        <ModHeader mod={mod} displayMod={displayMod} instanceId={instanceId} onClose={handleClose} />
 
           {/* Body Content with OreOverlayScrollArea (Unified with DownloadDetailModal) */}
           <OreOverlayScrollArea
@@ -387,15 +389,16 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
           >
             {/* Dependents Section (if any installed mods depend on this mod) */}
             {instanceDependents.length > 0 && (
-              <div className="flex flex-col border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] rounded-sm shrink-0 font-minecraft transition-all">
+              <div className="flex flex-col border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] rounded-[2px] shrink-0 font-minecraft">
                 <button
                   type="button"
                   onClick={() => setIsDependentsExpanded(!isDependentsExpanded)}
-                  className="flex items-center justify-between w-full p-2.5 sm:p-3 text-left hover:bg-white/[0.03] transition-colors cursor-pointer outline-none select-none"
+                  className="flex items-center justify-between w-full p-2.5 sm:p-3 text-left hover:bg-white/5 transition-none cursor-pointer outline-none select-none"
                 >
                   <div className="flex items-center gap-1.5 text-xs font-minecraft text-[#91CAFF] font-bold">
-                    <span>🧩 {t('instanceDetail.mods.detail.dependents', { defaultValue: '作为以下 {{count}} 个已安装模组的前置', count: instanceDependents.length })}</span>
-                    <span className="text-[10px] bg-[#112A45] border border-[#183B63] text-[#91CAFF] px-1.5 py-0.2 rounded font-mono font-normal">
+                    <Boxes size={14} className="shrink-0 text-[#91CAFF]" />
+                    <span>{t('instanceDetail.mods.detail.dependents', { defaultValue: '作为以下 {{count}} 个已安装模组的前置', count: instanceDependents.length })}</span>
+                    <span className="text-[10px] bg-[var(--ore-color-background-surface-sunken)] border-[2px] border-[var(--ore-border-color)] text-[#91CAFF] px-1.5 py-0.5 rounded-[2px] font-mono font-normal">
                       {instanceDependents.length}
                     </span>
                   </div>
@@ -406,7 +409,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
                 </button>
 
                 {isDependentsExpanded && (
-                  <div className="px-3 pb-3 pt-0 border-t border-[var(--ore-downloadDetail-divider)]/50">
+                  <div className="px-3 pb-3 pt-0 border-t-[2px] border-[var(--ore-downloadDetail-divider)]">
                     <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar pt-2">
                       {instanceDependents.map((depFileName) => {
                         const dependentMod = (allMods || []).find((m) => m.fileName === depFileName);
@@ -414,7 +417,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
                         return (
                           <span
                             key={depFileName}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 border-[2px] border-[#183B63] bg-[#112A45] text-[#91CAFF] text-[11px] font-minecraft rounded-sm tracking-wide shadow-sm"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 border-[2px] border-[var(--ore-border-color)] bg-[var(--ore-color-background-surface-sunken)] text-[var(--ore-color-text-secondary-default)] text-[11px] font-minecraft rounded-[2px] tracking-wide"
                             title={depFileName}
                           >
                             {name}
@@ -428,12 +431,13 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
             )}
 
             {/* Dependencies Section */}
-            <div className="flex flex-col gap-2 border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] p-3 rounded-sm shrink-0 font-minecraft">
+            <div className="flex flex-col gap-2 border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] p-3 rounded-[2px] shrink-0 font-minecraft">
               <div className="flex items-center justify-between">
                 <h3 className="font-minecraft text-white text-xs sm:text-sm tracking-wide font-bold flex items-center gap-1.5">
-                  <span>🔗 {t('instanceDetail.mods.detail.dependencies', { defaultValue: '前置依赖关系' })}</span>
+                  <Link2 size={14} className="shrink-0 text-white/80" />
+                  <span>{t('instanceDetail.mods.detail.dependencies', { defaultValue: '前置依赖关系' })}</span>
                   {dependencies.length > 0 && (
-                    <span className="text-[10px] bg-white/10 text-gray-300 px-1.5 py-0.2 rounded font-mono">
+                    <span className="text-[10px] bg-[var(--ore-color-background-surface-sunken)] border-[2px] border-[var(--ore-border-color)] text-gray-300 px-1.5 py-0.5 rounded-[2px] font-mono">
                       {dependencies.length}
                     </span>
                   )}
@@ -455,28 +459,32 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
                           onClick={() => handleDependencyClick(dep)}
                           disabled={isFetchingDependencyProject}
                           className={`
-                            flex items-center justify-between gap-2 border-[2px] px-2.5 py-1.5 rounded-sm text-xs font-minecraft tracking-wide text-left cursor-pointer transition-all w-full select-none outline-none
+                            flex items-center justify-between gap-2 border-[2px] px-2.5 py-1.5 rounded-[2px] text-xs font-minecraft tracking-wide text-left cursor-pointer transition-none w-full select-none outline-none
                             ${dep.isInstalled
                               ? 'border-[#3C8527] bg-[#1E3A1A] text-[#6CC349] hover:bg-[#254A20]'
                               : dep.type === 'optional'
-                              ? 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
-                              : 'border-[#B26B00] bg-[#3B2500] text-[#FFB84D] hover:bg-[#4D3100] shadow-[0_0_8px_rgba(255,184,77,0.15)]'
+                              ? 'border-[var(--ore-border-color)] bg-[var(--ore-color-background-surface-panel)] text-gray-300 hover:bg-white/10'
+                              : 'border-[#B26B00] bg-[#3B2500] text-[#FFB84D] hover:bg-[#4D3100]'
                             }
-                            ${focused ? 'border-white z-10 scale-[1.02] shadow-[0_0_12px_rgba(255,255,255,0.25)] brightness-110' : ''}
+                            ${focused ? 'outline outline-2 outline-white outline-offset-1 z-10 brightness-110' : ''}
                           `}
                         >
                           <div className="flex items-center gap-1.5 min-w-0 flex-1">
                             {dep.isInstalled ? (
                               <Check size={13} strokeWidth={3} className="shrink-0 text-[#6CC349]" />
                             ) : dep.type === 'optional' ? (
-                              <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
+                              <span className="w-1.5 h-1.5 bg-gray-400 shrink-0" />
                             ) : (
-                              <span className="w-2 h-2 rounded-full bg-[#FFB84D] shrink-0" />
+                              <span className="w-2 h-2 bg-[#FFB84D] shrink-0" />
                             )}
                             <span className="truncate font-medium">{dep.name}</span>
                           </div>
-                          <span className={`text-[10px] px-1 py-0.2 rounded font-mono uppercase shrink-0 ${
-                            dep.isInstalled ? 'bg-black/30 text-[#6CC349]' : dep.type === 'optional' ? 'bg-black/20 text-gray-400' : 'bg-black/40 text-[#FFB84D] font-bold'
+                          <span className={`text-[10px] px-1 py-0.5 rounded-[2px] font-mono uppercase shrink-0 border-[2px] ${
+                            dep.isInstalled 
+                              ? 'border-[#3C8527] bg-black/40 text-[#6CC349]' 
+                              : dep.type === 'optional' 
+                              ? 'border-[var(--ore-border-color)] bg-black/30 text-gray-400' 
+                              : 'border-[#B26B00] bg-black/50 text-[#FFB84D] font-bold'
                           }`}>
                             {dep.isInstalled ? '已安装' : dep.type === 'optional' ? '可选' : '未安装'}
                           </span>
@@ -530,3 +538,4 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
     </>
   );
 };
+

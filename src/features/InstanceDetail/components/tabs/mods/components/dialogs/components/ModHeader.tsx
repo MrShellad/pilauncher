@@ -1,7 +1,6 @@
 // src/features/InstanceDetail/components/tabs/mods/components/dialogs/components/ModHeader.tsx
 import React from 'react';
-import { motion } from 'motion/react';
-import { Blocks, Clock3, Download, ExternalLink, Heart, Loader2, Monitor, Server } from 'lucide-react';
+import { Blocks, Clock3, Download, ExternalLink, Heart, Loader2, Monitor, Server, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { FocusItem } from '../../../../../../../../ui/focus/FocusItem';
 
@@ -16,6 +15,7 @@ interface ModHeaderProps {
   mod: ModMeta;
   displayMod: ModMeta | null;
   instanceId?: string;
+  onClose?: () => void;
 }
 
 const renderEnvChip = (
@@ -34,7 +34,7 @@ const renderEnvChip = (
   return (
     <span
       className={`
-        inline-flex items-center gap-1 border-[2px] border-[var(--ore-downloadDetail-divider)] px-1.5 py-0.5
+        inline-flex items-center gap-1 border-[2px] border-[var(--ore-downloadDetail-divider)] px-1.5 py-0.5 rounded-[2px]
         text-[9px] font-minecraft uppercase tracking-[0.14em]
         ${isRequired
           ? 'bg-[#6CC349] text-black shadow-[inset_0_-2px_0_#3C8527]'
@@ -50,7 +50,7 @@ const renderEnvChip = (
   );
 };
 
-export const ModHeader: React.FC<ModHeaderProps> = ({ mod, displayMod, instanceId }) => {
+export const ModHeader: React.FC<ModHeaderProps> = ({ mod, displayMod, instanceId, onClose }) => {
   const { t } = useTranslation();
   const activeIconMod = displayMod || mod;
   const iconSnapshot = useModIcon(activeIconMod, 'high', instanceId);
@@ -87,12 +87,11 @@ export const ModHeader: React.FC<ModHeaderProps> = ({ mod, displayMod, instanceI
 
   return (
     <div
-      className="flex flex-shrink-0 gap-3 border-b-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-surface)] px-4 py-2.5"
+      className="flex flex-shrink-0 items-center gap-3 border-b-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-surface)] px-4 py-2.5"
       style={{ boxShadow: 'var(--ore-downloadDetail-headerShadow)' }}
     >
-      <motion.div
-        layoutId={`mod-icon-container-${mod.fileName}`}
-        className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] relative"
+      <div
+        className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] rounded-[2px] relative"
         style={{ boxShadow: 'var(--ore-downloadDetail-sectionShadow)' }}
       >
         {mod.isFetchingNetwork && (
@@ -101,28 +100,24 @@ export const ModHeader: React.FC<ModHeaderProps> = ({ mod, displayMod, instanceI
           </div>
         )}
         {detailIconUrl ? (
-          <motion.img
-            layoutId={`mod-icon-image-${mod.fileName}`}
+          <img
             src={detailIconUrl}
             alt=""
             className="h-full w-full object-cover"
           />
         ) : (
-          <motion.div
-            layoutId={`mod-icon-placeholder-${mod.fileName}`}
-            className="flex h-full w-full items-center justify-center"
-          >
+          <div className="flex h-full w-full items-center justify-center">
             <Blocks size={28} className="text-white/75" />
-          </motion.div>
+          </div>
         )}
-      </motion.div>
+      </div>
 
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
           <h2 className="min-w-0 truncate font-minecraft text-lg text-white xl:text-xl flex items-center gap-2">
             <span className="truncate">{displayMod?.name || displayMod?.networkInfo?.title || displayMod?.fileName}</span>
             {!displayMod?.isEnabled && (
-              <span className="flex-shrink-0 text-[10px] bg-[var(--ore-color-background-danger-subtle)] text-[var(--ore-color-text-danger-default)] px-1.5 py-0.5 border-[2px] border-[var(--ore-border-color)] tracking-wider font-minecraft uppercase">
+              <span className="flex-shrink-0 text-[10px] bg-[var(--ore-color-background-danger-subtle)] text-[var(--ore-color-text-danger-default)] px-1.5 py-0.5 border-[2px] border-[var(--ore-border-color)] rounded-[2px] tracking-wider font-minecraft uppercase">
                 {t('instanceDetail.mods.header.disabled', { defaultValue: '已禁用' })}
               </span>
             )}
@@ -171,15 +166,16 @@ export const ModHeader: React.FC<ModHeaderProps> = ({ mod, displayMod, instanceI
         )}
       </div>
 
-      {networkInfo && (
-        <div className="flex shrink-0 flex-col items-end justify-center ml-2">
-          <FocusItem focusKey="mod-modal-header-open-web">
+      <div className="flex shrink-0 items-center gap-2 ml-2">
+        {networkInfo && (
+          <FocusItem focusKey="mod-modal-header-open-web" onEnter={handleOpenWeb}>
             {({ ref, focused }: { ref: any; focused: boolean }) => (
               <button
                 ref={ref}
+                type="button"
                 onClick={handleOpenWeb}
-                className={`flex h-8 items-center gap-1.5 border-[2px] bg-[var(--ore-downloadDetail-base)] px-2.5 shadow-[inset_0_-2px_0_rgba(0,0,0,0.2)] transition-colors hover:bg-[var(--ore-downloadDetail-rowBg)] active:translate-y-[1px] active:shadow-none ${
-                  focused ? 'border-white shadow-[0_0_1rem_rgba(255,255,255,0.2)]' : 'border-[var(--ore-downloadDetail-divider)]'
+                className={`flex h-8 items-center gap-1.5 border-[2px] bg-[var(--ore-downloadDetail-base)] px-2.5 rounded-[2px] shadow-[inset_0_-2px_0_rgba(0,0,0,0.2)] transition-none hover:bg-[var(--ore-downloadDetail-rowBg)] active:translate-y-[1px] active:shadow-none cursor-pointer outline-none ${
+                  focused ? 'outline outline-2 outline-white outline-offset-1 z-10' : 'border-[var(--ore-downloadDetail-divider)]'
                 }`}
                 title={t('download.openInBrowser', { defaultValue: 'Open in Browser' })}
               >
@@ -198,8 +194,27 @@ export const ModHeader: React.FC<ModHeaderProps> = ({ mod, displayMod, instanceI
               </button>
             )}
           </FocusItem>
-        </div>
-      )}
+        )}
+
+        {onClose && (
+          <FocusItem focusKey="mod-modal-header-close" onEnter={onClose}>
+            {({ ref, focused }: { ref: any; focused: boolean }) => (
+              <button
+                type="button"
+                ref={ref}
+                onClick={onClose}
+                aria-label="关闭模态框"
+                className={`
+                  flex h-8 w-8 items-center justify-center border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] rounded-[2px] shadow-[inset_0_-2px_0_rgba(0,0,0,0.25)] transition-none outline-none cursor-pointer hover:bg-white/10 active:translate-y-[1px] active:shadow-none
+                  ${focused ? 'outline outline-2 outline-white outline-offset-1 z-10 bg-[var(--ore-btn-secondary-hover)]' : 'text-gray-300 hover:text-white'}
+                `}
+              >
+                <X size={18} strokeWidth={2} className="pointer-events-none" />
+              </button>
+            )}
+          </FocusItem>
+        )}
+      </div>
     </div>
   );
 };
