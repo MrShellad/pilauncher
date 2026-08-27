@@ -30,6 +30,7 @@ import { SavePanel } from '../features/InstanceDetail/components/tabs/SavePanel'
 import { ResourcePackPanel } from '../features/InstanceDetail/components/tabs/ResourcePackPanel';
 import { ShaderPanel } from '../features/InstanceDetail/components/tabs/ShaderPanel';
 import { ExportPanel } from '../features/InstanceDetail/components/tabs/export';
+import { ErrorBoundary } from '../ui/components/ErrorBoundary';
 
 const TABS: { id: DetailTab; label: string; icon: LucideIcon }[] = [
   { id: 'basic', label: '常规与基础', icon: Settings },
@@ -248,7 +249,9 @@ const InstanceDetail: React.FC = () => {
               trapFocus
               className={normalizedTab === 'mods' ? 'flex flex-1 h-full min-h-0 flex-col overflow-hidden' : 'hidden'}
             >
-              <ModPanel instanceId={instanceId} />
+              <ErrorBoundary fallbackTitle="MOD 管理面板加载失败">
+                <ModPanel instanceId={instanceId} />
+              </ErrorBoundary>
             </FocusBoundary>
 
             <FocusBoundary
@@ -257,7 +260,9 @@ const InstanceDetail: React.FC = () => {
               trapFocus
               className={normalizedTab === 'saves' ? 'flex flex-1 h-full min-h-0 flex-col overflow-hidden' : 'hidden'}
             >
-              <SavePanel instanceId={instanceId} />
+              <ErrorBoundary fallbackTitle="世界存档面板加载失败">
+                <SavePanel instanceId={instanceId} />
+              </ErrorBoundary>
             </FocusBoundary>
 
             <FocusBoundary
@@ -266,7 +271,9 @@ const InstanceDetail: React.FC = () => {
               trapFocus
               className={normalizedTab === 'resourcepacks' ? 'flex flex-1 h-full min-h-0 flex-col overflow-hidden' : 'hidden'}
             >
-              <ResourcePackPanel instanceId={instanceId} />
+              <ErrorBoundary fallbackTitle="资源包面板加载失败">
+                <ResourcePackPanel instanceId={instanceId} />
+              </ErrorBoundary>
             </FocusBoundary>
 
             <FocusBoundary
@@ -275,7 +282,9 @@ const InstanceDetail: React.FC = () => {
               trapFocus
               className={normalizedTab === 'shaders' ? 'flex flex-1 h-full min-h-0 flex-col overflow-hidden' : 'hidden'}
             >
-              <ShaderPanel instanceId={instanceId} />
+              <ErrorBoundary fallbackTitle="光影包面板加载失败">
+                <ShaderPanel instanceId={instanceId} />
+              </ErrorBoundary>
             </FocusBoundary>
 
             <FocusBoundary

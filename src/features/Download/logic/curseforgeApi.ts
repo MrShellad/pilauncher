@@ -36,7 +36,6 @@ const KNOWN_LOADERS = Object.keys(LOADER_TYPE_MAP);
 const VERSION_PATTERN = /^(\d+\.\d+(?:\.\d+)?)|(\d{2}w\d{2}[a-z])$/i;
 const CURSEFORGE_FILE_PAGE_SIZE = 50;
 const MAX_CURSEFORGE_FILE_PAGES = 20;
-const DOWNLOAD_URL_CONCURRENCY = 6;
 
 interface CurseForgeEnvelope<T> {
   data: T;
@@ -399,31 +398,25 @@ const mapProjectVersion = (file: CurseForgeFile, downloadUrl: string, projectId?
   };
 };
 
-const resolveCurseForgeDownloadUrl = async (projectId: string, file: CurseForgeFile) => {
-  if (file.downloadUrl) return file.downloadUrl;
-
-  try {
-    return await curseForgeFetch<string>(`/mods/${projectId}/files/${file.id}/download-url`);
-  } catch (error) {
-    console.warn(`Unable to resolve CurseForge download URL for file ${file.id}:`, error);
-    return null;
-  }
+export const getCurseForgeFallbackDownloadUrl = (fileId: number | string, fileName: string): string => {
+  const strId = String(fileId);
+  const part1 = strId.length > 4 ? strId.slice(0, 4) : String(Math.floor(Number(fileId) / 1000));
+  const part2 = strId.length > 4 ? strId.slice(4) : String(Number(fileId) % 1000);
+  return `https://edge.forgecdn.net/files/${part1}/${part2}/${encodeURIComponent(fileName)}`;
 };
 
-const mapDownloadableCurseForgeFiles = async (projectId: string, files: CurseForgeFile[]) => {
-  const versions: OreProjectVersion[] = [];
-
-  for (let start = 0; start < files.length; start += DOWNLOAD_URL_CONCURRENCY) {
-    const batch = files.slice(start, start + DOWNLOAD_URL_CONCURRENCY);
-    const mapped = await Promise.all(batch.map(async (file) => {
-      const downloadUrl = await resolveCurseForgeDownloadUrl(projectId, file);
-      return downloadUrl ? mapProjectVersion(file, downloadUrl, projectId) : null;
-    }));
-
-    versions.push(...mapped.filter((item): item is OreProjectVersion => !!item));
+export const resolveCurseForgeDownloadUrl = (file: CurseForgeFile): string => {
+  if (file.downloadUrl && file.downloadUrl.trim().length > 0) {
+    return file.downloadUrl.trim();
   }
+  return getCurseForgeFallbackDownloadUrl(file.id, file.fileName);
+};
 
-  return versions;
+const mapCurseForgeFiles = (projectId: string, files: CurseForgeFile[]): OreProjectVersion[] => {
+  return files.map((file) => {
+    const downloadUrl = resolveCurseForgeDownloadUrl(file);
+    return mapProjectVersion(file, downloadUrl, projectId);
+  });
 };
 
 const curseForgeFetch = async <T>(
@@ -513,7 +506,7 @@ export const fetchCurseForgeVersions = async (
   }
 
   const dedupedFiles = Array.from(new Map(files.map((file) => [file.id, file])).values());
-  const versions = await mapDownloadableCurseForgeFiles(projectId, dedupedFiles);
+  const versions = mapCurseForgeFiles(projectId, dedupedFiles);
 
   return versions
     .sort((a, b) => new Date(b.date_published).getTime() - new Date(a.date_published).getTime());
@@ -531,7 +524,8 @@ export const matchCurseForgeFingerprints = async (
   const mapped: Record<number, OreProjectVersion & { project_id: string }> = {};
 
   (data.exactMatches || []).forEach((match) => {
-    const version = match.file.downloadUrl ? mapProjectVersion(match.file, match.file.downloadUrl) : null;
+    const downloadUrl = resolveCurseForgeDownloadUrl(match.file);
+    const version = downloadUrl ? mapProjectVersion(match.file, downloadUrl) : null;
     if (!version) return;
 
     const fingerprintKey = typeof match.file.fileFingerprint === 'number'
