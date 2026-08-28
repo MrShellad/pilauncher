@@ -1,10 +1,12 @@
 // src-tauri/src/commands/network_cmd.rs
+use crate::services::config_service::ConfigService;
 use crate::services::qrcode_service;
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::time::{Duration, Instant};
 use sysinfo::System;
+use tauri::{AppHandle, Runtime};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DomainTestResult {
@@ -220,8 +222,40 @@ async fn test_domain(domain: &str) -> DomainTestResult {
     result
 }
 
+fn create_proxied_client<R: Runtime>(
+    app: &AppHandle<R>,
+    default_timeout_secs: u64,
+) -> Result<reqwest::Client, String> {
+    let dl_settings = ConfigService::get_download_settings(app);
+    let timeout_duration = Duration::from_secs(dl_settings.timeout.max(default_timeout_secs).min(120));
+    let mut builder = reqwest::Client::builder()
+        .user_agent("PiLauncher/1.0 (Minecraft Launcher)")
+        .connect_timeout(Duration::from_secs(dl_settings.timeout.max(5).min(30)))
+        .timeout(timeout_duration);
+
+    if dl_settings.proxy_type != "none" {
+        let host = dl_settings.proxy_host.trim();
+        let port = dl_settings.proxy_port.trim();
+        if !host.is_empty() && !port.is_empty() {
+            let scheme = match dl_settings.proxy_type.as_str() {
+                "http" => "http",
+                "https" => "https",
+                "socks5" => "socks5h",
+                _ => "http",
+            };
+            let proxy_url = format!("{}://{}:{}", scheme, host, port);
+            if let Ok(proxy) = reqwest::Proxy::all(&proxy_url) {
+                builder = builder.proxy(proxy);
+            }
+        }
+    }
+
+    builder.build().map_err(|e| e.to_string())
+}
+
 #[tauri::command]
-pub async fn proxy_fetch(
+pub async fn proxy_fetch<R: Runtime>(
+    app: AppHandle<R>,
     url: String,
     method: String,
     headers: std::collections::HashMap<String, String>,
@@ -234,41 +268,55 @@ pub async fn proxy_fetch(
         return Err("Only CurseForge and Modrinth APIs are allowed through proxy".to_string());
     }
 
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(15))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = create_proxied_client(&app, 15)?;
+    let mut last_err = String::new();
 
-    let mut request = match method.to_uppercase().as_str() {
-        "POST" => client.post(&url),
-        "PUT" => client.put(&url),
-        "DELETE" => client.delete(&url),
-        _ => client.get(&url),
-    };
+    // 允许 1 次快速重试（应对网络抖动/临时重置）
+    for attempt in 0..2 {
+        let mut request = match method.to_uppercase().as_str() {
+            "POST" => client.post(&url),
+            "PUT" => client.put(&url),
+            "DELETE" => client.delete(&url),
+            _ => client.get(&url),
+        };
 
-    for (key, value) in headers {
-        request = request.header(key, value);
+        for (key, value) in &headers {
+            request = request.header(key, value);
+        }
+
+        if let Some(b) = &body {
+            request = request.body(b.clone());
+        }
+
+        match request.send().await {
+            Ok(res) => {
+                if !res.status().is_success() {
+                    return Err(format!(
+                        "Proxy request failed with status: {}",
+                        res.status()
+                    ));
+                }
+
+                let json = res.json().await.map_err(|e| e.to_string())?;
+                return Ok(json);
+            }
+            Err(e) => {
+                last_err = e.to_string();
+                if attempt == 0 {
+                    tokio::time::sleep(Duration::from_millis(600)).await;
+                }
+            }
+        }
     }
 
-    if let Some(b) = body {
-        request = request.body(b);
-    }
-
-    let res = request.send().await.map_err(|e| e.to_string())?;
-
-    if !res.status().is_success() {
-        return Err(format!(
-            "Proxy request failed with status: {}",
-            res.status()
-        ));
-    }
-
-    let json = res.json().await.map_err(|e| e.to_string())?;
-    Ok(json)
+    Err(last_err)
 }
 
 #[tauri::command]
-pub async fn fetch_image_base64(url: String) -> Result<String, String> {
+pub async fn fetch_image_base64<R: Runtime>(
+    app: AppHandle<R>,
+    url: String,
+) -> Result<String, String> {
     if !url.starts_with("https://media.forgecdn.net/")
         && !url.starts_with("https://cdn.modrinth.com/")
         && !url.starts_with("https://avatars.githubusercontent.com/")
@@ -279,10 +327,7 @@ pub async fn fetch_image_base64(url: String) -> Result<String, String> {
         );
     }
 
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(15))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = create_proxied_client(&app, 15)?;
 
     let res = client.get(&url).send().await.map_err(|e| e.to_string())?;
 

@@ -422,8 +422,9 @@ const mapCurseForgeFiles = (projectId: string, files: CurseForgeFile[]): OreProj
 const curseForgeFetch = async <T>(
   path: string,
   params?: Record<string, string | number | undefined>,
-  init?: RequestInit
-) => {
+  init?: RequestInit,
+  retries = 2
+): Promise<T> => {
   if (!hasApiKey()) {
     throw new Error('CurseForge API key is missing. Set VITE_CURSEFORGE_API_KEY before using CurseForge.');
   }
@@ -445,14 +446,26 @@ const curseForgeFetch = async <T>(
     headers['Content-Type'] = 'application/json';
   }
 
-  const payload = await invoke<CurseForgeEnvelope<T>>('proxy_fetch', {
-    url: url.toString(),
-    method: init?.method || 'GET',
-    headers,
-    body: init?.body ? String(init.body) : undefined
-  });
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      const payload = await invoke<CurseForgeEnvelope<T>>('proxy_fetch', {
+        url: url.toString(),
+        method: init?.method || 'GET',
+        headers,
+        body: init?.body ? String(init.body) : undefined
+      });
 
-  return payload.data;
+      return payload.data;
+    } catch (error) {
+      lastError = error;
+      if (attempt < retries) {
+        await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
+      }
+    }
+  }
+
+  throw lastError;
 };
 
 export const searchCurseForge = async (
@@ -499,22 +512,37 @@ export const getCurseForgeProjectsBatch = async (
   );
   if (numericIds.length === 0) return [];
 
-  const CHUNK_SIZE = 100;
+  const CHUNK_SIZE = 50;
   const results: OreProjectDetail[] = [];
 
-  for (let i = 0; i < numericIds.length; i += CHUNK_SIZE) {
-    const chunk = numericIds.slice(i, i + CHUNK_SIZE);
+  const fetchChunkWithFallback = async (chunk: number[]): Promise<OreProjectDetail[]> => {
+    if (chunk.length === 0) return [];
     try {
       const data = await curseForgeFetch<CurseForgeMod[]>('/mods', undefined, {
         method: 'POST',
         body: JSON.stringify({ modIds: chunk })
       });
       if (Array.isArray(data)) {
-        results.push(...data.map(mapProjectDetail));
+        return data.map(mapProjectDetail);
       }
+      return [];
     } catch (e) {
-      console.warn('[getCurseForgeProjectsBatch] Chunk fetch failed:', e);
+      // If chunk has multiple IDs and fails, try splitting in half to recover as many mods as possible
+      if (chunk.length > 1) {
+        const mid = Math.ceil(chunk.length / 2);
+        const left = await fetchChunkWithFallback(chunk.slice(0, mid));
+        const right = await fetchChunkWithFallback(chunk.slice(mid));
+        return [...left, ...right];
+      }
+      console.warn(`[getCurseForgeProjectsBatch] Failed to fetch project details for chunk [${chunk.join(', ')}]:`, e);
+      return [];
     }
+  };
+
+  for (let i = 0; i < numericIds.length; i += CHUNK_SIZE) {
+    const chunk = numericIds.slice(i, i + CHUNK_SIZE);
+    const chunkResults = await fetchChunkWithFallback(chunk);
+    results.push(...chunkResults);
   }
 
   return results;
