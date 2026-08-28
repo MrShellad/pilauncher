@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useEvent } from '../../../../hooks/useEvent';
 import {
@@ -28,10 +28,19 @@ import {
 
 export type { ModSortOrder, ModSortType };
 
+export interface ModUpdateCheckProgress {
+  stage: 'syncing' | 'checking';
+  stageText: string;
+  current: number;
+  total: number;
+  percent: number;
+}
+
 export const useModManager = (instanceId: string) => {
   const listState = useModListState(instanceId);
   const updateEngine = useModUpdateEngine({ setMods: listState.setMods });
   const { syncCloudMetadata } = useModCloudSync(instanceId);
+  const [checkUpdateProgress, setCheckUpdateProgress] = useState<ModUpdateCheckProgress | null>(null);
   const {
     mods,
     setMods,
@@ -48,15 +57,19 @@ export const useModManager = (instanceId: string) => {
   const {
     isCheckingModUpdates,
     setIsCheckingModUpdates,
-    cancelUpdateCheck,
+    cancelUpdateCheck: rawCancelUpdateCheck,
     runUpdateCheck
   } = updateEngine;
+
+  const cancelUpdateCheck = useCallback(() => {
+    rawCancelUpdateCheck();
+    setCheckUpdateProgress(null);
+  }, [rawCancelUpdateCheck]);
 
   const loadMods = useCallback(async (options: LoadModsOptions = {}) => {
     cancelUpdateCheck();
 
     const requestId = `${instanceId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    prepareModScan(requestId, {}, options.silent);
 
     try {
       const config = await modService.getInstanceDetail(instanceId);
@@ -68,7 +81,7 @@ export const useModManager = (instanceId: string) => {
       const cache = updateCacheByInstance.get(scopeKey);
       const checkUpdates = !!options.checkUpdates;
 
-      setModScanContext({ cache });
+      prepareModScan(requestId, { cache }, options.silent);
 
       const localMods = await modService.getMods(instanceId, requestId);
       flushPendingScanMods();
@@ -166,11 +179,27 @@ export const useModManager = (instanceId: string) => {
     return () => window.removeEventListener('online', handleOnline);
   }, [loadMods]);
 
+  const fsChangeDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEvent('instance-resources-fs-changed', (payload) => {
     if (payload.instanceId !== instanceId || payload.resType !== 'mod') return;
     modService.invalidateModManifestCache(instanceId);
-    void loadMods({ silent: true });
+
+    if (fsChangeDebounceTimerRef.current) {
+      clearTimeout(fsChangeDebounceTimerRef.current);
+    }
+    fsChangeDebounceTimerRef.current = setTimeout(() => {
+      void loadMods({ silent: true });
+    }, 300);
   });
+
+  useEffect(() => {
+    return () => {
+      if (fsChangeDebounceTimerRef.current) {
+        clearTimeout(fsChangeDebounceTimerRef.current);
+      }
+    };
+  }, []);
 
   const checkModUpdates = useCallback(async () => {
     const config = await modService.getInstanceDetail(instanceId);
@@ -188,19 +217,54 @@ export const useModManager = (instanceId: string) => {
 
     cancelUpdateCheck();
     setIsCheckingModUpdates(true);
+    setCheckUpdateProgress({
+      stage: 'syncing',
+      stageText: '正在准备模组元数据...',
+      current: 0,
+      total: currentMods.length,
+      percent: 0
+    });
 
     try {
       const syncedMods = await syncCloudMetadata(currentMods, {
-        globalMetadataPlatform: instanceConfig?.globalMetadataSettings?.metadataPlatform
+        globalMetadataPlatform: instanceConfig?.globalMetadataSettings?.metadataPlatform,
+        onProgress: (current, total) => {
+          setCheckUpdateProgress({
+            stage: 'syncing',
+            stageText: `正在同步模组元数据 (${current}/${total})...`,
+            current,
+            total,
+            percent: total > 0 ? Math.round((current / total) * 100) : 0
+          });
+        }
       });
       if (syncedMods !== currentMods) {
         setMods((current) => mergeSyncedModMetadata(current, currentMods, syncedMods));
       }
 
-      await runUpdateCheck(scopeKey, syncedMods, targetMc, targetLoader, true);
+      await runUpdateCheck(
+        scopeKey,
+        syncedMods,
+        targetMc,
+        targetLoader,
+        true,
+        (current, total) => {
+          setCheckUpdateProgress({
+            stage: 'checking',
+            stageText: `正在检测模组可用版本 (${current}/${total})...`,
+            current,
+            total,
+            percent: total > 0 ? Math.round((current / total) * 100) : 0
+          });
+        }
+      );
     } catch (error) {
       setIsCheckingModUpdates(false);
+      setCheckUpdateProgress(null);
       throw error;
+    } finally {
+      setIsCheckingModUpdates(false);
+      setCheckUpdateProgress(null);
     }
   }, [
     cancelUpdateCheck,
@@ -262,6 +326,8 @@ export const useModManager = (instanceId: string) => {
     mods: sorting.sortedMods,
     isLoading,
     isCheckingModUpdates,
+    checkUpdateProgress,
+    cancelUpdateCheck,
     instanceConfig,
     sortType: sorting.sortType,
     setSortType: sorting.setSortType,

@@ -148,18 +148,18 @@ impl ModInstaller {
         );
         super::gamepad::GamepadManager::write_gamepad_meta(app, &meta)?;
 
-        let (size, mtime) = if target_path.exists() {
-            let meta = fs::metadata(&target_path).ok();
-            (
-                meta.as_ref().map(|m| m.len() as i64).unwrap_or(0),
-                meta.as_ref().and_then(|m| m.modified().ok())
-                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                    .map(|d| d.as_secs() as i64)
-                    .unwrap_or(0),
-            )
-        } else {
-            (0, 0)
-        };
+        if !target_path.is_file() {
+            return Err(format!("目标模组文件不存在或复制未成功: {}", target_path.display()));
+        }
+
+        let meta = fs::metadata(&target_path).map_err(|e| e.to_string())?;
+        let size = meta.len() as i64;
+        let mtime = meta
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
 
         let db = app.state::<crate::services::db_service::AppDatabase>();
         let row = crate::services::db_service::InstanceModDbRow {

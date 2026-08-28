@@ -150,6 +150,8 @@ impl InstanceListingService {
         }
 
         let mut on_disk_ids = Vec::new();
+        let mut configs = Vec::new();
+
         for entry in fs::read_dir(&instances_dir)? {
             let path = entry?.path();
             if !path.is_dir() {
@@ -170,8 +172,12 @@ impl InstanceListingService {
             };
 
             config.id = id.clone();
-            InstanceBindingService::upsert_instance(pool, &config).await?;
+            configs.push(config);
             on_disk_ids.push(id);
+        }
+
+        if !configs.is_empty() {
+            InstanceBindingService::upsert_instances_batch(pool, &configs).await?;
         }
 
         Self::cleanup_stale_db_instances(pool, &on_disk_ids).await

@@ -83,17 +83,25 @@ pub async fn init_db(config_dir: &Path) -> Result<SqlitePool, String> {
         .foreign_keys(true)
         .journal_mode(SqliteJournalMode::Wal)
         .synchronous(SqliteSynchronous::Normal)
-        .busy_timeout(std::time::Duration::from_secs(30));
+        .busy_timeout(std::time::Duration::from_secs(15));
 
     let pool = SqlitePoolOptions::new()
-        .max_connections(10)
+        .max_connections(5)
         .min_connections(1)
-        .acquire_timeout(std::time::Duration::from_secs(30))
+        .acquire_timeout(std::time::Duration::from_secs(15))
+        .after_connect(|conn, _meta| {
+            Box::pin(async move {
+                sqlx::query(
+                    "PRAGMA foreign_keys = ON; PRAGMA temp_store = MEMORY; PRAGMA cache_size = -20000; PRAGMA busy_timeout = 15000;",
+                )
+                .execute(conn)
+                .await?;
+                Ok(())
+            })
+        })
         .connect_with(connect_options)
         .await
         .map_err(|e| e.to_string())?;
-
-    let _ = sqlx::query("PRAGMA foreign_keys = ON; PRAGMA temp_store = MEMORY; PRAGMA cache_size = -20000;").execute(&pool).await;
 
     // Run SQLx declarative migrations embedded from src-tauri/migrations/.
     // A pre-release build wrote a different checksum for the baseline

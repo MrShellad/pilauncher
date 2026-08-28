@@ -44,7 +44,9 @@ export const useModListState = (instanceId: string) => {
       && left.isUpdatingMod === right.isUpdatingMod
       && left.cacheKey === right.cacheKey
       && left.curseforgeFingerprint === right.curseforgeFingerprint
+      && left.dependentsCount === right.dependentsCount
       && JSON.stringify(left.dependencies || []) === JSON.stringify(right.dependencies || [])
+      && JSON.stringify(left.aliases || []) === JSON.stringify(right.aliases || [])
       && leftManifest === rightManifest
       && (leftNetwork === rightNetwork || (
         leftNetwork?.id === rightNetwork?.id
@@ -83,6 +85,9 @@ export const useModListState = (instanceId: string) => {
             updateDownloadUrl: newMod.updateDownloadUrl ?? existing.updateDownloadUrl,
             updateFileId: newMod.updateFileId ?? existing.updateFileId,
             updateFileName: newMod.updateFileName ?? existing.updateFileName,
+            dependencies: newMod.dependencies || existing.dependencies,
+            dependentsCount: newMod.dependentsCount ?? existing.dependentsCount,
+            aliases: newMod.aliases || existing.aliases,
             manifestEntry: (!existing.sha1 || !newMod.sha1 || existing.sha1 === newMod.sha1)
               ? mergeModManifestEntry(existing.manifestEntry, newMod.manifestEntry)
               : newMod.manifestEntry,

@@ -5,7 +5,7 @@ import { FocusBoundary } from '../../../../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../../../../ui/focus/FocusItem';
 import { OreButton } from '../../../../../../../ui/primitives/OreButton';
 import { useSettingsStore } from '../../../../../../../store/useSettingsStore';
-import { type ModSortOrder, type ModSortType } from '../../../../../hooks/useModManager';
+import { type ModSortOrder, type ModSortType, type ModUpdateCheckProgress } from '../../../../../hooks/useModManager';
 import type { InstanceDependencyHealth, ModMeta } from '../../../../../logic/modService';
 import {
   LIST_ENTRY_FOCUS_KEY,
@@ -54,6 +54,8 @@ export interface ModListProps {
   onReidentifyAllMods?: () => void | Promise<void>;
   isReidentifyingAll?: boolean;
   onCheckModUpdates: () => void;
+  onCancelCheckModUpdates?: () => void;
+  checkUpdateProgress?: ModUpdateCheckProgress | null;
   onUpdateAllMods?: () => void;
   isCheckingModUpdates: boolean;
   emptyMessage?: string;
@@ -101,6 +103,8 @@ export const ModList: React.FC<ModListProps> = ({
   onReidentifyAllMods,
   isReidentifyingAll,
   onCheckModUpdates,
+  onCancelCheckModUpdates,
+  checkUpdateProgress,
   onUpdateAllMods,
   isCheckingModUpdates,
   emptyMessage = '当前没有可用模组。',
@@ -170,7 +174,16 @@ export const ModList: React.FC<ModListProps> = ({
     >
       <ModListOverlay
         visible={showSyncingOverlay}
-        label={showUpdateOverlay ? '正在检查模组更新...' : '正在同步模组...'}
+        label={
+          checkUpdateProgress?.stageText ||
+          (showUpdateOverlay ? '正在检查模组更新...' : '正在同步模组...')
+        }
+        current={checkUpdateProgress?.current ?? 0}
+        total={checkUpdateProgress?.total ?? 0}
+        percent={checkUpdateProgress?.percent}
+        onCancel={onCancelCheckModUpdates}
+        listTheme={listTheme}
+        isBatchModeActive={selectedMods.size > 0}
       />
 
       <ModListHeader

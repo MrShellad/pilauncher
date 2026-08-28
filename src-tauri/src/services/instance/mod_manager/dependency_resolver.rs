@@ -8,15 +8,14 @@ use tauri::{AppHandle, Manager, Runtime};
 pub struct DependencyResolver;
 
 pub const SYSTEM_KEYWORDS: &[&str] = &[
-    "curseforge", "modrinth", "minecraft", "fabricloader", "quiltloader", "quilt_loader",
-    "fabric", "forge", "neoforge", "quilt", "java", "mod", "jar", "all",
-    "api", "lib", "library", "v", "none", "null", ""
+    "minecraft", "fabricloader", "quiltloader", "quilt_loader", "forge_loader", "neoforge_loader",
+    "java", "all", "v", "none", "null", ""
 ];
 
 impl DependencyResolver {
     pub fn is_system_keyword(s: &str) -> bool {
         let clean = s.trim().to_lowercase();
-        clean.is_empty() || clean.len() < 3 || SYSTEM_KEYWORDS.contains(&clean.as_str())
+        clean.is_empty() || SYSTEM_KEYWORDS.contains(&clean.as_str())
     }
 
     pub fn normalize_mod_identifier(id: &str) -> String {
@@ -237,9 +236,36 @@ impl DependencyResolver {
         }
 
         let all_src_vec: Vec<String> = all_source_identifiers.into_iter().collect();
-        let forward_relations = DbService::query_mod_dependencies(&pool, &all_src_vec)
+        let mut forward_relations = DbService::query_mod_dependencies(&pool, &all_src_vec)
             .await
             .unwrap_or_default();
+
+        for r in &rows {
+            if let Some(ref deps) = r.dependencies {
+                let src_id = r.mod_id.as_deref().unwrap_or(&r.file_name);
+                for d in deps {
+                    let d_clean = d.trim().to_lowercase();
+                    if Self::is_system_keyword(&d_clean) {
+                        continue;
+                    }
+                    if !forward_relations.iter().any(|rel| {
+                        rel.source_identifier.eq_ignore_ascii_case(src_id)
+                            && rel.target_identifier.eq_ignore_ascii_case(&d_clean)
+                    }) {
+                        forward_relations.push(crate::services::db_service::models::ModRelationRecord {
+                            source_identifier: src_id.to_string(),
+                            source_type: "mod_id".to_string(),
+                            target_identifier: d.clone(),
+                            target_type: "mod_id".to_string(),
+                            relation_type: "required".to_string(),
+                            version_requirement: None,
+                            target_name_hint: None,
+                            source_provider: "jar_metadata".to_string(),
+                        });
+                    }
+                }
+            }
+        }
 
         let mut missing_dependencies: HashMap<String, Vec<MissingDependencyInfo>> = HashMap::new();
         let mut instance_dependents: HashMap<String, Vec<String>> = HashMap::new();

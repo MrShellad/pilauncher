@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, Runtime};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 // 引入跨层的 DTO
 use crate::domain::resource::{OreProjectDependency, OreProjectDetail, OreProjectVersion};
@@ -556,7 +556,7 @@ impl ResourceService {
             })
         };
 
-        let download_result = download_file_with_control(
+        let download_result = match download_file_with_control(
             &client,
             &candidate_urls,
             &temp_target_path,
@@ -570,11 +570,32 @@ impl ResourceService {
             Some("DOWNLOADING_RESOURCE"),
         )
         .await
-        .map_err(|e| format!("下载失败: {}", e))?;
+        {
+            Ok(res) => res,
+            Err(e) => {
+                let _ = tokio::fs::remove_file(&temp_target_path).await;
+                let db = app.state::<crate::services::db_service::AppDatabase>();
+                let _ = crate::services::db_service::DbService::delete_instance_mods(
+                    &db.pool,
+                    instance_id,
+                    &[file_name.to_string()],
+                )
+                .await;
+                return Err(format!("下载失败: {}", e));
+            }
+        };
 
-        let _ = tokio::fs::rename(&temp_target_path, &target_file_path)
-            .await
-            .map_err(|e| format!("移动文件失败: {}", e))?;
+        if let Err(e) = tokio::fs::rename(&temp_target_path, &target_file_path).await {
+            let _ = tokio::fs::remove_file(&temp_target_path).await;
+            let db = app.state::<crate::services::db_service::AppDatabase>();
+            let _ = crate::services::db_service::DbService::delete_instance_mods(
+                &db.pool,
+                instance_id,
+                &[file_name.to_string()],
+            )
+            .await;
+            return Err(format!("移动文件失败: {}", e));
+        }
 
         // 4. 下载完成封口事件
         let _ = app.emit(

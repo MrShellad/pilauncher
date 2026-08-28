@@ -1,6 +1,6 @@
 import React from 'react';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
-import { CheckCircle2, Clock3, Download, Loader2 } from 'lucide-react';
+import { Clock3, Download, Loader2, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
 import { useInputAction } from '../../../../ui/focus/InputDriver';
@@ -77,7 +77,6 @@ export const VersionList: React.FC<VersionListProps> = ({
   const getVersionRowFocusKey = (idx: number) => `download-modal-version-row-${idx}`;
   const isVersionInstalled = (version: OreProjectVersion) =>
     installedVersionIds.includes(version.id) ||
-    installedVersionIds.includes(version.version_number) ||
     installedVersionIds.includes(version.file_name);
 
   const handleVersionArrow = (idx: number) => (direction: string) => {
@@ -200,14 +199,14 @@ export const VersionList: React.FC<VersionListProps> = ({
                           variant="secondary"
                           size="auto"
                           focusable={false}
-                          className="h-10 w-[13.5rem] gap-2 px-4 text-xs tracking-wider"
+                          className="h-10 w-[13.5rem] gap-2 px-4 text-xs tracking-wider border-[#6D6D6E] hover:border-white"
                           onClick={(event) => {
                             event.stopPropagation();
                             onDownload(version);
                           }}
                         >
-                          <CheckCircle2 size={14} className="shrink-0" />
-                          {t('download.status.alreadyInInstance', { defaultValue: 'Already in instance' })}
+                          <RotateCcw size={14} className="shrink-0" />
+                          {t('download.actions.reinstall', { defaultValue: '重新下载' })}
                         </OreButton>
                       ) : (
                         <OreButton

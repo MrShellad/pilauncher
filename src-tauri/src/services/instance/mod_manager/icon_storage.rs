@@ -436,8 +436,8 @@ impl IconStorage {
                     .execute(&mut *tx)
                     .await;
 
-                    let _ = crate::services::db_service::DbService::save_mod_aliases(
-                        &db.pool,
+                    let _ = crate::services::db_service::mod_alias_repo::save_mod_aliases_tx(
+                        &mut *tx,
                         &id,
                         display_title,
                         &auto_aliases,

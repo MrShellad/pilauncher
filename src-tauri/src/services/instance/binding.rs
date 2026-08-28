@@ -127,6 +127,119 @@ impl InstanceBindingService {
         Ok(())
     }
 
+    pub async fn upsert_instances_batch(
+        pool: &SqlitePool,
+        configs: &[InstanceConfig],
+    ) -> AppResult<()> {
+        if configs.is_empty() {
+            return Ok(());
+        }
+
+        let mut tx = pool.begin().await?;
+
+        for config in configs {
+            sqlx::query(
+                "INSERT INTO instances (
+                    id,
+                    name,
+                    mc_version,
+                    loader_type,
+                    loader_version,
+                    java_path,
+                    min_memory,
+                    max_memory,
+                    icon_path,
+                    last_played_at,
+                    playtime_secs,
+                    pending_delta,
+                    jvm_args,
+                    window_width,
+                    window_height,
+                    is_favorite,
+                    created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    name = excluded.name,
+                    mc_version = excluded.mc_version,
+                    loader_type = excluded.loader_type,
+                    loader_version = excluded.loader_version,
+                    java_path = excluded.java_path,
+                    min_memory = excluded.min_memory,
+                    max_memory = excluded.max_memory,
+                    icon_path = excluded.icon_path,
+                    last_played_at = CASE
+                        WHEN (instances.last_played_at IS NULL OR trim(instances.last_played_at) = '')
+                             AND excluded.last_played_at IS NOT NULL
+                        THEN excluded.last_played_at
+                        ELSE instances.last_played_at
+                    END,
+                    playtime_secs = CASE
+                        WHEN COALESCE(instances.playtime_secs, 0) = 0 AND excluded.playtime_secs > 0
+                        THEN excluded.playtime_secs
+                        ELSE instances.playtime_secs
+                    END,
+                    pending_delta = COALESCE(instances.pending_delta, 0),
+                    jvm_args = excluded.jvm_args,
+                    window_width = excluded.window_width,
+                    window_height = excluded.window_height,
+                    is_favorite = excluded.is_favorite,
+                    created_at = CASE
+                        WHEN excluded.created_at IS NOT NULL AND trim(excluded.created_at) <> ''
+                        THEN excluded.created_at
+                        ELSE instances.created_at
+                    END,
+                    updated_at = CURRENT_TIMESTAMP",
+            )
+            .bind(&config.id)
+            .bind(&config.name)
+            .bind(&config.mc_version)
+            .bind(&config.loader.r#type)
+            .bind(&config.loader.version)
+            .bind(&config.java.path)
+            .bind(config.memory.min as i64)
+            .bind(config.memory.max as i64)
+            .bind(config.cover_image.as_deref())
+            .bind(PlaytimeService::normalize_last_played(Some(
+                &config.last_played,
+            )))
+            .bind(config.play_time.max(0.0).round() as i64)
+            .bind(0i64)
+            .bind(config.jvm_args.as_deref())
+            .bind(config.window_width.map(|w| w as i64))
+            .bind(config.window_height.map(|h| h as i64))
+            .bind(config.is_favorite.unwrap_or(false))
+            .bind(&config.created_at)
+            .execute(&mut *tx)
+            .await?;
+
+            if let Some(tags) = &config.tags {
+                sqlx::query("DELETE FROM instance_tags WHERE instance_id = ?")
+                    .bind(&config.id)
+                    .execute(&mut *tx)
+                    .await?;
+
+                for tag in tags {
+                    let clean_tag = tag.trim();
+                    if clean_tag.is_empty() {
+                        continue;
+                    }
+                    sqlx::query(
+                        "INSERT INTO instance_tags (instance_id, tag)
+                         VALUES (?, ?)
+                         ON CONFLICT(instance_id, tag) DO NOTHING",
+                    )
+                    .bind(&config.id)
+                    .bind(clean_tag)
+                    .execute(&mut *tx)
+                    .await?;
+                }
+            }
+        }
+
+        tx.commit().await?;
+        Ok(())
+    }
+
     pub async fn upsert_instance_from_disk<R: Runtime>(
         app: &AppHandle<R>,
         pool: &SqlitePool,

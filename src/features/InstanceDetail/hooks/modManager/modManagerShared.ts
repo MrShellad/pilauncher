@@ -134,9 +134,17 @@ export const buildUpdateCacheEntry = (
   latest: OreProjectVersion | undefined,
   currentFileId: string,
   platform?: ModPlatformId,
-  projectId?: string
+  projectId?: string,
+  currentVersionNumber?: string
 ): ModUpdateCacheEntry => {
-  if (!latest || latest.id === currentFileId) {
+  const isSameVersion =
+    !latest ||
+    latest.id === currentFileId ||
+    (Boolean(currentVersionNumber) &&
+      Boolean(latest.version_number) &&
+      latest.version_number.trim().toLowerCase() === String(currentVersionNumber).trim().toLowerCase());
+
+  if (isSameVersion) {
     return {
       hasUpdate: false,
       checkedAt: Date.now()
@@ -162,18 +170,27 @@ export const applyCachedUpdateState = (
 ): ModMeta => {
   const cached = cache?.get(getModUpdateCacheKey(mod));
 
+  if (!cached) {
+    return {
+      ...mod,
+      isFetchingNetwork: false,
+      isCheckingUpdate: false,
+      isUpdatingMod: mod.isUpdatingMod ?? false
+    };
+  }
+
   return {
     ...mod,
-    hasUpdate: cached?.hasUpdate ?? false,
-    updateVersionName: cached?.updateVersionName,
-    updatePlatform: cached?.updatePlatform,
-    updateProjectId: cached?.updateProjectId,
-    updateDownloadUrl: cached?.updateDownloadUrl,
-    updateFileId: cached?.updateFileId,
-    updateFileName: cached?.updateFileName,
+    hasUpdate: cached.hasUpdate,
+    updateVersionName: cached.updateVersionName,
+    updatePlatform: cached.updatePlatform,
+    updateProjectId: cached.updateProjectId,
+    updateDownloadUrl: cached.updateDownloadUrl,
+    updateFileId: cached.updateFileId,
+    updateFileName: cached.updateFileName,
     isFetchingNetwork: false,
     isCheckingUpdate: false,
-    isUpdatingMod: false
+    isUpdatingMod: mod.isUpdatingMod ?? false
   };
 };
 
@@ -226,6 +243,17 @@ export const mergeModMetadataIdentity = (current: ModMeta, incoming: ModMeta): M
 
   return {
     ...incoming,
+    dependencies: incoming.dependencies || current.dependencies,
+    dependentsCount: incoming.dependentsCount ?? current.dependentsCount,
+    aliases: incoming.aliases || current.aliases,
+    hasUpdate: incoming.hasUpdate ?? current.hasUpdate,
+    updateVersionName: incoming.updateVersionName ?? current.updateVersionName,
+    updatePlatform: incoming.updatePlatform ?? current.updatePlatform,
+    updateProjectId: incoming.updateProjectId ?? current.updateProjectId,
+    updateDownloadUrl: incoming.updateDownloadUrl ?? current.updateDownloadUrl,
+    updateFileId: incoming.updateFileId ?? current.updateFileId,
+    updateFileName: incoming.updateFileName ?? current.updateFileName,
+    isUpdatingMod: incoming.isUpdatingMod ?? current.isUpdatingMod,
     manifestEntry: mergeModManifestEntry(current.manifestEntry, incoming.manifestEntry)
   };
 };

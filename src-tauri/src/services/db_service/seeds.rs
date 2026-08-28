@@ -110,6 +110,18 @@ pub const BUILTIN_ALIAS_SEEDS: &[(&str, &str, &[&str])] = &[
 ];
 
 pub async fn seed_essential_aliases(pool: &SqlitePool) -> Result<(), sqlx::Error> {
+    let existing_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(1) FROM mod_aliases WHERE source = 'system_seed'",
+    )
+    .fetch_one(pool)
+    .await
+    .unwrap_or(0);
+
+    let total_seed_count: usize = BUILTIN_ALIAS_SEEDS.iter().map(|(_, _, aliases)| aliases.len()).sum();
+    if existing_count as usize >= total_seed_count {
+        return Ok(());
+    }
+
     let mut tx = pool.begin().await?;
     let now = chrono::Utc::now().timestamp();
 

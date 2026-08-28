@@ -19,6 +19,15 @@ interface UseModUpdateEngineOptions {
   setMods: Dispatch<SetStateAction<ModMeta[]>>;
 }
 
+const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Update check timed out after ${timeoutMs}ms`)), timeoutMs)
+    )
+  ]);
+};
+
 export const useModUpdateEngine = ({ setMods }: UseModUpdateEngineOptions) => {
   const [isCheckingModUpdates, setIsCheckingModUpdates] = useState(false);
   const updateAbortControllerRef = useRef<AbortController | null>(null);
@@ -34,7 +43,8 @@ export const useModUpdateEngine = ({ setMods }: UseModUpdateEngineOptions) => {
     modsToCheck: ModMeta[],
     targetMc: string,
     targetLoader: string,
-    force = false
+    force = false,
+    onProgress?: (current: number, total: number) => void
   ) => {
     cancelUpdateCheck();
 
@@ -64,8 +74,11 @@ export const useModUpdateEngine = ({ setMods }: UseModUpdateEngineOptions) => {
         updateAbortControllerRef.current = null;
         setIsCheckingModUpdates(false);
       }
+      onProgress?.(0, 0);
       return;
     }
+
+    onProgress?.(0, targets.length);
 
     let cursor = 0;
     let completed = 0;
@@ -107,6 +120,9 @@ export const useModUpdateEngine = ({ setMods }: UseModUpdateEngineOptions) => {
         completed >= targets.length;
     };
 
+    const cleanTargetMc = targetMc?.trim() || undefined;
+    const cleanTargetLoader = targetLoader?.trim() || undefined;
+
     const worker = async () => {
       while (!signal.aborted) {
         const target = targets[cursor++];
@@ -117,6 +133,8 @@ export const useModUpdateEngine = ({ setMods }: UseModUpdateEngineOptions) => {
         const [cacheKey, mod] = target;
         const updateReferences = getManagedUpdateReferences(mod);
         if (updateReferences.length === 0) {
+          completed += 1;
+          onProgress?.(completed, targets.length);
           continue;
         }
 
@@ -126,24 +144,29 @@ export const useModUpdateEngine = ({ setMods }: UseModUpdateEngineOptions) => {
         };
 
         try {
-          const platformResults = await Promise.allSettled(updateReferences.map(async ({ platform, reference }) => {
-            const versions = await fetchManagedVersions(
-              platform,
-              reference.projectId!,
-              targetMc,
-              targetLoader
-            );
-            const versionList = versions || [];
-            const latest = versionList[0];
-            const currentIndex = versionList.findIndex((version) => version.id === reference.fileId);
+          const platformResults = await withTimeout(
+            Promise.allSettled(
+              updateReferences.map(async ({ platform, reference }) => {
+                const versions = await fetchManagedVersions(
+                  platform,
+                  reference.projectId!,
+                  cleanTargetMc || '',
+                  cleanTargetLoader || ''
+                );
+                const versionList = versions || [];
+                const latest = versionList[0];
+                const currentIndex = versionList.findIndex((version) => version.id === reference.fileId);
 
-            return {
-              platform,
-              reference,
-              current: currentIndex >= 0 ? versionList[currentIndex] : undefined,
-              latest: currentIndex === 0 ? undefined : latest
-            };
-          }));
+                return {
+                  platform,
+                  reference,
+                  current: currentIndex >= 0 ? versionList[currentIndex] : undefined,
+                  latest: currentIndex === 0 ? undefined : latest
+                };
+              })
+            ),
+            12000
+          );
 
           const newestCurrentPublishedAt = Math.max(
             0,
@@ -177,18 +200,21 @@ export const useModUpdateEngine = ({ setMods }: UseModUpdateEngineOptions) => {
               winner.latest,
               winner.reference.fileId!,
               winner.platform,
-              winner.reference.projectId
+              winner.reference.projectId,
+              mod.version
             );
           }
         } catch (error) {
-          console.error('Update check failed', error);
+          console.warn(`[useModUpdateEngine] Update check failed for ${mod.fileName}:`, error);
           completed += 1;
+          onProgress?.(completed, targets.length);
           continue;
         }
 
         cache.set(cacheKey, cacheEntry);
         pendingEntries.set(cacheKey, cacheEntry);
         completed += 1;
+        onProgress?.(completed, targets.length);
 
         if (shouldFlush()) {
           flushPendingEntries();

@@ -14,6 +14,23 @@ pub async fn save_mod_aliases(
     }
 
     let mut tx = pool.begin().await?;
+    save_mod_aliases_tx(&mut tx, &clean_canonical, display_name, aliases, source).await?;
+    tx.commit().await?;
+    Ok(())
+}
+
+pub async fn save_mod_aliases_tx(
+    tx: &mut sqlx::SqliteConnection,
+    canonical_mod_id: &str,
+    display_name: &str,
+    aliases: &[String],
+    source: &str,
+) -> Result<(), sqlx::Error> {
+    let clean_canonical = canonical_mod_id.trim().to_lowercase();
+    if clean_canonical.is_empty() || aliases.is_empty() {
+        return Ok(());
+    }
+
     let now = chrono::Utc::now().timestamp();
 
     for raw_alias in aliases {
@@ -40,7 +57,6 @@ pub async fn save_mod_aliases(
         .await?;
     }
 
-    tx.commit().await?;
     Ok(())
 }
 

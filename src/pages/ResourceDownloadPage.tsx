@@ -365,25 +365,61 @@ const ResourceDownloadPage: React.FC = () => {
 
     const executeDownload = async (targetVersion: OreProjectVersion, customProjectId?: string) => {
       try {
+        let oldFileName: string | undefined;
+        let installAction: 'install' | 'reinstall' | 'upgrade' = 'install';
+
+        if (activeTab === 'mod') {
+          const projectId = customProjectId || projectOverride?.projectId || targetVersion.project_id || selectedProject?.id || '';
+          if (projectId) {
+            const currentInstalledMods = await modService.getCachedModManifest(singleInstanceId, true).catch(() => []);
+            const validActualMods = (currentInstalledMods || []).filter((m) => (m.fileSize || 0) > 0);
+            const pLower = projectId.toLowerCase();
+            const existingMod = validActualMods.find((m) => {
+              const mFile = m.fileName.toLowerCase();
+              if (mFile === targetVersion.file_name.toLowerCase()) return true;
+              const srcId = m.manifestEntry?.source?.projectId?.toLowerCase();
+              const mrId = m.manifestEntry?.matchedPlatforms?.modrinth?.projectId?.toLowerCase();
+              const cfId = m.manifestEntry?.matchedPlatforms?.curseforge?.projectId?.toLowerCase();
+              const modId = m.modId?.toLowerCase();
+              return pLower && (srcId === pLower || mrId === pLower || cfId === pLower || modId === pLower);
+            });
+
+            if (existingMod) {
+              oldFileName = existingMod.fileName;
+              installAction = oldFileName.toLowerCase() === targetVersion.file_name.toLowerCase() ? 'reinstall' : 'upgrade';
+            }
+          }
+        }
+
         await runResourceDownloadTask({
           url: targetVersion.download_url,
           fileName: targetVersion.file_name,
           instanceId: singleInstanceId,
           subFolder,
           title: targetVersion.file_name,
-          message: t('download.progress.connecting', { defaultValue: 'Connecting...' }),
+          message: installAction === 'reinstall'
+            ? `正在重新下载: ${targetVersion.file_name}`
+            : installAction === 'upgrade'
+              ? `正在升级替换: ${targetVersion.file_name}`
+              : t('download.progress.connecting', { defaultValue: 'Connecting...' }),
           onCompleted: async () => {
             if (activeTab !== 'mod') return;
 
             const projectId = customProjectId || projectOverride?.projectId || targetVersion.project_id || selectedProject?.id || '';
             if (projectId) {
+              if (oldFileName && oldFileName !== targetVersion.file_name) {
+                await modService.deleteMod(singleInstanceId, oldFileName).catch(console.error);
+              }
+
               await modService.updateModManifest(
                 singleInstanceId,
                 targetVersion.file_name,
                 'launcherDownload',
                 (projectOverride?.source || source) === 'curseforge' ? 'curseforge' : 'modrinth',
                 projectId,
-                targetVersion.id
+                targetVersion.id,
+                targetVersion.version_number || undefined,
+                oldFileName
               );
             }
 

@@ -430,40 +430,44 @@ impl ResourceManager {
                 .await
                 .map_err(|error| error.to_string())?;
         }
-        let (size, mtime, jar_meta, cf_fp, sha1_str) = if target_path.exists() {
-            let meta = std::fs::metadata(&target_path).ok();
-            let s = meta.as_ref().map(|m| m.len() as i64).unwrap_or(0);
-            let m_t = meta
-                .as_ref()
-                .and_then(|m| m.modified().ok())
-                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                .map(|d| d.as_secs() as i64)
-                .unwrap_or(0);
+        if !target_path.is_file() {
+            return Err(format!("目标模组文件不存在或下载未完成: {}", target_path.display()));
+        }
 
-            let j_m = crate::services::instance::mod_manager::jar_parser::JarParser::parse_jar_meta(
+        let meta = std::fs::metadata(&target_path).map_err(|e| e.to_string())?;
+        let size = meta.len() as i64;
+        if size <= 0 {
+            return Err(format!("目标模组文件为空 (0 字节): {}", target_path.display()));
+        }
+
+        let mtime = meta
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+
+        let jar_meta = Some(
+            crate::services::instance::mod_manager::jar_parser::JarParser::parse_jar_meta(
                 &target_path,
-            );
-            let fp = crate::services::instance::mod_manager::remote_fetcher::RemoteFetcher::resolve_curseforge_fingerprint(None, &target_path);
+            )
+        );
+        let cf_fp = crate::services::instance::mod_manager::remote_fetcher::RemoteFetcher::resolve_curseforge_fingerprint(None, &target_path);
 
-            let s_hash = if let Ok(mut file) = std::fs::File::open(&target_path) {
-                use sha1::Digest;
-                let mut hasher = sha1::Sha1::new();
-                let mut buffer = [0u8; 64 * 1024];
-                use std::io::Read;
-                while let Ok(n) = file.read(&mut buffer) {
-                    if n == 0 {
-                        break;
-                    }
-                    hasher.update(&buffer[..n]);
+        let sha1_str = if let Ok(mut file) = std::fs::File::open(&target_path) {
+            use sha1::Digest;
+            let mut hasher = sha1::Sha1::new();
+            let mut buffer = [0u8; 64 * 1024];
+            use std::io::Read;
+            while let Ok(n) = file.read(&mut buffer) {
+                if n == 0 {
+                    break;
                 }
-                Some(format!("{:x}", hasher.finalize()))
-            } else {
-                None
-            };
-
-            (s, m_t, Some(j_m), fp, s_hash)
+                hasher.update(&buffer[..n]);
+            }
+            Some(format!("{:x}", hasher.finalize()))
         } else {
-            (0, 0, None, None, None)
+            None
         };
 
         let effective_mod_id = jar_meta

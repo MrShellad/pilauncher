@@ -6,7 +6,7 @@ import { useEvent } from '../../../../hooks/useEvent';
 import { useSettingsStore } from '../../../../store/useSettingsStore';
 
 import { invoke } from '@tauri-apps/api/core';
-import { CheckCircle2, Download, Languages, Loader2, RotateCcw } from 'lucide-react';
+import { Download, Languages, Loader2, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import type { OreProjectVersion } from '../../../InstanceDetail/logic/modrinthApi';
@@ -396,9 +396,9 @@ export const VersionChangelogModal: React.FC<VersionChangelogModalProps> = ({
                 onDownload(version);
               }}
             >
-              {isInstalled ? <CheckCircle2 size={16} className="shrink-0" /> : <Download size={16} className="shrink-0" />}
+              {isInstalled ? <RotateCcw size={16} className="shrink-0" /> : <Download size={16} className="shrink-0" />}
               {isInstalled
-                ? t('download.status.alreadyInInstance', { defaultValue: 'Already in instance' })
+                ? t('download.actions.reinstall', { defaultValue: '重新下载' })
                 : t('download.actions.downloadVersion', { defaultValue: 'Download Version' })}
             </OreButton>
           )}

@@ -9,8 +9,12 @@ import {
   type ModPlatformId,
   type ModVersionInstallAction
 } from '../../logic/modService';
+import {
+  getModUpdateCacheKey,
+  updateCacheByInstance,
+  type LoadModsOptions
+} from './modManagerShared';
 import type { OreProjectVersion } from '../../logic/modrinthApi';
-import type { LoadModsOptions } from './modManagerShared';
 
 interface UseModOperationsOptions {
   instanceId: string;
@@ -344,6 +348,18 @@ export const useModOperations = ({
         updateDownloadUrl: undefined,
         isUpdatingMod: false
       };
+
+      for (const [scopeKey, cache] of updateCacheByInstance.entries()) {
+        if (scopeKey.startsWith(`${instanceId}|`)) {
+          const oldKey = getModUpdateCacheKey(mod);
+          const newKey = getModUpdateCacheKey(installedMod);
+          cache.delete(oldKey);
+          cache.set(newKey, {
+            hasUpdate: false,
+            checkedAt: Date.now()
+          });
+        }
+      }
 
       setMods((current) => {
         const next: ModMeta[] = [];

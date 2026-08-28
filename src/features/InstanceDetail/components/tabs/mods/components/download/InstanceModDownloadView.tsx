@@ -512,17 +512,16 @@ export const InstanceModDownloadView: React.FC<{
       pendingDownloadProjectIdsRef.current.add(downloadIdentity);
     }
 
+    let oldFileName: string | undefined;
+    let installAction: 'install' | 'reinstall' | 'upgrade' = 'install';
+
     try {
       if (shouldGuardInstalledMod) {
-        // Final authoritative check immediately before creating the download task.
-        // This closes the gap between opening the dependency dialog and confirming it.
         let actualMods;
         try {
           actualMods = await modService.getCachedModManifest(targetInstanceId, true);
         } catch (error) {
           console.error('下载前扫描实例 Mod 失败:', error);
-          addToast('error', '无法确认实例内已有 Mod，已取消下载以避免重复');
-          return;
         }
         let detail = projectDetailsCache.current.get(projectId) as { slug?: string; title?: string } | undefined;
         if (!detail) {
@@ -536,28 +535,25 @@ export const InstanceModDownloadView: React.FC<{
           }
         }
 
-        const installedMatch = new InstalledModIndex(actualMods).matchDependency(
-          {
-            projectId,
-            slug: detail?.slug,
-            name: detail?.title || version.file_name
-          },
-          platform
-        );
-        const installedFileIds = new Set(
-          getInstalledVersionIds(actualMods).map((value) => value.toLowerCase())
-        );
-        const exactFileInstalled = installedFileIds.has(version.id.toLowerCase())
-          || installedFileIds.has(version.file_name.toLowerCase());
-        if (installedMatch.status !== 'missing' || exactFileInstalled) {
-          addToast(
-            'info',
-            installedMatch.status === 'disabled'
-              ? '该 Mod 已存在但当前被禁用，已跳过重复下载'
-              : '当前实例已安装该 Mod，已跳过重复下载'
+        const validActualMods = (actualMods || []).filter((m) => (m.fileSize || 0) > 0);
+        const pLower = projectId.toLowerCase();
+        const slugLower = detail?.slug?.toLowerCase();
+        const existingMod = validActualMods.find((m) => {
+          const mFile = m.fileName.toLowerCase();
+          if (mFile === version.file_name.toLowerCase()) return true;
+          const srcId = m.manifestEntry?.source?.projectId?.toLowerCase();
+          const mrId = m.manifestEntry?.matchedPlatforms?.modrinth?.projectId?.toLowerCase();
+          const cfId = m.manifestEntry?.matchedPlatforms?.curseforge?.projectId?.toLowerCase();
+          const modId = m.modId?.toLowerCase();
+          return (
+            (pLower && (srcId === pLower || mrId === pLower || cfId === pLower || modId === pLower)) ||
+            (slugLower && (srcId === slugLower || modId === slugLower))
           );
-          await refreshInstalledMods();
-          return;
+        });
+
+        if (existingMod) {
+          oldFileName = existingMod.fileName;
+          installAction = oldFileName.toLowerCase() === version.file_name.toLowerCase() ? 'reinstall' : 'upgrade';
         }
       }
 
@@ -567,7 +563,11 @@ export const InstanceModDownloadView: React.FC<{
         instanceId: targetInstanceId,
         subFolder,
         title: version.file_name,
-        message: 'Connecting...',
+        message: installAction === 'reinstall'
+          ? `正在重新下载: ${version.file_name}`
+          : installAction === 'upgrade'
+            ? `正在升级替换: ${version.file_name}`
+            : 'Connecting...',
         onCompleted: async () => {
           let cachedDetail = projectId ? projectDetailsCache.current.get(projectId) : null;
           if (!cachedDetail && projectId && selectedProject && projectId === selectedProject.id) {
@@ -585,13 +585,19 @@ export const InstanceModDownloadView: React.FC<{
           }
 
           if (projectId && resourceTab === 'mod') {
+            if (oldFileName && oldFileName !== version.file_name) {
+              await modService.deleteMod(targetInstanceId, oldFileName).catch(console.error);
+            }
+
             await modService.updateModManifest(
               targetInstanceId,
               version.file_name,
               'launcherDownload',
               source === 'curseforge' ? 'curseforge' : 'modrinth',
               projectId,
-              version.id
+              version.id,
+              version.version_number || undefined,
+              oldFileName
             );
           }
 
@@ -884,7 +890,8 @@ export const InstanceModDownloadView: React.FC<{
     if (resourceTab === 'mod') {
       try {
         const actualMods = await modService.getCachedModManifest(instanceId, true);
-        const actualIndex = new InstalledModIndex(actualMods);
+        const validActualMods = (actualMods || []).filter((m) => (m.fileSize || 0) > 0);
+        const actualIndex = new InstalledModIndex(validActualMods);
         const beforeCount = targets.length;
         targets = targets.filter((project) => !actualIndex.isInstalled(project));
         const skippedCount = beforeCount - targets.length;

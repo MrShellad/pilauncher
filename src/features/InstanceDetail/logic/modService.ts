@@ -113,6 +113,14 @@ export const resolveInstanceLoader = (config: any): string => {
 
 const normalizeInstalledKey = (value?: string | null) => String(value || '').trim();
 
+const GENERIC_MOD_STOPWORDS = new Set([
+  'api', 'core', 'lib', 'library', 'mod', 'mods', 'client', 'server', 'addon',
+  'addons', 'tool', 'tools', 'utils', 'util', 'utility', 'config', 'configuration',
+  'gui', 'ui', 'hud', 'fps', 'fix', 'fixes', 'plus', 'extra', 'extras',
+  'fabric', 'forge', 'neoforge', 'quilt', 'liteloader', 'vanilla',
+  'optifine', 'patch', 'port', 'edition', 'reforged', 'fork', 'v1', 'v2', 'v3'
+]);
+
 const normalizeModIdentity = (value?: string | null): string => {
   let normalized = normalizeInstalledKey(value).toLowerCase();
   normalized = normalized.replace(/\.disabled$/i, '').replace(/\.(jar|zip)$/i, '');
@@ -123,13 +131,15 @@ const normalizeModIdentity = (value?: string | null): string => {
 
 const getModIdentityVariants = (value?: string | null): string[] => {
   const normalized = normalizeModIdentity(value);
-  if (!normalized) return [];
+  if (!normalized || normalized.length <= 3 || GENERIC_MOD_STOPWORDS.has(normalized)) return [];
 
   const variants = new Set([normalized]);
-  if (normalized.endsWith('v2') && normalized.length > 3) {
-    variants.add(normalized.slice(0, -2));
-  } else if (normalized.endsWith('2') && normalized.length > 3) {
-    variants.add(normalized.slice(0, -1));
+  if (normalized.endsWith('v2') && normalized.length > 5) {
+    const base = normalized.slice(0, -2);
+    if (!GENERIC_MOD_STOPWORDS.has(base) && base.length > 3) variants.add(base);
+  } else if (normalized.endsWith('2') && normalized.length > 4) {
+    const base = normalized.slice(0, -1);
+    if (!GENERIC_MOD_STOPWORDS.has(base) && base.length > 3) variants.add(base);
   }
   return [...variants];
 };
@@ -287,14 +297,12 @@ export const getInstalledVersionIds = (mods: ModMeta[]): string[] => {
     const curseforgeFileId = normalizeInstalledKey(getModPlatformReference(mod, 'curseforge')?.fileId);
     const fileName = normalizeInstalledKey(mod.fileName);
     const baseFileName = normalizeInstalledKey(mod.fileName?.replace(/\.disabled$/i, ''));
-    const version = normalizeInstalledKey(mod.version);
 
     if (manifestFileId) ids.add(manifestFileId);
     if (modrinthFileId) ids.add(modrinthFileId);
     if (curseforgeFileId) ids.add(curseforgeFileId);
     if (fileName) ids.add(fileName);
     if (baseFileName) ids.add(baseFileName);
-    if (version) ids.add(version);
   }
 
   return [...ids];
@@ -383,10 +391,19 @@ export class InstalledModIndex {
     if (pId1 && this.projectIds.has(pId1)) return true;
     if (pId2 && this.projectIds.has(pId2)) return true;
 
+    const slug = normalizeInstalledKey(project.slug).toLowerCase();
+    if (slug && this.projectIds.has(slug)) return true;
+
     const projectAliases = new Set<string>();
-    [project.slug, project.title].forEach((value) => {
-      getModIdentityVariants(value).forEach((identity) => projectAliases.add(identity));
-    });
+    if (project.slug) {
+      getModIdentityVariants(project.slug).forEach((identity) => projectAliases.add(identity));
+    }
+
+    // Only fallback to title if slug didn't produce any alias and title is distinctive
+    if (projectAliases.size === 0 && project.title) {
+      getModIdentityVariants(project.title).forEach((identity) => projectAliases.add(identity));
+    }
+
     return [...projectAliases].some((alias) => (
       this.enabledAliases.has(alias) || this.disabledAliases.has(alias)
     ));

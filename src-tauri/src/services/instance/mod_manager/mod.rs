@@ -351,94 +351,98 @@ impl ModManagerService {
             .or_else(|| mr_project_id.map(|p| format!("modrinth_{}", p)))
             .or_else(|| cache_key.map(|k| k.to_string()));
 
-        if let Some(id) = effective_id {
-            let display_title = name.unwrap_or(&id);
-            let mut auto_aliases = Vec::new();
-            if let Some(m) = mod_id {
-                auto_aliases.push(m.to_string());
-            }
-            if let Some(cf) = cf_project_id {
-                auto_aliases.push(cf.to_string());
-            }
-            if let Some(mr) = mr_project_id {
-                auto_aliases.push(mr.to_string());
-            }
-            if let Some(n) = name {
-                auto_aliases.push(n.to_string());
-            }
-            if let Some(k) = cache_key {
-                auto_aliases.push(k.to_string());
-            }
+        if let Ok(mut tx) = pool.begin().await {
+            if let Some(id) = effective_id {
+                let display_title = name.unwrap_or(&id);
+                let mut auto_aliases = Vec::new();
+                if let Some(m) = mod_id {
+                    auto_aliases.push(m.to_string());
+                }
+                if let Some(cf) = cf_project_id {
+                    auto_aliases.push(cf.to_string());
+                }
+                if let Some(mr) = mr_project_id {
+                    auto_aliases.push(mr.to_string());
+                }
+                if let Some(n) = name {
+                    auto_aliases.push(n.to_string());
+                }
+                if let Some(k) = cache_key {
+                    auto_aliases.push(k.to_string());
+                }
 
-            let aliases_json = serde_json::to_string(&auto_aliases).ok();
+                let aliases_json = serde_json::to_string(&auto_aliases).ok();
 
-            let _ = sqlx::query::<sqlx::Sqlite>(
-                r#"
-                INSERT INTO mod_global_metadata_cache (
-                    mod_id, curseforge_fingerprint, modrinth_hash,
-                    curseforge_project_id, modrinth_project_id,
-                    name, description, icon_rel_path, icon_source, aliases, updated_at
+                let _ = sqlx::query::<sqlx::Sqlite>(
+                    r#"
+                    INSERT INTO mod_global_metadata_cache (
+                        mod_id, curseforge_fingerprint, modrinth_hash,
+                        curseforge_project_id, modrinth_project_id,
+                        name, description, icon_rel_path, icon_source, aliases, updated_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(mod_id) DO UPDATE SET
+                        curseforge_fingerprint = COALESCE(excluded.curseforge_fingerprint, mod_global_metadata_cache.curseforge_fingerprint),
+                        modrinth_hash = COALESCE(excluded.modrinth_hash, mod_global_metadata_cache.modrinth_hash),
+                        curseforge_project_id = COALESCE(excluded.curseforge_project_id, mod_global_metadata_cache.curseforge_project_id),
+                        modrinth_project_id = COALESCE(excluded.modrinth_project_id, mod_global_metadata_cache.modrinth_project_id),
+                        name = COALESCE(excluded.name, mod_global_metadata_cache.name),
+                        description = COALESCE(excluded.description, mod_global_metadata_cache.description),
+                        icon_rel_path = CASE
+                            WHEN excluded.icon_rel_path <> '' THEN excluded.icon_rel_path
+                            ELSE mod_global_metadata_cache.icon_rel_path
+                        END,
+                        icon_source = COALESCE(excluded.icon_source, mod_global_metadata_cache.icon_source),
+                        aliases = COALESCE(excluded.aliases, mod_global_metadata_cache.aliases),
+                        updated_at = excluded.updated_at
+                    "#
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(mod_id) DO UPDATE SET
-                    curseforge_fingerprint = COALESCE(excluded.curseforge_fingerprint, mod_global_metadata_cache.curseforge_fingerprint),
-                    modrinth_hash = COALESCE(excluded.modrinth_hash, mod_global_metadata_cache.modrinth_hash),
-                    curseforge_project_id = COALESCE(excluded.curseforge_project_id, mod_global_metadata_cache.curseforge_project_id),
-                    modrinth_project_id = COALESCE(excluded.modrinth_project_id, mod_global_metadata_cache.modrinth_project_id),
-                    name = COALESCE(excluded.name, mod_global_metadata_cache.name),
-                    description = COALESCE(excluded.description, mod_global_metadata_cache.description),
-                    icon_rel_path = CASE
-                        WHEN excluded.icon_rel_path <> '' THEN excluded.icon_rel_path
-                        ELSE mod_global_metadata_cache.icon_rel_path
-                    END,
-                    icon_source = COALESCE(excluded.icon_source, mod_global_metadata_cache.icon_source),
-                    aliases = COALESCE(excluded.aliases, mod_global_metadata_cache.aliases),
-                    updated_at = excluded.updated_at
-                "#
-            )
-            .bind(&id)
-            .bind(cf_fingerprint.map(|v| v as i64))
-            .bind(mr_hash)
-            .bind(cf_project_id)
-            .bind(mr_project_id)
-            .bind(name)
-            .bind(description)
-            .bind(icon_rel_path)
-            .bind(icon_source)
-            .bind(aliases_json)
-            .bind(now)
-            .execute(pool)
-            .await;
+                .bind(&id)
+                .bind(cf_fingerprint.map(|v| v as i64))
+                .bind(mr_hash)
+                .bind(cf_project_id)
+                .bind(mr_project_id)
+                .bind(name)
+                .bind(description)
+                .bind(icon_rel_path)
+                .bind(icon_source)
+                .bind(aliases_json)
+                .bind(now)
+                .execute(&mut *tx)
+                .await;
 
-            let _ = crate::services::db_service::DbService::save_mod_aliases(
-                pool,
-                &id,
-                display_title,
-                &auto_aliases,
-                "metadata_sync",
-            )
-            .await;
-        }
+                let _ = crate::services::db_service::mod_alias_repo::save_mod_aliases_tx(
+                    &mut *tx,
+                    &id,
+                    display_title,
+                    &auto_aliases,
+                    "metadata_sync",
+                )
+                .await;
+            }
 
-        if let Some(key) = cache_key {
-            let _ = sqlx::query::<sqlx::Sqlite>(
-                r#"
-                INSERT INTO global_mod_cache (cache_key, name, description, icon_url, updated_at)
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(cache_key) DO UPDATE SET
-                    name = excluded.name,
-                    description = excluded.description,
-                    icon_url = excluded.icon_url,
-                    updated_at = excluded.updated_at
-                "#,
-            )
-            .bind(key)
-            .bind(name)
-            .bind(description)
-            .bind(icon_rel_path)
-            .bind(now)
-            .execute(pool)
-            .await;
+            if let Some(key) = cache_key {
+                let _ = sqlx::query::<sqlx::Sqlite>(
+                    r#"
+                    INSERT INTO global_mod_cache (cache_key, name, description, icon_url, updated_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(cache_key) DO UPDATE SET
+                        name = excluded.name,
+                        description = excluded.description,
+                        icon_url = excluded.icon_url,
+                        updated_at = excluded.updated_at
+                    "#,
+                )
+                .bind(key)
+                .bind(name)
+                .bind(description)
+                .bind(icon_rel_path)
+                .bind(now)
+                .execute(&mut *tx)
+                .await;
+            }
+
+            let _ = tx.commit().await;
         }
     }
 
@@ -927,6 +931,32 @@ impl ModManagerService {
             }
         }
 
+        let mut relations_to_save = Vec::new();
+        for m in &mods {
+            if let Some(ref deps) = m.dependencies {
+                let src_id = m.mod_id.as_deref().unwrap_or(&m.file_name);
+                for d in deps {
+                    let d_clean = d.trim().to_lowercase();
+                    if d_clean.is_empty() || d_clean == "minecraft" || d_clean == "java" || d_clean == "fabricloader" || d_clean == "quiltloader" || d_clean == "quilt_loader" {
+                        continue;
+                    }
+                    relations_to_save.push(crate::services::db_service::models::ModRelationRecord {
+                        source_identifier: src_id.to_string(),
+                        source_type: "mod_id".to_string(),
+                        target_identifier: d.clone(),
+                        target_type: "mod_id".to_string(),
+                        relation_type: "required".to_string(),
+                        version_requirement: None,
+                        target_name_hint: None,
+                        source_provider: "jar_metadata".to_string(),
+                    });
+                }
+            }
+        }
+        if !relations_to_save.is_empty() {
+            let _ = crate::services::db_service::DbService::save_mod_relations(&pool, &relations_to_save).await;
+        }
+
         mods.sort_by(|a, b| {
             b.is_enabled
                 .cmp(&a.is_enabled)
@@ -942,6 +972,19 @@ impl ModManagerService {
         app: &AppHandle<R>,
         instance_id: &str,
     ) -> Result<Vec<ModMetadata>, String> {
+        let instance_dir = Self::get_instance_dir(app, instance_id)?;
+        let mut game_dir = instance_dir.clone();
+        let json_path = instance_dir.join("instance.json");
+        if let Ok(content) = fs::read_to_string(json_path) {
+            if let Ok(cfg) =
+                serde_json::from_str::<crate::domain::instance::InstanceConfig>(&content)
+            {
+                if let Some(tp) = cfg.third_party_path {
+                    game_dir = std::path::PathBuf::from(tp);
+                }
+            }
+        }
+        let mods_dir = game_dir.join("mods");
         let shared_mods_dir = icon_storage::IconStorage::get_shared_mods_dir(app)?;
         let icons_base_dir = shared_mods_dir.join("icons");
         let db = app.state::<crate::services::db_service::AppDatabase>();
@@ -952,7 +995,15 @@ impl ModManagerService {
             .map_err(|e| e.to_string())?;
 
         let mut mods = Vec::with_capacity(rows.len());
+        let mut orphaned_files = Vec::new();
+
         for row in rows {
+            let target_file_path = mods_dir.join(&row.file_name);
+            if !target_file_path.is_file() {
+                orphaned_files.push(row.file_name);
+                continue;
+            }
+
             let manifest_entry = Self::manifest_entry_from_db_row(&row);
             let mut icon_absolute_path = None;
             let mut network_icon_url = None;
@@ -1010,6 +1061,19 @@ impl ModManagerService {
                 dependencies: row.dependencies,
                 aliases,
                 dependents_count: Some(row.dependents_count),
+            });
+        }
+
+        if !orphaned_files.is_empty() {
+            let instance_id_owned = instance_id.to_string();
+            let pool_clone = pool.clone();
+            tauri::async_runtime::spawn(async move {
+                let _ = crate::services::db_service::DbService::delete_instance_mods(
+                    &pool_clone,
+                    &instance_id_owned,
+                    &orphaned_files,
+                )
+                .await;
             });
         }
 
