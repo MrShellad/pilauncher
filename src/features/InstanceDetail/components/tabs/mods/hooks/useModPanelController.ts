@@ -5,6 +5,7 @@ import { useEvent } from '../../../../../../hooks/useEvent';
 import { useLauncherStore } from '../../../../../../store/useLauncherStore';
 import { useToastStore } from '../../../../../../store/useToastStore';
 import { useModManager, type ModSortType } from '../../../../hooks/useModManager';
+import { mergeModBatch } from '../../../../hooks/modManager/modManagerShared';
 import {
   analyzeModFileCleanupCandidates,
   areAllModFilesSelected,
@@ -623,6 +624,10 @@ export const useModPanelController = (instanceId: string) => {
             return {
               ...mod,
               ...updated,
+              // Cloud identification enriches metadata only. A concurrent local
+              // toggle remains authoritative for the file name and enabled state.
+              fileName: mod.fileName,
+              isEnabled: mod.isEnabled,
               manifestEntry: updated.manifestEntry
                 ? ({
                     ...(mod.manifestEntry || {}),
@@ -638,7 +643,7 @@ export const useModPanelController = (instanceId: string) => {
         },
         globalMetadataPlatform: instanceConfig?.globalMetadataSettings?.metadataPlatform
       });
-      setMods(synced);
+      setMods((current) => mergeModBatch(current, synced));
       void refreshDependencyHealth();
       addToast('success', t('instanceDetail.mods.cloudMatchComplete', '云端元数据拉取完成'));
     } catch (error) {

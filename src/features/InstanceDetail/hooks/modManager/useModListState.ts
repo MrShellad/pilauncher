@@ -73,7 +73,6 @@ export const useModListState = (instanceId: string) => {
           ));
 
         if (existing) {
-          const archiveChanged = !!existing.sha1 && !!newMod.sha1 && existing.sha1 !== newMod.sha1;
           const isCleanVersion = (v?: string) =>
             !!v && !v.endsWith('.jar') && !v.endsWith('.disabled') && !v.startsWith('${') && !v.includes('+');
 
@@ -83,8 +82,11 @@ export const useModListState = (instanceId: string) => {
 
           const merged: ModMeta = {
             ...newMod,
-            fileName: archiveChanged ? newMod.fileName : (existing.fileName || newMod.fileName),
-            isEnabled: archiveChanged ? newMod.isEnabled : (existing.isEnabled ?? newMod.isEnabled),
+            // The caller owns local file state. Optimistic toggles and completed
+            // filesystem scans must be able to replace the previous state even
+            // though renaming to `.disabled` does not change the archive SHA1.
+            fileName: newMod.fileName,
+            isEnabled: newMod.isEnabled,
             version: finalVersion,
             iconAbsolutePath: newMod.iconAbsolutePath || existing.iconAbsolutePath,
             offlineJarIconAbsolutePath: newMod.offlineJarIconAbsolutePath || existing.offlineJarIconAbsolutePath,
