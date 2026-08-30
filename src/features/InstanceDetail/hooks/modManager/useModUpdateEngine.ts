@@ -1,32 +1,9 @@
-import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from 'react';
-
-import type { ModMeta } from '../../logic/modService';
-import {
-  buildUpdateCacheEntry,
-  canCheckManagedUpdate,
-  fetchManagedVersions,
-  getManagedUpdateReferences,
-  getModUpdateCacheKey,
-  getOrCreateUpdateCache,
-  isFreshUpdateCacheEntry,
-  UPDATE_CHECK_CONCURRENCY,
-  UPDATE_STATE_FLUSH_INTERVAL_MS,
-  UPDATE_STATE_FLUSH_SIZE,
-  type ModUpdateCacheEntry
-} from './modManagerShared';
+﻿import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { modService, type ModMeta } from '../../logic/modService';
 
 interface UseModUpdateEngineOptions {
   setMods: Dispatch<SetStateAction<ModMeta[]>>;
 }
-
-const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`Update check timed out after ${timeoutMs}ms`)), timeoutMs)
-    )
-  ]);
-};
 
 export const useModUpdateEngine = ({ setMods }: UseModUpdateEngineOptions) => {
   const [isCheckingModUpdates, setIsCheckingModUpdates] = useState(false);
@@ -40,7 +17,7 @@ export const useModUpdateEngine = ({ setMods }: UseModUpdateEngineOptions) => {
 
   const runUpdateCheck = useCallback(async (
     scopeKey: string,
-    modsToCheck: ModMeta[],
+    _modsToCheck: ModMeta[],
     targetMc: string,
     targetLoader: string,
     force = false,
@@ -51,183 +28,51 @@ export const useModUpdateEngine = ({ setMods }: UseModUpdateEngineOptions) => {
     const abortController = new AbortController();
     updateAbortControllerRef.current = abortController;
     setIsCheckingModUpdates(true);
-    const { signal } = abortController;
-    const cache = getOrCreateUpdateCache(scopeKey);
-    const targetsByCacheKey = new Map<string, ModMeta>();
 
-    for (const mod of modsToCheck) {
-      if (!canCheckManagedUpdate(mod)) {
-        continue;
-      }
+    const cfApiKey = (import.meta as any).env?.VITE_CURSEFORGE_API_KEY?.trim() || '';
 
-      const cacheKey = getModUpdateCacheKey(mod);
-      if (!force && isFreshUpdateCacheEntry(cache.get(cacheKey))) {
-        continue;
-      }
+    try {
+      onProgress?.(0, 1);
+      const updates = await modService.checkInstanceModsUpdates(
+        scopeKey,
+        targetMc,
+        targetLoader,
+        force,
+        cfApiKey
+      );
 
-      targetsByCacheKey.set(cacheKey, mod);
-    }
-
-    const targets = Array.from(targetsByCacheKey.entries());
-    if (targets.length === 0) {
-      if (updateAbortControllerRef.current === abortController) {
-        updateAbortControllerRef.current = null;
-        setIsCheckingModUpdates(false);
-      }
-      onProgress?.(0, 0);
-      return;
-    }
-
-    onProgress?.(0, targets.length);
-
-    let cursor = 0;
-    let completed = 0;
-    let lastFlushAt = Date.now();
-    const pendingEntries = new Map<string, ModUpdateCacheEntry>();
-
-    const flushPendingEntries = () => {
-      if (signal.aborted || pendingEntries.size === 0) {
+      if (abortController.signal.aborted) {
         return;
       }
 
-      const entries = new Map(pendingEntries);
-      pendingEntries.clear();
-      lastFlushAt = Date.now();
+      if (updates && updates.length > 0) {
+        const updateMap = new Map(updates.map((u) => [u.fileName, u]));
 
-      setMods((current) => current.map((item) => {
-        const cacheEntry = entries.get(getModUpdateCacheKey(item));
+        setMods((current) => current.map((item) => {
+          const info = updateMap.get(item.fileName)
+            || updateMap.get(item.fileName.replace(/\.disabled$/i, ''))
+            || updateMap.get(`${item.fileName}.disabled`);
 
-        if (!cacheEntry) {
-          return item;
-        }
-
-        return {
-          ...item,
-          hasUpdate: cacheEntry.hasUpdate,
-          updateVersionName: cacheEntry.updateVersionName,
-          updatePlatform: cacheEntry.updatePlatform,
-          updateProjectId: cacheEntry.updateProjectId,
-          updateDownloadUrl: cacheEntry.updateDownloadUrl,
-          updateFileId: cacheEntry.updateFileId,
-          updateFileName: cacheEntry.updateFileName
-        };
-      }));
-    };
-
-    const shouldFlush = () => {
-      return pendingEntries.size >= UPDATE_STATE_FLUSH_SIZE ||
-        Date.now() - lastFlushAt >= UPDATE_STATE_FLUSH_INTERVAL_MS ||
-        completed >= targets.length;
-    };
-
-    const cleanTargetMc = targetMc?.trim() || undefined;
-    const cleanTargetLoader = targetLoader?.trim() || undefined;
-
-    const worker = async () => {
-      while (!signal.aborted) {
-        const target = targets[cursor++];
-        if (!target) {
-          return;
-        }
-
-        const [cacheKey, mod] = target;
-        const updateReferences = getManagedUpdateReferences(mod);
-        if (updateReferences.length === 0) {
-          completed += 1;
-          onProgress?.(completed, targets.length);
-          continue;
-        }
-
-        let cacheEntry: ModUpdateCacheEntry = {
-          hasUpdate: false,
-          checkedAt: Date.now()
-        };
-
-        try {
-          const platformResults = await withTimeout(
-            Promise.allSettled(
-              updateReferences.map(async ({ platform, reference }) => {
-                const versions = await fetchManagedVersions(
-                  platform,
-                  reference.projectId!,
-                  cleanTargetMc || '',
-                  cleanTargetLoader || ''
-                );
-                const versionList = versions || [];
-                const latest = versionList[0];
-                const currentIndex = versionList.findIndex((version) => version.id === reference.fileId);
-
-                return {
-                  platform,
-                  reference,
-                  current: currentIndex >= 0 ? versionList[currentIndex] : undefined,
-                  latest: currentIndex === 0 ? undefined : latest
-                };
-              })
-            ),
-            12000
-          );
-
-          const newestCurrentPublishedAt = Math.max(
-            0,
-            ...platformResults.flatMap((result) => {
-              if (result.status !== 'fulfilled' || !result.value.current) return [];
-              const publishedAt = new Date(result.value.current.date_published).getTime();
-              return Number.isFinite(publishedAt) ? [publishedAt] : [];
-            })
-          );
-          const candidates = platformResults
-            .flatMap((result) => (
-              result.status === 'fulfilled' && result.value.latest ? [result.value] : []
-            ))
-            .filter((result) => {
-              if (!newestCurrentPublishedAt) return true;
-              const publishedAt = new Date(result.latest!.date_published).getTime();
-              return Number.isFinite(publishedAt) && publishedAt > newestCurrentPublishedAt;
-            })
-            .sort((left, right) => (
-              new Date(right.latest!.date_published).getTime()
-              - new Date(left.latest!.date_published).getTime()
-            ));
-
-          if (platformResults.every((result) => result.status === 'rejected')) {
-            throw platformResults.find((result) => result.status === 'rejected')?.reason;
+          if (!info) {
+            return item;
           }
 
-          const winner = candidates[0];
-          if (winner?.latest) {
-            cacheEntry = buildUpdateCacheEntry(
-              winner.latest,
-              winner.reference.fileId!,
-              winner.platform,
-              winner.reference.projectId,
-              mod.version
-            );
-          }
-        } catch (error) {
-          console.warn(`[useModUpdateEngine] Update check failed for ${mod.fileName}:`, error);
-          completed += 1;
-          onProgress?.(completed, targets.length);
-          continue;
-        }
-
-        cache.set(cacheKey, cacheEntry);
-        pendingEntries.set(cacheKey, cacheEntry);
-        completed += 1;
-        onProgress?.(completed, targets.length);
-
-        if (shouldFlush()) {
-          flushPendingEntries();
-        }
+          return {
+            ...item,
+            hasUpdate: info.hasUpdate,
+            updateVersionName: info.updateVersionName,
+            updatePlatform: info.updatePlatform,
+            updateProjectId: info.updateProjectId,
+            updateFileId: info.updateFileId,
+            updateFileName: info.updateFileName,
+            updateDownloadUrl: info.updateDownloadUrl,
+            isCheckingUpdate: false
+          };
+        }));
       }
-    };
-
-    try {
-      await Promise.all(
-        Array.from({ length: Math.min(UPDATE_CHECK_CONCURRENCY, targets.length) }, () => worker())
-      );
-
-      flushPendingEntries();
+      onProgress?.(1, 1);
+    } catch (error) {
+      console.warn('[useModUpdateEngine] Rust update check error:', error);
     } finally {
       if (updateAbortControllerRef.current === abortController) {
         updateAbortControllerRef.current = null;

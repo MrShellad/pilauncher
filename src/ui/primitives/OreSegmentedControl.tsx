@@ -14,6 +14,7 @@ interface OreSegmentedControlProps {
   activeTab: string;
   onChange: (id: string) => void;
   className?: string;
+  style?: React.CSSProperties;
   focusable?: boolean;
   focusKeyPrefix?: string;
   onArrowPress?: (direction: string) => boolean | void;
@@ -24,12 +25,13 @@ export const OreSegmentedControl: React.FC<OreSegmentedControlProps> = ({
   activeTab,
   onChange,
   className = '',
+  style,
   focusable = true,
   focusKeyPrefix,
   onArrowPress,
 }) => {
   return (
-    <div className={`flex items-start ore-segmented-wrapper ${className}`}>
+    <div className={`flex items-start ore-segmented-wrapper ${className}`} style={style}>
       <div className="ore-segmented-track" role="tablist">
         {tabs.map((tab, idx) => {
           const isActive = activeTab === tab.id;

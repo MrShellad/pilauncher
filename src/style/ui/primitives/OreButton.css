@@ -1,154 +1,182 @@
 /* /src/style/ui/primitives/OreButton.css */
 @layer components {
-  /* ================= 鍩虹鐗╃悊妗嗘灦 ================= */
+  /* ================= 基础物理框架 (Minecraft Bedrock 9-Slice) ================= */
   .ore-btn {
-    /* 统一 2px 描边与 6px 外边距 */
-    @apply relative inline-flex items-center justify-center box-border font-minecraft uppercase font-bold border-2 transition-none outline-none;
-    border-color: var(--ore-border-color);
+    --ore-btn-unit: 2px;
+    --ore-btn-face-offset: 0px;
+    --ore-btn-border: #1E1E1F;
+
+    @apply relative inline-flex items-center justify-center box-border font-minecraft uppercase font-bold transition-none outline-none leading-none select-none;
     white-space: nowrap;
     margin: 0;
-    padding-bottom: 4px; /* 为底部的 4px 3D阴影预留视觉补偿中心 */
+    padding-bottom: calc(var(--ore-btn-unit) * 2); /* 4px 默认底部阴影补偿 */
+    color: var(--ore-btn-fg, #FFFFFF);
+
+    background:
+      /* 顶边黑框（随 face-offset 整体位移） */
+      linear-gradient(var(--ore-btn-border), var(--ore-btn-border)) center
+        var(--ore-btn-face-offset) / 100% var(--ore-btn-unit) no-repeat,
+      /* 底边黑框（固定在最底边） */
+      linear-gradient(var(--ore-btn-border), var(--ore-btn-border)) center
+        bottom / 100% var(--ore-btn-unit) no-repeat,
+      /* 左边黑框（从 face-offset 开始向下延伸） */
+      linear-gradient(var(--ore-btn-border), var(--ore-btn-border)) left
+        var(--ore-btn-face-offset) / var(--ore-btn-unit)
+        calc(100% - var(--ore-btn-face-offset)) no-repeat,
+      /* 右边黑框（从 face-offset 开始向下延伸） */
+      linear-gradient(var(--ore-btn-border), var(--ore-btn-border)) right
+        var(--ore-btn-face-offset) / var(--ore-btn-unit)
+        calc(100% - var(--ore-btn-face-offset)) no-repeat,
+      /* 底部 4px 实体立体暗阴影（未按下时可见） */
+      linear-gradient(var(--ore-btn-shadow), var(--ore-btn-shadow)) center
+        calc(100% - var(--ore-btn-unit)) /
+        calc(100% - var(--ore-btn-unit) * 2) calc(var(--ore-btn-unit) * 2)
+        no-repeat,
+      /* 顶部内高光框（随 face-offset 位移） */
+      linear-gradient(var(--ore-btn-highlight), var(--ore-btn-highlight))
+        center calc(var(--ore-btn-unit) + var(--ore-btn-face-offset)) /
+        calc(100% - var(--ore-btn-unit) * 2) var(--ore-btn-unit) no-repeat,
+      /* 底部边缘内高光框 */
+      linear-gradient(var(--ore-btn-highlight), var(--ore-btn-highlight))
+        center
+        calc(100% - var(--ore-btn-unit) * 3 + var(--ore-btn-face-offset)) /
+        calc(100% - var(--ore-btn-unit) * 2) var(--ore-btn-unit) no-repeat,
+      /* 左侧内高光框 */
+      linear-gradient(var(--ore-btn-highlight), var(--ore-btn-highlight))
+        left calc(var(--ore-btn-unit) + var(--ore-btn-face-offset)) /
+        calc(var(--ore-btn-unit) * 2)
+        calc(100% - var(--ore-btn-unit) * 4 - 1px) no-repeat,
+      /* 右侧内高光框 */
+      linear-gradient(var(--ore-btn-highlight), var(--ore-btn-highlight))
+        right calc(var(--ore-btn-unit) + var(--ore-btn-face-offset)) /
+        calc(var(--ore-btn-unit) * 2)
+        calc(100% - var(--ore-btn-unit) * 4 - 1px) no-repeat,
+      /* 主背景表面（填充从 face-offset 到最底部的区域） */
+      linear-gradient(var(--ore-btn-bg), var(--ore-btn-bg))
+        center var(--ore-btn-face-offset) / 100%
+        calc(100% - var(--ore-btn-face-offset)) no-repeat;
   }
 
-  /* 物理下压引擎：使用 transform 代替 margin/height 变化，防止布局塌陷 */
+  /* 物理按下状态：整个按钮表面及其黑框下移 4px，底部阴影消隐，顶部露出 4px 留白 */
   .ore-btn:active:not(:disabled) {
-    transform: translateY(4px);
-    /* 保持默认的 padding-bottom 恒定，使得文本在物理按下时也能同步下沉 4px */
+    --ore-btn-bg: var(--ore-btn-bg-active) !important;
+    --ore-btn-highlight: var(--ore-btn-hl-active) !important;
+    --ore-btn-shadow: transparent !important;
+    --ore-btn-face-offset: calc(var(--ore-btn-unit) * 2) !important; /* 4px */
+    padding-top: var(--ore-btn-face-offset) !important;
+    padding-bottom: 0px !important;
   }
 
-  /* ================= 楂樺厜鐒︾偣瀵艰埅鐜?(HDR Ready) ================= */
+  /* ================= 高光焦点导航环 (HDR Ready) ================= */
   .ore-btn.is-focused {
-    /* 1px 缂濋殭 + 2px 浜櫧鐜?*/
-    outline: 2px solid var(--ore-focus-ringFallback);
-    outline: 2px solid var(--ore-focus-ring); /* 鑻ユ祻瑙堝櫒鏀寔P3鑹插煙鍒欒嚜鍔ㄨ鐩?*/
+    outline: 2px solid var(--ore-focus-ringFallback, #FFFFFF);
+    outline: 2px solid var(--ore-focus-ring, #FFFFFF);
     outline-offset: 1px;
     z-index: 20;
-    
-    /* 缁濇潃锛炵粡杩?drop-shadow 缁?outline 璧嬩簣澶栧洿鍏夋檿锛屽嵆渚垮湪绾櫧鑳屾櫙涓嬩篃鑳芥竻鏅拌鲸璁?*/
-    filter: drop-shadow(0 0 6px var(--ore-focus-glow)) brightness(1.1);
+    filter: drop-shadow(0 0 6px var(--ore-focus-glow, rgba(255, 255, 255, 0.6))) brightness(1.1);
   }
 
-  /* 褰撴寜閽鎸変笅鏃讹紝鍏夌幆闇€瑕佽窡闅忔寜閽竴璧蜂笅娌?*/
+  /* 当按钮被按下时，焦点环保持稳定不动 */
   .ore-btn.is-focused:active:not(:disabled) {
-    outline-offset: 0px;
-    filter: drop-shadow(0 0 3px var(--ore-focus-glow)) brightness(1.1);
+    outline-offset: 1px;
+    filter: drop-shadow(0 0 4px var(--ore-focus-glow, rgba(255, 255, 255, 0.6))) brightness(1.1);
   }
 
-  /* ================= Primary / Hero (缁胯壊鍔ㄤ綔) ================= */
+  /* ================= Primary / Hero (绿色动作) ================= */
   .ore-btn-primary {
-    background-color: var(--ore-btn-primary-bg);
-    color: var(--ore-btn-primary-text);
-    box-shadow: 
-      inset 0 -4px var(--ore-btn-primary-shadow), 
-      inset 3px 3px var(--ore-btn-primary-hl1), 
-      inset -3px -7px var(--ore-btn-primary-hl2);
+    --ore-btn-bg: #3C8527;
+    --ore-btn-bg-hover: #52A535;
+    --ore-btn-bg-active: #2A641C;
+    --ore-btn-shadow: #1D4D13;
+    --ore-btn-highlight: #6CC349;
+    --ore-btn-hl-hover: #86D562;
+    --ore-btn-hl-active: #3F7333;
+    --ore-btn-fg: #FFFFFF;
+    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.75);
   }
   .ore-btn-primary:hover:not(:disabled) {
-    background-color: var(--ore-btn-primary-hover);
-    box-shadow: 
-      inset 0 -4px var(--ore-btn-primary-shadow), 
-      inset 3px 3px var(--ore-btn-primary-hoverHl1), 
-      inset -3px -7px var(--ore-btn-primary-hoverHl2);
-  }
-  .ore-btn-primary:active:not(:disabled) {
-    background-color: var(--ore-btn-primary-active);
-    /* 鎸変笅鏃讹細搴曢儴榛戞娑堝け锛岃浆鎹负椤惰鍑归櫡闃村奖 */
-    box-shadow: 
-      inset 3px 3px var(--ore-btn-primary-hoverHl1), 
-      inset -3px -3px var(--ore-btn-primary-hoverHl2);
+    --ore-btn-bg: var(--ore-btn-bg-hover);
+    --ore-btn-highlight: var(--ore-btn-hl-hover);
   }
 
-  /* ================= Secondary (鐏拌壊娆¤) ================= */
+  /* ================= Secondary (灰色次要) ================= */
   .ore-btn-secondary {
-    background-color: var(--ore-btn-secondary-bg);
-    color: var(--ore-btn-secondary-text);
-    box-shadow: 
-      inset 0 -4px var(--ore-btn-secondary-shadow), 
-      inset 3px 3px var(--ore-btn-secondary-hl1), 
-      inset -3px -7px var(--ore-btn-secondary-hl2);
+    --ore-btn-bg: #D0D1D4;
+    --ore-btn-bg-hover: #E6E8EB;
+    --ore-btn-bg-active: #B1B2B5;
+    --ore-btn-shadow: #58585A;
+    --ore-btn-highlight: #FFFFFF;
+    --ore-btn-hl-hover: #FFFFFF;
+    --ore-btn-hl-active: #C7C8CB;
+    --ore-btn-fg: #1E1E1F;
+    text-shadow: none;
   }
   .ore-btn-secondary:hover:not(:disabled) {
-    background-color: var(--ore-btn-secondary-hover);
-    box-shadow: 
-      inset 0 -4px var(--ore-btn-secondary-shadow), 
-      inset 3px 3px var(--ore-btn-secondary-hoverHl1), 
-      inset -3px -7px var(--ore-btn-secondary-hoverHl2);
-  }
-  .ore-btn-secondary:active:not(:disabled) {
-    background-color: var(--ore-btn-secondary-active);
-    box-shadow: 
-      inset 3px 3px var(--ore-btn-secondary-hoverHl1), 
-      inset -3px -3px var(--ore-btn-secondary-hoverHl2);
+    --ore-btn-bg: var(--ore-btn-bg-hover);
+    --ore-btn-highlight: var(--ore-btn-hl-hover);
   }
 
-  /* ================= Danger (绾㈣壊鍗遍櫓) ================= */
+  /* ================= Danger (红色危险) ================= */
   .ore-btn-danger {
-    background-color: var(--ore-btn-danger-bg);
-    color: var(--ore-btn-danger-text);
-    box-shadow: 
-      inset 0 -4px var(--ore-btn-danger-shadow), 
-      inset 3px 3px var(--ore-btn-danger-hl1), 
-      inset -3px -7px var(--ore-btn-danger-hl2);
+    --ore-btn-bg: #C33636;
+    --ore-btn-bg-hover: #D54242;
+    --ore-btn-bg-active: #AD1D1D;
+    --ore-btn-shadow: #7D1515;
+    --ore-btn-highlight: #DE6868;
+    --ore-btn-hl-hover: #E58080;
+    --ore-btn-hl-active: #BD3B3B;
+    --ore-btn-fg: #FFFFFF;
+    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.75);
   }
   .ore-btn-danger:hover:not(:disabled) {
-    background-color: var(--ore-btn-danger-hover);
-    box-shadow: 
-      inset 0 -4px var(--ore-btn-danger-shadow), 
-      inset 3px 3px var(--ore-btn-danger-hoverHl1), 
-      inset -3px -7px var(--ore-btn-danger-hoverHl2);
-  }
-  .ore-btn-danger:active:not(:disabled) {
-    background-color: var(--ore-btn-danger-active);
-    box-shadow: 
-      inset 3px 3px var(--ore-btn-danger-hoverHl1), 
-      inset -3px -3px var(--ore-btn-danger-hoverHl2);
+    --ore-btn-bg: var(--ore-btn-bg-hover);
+    --ore-btn-highlight: var(--ore-btn-hl-hover);
   }
 
-  /* ================= Purple (绱壊鍙茶瘲) ================= */
+  /* ================= Purple (紫色史诗) ================= */
   .ore-btn-purple {
-    background-color: var(--ore-btn-purple-bg);
-    color: var(--ore-btn-purple-text);
-    box-shadow: 
-      inset 0 -4px var(--ore-btn-purple-shadow), 
-      inset 3px 3px var(--ore-btn-purple-hl1), 
-      inset -3px -7px var(--ore-btn-purple-hl2);
+    --ore-btn-bg: #9333EA;
+    --ore-btn-bg-hover: #A855F7;
+    --ore-btn-bg-active: #7E22CE;
+    --ore-btn-shadow: #581C87;
+    --ore-btn-highlight: #C084FC;
+    --ore-btn-hl-hover: #D8B4FE;
+    --ore-btn-hl-active: #9333EA;
+    --ore-btn-fg: #FFFFFF;
+    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.75);
   }
   .ore-btn-purple:hover:not(:disabled) {
-    background-color: var(--ore-btn-purple-hover);
-    box-shadow: 
-      inset 0 -4px var(--ore-btn-purple-shadow), 
-      inset 3px 3px var(--ore-btn-purple-hoverHl1), 
-      inset -3px -7px var(--ore-btn-purple-hoverHl2);
-  }
-  .ore-btn-purple:active:not(:disabled) {
-    background-color: var(--ore-btn-purple-active);
-    box-shadow: 
-      inset 3px 3px var(--ore-btn-purple-hoverHl1), 
-      inset -3px -3px var(--ore-btn-purple-hoverHl2);
+    --ore-btn-bg: var(--ore-btn-bg-hover);
+    --ore-btn-highlight: var(--ore-btn-hl-hover);
   }
 
-  /* 鉁?鏂板锛?-- Ghost (骞界伒 / 閫忔槑鎸夐挳) --- */
+  /* ⚡ 新增：-- Ghost (幽灵 / 透明按钮) --- */
   .ore-btn-ghost {
-    @apply bg-transparent text-[#A0A2A5] border-transparent;
-    box-shadow: none;
+    background: transparent !important;
+    border: 2px solid transparent !important;
+    color: #A0A2A5 !important;
+    padding-bottom: 0px !important;
   }
   .ore-btn-ghost:hover:not(:disabled) {
-    @apply bg-white/10 text-white;
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #FFFFFF !important;
   }
   .ore-btn-ghost:active:not(:disabled) {
-    @apply bg-white/20 text-white;
-    /* 骞界伒鎸夐挳鎸変笅鏃朵娇鐢ㄥ唴鍑归槾褰辨ā鎷熶笅娌?*/
-    box-shadow: inset 0 4px 0 rgba(0, 0, 0, 0.2);
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: #FFFFFF !important;
+    padding-top: 0px !important;
+    --ore-btn-face-offset: 0px !important;
   }
 
   /* ================= Disabled (禁用还原) ================= */
   .ore-btn:disabled {
-    background-color: var(--ore-btn-disabled-bg);
-    color: var(--ore-btn-disabled-text);
-    border-color: var(--ore-btn-disabled-border);
+    --ore-btn-bg: #D0D1D4;
+    --ore-btn-shadow: #B1B2B5;
+    --ore-btn-highlight: #D0D1D4;
+    --ore-btn-border: #8C8D90;
+    --ore-btn-fg: #48494A;
     cursor: not-allowed;
-    /* 禁用状态下只保留极其微弱的 3D 效果底边 */
-    box-shadow: inset 0 -4px var(--ore-btn-disabled-shadow);
+    text-shadow: none;
   }
 
   /* 禁用状态下的图标与 SVG 滤镜置灰反色 */
@@ -157,5 +185,4 @@
     filter: invert(100%) grayscale(100%) brightness(50%);
     opacity: 0.6;
   }
-
 }

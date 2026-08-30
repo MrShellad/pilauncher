@@ -237,12 +237,30 @@ export const mergeModManifestEntry = (
   };
 };
 
+const isCleanVersion = (v?: string) =>
+  !!v && !v.endsWith('.jar') && !v.endsWith('.disabled') && !v.startsWith('${') && !v.includes('+');
+
 export const mergeModMetadataIdentity = (current: ModMeta, incoming: ModMeta): ModMeta => {
   const archiveChanged = !!current.sha1 && !!incoming.sha1 && current.sha1 !== incoming.sha1;
   if (archiveChanged) return incoming;
 
+  const finalVersion = (isCleanVersion(current.version) && !isCleanVersion(incoming.version))
+    ? current.version
+    : (incoming.version || current.version);
+
   return {
-    ...incoming,
+    ...current,
+    name: incoming.name || current.name,
+    description: incoming.description || current.description,
+    version: finalVersion,
+    iconAbsolutePath: incoming.iconAbsolutePath || current.iconAbsolutePath,
+    offlineJarIconAbsolutePath: incoming.offlineJarIconAbsolutePath || current.offlineJarIconAbsolutePath,
+    networkIconUrl: incoming.networkIconUrl || current.networkIconUrl,
+    networkInfo: incoming.networkInfo || current.networkInfo,
+    isFetchingNetwork: incoming.isFetchingNetwork ?? current.isFetchingNetwork,
+    cacheKey: incoming.cacheKey || current.cacheKey,
+    curseforgeFingerprint: incoming.curseforgeFingerprint || current.curseforgeFingerprint,
+    sha1: incoming.sha1 || current.sha1,
     dependencies: incoming.dependencies || current.dependencies,
     dependentsCount: incoming.dependentsCount ?? current.dependentsCount,
     aliases: incoming.aliases || current.aliases,
@@ -267,7 +285,9 @@ export const mergeModBatch = (current: ModMeta[], batch: ModMeta[]) => {
   batch.forEach((mod) => {
     const identityKey = getModIdentityKey(mod);
     const index = next.findIndex((currentMod) => (
-      getModIdentityKey(currentMod) === identityKey || currentMod.fileName === mod.fileName
+      getModIdentityKey(currentMod) === identityKey
+      || currentMod.fileName === mod.fileName
+      || currentMod.fileName.replace(/\.disabled$/i, '') === mod.fileName.replace(/\.disabled$/i, '')
     ));
 
     if (index >= 0) {

@@ -1,3 +1,4 @@
+pub mod cloud_sync;
 pub mod dependency_resolver;
 pub mod gamepad;
 pub mod icon_storage;
@@ -5,6 +6,8 @@ pub use icon_storage::{IconStorage, ModCacheUpdateItem};
 pub mod installer;
 pub mod jar_parser;
 pub mod remote_fetcher;
+pub mod update_engine;
+pub use update_engine::ModUpdateInfo;
 
 pub use crate::domain::gamepad::{GamepadMeta, GamepadModMeta, GamepadModStatus};
 pub use crate::domain::mod_cleanup::{
@@ -1184,6 +1187,66 @@ impl ModManagerService {
     ) -> Result<InstanceDependencyHealth, String> {
         dependency_resolver::DependencyResolver::get_instance_dependency_health(app, instance_id)
             .await
+    }
+
+    pub async fn get_cascading_dependents<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        root_file_name: &str,
+    ) -> Result<Vec<String>, String> {
+        dependency_resolver::DependencyResolver::get_cascading_dependents(app, instance_id, root_file_name)
+            .await
+    }
+
+    pub async fn toggle_mods_cascading<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        file_names: &[String],
+        enable: bool,
+    ) -> Result<Vec<(String, String)>, String> {
+        crate::services::instance::resource_manager::ResourceManager::toggle_mods_batch(
+            app,
+            instance_id,
+            file_names,
+            enable,
+        )
+        .await
+    }
+
+    pub async fn sync_cloud_metadata<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        force: bool,
+        global_platform: Option<String>,
+        curseforge_key: Option<String>,
+    ) -> Result<Vec<ModMetadata>, String> {
+        cloud_sync::ModCloudSync::sync_instance_mods_cloud_metadata(
+            app,
+            instance_id,
+            force,
+            global_platform,
+            curseforge_key,
+        )
+        .await
+    }
+
+    pub async fn check_mod_updates<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        game_version: &str,
+        loader: &str,
+        force: bool,
+        curseforge_key: Option<String>,
+    ) -> Result<Vec<ModUpdateInfo>, String> {
+        update_engine::ModUpdateEngine::check_instance_mods_updates(
+            app,
+            instance_id,
+            game_version,
+            loader,
+            force,
+            curseforge_key,
+        )
+        .await
     }
 
     pub fn create_snapshot<R: Runtime>(

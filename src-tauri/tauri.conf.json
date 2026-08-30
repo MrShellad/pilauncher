@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "PiLauncher",
-  "version": "0.1.54",
+  "version": "0.1.55",
   "identifier": "com.mrshell.PiLauncher",
   "build": {
     "frontendDist": "../build",
@@ -25,7 +25,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' asset: http://asset.localhost https: http: data: blob:; connect-src 'self' https: http: ws: wss:; media-src 'self' asset: http://asset.localhost data: blob:;",
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' asset: http://asset.localhost https: http: data: blob:; connect-src 'self' asset: http://asset.localhost https: http: ws: wss: data: blob:; media-src 'self' asset: http://asset.localhost data: blob:;",
       "assetProtocol": {
         "enable": true,
         "scope": [

@@ -19,7 +19,6 @@ import {
   autoUpdateCheckedKeys,
   getUpdateScopeKey,
   mergeModBatch,
-  mergeSyncedModMetadata,
   updateCacheByInstance,
   type LoadModsOptions,
   type ModSortOrder,
@@ -50,7 +49,6 @@ export const useModManager = (instanceId: string) => {
     setInstanceConfig,
     flushPendingScanMods,
     prepareModScan,
-    setModScanContext,
     isActiveModScan,
     finishModScan
   } = listState;
@@ -65,6 +63,74 @@ export const useModManager = (instanceId: string) => {
     rawCancelUpdateCheck();
     setCheckUpdateProgress(null);
   }, [rawCancelUpdateCheck]);
+
+  const runModUpdateCheckPipeline = useCallback(async (
+    targetMods: ModMeta[],
+    scopeKey: string,
+    targetMc: string,
+    targetLoader: string,
+    force = false,
+    globalMetadataPlatform?: string
+  ) => {
+    cancelUpdateCheck();
+    setIsCheckingModUpdates(true);
+    setCheckUpdateProgress({
+      stage: 'syncing',
+      stageText: '正在准备模组元数据...',
+      current: 0,
+      total: targetMods.length,
+      percent: 0
+    });
+
+    try {
+      const syncedMods = await syncCloudMetadata(targetMods, {
+        globalMetadataPlatform,
+        onProgress: (current, total) => {
+          setCheckUpdateProgress({
+            stage: 'syncing',
+            stageText: `正在同步模组元数据 (${current}/${total})...`,
+            current,
+            total,
+            percent: total > 0 ? Math.round((current / total) * 100) : 0
+          });
+        }
+      });
+      if (syncedMods !== targetMods) {
+        setMods((current) => mergeModBatch(current, syncedMods));
+      }
+
+      await runUpdateCheck(
+        scopeKey,
+        syncedMods,
+        targetMc,
+        targetLoader,
+        force,
+        (current, total) => {
+          setCheckUpdateProgress({
+            stage: 'checking',
+            stageText: `正在检测模组可用版本 (${current}/${total})...`,
+            current,
+            total,
+            percent: total > 0 ? Math.round((current / total) * 100) : 0
+          });
+        }
+      );
+    } catch (error) {
+      console.error('[useModManager] Update check pipeline failed:', error);
+      setIsCheckingModUpdates(false);
+      setCheckUpdateProgress(null);
+      throw error;
+    } finally {
+      setIsCheckingModUpdates(false);
+      setCheckUpdateProgress(null);
+    }
+  }, [
+    cancelUpdateCheck,
+    runUpdateCheck,
+    setIsCheckingModUpdates,
+    setMods,
+    syncCloudMetadata
+  ]);
 
   const loadMods = useCallback(async (options: LoadModsOptions = {}) => {
     cancelUpdateCheck();
@@ -91,14 +157,27 @@ export const useModManager = (instanceId: string) => {
       }
 
       void (async () => {
-        const syncedMods = await syncCloudMetadata(enrichedMods, {
-          globalMetadataPlatform: config?.globalMetadataSettings?.metadataPlatform,
-        });
-        if (syncedMods !== enrichedMods) {
-          setMods((current) => mergeModBatch(current, syncedMods));
-        }
+        const globalMetadataPlatform = config?.globalMetadataSettings?.metadataPlatform;
         if (checkUpdates) {
-          await runUpdateCheck(scopeKey, syncedMods, targetMc, targetLoader, options.forceUpdateCheck);
+          try {
+            await runModUpdateCheckPipeline(
+              enrichedMods,
+              scopeKey,
+              targetMc,
+              targetLoader,
+              options.forceUpdateCheck ?? false,
+              globalMetadataPlatform
+            );
+          } catch (error) {
+            console.error('[useModManager] Auto update check failed:', error);
+          }
+        } else {
+          const syncedMods = await syncCloudMetadata(enrichedMods, {
+            globalMetadataPlatform,
+          });
+          if (syncedMods !== enrichedMods) {
+            setMods((current) => mergeModBatch(current, syncedMods));
+          }
         }
       })();
     } catch (error) {
@@ -113,9 +192,8 @@ export const useModManager = (instanceId: string) => {
     instanceId,
     isActiveModScan,
     prepareModScan,
-    runUpdateCheck,
+    runModUpdateCheckPipeline,
     setInstanceConfig,
-    setModScanContext,
     setMods,
     syncCloudMetadata,
   ]);
@@ -215,66 +293,19 @@ export const useModManager = (instanceId: string) => {
       return;
     }
 
-    cancelUpdateCheck();
-    setIsCheckingModUpdates(true);
-    setCheckUpdateProgress({
-      stage: 'syncing',
-      stageText: '正在准备模组元数据...',
-      current: 0,
-      total: currentMods.length,
-      percent: 0
-    });
-
-    try {
-      const syncedMods = await syncCloudMetadata(currentMods, {
-        globalMetadataPlatform: instanceConfig?.globalMetadataSettings?.metadataPlatform,
-        onProgress: (current, total) => {
-          setCheckUpdateProgress({
-            stage: 'syncing',
-            stageText: `正在同步模组元数据 (${current}/${total})...`,
-            current,
-            total,
-            percent: total > 0 ? Math.round((current / total) * 100) : 0
-          });
-        }
-      });
-      if (syncedMods !== currentMods) {
-        setMods((current) => mergeSyncedModMetadata(current, currentMods, syncedMods));
-      }
-
-      await runUpdateCheck(
-        scopeKey,
-        syncedMods,
-        targetMc,
-        targetLoader,
-        true,
-        (current, total) => {
-          setCheckUpdateProgress({
-            stage: 'checking',
-            stageText: `正在检测模组可用版本 (${current}/${total})...`,
-            current,
-            total,
-            percent: total > 0 ? Math.round((current / total) * 100) : 0
-          });
-        }
-      );
-    } catch (error) {
-      setIsCheckingModUpdates(false);
-      setCheckUpdateProgress(null);
-      throw error;
-    } finally {
-      setIsCheckingModUpdates(false);
-      setCheckUpdateProgress(null);
-    }
+    await runModUpdateCheckPipeline(
+      currentMods,
+      scopeKey,
+      targetMc,
+      targetLoader,
+      true,
+      instanceConfig?.globalMetadataSettings?.metadataPlatform
+    );
   }, [
-    cancelUpdateCheck,
     instanceId,
     loadMods,
     mods,
-    runUpdateCheck,
-    setIsCheckingModUpdates,
-    setMods,
-    syncCloudMetadata,
+    runModUpdateCheckPipeline,
     instanceConfig
   ]);
 

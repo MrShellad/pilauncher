@@ -20,10 +20,10 @@ export const DEFAULT_INCREMENTAL_PAGE_SIZE = 20;
 export const DEFAULT_MOD_LIST_EXIT_FOCUS_KEY = 'mod-btn-history';
 
 export const MOD_LIST_HEADER_CLASSES = {
-  button: 'h-8 min-h-8',
-  iconButton: 'h-8 min-h-8 w-8 min-w-8',
-  oreButton: '!h-8 !min-h-8 !min-w-0 !px-3 font-minecraft text-[12px] font-bold uppercase',
-  segmentGroup: 'relative z-10 flex h-8 shrink-0 overflow-hidden border-[2px] border-[#1E1E1F] bg-[#232937] shadow-[inset_0_-2px_0_rgba(0,0,0,0.4)]',
+  button: 'h-9 min-h-9',
+  iconButton: 'h-9 min-h-9 w-9 min-w-9',
+  oreButton: 'font-minecraft text-[12px] font-bold uppercase',
+  segmentGroup: 'relative z-10 flex h-9 shrink-0 overflow-hidden border-[2px] border-[#1E1E1F] bg-[#232937] shadow-[inset_0_-2px_0_rgba(0,0,0,0.4)]',
   segmentButton: 'flex h-full items-center px-3 font-minecraft text-[12px] font-bold uppercase outline-none transition-colors'
 } as const;
 
@@ -247,3 +247,20 @@ export const getModListStats = (
     visible: visibleMods.length
   };
 };
+
+export const getModFormattedDate = (timestamp?: number | null): string => {
+  if (!timestamp || typeof timestamp !== 'number' || timestamp <= 0) {
+    return '-';
+  }
+  // Convert Unix timestamp from seconds to milliseconds if needed
+  const ms = timestamp < 1e11 ? timestamp * 1000 : timestamp;
+  const date = new Date(ms);
+  if (isNaN(date.getTime())) {
+    return '-';
+  }
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+

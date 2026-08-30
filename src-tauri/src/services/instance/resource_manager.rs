@@ -246,6 +246,56 @@ impl ResourceManager {
         res
     }
 
+    pub async fn toggle_mods_batch<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        file_names: &[String],
+        enable: bool,
+    ) -> Result<Vec<(String, String)>, String> {
+        let target_dir = Self::get_target_dir(app, instance_id, &ResourceType::Mod)?;
+        let mut toggled = Vec::new();
+        let db = app.state::<crate::services::db_service::AppDatabase>();
+        let pool = db.pool.clone();
+
+        for file_name in file_names {
+            let current_path = target_dir.join(file_name);
+            if !current_path.exists() {
+                continue;
+            }
+
+            let new_file_name = if enable {
+                file_name.trim_end_matches(".disabled").to_string()
+            } else if file_name.ends_with(".disabled") {
+                continue;
+            } else {
+                format!("{}.disabled", file_name)
+            };
+
+            if fs::rename(&current_path, target_dir.join(&new_file_name)).is_ok() {
+                let _ = crate::services::db_service::DbService::toggle_instance_mod(
+                    &pool, instance_id, file_name, &new_file_name, enable,
+                )
+                .await;
+                toggled.push((file_name.clone(), new_file_name));
+            }
+        }
+
+        if !toggled.is_empty() {
+            use tauri::Emitter;
+            let _ = app.emit(
+                "instance-mods-fs-changed",
+                serde_json::json!({
+                    "instanceId": instance_id,
+                    "action": "batch_toggle",
+                    "enable": enable,
+                    "toggled": toggled
+                }),
+            );
+        }
+
+        Ok(toggled)
+    }
+
     pub fn delete_resource<R: Runtime>(
         app: &AppHandle<R>,
         instance_id: &str,

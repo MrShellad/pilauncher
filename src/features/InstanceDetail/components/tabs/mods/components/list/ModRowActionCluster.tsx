@@ -1,5 +1,5 @@
-import React from 'react';
-import { ArrowUpCircle, Loader2, Trash2 } from 'lucide-react';
+﻿import React from 'react';
+import { ArrowUpCircle, Trash2 } from 'lucide-react';
 
 import { OreButton } from '../../../../../../../ui/primitives/OreButton';
 import { OreSwitch } from '../../../../../../../ui/primitives/OreSwitch';
@@ -8,12 +8,13 @@ import type { ModListViewMode, RowAction } from '../../modListShared';
 interface ModRowActionClusterProps {
   fileName: string;
   isEnabled: boolean;
-  isSelected: boolean;
+  isSelected?: boolean;
   canUpgrade: boolean;
   isUpdating: boolean;
   updateVersionName?: string;
   isActionLocked: boolean;
-  viewMode: ModListViewMode;
+  isRowActive?: boolean;
+  viewMode?: ModListViewMode;
   getActionFocusKey: (fileName: string, action: RowAction) => string;
   onActionArrow: (fileName: string, action: RowAction, direction: string) => boolean;
   onPreventLockedAction: (fileName: string, event?: { preventDefault?: () => void; stopPropagation?: () => void }) => boolean;
@@ -25,12 +26,10 @@ interface ModRowActionClusterProps {
 export const ModRowActionCluster: React.FC<ModRowActionClusterProps> = ({
   fileName,
   isEnabled,
-  isSelected: _isSelected,
   canUpgrade,
   isUpdating,
-  updateVersionName,
   isActionLocked,
-  viewMode: _viewMode,
+  isRowActive = false,
   getActionFocusKey,
   onActionArrow,
   onPreventLockedAction,
@@ -38,18 +37,28 @@ export const ModRowActionCluster: React.FC<ModRowActionClusterProps> = ({
   onToggleMod,
   onDeleteMod
 }) => {
-  const actionVisibilityClass = isEnabled
-    ? 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-opacity duration-150'
-    : 'opacity-100 pointer-events-auto';
+  // 开关显示规则：禁用时常驻显示；启用时仅在 hover 或 focus 时显示
+  const switchVisibilityClass = !isEnabled
+    ? 'opacity-100 pointer-events-auto'
+    : isRowActive
+      ? 'opacity-100 pointer-events-auto transition-opacity duration-150'
+      : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-opacity duration-150';
+
+  // 删除按钮显示规则：仅在 hover 或 focus 时显示
+  const deleteVisibilityClass = isRowActive
+    ? 'opacity-100 pointer-events-auto transition-opacity duration-150'
+    : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-opacity duration-150';
 
   return (
-    <div className={`flex items-center gap-2.5 transition-opacity ${isActionLocked ? 'opacity-80' : 'opacity-100'}`}>
+    <div className={`flex w-[120px] items-center justify-end gap-2 transition-opacity ${isActionLocked ? 'opacity-70' : 'opacity-100'}`}>
+      {/* 升级按钮 (有可用更新时常驻显示) */}
       {canUpgrade && (
         <OreButton
           focusKey={getActionFocusKey(fileName, 'upgrade')}
           variant="primary"
-          size="auto"
-          title={updateVersionName ? `升级到 ${updateVersionName}` : '升级模组'}
+          size="sm"
+          iconOnly
+          loading={isUpdating}
           disabled={isUpdating}
           onArrowPress={(direction) => onActionArrow(fileName, 'upgrade', direction)}
           onClick={(event) => {
@@ -59,17 +68,17 @@ export const ModRowActionCluster: React.FC<ModRowActionClusterProps> = ({
             event.stopPropagation();
             onUpgradeMod();
           }}
-          className="!h-9 !min-h-9 !min-w-9 !w-9 !px-0 flex items-center justify-center"
+          className="!h-8 !w-8 !min-h-8"
         >
-          {isUpdating ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : (
-            <ArrowUpCircle size={16} />
-          )}
+          <ArrowUpCircle size={15} />
         </OreButton>
       )}
 
-      <div className={`flex items-center justify-center ${actionVisibilityClass}`} onClick={(event) => event.stopPropagation()}>
+      {/* 启用/禁用 开关 */}
+      <div
+        className={`flex items-center justify-center shrink-0 ${switchVisibilityClass}`}
+        onClick={(event) => event.stopPropagation()}
+      >
         <OreSwitch
           focusKey={getActionFocusKey(fileName, 'toggle')}
           checked={isEnabled}
@@ -83,23 +92,26 @@ export const ModRowActionCluster: React.FC<ModRowActionClusterProps> = ({
         />
       </div>
 
-      <OreButton
-        focusKey={getActionFocusKey(fileName, 'delete')}
-        variant="danger"
-        size="auto"
-        title="删除模组"
-        onArrowPress={(direction) => onActionArrow(fileName, 'delete', direction)}
-        onClick={(event) => {
-          if (onPreventLockedAction(fileName, event)) {
-            return;
-          }
-          event.stopPropagation();
-          onDeleteMod(fileName);
-        }}
-        className={`!h-9 !min-h-9 !min-w-9 !w-9 !px-0 flex items-center justify-center ${actionVisibilityClass}`}
-      >
-        <Trash2 size={16} />
-      </OreButton>
+      {/* 删除按钮 */}
+      <div className={deleteVisibilityClass}>
+        <OreButton
+          focusKey={getActionFocusKey(fileName, 'delete')}
+          variant="danger"
+          size="sm"
+          iconOnly
+          onArrowPress={(direction) => onActionArrow(fileName, 'delete', direction)}
+          onClick={(event) => {
+            if (onPreventLockedAction(fileName, event)) {
+              return;
+            }
+            event.stopPropagation();
+            onDeleteMod(fileName);
+          }}
+          className="!h-8 !w-8 !min-h-8"
+        >
+          <Trash2 size={15} />
+        </OreButton>
+      </div>
     </div>
   );
 };

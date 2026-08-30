@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { CheckSquare, ChevronDown, ChevronUp, Square } from 'lucide-react';
 
 import { type ModSortOrder, type ModSortType } from '../../../../../hooks/useModManager';
@@ -14,59 +14,11 @@ interface ModListGridHeaderProps {
   listTheme: ModListTheme;
 }
 
-interface SortableHeaderCellProps {
-  label: string;
-  sortKey: ModSortType;
-  sortType: ModSortType;
-  sortOrder: ModSortOrder;
-  tone?: 'primary' | 'secondary';
-  listTheme: ModListTheme;
-  className?: string;
-  onSortClick: (type: ModSortType) => void;
-}
-
 const SortDirectionIcon: React.FC<{ active: boolean; sortOrder: ModSortOrder }> = ({ active, sortOrder }) => {
-  if (!active) return <span className="h-3.5 w-3.5 text-[#7E879A]" />;
-
+  if (!active) return <span className="h-3 w-3 text-transparent" />;
   return sortOrder === 'asc'
-    ? <ChevronUp size={14} className="text-[#7AA2FF]" />
-    : <ChevronDown size={14} className="text-[#7AA2FF]" />;
-};
-
-const SortableHeaderCell: React.FC<SortableHeaderCellProps> = ({
-  label,
-  sortKey,
-  sortType,
-  sortOrder,
-  tone = 'secondary',
-  listTheme,
-  className = 'justify-start',
-  onSortClick
-}) => {
-  const active = sortType === sortKey;
-  const isLightTheme = listTheme === 'light';
-  const textClass = isLightTheme
-    ? tone === 'primary'
-      ? 'text-[#111214] hover:text-black'
-      : 'text-[#4A4C50] hover:text-[#111214]'
-    : tone === 'primary'
-      ? 'text-[#FFFFFF] hover:text-white'
-      : 'text-[#8B93A7] hover:text-[#DCE3F1]';
-  const activeClass = isLightTheme ? 'text-[#111214]' : 'text-[#FFFFFF]';
-
-  return (
-    <button
-      type="button"
-      tabIndex={-1}
-      onClick={() => onSortClick(sortKey)}
-      className={`inline-flex min-h-8 min-w-0 items-center gap-1 font-minecraft text-[12px] font-bold uppercase tracking-wider transition-colors focus:outline-none ${className} ${
-        active ? activeClass : textClass
-      }`}
-    >
-      <span className="truncate">{label}</span>
-      <SortDirectionIcon active={active} sortOrder={sortOrder} />
-    </button>
-  );
+    ? <ChevronUp size={13} className="text-[#57D38C]" />
+    : <ChevronDown size={13} className="text-[#57D38C]" />;
 };
 
 export const ModListGridHeader: React.FC<ModListGridHeaderProps> = ({
@@ -75,85 +27,76 @@ export const ModListGridHeader: React.FC<ModListGridHeaderProps> = ({
   sortType,
   sortOrder,
   onSelectAll,
-  onSortClick,
-  listTheme
+  onSortClick
 }) => {
-  const isLightTheme = listTheme === 'light';
-  const headerClass = isLightTheme
-    ? 'border-[2px] border-[#1E1E1F] bg-[#B8BBC2] text-[#313233] shadow-[inset_0_-2px_0_#8C8D90,inset_1px_1px_0_rgba(255,255,255,0.62)]'
-    : 'border-[2px] border-[#1E1E1F] bg-[#1A1F29] text-[#8B93A7] shadow-[inset_0_-2px_0_#12151C,inset_1px_1px_0_rgba(255,255,255,0.05)]';
-  const selectButtonClass = isLightTheme
-    ? 'border-[2px] border-[#1E1E1F] bg-[#DDE0E3] text-[#313233] hover:bg-[#F2F2F2] hover:text-[#111214] shadow-[inset_0_-2px_0_#A9ABAE]'
-    : 'border-[2px] border-[#1E1E1F] bg-[#232937] text-[#C7D2E6] hover:bg-[#2B3447] hover:text-white shadow-[inset_0_-2px_0_rgba(0,0,0,0.4)]';
-  const selectedCountClass = isLightTheme
-    ? 'border-[2px] border-[#1E1E1F] bg-[#F2F2F2] text-[#111214] shadow-[inset_0_-2px_0_#B8BBC2]'
-    : 'border-[2px] border-[#1E1E1F] bg-[#232937] text-[#C7D2E6] shadow-[inset_0_-2px_0_rgba(0,0,0,0.4)]';
+  const renderSortCell = (label: string, sortKey: ModSortType, className = '') => {
+    const active = sortType === sortKey;
+    return (
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={() => onSortClick(sortKey)}
+        className={`inline-flex items-center gap-1 font-minecraft text-[11px] font-bold uppercase tracking-wider transition-colors focus:outline-none ${
+          active ? 'text-[#57D38C]' : 'text-[#9DA9BD] hover:text-white'
+        } ${className}`}
+      >
+        <span className="truncate">{label}</span>
+        <SortDirectionIcon active={active} sortOrder={sortOrder} />
+      </button>
+    );
+  };
 
   return (
-    <div className={`relative z-20 mx-2 flex min-h-8 items-center gap-3 px-3 py-1 ${headerClass}`}>
-      <div className="flex shrink-0 items-center gap-2">
+    <div
+      className="grid h-9 w-full select-none items-center gap-3 border-b-[2px] border-[#16181E] bg-[#222630] px-3 font-minecraft text-[11px] font-bold uppercase tracking-wider text-[#9DA9BD]"
+      style={{
+        gridTemplateColumns: '32px 68px minmax(0, 1fr) 130px 80px 110px 120px'
+      }}
+    >
+      {/* 1. 全选框 */}
+      <div className="flex items-center justify-center">
         <button
           type="button"
           tabIndex={-1}
           onClick={onSelectAll}
-          className={`flex h-6 w-6 items-center justify-center transition-colors focus:outline-none ${selectButtonClass}`}
-          title={isAllSelected ? '取消全选' : '全选'}
+          className="flex h-5 w-5 items-center justify-center border-[2px] border-[#16181E] bg-[#181C26] text-[#C7D2E6] hover:bg-[#252C3D] hover:text-white transition-colors"
         >
-          {isAllSelected ? <CheckSquare size={14} className="text-ore-green" /> : <Square size={14} />}
+          {isAllSelected ? <CheckSquare size={13} className="text-[#57D38C]" /> : <Square size={13} />}
         </button>
+      </div>
+
+      {/* 2. 图标占位 / 选中统计 */}
+      <div className="flex items-center justify-center">
         {selectedCount > 0 && (
-          <span className={`shrink-0 border px-1 py-0.5 font-minecraft text-[10px] font-bold ${selectedCountClass}`}>
+          <span className="border-[2px] border-[#16181E] bg-[#14261C] px-1.5 py-0.5 text-[10px] font-bold text-[#57D38C]">
             {selectedCount}
           </span>
         )}
       </div>
 
-      <div className="flex-1 min-w-0">
-        <SortableHeaderCell
-          label={'模组'}
-          sortKey="name"
-          sortType={sortType}
-          sortOrder={sortOrder}
-          tone="primary"
-          onSortClick={onSortClick}
-          listTheme={listTheme}
-        />
+      {/* 3. 模组名称 */}
+      <div className="min-w-0 pr-2">
+        {renderSortCell('模组', 'name')}
       </div>
 
-      <div className="flex shrink-0 items-center gap-3">
-        <div className="w-32 lg:w-36 shrink-0">
-          <SortableHeaderCell
-            label={'版本'}
-            sortKey="version"
-            sortType={sortType}
-            sortOrder={sortOrder}
-            onSortClick={onSortClick}
-            listTheme={listTheme}
-          />
-        </div>
-
-        <div className="w-20 lg:w-24 shrink-0 font-minecraft text-[12px] font-bold uppercase tracking-wider">
-          <span className={isLightTheme ? 'text-[#4A4C50]' : 'text-[#8B93A7]'}>
-            {'大小'}
-          </span>
-        </div>
-
-        <div className="w-24 lg:w-28 shrink-0 font-minecraft text-[12px] font-bold uppercase tracking-wider">
-          <SortableHeaderCell
-            label={'修改时间'}
-            sortKey="time"
-            sortType={sortType}
-            sortOrder={sortOrder}
-            onSortClick={onSortClick}
-            listTheme={listTheme}
-          />
-        </div>
+      {/* 4. 版本 */}
+      <div>
+        {renderSortCell('版本', 'version')}
       </div>
 
-      <div className="w-32 shrink-0 text-right pr-2 font-minecraft text-[12px] font-bold uppercase tracking-wider">
-        <span className={isLightTheme ? 'text-[#4A4C50]' : 'text-[#8B93A7]'}>
-          {'操作'}
-        </span>
+      {/* 5. 大小 */}
+      <div>
+        <span>大小</span>
+      </div>
+
+      {/* 6. 修改时间 */}
+      <div>
+        {renderSortCell('修改时间', 'time')}
+      </div>
+
+      {/* 7. 操作列占位 */}
+      <div className="text-right pr-2">
+        <span>操作</span>
       </div>
     </div>
   );

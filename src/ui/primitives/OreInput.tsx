@@ -1,4 +1,4 @@
-// /src/ui/primitives/OreInput.tsx
+﻿// /src/ui/primitives/OreInput.tsx
 import React, { useId, useRef } from 'react';
 import { FocusItem } from '../focus/FocusItem';
 
@@ -11,11 +11,12 @@ interface OreInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>
   height?: string | number;
   focusKey?: string;
   onArrowPress?: (direction: string) => boolean | void;
-  prefixNode?: React.ReactNode; // ✅ 新增：用于在左侧内嵌图标 (如搜索放大镜)
+  prefixNode?: React.ReactNode; // ✅ 用于在左侧内嵌图标 (如搜索放大镜)
+  suffixNode?: React.ReactNode; // ✅ 用于在右侧内嵌控件 (如清空按钮)
 }
 
 export const OreInput = React.forwardRef<HTMLInputElement, OreInputProps>(
-  ({ label, description, error, containerClassName = '', width = '100%', height = 'var(--ore-control-h, 40px)', disabled, className = '', style, focusKey, onArrowPress, prefixNode, onKeyDown, ...props }, forwardedRef) => {
+  ({ label, description, error, containerClassName = '', width = '100%', height = 'var(--ore-control-h, 40px)', disabled, className = '', style, focusKey, onArrowPress, prefixNode, suffixNode, onKeyDown, ...props }, forwardedRef) => {
     const id = useId(); 
     const internalRef = useRef<HTMLInputElement>(null);
 
@@ -66,10 +67,17 @@ export const OreInput = React.forwardRef<HTMLInputElement, OreInputProps>(
                 ref={setRefs}
                 disabled={disabled}
                 onKeyDown={handleNativeKeyDown}
-                className={`ore-input ${error ? 'border-red-500 focus:border-red-500 shadow-[0_0_0_1px_red]' : ''} ${prefixNode ? '!pl-9' : ''} ${className}`}
+                className={`ore-input ${error ? 'border-red-500 focus:border-red-500 shadow-[0_0_0_1px_red]' : ''} ${prefixNode ? '!pl-9' : ''} ${suffixNode ? '!pr-8' : ''} ${className}`}
                 style={style}
                 {...props}
               />
+
+              {/* 渲染后缀控件 */}
+              {suffixNode && (
+                <div className="absolute right-2 z-10 flex items-center">
+                  {suffixNode}
+                </div>
+              )}
             </div>
 
             {(description || error) && (

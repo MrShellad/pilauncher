@@ -585,31 +585,31 @@ export const OreTokens = {
   shadow: {
     /** 主要 3D 按钮阴影 — .green_btn */
     primary: {
-      default:  'inset 0 -4px #1D4D13, inset 3px 3px rgba(255, 255, 255, 0.2), inset -3px -7px rgba(255, 255, 255, 0.1)',
-      hover:    'inset 0 -4px #1D4D13, inset 3px 3px rgba(255, 255, 255, 0.4), inset -3px -7px rgba(255, 255, 255, 0.3)',
-      active:   'inset 3px 3px rgba(255, 255, 255, 0.4), inset -3px -3px rgba(255, 255, 255, 0.3)',
-      disabled: 'inset 0 -4px #B1B2B5',
+      default:  'inset 0 -4px 0 #1D4D13, inset 0 2px 0 rgba(255, 255, 255, 0.25), inset 2px 0 0 rgba(255, 255, 255, 0.15), inset -2px 0 0 rgba(0, 0, 0, 0.2)',
+      hover:    'inset 0 -4px 0 #1D4D13, inset 0 2px 0 rgba(255, 255, 255, 0.45), inset 2px 0 0 rgba(255, 255, 255, 0.25), inset -2px 0 0 rgba(0, 0, 0, 0.2)',
+      active:   'inset 0 4px 0 rgba(0, 0, 0, 0.45), inset 2px 0 0 rgba(0, 0, 0, 0.3), inset 0 -2px 0 rgba(255, 255, 255, 0.1)',
+      disabled: 'inset 0 -4px 0 #B1B2B5',
     },
     /** 中性 3D 按钮阴影 — .normal_btn, .dropdown_label */
     neutral: {
-      default:  'inset 0 -4px #58585A, inset 3px 3px rgba(255, 255, 255, 0.6), inset -3px -7px rgba(255, 255, 255, 0.4)',
-      hover:    'inset 0 -4px #58585A, inset 3px 3px rgba(255, 255, 255, 0.8), inset -3px -7px rgba(255, 255, 255, 0.6)',
-      active:   'inset 3px 3px rgba(255, 255, 255, 0.8), inset -3px -3px rgba(255, 255, 255, 0.6)',
-      disabled: 'inset 0 -4px #B1B2B5',
+      default:  'inset 0 -4px 0 #58585A, inset 0 2px 0 rgba(255, 255, 255, 0.85), inset 2px 0 0 rgba(255, 255, 255, 0.5), inset -2px 0 0 rgba(0, 0, 0, 0.15)',
+      hover:    'inset 0 -4px 0 #58585A, inset 0 2px 0 #FFFFFF, inset 2px 0 0 rgba(255, 255, 255, 0.7), inset -2px 0 0 rgba(0, 0, 0, 0.15)',
+      active:   'inset 0 4px 0 rgba(0, 0, 0, 0.35), inset 2px 0 0 rgba(0, 0, 0, 0.2), inset 0 -2px 0 rgba(255, 255, 255, 0.35)',
+      disabled: 'inset 0 -4px 0 #B1B2B5',
     },
     /** 成功状态 3D 阴影（与 primary 共享来源）*/
     success: {
-      default:  'inset 0 -4px #1D4D13, inset 3px 3px rgba(255, 255, 255, 0.2), inset -3px -7px rgba(255, 255, 255, 0.1)',
-      hover:    'inset 0 -4px #1D4D13, inset 3px 3px rgba(255, 255, 255, 0.4), inset -3px -7px rgba(255, 255, 255, 0.3)',
-      active:   'inset 3px 3px rgba(255, 255, 255, 0.4), inset -3px -3px rgba(255, 255, 255, 0.3)',
-      disabled: 'inset 0 -4px #B1B2B5',
+      default:  'inset 0 -4px 0 #1D4D13, inset 0 2px 0 rgba(255, 255, 255, 0.25), inset 2px 0 0 rgba(255, 255, 255, 0.15), inset -2px 0 0 rgba(0, 0, 0, 0.2)',
+      hover:    'inset 0 -4px 0 #1D4D13, inset 0 2px 0 rgba(255, 255, 255, 0.45), inset 2px 0 0 rgba(255, 255, 255, 0.25), inset -2px 0 0 rgba(0, 0, 0, 0.2)',
+      active:   'inset 0 4px 0 rgba(0, 0, 0, 0.45), inset 2px 0 0 rgba(0, 0, 0, 0.3), inset 0 -2px 0 rgba(255, 255, 255, 0.1)',
+      disabled: 'inset 0 -4px 0 #B1B2B5',
     },
     /** 危险 3D 按钮阴影 — .red_btn */
     danger: {
-      default:  'inset 0 -4px #AD1D1D, inset 3px 3px rgba(255, 255, 255, 0.2), inset -3px -7px rgba(255, 255, 255, 0.1)',
-      hover:    'inset 0 -4px #AD1D1D, inset 3px 3px rgba(255, 255, 255, 0.5), inset -3px -7px rgba(255, 255, 255, 0.4)',
-      active:   'inset 3px 3px rgba(255, 255, 255, 0.5), inset -3px -3px rgba(255, 255, 255, 0.4)',
-      disabled: 'inset 0 -4px #B1B2B5',
+      default:  'inset 0 -4px 0 #AD1D1D, inset 0 2px 0 rgba(255, 255, 255, 0.3), inset 2px 0 0 rgba(255, 255, 255, 0.15), inset -2px 0 0 rgba(0, 0, 0, 0.25)',
+      hover:    'inset 0 -4px 0 #AD1D1D, inset 0 2px 0 rgba(255, 255, 255, 0.5), inset 2px 0 0 rgba(255, 255, 255, 0.25), inset -2px 0 0 rgba(0, 0, 0, 0.25)',
+      active:   'inset 0 4px 0 rgba(0, 0, 0, 0.5), inset 2px 0 0 rgba(0, 0, 0, 0.3), inset 0 -2px 0 rgba(255, 255, 255, 0.1)',
+      disabled: 'inset 0 -4px 0 #B1B2B5',
     },
     /** 弹窗整体阴影 */
     modal: {

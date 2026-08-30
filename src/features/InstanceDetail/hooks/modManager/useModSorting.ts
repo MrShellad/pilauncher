@@ -15,7 +15,9 @@ export const useModSorting = (mods: ModMeta[], isLoading: boolean) => {
     return [...mods].sort((a, b) => {
       let comparison = 0;
       if (sortType === 'time') {
-        comparison = a.modifiedAt - b.modifiedAt;
+        const timeA = (a.modifiedAt || 0) < 1e11 ? (a.modifiedAt || 0) * 1000 : (a.modifiedAt || 0);
+        const timeB = (b.modifiedAt || 0) < 1e11 ? (b.modifiedAt || 0) * 1000 : (b.modifiedAt || 0);
+        comparison = timeA - timeB;
       } else if (sortType === 'fileName') {
         comparison = compareText(a.fileName, b.fileName);
       } else if (sortType === 'version') {

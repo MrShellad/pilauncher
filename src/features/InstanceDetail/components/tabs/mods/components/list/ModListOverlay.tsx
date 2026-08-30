@@ -27,9 +27,12 @@ export const ModListOverlay: React.FC<ModListOverlayProps> = ({
 }) => {
   const [shouldRender, setShouldRender] = useState(visible);
 
+  if (visible && !shouldRender) {
+    setShouldRender(true);
+  }
+
   useEffect(() => {
     if (visible) {
-      setShouldRender(true);
       return;
     }
 
@@ -37,7 +40,7 @@ export const ModListOverlay: React.FC<ModListOverlayProps> = ({
     return () => clearTimeout(timer);
   }, [visible]);
 
-  if (!shouldRender) {
+  if (!shouldRender && !visible) {
     return null;
   }
 
@@ -61,17 +64,17 @@ export const ModListOverlay: React.FC<ModListOverlayProps> = ({
             : 'bg-[#313233] text-white shadow-[0_1rem_2.25rem_rgba(0,0,0,0.5),inset_0_0.125rem_0_rgba(255,255,255,0.14),inset_0_-0.25rem_0_rgba(0,0,0,0.28)]'
         }`}
       >
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <RefreshCw size={15} className="shrink-0 animate-spin text-[#57D38C]" />
-            <span className="font-minecraft text-sm font-bold truncate leading-none">
+            <span className="font-minecraft text-sm font-bold truncate leading-tight">
               {label}
             </span>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2.5">
             {total > 0 && (
-              <span className="font-minecraft text-xs font-bold text-[#57D38C]">
+              <span className="font-minecraft text-xs font-bold text-[#57D38C] leading-tight">
                 {current}/{total} ({calculatedPercent}%)
               </span>
             )}

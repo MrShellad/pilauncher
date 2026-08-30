@@ -1,66 +1,109 @@
 import React from 'react';
-import { motion } from 'motion/react';
 
-interface OreProgressBarProps {
-  percent: number;
+export type OreProgressBarVariant =
+  | 'primary'
+  | 'info'
+  | 'dark'
+  | 'white'
+  | 'gold'
+  | 'current'
+  | 'currentColor';
+
+export type OreProgressBarSize = 'thin' | 'sm' | 'md' | 'lg';
+export type OreProgressBarLabelPosition = 'bottom' | 'top';
+export type OreProgressBarLabelAlign = 'center' | 'start' | 'end' | 'between';
+
+export interface OreProgressBarProps {
+  /** 进度百分比 (0-100)，兼容 value / max */
+  percent?: number;
+  value?: number;
+  max?: number;
   label?: React.ReactNode;
-  variant?: 'primary' | 'info';
-  size?: 'thin' | 'sm' | 'md';
+  variant?: OreProgressBarVariant;
+  size?: OreProgressBarSize;
   className?: string;
   showPercentage?: boolean;
+  labelPosition?: OreProgressBarLabelPosition;
+  labelAlign?: OreProgressBarLabelAlign;
+  style?: React.CSSProperties;
 }
 
 export const OreProgressBar: React.FC<OreProgressBarProps> = ({
   percent,
+  value,
+  max = 100,
   label,
   variant = 'primary',
   size = 'md',
   className = '',
   showPercentage = true,
+  labelPosition = 'bottom',
+  labelAlign = 'center',
+  style,
 }) => {
-  const roundedPercent = Math.round(Math.min(100, Math.max(0, percent)));
+  const actualMax = Number.isFinite(max) && max > 0 ? max : 100;
+  const rawValue = value !== undefined ? value : (percent ?? 0);
+  const clampedValue = Math.min(actualMax, Math.max(0, rawValue));
+  const progressRatio = clampedValue / actualMax;
+  const percentage = Math.round(progressRatio * 100);
 
-  const sizeClasses = {
-    thin: 'h-1.5 border-[1px]',
-    sm: 'h-2.5 border-[2px]',
-    md: 'h-5 border-[2px]',
-  };
+  const normalizedVariant = variant === 'currentColor' ? 'current' : variant;
 
-  const fillSizeClasses = {
-    thin: 'h-1.5',
-    sm: 'h-2.5',
-    md: 'h-5',
-  };
+  const renderLabel = () => {
+    if (!label && !showPercentage) return null;
 
-  const fillVariantClasses = {
-    primary: 'bg-[#3C8527] shadow-[inset_0_-2px_#1D4D13,inset_2px_2px_rgba(255,255,255,0.2)]',
-    info: 'bg-[#2E6BE5] shadow-[inset_0_-2px_#1B4DB0,inset_2px_2px_rgba(255,255,255,0.25)]',
+    if (labelAlign === 'between') {
+      return (
+        <div className={`ore-progress-bar-label is-${labelPosition} flex items-center justify-between`}>
+          {label && <span>{label}</span>}
+          {showPercentage && <span className="font-bold">{percentage}%</span>}
+        </div>
+      );
+    }
+
+    const alignmentClass =
+      labelAlign === 'start'
+        ? 'justify-self-start text-left'
+        : labelAlign === 'end'
+        ? 'justify-self-end text-right'
+        : 'justify-self-center text-center';
+
+    return (
+      <div className={`ore-progress-bar-label is-${labelPosition} ${alignmentClass}`}>
+        {label ? (
+          <span>
+            {label}
+            {showPercentage && <span className="ml-1 font-bold">({percentage}%)</span>}
+          </span>
+        ) : (
+          showPercentage && <span className="font-bold">{percentage}%</span>
+        )}
+      </div>
+    );
   };
 
   return (
-    <div 
-      className={`w-full space-y-2 select-none ${className}`}
+    <div
+      className={`ore-progress-bar variant-${normalizedVariant} ${className}`}
       role="progressbar"
-      aria-valuenow={roundedPercent}
+      aria-valuenow={clampedValue}
       aria-valuemin={0}
-      aria-valuemax={100}
+      aria-valuemax={actualMax}
       aria-label={typeof label === 'string' ? label : '进度条'}
+      style={style}
     >
-      <div className={`overflow-hidden border-[#1E1E1F] bg-[#48494A] shadow-[inset_0_-2px_#333334] ${sizeClasses[size]}`}>
-        <motion.div
-          className={`${fillSizeClasses[size]} ${fillVariantClasses[variant]}`}
-          animate={{ width: `${roundedPercent}%` }}
-          transition={{ type: 'spring', stiffness: 120, damping: 22 }}
+      {labelPosition === 'top' && renderLabel()}
+
+      <div className={`ore-progress-bar-track is-${size}`}>
+        <div
+          className="ore-progress-bar-fill"
+          style={{
+            width: progressRatio > 0 ? `calc((100% - 4px) * ${progressRatio})` : '0px',
+          }}
         />
       </div>
 
-      {(label || showPercentage) && size !== 'thin' && (
-        <div className="flex items-center justify-between text-xs font-minecraft font-bold uppercase tracking-[0.16em] text-[#A1A3A5] drop-shadow-[0_2px_0_rgba(0,0,0,0.5)]">
-          <span>{label}</span>
-          {showPercentage && <span className="text-white">{roundedPercent}%</span>}
-        </div>
-      )}
+      {labelPosition === 'bottom' && renderLabel()}
     </div>
   );
 };
-

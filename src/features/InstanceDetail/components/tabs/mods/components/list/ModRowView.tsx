@@ -1,16 +1,17 @@
-import React from 'react';
-import { AlertTriangle, ArrowUpCircle, Loader2 } from 'lucide-react';
+﻿import React from 'react';
+import { AlertTriangle, ArrowUpCircle, CheckSquare, HardDrive, Square } from 'lucide-react';
+import { convertFileSrc } from '@tauri-apps/api/core';
 
+import { ModrinthIcon, CurseforgeIcon } from '../../../../../../Download/components/Icons';
 import type { ModIconSnapshot } from '../../../../../logic/modIconService';
-import type { MissingDependencyInfo, ModMeta } from '../../../../../logic/modService';
+import { getModPlatformReference, type MissingDependencyInfo, type ModMeta } from '../../../../../logic/modService';
 import {
   getModDisplayName,
+  getModFormattedDate,
   getModFormattedSize,
   type ModListTheme,
   type ModListViewMode
 } from '../../modListShared';
-import { ModPlatformBadges } from './ModPlatformBadges';
-import { OreAssetRow } from '../../../../../../../ui/primitives/OreAssetRow';
 
 interface ModRowViewProps {
   mod: ModMeta;
@@ -29,9 +30,10 @@ interface ModRowViewProps {
   leading?: React.ReactNode;
   trailing: React.ReactNode;
   onClick: () => void;
+  onToggleSelection?: (fileName: string) => void;
 }
 
-export const getCompactVersionLabel = (value?: string) => {
+const getCompactVersionLabel = (value?: string) => {
   let label = value?.trim();
   if (!label) return '';
 
@@ -54,168 +56,92 @@ export const getCompactVersionLabel = (value?: string) => {
   return label.replace(/^v(?=\d)/i, '');
 };
 
-const VersionBadge: React.FC<{ version?: string; size?: 'sm' | 'md'; listTheme: ModListTheme }> = ({
-  version,
-  size = 'sm',
-  listTheme
-}) => {
+/* 高对比度 2px 描边版本徽章 */
+const VersionBadge: React.FC<{ version?: string; isEnabled: boolean }> = ({ version, isEnabled }) => {
   if (!version) return null;
-
-  const isLightTheme = listTheme === 'light';
   const displayVersion = getCompactVersionLabel(version);
-  const sizeClass = size === 'md'
-    ? 'px-1.5 py-0.5 text-[11px]'
-    : 'px-1 py-0.5 text-[10px]';
-  const colorClass = isLightTheme
-    ? 'border-[#1E1E1F] bg-[#F2F2F2] text-[#111214] shadow-[inset_0_-2px_0_#B8BBC2]'
-    : 'border-[#1E1E1F] bg-[#232937] text-[#C7D2E6] shadow-[inset_0_-2px_0_rgba(0,0,0,0.4)]';
 
   return (
     <span
-      title={version}
-      className={`inline-flex max-w-full shrink-0 items-center border-[2px] font-minecraft font-bold uppercase leading-none tracking-wider ${colorClass} ${sizeClass}`}
+      className={`inline-flex max-w-[120px] shrink-0 items-center justify-center border-[2px] border-[#121418] px-2 py-0.5 font-minecraft text-xs font-bold uppercase ${
+        isEnabled
+          ? 'bg-[#222838] text-[#D3DEEE]'
+          : 'bg-[#171920] text-[#5C667A]'
+      }`}
     >
       <span className="truncate">v{displayVersion}</span>
     </span>
   );
 };
 
-const UpdateBadge: React.FC<{
-  hasUpdate?: boolean;
-  updateVersionName?: string;
-  size?: 'sm' | 'md';
-}> = ({
+/* 高对比度 2px 描边可更新徽章 */
+const UpdateBadge: React.FC<{ hasUpdate?: boolean; updateVersionName?: string }> = ({
   hasUpdate,
-  updateVersionName,
-  size = 'sm'
+  updateVersionName
 }) => {
-  const sizeClass = size === 'md'
-    ? 'max-w-[10rem] px-1.5 py-0.5 text-[11px]'
-    : 'max-w-[8rem] px-1 py-0.5 text-[10px]';
-
   if (!hasUpdate) return null;
-
   const displayVersion = getCompactVersionLabel(updateVersionName);
   const updateLabel = displayVersion ? `→ ${displayVersion}` : '可更新';
 
   return (
-    <span
-      title={updateVersionName ? `可更新到 ${updateVersionName}` : updateLabel}
-      className={`inline-flex min-w-0 shrink-0 items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#57D38C] font-minecraft font-bold uppercase leading-none text-[#06140B] shadow-[inset_0_-2px_0_#38985B] ${sizeClass}`}
-    >
+    <span className="inline-flex max-w-[110px] shrink-0 items-center gap-1 border-[2px] border-[#121418] bg-[#57D38C] px-1.5 py-0.5 font-minecraft text-[10px] font-bold uppercase text-[#06140B]">
       <ArrowUpCircle size={11} strokeWidth={2.5} />
       <span className="truncate">{updateLabel}</span>
     </span>
   );
 };
 
-const MissingDependencyBadge: React.FC<{
-  missing?: MissingDependencyInfo[];
-  size?: 'sm' | 'md';
-}> = ({ missing, size = 'sm' }) => {
+/* 高对比度 2px 描边缺失前置徽章 */
+const MissingDependencyBadge: React.FC<{ missing?: MissingDependencyInfo[] }> = ({ missing }) => {
   if (!missing || missing.length === 0) return null;
-
   const names = missing.map((m) => m.targetNameHint || m.targetIdentifier).join(', ');
-  const label = missing.length === 1 ? `缺前置: ${names}` : `缺 ${missing.length} 个前置`;
-  const sizeClass = size === 'md'
-    ? 'max-w-[14rem] px-1.5 py-0.5 text-[11px]'
-    : 'max-w-[10rem] px-1 py-0.5 text-[10px]';
+  const label = missing.length === 1 ? `缺: ${names}` : `缺 ${missing.length} 前置`;
 
   return (
-    <span
-      title={`缺失前置依赖: ${names}`}
-      className={`inline-flex min-w-0 shrink-0 items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#FFA940] font-minecraft font-bold uppercase leading-none text-[#2A1200] shadow-[inset_0_-2px_0_#D46B08] ${sizeClass}`}
-    >
+    <span className="inline-flex max-w-[120px] shrink-0 items-center gap-1 border-[2px] border-[#121418] bg-[#FFA940] px-1.5 py-0.5 font-minecraft text-[10px] font-bold uppercase text-[#2A1200]">
       <AlertTriangle size={11} strokeWidth={2.5} />
       <span className="truncate">{label}</span>
     </span>
   );
 };
 
-const DependentsBadge: React.FC<{
-  dependentsCount?: number;
-  size?: 'sm' | 'md';
-  listTheme: ModListTheme;
-}> = ({ dependentsCount, size = 'sm', listTheme }) => {
+/* 高对比度 2px 描边附属依赖徽章 */
+const DependentsBadge: React.FC<{ dependentsCount?: number }> = ({ dependentsCount }) => {
   if (!dependentsCount || dependentsCount <= 0) return null;
 
-  const isLightTheme = listTheme === 'light';
-  const sizeClass = size === 'md'
-    ? 'px-1.5 py-0.5 text-[11px]'
-    : 'px-1 py-0.5 text-[10px]';
-  const colorClass = isLightTheme
-    ? 'border-[#1E1E1F] bg-[#E6F4FF] text-[#003A8C] shadow-[inset_0_-2px_0_#91CAFF]'
-    : 'border-[#1E1E1F] bg-[#112A45] text-[#91CAFF] shadow-[inset_0_-2px_0_rgba(0,0,0,0.5)]';
-
   return (
-    <span
-      title={`被 ${dependentsCount} 个模组作为前置依赖`}
-      className={`inline-flex shrink-0 items-center gap-1 border-[2px] font-minecraft font-bold uppercase leading-none tracking-wider ${colorClass} ${sizeClass}`}
-    >
-      <span>🧩 {dependentsCount} 附属</span>
+    <span className="inline-flex shrink-0 items-center gap-1 border-[2px] border-[#121418] bg-[#172E4C] px-1.5 py-0.5 font-minecraft text-[10px] font-bold uppercase text-[#91CAFF]">
+      <span>🧩 {dependentsCount}</span>
     </span>
   );
 };
 
-const getPlaceholderInitial = (value: string) => {
-  const trimmed = value.trim();
-  if (!trimmed) return '#';
+/* 单一来源平台底部徽章栏 (纯 2px 边框，高饱和度品牌色，零阴影) */
+const ModPlatformBadges: React.FC<{ mod: ModMeta; className?: string }> = ({ mod, className = '' }) => {
+  const modrinth = getModPlatformReference(mod, 'modrinth');
+  const curseforge = getModPlatformReference(mod, 'curseforge');
+  const hasModrinth = !!modrinth?.projectId;
+  const hasCurseForge = !!curseforge?.projectId;
 
-  const firstAlphaNumeric = Array.from(trimmed).find((char) => /[\p{L}\p{N}]/u.test(char));
-  return (firstAlphaNumeric || trimmed[0] || '#').toUpperCase();
-};
-
-const getHashHue = (value: string) => {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  if (hasModrinth) {
+    return (
+      <div className={`flex h-[18px] w-full items-center justify-center border-t-[2px] border-[#121418] bg-[#00AF5C] text-[#06140B] ${className}`}>
+        <ModrinthIcon className="h-3.5 w-3.5" />
+      </div>
+    );
   }
-  return hash % 360;
-};
 
-const formatModifiedDate = (timestamp?: number) => {
-  if (!timestamp || timestamp <= 0) return '-';
-  const ms = timestamp < 1e11 ? timestamp * 1000 : timestamp;
-  const d = new Date(ms);
-  if (isNaN(d.getTime())) return '-';
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
-const ModIconContent: React.FC<{
-  mod: ModMeta;
-  iconUrl: string | null;
-  isIconLoading: boolean;
-  displayName: string;
-}> = ({ mod, iconUrl, isIconLoading, displayName }) => {
-  const hue = getHashHue(mod.cacheKey || mod.fileName);
-  const initial = getPlaceholderInitial(displayName || mod.fileName);
-  const placeholderStyle = {
-    background: `linear-gradient(135deg, hsl(${hue} 64% 34%), hsl(${(hue + 36) % 360} 48% 18%))`
-  };
+  if (hasCurseForge) {
+    return (
+      <div className={`flex h-[18px] w-full items-center justify-center border-t-[2px] border-[#121418] bg-[#E05022] text-white ${className}`}>
+        <CurseforgeIcon className="h-3.5 w-3.5" />
+      </div>
+    );
+  }
 
   return (
-    <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
-      <ModPlatformBadges mod={mod} />
-
-      {iconUrl ? (
-        <img src={iconUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
-      ) : (
-        <div
-          className={`relative flex h-full w-full items-center justify-center ${isIconLoading ? 'animate-pulse' : ''}`}
-          style={placeholderStyle}
-        >
-          <span
-            className="font-minecraft font-bold leading-none text-white/90 text-2xl"
-          >
-            {initial}
-          </span>
-          {isIconLoading && (
-            <span className="absolute bottom-0.5 right-0.5 bg-[#111318]/90 p-0.5">
-              <Loader2 size={13} className="animate-spin text-[#AFC4FF]" />
-            </span>
-          )}
-        </div>
-      )}
+    <div className={`flex h-[18px] w-full items-center justify-center border-t-[2px] border-[#121418] bg-[#181B24] text-[#7A8599] ${className}`}>
+      <HardDrive size={11} strokeWidth={2.5} />
     </div>
   );
 };
@@ -227,103 +153,130 @@ export const ModRowView: React.FC<ModRowViewProps> = ({
   dependentsCount,
   focused,
   hasFocusedChild,
-  isPrimaryRow: _isPrimaryRow,
   isSelected,
   isEnabled,
   isRowInOperationMode,
-  viewMode: _viewMode,
-  listTheme,
-  leading,
-  trailing,
-  onClick
+  onClick,
+  onToggleSelection,
+  trailing
 }) => {
-  const isLightTheme = listTheme === 'light';
+  const isRowActive = focused || hasFocusedChild || isRowInOperationMode;
   const displayName = getModDisplayName(mod);
   const formattedSize = getModFormattedSize(mod);
-  const formattedDate = formatModifiedDate(mod.modifiedAt);
-  const iconUrl = iconSnapshot?.src || null;
-  const isIconLoading = iconSnapshot?.status === 'loading' || (!!mod.isFetchingNetwork && !iconUrl);
+  const dateStr = getModFormattedDate(mod.modifiedAt);
+
+  // 判定图标 URL
+  const resolvedIconSrc = React.useMemo(() => {
+    if (iconSnapshot?.src) {
+      return iconSnapshot.src;
+    }
+    const rawPath = mod.iconAbsolutePath || mod.offlineJarIconAbsolutePath;
+    if (rawPath) {
+      return convertFileSrc(rawPath);
+    }
+    return mod.networkIconUrl || mod.networkInfo?.icon_url;
+  }, [iconSnapshot?.src, mod.iconAbsolutePath, mod.networkIconUrl, mod.offlineJarIconAbsolutePath, mod.networkInfo?.icon_url]);
 
   return (
-    <OreAssetRow
-      theme={listTheme}
-      focusable={false}
-      focused={focused || hasFocusedChild}
-      operationActive={isRowInOperationMode}
-      inactive={!isEnabled}
-      selected={isEnabled}
+    <div
       onClick={onClick}
-      title={displayName}
-      badges={
-        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-          <UpdateBadge
-            hasUpdate={mod.hasUpdate}
-            updateVersionName={mod.updateVersionName}
-            size="md"
-          />
-          {missingDependencies && missingDependencies.length > 0 && (
-            <MissingDependencyBadge missing={missingDependencies} size="sm" />
-          )}
-          {dependentsCount && dependentsCount > 0 ? (
-            <DependentsBadge dependentsCount={dependentsCount} size="sm" listTheme={listTheme} />
-          ) : null}
-        </div>
-      }
-      description={
-        <span
-          className={`font-minecraft text-[11px] truncate max-w-sm ${
-            isLightTheme ? 'text-[#4D535C]' : 'text-[#8C8D90]'
+      className={`group relative grid h-[72px] max-h-[72px] min-h-[72px] w-full select-none items-center gap-3 border-b-[2px] border-[#121418] px-3 cursor-pointer transition-none ${
+        isRowActive
+          ? 'bg-[#2D3342] outline outline-2 outline-white outline-offset-[-2px] z-20'
+          : isSelected
+            ? 'bg-[#1A2C22] hover:bg-[#22392D]'
+            : isEnabled
+              ? 'bg-[#181A20] hover:bg-[#232733]'
+              : 'bg-[#121316] hover:bg-[#1A1C22]'
+      }`}
+      style={{
+        gridTemplateColumns: '32px 68px minmax(0, 1fr) 130px 80px 110px 120px'
+      }}
+    >
+      {/* 选中时的左侧基岩绿 4px 实心指示条 */}
+      {isSelected && (
+        <div className="absolute inset-y-0 left-0 w-1 bg-[#57D38C]" />
+      )}
+
+      {/* 1. 复选框 (32px) */}
+      <div className="flex items-center justify-center">
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSelection?.(mod.fileName);
+          }}
+          className={`flex h-5 w-5 items-center justify-center border-[2px] border-[#121418] transition-colors ${
+            isSelected
+              ? 'bg-[#57D38C] text-[#06140B]'
+              : 'bg-[#181C26] hover:bg-[#252C3D] text-[#C7D2E6]'
           }`}
-          title={mod.fileName}
         >
-          {mod.fileName}
-        </span>
-      }
-      selectControl={leading}
-      leading={
-        <ModIconContent
-          mod={mod}
-          iconUrl={iconUrl}
-          isIconLoading={isIconLoading}
-          displayName={displayName}
-        />
-      }
-      leadingClassName="!h-16 !w-16"
-      extraColumns={
-        <>
-          {/* 版本列 */}
-          <div className="w-32 lg:w-36 shrink-0 flex items-center justify-start">
-            <VersionBadge version={mod.version} size="md" listTheme={listTheme} />
-          </div>
+          {isSelected ? <CheckSquare size={13} /> : <Square size={13} />}
+        </button>
+      </div>
 
-          {/* 大小列 */}
-          <div className={`w-20 lg:w-24 shrink-0 flex items-center justify-start font-minecraft text-xs tabular-nums ${
-            isLightTheme ? 'text-[#202226]' : 'text-[#D0D1D4]'
-          }`}>
-            {formattedSize}
+      {/* 2. 大尺寸图标 (56px 宽 × 62px 高) + 底部单一来源平台徽章栏 */}
+      <div className="flex items-center justify-center">
+        <div className="flex w-14 flex-col overflow-hidden border-[2px] border-[#121418] bg-[#0E1015]">
+          {/* 上半部分：44px 高度的模组主图标 */}
+          <div className="relative flex h-11 w-full items-center justify-center overflow-hidden bg-[#141720]">
+            {resolvedIconSrc ? (
+              <img
+                src={resolvedIconSrc}
+                alt={displayName}
+                className={`h-full w-full object-cover pixelated ${!isEnabled ? 'grayscale opacity-60' : ''}`}
+                loading="lazy"
+              />
+            ) : (
+              <span className={`font-minecraft text-base font-bold uppercase ${isEnabled ? 'text-[#8B93A7]' : 'text-[#4A5162]'}`}>
+                {displayName.charAt(0)}
+              </span>
+            )}
           </div>
-
-          {/* 修改日期列 */}
-          <div className={`w-24 lg:w-28 shrink-0 flex items-center justify-start font-minecraft text-xs ${
-            isLightTheme ? 'text-[#60636A]' : 'text-[#8C8D90]'
-          }`}>
-            {formattedDate}
-          </div>
-        </>
-      }
-      trailingClassName="w-32 shrink-0 flex items-center justify-end"
-      trailing={
-        <div
-          className="flex shrink-0 items-center justify-end"
-          onClick={(event) => event.stopPropagation()}
-          onPointerDown={(event) => event.stopPropagation()}
-          onKeyDown={(event) => event.stopPropagation()}
-        >
-          {trailing}
+          {/* 下半部分：18px 单一来源平台徽章栏 */}
+          <ModPlatformBadges mod={mod} />
         </div>
-      }
-      className={isSelected ? '!border-[#57D38C] ring-1 ring-[#57D38C]' : undefined}
-    />
+      </div>
+
+      {/* 3. 模组名称与文件名 (1fr，主次分明，高对比度) */}
+      <div className="flex flex-col justify-center min-w-0 pr-2">
+        {/* 主要信息：模组显示名称 (高亮加粗) + 状态徽章组 */}
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`truncate font-minecraft text-sm font-bold tracking-wide ${isEnabled ? 'text-white' : 'text-[#727B8E]'}`}>
+            {displayName}
+          </span>
+          <UpdateBadge hasUpdate={mod.hasUpdate} updateVersionName={mod.updateVersionName} />
+          <MissingDependencyBadge missing={missingDependencies} />
+          <DependentsBadge dependentsCount={dependentsCount} />
+        </div>
+
+        {/* 次要信息：文件实际名称 (清晰的次级钢蓝灰字，严格单行截断) */}
+        <div className={`truncate font-minecraft text-[11px] mt-1 select-text ${isEnabled ? 'text-[#828EA4] group-hover:text-[#A8B5CD]' : 'text-[#535B6D]'}`}>
+          {mod.fileName}
+        </div>
+      </div>
+
+      {/* 4. 版本 (130px) */}
+      <div className="flex items-center min-w-0">
+        <VersionBadge version={mod.version} isEnabled={isEnabled} />
+      </div>
+
+      {/* 5. 大小 (80px) */}
+      <div className={`font-minecraft text-xs ${isEnabled ? 'text-[#BAC7DD]' : 'text-[#5C667A]'}`}>
+        {formattedSize}
+      </div>
+
+      {/* 6. 修改时间 (110px) */}
+      <div className={`font-minecraft text-xs ${isEnabled ? 'text-[#8895AC]' : 'text-[#535B6D]'}`}>
+        {dateStr}
+      </div>
+
+      {/* 7. 操作列 (120px) */}
+      <div className="flex items-center justify-end">
+        {trailing}
+      </div>
+    </div>
   );
 };
-

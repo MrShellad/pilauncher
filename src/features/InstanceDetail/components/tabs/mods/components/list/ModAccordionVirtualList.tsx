@@ -9,6 +9,9 @@ import { ModRowItem } from './ModRowItem';
 import { type ModListRenderEntry, type ModGroupId, type ModListTheme } from '../../modListShared';
 import type { ModMeta } from '../../../../../logic/modService';
 
+const GROUP_HEADER_HEIGHT = 36;
+const MOD_ROW_HEIGHT = 72;
+
 type GroupEntry = Extract<ModListRenderEntry, { type: 'group' }>;
 type ModRowPropsFromController = Omit<
   React.ComponentProps<typeof ModRowItem>,
@@ -55,7 +58,7 @@ export const ModAccordionVirtualList: React.FC<ModAccordionVirtualListProps> = (
     getScrollElement: () => parentRef.current,
     estimateSize: (index) => {
       const entry = renderEntries[index];
-      return entry?.type === 'group' ? 40 : 88;
+      return entry?.type === 'group' ? GROUP_HEADER_HEIGHT : MOD_ROW_HEIGHT;
     },
     overscan: 10,
   });
@@ -95,7 +98,7 @@ export const ModAccordionVirtualList: React.FC<ModAccordionVirtualListProps> = (
         autoScroll={false}
       >
         {({ ref, focused }) => (
-          <div ref={ref as React.RefObject<HTMLDivElement>} className={listTheme === 'light' ? 'bg-[#A9ABAE]' : 'bg-[#111318]'}>
+          <div ref={ref as React.RefObject<HTMLDivElement>} className={listTheme === 'light' ? 'bg-[#A9ABAE]' : 'bg-[#13151A]'}>
             <ModListGroupHeader
               group={group}
               collapsed={collapsed}
@@ -135,29 +138,41 @@ export const ModAccordionVirtualList: React.FC<ModAccordionVirtualListProps> = (
     );
   };
 
-  // Sticky header computation
+  // Sticky header computation: 仅在分组标题滚出视口顶端时才激活悬浮吸顶
   const activeStickyEntry = useMemo(() => {
     if (virtualItems.length === 0) return null;
+    const offset = rowVirtualizer.scrollOffset ?? 0;
     
-    const firstVisibleItem = virtualItems[0];
-    const firstEntry = renderEntries[firstVisibleItem.index];
+    const firstVisible = virtualItems[0];
+    const firstEntry = renderEntries[firstVisible.index];
     if (!firstEntry) return null;
 
-    let activeIndex = -1;
+    let groupIndex = -1;
     if (firstEntry.type === 'group') {
-      activeIndex = firstVisibleItem.index;
+      // 若首个可见项本身就是分组标题且还未被向上完全滚出视口，则无需吸顶覆盖
+      if (offset <= firstVisible.start) {
+        return null;
+      }
+      groupIndex = firstVisible.index;
     } else {
-      activeIndex = renderEntries.findIndex(
+      groupIndex = renderEntries.findIndex(
         (e) => e.type === 'group' && e.group.id === firstEntry.groupId
       );
     }
 
-    if (activeIndex === -1) return null;
+    if (groupIndex === -1) return null;
+    const groupVirtualItem = virtualItems.find((v) => v.index === groupIndex);
+    
+    // 若该分组标题仍在正常视口内，不需要重复悬浮渲染
+    if (groupVirtualItem && groupVirtualItem.start >= offset) {
+      return null;
+    }
+
     return {
-      index: activeIndex,
-      entry: renderEntries[activeIndex] as GroupEntry,
+      index: groupIndex,
+      entry: renderEntries[groupIndex] as GroupEntry,
     };
-  }, [virtualItems, renderEntries]);
+  }, [virtualItems, renderEntries, rowVirtualizer.scrollOffset]);
 
   const stickyStyle = useMemo(() => {
     if (!activeStickyEntry) return null;
@@ -171,8 +186,8 @@ export const ModAccordionVirtualList: React.FC<ModAccordionVirtualListProps> = (
     if (nextVisibleGroup) {
       const nextStart = nextVisibleGroup.start;
       const space = nextStart - offset;
-      if (space < 44) {
-        translateY = space - 44;
+      if (space < GROUP_HEADER_HEIGHT) {
+        translateY = space - GROUP_HEADER_HEIGHT;
       }
     }
 
@@ -195,9 +210,9 @@ export const ModAccordionVirtualList: React.FC<ModAccordionVirtualListProps> = (
         style={{
           height: '100%',
         }}
-        safeInsetTop={4}
-        safeInsetBottom={4}
-        safeInsetRight={2}
+        safeInsetTop={0}
+        safeInsetBottom={0}
+        safeInsetRight={0}
         contentSafePaddingRight={0}
       >
         <div
@@ -228,7 +243,7 @@ export const ModAccordionVirtualList: React.FC<ModAccordionVirtualListProps> = (
                 ref={rowVirtualizer.measureElement}
                 data-index={index}
                 style={itemStyle}
-                className={isGroupHead ? (listTheme === 'light' ? 'bg-[#A9ABAE]' : 'bg-[#111318]') : undefined}
+                className={isGroupHead ? (listTheme === 'light' ? 'bg-[#A9ABAE]' : 'bg-[#13151A]') : undefined}
               >
                 {renderEntry(index, entry)}
               </div>

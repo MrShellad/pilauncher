@@ -83,7 +83,6 @@ export const ModList: React.FC<ModListProps> = ({
   onUpgradeMod,
   onSelectMod,
   onDeleteMod,
-  isBatchMode: _isBatchMode,
   isAllSelected,
   searchQuery,
   searchPlaceholder,
@@ -109,11 +108,6 @@ export const ModList: React.FC<ModListProps> = ({
   isCheckingModUpdates,
   emptyMessage = '当前没有可用模组。',
   onNavigateOut,
-  onTopBarCollapseChange: _onTopBarCollapseChange,
-  isTopBarCollapsed: _isTopBarCollapsed,
-  snapshotState: _snapshotState,
-  snapshotProgressPhase: _snapshotProgressPhase,
-  onCreateSnapshot: _onCreateSnapshot,
   onOpenHistory,
   onOpenModFolder,
   onAnalyzeCleanup,
@@ -139,6 +133,11 @@ export const ModList: React.FC<ModListProps> = ({
 
   const listTheme: ModListTheme = themeSetting === 'system' ? systemTheme : themeSetting === 'light' ? 'light' : 'dark';
   const [hasShownReadyList, setHasShownReadyList] = useState(false);
+
+  if (!hasShownReadyList && !isLoading && !isCheckingModUpdates && mods.length > 0) {
+    setHasShownReadyList(true);
+  }
+
   const controller = useModListController({
     instanceId,
     mods,
@@ -157,12 +156,6 @@ export const ModList: React.FC<ModListProps> = ({
   const shouldShowSkeleton = !hasShownReadyList && (isLoading || isCheckingModUpdates);
   const showUpdateOverlay = hasShownReadyList && isCheckingModUpdates;
   const showSyncingOverlay = controller.state.showSyncingOverlay || showUpdateOverlay;
-
-  useEffect(() => {
-    if (!isLoading && !isCheckingModUpdates && mods.length > 0) {
-      setHasShownReadyList(true);
-    }
-  }, [isCheckingModUpdates, isLoading, mods.length]);
 
   return (
     <div
@@ -210,23 +203,25 @@ export const ModList: React.FC<ModListProps> = ({
         onOpenDownload={onOpenDownload}
       />
 
-      <ModListGridHeader
-        isAllSelected={isAllSelected}
-        selectedCount={selectedMods.size}
-        sortType={sortType}
-        sortOrder={sortOrder}
-        onSelectAll={onSelectAll}
-        onSortClick={onSortClick}
-        listTheme={listTheme}
-      />
+      {/* 统一无缝表格容器 (顶格表头 + 分组 + 列表行 - 高对比度 OreUI 容器) */}
+      <div className="mx-2 flex min-h-0 flex-1 flex-col border-[2px] border-[#2A2E38] bg-[#13151A] overflow-hidden">
+        <ModListGridHeader
+          isAllSelected={isAllSelected}
+          selectedCount={selectedMods.size}
+          sortType={sortType}
+          sortOrder={sortOrder}
+          onSelectAll={onSelectAll}
+          onSortClick={onSortClick}
+          listTheme={listTheme}
+        />
 
-      <FocusBoundary
-        id="mod-list-grid"
-        trapFocus={controller.focus.trapFocus}
-        onEscape={controller.focus.handleCancelHierarchy}
-        defaultFocusKey={controller.focus.defaultFocusKey}
-        className="relative flex min-h-0 flex-1 flex-col overflow-hidden px-2 pb-1 pt-[2px]"
-      >
+        <FocusBoundary
+          id="mod-list-grid"
+          trapFocus={controller.focus.trapFocus}
+          onEscape={controller.focus.handleCancelHierarchy}
+          defaultFocusKey={controller.focus.defaultFocusKey}
+          className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
         <FocusItem focusKey={LIST_GUARD_TOP} onFocus={() => controller.focus.restoreSafeFocus('first')}>
           {({ ref }) => (
             <div
@@ -294,6 +289,7 @@ export const ModList: React.FC<ModListProps> = ({
           />
         )}
       </FocusBoundary>
+      </div>
 
       {/* 底部浮动多选操作栏 Overlay (仅在有选中项时弹出) */}
       <div
@@ -320,9 +316,8 @@ export const ModList: React.FC<ModListProps> = ({
           <OreButton
             focusKey="mod-btn-batch-enable"
             variant="secondary"
-            size="auto"
+            size="sm"
             onClick={onBatchEnable}
-            className="!h-9"
           >
             <Power size={13} className="mr-1 text-[#57D38C]" />
             全部启用
@@ -331,9 +326,8 @@ export const ModList: React.FC<ModListProps> = ({
           <OreButton
             focusKey="mod-btn-batch-disable"
             variant="secondary"
-            size="auto"
+            size="sm"
             onClick={onBatchDisable}
-            className="!h-9"
           >
             <Power size={13} className="mr-1 opacity-50" />
             全部禁用
@@ -343,9 +337,8 @@ export const ModList: React.FC<ModListProps> = ({
             <OreButton
               focusKey="mod-btn-batch-favorite"
               variant="secondary"
-              size="auto"
+              size="sm"
               onClick={onBatchFavorite}
-              className="!h-9"
             >
               <Star size={13} className="mr-1 text-[#E5B54E]" />
               收藏
@@ -355,9 +348,8 @@ export const ModList: React.FC<ModListProps> = ({
           <OreButton
             focusKey="mod-btn-batch-delete"
             variant="danger"
-            size="auto"
+            size="sm"
             onClick={onBatchDelete}
-            className="!h-9"
           >
             <Trash2 size={13} className="mr-1" />
             删除
@@ -366,10 +358,11 @@ export const ModList: React.FC<ModListProps> = ({
           <OreButton
             focusKey="mod-btn-batch-clear"
             variant="ghost"
-            size="auto"
+            size="sm"
+            iconOnly
             onClick={onExitBatchMode}
             title="取消选择"
-            className={`!h-9 !w-9 !min-w-0 !border-[#1E1E1F] !px-0 shadow-[inset_0_-0.25rem_0_rgba(0,0,0,0.32),inset_0.125rem_0.125rem_0_rgba(255,255,255,0.12)] ${
+            className={`!border-[#1E1E1F] shadow-[inset_0_-0.25rem_0_rgba(0,0,0,0.32),inset_0.125rem_0.125rem_0_rgba(255,255,255,0.12)] ${
               listTheme === 'light'
                 ? '!bg-[#C2C4C9] !text-[#313233] hover:!bg-[#DDE0E3] hover:!text-[#111214]'
                 : '!bg-[#48494A] !text-[#D0D1D4] hover:!bg-[#58585A] hover:!text-white'

@@ -25,12 +25,13 @@
   --ore-card-min-w: 312px;
   --ore-modal-w: 480px;
   --ore-modal-max-h: 85vh;
-  --ore-btn-sm-min-w: 7.5rem;
+  --ore-btn-xs-h: 2rem;
   --ore-btn-sm-h: 2.25rem;
-  --ore-btn-md-min-w: 10rem;
   --ore-btn-md-h: 2.5rem;
+  --ore-btn-lg-h: 3rem;
+  --ore-btn-sm-min-w: 7.5rem;
+  --ore-btn-md-min-w: 10rem;
   --ore-btn-lg-min-w: 12.5rem;
-  --ore-btn-lg-h: 2.75rem;
   --ore-btn-auto-min-w: 6.25rem;
 
   /* 安全区变量 */

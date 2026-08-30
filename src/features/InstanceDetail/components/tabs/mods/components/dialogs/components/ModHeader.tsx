@@ -1,13 +1,10 @@
-// src/features/InstanceDetail/components/tabs/mods/components/dialogs/components/ModHeader.tsx
-import React from 'react';
-import { Blocks, Clock3, Download, ExternalLink, Heart, Loader2, Monitor, Server, X } from 'lucide-react';
+﻿import React from 'react';
+import { Blocks, ExternalLink, Loader2, Monitor, Server, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { FocusItem } from '../../../../../../../../ui/focus/FocusItem';
-
+import { OreButton } from '../../../../../../../../ui/primitives/OreButton';
 import { useModIcon } from '../../../../../../logic/modIconService';
 import { getModPreferredPlatform, type ModMeta } from '../../../../../../logic/modService';
-import { PLATFORM_LABELS } from '../utils/modDetailUtils';
-import { formatDate, formatNumber } from '../../../../../../../../utils/formatters';
 import { openExternalLink } from '../../../../../../../../utils/openExternalLink';
 import { CurseforgeIcon, ModrinthIcon } from '../../../../../../../Download/components/Icons';
 
@@ -18,34 +15,24 @@ interface ModHeaderProps {
   onClose?: () => void;
 }
 
-const renderEnvChip = (
-  env: string | undefined,
-  type: 'client' | 'server',
-  t: ReturnType<typeof useTranslation>['t']
-) => {
+const renderEnvChip = (env: string | undefined, type: 'client' | 'server') => {
   if (!env || env === 'unsupported') return null;
 
   const Icon = type === 'client' ? Monitor : Server;
   const isRequired = env === 'required';
-  const label = type === 'client'
-    ? t('download.env.client', { defaultValue: 'Client' })
-    : t('download.env.server', { defaultValue: 'Server' });
+  const label = type === 'client' ? 'Client' : 'Server';
 
   return (
     <span
-      className={`
-        inline-flex items-center gap-1 border-[2px] border-[var(--ore-downloadDetail-divider)] px-1.5 py-0.5 rounded-[2px]
-        text-[9px] font-minecraft uppercase tracking-[0.14em]
-        ${isRequired
-          ? 'bg-[#6CC349] text-black shadow-[inset_0_-2px_0_#3C8527]'
-          : 'bg-[var(--ore-downloadDetail-rowBg)] text-[var(--ore-downloadDetail-rowText)] shadow-[var(--ore-downloadDetail-chipShadow)]'}
-      `}
+      className={`inline-flex items-center gap-1 border-[2px] px-1.5 py-0.5 font-minecraft text-[9px] font-bold uppercase tracking-wider ${
+        isRequired
+          ? 'border-[#1E1E1F] bg-[#3C8527] text-white shadow-[inset_0_-2px_0_#1D4D13]'
+          : 'border-[#1E1E1F] bg-[#313233] text-[#D0D1D4] shadow-[inset_0_-2px_0_#1E1E1F]'
+      }`}
     >
       <Icon size={10} />
-      {label}
-      {isRequired
-        ? t('download.env.required', { defaultValue: 'Required' })
-        : t('download.env.optional', { defaultValue: 'Optional' })}
+      <span>{label}</span>
+      <span>{isRequired ? '必需' : '可选'}</span>
     </span>
   );
 };
@@ -56,160 +43,130 @@ export const ModHeader: React.FC<ModHeaderProps> = ({ mod, displayMod, instanceI
   const iconSnapshot = useModIcon(activeIconMod, 'high', instanceId);
 
   const preferredMetadataPlatform = displayMod ? getModPreferredPlatform(displayMod, 'metadata') : undefined;
-  const sourceLabel = preferredMetadataPlatform
-    ? PLATFORM_LABELS[preferredMetadataPlatform]
-    : displayMod?.networkInfo?.source === 'curseforge'
-      ? 'CurseForge'
-      : displayMod?.networkInfo?.source === 'modrinth' || displayMod?.manifestEntry?.source?.platform === 'modrinth'
-      ? 'Modrinth'
-      : displayMod?.manifestEntry?.source?.platform || t('instanceDetail.mods.header.sourceLocal', { defaultValue: '本地' });
+  const networkInfo = displayMod?.networkInfo;
+
+  const sourcePlatform = preferredMetadataPlatform
+    || (networkInfo?.source === 'curseforge' ? 'curseforge' : networkInfo?.source === 'modrinth' ? 'modrinth' : 'local');
 
   const detailIconUrl = iconSnapshot.src || '';
 
-  const sizeText = displayMod?.fileSize ? (displayMod.fileSize / 1024 / 1024).toFixed(2) + ' MB' : t('instanceDetail.mods.header.unknown', { defaultValue: '未知' });
-  
-  const statusText = mod.isFetchingNetwork 
-    ? t('instanceDetail.mods.header.matching', { defaultValue: '匹配中...' }) 
-    : (displayMod?.networkInfo 
-      ? t('instanceDetail.mods.header.linked', { defaultValue: '已链接至 {{source}}', source: sourceLabel }) 
-      : t('instanceDetail.mods.header.unmatched', { defaultValue: '未找到匹配项目' }));
-
   const handleOpenWeb = () => {
-    if (!displayMod?.networkInfo) return;
-    const url = displayMod.networkInfo.source === 'curseforge'
-      ? `https://www.curseforge.com/projects/${displayMod.networkInfo.id}`
-      : `https://modrinth.com/project/${displayMod.networkInfo.slug || displayMod.networkInfo.id}`;
+    if (!networkInfo) return;
+    const url = networkInfo.source === 'curseforge'
+      ? `https://www.curseforge.com/projects/${networkInfo.id}`
+      : `https://modrinth.com/project/${networkInfo.slug || networkInfo.id}`;
     openExternalLink(url);
   };
 
-  const author = displayMod?.networkInfo?.author || t('download.meta.unknownAuthor', { defaultValue: 'Unknown' });
-  const networkInfo = displayMod?.networkInfo;
+  const author = networkInfo?.author || t('download.meta.unknownAuthor', { defaultValue: '未知作者' });
+  const displayName = displayMod?.name || networkInfo?.title || displayMod?.fileName || mod.fileName;
 
   return (
     <div
-      className="flex flex-shrink-0 items-center gap-3 border-b-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-surface)] px-4 py-2.5"
-      style={{ boxShadow: 'var(--ore-downloadDetail-headerShadow)' }}
+      className="flex shrink-0 items-center justify-between gap-4 border-b-[2px] border-[#1E1E1F] bg-[#48494A] px-5 py-3 font-minecraft select-none"
+      style={{ boxShadow: 'inset 0 2px 0 rgba(255, 255, 255, 0.12)' }}
     >
-      <div
-        className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] rounded-[2px] relative"
-        style={{ boxShadow: 'var(--ore-downloadDetail-sectionShadow)' }}
-      >
-        {mod.isFetchingNetwork && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
-            <Loader2 className="animate-spin text-ore-green" size={16} />
-          </div>
-        )}
-        {detailIconUrl ? (
-          <img
-            src={detailIconUrl}
-            alt=""
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <Blocks size={28} className="text-white/75" />
-          </div>
-        )}
-      </div>
-
-      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-          <h2 className="min-w-0 truncate font-minecraft text-lg text-white xl:text-xl flex items-center gap-2">
-            <span className="truncate">{displayMod?.name || displayMod?.networkInfo?.title || displayMod?.fileName}</span>
-            {!displayMod?.isEnabled && (
-              <span className="flex-shrink-0 text-[10px] bg-[var(--ore-color-background-danger-subtle)] text-[var(--ore-color-text-danger-default)] px-1.5 py-0.5 border-[2px] border-[var(--ore-border-color)] rounded-[2px] tracking-wider font-minecraft uppercase">
-                {t('instanceDetail.mods.header.disabled', { defaultValue: '已禁用' })}
-              </span>
-            )}
-          </h2>
-          {networkInfo && (
-            <span className="font-minecraft text-[10px] uppercase tracking-[0.14em] text-[var(--ore-downloadDetail-labelText)]">
-              {t('download.meta.byAuthor', { defaultValue: 'by {{author}}', author })}
-            </span>
+      {/* 左侧：56px 大图标 + 模组名称与平台/作者 */}
+      <div className="flex items-center gap-3.5 min-w-0 flex-1">
+        {/* 56px 大图标 */}
+        <div
+          className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden border-[2px] border-[#1E1E1F] bg-[#313233]"
+          style={{ boxShadow: 'inset 0 -2px 0 rgba(0, 0, 0, 0.4), inset 2px 2px 0 rgba(255, 255, 255, 0.12)' }}
+        >
+          {mod.isFetchingNetwork && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60">
+              <Loader2 className="animate-spin text-[#6CC349]" size={18} />
+            </div>
           )}
-          <div className="ml-1 flex flex-wrap items-center gap-1.5">
-            {renderEnvChip(networkInfo?.client_side, 'client', t)}
-            {renderEnvChip(networkInfo?.server_side, 'server', t)}
-          </div>
+          {detailIconUrl ? (
+            <img src={detailIconUrl} alt="" className="h-full w-full object-cover pixelated" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-[#2B2C2D]">
+              <Blocks size={26} className="text-[#8C8D90]" />
+            </div>
+          )}
         </div>
 
-        {networkInfo ? (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-minecraft uppercase tracking-[0.12em] text-[var(--ore-downloadDetail-hintText)]">
-            <span className="inline-flex items-center gap-1 text-[#6CC349]">
-              <Download size={12} />
-              {formatNumber(networkInfo.downloads)}
-            </span>
-            <span className="inline-flex items-center gap-1 text-[#F46D6D]">
-              <Heart size={12} />
-              {formatNumber(networkInfo.follows || 0)}
-            </span>
-            <span className="inline-flex items-center gap-1 text-[#8CB3FF]">
-              <Clock3 size={12} />
-              {formatDate(networkInfo.date_modified)}
-            </span>
-            <span className="text-[var(--ore-downloadDetail-hintText)] opacity-60">
-              • {sizeText} • {displayMod.fileName}
-            </span>
+        {/* 标题 + 附属信息 */}
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="truncate font-minecraft text-base sm:text-lg font-bold text-white ore-text-shadow">
+              {displayName}
+            </h2>
+            {!displayMod?.isEnabled && (
+              <span className="shrink-0 border-[2px] border-[#1E1E1F] bg-[#C33636] px-1.5 py-0.5 text-[10px] font-bold uppercase text-white shadow-[inset_0_-2px_0_#AD1D1D]">
+                已禁用
+              </span>
+            )}
+            {networkInfo && (
+              <span className="text-[11px] text-[#B1B2B5]">
+                by <span className="text-white font-bold">{author}</span>
+              </span>
+            )}
           </div>
-        ) : (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-minecraft uppercase tracking-[0.12em] text-[var(--ore-downloadDetail-hintText)]">
-            <span className="text-[var(--ore-downloadDetail-hintText)]">
-              {sizeText}
-            </span>
-            <span>•</span>
-            <span className="truncate max-w-[12rem] sm:max-w-xs text-gray-400" title={displayMod?.fileName}>
-              {displayMod?.fileName}
-            </span>
-            <span>•</span>
-            <span className="text-gray-400">{statusText}</span>
+
+          <div className="flex flex-wrap items-center gap-2 text-[11px]">
+            {/* 来源平台芯片 */}
+            {sourcePlatform === 'modrinth' ? (
+              <span className="inline-flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#313233] px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#1BD96A] shadow-[inset_0_-2px_0_#1E1E1F]">
+                <ModrinthIcon className="h-3 w-3 text-[#1BD96A]" />
+                <span>Modrinth</span>
+              </span>
+            ) : sourcePlatform === 'curseforge' ? (
+              <span className="inline-flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#313233] px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#F16436] shadow-[inset_0_-2px_0_#1E1E1F]">
+                <CurseforgeIcon className="h-3 w-3 text-[#F16436]" />
+                <span>CurseForge</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#313233] px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#D0D1D4] shadow-[inset_0_-2px_0_#1E1E1F]">
+                <span>本地文件</span>
+              </span>
+            )}
+
+            {/* 环境芯片 */}
+            {networkInfo && (
+              <>
+                {renderEnvChip(networkInfo.client_side, 'client')}
+                {renderEnvChip(networkInfo.server_side, 'server')}
+              </>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 ml-2">
+      {/* 右侧：浏览器查看链接 + 关闭 X 按钮 */}
+      <div className="flex shrink-0 items-center gap-2">
         {networkInfo && (
-          <FocusItem focusKey="mod-modal-header-open-web" onEnter={handleOpenWeb}>
-            {({ ref, focused }: { ref: any; focused: boolean }) => (
-              <button
-                ref={ref}
-                type="button"
-                onClick={handleOpenWeb}
-                className={`flex h-8 items-center gap-1.5 border-[2px] bg-[var(--ore-downloadDetail-base)] px-2.5 rounded-[2px] shadow-[inset_0_-2px_0_rgba(0,0,0,0.2)] transition-none hover:bg-[var(--ore-downloadDetail-rowBg)] active:translate-y-[1px] active:shadow-none cursor-pointer outline-none ${
-                  focused ? 'outline outline-2 outline-white outline-offset-1 z-10' : 'border-[var(--ore-downloadDetail-divider)]'
-                }`}
-                title={t('download.openInBrowser', { defaultValue: 'Open in Browser' })}
-              >
-                {networkInfo.source === 'curseforge' ? (
-                  <>
-                    <CurseforgeIcon className="text-[14px] text-[#F16436]" />
-                    <span className="font-minecraft text-[10px] uppercase tracking-[0.1em] text-white">CurseForge</span>
-                  </>
-                ) : (
-                  <>
-                    <ModrinthIcon className="text-[14px] text-[#1BD96A]" />
-                    <span className="font-minecraft text-[10px] uppercase tracking-[0.1em] text-white">Modrinth</span>
-                  </>
-                )}
-                <ExternalLink size={12} className="ml-0.5 text-[var(--ore-downloadDetail-hintText)]" />
-              </button>
+          <FocusItem focusKey="mod-header-open-web" onEnter={handleOpenWeb}>
+            {({ ref }) => (
+              <div ref={ref as any}>
+                <OreButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleOpenWeb}
+                  className="!h-8 text-xs font-bold"
+                >
+                  <ExternalLink size={13} className="mr-1.5 text-[#3C8527]" />
+                  <span>浏览器</span>
+                </OreButton>
+              </div>
             )}
           </FocusItem>
         )}
 
         {onClose && (
-          <FocusItem focusKey="mod-modal-header-close" onEnter={onClose}>
-            {({ ref, focused }: { ref: any; focused: boolean }) => (
+          <FocusItem focusKey="mod-header-close-btn" onEnter={onClose}>
+            {({ ref, focused }) => (
               <button
-                type="button"
                 ref={ref}
+                type="button"
                 onClick={onClose}
                 aria-label="关闭模态框"
-                className={`
-                  flex h-8 w-8 items-center justify-center border-[2px] border-[var(--ore-downloadDetail-divider)] bg-[var(--ore-downloadDetail-base)] rounded-[2px] shadow-[inset_0_-2px_0_rgba(0,0,0,0.25)] transition-none outline-none cursor-pointer hover:bg-white/10 active:translate-y-[1px] active:shadow-none
-                  ${focused ? 'outline outline-2 outline-white outline-offset-1 z-10 bg-[var(--ore-btn-secondary-hover)]' : 'text-gray-300 hover:text-white'}
-                `}
+                className={`flex h-8 w-8 items-center justify-center border-[2px] border-[#1E1E1F] bg-[#313233] text-[#D0D1D4] shadow-[inset_0_-2px_0_#1E1E1F] transition-none outline-none cursor-pointer hover:bg-[#58595B] hover:text-white active:translate-y-[1px] ${
+                  focused ? 'outline outline-2 outline-white outline-offset-1 z-10' : ''
+                }`}
               >
-                <X size={18} strokeWidth={2} className="pointer-events-none" />
+                <X size={16} strokeWidth={2.5} />
               </button>
             )}
           </FocusItem>
@@ -218,3 +175,5 @@ export const ModHeader: React.FC<ModHeaderProps> = ({ mod, displayMod, instanceI
     </div>
   );
 };
+
+export default ModHeader;

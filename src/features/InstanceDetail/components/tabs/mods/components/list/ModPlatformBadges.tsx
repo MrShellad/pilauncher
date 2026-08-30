@@ -1,8 +1,9 @@
-import React from 'react';
+﻿import React from 'react';
+import { HardDrive } from 'lucide-react';
 import { ModrinthIcon, CurseforgeIcon } from '../../../../../../Download/components/Icons';
 import { getModPlatformReference, type ModMeta } from '../../../../../logic/modService';
 
-interface ModPlatformBadgesProps {
+export interface ModPlatformBadgesProps {
   mod: ModMeta;
   className?: string;
 }
@@ -13,28 +14,27 @@ export const ModPlatformBadges: React.FC<ModPlatformBadgesProps> = ({ mod, class
   const hasModrinth = !!modrinth?.projectId;
   const hasCurseForge = !!curseforge?.projectId;
 
-  if (!hasModrinth && !hasCurseForge) {
-    return null;
+  if (hasModrinth) {
+    return (
+      <div className={`flex h-[18px] w-full items-center justify-center border-t-[2px] border-[#1E1E1F] bg-[#1BD96A] text-[#06140B] ${className}`}>
+        <ModrinthIcon className="h-3.5 w-3.5" />
+      </div>
+    );
+  }
+
+  if (hasCurseForge) {
+    return (
+      <div className={`flex h-[18px] w-full items-center justify-center border-t-[2px] border-[#1E1E1F] bg-[#F16436] text-white ${className}`}>
+        <CurseforgeIcon className="h-3.5 w-3.5" />
+      </div>
+    );
   }
 
   return (
-    <div className={`absolute top-0 right-0 z-10 flex items-center border-b-[2px] border-l-[2px] border-[#1E1E1F] bg-[#14171E] ${className}`}>
-      {hasModrinth && (
-        <div
-          className="flex h-4 w-4 items-center justify-center bg-[#1BD96A] text-[#06140B] shadow-[inset_0_-1px_0_#148A45]"
-          title={`Modrinth (ID: ${modrinth?.projectId})`}
-        >
-          <ModrinthIcon className="h-2.5 w-2.5" />
-        </div>
-      )}
-      {hasCurseForge && (
-        <div
-          className="flex h-4 w-4 items-center justify-center bg-[#F16436] text-white shadow-[inset_0_-1px_0_#A83812]"
-          title={`CurseForge (ID: ${curseforge?.projectId})`}
-        >
-          <CurseforgeIcon className="h-2.5 w-2.5" />
-        </div>
-      )}
+    <div className={`flex h-[18px] w-full items-center justify-center border-t-[2px] border-[#1E1E1F] bg-[#14171E] text-[#687082] ${className}`}>
+      <HardDrive size={11} strokeWidth={2.5} />
     </div>
   );
 };
+
+export default ModPlatformBadges;

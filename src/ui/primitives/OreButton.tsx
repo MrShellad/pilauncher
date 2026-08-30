@@ -1,23 +1,67 @@
-// src/ui/primitives/OreButton.tsx
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 import { FocusItem } from '../focus/FocusItem';
 
-// ✅ 核心修复：引入 designToken，确保打包器加载它，并触发内部的 CSS 变量全局注入！
+// ✅ 引入 designToken 确保注入全局 CSS 变量
 import '../../style/tokens/designToken'; 
+
+export type OreButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'auto' | 'full' | 'icon';
 
 export interface OreButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'purple' | 'hero' | 'ghost';
-  size?: 'sm' | 'md' | 'lg' | 'auto' | 'full' | 'icon';
+  size?: OreButtonSize;
+  iconOnly?: boolean;
+  fullWidth?: boolean;
+  loading?: boolean;
+  prefixIcon?: React.ReactNode;
+  suffixIcon?: React.ReactNode;
   focusKey?: string; 
   focusable?: boolean;
   onArrowPress?: (direction: string) => boolean | void;
   autoScroll?: boolean;
 }
 
+const BUTTON_SIZE_CLASSES: Record<'xs' | 'sm' | 'md' | 'lg', { normal: string; iconOnly: string; loaderSize: number }> = {
+  xs: {
+    normal: "h-[var(--ore-btn-xs-h,2rem)] px-2.5 text-xs",
+    iconOnly: "h-[var(--ore-btn-xs-h,2rem)] w-[var(--ore-btn-xs-h,2rem)] min-w-[2rem] px-0 text-xs",
+    loaderSize: 13,
+  },
+  sm: {
+    normal: "h-[var(--ore-btn-sm-h,2.25rem)] px-3 text-xs md:text-sm",
+    iconOnly: "h-[var(--ore-btn-sm-h,2.25rem)] w-[var(--ore-btn-sm-h,2.25rem)] min-w-[2.25rem] px-0 text-sm",
+    loaderSize: 14,
+  },
+  md: {
+    normal: "h-[var(--ore-btn-md-h,2.5rem)] px-4 text-sm",
+    iconOnly: "h-[var(--ore-btn-md-h,2.5rem)] w-[var(--ore-btn-md-h,2.5rem)] min-w-[2.5rem] px-0 text-base",
+    loaderSize: 16,
+  },
+  lg: {
+    normal: "h-[var(--ore-btn-lg-h,3rem)] px-6 text-base",
+    iconOnly: "h-[var(--ore-btn-lg-h,3rem)] w-[var(--ore-btn-lg-h,3rem)] min-w-[3rem] px-0 text-lg",
+    loaderSize: 18,
+  },
+};
+
+const VARIANTS = {
+  primary: "ore-btn-primary ore-text-shadow",
+  hero: "ore-btn-primary ore-text-shadow text-lg tracking-wider",
+  secondary: "ore-btn-secondary",
+  danger: "ore-btn-danger ore-text-shadow",
+  purple: "ore-btn-purple ore-text-shadow", 
+  ghost: "ore-btn-ghost",
+};
+
 export const OreButton: React.FC<OreButtonProps> = ({ 
   children, 
   variant = 'secondary', 
   size = 'md', 
+  iconOnly = false,
+  fullWidth = false,
+  loading = false,
+  prefixIcon,
+  suffixIcon,
   className = '',
   disabled,
   onClick,
@@ -27,53 +71,82 @@ export const OreButton: React.FC<OreButtonProps> = ({
   autoScroll,
   ...props 
 }) => {
+  // 处理尺寸与向后兼容模式
+  let resolvedSize: 'xs' | 'sm' | 'md' | 'lg' = 'md';
+  let isIconOnly = iconOnly;
+  let isFullWidth = fullWidth;
 
-  const buttonSizes = {
-    sm: "min-w-[var(--ore-btn-sm-min-w,7.5rem)] h-[var(--ore-btn-sm-h,2.25rem)] px-4 text-sm", 
-    md: "min-w-[var(--ore-btn-md-min-w,10rem)] h-[var(--ore-btn-md-h,2.5rem)] px-6 text-base", 
-    lg: "min-w-[var(--ore-btn-lg-min-w,12.5rem)] h-[var(--ore-btn-lg-h,2.75rem)] px-8 text-lg", 
-    auto: "w-auto min-w-[var(--ore-btn-auto-min-w,6.25rem)] h-[var(--ore-btn-md-h,2.5rem)] px-5 text-base", 
-    full: "w-full h-[var(--ore-btn-md-h,2.5rem)] px-4 text-base", 
-    icon: "h-[var(--ore-btn-md-h,2.5rem)] w-[var(--ore-btn-md-h,2.5rem)] p-0 text-base",
-  };
-  
-  const variants = {
-    primary: "ore-btn-primary ore-text-shadow",
-    hero: "ore-btn-primary ore-text-shadow text-lg tracking-wider", // Hero为强化版Primary
-    secondary: "ore-btn-secondary",
-    danger: "ore-btn-danger ore-text-shadow",
-    purple: "ore-btn-purple ore-text-shadow", 
-    ghost: "ore-btn-ghost",
-  };
+  if (size === 'xs' || size === 'sm' || size === 'md' || size === 'lg') {
+    resolvedSize = size;
+  } else if (size === 'icon') {
+    resolvedSize = 'md';
+    isIconOnly = true;
+  } else if (size === 'full') {
+    resolvedSize = 'md';
+    isFullWidth = true;
+  } else if (size === 'auto') {
+    resolvedSize = 'md';
+  }
+
+  const sizeConfig = BUTTON_SIZE_CLASSES[resolvedSize];
+  const sizeClass = isIconOnly ? sizeConfig.iconOnly : sizeConfig.normal;
+  const widthClass = isFullWidth ? 'w-full' : '';
+  const isDisabled = disabled || loading;
 
   return (
     <FocusItem 
       focusKey={focusKey} 
-      disabled={disabled} 
-      focusable={focusable}
+      disabled={isDisabled} 
+      focusable={focusable && !isDisabled}
       onArrowPress={onArrowPress}
       autoScroll={autoScroll}
-      onEnter={() => onClick?.({ preventDefault: () => {}, stopPropagation: () => {} } as React.MouseEvent<HTMLButtonElement>)}
+      onEnter={() => !isDisabled && onClick?.({ preventDefault: () => {}, stopPropagation: () => {} } as React.MouseEvent<HTMLButtonElement>)}
     >
       {({ ref, focused, tabIndex }) => (
         <button
           ref={ref}
-          disabled={disabled}
-          onClick={onClick}
+          disabled={isDisabled}
+          aria-busy={loading ? 'true' : undefined}
+          onClick={(e) => {
+            if (isDisabled) {
+              e.preventDefault();
+              return;
+            }
+            onClick?.(e);
+          }}
           tabIndex={tabIndex}
-          // 单层尺寸控制，采用rem和标准响应式类适配TV/SteamDeck/PC，同时支持 focus-visible 焦点环
           className={`
             ore-btn relative inline-flex items-center justify-center font-minecraft tracking-wide
             focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 transition-none antialiased
-            ${buttonSizes[size]}
-            ${variants[variant]}
+            ${sizeClass}
+            ${widthClass}
+            ${VARIANTS[variant]}
             ${focused ? 'is-focused' : ''}
             ${className}
           `}
           style={{ fontWeight: 'normal', ...props.style }}
           {...props}
         >
-          {children}
+          {loading ? (
+            <span className="inline-flex items-center justify-center gap-1.5">
+              <Loader2 size={sizeConfig.loaderSize} className="animate-spin shrink-0" />
+              {!isIconOnly && children && <span>{children}</span>}
+            </span>
+          ) : (
+            <>
+              {prefixIcon && (
+                <span className="mr-1.5 shrink-0 inline-flex items-center justify-center pointer-events-none">
+                  {prefixIcon}
+                </span>
+              )}
+              {children}
+              {suffixIcon && (
+                <span className="ml-1.5 shrink-0 inline-flex items-center justify-center pointer-events-none">
+                  {suffixIcon}
+                </span>
+              )}
+            </>
+          )}
         </button>
       )}
     </FocusItem>

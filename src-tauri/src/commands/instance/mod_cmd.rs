@@ -150,3 +150,66 @@ pub async fn save_mod_relations<R: Runtime>(
         .await
         .map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub async fn get_cascading_dependents<R: Runtime>(
+    app: AppHandle<R>,
+    id: String,
+    file_name: String,
+) -> Result<Vec<String>, String> {
+    crate::services::instance::mod_manager::ModManagerService::get_cascading_dependents(
+        &app, &id, &file_name,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn toggle_mods_cascading<R: Runtime>(
+    app: AppHandle<R>,
+    id: String,
+    file_names: Vec<String>,
+    enable: bool,
+) -> Result<Vec<(String, String)>, String> {
+    crate::services::instance::mod_manager::ModManagerService::toggle_mods_cascading(
+        &app, &id, &file_names, enable,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn sync_instance_mods_cloud_metadata<R: Runtime>(
+    app: AppHandle<R>,
+    id: String,
+    force: Option<bool>,
+    global_platform: Option<String>,
+    curseforge_key: Option<String>,
+) -> Result<Vec<crate::services::instance::mod_manager::ModMetadata>, String> {
+    crate::services::instance::mod_manager::ModManagerService::sync_cloud_metadata(
+        &app,
+        &id,
+        force.unwrap_or(false),
+        global_platform,
+        curseforge_key,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn check_instance_mods_updates<R: Runtime>(
+    app: AppHandle<R>,
+    id: String,
+    game_version: String,
+    loader: String,
+    force: Option<bool>,
+    curseforge_key: Option<String>,
+) -> Result<Vec<crate::services::instance::mod_manager::ModUpdateInfo>, String> {
+    crate::services::instance::mod_manager::ModManagerService::check_mod_updates(
+        &app,
+        &id,
+        &game_version,
+        &loader,
+        force.unwrap_or(false),
+        curseforge_key,
+    )
+    .await
+}

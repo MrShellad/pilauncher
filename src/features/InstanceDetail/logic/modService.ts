@@ -661,9 +661,32 @@ export const modService = {
   getInstanceDependencyHealth: (id: string): Promise<InstanceDependencyHealth> =>
     invoke<InstanceDependencyHealth>('get_instance_dependency_health', { id }),
 
+  getCascadingDependents: (id: string, fileName: string): Promise<string[]> =>
+    invoke<string[]>('get_cascading_dependents', { id, fileName }),
+
+  toggleModsCascading: (id: string, fileNames: string[], enable: boolean): Promise<Array<[string, string]>> =>
+    invoke<Array<[string, string]>>('toggle_mods_cascading', { id, fileNames, enable }),
+
+  syncInstanceModsCloudMetadata: (id: string, force?: boolean, globalPlatform?: string, curseforgeKey?: string): Promise<ModMeta[]> =>
+    invoke<ModMeta[]>('sync_instance_mods_cloud_metadata', { id, force, globalPlatform, curseforgeKey }),
+
+  checkInstanceModsUpdates: (id: string, gameVersion: string, loader: string, force?: boolean, curseforgeKey?: string): Promise<ModUpdateInfo[]> =>
+    invoke<ModUpdateInfo[]>('check_instance_mods_updates', { id, gameVersion, loader, force, curseforgeKey }),
+
   saveModRelations: (relations: ModRelationRecord[]): Promise<void> =>
     invoke('save_mod_relations', { relations })
 };
+
+export interface ModUpdateInfo {
+  fileName: string;
+  hasUpdate: boolean;
+  updateVersionName?: string;
+  updatePlatform?: ModPlatformId;
+  updateProjectId?: string;
+  updateFileId?: string;
+  updateFileName?: string;
+  updateDownloadUrl?: string;
+}
 
 export interface MissingDependencyInfo {
   targetIdentifier: string;

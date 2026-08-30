@@ -1198,6 +1198,12 @@
           "backend": "Desktop & Runtime",
           "ecosystem": "Minecraft Ecosystem"
         }
+      },
+      "componentShowcase": {
+        "button": "OreUI Showcase",
+        "title": "OreUI Design System & Component Showcase",
+        "headline": "Minecraft Bedrock OreUI Component Library",
+        "description": "Interactive showcase and live playground for PiLauncher's built-in OreUI design system."
       }
     },
     "tabs": {

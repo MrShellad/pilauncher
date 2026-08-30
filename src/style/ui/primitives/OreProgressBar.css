@@ -1,0 +1,109 @@
+/* /src/style/ui/primitives/OreProgressBar.css */
+@layer components {
+  .ore-progress-bar {
+    --ore-progress-unit: 2px;
+    --ore-progress-frame: #1E1E1F;
+    --ore-progress-fill: #1E1E1F;
+    --ore-progress-label: #1E1E1F;
+    --ore-progress-bg: transparent;
+
+    display: inline-grid;
+    grid-template-areas:
+      "top"
+      "track"
+      "bottom";
+    box-sizing: border-box;
+    width: min(100%, calc(var(--ore-progress-unit) * 220));
+    color: var(--ore-progress-label);
+    font-family: var(--ore-font-family-minecraft, "Minecraft", sans-serif);
+  }
+
+  /* 进度条轨道外框 (2px 像素黑框/边框) */
+  .ore-progress-bar-track {
+    position: relative;
+    grid-area: track;
+    box-sizing: border-box;
+    width: 100%;
+    border: var(--ore-progress-unit) solid var(--ore-progress-frame);
+    background-color: var(--ore-progress-bg);
+  }
+
+  /* 进度条内部填充（四周留有 2px 均等间隙，原版物理质感） */
+  .ore-progress-bar-fill {
+    position: absolute;
+    top: var(--ore-progress-unit);
+    bottom: var(--ore-progress-unit);
+    left: var(--ore-progress-unit);
+    background-color: var(--ore-progress-fill);
+    transition: width 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* 尺寸档位 */
+  .ore-progress-bar-track.is-thin {
+    height: calc(var(--ore-progress-unit) * 4); /* 8px */
+  }
+  .ore-progress-bar-track.is-sm {
+    height: calc(var(--ore-progress-unit) * 6); /* 12px */
+  }
+  .ore-progress-bar-track.is-md {
+    height: calc(var(--ore-progress-unit) * 8); /* 16px (基岩版标准) */
+  }
+  .ore-progress-bar-track.is-lg {
+    height: calc(var(--ore-progress-unit) * 10); /* 20px */
+  }
+
+  /* 标签文本 */
+  .ore-progress-bar-label {
+    font-size: calc(var(--ore-progress-unit) * 6); /* 12px */
+    line-height: calc(var(--ore-progress-unit) * 7);
+    white-space: nowrap;
+    letter-spacing: 0.05em;
+  }
+
+  .ore-progress-bar-label.is-bottom {
+    grid-area: bottom;
+    margin-top: calc(var(--ore-progress-unit) * 2);
+  }
+
+  .ore-progress-bar-label.is-top {
+    grid-area: top;
+    margin-bottom: calc(var(--ore-progress-unit) * 2);
+  }
+
+  /* 变体色彩主题 */
+  .ore-progress-bar.variant-primary {
+    --ore-progress-frame: #1E1E1F;
+    --ore-progress-fill: #3C8527;
+    --ore-progress-label: #E6E8EB;
+  }
+
+  .ore-progress-bar.variant-info {
+    --ore-progress-frame: #1E1E1F;
+    --ore-progress-fill: #2E6BE5;
+    --ore-progress-label: #E6E8EB;
+  }
+
+  .ore-progress-bar.variant-dark {
+    --ore-progress-frame: #1E1E1F;
+    --ore-progress-fill: #1E1E1F;
+    --ore-progress-label: #1E1E1F;
+  }
+
+  .ore-progress-bar.variant-white {
+    --ore-progress-frame: #FFFFFF;
+    --ore-progress-fill: #FFFFFF;
+    --ore-progress-label: #FFFFFF;
+  }
+
+  .ore-progress-bar.variant-gold {
+    --ore-progress-frame: #1E1E1F;
+    --ore-progress-fill: #FFC42B;
+    --ore-progress-label: #E6E8EB;
+  }
+
+  .ore-progress-bar.variant-current {
+    --ore-progress-frame: currentColor;
+    --ore-progress-fill: currentColor;
+    --ore-progress-label: currentColor;
+  }
+}

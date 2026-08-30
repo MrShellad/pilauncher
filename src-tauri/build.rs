@@ -5,6 +5,7 @@ use std::{
 };
 
 const INITIAL_SCHEMA_MIGRATION: &str = "migrations/20260101000001_initial_schema.sql";
+const TAURI_CONFIG: &str = "tauri.conf.json";
 const LOCKED_INITIAL_SCHEMA_SHA384: &str =
     "2F4351D8BFDF1226B0125A0A585343653F47A3977F69324ADE7D90455F67A5579596546C20EAD73AC09FB2ACFF7C7C13";
 
@@ -29,6 +30,7 @@ fn main() {
     let manifest_dir =
         PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("missing CARGO_MANIFEST_DIR"));
     verify_immutable_initial_schema(&manifest_dir);
+    verify_skin_renderer_csp(&manifest_dir);
     let root_env_path = manifest_dir
         .parent()
         .expect("src-tauri should have a project root parent")
@@ -128,6 +130,42 @@ fn main() {
     // setup_terracotta_sidecar();
 
     tauri_build::build()
+}
+
+fn verify_skin_renderer_csp(manifest_dir: &Path) {
+    let config_path = manifest_dir.join(TAURI_CONFIG);
+    println!("cargo:rerun-if-changed={}", config_path.display());
+
+    let config = fs::read_to_string(&config_path).unwrap_or_else(|error| {
+        panic!(
+            "failed to read Tauri config {}: {error}",
+            config_path.display()
+        )
+    });
+    let config: serde_json::Value = serde_json::from_str(&config).unwrap_or_else(|error| {
+        panic!(
+            "failed to parse Tauri config {}: {error}",
+            config_path.display()
+        )
+    });
+    let csp = config
+        .pointer("/app/security/csp")
+        .and_then(serde_json::Value::as_str)
+        .expect("app.security.csp must be a string");
+    let connect_sources = csp
+        .split(';')
+        .map(str::trim)
+        .find_map(|directive| directive.strip_prefix("connect-src"))
+        .expect("app.security.csp must define connect-src")
+        .split_whitespace()
+        .collect::<Vec<_>>();
+
+    for required_source in ["data:", "blob:"] {
+        assert!(
+            connect_sources.contains(&required_source),
+            "app.security.csp connect-src must allow {required_source}; the packaged skin GLTF renderer loads embedded model buffers and animation blobs through fetch"
+        );
+    }
 }
 
 fn verify_immutable_initial_schema(manifest_dir: &Path) {

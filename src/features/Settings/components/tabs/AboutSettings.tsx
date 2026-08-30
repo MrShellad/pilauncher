@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { SettingsSection } from '../../../../ui/layout/SettingsSection';
-import { Info, Github, Heart, Users, ExternalLink, Tv, Zap, Crown, PackageOpen } from 'lucide-react';
+import { Info, Github, Heart, Users, ExternalLink, Tv, Zap, Crown, PackageOpen, Palette } from 'lucide-react';
 import { getVersion } from '@tauri-apps/api/app';
 import { invoke } from '@tauri-apps/api/core';
 import { QRCodeSVG } from 'qrcode.react';
@@ -14,6 +14,7 @@ import { OreModal } from '../../../../ui/primitives/OreModal';
 import { openExternalLink } from '../../../../utils/openExternalLink';
 import { DonorSkinModal, getDonorTierColor } from './AS/DonorSkinModal';
 import type { DonorInfo } from './AS/DonorSkinModal';
+import { OreUiShowcaseModal } from './AS/OreUiShowcaseModal';
 
 type OpenSourceProjectGroup = 'frontend' | 'backend' | 'ecosystem';
 
@@ -95,6 +96,7 @@ const floatingKeyframes = `
 }
 @keyframes gold-glow-pulse {
   0%, 100% { box-shadow: 0 0 8px rgba(255,215,0,0.3), inset 0 0 4px rgba(255,215,0,0.1); }
+
   50% { box-shadow: 0 0 16px rgba(255,215,0,0.5), inset 0 0 8px rgba(255,215,0,0.15); }
 }
 `;
@@ -102,21 +104,22 @@ const floatingKeyframes = `
 export const AboutSettings: React.FC = () => {
   const { t } = useTranslation();
   const [version, setVersion] = useState<string>('0.0.0');
-  const [donors, setDonors] = useState<any[]>([]);
+  const [donors, setDonors] = useState<DonorInfo[]>([]);
   const [selectedDonor, setSelectedDonor] = useState<DonorInfo | null>(null);
   const [showSkinModal, setShowSkinModal] = useState(false);
   const [showOpenSourceModal, setShowOpenSourceModal] = useState(false);
+  const [showShowcaseModal, setShowShowcaseModal] = useState(false);
 
   useEffect(() => {
     getVersion().then(v => setVersion(v)).catch(console.error);
 
     // Fetch donors via Tauri backend (bypasses CORS, hides API key)
-    invoke('fetch_donors')
-      .then((data: any) => {
+    invoke<DonorInfo[]>('fetch_donors')
+      .then((data) => {
         if (Array.isArray(data)) {
           // 按金额降序排列，让高额赞助者排在前面
           const sorted = [...data].sort(
-            (a, b) => (b.amount || b.totalAmount || 0) - (a.amount || a.totalAmount || 0)
+            (a, b) => ((b.amount || (b as { totalAmount?: number }).totalAmount || 0) as number) - ((a.amount || (a as { totalAmount?: number }).totalAmount || 0) as number)
           );
           setDonors(sorted);
         }
@@ -129,6 +132,7 @@ export const AboutSettings: React.FC = () => {
   // ✅ 1. 补全焦点链：从上到下，覆盖所有区域，防止焦点出现断层
   const focusOrder = [
     'settings-about-product',
+    'settings-about-showcase',
     'settings-about-open-source',
     'settings-about-github',
     'settings-about-bilibili',
@@ -162,8 +166,8 @@ export const AboutSettings: React.FC = () => {
     }
   ];
 
-  const handleDonorClick = (donor: any) => {
-    const amount = donor.amount || donor.totalAmount || 0;
+  const handleDonorClick = (donor: DonorInfo) => {
+    const amount = (donor.amount || (donor as { totalAmount?: number }).totalAmount || 0) as number;
     setSelectedDonor({
       mcUuid: donor.mcUuid,
       mcName: donor.mcName || t('settings.about.anonymous'),
@@ -185,7 +189,7 @@ export const AboutSettings: React.FC = () => {
           <FocusItem focusKey="settings-about-product" onArrowPress={handleLinearArrow}>
             {({ ref, focused }) => (
               <div
-                ref={ref as any}
+                ref={ref as React.Ref<HTMLDivElement>}
                 tabIndex={-1}
                 className={`flex flex-col items-center justify-center py-6 mx-4 mb-4 rounded-lg outline-none transition-all ${focused ? 'bg-[#141415] ring-2 ring-white shadow-lg z-10' : 'hover:bg-white/5'
                   }`}
@@ -201,13 +205,25 @@ export const AboutSettings: React.FC = () => {
             )}
           </FocusItem>
 
-          <div className="flex justify-center px-4 pb-5">
+          <div className="flex flex-wrap items-center justify-center gap-3 px-4 pb-5">
+            <OreButton
+              focusKey="settings-about-showcase"
+              onArrowPress={handleLinearArrow}
+              variant="primary"
+              size="auto"
+              className="min-w-[200px] justify-center whitespace-nowrap"
+              onClick={() => setShowShowcaseModal(true)}
+            >
+              <Palette size={16} className="mr-2" />
+              {t('settings.about.componentShowcase.button', { defaultValue: 'OreUI 组件预览' })}
+            </OreButton>
+
             <OreButton
               focusKey="settings-about-open-source"
               onArrowPress={handleLinearArrow}
               variant="secondary"
               size="auto"
-              className="min-w-[220px] justify-center whitespace-nowrap"
+              className="min-w-[200px] justify-center whitespace-nowrap"
               onClick={() => setShowOpenSourceModal(true)}
             >
               <PackageOpen size={16} className="mr-2" />
@@ -223,7 +239,7 @@ export const AboutSettings: React.FC = () => {
               <FocusItem key={item.id} focusKey={`settings-about-${item.id}`} onArrowPress={handleLinearArrow}>
                 {({ ref, focused }) => (
                   <a
-                    ref={ref as any}
+                    ref={ref as React.Ref<HTMLAnchorElement>}
                     href={item.url}
                     target="_blank"
                     rel="noreferrer"
@@ -261,7 +277,7 @@ export const AboutSettings: React.FC = () => {
           <FocusItem focusKey="settings-about-sponsors" onArrowPress={handleLinearArrow}>
             {({ ref, focused }) => (
               <div
-                ref={ref as any}
+                ref={ref as React.Ref<HTMLDivElement>}
                 tabIndex={-1}
                 className={`p-6 mx-4 mb-4 flex flex-col items-center justify-center text-center rounded-lg outline-none transition-all ${focused ? 'bg-[#141415] ring-2 ring-white shadow-lg z-10' : 'hover:bg-white/5'
                   }`}
@@ -276,7 +292,7 @@ export const AboutSettings: React.FC = () => {
                 <div className="flex flex-wrap justify-center gap-5 mt-2">
                   {donors.length > 0 ? (
                     donors.map((donor, idx) => {
-                      const amount = donor.amount || donor.totalAmount || 0;
+                      const amount = (donor.amount || (donor as { totalAmount?: number }).totalAmount || 0) as number;
                       const isGold = amount >= 100;
                       const tierColor = getDonorTierColor(amount);
                       const animName = idx % 2 === 0 ? 'donor-float' : 'donor-float-alt';
@@ -311,6 +327,8 @@ export const AboutSettings: React.FC = () => {
                               ${getDonorTierBorder(amount)}
                               ${isGold ? 'ring-1 ring-[#FFD700]/20' : ''}
                             `}
+
+
                             style={isGold ? { animation: 'gold-glow-pulse 2s ease-in-out infinite' } : undefined}
                           >
                             <img
@@ -360,6 +378,12 @@ export const AboutSettings: React.FC = () => {
           setSelectedDonor(null);
         }}
         donor={selectedDonor}
+      />
+
+      {/* OreUI 组件工坊与设计规范全量展示弹窗 */}
+      <OreUiShowcaseModal
+        isOpen={showShowcaseModal}
+        onClose={() => setShowShowcaseModal(false)}
       />
 
       <OreModal

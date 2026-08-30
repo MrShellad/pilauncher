@@ -1,6 +1,4 @@
 import React from 'react';
-import { motion } from 'motion/react';
-
 import { FocusItem } from '../../../../../../../ui/focus/FocusItem';
 import type { ModIconSnapshot } from '../../../../../logic/modIconService';
 import type { MissingDependencyInfo, ModMeta } from '../../../../../logic/modService';
@@ -77,12 +75,7 @@ const ModRowItemComponent: React.FC<ModRowItemProps> = ({
       autoScroll={false}
     >
       {({ ref, focused, hasFocusedChild }) => (
-        <motion.div
-          ref={ref as any}
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.15, ease: 'easeOut' }}
-        >
+        <div ref={ref as any}>
           <ModRowView
             mod={mod}
             iconSnapshot={iconSnapshot}
@@ -98,28 +91,7 @@ const ModRowItemComponent: React.FC<ModRowItemProps> = ({
             viewMode={viewMode}
             listTheme={listTheme}
             onClick={() => onRowClick(mod)}
-            leading={
-              (
-                <div 
-                  className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center border-[2px] transition-colors ${isSelected
-                    ? 'border-[#1E1E1F] bg-[#57D38C] text-[#06140B] shadow-[inset_0_-1px_0_#38985B]'
-                    : listTheme === 'light'
-                      ? 'border-[#1E1E1F] bg-[#E4E5E7] hover:bg-white shadow-[inset_0_-1px_0_#B8BBC2]'
-                      : 'border-[#1E1E1F] bg-[#232937] hover:bg-[#2B3447] shadow-[inset_0_-1px_0_rgba(0,0,0,0.4)]'
-                  }`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleSelection(mod.fileName);
-                  }}
-                >
-                  {isSelected && (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="square" strokeLinejoin="miter" className="h-3.5 w-3.5">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                  )}
-                </div>
-              )
-            }
+            onToggleSelection={onToggleSelection}
             trailing={(
               <ModRowActionCluster
                 fileName={mod.fileName}
@@ -129,6 +101,7 @@ const ModRowItemComponent: React.FC<ModRowItemProps> = ({
                 isUpdating={!!mod.isUpdatingMod}
                 updateVersionName={mod.updateVersionName}
                 isActionLocked={isActionLocked}
+                isRowActive={focused || hasFocusedChild || isRowInOperationMode}
                 viewMode={viewMode}
                 getActionFocusKey={getActionFocusKey}
                 onActionArrow={onActionArrow}
@@ -139,7 +112,7 @@ const ModRowItemComponent: React.FC<ModRowItemProps> = ({
               />
             )}
           />
-        </motion.div>
+        </div>
       )}
     </FocusItem>
   );

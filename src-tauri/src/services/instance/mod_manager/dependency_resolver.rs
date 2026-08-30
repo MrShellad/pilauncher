@@ -459,6 +459,48 @@ impl DependencyResolver {
             conflicts,
         })
     }
+
+    pub async fn get_cascading_dependents<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        root_file_name: &str,
+    ) -> Result<Vec<String>, String> {
+        let health = Self::get_instance_dependency_health(app, instance_id).await?;
+        let clean_root = root_file_name.trim_end_matches(".disabled").to_lowercase();
+
+        let mut queue = std::collections::VecDeque::new();
+        let mut visited = std::collections::HashSet::new();
+        let mut cascading_files = Vec::new();
+
+        for (key, dependents) in &health.instance_dependents {
+            if key.trim_end_matches(".disabled").to_lowercase() == clean_root {
+                for dep in dependents {
+                    let dep_clean = dep.trim_end_matches(".disabled").to_lowercase();
+                    if dep_clean != clean_root && visited.insert(dep_clean) {
+                        queue.push_back(dep.clone());
+                        cascading_files.push(dep.clone());
+                    }
+                }
+            }
+        }
+
+        while let Some(current) = queue.pop_front() {
+            let cur_clean = current.trim_end_matches(".disabled").to_lowercase();
+            for (key, dependents) in &health.instance_dependents {
+                if key.trim_end_matches(".disabled").to_lowercase() == cur_clean {
+                    for dep in dependents {
+                        let dep_clean = dep.trim_end_matches(".disabled").to_lowercase();
+                        if dep_clean != clean_root && visited.insert(dep_clean) {
+                            queue.push_back(dep.clone());
+                            cascading_files.push(dep.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(cascading_files)
+    }
 }
 
 #[cfg(test)]

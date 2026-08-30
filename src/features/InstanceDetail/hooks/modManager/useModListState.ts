@@ -67,12 +67,25 @@ export const useModListState = (instanceId: string) => {
 
       const reconciled = next.map((newMod) => {
         const existing = currentByIdentity.get(getModIdentityKey(newMod))
-          || current.find((oldMod) => oldMod.fileName === newMod.fileName);
+          || current.find((oldMod) => (
+            oldMod.fileName === newMod.fileName ||
+            oldMod.fileName.replace(/\.disabled$/i, '') === newMod.fileName.replace(/\.disabled$/i, '')
+          ));
 
         if (existing) {
-          const merged = {
+          const archiveChanged = !!existing.sha1 && !!newMod.sha1 && existing.sha1 !== newMod.sha1;
+          const isCleanVersion = (v?: string) =>
+            !!v && !v.endsWith('.jar') && !v.endsWith('.disabled') && !v.startsWith('${') && !v.includes('+');
+
+          const finalVersion = (isCleanVersion(existing.version) && !isCleanVersion(newMod.version))
+            ? existing.version
+            : (newMod.version || existing.version);
+
+          const merged: ModMeta = {
             ...newMod,
-            version: newMod.version || existing.version,
+            fileName: archiveChanged ? newMod.fileName : (existing.fileName || newMod.fileName),
+            isEnabled: archiveChanged ? newMod.isEnabled : (existing.isEnabled ?? newMod.isEnabled),
+            version: finalVersion,
             iconAbsolutePath: newMod.iconAbsolutePath || existing.iconAbsolutePath,
             offlineJarIconAbsolutePath: newMod.offlineJarIconAbsolutePath || existing.offlineJarIconAbsolutePath,
             networkInfo: newMod.networkInfo || existing.networkInfo,
@@ -221,22 +234,36 @@ export const useModListState = (instanceId: string) => {
   useEvent('mod-cloud-sync-incremental', ({ instanceId: eventInstanceId, updatedMods }) => {
     if (eventInstanceId !== instanceId || updatedMods.length === 0) return;
 
-    const patchMap = new Map(updatedMods.map((u) => [u.fileName, u.patch]));
+    const patchMap = new Map<string, Record<string, unknown>>();
+    updatedMods.forEach((u) => {
+      patchMap.set(u.fileName, u.patch);
+      const baseName = u.fileName.replace(/\.disabled$/i, '');
+      patchMap.set(baseName, u.patch);
+      patchMap.set(`${baseName}.disabled`, u.patch);
+    });
+
     setMods((currentMods) => currentMods.map((mod) => {
-      const patch = patchMap.get(mod.fileName);
+      const patch = patchMap.get(mod.fileName)
+        || patchMap.get(mod.fileName.replace(/\.disabled$/i, ''));
       if (!patch) return mod;
+
+      // 提取 safePatch，剥离后台任务对 isEnabled 与 fileName 的覆写权
+      const safePatch = { ...patch };
+      delete safePatch.isEnabled;
+      delete safePatch.fileName;
+
       return {
         ...mod,
-        ...patch,
-        manifestEntry: patch.manifestEntry
+        ...safePatch,
+        manifestEntry: safePatch.manifestEntry
           ? ({
               ...(mod.manifestEntry || {}),
-              ...patch.manifestEntry,
+              ...(safePatch.manifestEntry as object),
               matchedPlatforms: {
                 ...(mod.manifestEntry?.matchedPlatforms || {}),
-                ...(patch.manifestEntry?.matchedPlatforms || {})
+                ...((safePatch.manifestEntry as { matchedPlatforms?: Record<string, unknown> })?.matchedPlatforms || {})
               }
-            } as any)
+            } as ModMeta['manifestEntry'])
           : mod.manifestEntry
       };
     }));

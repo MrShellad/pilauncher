@@ -1203,6 +1203,12 @@
           "backend": "桌面与运行时",
           "ecosystem": "Minecraft 生态"
         }
+      },
+      "componentShowcase": {
+        "button": "OreUI 组件预览",
+        "title": "OreUI 设计规范与组件工坊",
+        "headline": "Minecraft 基岩版 OreUI 规范组件库",
+        "description": "展示 PiLauncher 内置的 OreUI 设计体系组件，支持实时交互与焦点导航测试。"
       }
     },
     "tabs": {
