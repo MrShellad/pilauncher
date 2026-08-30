@@ -283,7 +283,7 @@ export const DownloadManager: React.FC = () => {
       addOrUpdateTask({
         id,
         taskType: 'instance',
-        title: payload.instance_name || payload.instance_id || '瀹炰緥',
+        title: payload.instance_name || payload.instance_id || '实例',
         stage: payload.stage,
         current: payload.current,
         total: payload.total,

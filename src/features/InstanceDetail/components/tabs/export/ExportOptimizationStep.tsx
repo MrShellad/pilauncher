@@ -1,8 +1,10 @@
-import React from 'react';
+﻿import React from 'react';
 import { FileArchive, Lock, Package, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+
 import { CurseforgeIcon, ModrinthIcon } from '../../../../Download/components/Icons';
 import { OreSwitch } from '../../../../../ui/primitives/OreSwitch';
+import { OreTag } from '../../../../../ui/primitives/OreTag';
 import type { ExportData } from './ExportPanel';
 
 interface ExportOptimizationStepProps {
@@ -35,25 +37,24 @@ export const ExportOptimizationStep: React.FC<ExportOptimizationStepProps> = ({
     label: string;
     desc: string;
     icon: React.FC<any>;
-    color: string;
+    badge?: string;
   }[] = [
     {
       id: 'pipack',
       label: t('instanceExport.optimization.formats.pipack.label', { defaultValue: 'PiPack' }),
       desc: t('instanceExport.optimization.formats.pipack.desc', {
-        defaultValue: 'PiLauncher smart pack with mixed-source mod recovery.',
+        defaultValue: '专属智能格式，支持混合来源 Mod 恢复与高效分发',
       }),
       icon: Package,
-      color: 'text-[#FFE866]',
+      badge: '推荐',
     },
     {
       id: 'zip',
       label: t('instanceExport.optimization.formats.zip.label', { defaultValue: 'Standard ZIP' }),
       desc: t('instanceExport.optimization.formats.zip.desc', {
-        defaultValue: 'Maximum compatibility and full file bundling.',
+        defaultValue: '通用标准压缩包，包含所有完整文件，兼容所有启动器',
       }),
       icon: FileArchive,
-      color: 'text-[#D0D1D4]',
     },
     {
       id: 'curseforge',
@@ -61,10 +62,9 @@ export const ExportOptimizationStep: React.FC<ExportOptimizationStepProps> = ({
         defaultValue: 'CurseForge',
       }),
       desc: t('instanceExport.optimization.formats.curseforge.desc', {
-        defaultValue: 'Exports a CurseForge-style archive with manifest.json.',
+        defaultValue: '导出带 manifest.json 的标准 CurseForge 格式整合包',
       }),
       icon: CurseforgeIcon,
-      color: 'text-[#F16436]',
     },
     {
       id: 'mrpack',
@@ -72,10 +72,9 @@ export const ExportOptimizationStep: React.FC<ExportOptimizationStepProps> = ({
         defaultValue: 'Modrinth (mrpack)',
       }),
       desc: t('instanceExport.optimization.formats.mrpack.desc', {
-        defaultValue: 'Exports a Modrinth-compatible mrpack archive.',
+        defaultValue: '导出兼容 Modrinth 标准的 mrpack 格式整合包',
       }),
       icon: ModrinthIcon,
-      color: 'text-[#1BD96A]',
     },
   ];
 
@@ -90,108 +89,125 @@ export const ExportOptimizationStep: React.FC<ExportOptimizationStepProps> = ({
         : 'instanceExport.optimization.manifest.fallback';
 
   return (
-    <div className="flex flex-col space-y-4 sm:space-y-5 2xl:space-y-6">
-      <div className="grid grid-cols-2 gap-3.5 sm:gap-4 xl:gap-5 2xl:gap-6">
-        {formats.map((formatItem) => (
-          <button
-            key={formatItem.id}
-            type="button"
-            onClick={() => handleFormatSelect(formatItem.id)}
-            className={`flex h-[6.25rem] w-full select-none flex-col items-center justify-center gap-2 rounded-sm border-2 px-3 py-3 text-center transition-all duration-75 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#313233] active:translate-y-[2px] sm:h-[6.75rem] sm:gap-2.5 sm:px-4 sm:py-[0.875rem] xl:h-[7.125rem] xl:px-[1.25rem] xl:py-[1rem] 2xl:h-[7.5rem] 2xl:gap-3 2xl:px-[1.375rem] 2xl:py-[1.125rem] ${
-              data.format === formatItem.id
-                ? 'border-[#18181B] bg-[#3C8527] shadow-[inset_0_-0.25rem_#1D4D13,inset_0.1875rem_0.1875rem_rgba(255,255,255,0.2),inset_-0.1875rem_-0.4375rem_rgba(255,255,255,0.1)] hover:brightness-105 active:shadow-[inset_0_-0.125rem_#1D4D13]'
-                : 'border-[#18181B] bg-[#1E1E1F] shadow-[inset_0.125rem_0.125rem_rgba(255,255,255,0.05)] hover:bg-[#2A2A2C] active:shadow-[inset_0.125rem_0.125rem_rgba(0,0,0,0.2)]'
-            }`}
-          >
-            <div className="flex h-[2.625rem] w-[2.625rem] shrink-0 items-center justify-center rounded-sm border-2 border-[#18181B] bg-black/40 p-[0.5625rem] shadow-[inset_0.125rem_0.125rem_rgba(255,255,255,0.1)] sm:h-[2.875rem] sm:w-[2.875rem] sm:p-[0.625rem] 2xl:h-[3.125rem] 2xl:w-[3.125rem] 2xl:p-[0.6875rem]">
-              <formatItem.icon
-                className={`h-[1.25rem] w-[1.25rem] sm:h-[1.375rem] sm:w-[1.375rem] 2xl:h-[1.625rem] 2xl:w-[1.625rem] ${
-                  data.format === formatItem.id
-                    ? 'text-white drop-shadow-[0_0_0.5rem_rgba(255,255,255,0.5)]'
-                    : formatItem.color
-                }`}
-              />
-            </div>
+    <div className="w-full max-w-4xl xl:max-w-5xl mx-auto flex flex-col space-y-5 font-minecraft select-none">
+      {/* 1. 导出格式 3D 磁贴选择区 (水平居中，平铺自适应) */}
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+        {formats.map((formatItem) => {
+          const isSelected = data.format === formatItem.id;
+          return (
+            <button
+              key={formatItem.id}
+              type="button"
+              onClick={() => handleFormatSelect(formatItem.id)}
+              className={`flex w-full cursor-pointer flex-col justify-between border-[2px] border-[#1E1E1F] p-4 text-left transition-none select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-white active:translate-y-[2px] min-h-[9.5rem] ${
+                isSelected
+                  ? 'bg-[#3C8527] text-white shadow-[inset_0_-3px_0_#1D4D13,inset_0_2px_0_#6CC349]'
+                  : 'bg-[#48494A] text-[#D0D1D4] shadow-[inset_0_2px_0_rgba(255,255,255,0.12),inset_0_-2px_0_rgba(0,0,0,0.35)] hover:bg-[#525354]'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2 mb-2">
+                {/* 图标槽 */}
+                <div
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center border-[2px] border-[#1E1E1F] ${
+                    isSelected ? 'bg-[#244A1B]' : 'bg-[#222324]'
+                  } shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]`}
+                >
+                  <formatItem.icon
+                    className={`h-5 w-5 ${
+                      isSelected ? 'text-white' : 'text-[#6CC349]'
+                    }`}
+                  />
+                </div>
 
-            <div className="flex min-w-0 max-w-[14rem] flex-col items-center justify-center overflow-hidden">
-              <div
-                className={`w-full text-[0.875rem] font-bold leading-[1.2] tracking-[0.06em] sm:text-[0.9375rem] 2xl:text-[1.0625rem] ${
-                  data.format === formatItem.id ? 'text-white text-shadow' : 'text-[#D0D1D4]'
-                }`}
-              >
-                {formatItem.label}
+                {formatItem.badge && (
+                  <OreTag variant="success" size="sm" weight="bold">
+                    {formatItem.badge}
+                  </OreTag>
+                )}
               </div>
-              <div
-                className={`mt-[0.3125rem] line-clamp-2 w-full text-[0.71875rem] leading-[1.4] sm:mt-[0.375rem] sm:text-[0.75rem] 2xl:text-[0.8125rem] ${
-                  data.format === formatItem.id ? 'text-white' : 'text-[#B1B2B5]'
-                }`}
-              >
-                {formatItem.desc}
+
+              <div>
+                <div className="truncate text-sm sm:text-base font-bold tracking-wide mb-1">
+                  {formatItem.label}
+                </div>
+                <div
+                  className={`line-clamp-3 text-xs leading-relaxed ${
+                    isSelected ? 'text-white/90' : 'text-[#8C8D90]'
+                  }`}
+                >
+                  {formatItem.desc}
+                </div>
               </div>
-            </div>
-          </button>
-        ))}
+            </button>
+          );
+        })}
       </div>
 
-      <div className="mt-1 flex flex-col gap-4 rounded-sm border-2 border-[#18181B] bg-[#313233] p-4 shadow-[inset_0_0.25rem_0.5rem_-0.125rem_rgba(0,0,0,0.3)] sm:flex-row sm:items-center sm:justify-between sm:p-5 2xl:p-6">
-        <div className="flex gap-4 items-start min-w-0 flex-1">
-          <div className="flex h-[3rem] w-[3rem] shrink-0 items-center justify-center rounded-sm border-2 border-[#18181B] bg-[#1E1E1F] p-[0.6875rem] text-[#A855F7] shadow-[inset_0.125rem_0.125rem_rgba(255,255,255,0.1)] sm:h-[3.25rem] sm:w-[3.25rem] sm:p-[0.75rem]">
-            <Sparkles className="h-[1.5rem] w-[1.5rem] sm:h-[1.625rem] sm:w-[1.625rem]" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-bold leading-[1.2] tracking-[0.08em] text-[#D0D1D4] sm:text-base 2xl:text-[1.0625rem]">
-              {t('instanceExport.optimization.manifest.title', {
-                defaultValue: 'MANIFEST MODE',
-              })}
+      {/* 2. Manifest 优化控制矿槽 */}
+      <div className="border-[3px] border-[#1E1E1F] bg-[#313233] p-5 sm:p-6 shadow-[inset_0_2px_0_rgba(255,255,255,0.08)]">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5 min-w-0 flex-1">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center border-[2px] border-[#1E1E1F] bg-[#222324] text-[#A855F7] shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]">
+              <Sparkles size={22} />
             </div>
-            <div className="mt-[0.5rem] space-y-[0.375rem] text-[0.78125rem] leading-[1.7] text-[#B1B2B5] sm:text-[0.8125rem] 2xl:text-sm">
-              <p>
-                {t('instanceExport.optimization.manifest.primary', {
-                  defaultValue:
-                    'Prefer platform references over bundling mod files when the source can be resolved.',
-                })}
-              </p>
-              <p className="text-[#3C8527]">
-                {t('instanceExport.optimization.manifest.fallback', {
-                  defaultValue:
-                    'Mods without a recoverable platform reference stay inside the archive as fallbacks.',
-                })}
-              </p>
-              {manifestLocked && (
-                <p className={data.format === 'zip' ? 'text-[#D0D1D4]' : 'text-[#FFE866]'}>
-                  {t(manifestDescriptionKey, {
-                    defaultValue:
+
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex items-center gap-2.5">
+                <span className="text-sm sm:text-base font-bold uppercase tracking-wider text-white">
+                  {t('instanceExport.optimization.manifest.title', {
+                    defaultValue: 'Manifest 清单优化模式',
+                  })}
+                </span>
+                {manifestLocked && (
+                  <span
+                    className="flex items-center gap-1 text-xs text-[#FFE866] bg-black/40 px-2 py-0.5 border border-[#1E1E1F]"
+                    title={
                       data.format === 'zip'
-                        ? 'Standard ZIP does not write a platform manifest and always bundles the selected files.'
-                        : 'PiPack always writes `pi_manifest.json` and only bundles mods that cannot be restored from their source platform.',
+                        ? t('instanceDetail.export.optimization.manifestLockedZipTooltip', {
+                            defaultValue: 'Standard ZIP 格式已固定禁用 Manifest 模式。',
+                          })
+                        : t('instanceDetail.export.optimization.manifestLockedPipackTooltip', {
+                            defaultValue: 'PiPack 格式已固定启用 Manifest 模式。',
+                          })
+                    }
+                  >
+                    <Lock size={12} />
+                    <span>格式固定</span>
+                  </span>
+                )}
+              </div>
+
+              <div className="text-xs leading-relaxed text-[#8C8D90] space-y-0.5">
+                <p>
+                  {t('instanceExport.optimization.manifest.primary', {
+                    defaultValue: '优先使用来源平台链接索引代替实际 Mod 文件打包，显著缩减导出包文件体积。',
                   })}
                 </p>
-              )}
+                {manifestLocked && (
+                  <p className={data.format === 'zip' ? 'text-[#D0D1D4]' : 'text-[#6CC349]'}>
+                    {t(manifestDescriptionKey, {
+                      defaultValue:
+                        data.format === 'zip'
+                          ? 'Standard ZIP 格式将全量打包所选文件。'
+                          : 'PiPack 将自动生成智能清单并在导入时自动补全模组。',
+                    })}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-3 shrink-0 justify-end sm:justify-start self-center">
-          {manifestLocked && (
-            <span
-              className="cursor-help flex items-center"
-              title={
-                data.format === 'zip'
-                  ? t('instanceDetail.export.optimization.manifestLockedZipTooltip', { defaultValue: '由于您选择了 Standard ZIP 格式，Manifest 模式已固定为禁用。' })
-                  : t('instanceDetail.export.optimization.manifestLockedPipackTooltip', { defaultValue: '由于您选择了 PiPack 格式，Manifest 模式已固定为启用。' })
-              }
-            >
-              <Lock size={14} className="text-[#FFE866]/80" />
-            </span>
-          )}
-          <OreSwitch
-            checked={manifestChecked}
-            onChange={(checked) => onChange({ manifestMode: checked })}
-            disabled={manifestLocked}
-            className="scale-[1.05] 2xl:scale-[1.125]"
-          />
+          <div className="shrink-0 pl-2">
+            <OreSwitch
+              checked={manifestChecked}
+              onChange={(checked) => onChange({ manifestMode: checked })}
+              disabled={manifestLocked}
+            />
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
+export default ExportOptimizationStep;

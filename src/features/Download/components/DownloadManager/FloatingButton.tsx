@@ -1,12 +1,14 @@
+﻿import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Download } from 'lucide-react';
 
 import { FocusItem } from '../../../../ui/focus/FocusItem';
+import { GamepadButtonIcon } from '../../../../ui/components/GamepadButtonIcon';
 
-const RING_RADIUS = 46;
+const RING_RADIUS = 22;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
-export const FloatingButton = ({ isOpen, onClick, activeCount, failedCount, hasTasks, progress, pulseKey }: {
+interface FloatingButtonProps {
   isOpen: boolean;
   onClick: () => void;
   activeCount: number;
@@ -14,6 +16,16 @@ export const FloatingButton = ({ isOpen, onClick, activeCount, failedCount, hasT
   hasTasks: boolean;
   progress: number;
   pulseKey: number;
+}
+
+export const FloatingButton: React.FC<FloatingButtonProps> = ({
+  isOpen,
+  onClick,
+  activeCount,
+  failedCount,
+  hasTasks,
+  progress,
+  pulseKey
 }) => {
   const dashOffset = Math.round(RING_CIRCUMFERENCE - (progress / 100) * RING_CIRCUMFERENCE);
 
@@ -25,22 +37,16 @@ export const FloatingButton = ({ isOpen, onClick, activeCount, failedCount, hasT
             <motion.button
               key={pulseKey}
               ref={ref}
-              initial={{ scale: 0, opacity: 0, boxShadow: '0 0 0 rgba(108,195,73,0)' }}
+              type="button"
+              initial={{ scale: 0, opacity: 0 }}
               animate={{
-                scale: pulseKey > 0 ? [0.82, 1.16, 1] : 1,
-                opacity: 1,
-                boxShadow: pulseKey > 0
-                  ? [
-                      '0 0 0 rgba(108,195,73,0)',
-                      '0 0 32px rgba(108,195,73,0.78)',
-                      '0 0 14px rgba(108,195,73,0.32)'
-                    ]
-                  : '0 0 0 rgba(108,195,73,0)'
+                scale: pulseKey > 0 ? [0.9, 1.12, 1] : 1,
+                opacity: 1
               }}
               exit={{ scale: 0, opacity: 0, transition: { duration: 0.12, ease: 'easeIn' } }}
               transition={
                 pulseKey > 0
-                  ? { duration: 0.58, ease: [0.16, 1, 0.3, 1] }
+                  ? { duration: 0.45, ease: [0.16, 1, 0.3, 1] }
                   : { type: 'spring', stiffness: 500, damping: 24 }
               }
               whileHover={{ scale: 1.05 }}
@@ -48,57 +54,54 @@ export const FloatingButton = ({ isOpen, onClick, activeCount, failedCount, hasT
               onClick={onClick}
               aria-label={`打开下载任务管理器：${activeCount} 个进行中，${failedCount} 个失败。`}
               title="打开下载任务管理器"
-              className={`group relative flex h-[clamp(3.5rem,4vw,4.5rem)] w-[clamp(3.5rem,4vw,4.5rem)] items-center justify-center rounded-none border-[0.1875rem] border-[#1E1E1F] bg-[#313233] outline-none transition-all
-                ${focused ? 'z-50 scale-105 outline outline-[0.125rem] outline-white outline-offset-[0.125rem]' : 'hover:border-[#6CC349]'}
-              `}
+              className={`group relative flex h-14 w-14 items-center justify-center border-[3px] border-[#1E1E1F] bg-[#313233] outline-none select-none font-minecraft cursor-pointer transition-none ${
+                focused ? 'outline outline-2 outline-white outline-offset-1 z-50' : 'hover:bg-[#48494A]'
+              }`}
               style={{
                 boxShadow: focused
-                  ? 'inset -0.25rem -0.25rem 0 rgba(0,0,0,0.45), inset 0.125rem 0.125rem 0 rgba(255,255,255,0.25), 0 0 1.25rem rgba(108,195,73,0.6)'
-                  : 'inset -0.25rem -0.25rem 0 rgba(0,0,0,0.35), inset 0.125rem 0.125rem 0 rgba(255,255,255,0.15)'
+                  ? 'inset 0 2px 0 rgba(255,255,255,0.25), inset 0 -3px 0 rgba(0,0,0,0.5), 0 0 16px rgba(108,195,73,0.6)'
+                  : 'inset 0 2px 0 rgba(255,255,255,0.15), inset 0 -3px 0 rgba(0,0,0,0.4)'
               }}
             >
-              <Download className="h-[1.5rem] w-[1.5rem] text-white sm:h-[1.625rem] sm:w-[1.625rem]" />
+              {/* 中心下载图标 */}
+              <Download className={`h-6 w-6 text-white ${activeCount > 0 ? 'animate-bounce' : ''}`} />
 
+              {/* 进行中角标 (右上角) */}
               {activeCount > 0 && (
-                <span className="absolute -right-[0.25rem] -top-[0.25rem] flex min-h-[1.375rem] min-w-[1.375rem] items-center justify-center rounded-none border-[0.125rem] border-[#111214] bg-[#6CC349] px-[0.25rem] text-[0.75rem] font-bold text-[#111214] shadow-[inset_-0.125rem_-0.125rem_0_#3C8527]">
+                <span className="absolute -right-2 -top-2 flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center border-[2px] border-[#1E1E1F] bg-[#3C8527] px-1 text-[10px] font-bold text-white shadow-[inset_0_-2px_0_#1D4D13]">
                   {activeCount}
                 </span>
               )}
 
+              {/* 失败角标 (左上角) */}
               {failedCount > 0 && (
-                <span className="absolute -left-[0.25rem] -top-[0.25rem] flex min-h-[1.375rem] min-w-[1.375rem] items-center justify-center rounded-none border-[0.125rem] border-[#111214] bg-red-500 px-[0.25rem] text-[0.75rem] font-bold text-white shadow-[inset_-0.125rem_-0.125rem_0_rgba(127,29,29,0.85)]">
+                <span className="absolute -left-2 -top-2 flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center border-[2px] border-[#1E1E1F] bg-[#C33636] px-1 text-[10px] font-bold text-white shadow-[inset_0_-2px_0_#AD1D1D]">
                   {failedCount}
                 </span>
               )}
 
-              {/* Progress ring showing actual task progress */}
-              <svg className="pointer-events-none absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r={RING_RADIUS} fill="transparent" stroke="#333" strokeWidth="4" />
+              {/* 进度环 (方形边框内环) */}
+              <svg className="pointer-events-none absolute inset-0 h-full w-full -rotate-90 p-1" viewBox="0 0 56 56">
+                <circle cx="28" cy="28" r={RING_RADIUS} fill="transparent" stroke="rgba(0,0,0,0.3)" strokeWidth="3" />
                 {activeCount > 0 && (
                   <motion.circle
-                    cx="50"
-                    cy="50"
+                    cx="28"
+                    cy="28"
                     r={RING_RADIUS}
                     fill="transparent"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    strokeLinecap="round"
-                    className="text-ore-green"
+                    stroke="#6CC349"
+                    strokeWidth="3"
+                    strokeLinecap="square"
                     strokeDasharray={RING_CIRCUMFERENCE}
                     animate={{ strokeDashoffset: dashOffset }}
-                    transition={{ ease: 'linear', duration: 0.5 }}
+                    transition={{ ease: 'linear', duration: 0.4 }}
                   />
                 )}
               </svg>
 
-              {/* Key hint: Xbox View button (two overlapping squares) */}
-              <div className="pointer-events-none absolute -top-[2.25rem] right-0 flex items-center gap-[0.25rem]">
-                <span className="inline-flex items-center justify-center drop-shadow-[0_1px_0_rgba(0,0,0,0.45)]" aria-hidden="true">
-                  <svg width="24" height="24" viewBox="0 0 24 24" className="h-6 w-auto" fill="none">
-                    <rect x="3" y="7" width="10" height="10" rx="1.5" stroke="#B1B2B5" strokeWidth="2" fill="#313233" />
-                    <rect x="9" y="4" width="10" height="10" rx="1.5" stroke="#B1B2B5" strokeWidth="2" fill="#313233" />
-                  </svg>
-                </span>
+              {/* 手柄按键提示: [VIEW] 键 */}
+              <div className="pointer-events-none absolute -top-7 right-0 flex items-center gap-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                <GamepadButtonIcon button="VIEW" size="sm" />
               </div>
             </motion.button>
           )}
@@ -107,3 +110,5 @@ export const FloatingButton = ({ isOpen, onClick, activeCount, failedCount, hasT
     </AnimatePresence>
   );
 };
+
+export default FloatingButton;

@@ -9,20 +9,25 @@ export { bundledSteveTextureUrl };
 const modelCache = new Map<string, GLTF>();
 const textureCache = new Map<string, THREE.Texture>();
 const ALPHA_TEST_THRESHOLD = 0.5;
+const IMAGE_LOAD_TIMEOUT_MS = 15_000;
 
+/**
+ * WebGL textures must be loaded with CORS whenever their origin differs from
+ * the page. In packaged Tauri builds the page is served from tauri.localhost
+ * while convertFileSrc() uses asset.localhost, so local files are cross-origin
+ * too even though they are not remote network resources.
+ */
 export function isRemoteHttpUrl(url?: string | null): boolean {
+  return !!url && /^https?:\/\//i.test(url);
+}
+
+export function requiresTextureCors(url?: string | null): boolean {
   if (!url || !/^https?:\/\//i.test(url)) return false;
+
   try {
-    const parsed = new URL(url);
-    const host = parsed.hostname.toLowerCase();
-    return (
-      host !== 'asset.localhost' &&
-      host !== 'tauri.localhost' &&
-      host !== 'localhost' &&
-      host !== '127.0.0.1'
-    );
+    return new URL(url, window.location.href).origin !== window.location.origin;
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -162,37 +167,35 @@ export async function loadModrinthTexture(
   textureUrl: string,
   type: 'skin' | 'cape' = 'skin'
 ): Promise<THREE.Texture> {
-  const cached = textureCache.get(textureUrl);
+  const cacheKey = `${type}:${textureUrl}`;
+  const cached = textureCache.get(cacheKey);
   if (cached) return cached;
 
   const loadHtmlImage = (useCors: boolean): Promise<HTMLImageElement> =>
     new Promise((resolve, reject) => {
       const i = new Image();
+      const timeoutId = window.setTimeout(() => {
+        i.src = '';
+        reject(new Error(`Timed out loading ${type} image: ${textureUrl}`));
+      }, IMAGE_LOAD_TIMEOUT_MS);
       if (useCors) {
         i.crossOrigin = 'anonymous';
       }
-      i.onload = () => resolve(i);
-      i.onerror = () => reject(new Error(`Failed to load skin image: ${textureUrl}`));
+      i.onload = () => {
+        window.clearTimeout(timeoutId);
+        resolve(i);
+      };
+      i.onerror = () => {
+        window.clearTimeout(timeoutId);
+        reject(new Error(`Failed to load ${type} image: ${textureUrl}`));
+      };
       i.src = textureUrl;
     });
 
   // Load the image first to check size and normalize if legacy 64x32
-  let img: HTMLImageElement;
-  const needsCors = isRemoteHttpUrl(textureUrl);
-  try {
-    img = await loadHtmlImage(needsCors);
-  } catch (err) {
-    if (needsCors) {
-      // Retry without CORS in case server does not support CORS headers
-      try {
-        img = await loadHtmlImage(false);
-      } catch {
-        throw err;
-      }
-    } else {
-      throw err;
-    }
-  }
+  // Do not retry a cross-origin texture without CORS: it may appear loaded as
+  // an <img>, but WebGL will reject it and toDataURL() will fail or stay blank.
+  const img = await loadHtmlImage(requiresTextureCors(textureUrl));
 
   let finalSrc = textureUrl;
   if (type === 'skin' && img.width === 64 && img.height === 32) {
@@ -222,7 +225,7 @@ export async function loadModrinthTexture(
   texture.generateMipmaps = false;
   texture.needsUpdate = true;
 
-  textureCache.set(textureUrl, texture);
+  textureCache.set(cacheKey, texture);
   return texture;
 }
 

@@ -92,7 +92,7 @@
     --ore-btn-hl-hover: #86D562;
     --ore-btn-hl-active: #3F7333;
     --ore-btn-fg: #FFFFFF;
-    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.75);
+    text-shadow: none;
   }
   .ore-btn-primary:hover:not(:disabled) {
     --ore-btn-bg: var(--ore-btn-bg-hover);
@@ -126,7 +126,7 @@
     --ore-btn-hl-hover: #E58080;
     --ore-btn-hl-active: #BD3B3B;
     --ore-btn-fg: #FFFFFF;
-    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.75);
+    text-shadow: none;
   }
   .ore-btn-danger:hover:not(:disabled) {
     --ore-btn-bg: var(--ore-btn-bg-hover);
@@ -143,7 +143,7 @@
     --ore-btn-hl-hover: #D8B4FE;
     --ore-btn-hl-active: #9333EA;
     --ore-btn-fg: #FFFFFF;
-    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.75);
+    text-shadow: none;
   }
   .ore-btn-purple:hover:not(:disabled) {
     --ore-btn-bg: var(--ore-btn-bg-hover);

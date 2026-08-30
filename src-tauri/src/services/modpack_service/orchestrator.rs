@@ -442,27 +442,31 @@ fn select_modrinth_file<'a>(
         .or_else(|| version_info.files.first())
 }
 
+fn pipack_download_sources(
+    entry: &crate::domain::modpack::PiPackModEntry,
+) -> impl Iterator<Item = &crate::domain::mod_manifest::ModManifestSource> {
+    std::iter::once(&entry.source).chain(entry.fallback_sources.iter())
+}
+
 async fn build_pipack_download_task(
     client: &Client,
     curseforge_api_key: Option<&str>,
     enable_source_fallbacks: bool,
     manifest_entry: &crate::domain::modpack::PiPackModEntry,
+    source: &crate::domain::mod_manifest::ModManifestSource,
     target_path: &Path,
     temp_root: &Path,
 ) -> Result<Option<DownloadTask>, String> {
-    let platform = manifest_entry
-        .source
+    let platform = source
         .platform
         .as_deref()
         .map(|value| value.trim().to_ascii_lowercase());
-    let project_id = manifest_entry
-        .source
+    let project_id = source
         .project_id
         .as_deref()
         .map(str::trim)
         .filter(|value| !value.is_empty());
-    let file_id = manifest_entry
-        .source
+    let file_id = source
         .file_id
         .as_deref()
         .map(str::trim)
@@ -811,6 +815,11 @@ pub(super) async fn deploy_archive_to_staging<R: Runtime>(
     create_instance_layout(instance_root)?;
     logger.info("INSTANCE", "Instance layout created").await;
     let mut config = build_instance_config(instance_id, instance_name, &metadata);
+    config.hero_logo = pipack_manifest
+        .as_ref()
+        .and_then(|manifest| manifest.package.hero_logo_path.as_deref())
+        .and_then(safe_relative_path)
+        .map(|path| path.to_string_lossy().replace('\\', "/"));
     config.server_binding = effective_server_binding.clone();
     super::ops::write_instance_config(instance_root, &config)?;
     logger
@@ -1094,30 +1103,33 @@ async fn download_pipack_mods<R: Runtime>(
         )
         .await;
 
-    let curseforge_api_key = if manifest.mods.iter().any(|entry| {
-        entry
-            .source
-            .platform
-            .as_deref()
-            .is_some_and(|value| value.eq_ignore_ascii_case("curseforge"))
-            && entry
-                .source
-                .project_id
-                .as_deref()
-                .is_some_and(|value| !value.trim().is_empty())
-            && entry
-                .source
-                .file_id
-                .as_deref()
-                .is_some_and(|value| !value.trim().is_empty())
-    }) {
-        Some(resolve_curseforge_api_key().ok_or_else(|| {
-            "CurseForge API key is missing. Set VITE_CURSEFORGE_API_KEY or CURSEFORGE_API_KEY."
-                .to_string()
-        })?)
-    } else {
-        None
-    };
+    let curseforge_api_key =
+        if manifest
+            .mods
+            .iter()
+            .flat_map(pipack_download_sources)
+            .any(|source| {
+                source
+                    .platform
+                    .as_deref()
+                    .is_some_and(|value| value.eq_ignore_ascii_case("curseforge"))
+                    && source
+                        .project_id
+                        .as_deref()
+                        .is_some_and(|value| !value.trim().is_empty())
+                    && source
+                        .file_id
+                        .as_deref()
+                        .is_some_and(|value| !value.trim().is_empty())
+            })
+        {
+            Some(resolve_curseforge_api_key().ok_or_else(|| {
+                "CurseForge API key is missing. Set VITE_CURSEFORGE_API_KEY or CURSEFORGE_API_KEY."
+                    .to_string()
+            })?)
+        } else {
+            None
+        };
 
     let mut tasks: Vec<DownloadTask> = Vec::new();
     let mut manifest_entries: Vec<(String, ModManifestEntry)> = Vec::new();
@@ -1143,15 +1155,34 @@ async fn download_pipack_mods<R: Runtime>(
             continue;
         }
 
-        let remote_task = build_pipack_download_task(
-            &client,
-            curseforge_api_key.as_deref(),
-            dl_settings.auto_check_latency,
-            entry,
-            &target_path,
-            &temp_root,
-        )
-        .await?;
+        let mut remote_task = None;
+        for source in pipack_download_sources(entry) {
+            match build_pipack_download_task(
+                &client,
+                curseforge_api_key.as_deref(),
+                dl_settings.auto_check_latency,
+                entry,
+                source,
+                &target_path,
+                &temp_root,
+            )
+            .await
+            {
+                Ok(Some(task)) => {
+                    remote_task = Some(task);
+                    break;
+                }
+                Ok(None) => continue,
+                Err(error) => {
+                    logger
+                        .warn(
+                            "PIPACK_MODS",
+                            format!("Source lookup failed for {}: {}", entry.file_name, error),
+                        )
+                        .await;
+                }
+            }
+        }
 
         match remote_task {
             Some(task) => {

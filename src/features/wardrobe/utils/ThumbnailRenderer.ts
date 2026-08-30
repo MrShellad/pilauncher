@@ -176,7 +176,10 @@ class ThumbnailRendererClass {
   }
 
   private getCacheKey(type: 'skin' | 'cape', url: string, extra: string): string {
-    return `${type}_gltf_v10_${url}_${extra}`;
+    // v11 invalidates thumbnails generated before asset.localhost textures were
+    // loaded with CORS. Those entries can be valid WebP files containing only
+    // a transparent frame and otherwise remain in IndexedDB indefinitely.
+    return `${type}_gltf_v11_${url}_${extra}`;
   }
 
   private getPlayerModelUrl(model: 'default' | 'slim'): string {

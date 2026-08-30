@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+﻿import React, { useEffect, useRef, useState } from 'react';
+import { ChevronDown, ScrollText } from 'lucide-react';
 
 import type { DownloadTask } from '../../../../store/useDownloadStore';
 import { OreButton } from '../../../../ui/primitives/OreButton';
-import { OreIconButton } from '../../../../ui/primitives/OreIconButton';
 import { OreOverlayScrollArea } from '../../../../ui/primitives/OreOverlayScrollArea';
 
 const LOG_HIGHLIGHT_SPLITTER =
@@ -17,16 +16,22 @@ const renderLogLine = (log: string, index: number) => {
   const message = timeMatch ? timeMatch[2] : log;
 
   return (
-    <div key={`${index}-${log}`} className="mb-[0.125rem] flex items-start gap-[0.5rem]">
-      <span className="shrink-0 rounded-[0.1875rem] border border-white/5 bg-black/40 px-[0.25rem] text-[#A0A0A0]">
-        {time}
-      </span>
-      <span className="min-w-0 flex-1 break-words text-gray-300">
+    <div
+      key={`${index}-${log}`}
+      className="mb-1 flex items-start gap-2 font-['JetBrains_Mono',monospace]"
+      style={{ fontFamily: '"JetBrains Mono", monospace' }}
+    >
+      {time && (
+        <span className="shrink-0 border border-white/5 bg-black/50 px-1 text-[#8C8D90] text-[10px]">
+          {time}
+        </span>
+      )}
+      <span className="min-w-0 flex-1 break-words text-[#D0D1D4] text-xs">
         {message.split(LOG_HIGHLIGHT_SPLITTER).map((part, partIndex) => {
           if (LOG_HIGHLIGHT_MATCHER.test(part)) {
             const isErrorPart = /failed|error/i.test(part);
             return (
-              <span key={partIndex} className={isErrorPart ? 'font-bold text-red-400' : 'font-bold text-ore-green'}>
+              <span key={partIndex} className={isErrorPart ? 'font-bold text-[#FF9E9E]' : 'font-bold text-[#6CC349]'}>
                 {part}
               </span>
             );
@@ -40,10 +45,9 @@ const renderLogLine = (log: string, index: number) => {
 
 interface TaskLogDrawerProps {
   task: DownloadTask;
-  onClose: () => void;
 }
 
-export const TaskLogDrawer = ({ task, onClose }: TaskLogDrawerProps) => {
+export const TaskLogDrawer: React.FC<TaskLogDrawerProps> = ({ task }) => {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const stickToLatestRef = useRef(true);
   const previousLogCountRef = useRef(task.logs.length);
@@ -85,24 +89,23 @@ export const TaskLogDrawer = ({ task, onClose }: TaskLogDrawerProps) => {
   };
 
   return (
-    <section className="shrink-0 border-t-[0.125rem] border-[var(--ore-border-color)] bg-[#141415]">
-      <div className="flex min-w-0 items-center justify-between gap-[0.75rem] border-b border-[var(--ore-downloadDetail-divider)] px-[1rem] py-[0.5rem]">
-        <div className="min-w-0">
-          <p className="truncate font-minecraft text-[0.8125rem] text-white">{task.title}</p>
-          <p className="font-mono text-[0.6875rem] tabular-nums text-[var(--ore-downloadDetail-mutedText)]">
-            日志 ({task.logs.length})
-          </p>
+    <div className="mt-2.5 flex flex-col border-[2px] border-[#1E1E1F] bg-[#141517] shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)] font-minecraft select-none">
+      {/* 终端顶条 */}
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b-[2px] border-[#1E1E1F] bg-[#222324] px-3 py-1.5">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <ScrollText size={13} className="text-[#D0D1D4] shrink-0" />
+          <span className="text-xs font-bold text-white ore-text-shadow">实时下载日志</span>
         </div>
-        <OreIconButton
-          focusKey={`btn-log-close-${task.id}`}
-          variant="ghost"
-          onClick={onClose}
-          icon={<X className="h-[1rem] w-[1rem]" />}
-          label="关闭日志"
-        />
+        <span
+          className="text-[11px] text-[#D0D1D4] shrink-0 font-['JetBrains_Mono',monospace]"
+          style={{ fontFamily: '"JetBrains Mono", monospace' }}
+        >
+          {task.logs.length} 条记录
+        </span>
       </div>
 
-      <div className="relative h-[min(15rem,32dvh)]">
+      {/* 终端滚动视口 */}
+      <div className="relative h-44">
         <OreOverlayScrollArea
           ref={viewportRef}
           onScroll={handleScroll}
@@ -111,29 +114,39 @@ export const TaskLogDrawer = ({ task, onClose }: TaskLogDrawerProps) => {
           aria-live="polite"
           aria-relevant="additions text"
           className="h-full overscroll-contain"
-          contentClassName="p-[0.75rem] font-mono text-[0.75rem] leading-[1.5]"
+          contentClassName="p-2.5 font-['JetBrains_Mono',monospace] text-xs leading-relaxed"
+          style={{ fontFamily: '"JetBrains Mono", monospace' }}
           contentSafePaddingRight={12}
         >
           {task.logs.length > 0
             ? task.logs.map((log, index) => renderLogLine(log, index))
-            : <p className="text-[var(--ore-downloadDetail-mutedText)]">暂无日志。</p>}
+            : (
+              <p
+                className="text-[#8C8D90] text-xs font-['JetBrains_Mono',monospace]"
+                style={{ fontFamily: '"JetBrains Mono", monospace' }}
+              >
+                暂无日志内容。
+              </p>
+            )}
         </OreOverlayScrollArea>
 
         {unseenLogCount > 0 && (
           <OreButton
             focusKey={`btn-log-latest-${task.id}`}
             variant="primary"
-            size="auto"
+            size="sm"
             onClick={scrollToBottom}
-            className="absolute bottom-[0.75rem] left-1/2 !h-[2rem] !min-w-0 -translate-x-1/2 !px-[0.625rem] text-[0.75rem]"
+            className="absolute bottom-2.5 left-1/2 -translate-x-1/2 shadow-[0_4px_12px_rgba(0,0,0,0.6)]"
           >
-            <span className="flex items-center gap-[0.25rem]">
-              <ChevronDown className="h-[0.875rem] w-[0.875rem]" />
-              {unseenLogCount} 条新日志
+            <span className="flex items-center gap-1.5">
+              <ChevronDown className="h-4 w-4" />
+              <span>{unseenLogCount} 条新日志</span>
             </span>
           </OreButton>
         )}
       </div>
-    </section>
+    </div>
   );
 };
+
+export default TaskLogDrawer;

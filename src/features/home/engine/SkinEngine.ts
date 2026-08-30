@@ -328,7 +328,9 @@ export class SkinEngine {
     };
 
     this.setSize(options?.width ?? DEFAULT_WIDTH, options?.height ?? DEFAULT_HEIGHT);
-    void this.forceLoadSkin('default:steve', this.defaultSkinUrl, 'classic');
+    void this.forceLoadSkin('default:steve', this.defaultSkinUrl, 'classic').catch((error) => {
+      console.error('[SkinEngine] Failed to initialize the bundled player model:', error);
+    });
 
     if (this._randomIdleEnabled) {
       this.scheduleNextRandomIdle();
@@ -428,7 +430,14 @@ export class SkinEngine {
     const loadVersion = ++this.skinLoadVersion;
     this.lastSkinSource = urlOrSource;
     this.currentModel = toModelVariant(model);
-    const texture = await loadModrinthTexture(urlOrSource, 'skin');
+    let texture: THREE.Texture;
+    try {
+      texture = await loadModrinthTexture(urlOrSource, 'skin');
+    } catch (error) {
+      if (urlOrSource === this.defaultSkinUrl) throw error;
+      console.warn('[SkinEngine] Failed to load selected skin; using bundled Steve texture:', error);
+      texture = await loadModrinthTexture(this.defaultSkinUrl, 'skin');
+    }
     if (this._disposed || loadVersion !== this.skinLoadVersion) return;
     this.currentTexture = texture;
     await this.loadModelForCurrentVariant(loadVersion);

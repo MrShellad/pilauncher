@@ -47,6 +47,8 @@ pub struct PiPackPackageInfo {
     pub description: String,
     pub uuid: String,
     pub packaged_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hero_logo_path: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -75,6 +77,9 @@ pub struct PiPackModEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     pub source: ModManifestSource,
+    /// Additional recoverable sources, ordered after `source`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fallback_sources: Vec<ModManifestSource>,
     pub hash: ModFileHash,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub file_state: Option<ModFileState>,

@@ -45,11 +45,11 @@ const BUTTON_SIZE_CLASSES: Record<'xs' | 'sm' | 'md' | 'lg', { normal: string; i
 };
 
 const VARIANTS = {
-  primary: "ore-btn-primary ore-text-shadow",
-  hero: "ore-btn-primary ore-text-shadow text-lg tracking-wider",
+  primary: "ore-btn-primary",
+  hero: "ore-btn-primary text-lg tracking-wider",
   secondary: "ore-btn-secondary",
-  danger: "ore-btn-danger ore-text-shadow",
-  purple: "ore-btn-purple ore-text-shadow", 
+  danger: "ore-btn-danger",
+  purple: "ore-btn-purple", 
   ghost: "ore-btn-ghost",
 };
 

@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import {
   Blocks,
-  CheckCircle2,
-  Circle,
+  Check,
   FilePlus2,
   FolderArchive,
   HardDrive,
@@ -52,21 +51,40 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
   }, [instanceId]);
 
   const toggles = [
-    { id: 'includeMods', label: 'Mods', icon: Blocks, desc: t('instanceDetail.export.content.toggles.mods', { defaultValue: '包含 mods 文件夹' }) },
-    { id: 'includeConfigs', label: 'Config', icon: Settings2, desc: t('instanceDetail.export.content.toggles.config', { defaultValue: '包含 config 文件夹' }) },
+    {
+      id: 'includeMods',
+      label: 'Mods',
+      icon: Blocks,
+      desc: t('instanceDetail.export.content.toggles.mods', { defaultValue: '包含 mods 模组目录与所有 Jar 文件' }),
+    },
+    {
+      id: 'includeConfigs',
+      label: 'Config',
+      icon: Settings2,
+      desc: t('instanceDetail.export.content.toggles.config', { defaultValue: '包含 config 模组配置与自定义选项' }),
+    },
     {
       id: 'includeResourcePacks',
       label: t('instanceDetail.export.content.toggles.resourcePacksLabel', { defaultValue: '资源包' }),
       icon: FolderArchive,
-      desc: t('instanceDetail.export.content.toggles.resourcePacks', { defaultValue: '包含 resourcepacks 文件夹' }),
+      desc: t('instanceDetail.export.content.toggles.resourcePacks', {
+        defaultValue: '包含 resourcepacks 材质与音效包',
+      }),
     },
     {
       id: 'includeShaderPacks',
       label: t('instanceDetail.export.content.toggles.shaderPacksLabel', { defaultValue: '光影包' }),
       icon: ImageIcon,
-      desc: t('instanceDetail.export.content.toggles.shaderPacks', { defaultValue: '包含 shaderpacks 文件夹' }),
+      desc: t('instanceDetail.export.content.toggles.shaderPacks', {
+        defaultValue: '包含 shaderpacks 自定义光影渲染包',
+      }),
     },
-    { id: 'includeSaves', label: t('instanceDetail.export.content.toggles.savesLabel', { defaultValue: '存档' }), icon: HardDrive, desc: t('instanceDetail.export.content.toggles.saves', { defaultValue: '包含 saves 文件夹' }) },
+    {
+      id: 'includeSaves',
+      label: t('instanceDetail.export.content.toggles.savesLabel', { defaultValue: '游戏存档' }),
+      icon: HardDrive,
+      desc: t('instanceDetail.export.content.toggles.saves', { defaultValue: '包含 saves 世界地图与玩家进度' }),
+    },
   ] as const;
 
   const toggleStatus = (id: (typeof toggles)[number]['id']) => {
@@ -99,7 +117,13 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
       const relativePath = toInstanceRelativePath(selectedPath);
       if (!relativePath) return;
       if (data.additionalPaths.find((item) => item.path === relativePath)) {
-        addToast('warning', t('instanceDetail.export.content.directoryAlreadyAdded', { defaultValue: '目录 [{{name}}] 已在附加列表中，请勿重复添加', name: getBasename(relativePath) }));
+        addToast(
+          'warning',
+          t('instanceDetail.export.content.directoryAlreadyAdded', {
+            defaultValue: '目录 [{{name}}] 已在附加列表中，请勿重复添加',
+            name: getBasename(relativePath),
+          })
+        );
       } else {
         onChange({
           additionalPaths: [...data.additionalPaths, { path: relativePath, type: 'dir' }],
@@ -107,7 +131,12 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
       }
     } catch (error) {
       console.error('Failed to open directory dialog', error);
-      addToast('error', t('instanceDetail.export.content.openDirectoryPickerFailed', { defaultValue: '打开目录选择器失败，请检查系统权限' }));
+      addToast(
+        'error',
+        t('instanceDetail.export.content.openDirectoryPickerFailed', {
+          defaultValue: '打开目录选择器失败，请检查系统权限',
+        })
+      );
     }
   };
 
@@ -140,7 +169,10 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
       if (duplicatePaths.length > 0) {
         addToast(
           'warning',
-          t('instanceDetail.export.content.fileAlreadyAdded', { defaultValue: '文件 [{{names}}] 已在附加列表中，请勿重复添加', names: duplicatePaths.map((p) => getBasename(p)).join(', ') })
+          t('instanceDetail.export.content.fileAlreadyAdded', {
+            defaultValue: '文件 [{{names}}] 已在附加列表中，请勿重复添加',
+            names: duplicatePaths.map((p) => getBasename(p)).join(', '),
+          })
         );
       }
 
@@ -150,7 +182,12 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
       }
     } catch (error) {
       console.error('Failed to open file dialog', error);
-      addToast('error', t('instanceDetail.export.content.openFilePickerFailed', { defaultValue: '打开文件选择器失败，请检查系统权限' }));
+      addToast(
+        'error',
+        t('instanceDetail.export.content.openFilePickerFailed', {
+          defaultValue: '打开文件选择器失败，请检查系统权限',
+        })
+      );
     }
   };
 
@@ -161,62 +198,91 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
   const getBasename = (path: string) => path.split(/[/\\]/).pop() || path;
 
   return (
-    <div className="flex flex-col space-y-5">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {toggles.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            onClick={() => toggleStatus(option.id)}
-            className={`flex w-full cursor-pointer flex-col items-start rounded-sm border-2 p-4 text-left transition-all duration-75 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#313233] active:translate-y-[2px] ${
-              data[option.id]
-                ? 'border-[#18181B] bg-[#3C8527] shadow-[inset_0_-4px_#1D4D13,inset_3px_3px_rgba(255,255,255,0.2),inset_-3px_-7px_rgba(255,255,255,0.1)] active:shadow-[inset_0_-2px_#1D4D13]'
-                : 'border-[#18181B] bg-[#1E1E1F] shadow-[inset_2px_2px_rgba(255,255,255,0.05)] active:shadow-[inset_2px_2px_rgba(0,0,0,0.2)]'
-            }`}
-          >
-            <div className="mb-1 flex w-full items-center">
-              <option.icon
-                size={20}
-                className={`mr-2 ${data[option.id] ? 'text-white' : 'text-[#B1B2B5]'}`}
-              />
+    <div className="w-full max-w-4xl xl:max-w-5xl mx-auto flex flex-col space-y-5 font-minecraft select-none">
+      {/* 1. 系统核心内容 3D 多选磁贴网格 (居中平铺自适应) */}
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+        {toggles.map((option) => {
+          const isChecked = !!data[option.id];
+          return (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => toggleStatus(option.id)}
+              className={`flex w-full cursor-pointer flex-col justify-between border-[2px] border-[#1E1E1F] p-4 text-left transition-none select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-white active:translate-y-[2px] min-h-[5.75rem] ${
+                isChecked
+                  ? 'bg-[#3C8527] text-white shadow-[inset_0_-3px_0_#1D4D13,inset_0_2px_0_#6CC349]'
+                  : 'bg-[#48494A] text-[#D0D1D4] shadow-[inset_0_2px_0_rgba(255,255,255,0.12),inset_0_-2px_0_rgba(0,0,0,0.35)] hover:bg-[#525354]'
+              }`}
+            >
+              <div className="flex w-full items-center justify-between gap-3 mb-1.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center border-[2px] border-[#1E1E1F] ${
+                      isChecked ? 'bg-[#244A1B]' : 'bg-[#222324]'
+                    } shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]`}
+                  >
+                    <option.icon
+                      size={16}
+                      className={isChecked ? 'text-white' : 'text-[#6CC349]'}
+                    />
+                  </div>
+                  <span className="truncate text-sm sm:text-base font-bold tracking-wide">
+                    {option.label}
+                  </span>
+                </div>
+
+                {/* 正统 3D 方形勾选框 */}
+                <div
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center border-[2px] border-[#1E1E1F] ${
+                    isChecked
+                      ? 'bg-[#244A1B] text-[#6CC349] shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]'
+                      : 'bg-[#222324] shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]'
+                  }`}
+                >
+                  {isChecked && <Check size={14} strokeWidth={3} />}
+                </div>
+              </div>
+
               <span
-                className={`flex-1 text-sm font-bold tracking-wide ${
-                  data[option.id] ? 'text-white text-shadow' : 'text-[#D0D1D4]'
+                className={`text-xs leading-tight ${
+                  isChecked ? 'text-white/90' : 'text-[#8C8D90]'
                 }`}
               >
-                {option.label}
+                {option.desc}
               </span>
-              <div className={data[option.id] ? 'text-white' : 'text-[#58585A]'}>
-                {data[option.id] ? <CheckCircle2 size={18} /> : <Circle size={18} />}
-              </div>
-            </div>
-            <span className={`ml-7 text-xs ${data[option.id] ? 'text-white' : 'text-[#B1B2B5]'}`}>
-              {option.desc}
-            </span>
-          </button>
-        ))}
+            </button>
+          );
+        })}
       </div>
 
-      <div className="mt-1 space-y-4 rounded-sm border-2 border-[#18181B] bg-[#313233] p-5 shadow-[inset_0_4px_8px_-2px_rgba(0,0,0,0.3)]">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <label className="flex items-center text-sm font-bold text-[#D0D1D4]">
-            <Plus size={16} className="mr-2 text-[#B1B2B5]" />
-            {t('instanceDetail.export.content.additionalContent', { defaultValue: '附加自定义内容' })}
-          </label>
-          <div className="flex flex-wrap gap-2">
+      {/* 2. 附加自定义内容 3D 石质矿槽 */}
+      <div className="border-[3px] border-[#1E1E1F] bg-[#313233] p-5 shadow-[inset_0_2px_0_rgba(255,255,255,0.08)]">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b-[2px] border-[#1E1E1F] pb-3.5 mb-3.5">
+          <div>
+            <label className="flex items-center text-sm font-bold uppercase tracking-wider text-white">
+              <Plus size={15} className="mr-2 text-[#6CC349]" />
+              <span>{t('instanceDetail.export.content.additionalContent', { defaultValue: '附加自定义内容' })}</span>
+            </label>
+            <p className="text-xs text-[#8C8D90] mt-0.5">
+              可手动添加当前实例目录下的独立文件或配置目录（如 scripts, options.txt 等）
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
             <OreButton variant="secondary" size="sm" onClick={handleSelectDir}>
-              <FolderArchive size={14} className="mr-2" />
-              {t('instanceDetail.export.content.directory', { defaultValue: '目录' })}
+              <FolderArchive size={14} className="mr-1.5 shrink-0" />
+              <span>{t('instanceDetail.export.content.directory', { defaultValue: '添加目录' })}</span>
             </OreButton>
             <OreButton variant="secondary" size="sm" onClick={handleAddFile}>
-              <FilePlus2 size={14} className="mr-2" />
-              {t('instanceDetail.export.content.file', { defaultValue: '文件' })}
+              <FilePlus2 size={14} className="mr-1.5 shrink-0" />
+              <span>{t('instanceDetail.export.content.file', { defaultValue: '添加文件' })}</span>
             </OreButton>
           </div>
         </div>
 
+        {/* 附加文件/目录列表 */}
         {data.additionalPaths.length > 0 ? (
-          <div className="mt-2 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2.5">
             <AnimatePresence>
               {data.additionalPaths.map((item) => (
                 <motion.div
@@ -225,23 +291,26 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.15 }}
-                  className="group relative flex items-center rounded-sm border border-[#18181B] bg-[#1E1E1F] px-3 py-1.5 shadow-sm"
+                  transition={{ duration: 0.12 }}
+                  className="group flex items-center border-[2px] border-[#1E1E1F] bg-[#222324] px-3 py-1.5 shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]"
                   title={item.path}
                 >
                   {item.type === 'dir' ? (
-                    <FolderArchive size={14} className="mr-2 text-[#3C8527]" />
+                    <FolderArchive size={15} className="mr-2 shrink-0 text-[#6CC349]" />
                   ) : (
-                    <ImageIcon size={14} className="mr-2 text-[#D0D1D4]" />
+                    <ImageIcon size={15} className="mr-2 shrink-0 text-[#D0D1D4]" />
                   )}
-                  <span className="mr-3 max-w-[12.5rem] truncate text-sm text-[#D0D1D4]">
+                  <span
+                    className="mr-2 max-w-[18rem] truncate text-xs text-[#D0D1D4] font-['JetBrains_Mono',monospace]"
+                    style={{ fontFamily: '"JetBrains Mono", monospace' }}
+                  >
                     {getBasename(item.path)}
                   </span>
                   <button
                     type="button"
                     onClick={() => removePath(item.path)}
-                    className="text-[#B1B2B5] transition-colors group-hover:text-[#C33636] focus:outline-none"
-                    title="Remove"
+                    className="text-[#8C8D90] transition-colors hover:text-[#FF9E9E] focus:outline-none ml-1"
+                    title="移除"
                   >
                     <X size={14} />
                   </button>
@@ -250,11 +319,15 @@ export const ExportContentStep: React.FC<ExportContentStepProps> = ({
             </AnimatePresence>
           </div>
         ) : (
-          <div className="mt-2 text-xs italic text-[#58585A]">
-            {t('instanceDetail.export.content.noAdditionalPaths', { defaultValue: '当前没有手动附加额外的文件或目录。' })}
+          <div className="flex items-center justify-center p-5 border-[2px] border-dashed border-[#1E1E1F] bg-[#222324]/50 text-xs text-[#8C8D90]">
+            {t('instanceDetail.export.content.noAdditionalPaths', {
+              defaultValue: '当前未添加额外的自定义文件或目录。点击右上角按钮即可添加。',
+            })}
           </div>
         )}
       </div>
     </div>
   );
 };
+
+export default ExportContentStep;

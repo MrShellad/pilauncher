@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { CheckCircle2 } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary';
@@ -35,7 +35,7 @@ interface ExportPanelProps {
 
 const slideVariants = {
   enter: (direction: number) => ({
-    x: direction > 0 ? '3rem' : direction < 0 ? '-3rem' : 0,
+    x: direction > 0 ? 30 : direction < 0 ? -30 : 0,
     opacity: 0,
   }),
   center: {
@@ -43,7 +43,7 @@ const slideVariants = {
     opacity: 1,
   },
   exit: (direction: number) => ({
-    x: direction > 0 ? '-3rem' : direction < 0 ? '3rem' : 0,
+    x: direction > 0 ? -30 : direction < 0 ? 30 : 0,
     opacity: 0,
   }),
 };
@@ -56,10 +56,10 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({
 }) => {
   const { t } = useTranslation();
   const stepLabels = [
-    t('instanceDetail.export.steps.basic', { defaultValue: '基础信息' }),
-    t('instanceDetail.export.steps.content', { defaultValue: '导出内容' }),
-    t('instanceDetail.export.steps.optimization', { defaultValue: '格式优化' }),
-    t('instanceDetail.export.steps.confirm', { defaultValue: '最终确认' }),
+    t('instanceDetail.export.steps.basic', { defaultValue: '1. 基础信息' }),
+    t('instanceDetail.export.steps.content', { defaultValue: '2. 导出内容' }),
+    t('instanceDetail.export.steps.optimization', { defaultValue: '3. 格式优化' }),
+    t('instanceDetail.export.steps.confirm', { defaultValue: '4. 最终确认' }),
   ];
   const [step, setStep] = useState(1);
   const [navigationDirection, setNavigationDirection] = useState(0);
@@ -77,7 +77,7 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({
     includeShaderPacks: false,
     includeSaves: false,
     additionalPaths: [],
-    format: 'zip',
+    format: 'pipack',
     manifestMode: true,
   });
 
@@ -106,7 +106,6 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({
   if (isStep1Valid) {
     maxAllowedStep = 2;
     if (isStep2Valid) {
-      maxAllowedStep = 3;
       maxAllowedStep = 4;
     }
   }
@@ -120,10 +119,10 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({
 
   return (
     <div
-      className="flex h-full w-full flex-col gap-4 overflow-hidden px-4 py-4 font-minecraft text-white md:px-6 md:py-5 xl:px-8"
-      style={{ backgroundColor: 'var(--ore-modal-bg, #313233)' }}
+      className="flex h-full w-full flex-col overflow-hidden bg-[var(--ore-modal-bg,#313233)] font-minecraft select-none"
     >
-      <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden border-2 border-[#18181B] bg-[#48494A] shadow-[inset_0_0.25rem_0.5rem_-0.125rem_rgba(0,0,0,0.3)]">
+      {/* 1. 主内容滚动视口 (居中通透，充满空间) */}
+      <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-[#222324]">
         <AnimatePresence initial={false} custom={navigationDirection} mode="wait">
           <motion.div
             key={step}
@@ -132,12 +131,13 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="flex-1 overflow-hidden"
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="flex-1 overflow-hidden h-full"
           >
             <OreOverlayScrollArea
               className="h-full w-full"
-              viewportClassName="p-4 sm:p-5 lg:p-6 xl:p-8"
+              contentClassName="p-5 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full flex flex-col items-center"
+              contentSafePaddingRight={16}
             >
               <FocusBoundary id={`export-step-${step}-boundary`} isActive trapFocus={false}>
                 {step === 1 && (
@@ -168,58 +168,61 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({
         </AnimatePresence>
       </div>
 
-      <div className="w-full border-2 border-[#18181B] bg-[#313233] p-4 shadow-[inset_0.125rem_0.125rem_rgba(255,255,255,0.05)] sm:p-5">
-        <div className="-mx-1 overflow-x-auto px-1 pb-1">
-          <div className="grid min-w-[42rem] grid-cols-4 gap-3">
-            {stepLabels.map((label, index) => {
-              const stepNumber = index + 1;
-              const isCompleted = step > stepNumber;
-              const isCurrent = step === stepNumber;
-              const isEnabled = stepNumber <= maxAllowedStep;
+      {/* 2. 底部 3D 石质步进条 (宽裕大气 Stepper Bar) */}
+      <div className="border-t-[3px] border-[#1E1E1F] bg-[#313233] p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.08)]">
+        <div className="max-w-5xl mx-auto grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {stepLabels.map((label, index) => {
+            const stepNumber = index + 1;
+            const isCompleted = step > stepNumber;
+            const isCurrent = step === stepNumber;
+            const isEnabled = stepNumber <= maxAllowedStep;
 
-              return (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => goToStep(stepNumber)}
-                  disabled={!isEnabled}
-                  aria-current={isCurrent ? 'step' : undefined}
-                  className={`flex min-w-0 items-center gap-3 rounded-sm border-2 px-3 py-2.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+            return (
+              <button
+                key={label}
+                type="button"
+                onClick={() => goToStep(stepNumber)}
+                disabled={!isEnabled}
+                aria-current={isCurrent ? 'step' : undefined}
+                className={`flex min-w-0 items-center gap-3 border-[2px] border-[#1E1E1F] px-4 py-2.5 sm:py-3 text-left transition-none select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-white active:translate-y-[1px] min-h-[3rem] ${
+                  isCurrent
+                    ? 'bg-[#D0D1D4] text-[#1E1E1F] shadow-[inset_0_2px_0_#FFF,inset_0_-2px_0_#58585A]'
+                    : isCompleted
+                      ? 'bg-[#3C8527] text-white shadow-[inset_0_-2px_0_#1D4D13,inset_0_2px_0_#6CC349] hover:brightness-105'
+                      : !isEnabled
+                        ? 'cursor-not-allowed bg-[#222324] text-[#58585A] opacity-60'
+                        : 'bg-[#48494A] text-[#D0D1D4] shadow-[inset_0_2px_0_rgba(255,255,255,0.12),inset_0_-2px_0_rgba(0,0,0,0.35)] hover:bg-[#525354]'
+                }`}
+              >
+                {/* 方形 3D 序号/勾选框 */}
+                <div
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center border-[2px] border-[#1E1E1F] text-xs font-bold ${
                     isCurrent
-                      ? 'border-[#18181B] bg-[#D0D1D4]/90 text-black shadow-[0_0_1rem_rgba(208,209,212,0.2)]'
+                      ? 'bg-white text-[#1E1E1F]'
                       : isCompleted
-                        ? 'border-[#18181B] bg-[#3C8527] text-white shadow-[0_0_1rem_rgba(60,133,39,0.18)] hover:brightness-105'
+                        ? 'bg-[#244A1B] text-[#6CC349]'
                         : !isEnabled
-                          ? 'opacity-40 cursor-not-allowed border-[#18181B] bg-[#1E1E1F] text-[#58585A]'
-                          : 'border-[#18181B] bg-[#1E1E1F] text-[#B1B2B5] hover:bg-[#2A2A2C]'
+                          ? 'bg-[#181819] text-[#58585A]'
+                          : 'bg-[#222324] text-[#D0D1D4]'
                   }`}
                 >
-                  <div
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold ${
-                      isCurrent
-                        ? 'border-[#18181B] bg-white/80 text-black'
-                        : isCompleted
-                          ? 'border-[#18181B] bg-black/15 text-white'
-                          : !isEnabled
-                            ? 'border-[#18181B] bg-[#1E1E1F] text-[#58585A]'
-                            : 'border-[#18181B] bg-[#48494A] text-[#D0D1D4]'
-                    }`}
-                  >
-                    {isCompleted ? <CheckCircle2 size={16} /> : stepNumber}
-                  </div>
-                  <span
-                    className={`min-w-0 text-[0.75rem] leading-[1.35] tracking-[0.08em] whitespace-normal break-words sm:text-[0.8125rem] ${
-                      isCurrent ? 'font-bold' : ''
-                    }`}
-                  >
-                    {label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                  {isCompleted ? <Check size={16} strokeWidth={3} /> : stepNumber}
+                </div>
+
+                <span
+                  className={`truncate text-xs sm:text-sm tracking-wide ${
+                    isCurrent ? 'font-bold' : ''
+                  }`}
+                >
+                  {label}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
   );
 };
+
+export default ExportPanel;

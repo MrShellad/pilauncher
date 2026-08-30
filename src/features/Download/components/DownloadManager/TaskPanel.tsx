@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+﻿import React, { useCallback, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Download } from 'lucide-react';
+import { Download, Inbox, X } from 'lucide-react';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
 import type { DownloadTask } from '../../../../store/useDownloadStore';
@@ -9,12 +9,12 @@ import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
 import { useInputAction } from '../../../../ui/focus/InputDriver';
 import { useScreenDensity } from '../../../../hooks/ui/useScreenDensity';
 import { OreButton } from '../../../../ui/primitives/OreButton';
+import { OreSegmentedControl } from '../../../../ui/primitives/OreSegmentedControl';
 import { OreSwitch } from '../../../../ui/primitives/OreSwitch';
 import { OreTag } from '../../../../ui/primitives/OreTag';
-import { OreMotionTokens } from '../../../../style/tokens/motion';
 import { OreOverlayScrollArea } from '../../../../ui/primitives/OreOverlayScrollArea';
+import { GamepadActionHint } from '../../../../ui/components/GamepadButtonIcon';
 import { TaskItem } from './TaskItem';
-import { TaskLogDrawer } from './TaskLogDrawer';
 
 interface TaskPanelProps {
   isOpen: boolean;
@@ -27,22 +27,9 @@ interface TaskPanelProps {
   onAutoOpenOnceChange: (enabled: boolean) => void;
 }
 
-const TASK_GROUPS = [
-  { id: 'active', label: '进行中', statuses: ['downloading'] },
-  { id: 'failed', label: '需处理', statuses: ['error'] },
-  { id: 'paused', label: '已暂停', statuses: ['paused'] },
-  { id: 'completed', label: '已完成', statuses: ['completed'] },
-] as const;
+type FilterTabId = 'all' | 'active' | 'error' | 'completed';
 
-const isTaskActionFocusKey = (focusKey: string, taskId: string) => [
-  `btn-log-${taskId}`,
-  `btn-pause-${taskId}`,
-  `btn-cancel-${taskId}`,
-  `btn-retry-${taskId}`,
-  `btn-complete-${taskId}`,
-].includes(focusKey);
-
-export const TaskPanel = ({
+export const TaskPanel: React.FC<TaskPanelProps> = ({
   isOpen,
   onClose,
   taskList,
@@ -51,96 +38,60 @@ export const TaskPanel = ({
   clearCompletedTasks,
   autoOpenOnce,
   onAutoOpenOnceChange
-}: TaskPanelProps) => {
+}) => {
   const density = useScreenDensity();
   const isCompact = density === 'compact';
 
-  const activeTasksCount = taskList.filter((task: DownloadTask) => task.status === 'downloading').length;
-  const completedTasksCount = taskList.filter((task: DownloadTask) => task.status === 'completed').length;
-  const [isCompletedExpanded, setCompletedExpanded] = useState(false);
+  const [filterTab, setFilterTab] = useState<FilterTabId>('all');
   const [logTaskId, setLogTaskId] = useState<string | null>(null);
 
-  const taskGroups = useMemo(() => TASK_GROUPS.map((group) => ({
-    ...group,
-    tasks: taskList
-      .filter((task) => group.statuses.includes(task.status as never))
-      .sort((a, b) => b.lastUpdate - a.lastUpdate || b.startedAt - a.startedAt),
-  })), [taskList]);
-  const selectedLogTask = taskList.find((task) => task.id === logTaskId) ?? null;
+  const activeTasksCount = taskList.filter((task) => task.status === 'downloading').length;
+  const failedTasksCount = taskList.filter((task) => task.status === 'error').length;
+  const completedTasksCount = taskList.filter((task) => task.status === 'completed').length;
+  const pausedTasksCount = taskList.filter((task) => task.status === 'paused').length;
 
-  const taskActionFocusOrder = useMemo(() => taskGroups.flatMap((group) => {
-    if (group.id === 'completed' && !isCompletedExpanded) return [];
+  const filteredTasks = useMemo(() => {
+    return taskList
+      .filter((task) => {
+        if (filterTab === 'active') return task.status === 'downloading' || task.status === 'paused';
+        if (filterTab === 'error') return task.status === 'error';
+        if (filterTab === 'completed') return task.status === 'completed';
+        return true;
+      })
+      .sort((a, b) => b.lastUpdate - a.lastUpdate || b.startedAt - a.startedAt);
+  }, [taskList, filterTab]);
 
-    return group.tasks.flatMap((task) => {
-      const focusKeys = [`btn-log-${task.id}`];
-      const isDone = task.status === 'completed';
-      const isError = task.status === 'error';
-      const isResource = task.taskType === 'resource';
-      const isUpdate = task.taskType === 'update';
-
-      if (!isDone && !isError && !isUpdate) {
-        if (isResource) focusKeys.push(`btn-pause-${task.id}`);
-        focusKeys.push(`btn-cancel-${task.id}`);
-      } else if (isError) {
-        if (task.retryTask || task.retryAction) focusKeys.push(`btn-retry-${task.id}`);
-        focusKeys.push(`btn-complete-${task.id}`);
-      } else if (isDone) {
-        focusKeys.push(`btn-complete-${task.id}`);
-      }
-
-      return focusKeys;
-    });
-  }), [isCompletedExpanded, taskGroups]);
-
-  const panelFocusOrder = useMemo(() => [
-    ...taskActionFocusOrder,
-    ...(completedTasksCount > 0 ? ['btn-taskpanel-toggle-completed'] : []),
-    'btn-taskpanel-auto-open-once',
-    ...(completedTasksCount > 0 ? ['btn-taskpanel-clear-completed'] : []),
-    'btn-taskpanel-hide',
-  ], [completedTasksCount, taskActionFocusOrder]);
-
-  const handlePanelArrowPress = useCallback((focusKey: string, direction: string) => {
-    if (!['left', 'right', 'up', 'down'].includes(direction)) return true;
-
-    const availableFocusKeys = panelFocusOrder.filter((key) => doesFocusableExist(key));
-    const currentIndex = availableFocusKeys.indexOf(focusKey);
-    if (currentIndex < 0) return true;
-
-    const moveBackward = direction === 'left' || direction === 'up';
-    const nextIndex = Math.max(
-      0,
-      Math.min(availableFocusKeys.length - 1, currentIndex + (moveBackward ? -1 : 1)),
-    );
-    const nextFocusKey = availableFocusKeys[nextIndex];
-    if (nextFocusKey && nextFocusKey !== focusKey) setFocus(nextFocusKey);
-
-    return false;
-  }, [panelFocusOrder]);
-
-  const openTaskLog = useCallback((taskId: string) => {
-    setLogTaskId(taskId);
-    requestAnimationFrame(() => setFocus(`btn-log-close-${taskId}`));
+  const toggleTaskLog = useCallback((taskId: string) => {
+    setLogTaskId((prev) => (prev === taskId ? null : taskId));
   }, []);
 
-  const closeTaskLog = useCallback(() => {
-    const focusKey = selectedLogTask ? `btn-log-${selectedLogTask.id}` : null;
-    setLogTaskId(null);
-    if (focusKey) requestAnimationFrame(() => setFocus(focusKey));
-  }, [selectedLogTask]);
-
+  // 手柄快捷键支持
   useInputAction('ACTION_Y', () => {
-    if (selectedLogTask) return;
+    if (!isOpen) return;
     const focusKey = getCurrentFocusKey();
-    const task = taskList.find((candidate) => focusKey && isTaskActionFocusKey(focusKey, candidate.id));
-    if (task) openTaskLog(task.id);
+    if (focusKey) {
+      const match = focusKey.match(/^btn-(?:log|pause|cancel|retry|complete)-(.+)$/);
+      if (match && match[1]) {
+        toggleTaskLog(match[1]);
+      }
+    }
   });
 
-  const compactVariants = {
-    hidden: { y: '100%' },
-    visible: { y: 0, transition: { type: 'spring' as const, damping: 25, stiffness: 250 } },
-    exit: { y: '100%', transition: { ease: 'easeInOut' as const, duration: 0.2 } }
-  };
+  useInputAction('CANCEL', () => {
+    if (!isOpen) return;
+    if (logTaskId) {
+      setLogTaskId(null);
+    } else {
+      onClose();
+    }
+  });
+
+  const filterTabs = [
+    { id: 'all', label: `全部 (${taskList.length})` },
+    { id: 'active', label: `进行中 (${activeTasksCount + pausedTasksCount})` },
+    { id: 'error', label: `需处理 (${failedTasksCount})` },
+    { id: 'completed', label: `已完成 (${completedTasksCount})` }
+  ];
 
   return (
     <AnimatePresence>
@@ -149,155 +100,156 @@ export const TaskPanel = ({
           role="dialog"
           aria-modal="true"
           aria-labelledby="download-task-panel-title"
-          variants={isCompact ? compactVariants : OreMotionTokens.downloadPanelContainer}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          onAnimationComplete={(definition) => {
-            if (definition === 'visible') {
-              const initialTask = taskGroups.find((group) => group.id !== 'completed' && group.tasks.length > 0)?.tasks[0];
-              setFocus(initialTask ? `btn-log-${initialTask.id}` : 'btn-taskpanel-hide');
+          initial={{ opacity: 0, scale: 0.96, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.96, y: 15 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+          onAnimationComplete={() => {
+            const firstTask = filteredTasks[0];
+            if (firstTask && doesFocusableExist(`btn-log-${firstTask.id}`)) {
+              setFocus(`btn-log-${firstTask.id}`);
+            } else if (doesFocusableExist('btn-taskpanel-hide')) {
+              setFocus('btn-taskpanel-hide');
             }
           }}
-          className={`z-[1000] flex flex-col overflow-hidden bg-[var(--ore-modal-bg)] text-[var(--ore-modal-content-text)]
-            ${isCompact 
-              ? 'fixed bottom-0 left-0 right-0 mb-0 h-[min(44rem,calc(100dvh-1rem))] w-full border-t-[0.125rem] border-[var(--ore-border-color)] rounded-t-[0.5rem]'
-              : 'mb-[1.25rem] w-[clamp(22rem,48vw,44rem)] max-h-[calc(100vh-120px)] border-[0.125rem] border-[var(--ore-border-color)]'
-            }`}
-          style={{ boxShadow: 'var(--ore-modal-shadow)' }}
+          className={`z-[1000] flex flex-col overflow-hidden bg-[var(--ore-modal-bg)] border-[3px] border-[#1E1E1F] font-minecraft select-none ${
+            isCompact
+              ? 'fixed bottom-0 left-0 right-0 h-[min(44rem,calc(100dvh-1rem))] w-full rounded-none'
+              : 'mb-4 w-[clamp(26rem,54vw,48rem)] h-[min(46rem,calc(100vh-100px))] shadow-[var(--ore-modal-shadow)]'
+          }`}
         >
           <FocusBoundary
-            id="download-task-panel"
+            id="download-task-panel-boundary"
             trapFocus={isOpen}
-            onEscape={selectedLogTask ? closeTaskLog : onClose}
+            onEscape={logTaskId ? () => setLogTaskId(null) : onClose}
             defaultFocusKey="btn-taskpanel-hide"
-            className="flex flex-1 min-h-0 flex-col overflow-hidden outline-none"
+            className="flex flex-1 min-h-0 h-full flex-col overflow-hidden outline-none"
           >
+            {/* 1. 顶部标题栏 */}
             <div
-              className="shrink-0 border-b-[0.125rem] border-[var(--ore-border-color)] bg-[var(--ore-modal-header-bg)] px-[1rem] py-[0.75rem]"
+              className="flex shrink-0 items-center justify-between gap-3 border-b-[3px] border-[#1E1E1F] bg-[var(--ore-modal-header-bg)] px-4 py-3"
               style={{ boxShadow: 'var(--ore-modal-header-shadow)' }}
             >
-              <div className="flex items-center justify-between gap-[0.75rem]">
-                <div className="flex min-w-0 items-center gap-[0.5rem]">
-                  <Download className="h-[1.125rem] w-[1.125rem] shrink-0 text-[var(--ore-btn-primary-bg)]" />
-                  <h3 id="download-task-panel-title" className="truncate font-minecraft text-[clamp(1rem,1.5vw,1.125rem)] text-[var(--ore-modal-header-text)] ore-text-shadow">
-                    下载任务管理
-                  </h3>
-                </div>
+              <div className="flex min-w-0 items-center gap-2">
+                <Download className="h-5 w-5 shrink-0 text-[#6CC349]" />
+                <h3
+                  id="download-task-panel-title"
+                  className="truncate font-minecraft text-base sm:text-lg font-bold text-white ore-text-shadow"
+                >
+                  下载任务管理
+                </h3>
+              </div>
 
-                <div className="flex shrink-0 items-center gap-[0.5rem] text-[clamp(0.75rem,1vw,0.8125rem)] font-minecraft uppercase tracking-[0.12em] text-[var(--ore-color-text-secondary-default)]">
+              <div className="flex shrink-0 items-center gap-2">
+                {activeTasksCount > 0 && (
                   <OreTag variant="success" size="sm" weight="bold">
                     {activeTasksCount} 进行中
                   </OreTag>
-                  <span>{taskList.length} 个任务</span>
-                </div>
+                )}
+                {failedTasksCount > 0 && (
+                  <OreTag variant="error" size="sm" weight="bold">
+                    {failedTasksCount} 需处理
+                  </OreTag>
+                )}
+                <OreButton
+                  focusKey="btn-taskpanel-close-x"
+                  variant="secondary"
+                  size="sm"
+                  onClick={onClose}
+                  className="!h-8 !w-8 !p-0"
+                >
+                  <X size={16} />
+                </OreButton>
               </div>
             </div>
 
+            {/* 2. 居中状态过滤器 */}
+            <div
+              className="flex shrink-0 items-center justify-center border-b-[2px] border-[#1E1E1F] bg-[#313233] px-4 py-2"
+              style={{ boxShadow: 'inset 0 2px 0 rgba(255, 255, 255, 0.08)' }}
+            >
+              <OreSegmentedControl
+                tabs={filterTabs}
+                activeTab={filterTab}
+                onChange={(val) => setFilterTab(val as FilterTabId)}
+                style={{
+                  '--seg-height': '2.25rem',
+                  '--seg-min-width': '0px',
+                  '--seg-px': '1rem',
+                  '--seg-font-size': '0.8125rem'
+                } as any}
+              />
+            </div>
+
+            {/* 3. 任务列表主视口 (下沉式矿槽，可自由平滑滚动) */}
             <OreOverlayScrollArea
               role="region"
               aria-label="下载任务列表"
-              aria-busy={activeTasksCount > 0}
-              className="flex-1 min-h-0 bg-[var(--ore-downloadDetail-base)]"
-              contentClassName="space-y-[clamp(0.75rem,1.5vw,1rem)] p-[clamp(0.75rem,1.5vw,1rem)]"
-              style={{ boxShadow: 'var(--ore-downloadDetail-listShadow)' }}
+              className="flex-1 min-h-0 h-full bg-[#222324]"
+              viewportClassName="shadow-[inset_0_10px_20px_-10px_rgba(0,0,0,0.55)]"
+              contentClassName="p-3.5 space-y-3"
+              contentSafePaddingRight={8}
             >
-              {taskGroups.map((group) => {
-                if (group.tasks.length === 0) return null;
-                const isCompletedGroup = group.id === 'completed';
-                const shouldShowTasks = !isCompletedGroup || isCompletedExpanded;
-
-                return (
-                  <section key={group.id} aria-labelledby={`download-task-group-${group.id}`} className="space-y-[0.5rem]">
-                    <div className="flex items-center justify-between gap-[0.75rem] px-[0.125rem]">
-                      <div className="flex items-center gap-[0.5rem]">
-                        <h4 id={`download-task-group-${group.id}`} className="font-minecraft text-[0.75rem] uppercase tracking-[0.1em] text-[var(--ore-downloadDetail-mutedText)]">
-                          {group.label}
-                        </h4>
-                        <span className={`font-mono text-[0.75rem] tabular-nums ${group.id === 'failed' ? 'text-red-400' : 'text-[var(--ore-downloadDetail-mutedText)]'}`}>
-                          {group.tasks.length}
-                        </span>
-                      </div>
-                      {isCompletedGroup && (
-                        <OreButton
-                          focusKey="btn-taskpanel-toggle-completed"
-                          variant="ghost"
-                          size="auto"
-                          onClick={() => setCompletedExpanded((expanded) => !expanded)}
-                          onArrowPress={(direction) => handlePanelArrowPress('btn-taskpanel-toggle-completed', direction)}
-                          className="!h-[2rem] !min-w-0 !px-[0.5rem] text-[0.75rem]"
-                        >
-                          {isCompletedExpanded ? '收起' : '展开'}
-                        </OreButton>
-                      )}
-                    </div>
-                    {shouldShowTasks && (
-                      <div role="list" className="space-y-[0.5rem]">
-                        {group.tasks.map((task) => (
-                          <motion.div
-                            key={task.id}
-                            role="listitem"
-                            variants={OreMotionTokens.downloadPanelItem}
-                            initial="hidden"
-                            animate="visible"
-                          >
-                            <TaskItem
-                              task={task}
-                              taskCount={taskList.length}
-                              setActiveTab={setActiveTab}
-                              removeTask={removeTask}
-                              onOpenLog={openTaskLog}
-                              onActionArrowPress={handlePanelArrowPress}
-                            />
-                          </motion.div>
-                        ))}
-                      </div>
-                    )}
-                  </section>
-                );
-              })}
+              {filteredTasks.length > 0 ? (
+                filteredTasks.map((task) => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    isLogOpen={logTaskId === task.id}
+                    setActiveTab={setActiveTab}
+                    removeTask={removeTask}
+                    onToggleLog={toggleTaskLog}
+                  />
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center text-[#8C8D90]">
+                  <Inbox size={32} className="opacity-50 mb-2" />
+                  <p className="text-xs font-bold">暂无相关下载任务</p>
+                </div>
+              )}
             </OreOverlayScrollArea>
 
-            {selectedLogTask && (
-              <TaskLogDrawer key={selectedLogTask.id} task={selectedLogTask} onClose={closeTaskLog} />
-            )}
-
+            {/* 4. 底部操作与手柄提示栏 */}
             <div
-              className="grid shrink-0 gap-[0.625rem] border-t-[0.125rem] border-[var(--ore-border-color)] bg-[var(--ore-modal-footer-bg)] px-[1rem] py-[0.625rem] sm:grid-cols-[minmax(0,1fr)_auto]"
+              className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t-[3px] border-[#1E1E1F] bg-[var(--ore-modal-footer-bg)] px-4 py-3"
               style={{ boxShadow: 'var(--ore-modal-footer-shadow)' }}
             >
-              <div className="flex min-w-0 items-center">
+              {/* 左侧：只弹一次开关 + 手柄快捷键提示 */}
+              <div className="flex items-center gap-3">
                 <OreSwitch
                   focusKey="btn-taskpanel-auto-open-once"
                   checked={autoOpenOnce}
                   onChange={onAutoOpenOnceChange}
-                  onArrowPress={(direction) => handlePanelArrowPress('btn-taskpanel-auto-open-once', direction)}
                   label="只弹一次"
                 />
+
+                {/* 手柄快捷键提示 */}
+                <div className="hidden sm:flex items-center gap-2.5 text-xs text-[#D0D1D4] pl-2 border-l border-[#1E1E1F]">
+                  <GamepadActionHint button="Y" label="日志切换" size="sm" />
+                  <GamepadActionHint button="B" label="关闭" size="sm" />
+                </div>
               </div>
 
-              <div className="flex flex-wrap items-center justify-end gap-[0.5rem]">
-                <OreButton
-                  focusKey="btn-taskpanel-clear-completed"
-                  variant="secondary"
-                  size="auto"
-                  disabled={completedTasksCount === 0}
-                  onClick={clearCompletedTasks}
-                  onArrowPress={(direction) => handlePanelArrowPress('btn-taskpanel-clear-completed', direction)}
-                  className="!min-w-[8.5rem] text-[0.8125rem]"
-                >
-                  清除已完成{completedTasksCount > 0 ? ` (${completedTasksCount})` : ''}
-                </OreButton>
+              {/* 右侧：动作按钮 (标准 size="sm") */}
+              <div className="flex items-center gap-2">
+                {completedTasksCount > 0 && (
+                  <OreButton
+                    focusKey="btn-taskpanel-clear-completed"
+                    variant="danger"
+                    size="sm"
+                    onClick={clearCompletedTasks}
+                  >
+                    <span>清除已完成 ({completedTasksCount})</span>
+                  </OreButton>
+                )}
 
                 <OreButton
                   focusKey="btn-taskpanel-hide"
-                  variant="primary"
-                  size="auto"
+                  variant="secondary"
+                  size="sm"
                   onClick={onClose}
-                  onArrowPress={(direction) => handlePanelArrowPress('btn-taskpanel-hide', direction)}
-                  className="!min-w-[6.5rem] text-[0.8125rem]"
                 >
-                  隐藏面板
+                  <span>隐藏面板</span>
                 </OreButton>
               </div>
             </div>
@@ -307,3 +259,5 @@ export const TaskPanel = ({
     </AnimatePresence>
   );
 };
+
+export default TaskPanel;

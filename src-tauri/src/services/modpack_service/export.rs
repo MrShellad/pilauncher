@@ -1,5 +1,7 @@
 use crate::domain::instance::InstanceConfig;
-use crate::domain::mod_manifest::{mod_manifest_key, ModManifestEntry};
+use crate::domain::mod_manifest::{
+    mod_manifest_key, ModManifestEntry, ModManifestSource, ModPlatformMatch, ModSourceKind,
+};
 use crate::domain::modpack::{
     PiPackManifest, PiPackMinecraftInfo, PiPackModEntry, PiPackPackageInfo, PIPACK_FORMAT_VERSION,
     PIPACK_MANIFEST_FILE, PIPACK_OVERRIDES_DIR,
@@ -128,6 +130,7 @@ struct MrpackManifestHashes {
 
 #[derive(Deserialize)]
 struct ModrinthExportVersion {
+    id: String,
     project_id: String,
     files: Vec<ModrinthExportFile>,
 }
@@ -178,12 +181,21 @@ pub async fn execute_export<R: Runtime>(
     );
 
     ensure_export_not_cancelled(&cancellation_token)?;
-    let artifacts = prepare_export_artifacts(app, &instance_dir, &instance_meta, &config).await?;
+    let artifacts =
+        prepare_export_artifacts(app, &task_id, &instance_dir, &instance_meta, &config).await?;
     ensure_export_not_cancelled(&cancellation_token)?;
+    emit_export_progress(
+        app,
+        &task_id,
+        45,
+        "Collecting selected files...",
+        "COLLECTING",
+    );
     let files_to_pack = collect_files_to_pack(
         &instance_dir,
         &config,
         overrides_prefix.as_deref(),
+        instance_meta.hero_logo.as_deref(),
         &artifacts.skipped_files,
     )?;
 
@@ -223,8 +235,8 @@ pub async fn execute_export<R: Runtime>(
                 "export-progress",
                 ExportProgress {
                     task_id: task_id.clone(),
-                    current: (index + 1) as u64,
-                    total: total_files,
+                    current: 45 + ((index + 1) as u64 * 50 / total_files),
+                    total: 100,
                     message: format!("Packing {:?}", planned.relative_path),
                     stage: "PACKING".to_string(),
                 },
@@ -232,6 +244,13 @@ pub async fn execute_export<R: Runtime>(
         }
 
         ensure_export_not_cancelled(&cancellation_token)?;
+        emit_export_progress(
+            app,
+            &task_id,
+            97,
+            "Writing pack manifest...",
+            "WRITING_MANIFEST",
+        );
         write_export_manifest(&mut zip, options, &config, &instance_meta, artifacts)?;
         zip.finish().map_err(|e| e.to_string())?;
         fs::rename(&temporary_output_path, &output_path).map_err(|e| e.to_string())
@@ -272,15 +291,17 @@ fn resolve_overrides_prefix(format: &str) -> Option<String> {
 
 async fn prepare_export_artifacts<R: Runtime>(
     app: &AppHandle<R>,
+    task_id: &str,
     instance_dir: &Path,
     instance_meta: &InstanceConfig,
     config: &ExportConfig,
 ) -> Result<ExportArtifacts, String> {
     let mut artifacts = ExportArtifacts::default();
+    emit_export_progress(app, task_id, 5, "Preparing export metadata...", "PREPARING");
 
     if matches!(config.format.as_str(), "pipack" | "zip") {
         let (pipack_manifest, skipped_files) =
-            prepare_pipack_manifest(instance_dir, instance_meta, config)?;
+            prepare_pipack_manifest(app, instance_dir, instance_meta, config).await?;
         artifacts.pipack_manifest = pipack_manifest;
         artifacts.skipped_files = skipped_files;
         return Ok(artifacts);
@@ -301,7 +322,7 @@ async fn prepare_export_artifacts<R: Runtime>(
         }
         "mrpack" => {
             let (files, skipped_files, warnings) =
-                build_mrpack_manifest_files(app, &exportable_mods).await?;
+                build_mrpack_manifest_files(app, task_id, &exportable_mods).await?;
             artifacts.mrpack_files = files;
             artifacts.skipped_files = skipped_files;
             artifacts.warnings = warnings;
@@ -312,7 +333,8 @@ async fn prepare_export_artifacts<R: Runtime>(
     Ok(artifacts)
 }
 
-fn prepare_pipack_manifest(
+async fn prepare_pipack_manifest<R: Runtime>(
+    app: &AppHandle<R>,
     instance_dir: &Path,
     instance_meta: &InstanceConfig,
     config: &ExportConfig,
@@ -323,6 +345,7 @@ fn prepare_pipack_manifest(
 
     let mut skip_mods = HashSet::new();
     let mut mods = Vec::new();
+    let client = build_export_http_client(app)?;
 
     if config.include_mods {
         let mods_dir = instance_dir.join("mods");
@@ -352,8 +375,10 @@ fn prepare_pipack_manifest(
 
                 let relative_path = PathBuf::from("mods").join(&file_name);
                 let relative_path_str = normalize_zip_path(&relative_path);
-                let platform_scanned = has_platform_reference(&manifest_entry);
-                if platform_scanned {
+                let (source, fallback_sources) =
+                    resolve_pipack_sources(&client, &manifest_entry, &file_name).await?;
+                let has_remote_source = source_has_platform_reference(&source);
+                if has_remote_source {
                     skip_mods.insert(relative_path_str.clone());
                 }
 
@@ -366,10 +391,11 @@ fn prepare_pipack_manifest(
                     name: jar_meta.name,
                     version: jar_meta.version,
                     description: jar_meta.description,
-                    source: manifest_entry.source,
+                    source,
+                    fallback_sources,
                     hash: manifest_entry.hash,
                     file_state: manifest_entry.file_state,
-                    bundled_path: if platform_scanned {
+                    bundled_path: if has_remote_source {
                         None
                     } else {
                         Some(format!("{}/{}", PIPACK_OVERRIDES_DIR, relative_path_str))
@@ -390,6 +416,7 @@ fn prepare_pipack_manifest(
             description: config.description.clone(),
             uuid: build_pack_uuid(&instance_meta.id),
             packaged_at: Utc::now().to_rfc3339(),
+            hero_logo_path: instance_meta.hero_logo.clone(),
         },
         minecraft: PiPackMinecraftInfo {
             version: instance_meta.mc_version.clone(),
@@ -404,6 +431,74 @@ fn prepare_pipack_manifest(
     };
 
     Ok((Some(manifest), skip_mods))
+}
+
+async fn resolve_pipack_sources(
+    client: &Client,
+    entry: &ModManifestEntry,
+    _file_name: &str,
+) -> Result<(ModManifestSource, Vec<ModManifestSource>), String> {
+    let mut sources = Vec::new();
+
+    if let Some(source) = pipack_source_for_platform(entry, "modrinth") {
+        sources.push(source);
+    } else if let Ok(version) =
+        fetch_modrinth_export_version_by_sha1(client, &entry.hash.value).await
+    {
+        if version.files.iter().any(|file| {
+            file.hashes
+                .get("sha1")
+                .is_some_and(|hash| hash.eq_ignore_ascii_case(&entry.hash.value))
+        }) {
+            sources.push(ModManifestSource {
+                kind: ModSourceKind::ModpackDeployment,
+                platform: Some("modrinth".to_string()),
+                project_id: Some(version.project_id),
+                file_id: Some(version.id),
+            });
+        }
+    }
+    if let Some(source) = pipack_source_for_platform(entry, "curseforge") {
+        sources.push(source);
+    }
+
+    sources.dedup_by(|left, right| {
+        left.platform == right.platform
+            && left.project_id == right.project_id
+            && left.file_id == right.file_id
+    });
+    let source = sources
+        .first()
+        .cloned()
+        .unwrap_or_else(|| ModManifestSource {
+            kind: entry.source.kind.clone(),
+            platform: None,
+            project_id: None,
+            file_id: None,
+        });
+    let fallback_sources = sources.into_iter().skip(1).collect();
+    Ok((source, fallback_sources))
+}
+
+fn pipack_source_for_platform(
+    entry: &ModManifestEntry,
+    platform: &str,
+) -> Option<ModManifestSource> {
+    let from_source = entry
+        .source
+        .platform
+        .as_deref()
+        .is_some_and(|value| value.eq_ignore_ascii_case(platform));
+    if from_source && has_platform_reference(entry) {
+        return Some(entry.source.clone());
+    }
+    let matched: &ModPlatformMatch = entry.matched_platforms.get(platform)?;
+    Some(ModManifestSource {
+        kind: ModSourceKind::ModpackDeployment,
+        platform: Some(platform.to_string()),
+        project_id: Some(matched.project_id.clone()?),
+        file_id: Some(matched.file_id.clone()?),
+    })
 }
 
 fn load_exportable_mod_files(instance_dir: &Path) -> Result<Vec<ExportableModFile>, String> {
@@ -513,6 +608,7 @@ fn build_curseforge_manifest_files(
 
 async fn build_mrpack_manifest_files<R: Runtime>(
     app: &AppHandle<R>,
+    task_id: &str,
     exportable_mods: &[ExportableModFile],
 ) -> Result<(Vec<MrpackManifestFile>, HashSet<String>, Vec<String>), String> {
     let client = build_export_http_client(app)?;
@@ -520,7 +616,20 @@ async fn build_mrpack_manifest_files<R: Runtime>(
     let mut skipped_files = HashSet::new();
     let mut warnings = Vec::new();
 
-    for item in exportable_mods {
+    let total_mods = exportable_mods.len().max(1) as u64;
+    for (index, item) in exportable_mods.iter().enumerate() {
+        emit_export_progress(
+            app,
+            task_id,
+            5 + (index as u64 * 35 / total_mods),
+            format!(
+                "Resolving Modrinth reference for {} ({}/{})",
+                item.file_name,
+                index + 1,
+                total_mods
+            ),
+            "RESOLVING_MODRINTH",
+        );
         match build_mrpack_manifest_file(&client, item).await {
             Ok(Some(manifest_file)) => {
                 files.push(manifest_file);
@@ -570,9 +679,36 @@ async fn build_mrpack_manifest_files<R: Runtime>(
                 );
             }
         }
+
+        emit_export_progress(
+            app,
+            task_id,
+            5 + ((index + 1) as u64 * 35 / total_mods),
+            format!("Resolved Modrinth reference {}/{}", index + 1, total_mods),
+            "RESOLVING_MODRINTH",
+        );
     }
 
     Ok((files, skipped_files, warnings))
+}
+
+fn emit_export_progress<R: Runtime>(
+    app: &AppHandle<R>,
+    task_id: &str,
+    current: u64,
+    message: impl Into<String>,
+    stage: &str,
+) {
+    let _ = app.emit(
+        "export-progress",
+        ExportProgress {
+            task_id: task_id.to_string(),
+            current,
+            total: 100,
+            message: message.into(),
+            stage: stage.to_string(),
+        },
+    );
 }
 
 fn build_export_http_client<R: Runtime>(app: &AppHandle<R>) -> Result<Client, String> {
@@ -604,35 +740,42 @@ async fn build_mrpack_manifest_file(
     item: &ExportableModFile,
 ) -> Result<Option<MrpackManifestFile>, String> {
     let source = &item.manifest_entry.source;
-    if !source
+    let version = if source
         .platform
         .as_deref()
         .is_some_and(|platform| platform.eq_ignore_ascii_case("modrinth"))
     {
-        return Ok(None);
-    }
-
-    let Some(project_id) = source
-        .project_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    else {
-        return Ok(None);
+        match (
+            source
+                .project_id
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty()),
+            source
+                .file_id
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty()),
+        ) {
+            (Some(project_id), Some(version_id)) => {
+                let version = fetch_modrinth_export_version(client, version_id).await?;
+                if version.project_id != project_id {
+                    return Ok(None);
+                }
+                version
+            }
+            // An imported mrpack can use a mirror URL, leaving no parseable project/version
+            // ID in mod_manifest.json. Resolve its exact local SHA-1 instead of bundling it.
+            _ => {
+                fetch_modrinth_export_version_by_sha1(client, &item.manifest_entry.hash.value)
+                    .await?
+            }
+        }
+    } else {
+        // Match Modrinth's launcher behavior: the installed file hash is authoritative.
+        // This recovers Modrinth provenance for packs downloaded through mirror URLs.
+        fetch_modrinth_export_version_by_sha1(client, &item.manifest_entry.hash.value).await?
     };
-    let Some(version_id) = source
-        .file_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    else {
-        return Ok(None);
-    };
-
-    let version = fetch_modrinth_export_version(client, version_id).await?;
-    if version.project_id != project_id {
-        return Ok(None);
-    }
 
     let Some(remote_file) = select_modrinth_export_file(&version, item) else {
         return Ok(None);
@@ -701,6 +844,39 @@ async fn fetch_modrinth_export_version(
         .map_err(|e| format!("Modrinth response parse failed: {}", e))
 }
 
+async fn fetch_modrinth_export_version_by_sha1(
+    client: &Client,
+    sha1: &str,
+) -> Result<ModrinthExportVersion, String> {
+    let sha1 = sha1.trim();
+    if sha1.is_empty() {
+        return Err("Mod has no SHA-1 hash".to_string());
+    }
+
+    let url = format!(
+        "https://api.modrinth.com/v2/version_file/{}?algorithm=sha1",
+        sha1
+    );
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Modrinth hash lookup failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "Modrinth hash lookup failed: {} (SHA-1 {})",
+            response.status(),
+            sha1
+        ));
+    }
+
+    response
+        .json()
+        .await
+        .map_err(|e| format!("Modrinth hash lookup response parse failed: {}", e))
+}
+
 fn select_modrinth_export_file<'a>(
     version: &'a ModrinthExportVersion,
     item: &ExportableModFile,
@@ -735,6 +911,7 @@ fn collect_files_to_pack(
     instance_dir: &Path,
     config: &ExportConfig,
     overrides_prefix: Option<&str>,
+    hero_logo_path: Option<&str>,
     skipped_files: &HashSet<String>,
 ) -> Result<Vec<PlannedArchiveFile>, String> {
     let canonical_instance_dir = fs::canonicalize(instance_dir).map_err(|e| e.to_string())?;
@@ -756,6 +933,11 @@ fn collect_files_to_pack(
     }
     for path in &config.additional_paths {
         paths_to_include.push(resolve_additional_path(instance_dir, path)?);
+    }
+    if config.format == "pipack" {
+        if let Some(hero_logo_path) = hero_logo_path.and_then(safe_relative_instance_path) {
+            paths_to_include.push(instance_dir.join(hero_logo_path));
+        }
     }
 
     let mut files = Vec::new();
@@ -841,6 +1023,11 @@ fn is_safe_relative_path(path: &Path) -> bool {
         && path
             .components()
             .all(|component| matches!(component, Component::Normal(_)))
+}
+
+fn safe_relative_instance_path(value: &str) -> Option<&Path> {
+    let path = Path::new(value);
+    is_safe_relative_path(path).then_some(path)
 }
 
 fn resolve_instance_dir(base_path: &str, instance_id: &str) -> Result<PathBuf, String> {
@@ -1072,18 +1259,19 @@ fn modrinth_loader_dependency(loader: &str) -> Option<&'static str> {
 }
 
 fn has_platform_reference(entry: &ModManifestEntry) -> bool {
-    entry
-        .source
+    source_has_platform_reference(&entry.source)
+}
+
+fn source_has_platform_reference(source: &ModManifestSource) -> bool {
+    source
         .platform
         .as_deref()
         .is_some_and(|value| !value.trim().is_empty())
-        && entry
-            .source
+        && source
             .project_id
             .as_deref()
             .is_some_and(|value| !value.trim().is_empty())
-        && entry
-            .source
+        && source
             .file_id
             .as_deref()
             .is_some_and(|value| !value.trim().is_empty())
