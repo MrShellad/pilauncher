@@ -1,5 +1,6 @@
-﻿import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { modService, type ModMeta } from '../../logic/modService';
+import { getOrCreateUpdateCache } from './modManagerShared';
 
 interface UseModUpdateEngineOptions {
   setMods: Dispatch<SetStateAction<ModMeta[]>>;
@@ -16,6 +17,7 @@ export const useModUpdateEngine = ({ setMods }: UseModUpdateEngineOptions) => {
   }, []);
 
   const runUpdateCheck = useCallback(async (
+    instanceId: string,
     scopeKey: string,
     _modsToCheck: ModMeta[],
     targetMc: string,
@@ -34,7 +36,7 @@ export const useModUpdateEngine = ({ setMods }: UseModUpdateEngineOptions) => {
     try {
       onProgress?.(0, 1);
       const updates = await modService.checkInstanceModsUpdates(
-        scopeKey,
+        instanceId,
         targetMc,
         targetLoader,
         force,
@@ -47,6 +49,20 @@ export const useModUpdateEngine = ({ setMods }: UseModUpdateEngineOptions) => {
 
       if (updates && updates.length > 0) {
         const updateMap = new Map(updates.map((u) => [u.fileName, u]));
+        const cache = getOrCreateUpdateCache(scopeKey);
+
+        for (const u of updates) {
+          cache.set(u.fileName, {
+            hasUpdate: u.hasUpdate,
+            updateVersionName: u.updateVersionName,
+            updatePlatform: u.updatePlatform as any,
+            updateProjectId: u.updateProjectId,
+            updateFileId: u.updateFileId,
+            updateFileName: u.updateFileName,
+            updateDownloadUrl: u.updateDownloadUrl,
+            checkedAt: Date.now()
+          });
+        }
 
         setMods((current) => current.map((item) => {
           const info = updateMap.get(item.fileName)

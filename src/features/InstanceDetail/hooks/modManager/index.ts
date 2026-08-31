@@ -100,6 +100,7 @@ export const useModManager = (instanceId: string) => {
       }
 
       await runUpdateCheck(
+        instanceId,
         scopeKey,
         syncedMods,
         targetMc,
@@ -126,6 +127,7 @@ export const useModManager = (instanceId: string) => {
     }
   }, [
     cancelUpdateCheck,
+    instanceId,
     runUpdateCheck,
     setIsCheckingModUpdates,
     setMods,
