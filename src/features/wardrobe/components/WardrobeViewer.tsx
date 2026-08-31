@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 export interface WardrobeViewerProps {
   currentAccountName?: string;
@@ -10,8 +10,11 @@ export const WardrobeViewer: React.FC<WardrobeViewerProps> = ({
   viewerContainerRef,
 }) => {
   return (
-    <div className="w-full h-full relative flex-1 min-h-[40vh] font-minecraft">
-      <div ref={viewerContainerRef} className="w-full h-full absolute inset-0 cursor-grab active:cursor-grabbing" />
-    </div>
+    <div
+      ref={viewerContainerRef}
+      className="h-full w-full cursor-grab active:cursor-grabbing font-minecraft select-none focus:outline-none"
+    />
   );
 };
+
+export default WardrobeViewer;

@@ -164,6 +164,16 @@ pub fn save_wardrobe_skin_asset<R: Runtime>(
 }
 
 #[tauri::command]
+pub async fn save_wardrobe_skin_from_url<R: Runtime>(
+    app: AppHandle<R>,
+    account_uuid: String,
+    skin_url: String,
+    variant: String,
+) -> Result<WardrobeSkinLibrary, String> {
+    auth_service::save_wardrobe_skin_from_url(&app, &account_uuid, &skin_url, &variant).await
+}
+
+#[tauri::command]
 pub fn delete_wardrobe_skin_asset<R: Runtime>(
     app: AppHandle<R>,
     account_uuid: String,

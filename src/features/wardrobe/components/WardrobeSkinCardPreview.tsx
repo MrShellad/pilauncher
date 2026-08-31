@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { WardrobeSkinModel } from '../types';
 import { ThumbnailRenderer, type SkinThumbnailResult } from '../utils/ThumbnailRenderer';
+import { determineModelType } from '../utils/wardrobe.utils';
 
 interface WardrobeSkinCardPreviewProps {
   skinUrl: string;
@@ -17,7 +18,28 @@ export const WardrobeSkinCardPreview: React.FC<WardrobeSkinCardPreviewProps> = (
   className = '',
   fullBody = false,
 }) => {
-  const viewerModel = toViewerModel(model);
+  const [actualModel, setActualModel] = useState<WardrobeSkinModel>(model);
+
+  useEffect(() => {
+    setActualModel(model);
+  }, [model]);
+
+  useEffect(() => {
+    let active = true;
+    if (!skinUrl) return;
+
+    void determineModelType(skinUrl).then((detected) => {
+      if (active) {
+        setActualModel(detected);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [skinUrl]);
+
+  const viewerModel = toViewerModel(actualModel);
   const renderOptions = useMemo(
     () => (fullBody ? { fullBody: true, width: 720, height: 960 } : { width: 360, height: 504 }),
     [fullBody]

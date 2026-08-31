@@ -133,7 +133,7 @@ class ThumbnailRendererClass {
     enableSampleAlphaToCoverage(this.renderer);
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(40, 120 / 160, 0.1, 100);
+    this.camera = new THREE.PerspectiveCamera(40, 360 / 480, 0.4, 1000);
     this.camera.position.set(0, 1.26, -4.15);
     this.camera.lookAt(0, 0.98, 0);
 
@@ -176,10 +176,8 @@ class ThumbnailRendererClass {
   }
 
   private getCacheKey(type: 'skin' | 'cape', url: string, extra: string): string {
-    // v11 invalidates thumbnails generated before asset.localhost textures were
-    // loaded with CORS. Those entries can be valid WebP files containing only
-    // a transparent frame and otherwise remain in IndexedDB indefinitely.
-    return `${type}_gltf_v11_${url}_${extra}`;
+    // v12: Upgraded to Modrinth high-res 360x480 rendering with FrontSide and 0.1 alphaTest
+    return `${type}_gltf_v12_${url}_${extra}`;
   }
 
   private getPlayerModelUrl(model: 'default' | 'slim'): string {
@@ -242,7 +240,7 @@ class ThumbnailRendererClass {
     model: 'default' | 'slim',
     options?: { fullBody?: boolean; width?: number; height?: number }
   ): SkinThumbnailResult | null {
-    const sizeKey = `${model}_${!!options?.fullBody}_${options?.width || 120}x${options?.height || 160}`;
+    const sizeKey = `${model}_${!!options?.fullBody}_${options?.width || 360}x${options?.height || 480}`;
     const front = this.getMemoryCached('skin', skinUrl, `${sizeKey}_front`);
     const back = this.getMemoryCached('skin', skinUrl, `${sizeKey}_back`);
     return front && back ? { front, back } : null;
@@ -262,7 +260,7 @@ class ThumbnailRendererClass {
     model: 'default' | 'slim',
     options?: { fullBody?: boolean; width?: number; height?: number }
   ): Promise<SkinThumbnailResult> {
-    const sizeKey = `${model}_${!!options?.fullBody}_${options?.width || 120}x${options?.height || 160}`;
+    const sizeKey = `${model}_${!!options?.fullBody}_${options?.width || 360}x${options?.height || 480}`;
     const frontKey = this.getCacheKey('skin', skinUrl, `${sizeKey}_front`);
     const backKey = this.getCacheKey('skin', skinUrl, `${sizeKey}_back`);
 
@@ -281,8 +279,8 @@ class ThumbnailRendererClass {
     options?: { fullBody?: boolean; width?: number; height?: number }
   ): Promise<string> {
     const { renderer, camera, modelRoot, transparentTexture } = this.ensureRenderer();
-    const width = options?.width || 120;
-    const height = options?.height || 160;
+    const width = options?.width || 360;
+    const height = options?.height || 480;
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
 

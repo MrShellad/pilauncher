@@ -210,6 +210,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         auth_cmd::clear_active_cape,
         auth_cmd::get_wardrobe_skin_library,
         auth_cmd::save_wardrobe_skin_asset,
+        auth_cmd::save_wardrobe_skin_from_url,
         auth_cmd::delete_wardrobe_skin_asset,
         auth_cmd::set_wardrobe_skin_asset_variant,
         auth_cmd::set_active_wardrobe_skin_offline,

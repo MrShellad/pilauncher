@@ -209,6 +209,7 @@ pub async fn clear_active_cape<R: Runtime>(
 pub use wardrobe::delete_wardrobe_skin_asset;
 pub use wardrobe::get_wardrobe_skin_library;
 pub use wardrobe::save_wardrobe_skin_asset;
+pub use wardrobe::save_wardrobe_skin_from_url;
 pub use wardrobe::set_active_wardrobe_skin_offline;
 pub use wardrobe::set_wardrobe_skin_asset_variant;
 

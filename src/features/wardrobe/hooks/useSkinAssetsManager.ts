@@ -1,69 +1,62 @@
 import { useCallback, useState } from 'react';
-import { convertFileSrc, invoke } from '@tauri-apps/api/core';
-import { open as openDialog } from '@tauri-apps/plugin-dialog';
+import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-dialog';
+import { convertFileSrc } from '@tauri-apps/api/core';
 
 import type { MinecraftAccount } from '../../../store/useAccountStore';
 import type {
-  WardrobeSkinLibrary,
   WardrobeProfile,
+  WardrobeSkinLibrary,
   SkinCardAsset,
   WardrobeSkinModel,
   WardrobeCape,
 } from '../types';
-import { validateSkinImage, findActiveSkin, findActiveCape, resolveSkinModel } from '../utils/wardrobe.utils';
+import {
+  determineModelType,
+  findActiveCape,
+  findActiveSkin,
+  resolveSkinModel,
+  validateSkinImage,
+} from '../utils/wardrobe.utils';
 
-export interface UseSkinAssetsManagerOptions {
+interface UseSkinAssetsManagerProps {
   currentAccount: MinecraftAccount | null;
   isMicrosoft: boolean;
   activeCape: WardrobeCape | null;
   pageSkinModel: WardrobeSkinModel;
   setPageSkinModel: (model: WardrobeSkinModel) => void;
-  setSkinLibrary: (library: WardrobeSkinLibrary) => void;
-  setProfile: (profile: WardrobeProfile, accountUuid?: string) => void;
-  setError: (error: string | null) => void;
-  setNotice: (notice: string | null) => void;
-  fetchSkinLibrary: (uuid: string) => Promise<WardrobeSkinLibrary>;
-  runWithSessionRefresh: <T>(account: MinecraftAccount, action: (acc: MinecraftAccount) => Promise<T>) => Promise<T>;
-  touchAccountSkinCache: (
-    account: MinecraftAccount,
-    skinUrl?: string | null,
-    capeUrl?: string | null,
-    model?: WardrobeSkinModel
-  ) => void;
+  setSkinLibrary: (library: WardrobeSkinLibrary | null, accountUuid?: string) => void;
+  setProfile: (profile: WardrobeProfile, accountUuid: string) => void;
+  setError: (err: string | null) => void;
+  setNotice: (msg: string | null) => void;
+  fetchSkinLibrary: (accountUuid: string) => Promise<WardrobeSkinLibrary>;
+  runWithSessionRefresh: <T>(account: MinecraftAccount, action: (account: MinecraftAccount) => Promise<T>) => Promise<T>;
+  touchAccountSkinCache: (account: MinecraftAccount, skinUrl?: string | null, capeUrl?: string | null, model?: WardrobeSkinModel) => void;
   syncViewerToCurrentState: () => void;
 }
 
-export function useSkinAssetsManager(options: UseSkinAssetsManagerOptions) {
-  const {
-    currentAccount,
-    isMicrosoft,
-    activeCape,
-    pageSkinModel,
-    setPageSkinModel,
-    setSkinLibrary,
-    setProfile,
-    setError,
-    setNotice,
-    fetchSkinLibrary,
-    runWithSessionRefresh,
-    touchAccountSkinCache,
-    syncViewerToCurrentState,
-  } = options;
-
+export function useSkinAssetsManager({
+  currentAccount,
+  isMicrosoft,
+  activeCape,
+  pageSkinModel,
+  setPageSkinModel,
+  setSkinLibrary,
+  setProfile,
+  setError,
+  setNotice,
+  fetchSkinLibrary,
+  runWithSessionRefresh,
+  touchAccountSkinCache,
+}: UseSkinAssetsManagerProps) {
   const [isApplying, setIsApplying] = useState(false);
   const [skinMenuAsset, setSkinMenuAsset] = useState<SkinCardAsset | null>(null);
   const [skinMenuModel, setSkinMenuModel] = useState<WardrobeSkinModel>('classic');
   const [capeMenuAsset, setCapeMenuAsset] = useState<WardrobeCape | null>(null);
 
-  const closeSkinMenu = useCallback(
-    (restoreViewer = true) => {
-      setSkinMenuAsset(null);
-      if (restoreViewer) {
-        syncViewerToCurrentState();
-      }
-    },
-    [syncViewerToCurrentState]
-  );
+  const closeSkinMenu = useCallback(() => {
+    setSkinMenuAsset(null);
+  }, []);
 
   const handleOpenSkinMenu = useCallback((asset: SkinCardAsset) => {
     setSkinMenuAsset(asset);
@@ -71,12 +64,9 @@ export function useSkinAssetsManager(options: UseSkinAssetsManagerOptions) {
   }, []);
 
   const handleChooseSkin = useCallback(async () => {
-    if (!currentAccount) {
-      setError('请先添加一个游戏账号');
-      return;
-    }
+    if (!currentAccount) return;
 
-    const selected = await openDialog({
+    const selected = await open({
       multiple: false,
       filters: [{ name: 'PNG Image', extensions: ['png'] }],
     });
@@ -88,14 +78,15 @@ export function useSkinAssetsManager(options: UseSkinAssetsManagerOptions) {
 
     try {
       await validateSkinImage(previewUrl);
+      const autoDetectedVariant = (await determineModelType(previewUrl)) || pageSkinModel;
       const nextLibrary = await invoke<WardrobeSkinLibrary>('save_wardrobe_skin_asset', {
         accountUuid: currentAccount.uuid,
         sourcePath: selected,
-        variant: pageSkinModel,
+        variant: autoDetectedVariant,
       });
 
       setSkinLibrary(nextLibrary);
-      setNotice('皮肤已加入资产库');
+      setNotice(`皮肤已加入资产库 (${autoDetectedVariant === 'slim' ? 'Slim 3px 纤细模型' : 'Classic 4px 经典模型'})`);
     } catch (caughtError) {
       setError(String(caughtError instanceof Error ? caughtError.message : caughtError));
     }
@@ -121,101 +112,73 @@ export function useSkinAssetsManager(options: UseSkinAssetsManagerOptions) {
           setError(String(caughtError));
         }
       }
+    },
+    [currentAccount, setError, setSkinLibrary, skinMenuAsset]
+  );
 
-      if (skinMenuAsset.isActive) {
-        setPageSkinModel(nextModel);
+  const applyDirectSkinAsset = useCallback(
+    async (asset: { id: string; filePath?: string }, variant: WardrobeSkinModel) => {
+      if (!currentAccount || !asset.filePath) return;
+      setIsApplying(true);
+      setError(null);
 
-        try {
-          if (isMicrosoft) {
-            const nextProfile = await runWithSessionRefresh(currentAccount, (accountForAction) =>
-              invoke<WardrobeProfile>('update_active_wardrobe_skin_variant', {
-                accessToken: accountForAction.accessToken,
-                accountUuid: accountForAction.uuid,
-                variant: nextModel,
-              })
-            );
-            setProfile(nextProfile, currentAccount.uuid);
-            touchAccountSkinCache(
-              currentAccount,
-              skinMenuAsset.filePath ?? findActiveSkin(nextProfile)?.url,
-              findActiveCape(nextProfile)?.url,
-              resolveSkinModel(findActiveSkin(nextProfile)?.variant)
-            );
-          } else {
-            // For offline, we just need to ensure the local storage points to this variant.
-            // If it was kind 'library', we already updated it above. 
-            // If it was kind 'profile', offline accounts don't have 'profile', so we're covered.
-            touchAccountSkinCache(currentAccount, currentAccount.skinUrl, null, nextModel);
-          }
-        } catch (caughtError) {
-          setError(String(caughtError));
+      try {
+        if (isMicrosoft) {
+          const nextProfile = await runWithSessionRefresh(currentAccount, (accountForAction) =>
+            invoke<WardrobeProfile>('apply_wardrobe_skin', {
+              accessToken: accountForAction.accessToken,
+              accountUuid: accountForAction.uuid,
+              sourcePath: asset.filePath!,
+              variant,
+            })
+          );
+
+          const nextLibrary = await fetchSkinLibrary(currentAccount.uuid);
+          setProfile(nextProfile, currentAccount.uuid);
+          setSkinLibrary(nextLibrary);
+          touchAccountSkinCache(
+            currentAccount,
+            asset.filePath,
+            findActiveCape(nextProfile)?.url,
+            resolveSkinModel(findActiveSkin(nextProfile)?.variant)
+          );
+        } else {
+          const nextLibrary = await invoke<WardrobeSkinLibrary>('set_active_wardrobe_skin_offline', {
+            accountUuid: currentAccount.uuid,
+            assetId: asset.id,
+          });
+
+          setSkinLibrary(nextLibrary);
+          touchAccountSkinCache(currentAccount, asset.filePath, null, variant);
         }
+
+        setPageSkinModel(variant);
+        setNotice('皮肤已成功应用');
+      } catch (caughtError) {
+        setError(String(caughtError));
+      } finally {
+        setIsApplying(false);
       }
     },
-    [currentAccount, isMicrosoft, runWithSessionRefresh, setError, setPageSkinModel, setProfile, setSkinLibrary, skinMenuAsset, touchAccountSkinCache]
+    [
+      currentAccount,
+      fetchSkinLibrary,
+      isMicrosoft,
+      runWithSessionRefresh,
+      setError,
+      setNotice,
+      setPageSkinModel,
+      setProfile,
+      setSkinLibrary,
+      touchAccountSkinCache,
+    ]
   );
 
   const handleApplySkinAsset = useCallback(async () => {
-    if (!currentAccount || !skinMenuAsset || skinMenuAsset.kind !== 'library' || !skinMenuAsset.filePath) {
-      return;
-    }
-
-    setIsApplying(true);
-    setError(null);
-
-    try {
-      if (isMicrosoft) {
-        const nextProfile = await runWithSessionRefresh(currentAccount, (accountForAction) =>
-          invoke<WardrobeProfile>('apply_wardrobe_skin', {
-            accessToken: accountForAction.accessToken,
-            accountUuid: accountForAction.uuid,
-            sourcePath: skinMenuAsset.filePath!,
-            variant: skinMenuModel,
-          })
-        );
-
-        const nextLibrary = await fetchSkinLibrary(currentAccount.uuid);
-        setProfile(nextProfile, currentAccount.uuid);
-        setSkinLibrary(nextLibrary);
-        touchAccountSkinCache(
-          currentAccount,
-          skinMenuAsset.filePath,
-          findActiveCape(nextProfile)?.url,
-          resolveSkinModel(findActiveSkin(nextProfile)?.variant)
-        );
-      } else {
-        const nextLibrary = await invoke<WardrobeSkinLibrary>('set_active_wardrobe_skin_offline', {
-          accountUuid: currentAccount.uuid,
-          assetId: skinMenuAsset.id,
-        });
-
-        setSkinLibrary(nextLibrary);
-        touchAccountSkinCache(currentAccount, skinMenuAsset.filePath, null, skinMenuModel);
-      }
-
-      setPageSkinModel(skinMenuModel);
-      setNotice('皮肤已应用');
-      closeSkinMenu(false);
-    } catch (caughtError) {
-      setError(String(caughtError));
-    } finally {
-      setIsApplying(false);
-    }
-  }, [
-    closeSkinMenu,
-    currentAccount,
-    fetchSkinLibrary,
-    isMicrosoft,
-    runWithSessionRefresh,
-    setError,
-    setNotice,
-    setPageSkinModel,
-    setProfile,
-    setSkinLibrary,
-    skinMenuAsset,
-    skinMenuModel,
-    touchAccountSkinCache,
-  ]);
+    if (!skinMenuAsset) return;
+    await applyDirectSkinAsset(skinMenuAsset, skinMenuModel);
+    closeSkinMenu();
+  }, [applyDirectSkinAsset, closeSkinMenu, skinMenuAsset, skinMenuModel]);
 
   const handleDeleteSkinAsset = useCallback(async () => {
     if (!currentAccount || !skinMenuAsset || skinMenuAsset.kind !== 'library' || !skinMenuAsset.canDelete) {
@@ -233,7 +196,7 @@ export function useSkinAssetsManager(options: UseSkinAssetsManagerOptions) {
 
       setSkinLibrary(nextLibrary);
       setNotice('皮肤已从资产库移除');
-      closeSkinMenu(false);
+      closeSkinMenu();
     } catch (caughtError) {
       setError(String(caughtError));
     } finally {
@@ -309,6 +272,7 @@ export function useSkinAssetsManager(options: UseSkinAssetsManagerOptions) {
     capeMenuAsset,
     handleChooseSkin,
     handleApplySkinAsset,
+    applyDirectSkinAsset,
     handleDeleteSkinAsset,
     handleApplyCape,
     closeSkinMenu,
@@ -316,7 +280,7 @@ export function useSkinAssetsManager(options: UseSkinAssetsManagerOptions) {
     handleChangeSkinMenuModel,
     closeCapeMenu,
     handleOpenCapeMenu,
-    setSkinMenuAsset, // expose if needed for immediate clearing
+    setSkinMenuAsset,
     setCapeMenuAsset,
   };
 }

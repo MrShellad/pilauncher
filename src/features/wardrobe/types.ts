@@ -1,5 +1,16 @@
-export type WardrobeTab = 'skin' | 'cape';
+export type WardrobeTab = 'skin' | 'online' | 'cape';
 export type WardrobeSkinModel = 'classic' | 'slim';
+
+export interface OnlineSkinItem {
+  id: string;
+  title: string;
+  author?: string;
+  source: 'littleskin' | 'player' | 'curated';
+  skinUrl: string;
+  model: WardrobeSkinModel;
+  likes?: number;
+  tags?: string[];
+}
 
 export interface WardrobeSkin {
   id?: string | null;

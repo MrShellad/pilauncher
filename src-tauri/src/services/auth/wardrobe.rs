@@ -562,6 +562,81 @@ pub fn save_wardrobe_skin_asset<R: Runtime>(
     finalize_skin_library(app, account_uuid, stored, false)
 }
 
+/// 从远程 URL 下载并保存皮肤资产到本地库中
+pub async fn save_wardrobe_skin_from_url<R: Runtime>(
+    app: &AppHandle<R>,
+    account_uuid: &str,
+    skin_url: &str,
+    variant: &str,
+) -> Result<WardrobeSkinLibrary, String> {
+    let resolved_variant = normalize_skin_variant(variant)?.to_string();
+
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
+
+    let response = client
+        .get(skin_url)
+        .send()
+        .await
+        .map_err(|e| format!("下载网络皮肤失败: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("下载网络皮肤失败，HTTP 状态码: {}", response.status()));
+    }
+
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("读取网络皮肤数据失败: {}", e))?
+        .to_vec();
+
+    skin_png::validate_skin_png_bytes(&bytes)?;
+    let content_hash = format!("{:x}", md5::compute(&bytes));
+    let assets_dir = paths::wardrobe_skin_assets_dir(app, account_uuid)?;
+    let manifest_path = paths::wardrobe_skin_library_path(app, account_uuid)?;
+
+    fs::create_dir_all(&assets_dir).map_err(|e| format!("创建皮肤资产目录失败: {}", e))?;
+
+    let mut stored = read_stored_skin_library(&manifest_path)?;
+
+    if stored.user_id.is_empty() {
+        stored.user_id = account_uuid.to_string();
+    }
+
+    stored.skins.retain(|asset| {
+        !asset.is_deleted && paths::skin_asset_file_path(&assets_dir, &asset.id).is_file()
+    });
+
+    if let Some(existing_asset) = stored
+        .skins
+        .iter_mut()
+        .find(|asset| asset.hash == content_hash)
+    {
+        existing_asset.model = resolved_variant;
+    } else {
+        let new_id = next_skin_asset_id(&stored);
+        let target_path = paths::skin_asset_file_path(&assets_dir, &new_id);
+        fs::write(&target_path, &bytes).map_err(|e| format!("写入皮肤资产失败: {}", e))?;
+
+        stored.skins.push(SkinMetadataEntry {
+            id: new_id.clone(),
+            url: format!("/skins/{}/{}.png", account_uuid, new_id),
+            model: resolved_variant,
+            upload_time: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+            size: bytes.len() as u64,
+            hash: content_hash,
+            source: "online".to_string(),
+            is_deleted: false,
+        });
+    }
+
+    write_stored_skin_library(&manifest_path, &stored)?;
+    finalize_skin_library(app, account_uuid, stored, false)
+}
+
 /// 删除一个皮肤资产
 pub fn delete_wardrobe_skin_asset<R: Runtime>(
     app: &AppHandle<R>,

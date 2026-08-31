@@ -8,7 +8,7 @@ export { bundledSteveTextureUrl };
 
 const modelCache = new Map<string, GLTF>();
 const textureCache = new Map<string, THREE.Texture>();
-const ALPHA_TEST_THRESHOLD = 0.5;
+const ALPHA_TEST_THRESHOLD = 0.1;
 const IMAGE_LOAD_TIMEOUT_MS = 15_000;
 
 /**
@@ -244,11 +244,8 @@ export function createTransparentTexture(): THREE.Texture {
   return texture;
 }
 
-export function enableSampleAlphaToCoverage(renderer: THREE.WebGLRenderer): void {
-  const gl = renderer.getContext();
-  if (gl && 'SAMPLE_ALPHA_TO_COVERAGE' in gl && gl.SAMPLE_ALPHA_TO_COVERAGE) {
-    gl.enable(gl.SAMPLE_ALPHA_TO_COVERAGE);
-  }
+export function enableSampleAlphaToCoverage(_renderer: THREE.WebGLRenderer): void {
+  // Intentionally no-op to match official Modrinth: avoid dithering / pixel crawl shimmering
 }
 
 export function applyPlayerTexture(model: THREE.Object3D, texture: THREE.Texture): void {
@@ -268,12 +265,11 @@ export function applyPlayerTexture(model: THREE.Object3D, texture: THREE.Texture
       material.roughness = 1;
       material.toneMapped = false;
       material.flatShading = true;
-      material.transparent = false;
+      material.transparent = isSkinLayer;
       material.depthTest = true;
       material.depthWrite = true;
-      material.side = THREE.DoubleSide;
+      material.side = isSkinLayer ? THREE.DoubleSide : THREE.FrontSide;
       material.alphaTest = ALPHA_TEST_THRESHOLD;
-      material.alphaToCoverage = true;
       material.polygonOffset = isSkinLayer;
       material.polygonOffsetFactor = isSkinLayer ? -1 : 0;
       material.polygonOffsetUnits = isSkinLayer ? -1 : 0;
@@ -307,7 +303,6 @@ export function applyCapeTexture(
       material.depthWrite = true;
       material.side = THREE.DoubleSide;
       material.alphaTest = texture ? ALPHA_TEST_THRESHOLD : 0;
-      material.alphaToCoverage = !!texture;
       material.needsUpdate = true;
     }
   });
@@ -326,6 +321,9 @@ export function cloneModelScene(scene: THREE.Object3D): THREE.Object3D {
       ? mesh.material.map((material) => {
           const clonedMat = material.clone();
           if (clonedMat instanceof THREE.MeshStandardMaterial) {
+            clonedMat.transparent = isSkinLayer;
+            clonedMat.alphaTest = ALPHA_TEST_THRESHOLD;
+            clonedMat.side = isSkinLayer ? THREE.DoubleSide : THREE.FrontSide;
             clonedMat.polygonOffset = isSkinLayer;
             clonedMat.polygonOffsetFactor = isSkinLayer ? -1 : 0;
             clonedMat.polygonOffsetUnits = isSkinLayer ? -1 : 0;
@@ -335,6 +333,9 @@ export function cloneModelScene(scene: THREE.Object3D): THREE.Object3D {
       : (() => {
           const clonedMat = mesh.material.clone();
           if (clonedMat instanceof THREE.MeshStandardMaterial) {
+            clonedMat.transparent = isSkinLayer;
+            clonedMat.alphaTest = ALPHA_TEST_THRESHOLD;
+            clonedMat.side = isSkinLayer ? THREE.DoubleSide : THREE.FrontSide;
             clonedMat.polygonOffset = isSkinLayer;
             clonedMat.polygonOffsetFactor = isSkinLayer ? -1 : 0;
             clonedMat.polygonOffsetUnits = isSkinLayer ? -1 : 0;
