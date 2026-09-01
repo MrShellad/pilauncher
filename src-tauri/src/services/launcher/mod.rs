@@ -7,8 +7,10 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
+use tokio::sync::mpsc;
+use tokio::time::{self, Duration, MissedTickBehavior};
 
 use crate::domain::instance::InstanceConfig;
 use crate::domain::launcher::{Account, AccountType, LoaderType};
@@ -23,6 +25,400 @@ use builder::{LaunchCommandBuilder, LaunchPreparationError};
 use resolver::ConfigResolver;
 
 pub struct LauncherService;
+
+const LOG_BATCH_INTERVAL: Duration = Duration::from_millis(250);
+const LOG_BATCH_MAX_LINES: usize = 64;
+const LOG_CHANNEL_CAPACITY: usize = 4096;
+const LAUNCH_PROGRESS_QUIET_READY_DELAY: Duration = Duration::from_millis(1800);
+const LAUNCH_PROGRESS_RUNNING_TIMEOUT: Duration = Duration::from_secs(30);
+const LAUNCH_PROGRESS_ATLAS_MAX: u8 = 15;
+
+#[derive(Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GameLaunchProgress {
+    phase: String,
+    percent: u8,
+    ready: bool,
+}
+
+impl GameLaunchProgress {
+    fn preparing() -> Self {
+        Self {
+            phase: "preparing".to_string(),
+            percent: 3,
+            ready: false,
+        }
+    }
+}
+
+struct LaunchProgressTracker {
+    progress: GameLaunchProgress,
+    atlas_count: u8,
+    running_since: Option<std::time::Instant>,
+    last_log_at: std::time::Instant,
+}
+
+impl LaunchProgressTracker {
+    fn new(now: std::time::Instant) -> Self {
+        Self {
+            progress: GameLaunchProgress::preparing(),
+            atlas_count: 0,
+            running_since: None,
+            last_log_at: now,
+        }
+    }
+
+    fn advance(&mut self, phase: &str, percent: u8) -> bool {
+        if self.progress.ready || percent <= self.progress.percent {
+            return false;
+        }
+
+        self.progress.phase = phase.to_string();
+        self.progress.percent = percent;
+        true
+    }
+
+    fn mark_ready(&mut self) -> bool {
+        if self.progress.ready {
+            return false;
+        }
+
+        self.progress.phase = "ready".to_string();
+        self.progress.percent = 100;
+        self.progress.ready = true;
+        true
+    }
+
+    fn observe_game_state(&mut self, game_state: Option<&str>, now: std::time::Instant) -> bool {
+        match game_state {
+            Some("running") => {
+                self.running_since.get_or_insert(now);
+                // Lifecycle is a stronger cross-loader signal than a particular log phrase.
+                self.advance("render", 80)
+            }
+            Some("idle") => {
+                self.running_since = None;
+                false
+            }
+            _ => false,
+        }
+    }
+
+    fn observe_line(&mut self, line: &str, now: std::time::Instant) -> bool {
+        self.last_log_at = now;
+        let line = line.to_ascii_lowercase();
+
+        if line.contains("sound engine started")
+            || line.contains("done (")
+            || line.contains("time: ")
+        {
+            return self.mark_ready();
+        }
+        if line.contains("datafixer") {
+            return self.advance("preparing", 10);
+        }
+        if line.contains("setting user") {
+            return self.advance("jvm", 25);
+        }
+        if line.contains("lwjgl") || line.contains("backend library") {
+            return self.advance("loader", 40);
+        }
+        if line.contains("reloading resourcemanager") || line.contains("modelloader took") {
+            return self.advance("resources", 50);
+        }
+        if line.contains("created:") && line.contains("atlas") {
+            self.atlas_count = self.atlas_count.saturating_add(1);
+            let atlas_count = self.atlas_count.min(LAUNCH_PROGRESS_ATLAS_MAX);
+            let percent = 50 + (atlas_count * 40 / LAUNCH_PROGRESS_ATLAS_MAX);
+            return self.advance("resources", percent);
+        }
+        if line.contains("openal initialized") || line.contains("display window initialized") {
+            return self.advance("render", 80);
+        }
+
+        false
+    }
+
+    fn finish_if_ready_without_more_logs(&mut self, now: std::time::Instant) -> bool {
+        let Some(running_since) = self.running_since else {
+            return false;
+        };
+
+        if now.duration_since(self.last_log_at) >= LAUNCH_PROGRESS_QUIET_READY_DELAY
+            || now.duration_since(running_since) >= LAUNCH_PROGRESS_RUNNING_TIMEOUT
+        {
+            return self.mark_ready();
+        }
+
+        false
+    }
+}
+
+fn emit_game_launch_progress<R: Runtime>(app: &AppHandle<R>, progress: &GameLaunchProgress) {
+    let _ = app.emit("game-launch-progress", progress.clone());
+}
+
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GameLogTelemetry {
+    jvm_uptime: Option<String>,
+    loader_init: Option<String>,
+    resource_load: Option<String>,
+    render_init: Option<String>,
+    total_startup: Option<String>,
+}
+
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GameLogBatch {
+    lines: Vec<String>,
+    game_state: Option<String>,
+    telemetry: GameLogTelemetry,
+    latest_lan_port: Option<String>,
+}
+
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GameLogMetrics {
+    total_lines: usize,
+    batch_count: usize,
+    persisted_bytes: u64,
+    duration_ms: u128,
+}
+
+struct CapturedLogLine {
+    stream: &'static str,
+    line: String,
+}
+
+fn elapsed_label(started_at: std::time::Instant) -> String {
+    let elapsed = started_at.elapsed();
+    if elapsed.as_millis() >= 1000 {
+        format!("{:.2}s", elapsed.as_secs_f64())
+    } else {
+        format!("{}ms", elapsed.as_millis())
+    }
+}
+
+fn update_game_log_snapshot(
+    line: &str,
+    started_at: std::time::Instant,
+    game_state: &mut Option<String>,
+    telemetry: &mut GameLogTelemetry,
+    latest_lan_port: &mut Option<String>,
+) {
+    if line.contains("[minecraft/Minecraft]: Stopping!") {
+        *game_state = Some("idle".to_string());
+    }
+    if game_state.as_deref() != Some("running")
+        && (line.contains("LWJGL version")
+            || line.contains("Setting user:")
+            || line.contains("Display window initialized")
+            || line.contains("Sound engine started"))
+    {
+        *game_state = Some("running".to_string());
+    }
+
+    if telemetry.jvm_uptime.is_none() {
+        if let Some(value) = line
+            .split("JVM Uptime at startup:")
+            .nth(1)
+            .and_then(|v| v.split_whitespace().next())
+        {
+            telemetry.jvm_uptime = Some(format!("{}ms", value));
+        } else if let Some(value) = line
+            .split("JVM running for ")
+            .nth(1)
+            .and_then(|v| v.split_whitespace().next())
+        {
+            telemetry.jvm_uptime = Some(if value.contains('.') {
+                format!("{}s", value)
+            } else {
+                format!("{}ms", value)
+            });
+        }
+    }
+    if telemetry.loader_init.is_none()
+        && (line.contains("NeoForge mod loading")
+            || line.contains("Forge mod loader initialized")
+            || line.contains("Fabric is preparing to load")
+            || line.contains("Built game content classloader")
+            || (line.contains("Loading ") && line.contains(" mods")))
+    {
+        telemetry.loader_init = Some(elapsed_label(started_at));
+    }
+    if telemetry.render_init.is_none()
+        && (line.contains("Backend library: LWJGL version")
+            || line.contains("Display window initialized"))
+    {
+        telemetry.render_init = Some(elapsed_label(started_at));
+    }
+    if telemetry.resource_load.is_none()
+        && (line.contains("Reloading ResourceManager") || line.contains("ModelLoader took"))
+    {
+        telemetry.resource_load = Some(elapsed_label(started_at));
+    }
+    if telemetry.total_startup.is_none()
+        && (line.contains("Sound engine started")
+            || line.contains("Done (")
+            || line.contains("Time: "))
+    {
+        telemetry.total_startup = Some(elapsed_label(started_at));
+    }
+
+    if latest_lan_port.is_none() {
+        for marker in ["Started on port ", "Local game hosted on port "] {
+            if let Some(value) = line
+                .split(marker)
+                .nth(1)
+                .and_then(|v| v.split_whitespace().next())
+            {
+                let port: String = value.chars().take_while(|c| c.is_ascii_digit()).collect();
+                if port.len() >= 4 && port.len() <= 5 {
+                    *latest_lan_port = Some(port);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+async fn flush_game_log_batch<R: Runtime>(
+    app: &AppHandle<R>,
+    file: &mut tokio::fs::File,
+    pending: &mut Vec<CapturedLogLine>,
+    game_state: &mut Option<String>,
+    telemetry: &GameLogTelemetry,
+    latest_lan_port: &Option<String>,
+    persisted_bytes: &mut u64,
+) {
+    if pending.is_empty() {
+        return;
+    }
+
+    let mut disk_batch = String::new();
+    let lines = pending
+        .drain(..)
+        .map(|record| {
+            disk_batch.push_str(record.stream);
+            disk_batch.push_str(record.line.as_str());
+            disk_batch.push('\n');
+            record.line
+        })
+        .collect();
+    if file.write_all(disk_batch.as_bytes()).await.is_ok() {
+        *persisted_bytes += disk_batch.len() as u64;
+    }
+
+    let batch = GameLogBatch {
+        lines,
+        game_state: game_state.take(),
+        telemetry: telemetry.clone(),
+        latest_lan_port: latest_lan_port.clone(),
+    };
+    let _ = app.emit("game-log-batch", batch);
+}
+
+async fn aggregate_game_logs<R: Runtime>(
+    app: AppHandle<R>,
+    log_path: PathBuf,
+    mut receiver: mpsc::Receiver<CapturedLogLine>,
+) {
+    let started_at = std::time::Instant::now();
+    let mut file = match tokio::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_path)
+        .await
+    {
+        Ok(file) => file,
+        Err(error) => {
+            eprintln!("[Launcher] Failed to open game log file: {}", error);
+            return;
+        }
+    };
+    let mut interval = time::interval(LOG_BATCH_INTERVAL);
+    interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+    interval.tick().await;
+    let mut pending = Vec::with_capacity(LOG_BATCH_MAX_LINES);
+    let mut telemetry = GameLogTelemetry {
+        jvm_uptime: None,
+        loader_init: None,
+        resource_load: None,
+        render_init: None,
+        total_startup: None,
+    };
+    let mut game_state = None;
+    let mut latest_lan_port = None;
+    let mut launch_progress = LaunchProgressTracker::new(started_at);
+    let mut launch_progress_dirty = false;
+    let mut total_lines = 0;
+    let mut batch_count = 0;
+    let mut persisted_bytes = 0;
+
+    loop {
+        tokio::select! {
+            maybe_record = receiver.recv() => match maybe_record {
+                Some(record) => {
+                    update_game_log_snapshot(&record.line, started_at, &mut game_state, &mut telemetry, &mut latest_lan_port);
+                    let now = std::time::Instant::now();
+                    launch_progress_dirty |= launch_progress.observe_line(&record.line, now);
+                    launch_progress_dirty |= launch_progress.observe_game_state(game_state.as_deref(), now);
+                    pending.push(record);
+                    total_lines += 1;
+                    if pending.len() >= LOG_BATCH_MAX_LINES {
+                        flush_game_log_batch(&app, &mut file, &mut pending, &mut game_state, &telemetry, &latest_lan_port, &mut persisted_bytes).await;
+                        batch_count += 1;
+                        if launch_progress_dirty {
+                            emit_game_launch_progress(&app, &launch_progress.progress);
+                            launch_progress_dirty = false;
+                        }
+                    }
+                }
+                None => break,
+            },
+            _ = interval.tick() => {
+                if !pending.is_empty() {
+                    flush_game_log_batch(&app, &mut file, &mut pending, &mut game_state, &telemetry, &latest_lan_port, &mut persisted_bytes).await;
+                    batch_count += 1;
+                }
+                launch_progress_dirty |= launch_progress
+                    .finish_if_ready_without_more_logs(std::time::Instant::now());
+                if launch_progress_dirty {
+                    emit_game_launch_progress(&app, &launch_progress.progress);
+                    launch_progress_dirty = false;
+                }
+            }
+        }
+    }
+
+    if !pending.is_empty() {
+        flush_game_log_batch(
+            &app,
+            &mut file,
+            &mut pending,
+            &mut game_state,
+            &telemetry,
+            &latest_lan_port,
+            &mut persisted_bytes,
+        )
+        .await;
+        batch_count += 1;
+    }
+    if launch_progress_dirty {
+        emit_game_launch_progress(&app, &launch_progress.progress);
+    }
+    let _ = file.flush().await;
+    let _ = app.emit(
+        "game-log-metrics",
+        GameLogMetrics {
+            total_lines,
+            batch_count,
+            persisted_bytes,
+            duration_ms: started_at.elapsed().as_millis(),
+        },
+    );
+}
 
 pub(crate) fn ensure_game_directory_access(game_dir: &Path) -> Result<(), String> {
     let metadata = std::fs::metadata(game_dir).map_err(|error| {
@@ -350,6 +746,11 @@ impl LauncherService {
         account: Account,
         pre_launch_check_enabled: Option<bool>,
     ) -> AppResult<()> {
+        // A single lifecycle event starts the visual state machine before any
+        // loader-specific output is available. The frontend only renders this
+        // contract and never scans the full game log to infer progress.
+        emit_game_launch_progress(app, &GameLaunchProgress::preparing());
+
         let base_path = crate::services::config_service::ConfigService::get_base_path(app)?
             .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "未配置数据目录"))?;
 
@@ -643,10 +1044,12 @@ Module Path Entries: {}\n\
 
         let stdout = child.stdout.take().unwrap();
         let stderr = child.stderr.take().unwrap();
+        let (log_tx, log_rx) = mpsc::channel(LOG_CHANNEL_CAPACITY);
+        let log_aggregator =
+            tokio::spawn(aggregate_game_logs(app.clone(), log_path.clone(), log_rx));
 
-        let app_out = app.clone();
-        let log_path_out = log_path.clone();
-        tokio::spawn(async move {
+        let stdout_tx = log_tx.clone();
+        let stdout_task = tokio::spawn(async move {
             let mut reader = BufReader::new(stdout);
             let mut buf = Vec::new();
             while let Ok(read) = reader.read_until(b'\n', &mut buf).await {
@@ -654,16 +1057,21 @@ Module Path Entries: {}\n\
                     break;
                 }
                 let line = String::from_utf8_lossy(&buf).trim_end().to_string();
-                println!("[Game INFO] {}", line);
-                let _ = app_out.emit("game-log", line.clone());
-                append_log_line(&log_path_out, &format!("[STDOUT] {}", line));
+                if stdout_tx
+                    .send(CapturedLogLine {
+                        stream: "[STDOUT] ",
+                        line,
+                    })
+                    .await
+                    .is_err()
+                {
+                    break;
+                }
                 buf.clear();
             }
         });
 
-        let app_err = app.clone();
-        let log_path_err = log_path.clone();
-        tokio::spawn(async move {
+        let stderr_task = tokio::spawn(async move {
             let mut reader = BufReader::new(stderr);
             let mut buf = Vec::new();
             while let Ok(read) = reader.read_until(b'\n', &mut buf).await {
@@ -671,9 +1079,16 @@ Module Path Entries: {}\n\
                     break;
                 }
                 let line = String::from_utf8_lossy(&buf).trim_end().to_string();
-                eprintln!("[Game ERROR] {}", line);
-                let _ = app_err.emit("game-log", line.clone());
-                append_log_line(&log_path_err, &format!("[STDERR] {}", line));
+                if log_tx
+                    .send(CapturedLogLine {
+                        stream: "[STDERR] ",
+                        line,
+                    })
+                    .await
+                    .is_err()
+                {
+                    break;
+                }
                 buf.clear();
             }
         });
@@ -684,6 +1099,11 @@ Module Path Entries: {}\n\
                 format!("等待游戏进程时发生错误: {}", error),
             )
         })?;
+
+        // Drain both pipes before closing the aggregation channel, so tail logs are not lost.
+        let _ = stdout_task.await;
+        let _ = stderr_task.await;
+        let _ = log_aggregator.await;
 
         // 🌟 记录游戏时长：结束会话并持久化
         let pool = app
@@ -769,6 +1189,40 @@ mod tests {
                 .unwrap_or_default()
                 .as_nanos()
         ))
+    }
+
+    #[test]
+    fn launch_progress_uses_monotonic_cross_loader_stages() {
+        let now = std::time::Instant::now();
+        let mut tracker = LaunchProgressTracker::new(now);
+
+        assert_eq!(tracker.progress.percent, 3);
+        assert!(tracker.observe_line("[main] Setting user: Player", now));
+        assert_eq!(tracker.progress.phase, "jvm");
+        assert_eq!(tracker.progress.percent, 25);
+
+        assert!(tracker.observe_game_state(Some("running"), now));
+        assert_eq!(tracker.progress.percent, 80);
+        assert!(!tracker.observe_line("[main] Reloading ResourceManager", now));
+        assert_eq!(tracker.progress.percent, 80);
+
+        assert!(tracker.observe_line("[main] Sound engine started", now));
+        assert_eq!(tracker.progress.phase, "ready");
+        assert_eq!(tracker.progress.percent, 100);
+        assert!(tracker.progress.ready);
+    }
+
+    #[test]
+    fn launch_progress_finishes_after_a_quiet_running_window() {
+        let now = std::time::Instant::now();
+        let mut tracker = LaunchProgressTracker::new(now);
+        assert!(tracker.observe_game_state(Some("running"), now));
+
+        assert!(!tracker.finish_if_ready_without_more_logs(
+            now + LAUNCH_PROGRESS_QUIET_READY_DELAY - Duration::from_millis(1)
+        ));
+        assert!(tracker.finish_if_ready_without_more_logs(now + LAUNCH_PROGRESS_QUIET_READY_DELAY));
+        assert!(tracker.progress.ready);
     }
 
     #[test]

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useEvent } from '../../../hooks/useEvent';
 import { useGameLogStore } from '../../../store/useGameLogStore';
 import { useUpdaterStore } from '../../../hooks/useAppUpdater';
@@ -12,8 +12,6 @@ export const useLogService = ({
   forceLauncherToFront,
   restoreLauncherAfterGameExit
 }: UseLogServiceProps) => {
-  const logBufferRef = useRef<string[]>([]);
-
   const isMinecraftStoppingLog = useCallback((line: string) => {
     return line.includes('[minecraft/Minecraft]: Stopping!');
   }, []);
@@ -27,7 +25,9 @@ export const useLogService = ({
   }, []);
 
   useEvent('game-log', (line) => {
-    logBufferRef.current.push(line);
+    // Compatibility path for launcher messages produced before the game process
+    // starts. Game stdout/stderr arrives through game-log-batch.
+    useGameLogStore.getState().addLogs([line]);
 
     if (isMinecraftStoppingLog(line)) {
       const store = useGameLogStore.getState();
@@ -37,11 +37,26 @@ export const useLogService = ({
     }
   });
 
-  useEvent('game-exit', (payload) => {
-    if (logBufferRef.current.length > 0) {
-      useGameLogStore.getState().addLogs(logBufferRef.current);
-      logBufferRef.current = [];
+  useEvent('game-log-batch', (batch) => {
+    const store = useGameLogStore.getState();
+    store.applyLogBatch(batch);
+
+    if (batch.gameState === 'idle' || batch.lines.some(isMinecraftStoppingLog)) {
+      store.setGameState('idle');
+      void restoreLauncherAfterGameExit();
+      triggerPostGameUpdateReminder();
     }
+  });
+
+  useEvent('game-log-metrics', (metrics) => {
+    console.info('[GameLog] session metrics', metrics);
+  });
+
+  useEvent('game-launch-progress', (progress) => {
+    useGameLogStore.getState().applyLaunchProgress(progress);
+  });
+
+  useEvent('game-exit', (payload) => {
     const store = useGameLogStore.getState();
     if (payload.code !== 0) {
       store.analyzeCrash();
@@ -53,17 +68,4 @@ export const useLogService = ({
       triggerPostGameUpdateReminder();
     }
   });
-
-  useEffect(() => {
-    const flushTimer = setInterval(() => {
-      if (logBufferRef.current.length > 0) {
-        useGameLogStore.getState().addLogs(logBufferRef.current);
-        logBufferRef.current = [];
-      }
-    }, 50);
-
-    return () => {
-      clearInterval(flushTimer);
-    };
-  }, []);
 };

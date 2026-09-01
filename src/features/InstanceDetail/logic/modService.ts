@@ -664,6 +664,9 @@ export const modService = {
   getCascadingDependents: (id: string, fileName: string): Promise<string[]> =>
     invoke<string[]>('get_cascading_dependents', { id, fileName }),
 
+  getCascadingDependentsBatch: (id: string, fileNames: string[]): Promise<string[]> =>
+    invoke<string[]>('get_cascading_dependents_batch', { id, fileNames }),
+
   toggleModsCascading: (id: string, fileNames: string[], enable: boolean): Promise<Array<[string, string]>> =>
     invoke<Array<[string, string]>>('toggle_mods_cascading', { id, fileNames, enable }),
 

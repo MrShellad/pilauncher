@@ -779,8 +779,6 @@ impl LaunchCommandBuilder {
         };
 
         let mut final_args = Vec::new();
-        final_args.push("-XX:+IgnoreUnrecognizedVMOptions".to_string());
-
         let version_parts: Vec<&str> = self.mc_version.split('.').collect();
         let minor_version: u32 = version_parts
             .get(1)
@@ -801,10 +799,38 @@ impl LaunchCommandBuilder {
 
         final_args.extend(self.config.custom_jvm_args.clone());
 
-        // 过滤 JVM 参数，避免重复加入 -Xmx / -Xms 标志
+        // The launcher owns memory and GC settings so version manifests cannot
+        // override the runtime policy or reintroduce a second collector.
         let filtered_jvm_args: Vec<String> = resolved_jvm_args
             .into_iter()
-            .filter(|arg| !arg.starts_with("-Xmx") && !arg.starts_with("-Xms"))
+            .filter(|arg| {
+                !arg.starts_with("-Xmx")
+                    && !arg.starts_with("-Xms")
+                    && !matches!(
+                        arg.as_str(),
+                        "-XX:+UseG1GC"
+                            | "-XX:-UseG1GC"
+                            | "-XX:+UseZGC"
+                            | "-XX:-UseZGC"
+                            | "-XX:+UseSerialGC"
+                            | "-XX:-UseSerialGC"
+                            | "-XX:+UseParallelGC"
+                            | "-XX:-UseParallelGC"
+                            | "-XX:+UseConcMarkSweepGC"
+                            | "-XX:-UseConcMarkSweepGC"
+                            | "-XX:+UseShenandoahGC"
+                            | "-XX:-UseShenandoahGC"
+                            | "-XX:+UseEpsilonGC"
+                            | "-XX:-UseEpsilonGC"
+                            | "-XX:+ZGenerational"
+                            | "-XX:-ZGenerational"
+                            | "-XX:+UnlockExperimentalVMOptions"
+                            | "-XX:+IgnoreUnrecognizedVMOptions"
+                            | "-XX:+ParallelRefProcEnabled"
+                    )
+                    && !arg.starts_with("-XX:G1")
+                    && !arg.starts_with("-XX:MaxGCPauseMillis=")
+            })
             .collect();
         final_args.extend(filtered_jvm_args);
 

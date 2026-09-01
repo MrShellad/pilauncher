@@ -10,6 +10,25 @@ import { DEFAULT_SETTINGS } from '../types/settings';
 
 const TRACKED_JAVA_MAJORS = ['8', '11', '16', '17', '21', '25'] as const;
 
+// This was an old application default, not a safe user preset: it combines
+// ZGC with G1-only options. Remove it once during hydration while preserving
+// any intentionally configured custom JVM arguments.
+const LEGACY_MANAGED_JVM_ARGS = [
+  '-XX:+UseZGC',
+  '-XX:+UnlockExperimentalVMOptions',
+  '-XX:+ZGenerational',
+  '-XX:+ParallelRefProcEnabled',
+  '-XX:MaxGCPauseMillis=150',
+  '-XX:G1NewSizePercent=30',
+  '-XX:G1ReservePercent=20'
+].sort();
+
+const isLegacyManagedJvmArgs = (value?: string) => {
+  const args = (value || '').trim().split(/\s+/).filter(Boolean).sort();
+  return args.length === LEGACY_MANAGED_JVM_ARGS.length &&
+    args.every((arg, index) => arg === LEGACY_MANAGED_JVM_ARGS[index]);
+};
+
 const normalizeJavaPath = (value?: string) => (value || '').trim();
 
 const hasStoredJavaSnapshot = (
@@ -255,6 +274,9 @@ export const useSettingsStore = create<SettingsStore>()(
       },
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
+        if (state && isLegacyManagedJvmArgs(state.settings.java.jvmArgs)) {
+          state.updateJavaSetting('jvmArgs', '');
+        }
         if (state && (!state.settings.general.deviceName || !state.settings.general.deviceId)) {
           (async () => {
             try {

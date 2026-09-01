@@ -56,9 +56,40 @@ export interface ModCloudSyncIncrementalPayload {
   progress?: { current: number; total: number; stage: string };
 }
 
+export interface GameLogTelemetryPayload {
+  jvmUptime: string | null;
+  loaderInit: string | null;
+  resourceLoad: string | null;
+  renderInit: string | null;
+  totalStartup: string | null;
+}
+
+export interface GameLogBatchPayload {
+  lines: string[];
+  gameState?: 'idle' | 'launching' | 'running' | 'crashed';
+  telemetry: GameLogTelemetryPayload;
+  latestLanPort?: string | null;
+}
+
+export interface GameLogMetricsPayload {
+  totalLines: number;
+  batchCount: number;
+  persistedBytes: number;
+  durationMs: number;
+}
+
+export interface GameLaunchProgressPayload {
+  phase: 'preparing' | 'jvm' | 'loader' | 'resources' | 'render' | 'ready';
+  percent: number;
+  ready: boolean;
+}
+
 export interface AppEventMap {
   // --- Tauri IPC Backend Events ---
   'game-log': string;
+  'game-log-batch': GameLogBatchPayload;
+  'game-log-metrics': GameLogMetricsPayload;
+  'game-launch-progress': GameLaunchProgressPayload;
   'game-exit': { code: number; instanceId?: string };
   'resource-download-progress': ResourceDownloadProgressPayload;
   'native-gamepad-event': NativeGamepadEventPayload;

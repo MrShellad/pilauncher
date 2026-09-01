@@ -118,6 +118,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         instance::mod_cmd::get_instance_dependency_health,
         instance::mod_cmd::save_mod_relations,
         instance::mod_cmd::get_cascading_dependents,
+        instance::mod_cmd::get_cascading_dependents_batch,
         instance::mod_cmd::toggle_mods_cascading,
         instance::mod_cmd::sync_instance_mods_cloud_metadata,
         instance::mod_cmd::check_instance_mods_updates,

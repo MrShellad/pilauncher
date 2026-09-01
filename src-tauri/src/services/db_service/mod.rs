@@ -123,6 +123,15 @@ impl DbService {
         instance_mod_repo::toggle_instance_mod(pool, instance_id, old_file_name, new_file_name, is_enabled).await
     }
 
+    pub async fn toggle_instance_mods_batch(
+        pool: &SqlitePool,
+        instance_id: &str,
+        toggled: &[(String, String)],
+        is_enabled: bool,
+    ) -> Result<(), sqlx::Error> {
+        instance_mod_repo::toggle_instance_mods_batch(pool, instance_id, toggled, is_enabled).await
+    }
+
     // -------------------------------------------------------------------------
     // Tags
     // -------------------------------------------------------------------------

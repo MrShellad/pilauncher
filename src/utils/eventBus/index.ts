@@ -11,6 +11,9 @@ class TypedEventBus {
   // List of events that originate from the Tauri Rust backend
   private tauriEvents: Set<keyof AppEventMap> = new Set([
     'game-log',
+    'game-log-batch',
+    'game-log-metrics',
+    'game-launch-progress',
     'game-exit',
     'resource-download-progress',
     'native-gamepad-event',

@@ -22,6 +22,8 @@ import { LogView } from './LogView';
 import { LogShareDialog } from './LogShareDialog';
 import { useScreenDensity } from '../../../hooks/ui/useScreenDensity';
 
+const EMPTY_LOGS: string[] = [];
+
 // Note: useLogService has been moved to <GameLogService /> (always mounted in App.tsx).
 // This component only handles UI; focus restoration is done via the isOpen watcher below.
 
@@ -29,7 +31,15 @@ export const GameLogSidebar: React.FC = () => {
   const { t } = useTranslation();
   const density = useScreenDensity();
   const isCompact = density === 'compact';
-  const { isOpen, setOpen, currentInstanceId, logs, gameState, crashReason, telemetry, clearLogs } = useGameLogStore();
+  const isOpen = useGameLogStore((state) => state.isOpen);
+  const setOpen = useGameLogStore((state) => state.setOpen);
+  const currentInstanceId = useGameLogStore((state) => state.currentInstanceId);
+  const gameState = useGameLogStore((state) => state.gameState);
+  const crashReason = useGameLogStore((state) => state.crashReason);
+  const telemetry = useGameLogStore((state) => state.telemetry);
+  const clearLogs = useGameLogStore((state) => state.clearLogs);
+  // Keep the always-mounted shell independent of high-frequency log batches while closed.
+  const logs = useGameLogStore((state) => isOpen ? state.logs : EMPTY_LOGS);
   const hasDownloadTasks = useDownloadStore((state) => Object.keys(state.tasks).length > 0);
   const isDownloadPopupOpen = useDownloadStore((state) => state.isPopupOpen);
   const isGameTerminated = gameState === 'crashed' || gameState === 'idle';

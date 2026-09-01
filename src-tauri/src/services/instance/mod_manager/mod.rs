@@ -1243,6 +1243,19 @@ impl ModManagerService {
             .await
     }
 
+    pub async fn get_cascading_dependents_batch<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        root_file_names: &[String],
+    ) -> Result<Vec<String>, String> {
+        dependency_resolver::DependencyResolver::get_cascading_dependents_batch(
+            app,
+            instance_id,
+            root_file_names,
+        )
+        .await
+    }
+
     pub async fn toggle_mods_cascading<R: Runtime>(
         app: &AppHandle<R>,
         instance_id: &str,

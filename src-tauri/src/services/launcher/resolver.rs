@@ -10,8 +10,6 @@ pub struct ConfigResolver;
 
 const MEMORY_STEP_MB: u32 = 512;
 const MIN_MEMORY_MB: u32 = 1024;
-const MAX_INITIAL_MEMORY_MB: u32 = 8192;
-const INITIAL_MEMORY_RATIO: f64 = 0.45;
 
 #[derive(Debug, Clone, Copy)]
 struct MemoryThresholds {
@@ -70,62 +68,70 @@ fn split_argument_string(raw: &str) -> Vec<String> {
 }
 
 fn parse_java_major_version(value: &str) -> Option<u32> {
-    value.trim().parse::<u32>().ok()
+    let mut numbers = value
+        .split(|character: char| !character.is_ascii_digit())
+        .filter(|part| !part.is_empty());
+    let first = numbers.next()?.parse::<u32>().ok()?;
+    if first == 1 {
+        numbers.next()?.parse::<u32>().ok()
+    } else {
+        Some(first)
+    }
 }
 
-fn ensure_generational_zgc_unlock(mut args: Vec<String>) -> Vec<String> {
-    let Some(z_generational_index) = args.iter().position(|arg| arg == "-XX:+ZGenerational") else {
-        return args;
-    };
+fn is_launcher_managed_jvm_arg(arg: &str) -> bool {
+    arg.starts_with("-Xmx")
+        || arg.starts_with("-Xms")
+        || matches!(
+            arg,
+            "-XX:+UseG1GC"
+                | "-XX:-UseG1GC"
+                | "-XX:+UseZGC"
+                | "-XX:-UseZGC"
+                | "-XX:+UseSerialGC"
+                | "-XX:-UseSerialGC"
+                | "-XX:+UseParallelGC"
+                | "-XX:-UseParallelGC"
+                | "-XX:+UseConcMarkSweepGC"
+                | "-XX:-UseConcMarkSweepGC"
+                | "-XX:+UseShenandoahGC"
+                | "-XX:-UseShenandoahGC"
+                | "-XX:+UseEpsilonGC"
+                | "-XX:-UseEpsilonGC"
+                | "-XX:+ZGenerational"
+                | "-XX:-ZGenerational"
+                | "-XX:+UnlockExperimentalVMOptions"
+                | "-XX:+IgnoreUnrecognizedVMOptions"
+                | "-XX:+ParallelRefProcEnabled"
+        )
+        || arg.starts_with("-XX:G1")
+        || arg.starts_with("-XX:MaxGCPauseMillis=")
+}
 
-    if !args
-        .iter()
-        .any(|arg| arg == "-XX:+UnlockExperimentalVMOptions")
-    {
-        args.insert(
-            z_generational_index,
+fn gc_args_for_java_major(actual_java_major: u32) -> Vec<String> {
+    if (21..=22).contains(&actual_java_major) {
+        vec![
             "-XX:+UnlockExperimentalVMOptions".to_string(),
-        );
-    }
-
-    args
-}
-
-fn adapt_gc_args_for_java_major(mut args: Vec<String>, java_major: &str) -> Vec<String> {
-    let Some(major) = parse_java_major_version(java_major) else {
-        return ensure_generational_zgc_unlock(args);
-    };
-    if major >= 21 {
-        return ensure_generational_zgc_unlock(args);
-    }
-
-    if major >= 17 {
-        args.retain(|arg| arg != "-XX:+ZGenerational");
-        return args;
-    }
-
-    let first_zgc_index = args
-        .iter()
-        .position(|arg| arg == "-XX:+UseZGC" || arg == "-XX:+ZGenerational");
-    if first_zgc_index.is_none() {
-        return args;
-    }
-
-    args.retain(|arg| arg != "-XX:+UseZGC" && arg != "-XX:+ZGenerational");
-    if !args.iter().any(|arg| arg == "-XX:+UseG1GC") {
-        args.insert(
-            first_zgc_index.unwrap().min(args.len()),
+            "-XX:+UseZGC".to_string(),
+            "-XX:+ZGenerational".to_string(),
+        ]
+    } else if actual_java_major >= 23 {
+        // Generational ZGC is the default from JDK 23 and -XX:+ZGenerational
+        // was removed in JDK 24, so do not pass the obsolete flag.
+        vec!["-XX:+UseZGC".to_string()]
+    } else {
+        vec![
             "-XX:+UseG1GC".to_string(),
-        );
+            "-XX:+ParallelRefProcEnabled".to_string(),
+            "-XX:MaxGCPauseMillis=150".to_string(),
+        ]
     }
-
-    args
 }
 
 fn resolve_custom_jvm_args(
     global_jvm_args: &str,
     instance_runtime: &RuntimeConfig,
-    java_major: &str,
+    actual_java_major: u32,
 ) -> Vec<String> {
     let mut custom_jvm_args = split_argument_string(global_jvm_args);
 
@@ -133,7 +139,9 @@ fn resolve_custom_jvm_args(
         custom_jvm_args.extend(split_argument_string(&instance_runtime.jvm_args));
     }
 
-    adapt_gc_args_for_java_major(custom_jvm_args, java_major)
+    custom_jvm_args.retain(|arg| !is_launcher_managed_jvm_arg(arg));
+    custom_jvm_args.extend(gc_args_for_java_major(actual_java_major));
+    custom_jvm_args
 }
 
 fn round_down_to_step(value: f64) -> u32 {
@@ -191,18 +199,14 @@ fn sanitize_requested_memory(requested: u32, total_hard_limit: u32) -> u32 {
     )
 }
 
-fn resolve_initial_memory(max_memory: u32) -> u32 {
-    clamp_memory(
-        round_down_to_step(max_memory as f64 * INITIAL_MEMORY_RATIO),
-        MIN_MEMORY_MB,
-        max_memory.min(MAX_INITIAL_MEMORY_MB),
-    )
+fn resolve_initial_memory(requested_min: u32, max_memory: u32) -> u32 {
+    clamp_memory(requested_min.max(MIN_MEMORY_MB), MIN_MEMORY_MB, max_memory)
 }
 
 fn resolve_memory_limits(
     mode: &MemoryAllocationMode,
     requested_max: u32,
-    _requested_min: u32,
+    requested_min: u32,
     thresholds: &MemoryThresholds,
 ) -> (u32, u32) {
     let requested_max = sanitize_requested_memory(requested_max, thresholds.total_hard_limit);
@@ -221,7 +225,7 @@ fn resolve_memory_limits(
         MemoryAllocationMode::Force => requested_max,
     };
 
-    let min_memory = resolve_initial_memory(max_memory);
+    let min_memory = resolve_initial_memory(requested_min, max_memory);
     (min_memory, max_memory)
 }
 
@@ -270,6 +274,11 @@ impl ConfigResolver {
             } else {
                 java_runtime.java_path.clone()
             };
+        let actual_java_major = runtime_service::test_java_runtime(&java_path)
+            .ok()
+            .and_then(|install| parse_java_major_version(&install.version))
+            .or_else(|| parse_java_major_version(&java_runtime.required_java_major))
+            .unwrap_or(8);
 
         let memory_mode = if instance_runtime.use_global_memory {
             global_java.memory_allocation_mode.clone()
@@ -317,11 +326,8 @@ impl ConfigResolver {
             instance_cfg.resolution.height
         };
 
-        let custom_jvm_args = resolve_custom_jvm_args(
-            &global_java.jvm_args,
-            &instance_runtime,
-            &java_runtime.required_java_major,
-        );
+        let custom_jvm_args =
+            resolve_custom_jvm_args(&global_java.jvm_args, &instance_runtime, actual_java_major);
 
         ResolvedLaunchConfig {
             java_path,
@@ -379,98 +385,62 @@ mod tests {
             r#"-XX:+UnlockExperimentalVMOptions "-Dfoo=bar baz""#.to_string();
 
         assert_eq!(
-            resolve_custom_jvm_args("-XX:+UseG1GC", &instance_runtime, "21"),
+            resolve_custom_jvm_args("-XX:+UseG1GC", &instance_runtime, 21),
             vec![
-                "-XX:+UseG1GC".to_string(),
-                "-XX:+UnlockExperimentalVMOptions".to_string(),
                 "-Dfoo=bar baz".to_string(),
+                "-XX:+UnlockExperimentalVMOptions".to_string(),
+                "-XX:+UseZGC".to_string(),
+                "-XX:+ZGenerational".to_string(),
             ]
         );
     }
 
     #[test]
-    fn java_below_17_replaces_zgc_defaults_with_g1gc() {
+    fn java_20_and_older_use_only_g1gc() {
         let instance_runtime = runtime_config();
 
         assert_eq!(
             resolve_custom_jvm_args(
-                "-XX:+UseZGC -XX:+ZGenerational -XX:+ParallelRefProcEnabled",
+                "-XX:+UseZGC -XX:+ZGenerational -XX:G1ReservePercent=20 -Xmx8G",
                 &instance_runtime,
-                "16",
+                20,
             ),
             vec![
                 "-XX:+UseG1GC".to_string(),
                 "-XX:+ParallelRefProcEnabled".to_string(),
+                "-XX:MaxGCPauseMillis=150".to_string(),
             ]
         );
     }
 
     #[test]
-    fn java_17_to_20_removes_generational_zgc_only() {
+    fn java_21_and_newer_use_only_generational_zgc() {
         let instance_runtime = runtime_config();
 
         assert_eq!(
             resolve_custom_jvm_args(
-                "-XX:+UseZGC -XX:+ZGenerational -XX:+ParallelRefProcEnabled",
+                "-XX:+UseG1GC -XX:G1NewSizePercent=30 -XX:MaxGCPauseMillis=150",
                 &instance_runtime,
-                "17",
+                21,
             ),
             vec![
-                "-XX:+UseZGC".to_string(),
-                "-XX:+ParallelRefProcEnabled".to_string(),
-            ]
-        );
-    }
-
-    #[test]
-    fn java_21_and_newer_keeps_generational_zgc_defaults() {
-        let instance_runtime = runtime_config();
-
-        assert_eq!(
-            resolve_custom_jvm_args(
-                "-XX:+UseZGC -XX:+ZGenerational -XX:+ParallelRefProcEnabled",
-                &instance_runtime,
-                "21",
-            ),
-            vec![
-                "-XX:+UseZGC".to_string(),
                 "-XX:+UnlockExperimentalVMOptions".to_string(),
-                "-XX:+ZGenerational".to_string(),
-                "-XX:+ParallelRefProcEnabled".to_string(),
-            ]
-        );
-    }
-
-    #[test]
-    fn generational_zgc_does_not_duplicate_existing_unlock_arg() {
-        let instance_runtime = runtime_config();
-
-        assert_eq!(
-            resolve_custom_jvm_args(
-                "-XX:+UseZGC -XX:+UnlockExperimentalVMOptions -XX:+ZGenerational",
-                &instance_runtime,
-                "21",
-            ),
-            vec![
                 "-XX:+UseZGC".to_string(),
-                "-XX:+UnlockExperimentalVMOptions".to_string(),
                 "-XX:+ZGenerational".to_string(),
             ]
         );
     }
 
     #[test]
-    fn java_below_17_does_not_duplicate_existing_g1gc_arg() {
-        let instance_runtime = runtime_config();
+    fn java_23_and_newer_do_not_receive_the_removed_zgenerational_flag() {
+        assert_eq!(gc_args_for_java_major(25), vec!["-XX:+UseZGC".to_string()]);
+    }
 
-        assert_eq!(
-            resolve_custom_jvm_args(
-                "-XX:+UseG1GC -XX:+UseZGC -XX:+ZGenerational",
-                &instance_runtime,
-                "8",
-            ),
-            vec!["-XX:+UseG1GC".to_string()]
-        );
+    #[test]
+    fn parses_actual_java_versions_for_gc_selection() {
+        assert_eq!(parse_java_major_version("1.8.0_402 (64-bit)"), Some(8));
+        assert_eq!(parse_java_major_version("17.0.12 (64-bit)"), Some(17));
+        assert_eq!(parse_java_major_version("21.0.6 (64-bit)"), Some(21));
     }
 
     #[test]
@@ -512,14 +482,14 @@ mod tests {
             resolve_memory_limits(&MemoryAllocationMode::Force, 8192, 1024, &thresholds);
 
         assert_eq!(thresholds.hard_limit, 4608);
-        assert_eq!(min_memory, 3584);
+        assert_eq!(min_memory, 1024);
         assert_eq!(max_memory, 8192);
     }
 
     #[test]
-    fn initial_memory_scales_from_heap_and_caps_at_eight_gb() {
-        assert_eq!(resolve_initial_memory(2048), 1024);
-        assert_eq!(resolve_initial_memory(8192), 3584);
-        assert_eq!(resolve_initial_memory(24 * 1024), 8192);
+    fn initial_memory_honors_the_user_setting_within_heap_limits() {
+        assert_eq!(resolve_initial_memory(512, 2048), 1024);
+        assert_eq!(resolve_initial_memory(2048, 8192), 2048);
+        assert_eq!(resolve_initial_memory(12 * 1024, 8192), 8192);
     }
 }

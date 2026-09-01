@@ -1,6 +1,7 @@
 // src/store/useGameLogStore.ts
 import { create } from 'zustand';
 import { appendGameLogs, createInitialTelemetry } from '../features/GameLog/logic/gameLogProcessor';
+import type { GameLaunchProgressPayload, GameLogBatchPayload } from '../utils/eventBus/events';
 
 export type GameState = 'idle' | 'launching' | 'running' | 'crashed';
 
@@ -15,6 +16,18 @@ export interface StartupTelemetry {
   _startTime: number | null; 
 }
 
+export interface GameLaunchProgress {
+  phase: GameLaunchProgressPayload['phase'];
+  percent: number;
+  ready: boolean;
+}
+
+const initialLaunchProgress: GameLaunchProgress = {
+  phase: 'preparing',
+  percent: 0,
+  ready: false,
+};
+
 interface GameLogStore {
   isOpen: boolean;
   currentInstanceId: string | null; 
@@ -23,11 +36,14 @@ interface GameLogStore {
   crashReason: string | null;
   telemetry: StartupTelemetry;
   latestLanPort: string | null;
+  launchProgress: GameLaunchProgress;
   
   setOpen: (isOpen: boolean) => void;
   setInstanceId: (id: string) => void; 
   setGameState: (state: GameState) => void;
   addLogs: (logs: string[]) => void;
+  applyLogBatch: (batch: GameLogBatchPayload) => void;
+  applyLaunchProgress: (progress: GameLaunchProgressPayload) => void;
   clearLogs: () => void;
   analyzeCrash: () => void;
 }
@@ -42,6 +58,7 @@ export const useGameLogStore = create<GameLogStore>((set, get) => ({
   crashReason: null,
   telemetry: { ...initialTelemetry },
   latestLanPort: null,
+  launchProgress: { ...initialLaunchProgress },
 
   setOpen: (isOpen) => set({ isOpen }),
   setInstanceId: (id) => set({ currentInstanceId: id }),
@@ -134,7 +151,62 @@ export const useGameLogStore = create<GameLogStore>((set, get) => ({
     return state;
   }),
 
-  clearLogs: () => set({ logs: [], crashReason: null, gameState: 'idle', telemetry: { ...initialTelemetry }, latestLanPort: null }),
+  applyLogBatch: (batch) => set((state) => {
+    if (batch.lines.length === 0) return state;
+
+    const combined = state.logs.concat(batch.lines);
+    const logs = combined.length > 1000
+      ? combined.slice(combined.length - 1000)
+      : combined;
+
+    const nextTelemetry = {
+      ...state.telemetry,
+      ...batch.telemetry,
+    };
+    const telemetry = (
+      nextTelemetry.jvmUptime === state.telemetry.jvmUptime &&
+      nextTelemetry.loaderInit === state.telemetry.loaderInit &&
+      nextTelemetry.resourceLoad === state.telemetry.resourceLoad &&
+      nextTelemetry.renderInit === state.telemetry.renderInit &&
+      nextTelemetry.totalStartup === state.telemetry.totalStartup
+    ) ? state.telemetry : nextTelemetry;
+
+    return {
+      logs,
+      gameState: batch.gameState ?? state.gameState,
+      telemetry,
+      latestLanPort: batch.latestLanPort ?? state.latestLanPort,
+    };
+  }),
+
+  applyLaunchProgress: (progress) => set((state) => {
+    const percent = Math.min(100, Math.max(state.launchProgress.percent, progress.percent));
+    const ready = state.launchProgress.ready || progress.ready || percent === 100;
+    const launchProgress: GameLaunchProgress = {
+      phase: ready ? 'ready' : progress.phase,
+      percent: ready ? 100 : percent,
+      ready,
+    };
+
+    if (
+      launchProgress.phase === state.launchProgress.phase &&
+      launchProgress.percent === state.launchProgress.percent &&
+      launchProgress.ready === state.launchProgress.ready
+    ) {
+      return state;
+    }
+
+    return { launchProgress };
+  }),
+
+  clearLogs: () => set({
+    logs: [],
+    crashReason: null,
+    gameState: 'idle',
+    telemetry: { ...initialTelemetry },
+    latestLanPort: null,
+    launchProgress: { ...initialLaunchProgress },
+  }),
 
   analyzeCrash: () => {
     const logs = get().logs;

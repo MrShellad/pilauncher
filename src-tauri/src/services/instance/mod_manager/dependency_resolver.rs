@@ -504,17 +504,44 @@ impl DependencyResolver {
         root_file_name: &str,
     ) -> Result<Vec<String>, String> {
         let health = Self::get_instance_dependency_health(app, instance_id).await?;
-        let clean_root = root_file_name.trim_end_matches(".disabled").to_lowercase();
+        Ok(Self::collect_cascading_dependents(
+            &health.instance_dependents,
+            &[root_file_name.to_string()],
+        ))
+    }
+
+    /// Resolves several selected roots from one dependency-health snapshot. Batch disables
+    /// previously rebuilt the entire graph once per selected Mod.
+    pub async fn get_cascading_dependents_batch<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        root_file_names: &[String],
+    ) -> Result<Vec<String>, String> {
+        let health = Self::get_instance_dependency_health(app, instance_id).await?;
+        Ok(Self::collect_cascading_dependents(
+            &health.instance_dependents,
+            root_file_names,
+        ))
+    }
+
+    fn collect_cascading_dependents(
+        instance_dependents: &HashMap<String, Vec<String>>,
+        root_file_names: &[String],
+    ) -> Vec<String> {
+        let root_files: std::collections::HashSet<String> = root_file_names
+            .iter()
+            .map(|file_name| file_name.trim_end_matches(".disabled").to_lowercase())
+            .collect();
 
         let mut queue = std::collections::VecDeque::new();
         let mut visited = std::collections::HashSet::new();
         let mut cascading_files = Vec::new();
 
-        for (key, dependents) in &health.instance_dependents {
-            if key.trim_end_matches(".disabled").to_lowercase() == clean_root {
+        for (key, dependents) in instance_dependents {
+            if root_files.contains(&key.trim_end_matches(".disabled").to_lowercase()) {
                 for dep in dependents {
                     let dep_clean = dep.trim_end_matches(".disabled").to_lowercase();
-                    if dep_clean != clean_root && visited.insert(dep_clean) {
+                    if !root_files.contains(&dep_clean) && visited.insert(dep_clean) {
                         queue.push_back(dep.clone());
                         cascading_files.push(dep.clone());
                     }
@@ -524,11 +551,11 @@ impl DependencyResolver {
 
         while let Some(current) = queue.pop_front() {
             let cur_clean = current.trim_end_matches(".disabled").to_lowercase();
-            for (key, dependents) in &health.instance_dependents {
+            for (key, dependents) in instance_dependents {
                 if key.trim_end_matches(".disabled").to_lowercase() == cur_clean {
                     for dep in dependents {
                         let dep_clean = dep.trim_end_matches(".disabled").to_lowercase();
-                        if dep_clean != clean_root && visited.insert(dep_clean) {
+                        if !root_files.contains(&dep_clean) && visited.insert(dep_clean) {
                             queue.push_back(dep.clone());
                             cascading_files.push(dep.clone());
                         }
@@ -537,7 +564,7 @@ impl DependencyResolver {
             }
         }
 
-        Ok(cascading_files)
+        cascading_files
     }
 }
 

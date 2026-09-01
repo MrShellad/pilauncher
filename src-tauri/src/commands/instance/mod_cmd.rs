@@ -164,6 +164,20 @@ pub async fn get_cascading_dependents<R: Runtime>(
 }
 
 #[tauri::command]
+pub async fn get_cascading_dependents_batch<R: Runtime>(
+    app: AppHandle<R>,
+    id: String,
+    file_names: Vec<String>,
+) -> Result<Vec<String>, String> {
+    crate::services::instance::mod_manager::ModManagerService::get_cascading_dependents_batch(
+        &app,
+        &id,
+        &file_names,
+    )
+    .await
+}
+
+#[tauri::command]
 pub async fn toggle_mods_cascading<R: Runtime>(
     app: AppHandle<R>,
     id: String,

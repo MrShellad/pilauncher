@@ -165,8 +165,7 @@ impl Default for JavaSettings {
             auto_detect: true,
             java_path: "java".to_string(),
             major_java_paths: HashMap::new(),
-            jvm_args: "-XX:+UseZGC -XX:+UnlockExperimentalVMOptions -XX:+ZGenerational -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=150 -XX:G1NewSizePercent=30 -XX:G1ReservePercent=20"
-                .to_string(),
+            jvm_args: String::new(),
             memory_allocation_mode: MemoryAllocationMode::Auto,
             max_memory: 4096,
             min_memory: 1024,

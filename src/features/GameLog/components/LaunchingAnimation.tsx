@@ -23,97 +23,38 @@ const getStages = (t: any): Stage[] => [
   { id: 'READY',    label: t('gameLog.launchAnimation.ready', '主菜单'),     desc: t('gameLog.launchAnimation.readyDesc', '游戏已成功启动'), color: '#4ADE80', at: 100 },
 ];
 
-const ATLAS_MAX = 15;
-
-/* ─── Progress Computation ───────────────────────────────── */
-
-function computeProgress(logs: string[]): number {
-  if (logs.length === 0) return 0;
-
-  let p = 3;       // 初始启动
-  let atlas = 0;
-
-  for (const line of logs) {
-    const l = line.toLowerCase();
-
-    if (p < 10 && l.includes('datafixer'))                                          { p = 10; continue; }
-    if (p < 25 && l.includes('setting user'))                                       { p = 25; continue; }
-    if (p < 40 && (l.includes('lwjgl') || l.includes('backend library')))           { p = 40; continue; }
-    if (p < 50 && l.includes('reloading resourcemanager'))                          { p = 50; continue; }
-    
-    // Atlas created 资源细分 50% → 90%
-    if (l.includes('created:') && l.includes('atlas')) {
-      atlas++;
-      const ap = 50 + (Math.min(atlas, ATLAS_MAX) / ATLAS_MAX) * 40; // up to 90
-      if (ap > p) p = ap;
-    }
-
-    // OpenAL initialized 接近完成 80%
-    if (p < 80 && l.includes('openal initialized'))                                 { p = 80; continue; }
-  }
-
-  return Math.min(Math.floor(p), 99);
-}
-
 /* ─── Component ──────────────────────────────────────────── */
 
 export const LaunchingAnimation: React.FC = () => {
   const { t } = useTranslation();
   const STAGES = useMemo(() => getStages(t), [t]);
-  
+  const [hidden, setHidden] = useState(false);
   const gameState = useGameLogStore((s) => s.gameState);
-  const logs      = useGameLogStore((s) => s.logs);
+  const launchProgress = useGameLogStore((s) => s.launchProgress);
   const currentInstanceId = useGameLogStore((s) => s.currentInstanceId);
 
-  const peakRef             = useRef(0);
-  const [pct,    setPct]    = useState(0);
-  const [hidden, setHidden] = useState(false);
   const [showKillConfirm, setShowKillConfirm] = useState(false);
   const { killCurrentGame } = useGameProcessService();
-  const lastLogLenRef       = useRef(0);
-  const timerRef            = useRef<any>(null);
   const overlayRef          = useRef<HTMLDivElement>(null);
   const prevFocusRef        = useRef<HTMLElement | null>(null);
+  const pct = launchProgress.percent;
 
-  // Advance progress based on logs — never regress
+  // Progress is produced by Rust from process lifecycle plus a compact set of
+  // log markers. Keeping only the latest snapshot here avoids scanning and
+  // retaining work on every game log batch in the renderer.
   useEffect(() => {
     if (gameState === 'idle' || gameState === 'crashed') {
-      peakRef.current = 0; setPct(0); setHidden(false); 
-      if (timerRef.current) clearTimeout(timerRef.current);
-      return;
+      setHidden(false);
     }
-    const next = computeProgress(logs);
-    if (next > peakRef.current) { peakRef.current = next; setPct(next); }
-  }, [logs, gameState]);
+  }, [gameState]);
 
-  // Log heartbeat: If we haven't seen a new log in 1.8 seconds and we are somewhat loaded, assume main menu is ready
+  // The display delay is presentation-only; readiness itself is backend-owned.
   useEffect(() => {
-    if ((gameState === 'launching' || gameState === 'running') && pct < 100) {
-      if (logs.length !== lastLogLenRef.current) {
-        lastLogLenRef.current = logs.length;
-        if (timerRef.current) clearTimeout(timerRef.current);
-
-        timerRef.current = setTimeout(() => {
-          // No logs for 1.8s
-          if (peakRef.current >= 80) {
-            peakRef.current = 100;
-            setPct(100);
-          }
-        }, 1800);
-      }
-    }
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [logs.length, gameState, pct]);
-
-  // Hide 2.5s after 100%
-  useEffect(() => {
-    if (pct === 100) {
+    if (launchProgress.ready) {
       const t = setTimeout(() => setHidden(true), 2500);
       return () => clearTimeout(t);
     }
-  }, [pct]);
+  }, [launchProgress.ready]);
 
   const isVisible = (gameState === 'launching' || gameState === 'running') && !hidden;
 

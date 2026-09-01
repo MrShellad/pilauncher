@@ -278,6 +278,39 @@ pub async fn toggle_instance_mod(
     Ok(())
 }
 
+/// Applies a filesystem rename batch in one transaction. The caller performs the actual
+/// renames first and only passes successful pairs, so SQLite cannot become the slowest step of
+/// a large cascading disable.
+pub async fn toggle_instance_mods_batch(
+    pool: &SqlitePool,
+    instance_id: &str,
+    toggled: &[(String, String)],
+    is_enabled: bool,
+) -> Result<(), sqlx::Error> {
+    if toggled.is_empty() {
+        return Ok(());
+    }
+
+    let mut tx = pool.begin().await?;
+    let now = chrono::Utc::now().timestamp();
+    for (old_file_name, new_file_name) in toggled {
+        sqlx::query(
+            "UPDATE instance_mods
+             SET file_name = ?, is_enabled = ?, updated_at = ?
+             WHERE instance_id = ? AND file_name = ?;",
+        )
+        .bind(new_file_name)
+        .bind(is_enabled)
+        .bind(now)
+        .bind(instance_id)
+        .bind(old_file_name)
+        .execute(&mut *tx)
+        .await?;
+    }
+    tx.commit().await?;
+    Ok(())
+}
+
 pub async fn update_mod_platform_matches_batch(
     pool: &SqlitePool,
     instance_id: &str,

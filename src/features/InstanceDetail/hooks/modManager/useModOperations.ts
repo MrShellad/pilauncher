@@ -33,6 +33,23 @@ const getActionText = (action: ModVersionInstallAction) => {
   return '升级';
 };
 
+const isSameModFile = (left: string, right: string) =>
+  left === right || left.replace(/\.disabled$/i, '') === right.replace(/\.disabled$/i, '');
+
+const applyEnabledState = (mods: ModMeta[], fileNames: string[], enable: boolean) =>
+  mods.map((mod) => {
+    if (!fileNames.some((fileName) => isSameModFile(fileName, mod.fileName)) || mod.isEnabled === enable) {
+      return mod;
+    }
+    return {
+      ...mod,
+      isEnabled: enable,
+      fileName: enable
+        ? mod.fileName.replace(/\.disabled$/i, '')
+        : mod.fileName.endsWith('.disabled') ? mod.fileName : `${mod.fileName}.disabled`
+    };
+  });
+
 export const useModOperations = ({
   instanceId,
   setMods,
@@ -45,7 +62,15 @@ export const useModOperations = ({
       let parentModName = '';
 
       if (currentEnabled) {
-        // Disabling: query cascading dependents from Rust DAG
+        // Flip the requested row first. Resolving a full dependency graph can be noticeably
+        // slower than a filesystem rename, and must not block basic toggle feedback.
+        setMods((prev) => {
+          const parentMod = prev.find((mod) => isSameModFile(mod.fileName, fileName));
+          parentModName = parentMod?.networkInfo?.title || parentMod?.name || parentMod?.fileName || '';
+          return applyEnabledState(prev, [fileName], false);
+        });
+
+        // Disabling: resolve and then append cascading dependents from the Rust DAG.
         try {
           dependentFileNames = await modService.getCascadingDependents(instanceId, fileName);
         } catch {
@@ -53,36 +78,12 @@ export const useModOperations = ({
         }
 
         filesToToggle = Array.from(new Set([fileName, ...dependentFileNames]));
-
-        setMods((prev) => {
-          const parentMod = prev.find(m => m.fileName === fileName || m.fileName.replace(/\.disabled$/i, '') === fileName.replace(/\.disabled$/i, ''));
-          if (parentMod) {
-            parentModName = parentMod.networkInfo?.title || parentMod.name || parentMod.fileName;
-          }
-          
-          return prev.map((mod) => {
-            const isMatch = filesToToggle.some(f => f === mod.fileName || f.replace(/\.disabled$/i, '') === mod.fileName.replace(/\.disabled$/i, ''));
-            if (isMatch) {
-              return {
-                ...mod,
-                isEnabled: false,
-                fileName: mod.fileName.endsWith('.disabled') ? mod.fileName : `${mod.fileName}.disabled`
-              };
-            }
-            return mod;
-          });
-        });
+        if (dependentFileNames.length > 0) {
+          setMods((prev) => applyEnabledState(prev, dependentFileNames, false));
+        }
       } else {
         // Enabling
-        setMods((prev) => prev.map((mod) => (
-          (mod.fileName === fileName || mod.fileName.replace(/\.disabled$/i, '') === fileName.replace(/\.disabled$/i, ''))
-            ? {
-                ...mod,
-                isEnabled: true,
-                fileName: fileName.replace(/\.disabled$/i, '')
-              }
-            : mod
-        )));
+        setMods((prev) => applyEnabledState(prev, [fileName], true));
       }
 
       const nextEnabled = !currentEnabled;
@@ -103,42 +104,25 @@ export const useModOperations = ({
       let dependentFileNames: string[] = [];
 
       if (!enable) {
+        // The selected rows change immediately; cascaded rows follow once dependency analysis
+        // finishes, instead of making every switch wait on that analysis.
+        setMods((prev) => applyEnabledState(prev, fileNames, false));
         const cascadingSet = new Set<string>();
-        for (const fileName of fileNames) {
-          try {
-            const deps = await modService.getCascadingDependents(instanceId, fileName);
-            deps.forEach(d => cascadingSet.add(d));
-          } catch {
-            // ignore
-          }
+        try {
+          const deps = await modService.getCascadingDependentsBatch(instanceId, fileNames);
+          deps.forEach((fileName) => cascadingSet.add(fileName));
+        } catch {
+          // Keep the selected rows responsive even if optional dependency analysis fails.
         }
         fileNames.forEach(f => cascadingSet.delete(f));
         dependentFileNames = Array.from(cascadingSet);
         filesToToggle = [...fileNames, ...dependentFileNames];
 
-        setMods((prev) => prev.map((mod) => {
-          const isMatch = filesToToggle.some(f => f === mod.fileName || f.replace(/\.disabled$/i, '') === mod.fileName.replace(/\.disabled$/i, ''));
-          if (isMatch && mod.isEnabled !== enable) {
-            return {
-              ...mod,
-              isEnabled: enable,
-              fileName: mod.fileName.endsWith('.disabled') ? mod.fileName : `${mod.fileName}.disabled`
-            };
-          }
-          return mod;
-        }));
+        if (dependentFileNames.length > 0) {
+          setMods((prev) => applyEnabledState(prev, dependentFileNames, false));
+        }
       } else {
-        setMods((prev) => prev.map((mod) => {
-          const isMatch = fileNames.some(f => f === mod.fileName || f.replace(/\.disabled$/i, '') === mod.fileName.replace(/\.disabled$/i, ''));
-          if (isMatch && mod.isEnabled !== enable) {
-            return {
-              ...mod,
-              isEnabled: enable,
-              fileName: mod.fileName.replace(/\.disabled$/i, '')
-            };
-          }
-          return mod;
-        }));
+        setMods((prev) => applyEnabledState(prev, fileNames, true));
       }
 
       await modService.toggleModsCascading(instanceId, filesToToggle, enable);

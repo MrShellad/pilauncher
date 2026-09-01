@@ -272,15 +272,20 @@ impl ResourceManager {
             };
 
             if fs::rename(&current_path, target_dir.join(&new_file_name)).is_ok() {
-                let _ = crate::services::db_service::DbService::toggle_instance_mod(
-                    &pool, instance_id, file_name, &new_file_name, enable,
-                )
-                .await;
                 toggled.push((file_name.clone(), new_file_name));
             }
         }
 
         if !toggled.is_empty() {
+            crate::services::db_service::DbService::toggle_instance_mods_batch(
+                &pool,
+                instance_id,
+                &toggled,
+                enable,
+            )
+            .await
+            .map_err(|error| error.to_string())?;
+
             use tauri::Emitter;
             let _ = app.emit(
                 "instance-mods-fs-changed",
