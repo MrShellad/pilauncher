@@ -20,6 +20,7 @@ interface UseModListFocusOptions {
   mods: ModMeta[];
   renderEntries: ModListRenderEntry[];
   inputMode: string;
+  isBatchMode: boolean;
   onNavigateOut?: (direction: 'up' | 'down') => boolean;
   onSelectMod: (mod: ModMeta) => void;
   onToggleSelection: (fileName: string) => void;
@@ -30,6 +31,7 @@ export const useModListFocus = ({
   mods,
   renderEntries,
   inputMode,
+  isBatchMode,
   onNavigateOut,
   onSelectMod,
   onToggleSelection,
@@ -279,6 +281,11 @@ export const useModListFocus = ({
   useInputAction('ACTION_Y', () => {
     const focusedMod = getFocusedMod();
     if (!focusedMod) {
+      return;
+    }
+
+    if (isBatchMode) {
+      onToggleSelection(focusedMod.fileName);
       return;
     }
 

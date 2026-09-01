@@ -3,6 +3,13 @@ use sqlx::SqlitePool;
 use super::models::{EnrichedInstanceModRow, InstanceModDbRow, RawInstanceModQueryResult};
 use super::mod_relation_repo::{query_mod_dependencies, query_mod_dependents};
 
+fn version_relation_key(platform: Option<&str>, file_id: Option<&str>) -> Option<String> {
+    let platform = platform?.trim().to_lowercase();
+    let file_id = file_id?.trim().to_lowercase();
+    (!platform.is_empty() && !file_id.is_empty())
+        .then(|| format!("version:{platform}:{file_id}"))
+}
+
 pub async fn query_instance_mods(
     pool: &SqlitePool,
     instance_id: &str,
@@ -45,6 +52,12 @@ pub async fn query_instance_mods(
                 instance_all_identifiers.insert(pid_trim);
             }
         }
+        if let Some(version_key) = version_relation_key(
+            r.source_platform.as_deref(),
+            r.source_file_id.as_deref(),
+        ) {
+            instance_all_identifiers.insert(version_key);
+        }
         if let Some(ref aliases_str) = r.aliases {
             if let Ok(arr) = serde_json::from_str::<Vec<String>>(aliases_str) {
                 for a in arr {
@@ -60,6 +73,11 @@ pub async fn query_instance_mods(
     let identifiers_vec: Vec<String> = instance_all_identifiers.iter().cloned().collect();
     let forward_relations = query_mod_dependencies(pool, &identifiers_vec).await.unwrap_or_default();
     let reverse_relations = query_mod_dependents(pool, &identifiers_vec).await.unwrap_or_default();
+    let version_relation_sources: std::collections::HashSet<String> = forward_relations
+        .iter()
+        .filter(|rel| rel.source_type == "version_id")
+        .map(|rel| rel.source_identifier.to_lowercase())
+        .collect();
 
     // 1. 构建前向必需依赖映射: source_id -> Vec<target_id>
     let mut forward_map: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
@@ -84,17 +102,30 @@ pub async fn query_instance_mods(
             let mut deps = Vec::new();
             let mut matched_dependents = std::collections::HashSet::new();
 
-            let mut keys = vec![
-                r.mod_id.as_deref().map(|s| s.trim().to_lowercase()),
-                Some(r.file_name.trim().to_lowercase()),
-                r.source_project_id.as_deref().map(|s| s.trim().to_lowercase()),
-            ];
-            if let Some(ref aliases_str) = r.aliases {
-                if let Ok(arr) = serde_json::from_str::<Vec<String>>(aliases_str) {
-                    for a in arr {
-                        let a_clean = a.trim().to_lowercase();
-                        if !a_clean.is_empty() {
-                            keys.push(Some(a_clean));
+            let version_key = version_relation_key(
+                r.source_platform.as_deref(),
+                r.source_file_id.as_deref(),
+            );
+            let has_version_metadata = version_key
+                .as_ref()
+                .is_some_and(|key| version_relation_sources.contains(key));
+            let mut keys = if has_version_metadata {
+                version_key.map(Some).into_iter().collect()
+            } else {
+                vec![
+                    r.mod_id.as_deref().map(|s| s.trim().to_lowercase()),
+                    Some(r.file_name.trim().to_lowercase()),
+                    r.source_project_id.as_deref().map(|s| s.trim().to_lowercase()),
+                ]
+            };
+            if !has_version_metadata {
+                if let Some(ref aliases_str) = r.aliases {
+                    if let Ok(arr) = serde_json::from_str::<Vec<String>>(aliases_str) {
+                        for a in arr {
+                            let a_clean = a.trim().to_lowercase();
+                            if !a_clean.is_empty() {
+                                keys.push(Some(a_clean));
+                            }
                         }
                     }
                 }
@@ -283,4 +314,3 @@ pub async fn update_mod_platform_matches_batch(
     tx.commit().await?;
     Ok(())
 }
-

@@ -672,19 +672,50 @@ impl ResourceManager {
     }
 
     pub fn update_mod_metadata_settings<R: Runtime>(
-        _app: &AppHandle<R>,
-        _instance_id: &str,
-        _file_name: &str,
-        _settings: crate::domain::mod_manifest::ModMetadataSettings,
+        app: &AppHandle<R>,
+        instance_id: &str,
+        file_name: &str,
+        settings: crate::domain::mod_manifest::ModMetadataSettings,
     ) -> Result<(), String> {
-        Ok(())
+        let manifest_path = Self::get_instance_root(app, instance_id)?.join("mod_manifest.json");
+        crate::services::instance::mod_manifest_service::ModManifestService::update_metadata_settings(
+            &manifest_path,
+            file_name,
+            settings,
+        )
     }
 
-    pub fn reset_mod_platform_metadata<R: Runtime>(
-        _app: &AppHandle<R>,
-        _instance_id: &str,
-        _file_name: &str,
+    pub async fn reset_mod_platform_metadata<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        file_name: &str,
     ) -> Result<(), String> {
+        let manifest_path = Self::get_instance_root(app, instance_id)?.join("mod_manifest.json");
+        crate::services::instance::mod_manifest_service::ModManifestService::reset_platform_metadata(
+            &manifest_path,
+            file_name,
+        )?;
+
+        // Version-specific dependency data must not be reused after a forced identification
+        // attempt. Preserve the user-confirmed provider/project link, but clear only the stale
+        // archive-level identity; a successful exact match will fill these fields again.
+        let db = app.state::<crate::services::db_service::AppDatabase>();
+        sqlx::query(
+            "UPDATE instance_mods \
+             SET source_file_id = NULL, version = NULL, updated_at = ? \
+             WHERE instance_id = ? AND file_name = ?",
+        )
+        .bind(chrono::Utc::now().timestamp())
+        .bind(instance_id)
+        .bind(file_name)
+        .execute(&db.pool)
+        .await
+        .map_err(|error| error.to_string())?;
+
+        // Do not delete the confirmed provider/project mapping or its icon cache here. A
+        // forced archive match is stricter than a project link and may legitimately fail for
+        // repacked, renamed, or provider-removed files. Cloud sync refreshes the linked project
+        // separately and replaces its icon only after the provider answers successfully.
         Ok(())
     }
 }

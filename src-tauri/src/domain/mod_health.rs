@@ -14,6 +14,8 @@ pub struct MissingDependencyInfo {
 #[serde(rename_all = "camelCase")]
 pub struct DependencySummaryInfo {
     pub target_identifier: String,
+    pub target_type: String,
+    pub source_provider: String,
     pub target_name_hint: Option<String>,
     pub relation_type: String,
     pub is_installed_in_instance: bool,

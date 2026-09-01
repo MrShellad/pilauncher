@@ -14,6 +14,20 @@ use crate::services::downloader::transfer::{
 };
 use crate::services::file_write_lock;
 
+/// Provider identity supplied by the resource centre for a Mod download.  It is persisted
+/// before the completion event so filesystem observers never see the new jar as an unknown
+/// local import.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadedModSource {
+    pub source_kind: String,
+    pub platform: String,
+    pub project_id: String,
+    pub file_id: String,
+    pub version: Option<String>,
+    pub old_file_name: Option<String>,
+}
+
 // ==========================================
 // 第三方 API (Modrinth) 的私有 DTO 模型
 // ==========================================
@@ -361,6 +375,7 @@ impl ResourceService {
         instance_id: &str,
         sub_folder: &str,
         task_id: &str,
+        mod_source: Option<DownloadedModSource>,
     ) -> Result<(), String> {
         let control = register_resource_download(task_id)?;
         let result = Self::download_resource_inner(
@@ -371,6 +386,7 @@ impl ResourceService {
             sub_folder,
             task_id,
             Arc::clone(&control),
+            mod_source.as_ref(),
         )
         .await;
 
@@ -406,6 +422,7 @@ impl ResourceService {
         sub_folder: &str,
         task_id: &str,
         control: Arc<DownloadControl>,
+        mod_source: Option<&DownloadedModSource>,
     ) -> Result<(), String> {
         // 1. 获取目标绝对路径
         let base_path_str = crate::services::config_service::ConfigService::get_base_path(app)
@@ -595,6 +612,41 @@ impl ResourceService {
             )
             .await;
             return Err(format!("移动文件失败: {}", e));
+        }
+
+        // Write the provider/project/file identity before notifying the frontend that the
+        // resource is complete. Previously this happened in a frontend callback after DONE,
+        // allowing an automatic scan to classify a just-downloaded CurseForge/Modrinth file as
+        // an unknown local archive and incorrectly start hash-based re-identification.
+        if let Some(source) = mod_source {
+            if instance_id != "__library__" && sub_folder.eq_ignore_ascii_case("mods") {
+                if let Some(old_file_name) = source
+                    .old_file_name
+                    .as_deref()
+                    .filter(|old_file_name| *old_file_name != file_name)
+                {
+                    let old_path = target_dir.join(old_file_name);
+                    if old_path.is_file() {
+                        tokio::fs::remove_file(&old_path)
+                            .await
+                            .map_err(|error| format!("下载完成，但移除旧 Mod 文件失败: {error}"))?;
+                    }
+                }
+
+                crate::services::instance::resource_manager::ResourceManager::upsert_downloaded_mod(
+                    app,
+                    instance_id,
+                    file_name,
+                    &source.source_kind,
+                    &source.platform,
+                    &source.project_id,
+                    &source.file_id,
+                    source.version.clone(),
+                    source.old_file_name.clone(),
+                )
+                .await
+                .map_err(|error| format!("下载完成，但写入 Mod 平台身份失败: {error}"))?;
+            }
         }
 
         // 4. 下载完成封口事件

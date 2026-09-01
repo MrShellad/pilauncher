@@ -18,11 +18,47 @@ pub struct ModCacheUpdateItem {
     pub modrinth_hash: Option<String>,
     pub curseforge_project_id: Option<String>,
     pub modrinth_project_id: Option<String>,
+    /// A user-triggered re-identification must fetch the provider's current icon instead of
+    /// treating a prior local cache entry as authoritative.
+    pub refresh_icon: bool,
 }
 
 pub struct IconStorage;
 
 impl IconStorage {
+    /// Removes files belonging to explicitly invalidated metadata identities. Shared icon
+    /// buckets are intentionally retained; only exact, known filenames are removed.
+    pub fn remove_cached_icons<R: Runtime>(
+        app: &AppHandle<R>,
+        keys: &[String],
+    ) -> Result<(), String> {
+        let icons_base_dir = Self::get_shared_mods_dir(app)?.join("icons");
+        let keys: Vec<&str> = keys
+            .iter()
+            .map(String::as_str)
+            .filter(|key| !key.trim().is_empty())
+            .collect();
+        if keys.is_empty() || !icons_base_dir.is_dir() {
+            return Ok(());
+        }
+
+        for bucket in fs::read_dir(&icons_base_dir).map_err(|error| error.to_string())? {
+            let bucket = match bucket {
+                Ok(bucket) if bucket.path().is_dir() => bucket.path(),
+                _ => continue,
+            };
+            for key in &keys {
+                for extension in ["png", "jpg", "jpeg", "gif", "webp"] {
+                    let candidate = bucket.join(format!("{key}.{extension}"));
+                    if candidate.is_file() {
+                        fs::remove_file(candidate).map_err(|error| error.to_string())?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub fn get_shared_mods_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
         let base_path_str = ConfigService::get_base_path(app)
             .map_err(|e| e.to_string())?
@@ -253,30 +289,33 @@ impl IconStorage {
                 && shared_mods_dir.is_some()
             {
                 let s_dir = shared_mods_dir.as_ref().unwrap();
-                // 1. Try finding in DB global_mod_cache first
-                if let Ok(Some(row)) = sqlx::query_as::<_, ModCacheInfo>(
-                    "SELECT name, description, icon_url FROM global_mod_cache WHERE cache_key = ?",
-                )
-                .bind(&item.cache_key)
-                .fetch_optional(&db.pool)
-                .await
-                {
-                    if let Some(rel) = row.icon_url.filter(|value| value.starts_with("icons/")) {
-                        let existing_path = s_dir.join(&rel);
-                        if existing_path.is_file()
-                            && fs::metadata(&existing_path)
-                                .map(|meta| meta.len() > 0)
-                                .unwrap_or(false)
-                        {
-                            cached_icon_path =
-                                Some(existing_path.to_string_lossy().replace('\\', "/"));
-                            final_icon_url = rel;
+                // 1. Try finding in DB global_mod_cache first, unless an explicit refresh
+                // requested the provider's latest artwork.
+                if !item.refresh_icon {
+                    if let Ok(Some(row)) = sqlx::query_as::<_, ModCacheInfo>(
+                        "SELECT name, description, icon_url FROM global_mod_cache WHERE cache_key = ?",
+                    )
+                    .bind(&item.cache_key)
+                    .fetch_optional(&db.pool)
+                    .await
+                    {
+                        if let Some(rel) = row.icon_url.filter(|value| value.starts_with("icons/")) {
+                            let existing_path = s_dir.join(&rel);
+                            if existing_path.is_file()
+                                && fs::metadata(&existing_path)
+                                    .map(|meta| meta.len() > 0)
+                                    .unwrap_or(false)
+                            {
+                                cached_icon_path =
+                                    Some(existing_path.to_string_lossy().replace('\\', "/"));
+                                final_icon_url = rel;
+                            }
                         }
                     }
                 }
 
                 // 2. If not found, try querying mod_global_metadata_cache
-                if cached_icon_path.is_none() {
+                if !item.refresh_icon && cached_icon_path.is_none() {
                     if let Some(row) = super::ModManagerService::query_cached_metadata(
                         &db.pool,
                         item.mod_id.as_deref(),

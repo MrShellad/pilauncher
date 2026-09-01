@@ -198,5 +198,5 @@ pub async fn reset_mod_platform_metadata<R: Runtime>(
     instance_id: String,
     file_name: String,
 ) -> Result<(), String> {
-    ResourceManager::reset_mod_platform_metadata(&app, &instance_id, &file_name)
+    ResourceManager::reset_mod_platform_metadata(&app, &instance_id, &file_name).await
 }

@@ -22,7 +22,10 @@ pub use crate::domain::mod_manifest::{
     ModSourceKind,
 };
 
-use crate::domain::mod_manifest::{build_manifest_entry, build_manifest_source, ModPlatformMatch};
+use crate::domain::mod_manifest::{
+    build_manifest_entry, build_manifest_source, mod_manifest_key, ModMetadataSettings,
+    ModPlatformMatch,
+};
 use crate::services::config_service::ConfigService;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
@@ -479,9 +482,17 @@ impl ModManagerService {
         let db = app.state::<crate::services::db_service::AppDatabase>();
         let pool = db.pool.clone();
         let manifest_path = instance_dir.join("mod_manifest.json");
-        if manifest_path.exists() {
-            let _ = fs::remove_file(&manifest_path);
-        }
+        // Per-mod platform preferences live in the manifest. It must survive normal scans;
+        // deleting it here made a just-saved preference disappear before re-identification.
+        let persisted_metadata_settings: std::collections::HashMap<String, ModMetadataSettings> =
+            crate::services::instance::mod_manifest_service::ModManifestService::load_from_mods_dir(
+                &mods_dir,
+                &manifest_path,
+            )
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|(file_name, entry)| entry.metadata_settings.map(|settings| (file_name, settings)))
+            .collect();
 
         // 1. Read existing records from SQLite instance_mods
         let db_mods =
@@ -590,6 +601,10 @@ impl ModManagerService {
                     .as_deref()
                     .and_then(|s| serde_json::from_str(s).ok());
 
+                let mut manifest_entry = Self::manifest_entry_from_db_row(cached);
+                manifest_entry.metadata_settings = persisted_metadata_settings
+                    .get(&mod_manifest_key(&file_name))
+                    .cloned();
                 let meta = ModMetadata {
                     file_name: file_name.clone(),
                     mod_id: cached.mod_id.clone(),
@@ -605,7 +620,7 @@ impl ModManagerService {
                     is_enabled,
                     modified_at: modified_at.max(0) as u64,
                     cache_key: Some(cache_key),
-                    manifest_entry: Some(Self::manifest_entry_from_db_row(cached)),
+                    manifest_entry: Some(manifest_entry),
                     dependencies: cached.dependencies.clone(),
                     aliases,
                     dependents_count: Some(cached.dependents_count),
@@ -632,6 +647,9 @@ impl ModManagerService {
             let pool_clone = pool.clone();
             let path_clone = path.clone();
             let file_name_clone = file_name.clone();
+            let metadata_settings = persisted_metadata_settings
+                .get(&mod_manifest_key(&file_name))
+                .cloned();
             // A timestamp-only change must not erase a previously confirmed download source.
             // Carry it into the slow path, but only restore it after the file hash proves that
             // this is still the same archive.
@@ -734,6 +752,23 @@ impl ModManagerService {
 
                 if let Some((known_sha1, known_entry)) = known_download_identity {
                     Self::restore_known_download_identity(&mut meta, &known_sha1, known_entry);
+                }
+
+                if let Some(settings) = metadata_settings {
+                    let entry = meta.manifest_entry.get_or_insert_with(|| {
+                        build_manifest_entry(
+                            build_manifest_source(ModSourceKind::ExternalImport, None, None, None),
+                            meta.sha1.clone().map(ModFileHash::sha1).unwrap_or(ModFileHash {
+                                algorithm: "none".to_string(),
+                                value: "none".to_string(),
+                            }),
+                            ModFileState {
+                                size: meta.file_size,
+                                modified_at: meta.modified_at,
+                            },
+                        )
+                    });
+                    entry.metadata_settings = Some(settings);
                 }
 
                 let cached_row = Self::query_cached_metadata(
@@ -992,6 +1027,13 @@ impl ModManagerService {
         let icons_base_dir = shared_mods_dir.join("icons");
         let db = app.state::<crate::services::db_service::AppDatabase>();
         let pool = db.pool.clone();
+        let persisted_metadata_settings: std::collections::HashMap<String, ModMetadataSettings> =
+            crate::services::instance::mod_manifest_service::ModManifestService::read_manifest_robust(
+                &instance_dir.join("mod_manifest.json"),
+            )
+            .into_iter()
+            .filter_map(|(file_name, entry)| entry.metadata_settings.map(|settings| (file_name, settings)))
+            .collect();
 
         let rows = crate::services::db_service::DbService::query_instance_mods(&pool, instance_id)
             .await
@@ -1007,7 +1049,10 @@ impl ModManagerService {
                 continue;
             }
 
-            let manifest_entry = Self::manifest_entry_from_db_row(&row);
+            let mut manifest_entry = Self::manifest_entry_from_db_row(&row);
+            manifest_entry.metadata_settings = persisted_metadata_settings
+                .get(&mod_manifest_key(&row.file_name))
+                .cloned();
             let mut icon_absolute_path = None;
             let mut network_icon_url = None;
 
@@ -1219,6 +1264,7 @@ impl ModManagerService {
         force: bool,
         global_platform: Option<String>,
         curseforge_key: Option<String>,
+        target_file_names: Option<&[String]>,
     ) -> Result<Vec<ModMetadata>, String> {
         cloud_sync::ModCloudSync::sync_instance_mods_cloud_metadata(
             app,
@@ -1226,6 +1272,7 @@ impl ModManagerService {
             force,
             global_platform,
             curseforge_key,
+            target_file_names,
         )
         .await
     }

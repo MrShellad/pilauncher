@@ -183,6 +183,7 @@ pub async fn sync_instance_mods_cloud_metadata<R: Runtime>(
     force: Option<bool>,
     global_platform: Option<String>,
     curseforge_key: Option<String>,
+    file_names: Option<Vec<String>>,
 ) -> Result<Vec<crate::services::instance::mod_manager::ModMetadata>, String> {
     crate::services::instance::mod_manager::ModManagerService::sync_cloud_metadata(
         &app,
@@ -190,6 +191,7 @@ pub async fn sync_instance_mods_cloud_metadata<R: Runtime>(
         force.unwrap_or(false),
         global_platform,
         curseforge_key,
+        file_names.as_deref(),
     )
     .await
 }

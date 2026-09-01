@@ -1,5 +1,5 @@
 // src/features/InstanceDetail/components/tabs/mods/components/dialogs/hooks/useModMetadata.ts
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   getModPreferredPlatform,
   type ModMeta,
@@ -16,6 +16,7 @@ export const useModMetadata = (
   const [displayMod, setDisplayMod] = useState<ModMeta | null>(null);
   const lastOpenedFileNameRef = useRef<string | null>(null);
   const fetchedMetadataKeysRef = useRef<Set<string>>(new Set());
+  const suppressedAutoResolutionFilesRef = useRef<Set<string>>(new Set());
   const modRef = useRef<ModMeta | null>(mod);
   const { syncCloudMetadata } = useModCloudSync(instanceId || '');
 
@@ -37,6 +38,7 @@ export const useModMetadata = (
     if (!mod) {
       setDisplayMod(null);
       lastOpenedFileNameRef.current = null;
+      suppressedAutoResolutionFilesRef.current.clear();
       return;
     }
 
@@ -91,6 +93,9 @@ export const useModMetadata = (
     if (!requestMod || !metadataRequestKey || !instanceId) {
       return;
     }
+    if (suppressedAutoResolutionFilesRef.current.has(requestMod.fileName)) {
+      return;
+    }
 
     // 1. If already has networkInfo for the active platform, do not refetch
     if (requestMod.networkInfo && requestMod.networkInfo.source === initialMetadataPlatform) {
@@ -111,9 +116,14 @@ export const useModMetadata = (
 
     syncCloudMetadata([requestMod], {
       force: false,
-      globalMetadataPlatform: instanceConfig?.globalMetadataSettings?.metadataPlatform
+      globalMetadataPlatform: initialMetadataPlatform
     }).then((syncedMods: ModMeta[]) => {
-      if (disposed || !syncedMods || syncedMods.length === 0) return;
+      if (
+        disposed
+        || suppressedAutoResolutionFilesRef.current.has(requestMod.fileName)
+        || !syncedMods
+        || syncedMods.length === 0
+      ) return;
       const synced = syncedMods[0];
       setDisplayMod(synced);
       onMetadataResolved?.(synced);
@@ -129,9 +139,14 @@ export const useModMetadata = (
     };
   }, [initialMetadataPlatform, metadataRequestKey, onMetadataResolved, syncCloudMetadata, instanceConfig, instanceId]);
 
+  const suppressAutoResolution = useCallback((fileName: string) => {
+    suppressedAutoResolutionFilesRef.current.add(fileName);
+  }, []);
+
   return {
     displayMod,
     setDisplayMod,
-    initialMetadataPlatform
+    initialMetadataPlatform,
+    suppressAutoResolution
   };
 };

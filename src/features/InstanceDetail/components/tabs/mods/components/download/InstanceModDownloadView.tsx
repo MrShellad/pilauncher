@@ -568,6 +568,16 @@ export const InstanceModDownloadView: React.FC<{
           : installAction === 'upgrade'
             ? `正在升级替换: ${version.file_name}`
             : 'Connecting...',
+        modSource: resourceTab === 'mod' && projectId && version.id
+          ? {
+              sourceKind: 'launcherDownload',
+              platform,
+              projectId,
+              fileId: String(version.id),
+              version: version.version_number || undefined,
+              oldFileName
+            }
+          : undefined,
         onCompleted: async () => {
           let cachedDetail = projectId ? projectDetailsCache.current.get(projectId) : null;
           if (!cachedDetail && projectId && selectedProject && projectId === selectedProject.id) {
@@ -582,23 +592,6 @@ export const InstanceModDownloadView: React.FC<{
               cachedDetail.description || cachedDetail.summary || '',
               cachedDetail.icon_url || cachedDetail.logo || ''
             ).catch((err) => console.error('Failed to update resource cache:', err));
-          }
-
-          if (projectId && resourceTab === 'mod') {
-            if (oldFileName && oldFileName !== version.file_name) {
-              await modService.deleteMod(targetInstanceId, oldFileName).catch(console.error);
-            }
-
-            await modService.updateModManifest(
-              targetInstanceId,
-              version.file_name,
-              'launcherDownload',
-              source === 'curseforge' ? 'curseforge' : 'modrinth',
-              projectId,
-              version.id,
-              version.version_number || undefined,
-              oldFileName
-            );
           }
 
           if (targetInstanceId === instanceId && resourceTab === 'mod') {

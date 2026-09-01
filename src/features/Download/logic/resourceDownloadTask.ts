@@ -17,6 +17,15 @@ export interface ResourceDownloadTaskConfig {
   taskId?: string;
   title?: string;
   message?: string;
+  /** Known provider identity for a resource-centre Mod download. */
+  modSource?: {
+    sourceKind: string;
+    platform: 'modrinth' | 'curseforge';
+    projectId: string;
+    fileId: string;
+    version?: string;
+    oldFileName?: string;
+  };
   onCompleted?: () => Promise<void> | void;
 }
 
@@ -62,6 +71,7 @@ export const runResourceDownloadTask = async (
       instanceId: config.instanceId,
       subFolder: config.subFolder,
       taskId,
+      modSource: config.modSource,
     });
 
     await config.onCompleted?.();

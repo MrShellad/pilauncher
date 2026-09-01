@@ -12,6 +12,13 @@ pub const SYSTEM_KEYWORDS: &[&str] = &[
     "java", "all", "v", "none", "null", ""
 ];
 
+fn version_relation_key(platform: Option<&str>, file_id: Option<&str>) -> Option<String> {
+    let platform = platform?.trim().to_lowercase();
+    let file_id = file_id?.trim().to_lowercase();
+    (!platform.is_empty() && !file_id.is_empty())
+        .then(|| format!("version:{platform}:{file_id}"))
+}
+
 impl DependencyResolver {
     pub fn is_system_keyword(s: &str) -> bool {
         let clean = s.trim().to_lowercase();
@@ -169,6 +176,14 @@ impl DependencyResolver {
             keys_to_expand.insert(base_file.clone());
             all_source_identifiers.insert(base_file);
 
+            if let Some(version_key) = version_relation_key(
+                r.source_platform.as_deref(),
+                r.source_file_id.as_deref(),
+            ) {
+                keys_to_expand.insert(version_key.clone());
+                all_source_identifiers.insert(version_key);
+            }
+
             if let Some(ref mid) = r.mod_id {
                 let mid_clean = mid.trim().to_lowercase();
                 if !Self::is_system_keyword(&mid_clean) {
@@ -240,6 +255,16 @@ impl DependencyResolver {
             .await
             .unwrap_or_default();
 
+        // A cloud match is tied to one exact remote file. If its metadata exists,
+        // it is authoritative even when it declares zero dependencies; old project-
+        // or JAR-level relations describe other versions and must not be merged in.
+        let versioned_source_files: std::collections::HashSet<String> = forward_relations
+            .iter()
+            .filter(|rel| rel.source_type == "version_id")
+            .filter_map(|rel| installed_exact_to_files.get(&rel.source_identifier))
+            .flat_map(|files| files.iter().cloned())
+            .collect();
+
         for r in &rows {
             if let Some(ref deps) = r.dependencies {
                 let src_id = r.mod_id.as_deref().unwrap_or(&r.file_name);
@@ -274,6 +299,8 @@ impl DependencyResolver {
 
         struct EvalDep {
             target_identifier: String,
+            target_type: String,
+            source_provider: String,
             target_name_hint: Option<String>,
             relation_type: String,
             version_requirement: Option<String>,
@@ -284,6 +311,9 @@ impl DependencyResolver {
         let mut file_dep_groups: HashMap<String, HashMap<String, EvalDep>> = HashMap::new();
 
         for rel in forward_relations {
+            if rel.relation_type == "metadata" {
+                continue;
+            }
             let tgt_lower = rel.target_identifier.trim().to_lowercase();
             if Self::is_system_keyword(&tgt_lower) {
                 continue;
@@ -294,7 +324,7 @@ impl DependencyResolver {
             let tgt_norm = Self::normalize_mod_identifier(&tgt_lower);
 
             // Find source files (by exact match or normalized match)
-            let source_files = installed_exact_to_files.get(&src_lower)
+            let mut source_files = installed_exact_to_files.get(&src_lower)
                 .or_else(|| {
                     if !src_norm.is_empty() {
                         installed_norm_to_files.get(&src_norm)
@@ -304,6 +334,10 @@ impl DependencyResolver {
                 })
                 .cloned()
                 .unwrap_or_default();
+
+            if rel.source_type != "version_id" {
+                source_files.retain(|file| !versioned_source_files.contains(file));
+            }
 
             if source_files.is_empty() {
                 continue;
@@ -398,6 +432,8 @@ impl DependencyResolver {
                 } else {
                     group.insert(canonical_target_key.clone(), EvalDep {
                         target_identifier: rel.target_identifier.clone(),
+                        target_type: rel.target_type.clone(),
+                        source_provider: rel.source_provider.clone(),
                         target_name_hint: target_name_hint.clone(),
                         relation_type: rel.relation_type.clone(),
                         version_requirement: rel.version_requirement.clone(),
@@ -413,6 +449,8 @@ impl DependencyResolver {
             for (_canon_key, dep) in group {
                 declared_dependencies.entry(src_file.clone()).or_default().push(DependencySummaryInfo {
                     target_identifier: dep.target_identifier.clone(),
+                    target_type: dep.target_type.clone(),
+                    source_provider: dep.source_provider.clone(),
                     target_name_hint: dep.target_name_hint.clone(),
                     relation_type: dep.relation_type.clone(),
                     is_installed_in_instance: dep.is_installed,

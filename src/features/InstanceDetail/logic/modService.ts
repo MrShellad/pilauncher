@@ -667,8 +667,8 @@ export const modService = {
   toggleModsCascading: (id: string, fileNames: string[], enable: boolean): Promise<Array<[string, string]>> =>
     invoke<Array<[string, string]>>('toggle_mods_cascading', { id, fileNames, enable }),
 
-  syncInstanceModsCloudMetadata: (id: string, force?: boolean, globalPlatform?: string, curseforgeKey?: string): Promise<ModMeta[]> =>
-    invoke<ModMeta[]>('sync_instance_mods_cloud_metadata', { id, force, globalPlatform, curseforgeKey }),
+  syncInstanceModsCloudMetadata: (id: string, force?: boolean, globalPlatform?: string, curseforgeKey?: string, fileNames?: string[]): Promise<ModMeta[]> =>
+    invoke<ModMeta[]>('sync_instance_mods_cloud_metadata', { id, force, globalPlatform, curseforgeKey, fileNames }),
 
   checkInstanceModsUpdates: (id: string, gameVersion: string, loader: string, force?: boolean, curseforgeKey?: string): Promise<ModUpdateInfo[]> =>
     invoke<ModUpdateInfo[]>('check_instance_mods_updates', { id, gameVersion, loader, force, curseforgeKey }),
@@ -697,6 +697,8 @@ export interface MissingDependencyInfo {
 
 export interface DependencySummaryInfo {
   targetIdentifier: string;
+  targetType: string;
+  sourceProvider: string;
   targetNameHint?: string;
   relationType: string;
   isInstalledInInstance: boolean;

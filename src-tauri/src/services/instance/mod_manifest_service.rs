@@ -400,6 +400,9 @@ impl ModManifestService {
             entry.name = None;
             entry.description = None;
             entry.icon_rel_path = None;
+            entry.network_icon_rel_path = None;
+            entry.jar_fallback_icon_rel_path = None;
+            entry.matched_platforms.clear();
         }
 
         entry.metadata_settings = Some(settings);
@@ -421,13 +424,14 @@ impl ModManifestService {
             )
         });
 
-        entry.source.platform = None;
-        entry.source.project_id = None;
+        // Re-identification verifies the archive version, but a project association can be
+        // manually confirmed even when the downloaded jar no longer has a hash/fingerprint
+        // published by its provider. Keep that project-level identity so the caller can still
+        // refresh its title/icon. Only the file-level proof is stale at this point.
         entry.source.file_id = None;
-        entry.name = None;
-        entry.description = None;
-        entry.icon_rel_path = None;
-        entry.matched_platforms.clear();
+        for matched in entry.matched_platforms.values_mut() {
+            matched.file_id = None;
+        }
         write_mod_manifest(manifest_path, &manifest)
     }
 
@@ -647,7 +651,7 @@ mod tests {
     }
 
     #[test]
-    fn reset_platform_metadata_clears_source_and_matches_but_keeps_settings() {
+    fn reset_platform_metadata_keeps_project_link_and_clears_file_match() {
         let dir = create_temp_dir("mod-reset-platform-metadata");
         let manifest_path = dir.join("mod_manifest.json");
 
@@ -686,9 +690,23 @@ mod tests {
         let parsed = serde_json::from_str::<ModManifest>(&content).expect("parse manifest");
         let entry = parsed.get("demo.jar").expect("entry");
 
-        assert_eq!(entry.source.platform, None);
-        assert_eq!(entry.source.project_id, None);
-        assert!(entry.matched_platforms.is_empty());
+        assert_eq!(entry.source.platform.as_deref(), Some("modrinth"));
+        assert_eq!(entry.source.project_id.as_deref(), Some("mr-project"));
+        assert_eq!(entry.source.file_id, None);
+        assert_eq!(
+            entry
+                .matched_platforms
+                .get("modrinth")
+                .and_then(|matched| matched.project_id.as_deref()),
+            Some("mr-project")
+        );
+        assert_eq!(
+            entry
+                .matched_platforms
+                .get("modrinth")
+                .and_then(|matched| matched.file_id.as_deref()),
+            None
+        );
         assert_eq!(
             entry
                 .metadata_settings

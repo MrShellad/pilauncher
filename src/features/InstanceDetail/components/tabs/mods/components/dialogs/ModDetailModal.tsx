@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Power, Star, Trash2 } from 'lucide-react';
 import {
   getCurrentFocusKey,
@@ -141,12 +141,14 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
   }, [instanceId]);
 
   const lastFocusBeforeModalRef = useRef<string | null>(null);
+  const openedModFileNameRef = useRef<string | null>(null);
 
   // Hook for loading metadata
   const {
     displayMod,
     setDisplayMod,
-    initialMetadataPlatform
+    initialMetadataPlatform,
+    suppressAutoResolution
   } = useModMetadata(mod, onMetadataResolved, instanceConfig, instanceId);
 
   // Hook for loading platform version lists
@@ -166,38 +168,68 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
     if (!displayMod) return [];
 
     const itemsMap = new Map<string, DependencyItem>();
+    const dependencyPlatform = getModPreferredPlatform(displayMod, 'metadata');
+    const findInstalledMod = (dependencyId: string) => {
+      const cleanId = dependencyId.toLowerCase();
+      return (allMods || []).find((candidate) => {
+        const sourceProjectId = candidate.manifestEntry?.source?.projectId?.toLowerCase();
+        const modrinthProjectId = candidate.manifestEntry?.matchedPlatforms?.modrinth?.projectId?.toLowerCase();
+        const curseforgeProjectId = candidate.manifestEntry?.matchedPlatforms?.curseforge?.projectId?.toLowerCase();
+        const modId = candidate.modId?.toLowerCase();
+        const fileName = candidate.fileName.toLowerCase().replace(/\.jar|\.disabled/g, '');
+        const hasAlias = candidate.aliases?.some((alias) => alias.toLowerCase() === cleanId);
+        return sourceProjectId === cleanId
+          || modrinthProjectId === cleanId
+          || curseforgeProjectId === cleanId
+          || modId === cleanId
+          || fileName.includes(cleanId)
+          || hasAlias;
+      });
+    };
 
     // 1. Authoritative primary source: SQLite dependency graph from backend
-    const declaredDeps = dependencyHealth?.declaredDependencies?.[displayMod.fileName] || [];
+    const allDeclaredDeps = dependencyHealth?.declaredDependencies?.[displayMod.fileName] || [];
+    const hasCloudDeclaredDeps = allDeclaredDeps.some(
+      (dep) => dep.sourceProvider === 'modrinth' || dep.sourceProvider === 'curseforge'
+    );
+    const declaredDeps = hasCloudDeclaredDeps && dependencyPlatform
+      ? allDeclaredDeps.filter(
+        (dep) => dep.sourceProvider !== 'modrinth' && dep.sourceProvider !== 'curseforge'
+          || dep.sourceProvider === dependencyPlatform
+      )
+      : allDeclaredDeps;
     for (const dep of declaredDeps) {
+      const installedMod = findInstalledMod(dep.targetIdentifier);
       itemsMap.set(dep.targetIdentifier.toLowerCase(), {
         id: dep.targetIdentifier,
-        name: dep.targetNameHint || dep.targetIdentifier,
+        name: installedMod?.name || installedMod?.networkInfo?.title || dep.targetNameHint || dep.targetIdentifier,
         type: dep.relationType || 'required',
-        isInstalled: !!dep.isInstalledInInstance
+        isInstalled: !!dep.isInstalledInInstance,
+        platform: dep.targetType === 'modrinth' || dep.targetType === 'curseforge'
+          ? dep.targetType
+          : undefined,
+        installedMod
       });
     }
 
     // 2. Supplementary local dependencies from jar parsing if not already in graph
     const localDeps = displayMod.dependencies || [];
-    for (const depId of localDeps) {
-      const cleanId = depId.toLowerCase();
-      if (itemsMap.has(cleanId)) continue;
+    if (!hasCloudDeclaredDeps) {
+      for (const depId of localDeps) {
+        const cleanId = depId.toLowerCase();
+        if (itemsMap.has(cleanId)) continue;
 
-      const installedMod = (allMods || []).find((m) => {
-        const modIdLower = m.modId?.toLowerCase();
-        const fileNameClean = m.fileName.toLowerCase().replace(/\.jar|\.disabled/g, '');
-        const hasAlias = m.aliases?.some((a) => a.toLowerCase() === cleanId);
-        return modIdLower === cleanId || fileNameClean.includes(cleanId) || hasAlias;
-      });
-      const name = installedMod ? (installedMod.name || installedMod.networkInfo?.title || depId) : depId;
+        const installedMod = findInstalledMod(depId);
+        const name = installedMod ? (installedMod.name || installedMod.networkInfo?.title || depId) : depId;
 
-      itemsMap.set(cleanId, {
-        id: depId,
-        name,
-        type: 'required',
-        isInstalled: !!installedMod
-      });
+        itemsMap.set(cleanId, {
+          id: depId,
+          name,
+          type: 'required',
+          isInstalled: !!installedMod,
+          installedMod
+        });
+      }
     }
 
     // 3. Fallback: version cloud dependencies only if local graph has no items
@@ -217,28 +249,15 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
           const cleanId = depProjectId.toLowerCase();
           if (itemsMap.has(cleanId)) continue;
 
-          const installedMod = (allMods || []).find((m) => {
-            const mrId = m.manifestEntry?.matchedPlatforms?.modrinth?.projectId;
-            const cfId = m.manifestEntry?.matchedPlatforms?.curseforge?.projectId;
-            const srcId = m.manifestEntry?.source?.projectId;
-            const modIdLower = m.modId?.toLowerCase();
-            const fileNameClean = m.fileName.toLowerCase().replace(/\.jar|\.disabled/g, '');
-            const hasAlias = m.aliases?.some((a) => a.toLowerCase() === cleanId);
-            return (
-              srcId === depProjectId ||
-              mrId === depProjectId ||
-              cfId === depProjectId ||
-              modIdLower === cleanId ||
-              fileNameClean.includes(cleanId) ||
-              hasAlias
-            );
-          });
+          const installedMod = findInstalledMod(depProjectId);
 
           itemsMap.set(cleanId, {
             id: depProjectId,
             name: installedMod ? (installedMod.name || installedMod.networkInfo?.title || installedMod.fileName) : (dep.file_name || `前置 (${depProjectId})`),
             type: dep.dependency_type || 'required',
-            isInstalled: !!installedMod
+            isInstalled: !!installedMod,
+            platform: activePlatform,
+            installedMod
           });
         }
       }
@@ -248,24 +267,34 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
     return Array.from(itemsMap.values()).filter(
       (item) => item?.id && item.id.toLowerCase() !== selfModId
     );
-  }, [displayMod, modVersions, allMods, dependencyHealth]);
+  }, [displayMod, modVersions, allMods, dependencyHealth, activePlatform]);
 
-  // Sync activePlatform with mod's preferred platform upon opening
+  // Sync activePlatform with a newly opened mod only. Updating metadata for the
+  // currently open file must not reset the user's in-dialog state.
   useEffect(() => {
-    if (mod) {
-      setActivePlatform(initialMetadataPlatform);
-    }
-  }, [mod, initialMetadataPlatform]);
+    if (!mod || openedModFileNameRef.current === mod.fileName) return;
+    setActivePlatform(initialMetadataPlatform);
+  }, [mod?.fileName, initialMetadataPlatform]);
 
   // Initial focus management when opening the modal
   useEffect(() => {
-    if (mod) {
-      if (openMetadataSettingsOnOpen) {
-        setActiveTab('metadata');
-        onMetadataSettingsOpenHandled?.();
-      } else {
-        setActiveTab('overview');
-      }
+    if (!mod) {
+      openedModFileNameRef.current = null;
+      return;
+    }
+
+    const isNewMod = openedModFileNameRef.current !== mod.fileName;
+    if (!isNewMod && !openMetadataSettingsOnOpen) return;
+    openedModFileNameRef.current = mod.fileName;
+
+    if (openMetadataSettingsOnOpen) {
+      setActiveTab('metadata');
+      onMetadataSettingsOpenHandled?.();
+    } else if (isNewMod) {
+      setActiveTab('overview');
+    }
+
+    if (isNewMod) {
       const currentFocus = getCurrentFocusKey();
       if (currentFocus && currentFocus !== 'SN:ROOT') {
         lastFocusBeforeModalRef.current = currentFocus;
@@ -276,7 +305,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
         }
       }, 150);
     }
-  }, [mod, openMetadataSettingsOnOpen, onMetadataSettingsOpenHandled]);
+  }, [mod?.fileName, openMetadataSettingsOnOpen, onMetadataSettingsOpenHandled]);
 
   const handleClose = () => {
     onClose();
@@ -308,24 +337,24 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
         <OreButton
           focusKey="btn-mod-delete"
           variant="danger"
-          size="sm"
+          size="md"
           onClick={() => onDelete(mod.fileName)}
         >
-          <Trash2 size={14} className="mr-1.5" />
+          <Trash2 size={16} className="mr-2" />
           <span>删除模组</span>
         </OreButton>
       </div>
 
       {/* 右侧：状态切换 + 收藏 + 完成关闭 */}
-      <div className="flex flex-wrap items-center justify-end gap-2.5">
+      <div className="flex flex-wrap items-center justify-end gap-3">
         {onAddFavorite && (
           <OreButton
             focusKey="btn-mod-favorite"
             variant="secondary"
-            size="sm"
+            size="md"
             onClick={() => onAddFavorite(mod)}
           >
-            <Star size={14} className="mr-1.5 text-[#FFA940]" />
+            <Star size={16} className="mr-2" />
             <span>收藏</span>
           </OreButton>
         )}
@@ -333,17 +362,17 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
         <OreButton
           focusKey="btn-mod-toggle"
           variant={displayMod?.isEnabled ? 'secondary' : 'primary'}
-          size="sm"
+          size="md"
           onClick={() => onToggle(mod.fileName, !!displayMod?.isEnabled)}
         >
-          <Power size={14} className="mr-1.5" />
+          <Power size={16} className="mr-2" />
           <span>{displayMod?.isEnabled ? '禁用模组' : '启用模组'}</span>
         </OreButton>
 
         <OreButton
           focusKey="btn-mod-cancel"
           variant="secondary"
-          size="sm"
+          size="md"
           onClick={handleClose}
         >
           <span>完成</span>
@@ -362,7 +391,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
         defaultFocusKey="btn-mod-toggle"
         className="w-full max-w-4xl h-[82vh] max-h-[720px] min-h-[520px] border-[3px] border-[#1E1E1F] flex flex-col"
         contentClassName="flex flex-1 min-h-0 h-full flex-col overflow-hidden bg-[var(--ore-modal-bg)] p-0"
-        actionsClassName="bg-[var(--ore-modal-footer-bg)] border-t-[3px] border-[#1E1E1F] px-5 py-3 shadow-[var(--ore-modal-footer-shadow)]"
+        actionsClassName="bg-[var(--ore-modal-footer-bg)] border-t-[3px] border-[#1E1E1F] px-5 py-3.5 shadow-[var(--ore-modal-footer-shadow)]"
         actions={modalActions}
       >
         {/* 1. 模组专属头部英雄栏 (包含图标、标题、作者、平台芯片、浏览器直达与右上角关闭 X) */}
@@ -375,7 +404,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
 
         {/* 2. 居中展示的顶级 OreSegmentedControl 选项卡导航栏 */}
         <div
-          className="flex shrink-0 items-center justify-center border-b-[2px] border-[#1E1E1F] bg-[#313233] px-5 py-2.5"
+          className="flex shrink-0 items-center justify-center border-b-[2px] border-[#1E1E1F] bg-[#313233] px-4 py-2"
           style={{ boxShadow: 'inset 0 2px 0 rgba(255, 255, 255, 0.08)' }}
         >
           <OreSegmentedControl
@@ -400,6 +429,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
               dependencies={dependencies}
               instanceDependents={instanceDependents}
               allMods={allMods}
+              instanceId={instanceId}
               isFetchingDependencyProject={isFetchingDependencyProject}
               onDependencyClick={handleDependencyClick}
             />
@@ -423,6 +453,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
               displayMod={displayMod}
               onSaveMetadataSettings={onSaveMetadataSettings}
               onReidentifyMod={onReidentifyMod}
+              onReidentifyStart={suppressAutoResolution}
               onSettingsUpdated={handleSettingsUpdated}
             />
           )}

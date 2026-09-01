@@ -40,6 +40,7 @@ export const useModManager = (instanceId: string) => {
   const updateEngine = useModUpdateEngine({ setMods: listState.setMods });
   const { syncCloudMetadata } = useModCloudSync(instanceId);
   const [checkUpdateProgress, setCheckUpdateProgress] = useState<ModUpdateCheckProgress | null>(null);
+  const updateCheckRunRef = useRef(0);
   const {
     mods,
     setMods,
@@ -60,6 +61,7 @@ export const useModManager = (instanceId: string) => {
   } = updateEngine;
 
   const cancelUpdateCheck = useCallback(() => {
+    updateCheckRunRef.current += 1;
     rawCancelUpdateCheck();
     setCheckUpdateProgress(null);
   }, [rawCancelUpdateCheck]);
@@ -73,6 +75,8 @@ export const useModManager = (instanceId: string) => {
     globalMetadataPlatform?: string
   ) => {
     cancelUpdateCheck();
+    const runId = updateCheckRunRef.current + 1;
+    updateCheckRunRef.current = runId;
     setIsCheckingModUpdates(true);
     setCheckUpdateProgress({
       stage: 'syncing',
@@ -86,6 +90,7 @@ export const useModManager = (instanceId: string) => {
       const syncedMods = await syncCloudMetadata(targetMods, {
         globalMetadataPlatform,
         onProgress: (current, total) => {
+          if (updateCheckRunRef.current !== runId) return;
           setCheckUpdateProgress({
             stage: 'syncing',
             stageText: `正在同步模组元数据 (${current}/${total})...`,
@@ -95,6 +100,7 @@ export const useModManager = (instanceId: string) => {
           });
         }
       });
+      if (updateCheckRunRef.current !== runId) return;
       if (syncedMods !== targetMods) {
         setMods((current) => mergeModBatch(current, syncedMods));
       }
@@ -107,6 +113,7 @@ export const useModManager = (instanceId: string) => {
         targetLoader,
         force,
         (current, total) => {
+          if (updateCheckRunRef.current !== runId) return;
           setCheckUpdateProgress({
             stage: 'checking',
             stageText: `正在检测模组可用版本 (${current}/${total})...`,
@@ -118,12 +125,16 @@ export const useModManager = (instanceId: string) => {
       );
     } catch (error) {
       console.error('[useModManager] Update check pipeline failed:', error);
-      setIsCheckingModUpdates(false);
-      setCheckUpdateProgress(null);
-      throw error;
+      if (updateCheckRunRef.current === runId) {
+        setIsCheckingModUpdates(false);
+        setCheckUpdateProgress(null);
+        throw error;
+      }
     } finally {
-      setIsCheckingModUpdates(false);
-      setCheckUpdateProgress(null);
+      if (updateCheckRunRef.current === runId) {
+        setIsCheckingModUpdates(false);
+        setCheckUpdateProgress(null);
+      }
     }
   }, [
     cancelUpdateCheck,
@@ -334,18 +345,29 @@ export const useModManager = (instanceId: string) => {
   }, [instanceId, setMods]);
 
   const reidentifyMod = useCallback(async (mod: ModMeta) => {
+    // A detail-level re-identification must not share the global update-check overlay
+    // or race against its all-mod metadata sync.
+    cancelUpdateCheck();
     await modService.resetModPlatformMetadata(instanceId, mod.fileName);
-    const freshMods = await modService.getMods(instanceId);
-    const freshMod = freshMods.find((m) => m.fileName === mod.fileName) || mod;
-    const syncedMods = await syncCloudMetadata([freshMod], {
+    const preferredPlatform = mod.manifestEntry?.metadataSettings?.metadataPlatform;
+    const syncedMods = await syncCloudMetadata([mod], {
       force: true,
-      globalMetadataPlatform: instanceConfig?.globalMetadataSettings?.metadataPlatform
+      globalMetadataPlatform: preferredPlatform || instanceConfig?.globalMetadataSettings?.metadataPlatform,
+      throwOnError: true
     });
-    const syncedMod = syncedMods[0] || freshMod;
+    const syncedMod = syncedMods[0] || mod;
+    if (!syncedMod.manifestEntry?.source?.projectId) {
+      const platformLabel = preferredPlatform === 'curseforge'
+        ? 'CurseForge'
+        : preferredPlatform === 'modrinth'
+          ? 'Modrinth'
+          : 'Modrinth 或 CurseForge';
+      throw new Error(`未能在 ${platformLabel} 找到与该 Mod 文件匹配的版本。`);
+    }
 
     setMods((current) => mergeModBatch(current, [syncedMod]));
     return syncedMod;
-  }, [instanceId, setMods, syncCloudMetadata, instanceConfig]);
+  }, [cancelUpdateCheck, instanceId, setMods, syncCloudMetadata, instanceConfig]);
 
   const sorting = useModSorting(mods, isLoading);
   const operations = useModOperations({

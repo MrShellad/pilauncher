@@ -67,6 +67,7 @@ export const useModListController = ({
     mods: activeMods,
     renderEntries,
     inputMode,
+    isBatchMode: selectedMods.size > 0,
     onNavigateOut,
     onSelectMod,
     onToggleSelection
@@ -147,6 +148,11 @@ export const useModListController = ({
   const handleRowClick = useCallback((mod: ModMeta) => {
     setFocusedRowFileName(mod.fileName);
 
+    if (selectedMods.size > 0) {
+      onToggleSelection(mod.fileName);
+      return;
+    }
+
     if (requiresRowOperation) {
       focusRow(mod.fileName);
       return;
@@ -154,7 +160,7 @@ export const useModListController = ({
 
     clearOperationRow();
     onSelectMod(mod);
-  }, [clearOperationRow, focusRow, onSelectMod, requiresRowOperation, setFocusedRowFileName]);
+  }, [clearOperationRow, focusRow, onSelectMod, onToggleSelection, requiresRowOperation, selectedMods.size, setFocusedRowFileName]);
 
   const handleToggleSelection = useCallback((fileName: string) => {
     onToggleSelection(fileName);

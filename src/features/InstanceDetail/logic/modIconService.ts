@@ -378,6 +378,8 @@ export const useResourceIcon = (
     item.modifiedAt,
     item.iconAbsolutePath,
     item.offlineJarIconAbsolutePath,
+    item.networkIconUrl,
+    item.networkInfo?.icon_url,
     priority,
     instanceId,
     resType

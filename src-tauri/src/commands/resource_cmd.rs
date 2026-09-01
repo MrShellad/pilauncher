@@ -25,10 +25,19 @@ pub async fn download_resource<R: Runtime>(
     instance_id: String,
     sub_folder: String,
     task_id: Option<String>,
+    mod_source: Option<crate::services::resource_service::DownloadedModSource>,
 ) -> Result<(), String> {
     let task_id =
         task_id.unwrap_or_else(|| format!("resource:{}:{}:{}", instance_id, sub_folder, file_name));
-    ResourceService::download_resource(&app, &url, &file_name, &instance_id, &sub_folder, &task_id)
+    ResourceService::download_resource(
+        &app,
+        &url,
+        &file_name,
+        &instance_id,
+        &sub_folder,
+        &task_id,
+        mod_source,
+    )
         .await
 }
 
