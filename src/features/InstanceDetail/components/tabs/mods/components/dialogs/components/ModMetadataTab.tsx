@@ -101,14 +101,11 @@ export const ModMetadataTab: React.FC<ModMetadataTabProps> = ({
   return (
     <OreOverlayScrollArea
       className="h-full w-full bg-[var(--ore-modal-bg)]"
-      viewportClassName="p-4 sm:p-5 flex flex-col gap-3.5 font-minecraft shadow-[inset_0_10px_20px_-10px_rgba(0,0,0,0.55)]"
-      contentSafePaddingRight={6}
+      viewportClassName="p-4 sm:p-5 flex flex-col gap-3.5 font-minecraft"
+      contentSafePaddingRight={0}
     >
       {/* 1. 首选元数据提供源设置 (100% 居中 OreToggleButton) */}
-      <div
-        className="flex flex-col border-[2px] border-[#1E1E1F] bg-[#2B2C2D] p-3.5"
-        style={{ boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.35)' }}
-      >
+      <div className="flex flex-col border-[2px] border-[#1E1E1F] bg-[#2B2C2D] p-3.5">
         <div className="flex items-center gap-2 border-b-[2px] border-[#1E1E1F] pb-2 text-xs font-bold uppercase tracking-wider text-white ore-text-shadow">
           <Globe size={14} />
           <span>首选云端数据平台</span>
@@ -132,10 +129,7 @@ export const ModMetadataTab: React.FC<ModMetadataTabProps> = ({
       </div>
 
       {/* 2. 平台绑定与云端映射状态 */}
-      <div
-        className="flex flex-col border-[2px] border-[#1E1E1F] bg-[#2B2C2D] p-3.5"
-        style={{ boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.35)' }}
-      >
+      <div className="flex flex-col border-[2px] border-[#1E1E1F] bg-[#2B2C2D] p-3.5">
         <div className="flex items-center gap-2 border-b-[2px] border-[#1E1E1F] pb-2 text-xs font-bold uppercase tracking-wider text-white ore-text-shadow">
           <Link2 size={14} />
           <span>云端平台映射与标识符</span>
@@ -222,10 +216,7 @@ export const ModMetadataTab: React.FC<ModMetadataTabProps> = ({
 
       {/* 3. 模组本地标识与别名 */}
       {targetMod.aliases && targetMod.aliases.length > 0 && (
-        <div
-          className="flex flex-col border-[2px] border-[#1E1E1F] bg-[#2B2C2D] p-3.5"
-          style={{ boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.35)' }}
-        >
+        <div className="flex flex-col border-[2px] border-[#1E1E1F] bg-[#2B2C2D] p-3.5">
           <div className="flex items-center gap-2 border-b-[2px] border-[#1E1E1F] pb-2 text-xs font-bold uppercase tracking-wider text-white ore-text-shadow">
             <Tag size={14} />
             <span>已知别名与别名集 (Aliases)</span>
@@ -245,10 +236,7 @@ export const ModMetadataTab: React.FC<ModMetadataTabProps> = ({
       )}
 
       {/* 4. 底栏操作按钮 */}
-      <div
-        className="flex items-center justify-between border-[2px] border-[#1E1E1F] bg-[#2B2C2D] p-3"
-        style={{ boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.35)' }}
-      >
+      <div className="flex items-center justify-between border-[2px] border-[#1E1E1F] bg-[#2B2C2D] p-3">
         <OreButton
           focusKey="metadata-reidentify-btn"
           variant="secondary"

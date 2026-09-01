@@ -403,10 +403,7 @@ export const ModDetailModal: React.FC<ModDetailModalProps> = ({
         />
 
         {/* 2. 居中展示的顶级 OreSegmentedControl 选项卡导航栏 */}
-        <div
-          className="flex shrink-0 items-center justify-center border-b-[2px] border-[#1E1E1F] bg-[#313233] px-4 py-2"
-          style={{ boxShadow: 'inset 0 2px 0 rgba(255, 255, 255, 0.08)' }}
-        >
+        <div className="flex shrink-0 items-center justify-center border-b-[2px] border-[#1E1E1F] bg-[#313233] px-4 py-2">
           <OreSegmentedControl
             tabs={tabOptions}
             activeTab={activeTab}

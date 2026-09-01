@@ -101,10 +101,7 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
   return (
     <div className="flex h-full w-full flex-col font-minecraft p-4 sm:p-5 bg-[var(--ore-modal-bg)]">
       {/* 顶部操作与平台切换栏 */}
-      <div
-        className="flex shrink-0 items-center justify-between gap-3 border-[2px] border-[#1E1E1F] bg-[#48494A] p-2.5 mb-3"
-        style={{ boxShadow: 'inset 0 2px 0 rgba(255, 255, 255, 0.12)' }}
-      >
+      <div className="flex shrink-0 items-center justify-between gap-3 border-[2px] border-[#1E1E1F] bg-[#48494A] p-2.5 mb-3">
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white ore-text-shadow pl-1">
           <History size={14} />
           <span>可用版本列表</span>
@@ -141,18 +138,12 @@ export const ModVersionHistory: React.FC<ModVersionHistoryProps> = ({
       {isLoadingVersions ? (
         <VersionListSkeleton />
       ) : modVersions.length === 0 ? (
-        <div
-          className="flex flex-1 flex-col items-center justify-center border-[2px] border-[#1E1E1F] bg-[#2B2C2D] py-12 text-center text-[#A0A1A4]"
-          style={{ boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.35)' }}
-        >
+        <div className="flex flex-1 flex-col items-center justify-center border-[2px] border-[#1E1E1F] bg-[#2B2C2D] py-12 text-center text-[#A0A1A4]">
           <History size={30} className="opacity-50" />
           <span className="mt-2.5 text-xs font-bold">该平台未找到匹配的版本记录</span>
         </div>
       ) : (
-        <div
-          className="flex-1 min-h-0 border-[2px] border-[#1E1E1F] bg-[#2B2C2D] overflow-hidden"
-          style={{ boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.35)' }}
-        >
+        <div className="flex-1 min-h-0 border-[2px] border-[#1E1E1F] bg-[#2B2C2D] overflow-hidden">
           <OreOverlayScrollArea
             ref={parentRef}
             className="h-full w-full"

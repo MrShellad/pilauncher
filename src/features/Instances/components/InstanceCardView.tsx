@@ -1,32 +1,80 @@
 // src/features/Instances/components/InstanceCardView.tsx
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { motion, type Variants } from 'motion/react';
-import { Settings, Loader2, Menu } from 'lucide-react';
+import { Settings, Loader2, Play, Clock, Calendar, Star, Menu } from 'lucide-react';
 import type { InstanceItem } from '../../../hooks/pages/Instances/useInstances';
 import { useGameLaunch } from '../../../hooks/useGameLaunch';
 
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { OreTooltip } from '../../../ui/primitives/OreTooltip';
+import { OreButton } from '../../../ui/primitives/OreButton';
 import { OreMotionTokens } from '../../../style/tokens/motion';
 import { useAccountStore } from '../../../store/useAccountStore';
 import { useInputMode } from '../../../ui/focus/FocusProvider';
+import { useScreenDensity, type ScreenDensity } from '../../../hooks/ui/useScreenDensity';
 import { NoAccountModal } from '../../../ui/components/NoAccountModal';
 import { useTranslation } from 'react-i18next';
-import { formatPlayTime } from '../../../utils/formatters';
-
-// ✅ 1. 引入你的超级输入驱动
+import { formatPlayTime, formatRelativeTime } from '../../../utils/formatters';
 import { useInputAction } from '../../../ui/focus/InputDriver';
+
+export type CardSizeTier = 'sm' | 'md' | 'lg';
 
 interface InstanceCardViewProps {
   instance: InstanceItem;
   onClick: () => void;
   onEdit: () => void;
+  tier?: CardSizeTier;
 }
 
-// ✅ 2. 新增：无头事件监听组件
-// 它负责窃听全局的 MENU 指令，但只在当前卡片被聚焦时触发路由跳转
+const getTierFromDensity = (density: ScreenDensity): CardSizeTier => {
+  if (density === 'compact' || density === 'deck') return 'sm';
+  if (density === 'wide' || density === 'tv') return 'lg';
+  return 'md';
+};
+
+const getLoaderBadgeConfig = (loader?: string) => {
+  const l = (loader || 'vanilla').toLowerCase();
+  switch (l) {
+    case 'fabric':
+      return {
+        bg: 'bg-[#1B7FE2]',
+        border: 'border-[#0F5BB5]',
+        text: 'text-white',
+        label: 'Fabric'
+      };
+    case 'forge':
+      return {
+        bg: 'bg-[#D48806]',
+        border: 'border-[#AD6800]',
+        text: 'text-white',
+        label: 'Forge'
+      };
+    case 'neoforge':
+      return {
+        bg: 'bg-[#D93636]',
+        border: 'border-[#A81D1D]',
+        text: 'text-white',
+        label: 'NeoForge'
+      };
+    case 'quilt':
+      return {
+        bg: 'bg-[#7C3AED]',
+        border: 'border-[#5B21B6]',
+        text: 'text-white',
+        label: 'Quilt'
+      };
+    case 'vanilla':
+    default:
+      return {
+        bg: 'bg-[#3C8527]',
+        border: 'border-[#1E4D13]',
+        text: 'text-white',
+        label: 'Vanilla'
+      };
+  }
+};
+
 const CardFocusHandler: React.FC<{ focused: boolean; onAction: () => void }> = ({ focused, onAction }) => {
-  // 使用 Ref 避免闭包陷阱或引发不必要的重复绑定
   const actionRef = useRef(onAction);
   useEffect(() => { actionRef.current = onAction; }, [onAction]);
 
@@ -39,7 +87,10 @@ const CardFocusHandler: React.FC<{ focused: boolean; onAction: () => void }> = (
   return null;
 };
 
-export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, onClick, onEdit }) => {
+export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, onClick, onEdit, tier: propTier }) => {
+  const density = useScreenDensity();
+  const activeTier = propTier || getTierFromDensity(density);
+
   const { isLaunching, launchGame } = useGameLaunch();
   const [showNoAccountModal, setShowNoAccountModal] = useState(false);
   const inputMode = useInputMode();
@@ -73,6 +124,55 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
     launchGame(instance.id, inputMode === 'controller', e);
   };
 
+  const loaderConfig = getLoaderBadgeConfig(instance.loader);
+  const isCustomLoader = instance.loader && instance.loader.toLowerCase() !== 'vanilla';
+
+  // 📐 依据三个固定尺寸档位配置精确宽高与排版 (符合常规设计规范与易读性)
+  const sizeStyles = {
+    sm: {
+      card: 'w-[288px] h-[254px]',
+      cover: 'h-[158px]',
+      title: 'text-sm',
+      badge: 'text-xs px-2 py-0.5',
+      badgeIcon: 'h-3 w-3',
+      btn: '!h-8.5 !px-4 text-xs',
+      btnIcon: 14,
+      headerBtn: 'h-7 w-7',
+      headerIcon: 13,
+      meta: 'text-xs',
+      metaIcon: 13,
+      padding: 'p-3',
+    },
+    md: {
+      card: 'w-[336px] h-[286px]',
+      cover: 'h-[180px]',
+      title: 'text-base',
+      badge: 'text-xs px-2.5 py-0.5',
+      badgeIcon: 'h-3.5 w-3.5',
+      btn: '!h-9 !px-4.5 text-xs',
+      btnIcon: 15,
+      headerBtn: 'h-8 w-8',
+      headerIcon: 15,
+      meta: 'text-xs',
+      metaIcon: 14,
+      padding: 'p-3.5',
+    },
+    lg: {
+      card: 'w-[400px] h-[340px]',
+      cover: 'h-[216px]',
+      title: 'text-lg',
+      badge: 'text-sm px-3 py-1',
+      badgeIcon: 'h-4 w-4',
+      btn: '!h-11 !px-6 text-sm',
+      btnIcon: 18,
+      headerBtn: 'h-9 w-9',
+      headerIcon: 16,
+      meta: 'text-sm',
+      metaIcon: 16,
+      padding: 'p-4',
+    },
+  }[activeTier];
+
   return (
     <>
       <FocusItem focusKey={`card-play-${instance.id}`} onEnter={() => handlePlayClick()}>
@@ -90,6 +190,7 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
               if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
             };
           }, [focused]);
+
           return (
             <>
               <CardFocusHandler focused={focused} onAction={onClick} />
@@ -109,7 +210,6 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                   layout
                   tabIndex={tabIndex}
                   onClick={handlePlayClick}
-                  // 保留原生键盘支持，作为鼠标/纯键盘模式下的兜底
                   onKeyDown={(e) => {
                     if (e.key.toLowerCase() === 'm' || e.key === 'ContextMenu') {
                       e.stopPropagation();
@@ -119,17 +219,20 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                   onMouseEnter={handleMouseEnter}
                   onMouseLeave={handleMouseLeave}
                   initial="rest"
-                  animate={focused ? "hover" : "rest"}
+                  animate={focused ? 'hover' : 'rest'}
                   whileHover="hover"
                   className={`
-                    relative flex h-[16.5rem] w-full flex-col rounded-[0.25rem] cursor-pointer select-none group
-                    transition-all duration-200
-                    border-[0.25rem] ${focused ? 'border-white shadow-[0_0_1.5rem_rgba(255,255,255,0.22)] z-50' : 'border-transparent shadow-[0_0.5rem_1rem_rgba(0,0,0,0.35)]'}
+                    relative flex flex-col flex-none select-none cursor-pointer group
+                    border-[2px] border-b-[4px] border-[#1E1E1F] bg-[#3B3C3D]
+                    shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]
+                    transition-all duration-150
+                    active:translate-y-[1px] active:border-b-[2px]
+                    ${sizeStyles.card}
+                    ${focused ? 'outline outline-[3px] outline-white outline-offset-1 z-20 shadow-[0_0_16px_rgba(255,255,255,0.25)]' : ''}
                   `}
                 >
-                  <div className="flex h-full flex-col overflow-hidden rounded-[0.125rem] border-[0.1875rem] border-[#111214] border-b-[0.375rem] bg-[#202226]">
-
-                  <div className="relative w-full h-[61.8%] overflow-hidden border-b-[0.1875rem] border-black bg-[#111214]">
+                  {/* ================= 上部：固定尺寸封面与 Badge 徽章区 ================= */}
+                  <div className={`relative w-full ${sizeStyles.cover} shrink-0 overflow-hidden bg-[#1E1E1F] border-b-[2px] border-[#1E1E1F]`}>
                     {instance.coverUrl ? (
                       <motion.img
                         src={instance.coverUrl}
@@ -145,90 +248,129 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
                         draggable={false}
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-[1.05rem] text-gray-700 font-minecraft uppercase tracking-widest">
-                        {t('instanceCard.noCover', 'No Cover')}
+                      <div className="flex h-full w-full items-center justify-center font-minecraft text-xs font-bold uppercase tracking-widest text-[#6C6D70]">
+                        {t('instanceCard.noCover', 'NO COVER')}
                       </div>
                     )}
 
+                    {/* 启动中遮罩状态 */}
                     {isLaunching && (
-                      <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/75">
-                        <Loader2 size={32} className="animate-spin text-[#3C8527] mb-2" />
-                        <span className="font-minecraft text-[1.05rem] font-bold uppercase tracking-widest text-[#3C8527] drop-shadow-md">
-                          {t('instanceCard.launching', 'Launching...')}
+                      <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80 font-minecraft">
+                        <Loader2 size={activeTier === 'lg' ? 36 : 28} className="animate-spin text-[#6CC349] mb-1.5" />
+                        <span className={`${sizeStyles.title} font-bold uppercase tracking-wider text-[#6CC349] ore-text-shadow`}>
+                          {t('instanceCard.launching', '正在启动...')}
                         </span>
                       </div>
                     )}
 
-                    {/* Version and Loader in head bottom-left */}
-                    <div className="absolute bottom-2 left-2 z-30 flex items-center space-x-1.5 pointer-events-none">
-                      <span className="bg-black/75 px-1.5 py-0.5 rounded-sm text-gray-300 border border-white/10 shadow-md font-minecraft text-[clamp(1.01rem,1.02vw,1.05rem)] flex-shrink-0">
+                    {/* 悬停/聚焦快捷启动按钮 */}
+                    {!isLaunching && (
+                      <motion.div
+                        variants={OreMotionTokens.cardOverlayFade as Variants}
+                        className="absolute inset-0 z-20 flex items-center justify-center bg-black/45 pointer-events-none"
+                      >
+                        <motion.div variants={OreMotionTokens.cardButtonSlide as Variants}>
+                          <OreButton
+                            variant="primary"
+                            size={activeTier === 'lg' ? 'md' : 'sm'}
+                            className={`shadow-[0_4px_12px_rgba(0,0,0,0.5)] ${sizeStyles.btn} font-minecraft font-bold`}
+                            tabIndex={-1}
+                          >
+                            <Play size={sizeStyles.btnIcon} fill="currentColor" className="mr-1.5" />
+                            {t('home.launchGame', '启动游戏')}
+                          </OreButton>
+                        </motion.div>
+                      </motion.div>
+                    )}
+
+                    {/* 左上角：版本号与 Loader 专属品牌高饱和度徽章 */}
+                    <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 pointer-events-none font-minecraft">
+                      <span className={`border-[2px] border-[#1E1E1F] bg-[#1E2024]/90 ${sizeStyles.badge} font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] ore-text-shadow`}>
                         {instance.version}
                       </span>
 
-                      {instance.loader && instance.loader !== 'Vanilla' && (
-                        <span className="flex items-center gap-1 bg-black/75 px-1.5 py-0.5 rounded-sm text-gray-300 border border-white/10 shadow-md font-minecraft text-[clamp(1.01rem,1.02vw,1.05rem)] flex-shrink-0">
-                          <img 
+                      {isCustomLoader && (
+                        <span className={`flex items-center gap-1 border-[2px] border-[#1E1E1F] ${loaderConfig.bg} ${sizeStyles.badge} font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] ore-text-shadow`}>
+                          <img
                             src={new URL(`../../../assets/icons/tags/loaders/${instance.loader.toLowerCase()}.svg`, import.meta.url).href}
                             alt={instance.loader}
-                            className="w-3.5 h-3.5 opacity-80 invert brightness-0"
+                            className={`${sizeStyles.badgeIcon} brightness-0 invert`}
                             onError={(e) => { e.currentTarget.style.display = 'none'; }}
                           />
-                          {instance.loader.toUpperCase()}
+                          <span>{loaderConfig.label}</span>
                         </span>
                       )}
                     </div>
 
-                    <div className="absolute top-2 right-2 z-30 flex items-center">
+                    {/* 右上角：收藏星标 / 快捷详情 / 手柄提示 */}
+                    <div className="absolute top-2 right-2 z-20 flex items-center gap-1.5">
+                      {instance.isFavorite && (
+                        <div
+                          className={`flex ${sizeStyles.headerBtn} items-center justify-center border-[2px] border-[#1E1E1F] bg-[#1E2024]/90 text-[#FFA940] shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]`}
+                          title="已收藏"
+                        >
+                          <Star size={sizeStyles.headerIcon} fill="currentColor" />
+                        </div>
+                      )}
+
                       {focused && !isLaunching ? (
-                        <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="pointer-events-none flex items-center gap-1.5 rounded-sm border-[0.125rem] border-[#EAB308]/50 bg-black/90 px-2.5 py-1.5 shadow-xl">
-                          <div className="flex h-[1.125rem] w-[1.125rem] items-center justify-center rounded-full bg-[#EAB308] text-[0.625rem] font-black leading-none text-black shadow-[0_0_0.5rem_rgba(234,179,8,0.5)]">
-                            <Menu size={11} strokeWidth={2.5} />
-                          </div>
-                          <span className="font-minecraft text-[1.05rem] font-bold uppercase tracking-widest text-white">
-                            {t('instanceCard.details', 'Details')}
-                          </span>
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.85 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className={`flex items-center gap-1 border-[2px] border-[#1E1E1F] bg-[#1E2024]/95 px-2 py-0.5 font-minecraft ${sizeStyles.meta} font-bold text-[#FFA940] shadow-md pointer-events-none`}
+                        >
+                          <Menu size={sizeStyles.headerIcon} strokeWidth={2.5} />
+                          <span>{t('instanceCard.details', '详情 (M)')}</span>
                         </motion.div>
                       ) : !isLaunching && (
                         <button
+                          type="button"
                           onClick={(e) => { e.stopPropagation(); onEdit(); }}
-                          className="opacity-0 group-hover:opacity-100 p-2 bg-black/75 hover:bg-[#3C8527] rounded-sm border-[2px] border-transparent hover:border-black text-gray-300 hover:text-white transition-all duration-200 outline-none shadow-md"
-                          title="编辑配置"
+                          className={`flex ${sizeStyles.headerBtn} items-center justify-center border-[2px] border-[#1E1E1F] bg-[#1E2024]/90 text-[#D0D1D4] opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#48494A] hover:text-white`}
+                          title="编辑实例配置"
                         >
-                          <Settings size={18} />
+                          <Settings size={sizeStyles.headerIcon} />
                         </button>
                       )}
                     </div>
                   </div>
 
-                  <div className="h-[38.2%] flex flex-col justify-center bg-[#2B2E33] px-4 py-2.5">
+                  {/* ================= 下部：主标题与元数据区域 ================= */}
+                  <div className={`flex flex-1 flex-col justify-between bg-[#2B2C2D] ${sizeStyles.padding} font-minecraft`}>
+                    {/* 实例主标题 */}
                     <motion.span
                       layoutId={`instance-title-${instance.id}`}
-                      className={`truncate font-minecraft text-[clamp(1.15rem,1.2vw,1.35rem)] leading-normal tracking-wide transition-colors duration-200 ore-text-shadow ${
-                        focused ? 'text-[#EAB308]' : 'text-white'
+                      className={`truncate ${sizeStyles.title} font-bold tracking-wide ore-text-shadow transition-colors duration-150 ${
+                        focused ? 'text-[#FFA940]' : 'text-white'
                       }`}
                     >
                       {instance.name}
                     </motion.span>
 
-                    {instance.playTime > 0 && (
-                      <div className="mt-1 flex items-center min-w-0 truncate font-minecraft text-[clamp(1.01rem,1.02vw,1.05rem)] leading-normal text-gray-400 opacity-75">
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" className="mr-1.5 flex-shrink-0">
-                          {/* Outer border */}
-                          <path d="M4 1h4v1H4V1zm4 1h2v1H8V2zM2 2h2v1H2V2zM1 3h1v6H1V3zm10 0h1v6h-1V3zM2 9h2v1H2V9zm6 0h2v1H8V9zm-4 1h4v1H4v-1z" />
-                          {/* Clock Hands */}
-                          <path d="M5 5h2v2H5V5zm1-3h1v3H6V2zm1 3h2v1H7V5z" />
-                        </svg>
-                        <span className="truncate">{formatPlayTime(instance.playTime, t)}</span>
+                    {/* 副信息：游玩时长与最后游玩时间 */}
+                    <div className={`flex items-center justify-between ${sizeStyles.meta} text-[#A0A1A4] pt-1.5 border-t-[1px] border-white/5`}>
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Clock size={sizeStyles.metaIcon} className="shrink-0 text-[#8CB3FF]" />
+                        <span className="truncate">
+                          {instance.playTime > 0
+                            ? formatPlayTime(instance.playTime, t)
+                            : t('home.neverPlayed', { defaultValue: '0h' })}
+                        </span>
                       </div>
-                    )}
-                  </div>
 
-                </div>
-              </motion.div>
-            </OreTooltip>
-          </>
-        );
-      }}
+                      {instance.lastPlayed && (
+                        <div className="flex items-center gap-1 shrink-0 text-[#D0D1D4]">
+                          <Calendar size={sizeStyles.metaIcon} className="shrink-0 text-[#A0A1A4]" />
+                          <span>{formatRelativeTime(instance.lastPlayed, t)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              </OreTooltip>
+            </>
+          );
+        }}
       </FocusItem>
       <NoAccountModal
         isOpen={showNoAccountModal}
@@ -237,3 +379,5 @@ export const InstanceCardView: React.FC<InstanceCardViewProps> = ({ instance, on
     </>
   );
 };
+
+export default InstanceCardView;

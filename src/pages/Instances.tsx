@@ -32,6 +32,11 @@ import { useScreenDensity } from '../hooks/ui/useScreenDensity';
 const Instances: React.FC = () => {
   const { t } = useTranslation();
   const density = useScreenDensity();
+  const cardTier = (density === 'compact' || density === 'deck')
+    ? 'sm'
+    : (density === 'wide' || density === 'tv')
+    ? 'lg'
+    : 'md';
   const {
     instances,
     filteredInstances,
@@ -352,10 +357,16 @@ const Instances: React.FC = () => {
         className="min-h-0 flex-1"
         role="list"
         aria-label={t('instancesPage.listLabel', '我的游戏实例列表')}
-        viewportClassName="pb-10 pr-0"
+        viewportClassName="pt-3 pb-10 px-1.5 sm:px-2"
+        safeInsetTop={6}
+        contentSafePaddingRight={0}
         contentClassName={`
           ${viewMode === 'grid'
-            ? 'grid grid-cols-[repeat(auto-fill,minmax(var(--ore-card-min-w,312px),1fr))] content-start justify-center gap-4 sm:gap-5 lg:gap-6 w-full'
+            ? cardTier === 'sm'
+              ? 'grid grid-cols-[repeat(auto-fill,288px)] content-start justify-center gap-4 w-full'
+              : cardTier === 'lg'
+              ? 'grid grid-cols-[repeat(auto-fill,400px)] content-start justify-center gap-6 w-full'
+              : 'grid grid-cols-[repeat(auto-fill,336px)] content-start justify-center gap-5 w-full'
             : 'grid grid-cols-1 content-start gap-3 auto-rows-max'
           }
         `}
@@ -375,6 +386,7 @@ const Instances: React.FC = () => {
                 instance={instance}
                 onClick={() => handleCardClick(instance.id)}
                 onEdit={() => handleEdit(instance.id)}
+                tier={cardTier}
               />
             )
           )}

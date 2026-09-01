@@ -130,10 +130,7 @@ export const ModOverviewTab: React.FC<ModOverviewTabProps> = ({
   const sha1 = targetMod.sha1 || '-';
 
   const dependentsSection = instanceDependents.length > 0 && (
-    <div
-      className="flex flex-col border-[2px] border-[#1E1E1F] bg-[#2B2C2D] p-3.5 font-minecraft"
-      style={{ boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.35)' }}
-    >
+    <div className="flex flex-col border-[2px] border-[#1E1E1F] bg-[#2B2C2D] p-3.5 font-minecraft">
       <div className="flex items-center gap-2 border-b-[2px] border-[#1E1E1F] pb-2 text-xs font-bold uppercase tracking-wider text-[#8CB3FF] ore-text-shadow">
         <Boxes size={14} className="shrink-0" />
         <span>{t('instanceDetail.mods.detail.dependents', { defaultValue: '作为以下 {{count}} 个已安装模组的前置依赖', count: instanceDependents.length })}</span>
@@ -164,14 +161,11 @@ export const ModOverviewTab: React.FC<ModOverviewTabProps> = ({
   return (
     <OreOverlayScrollArea
       className="h-full w-full bg-[var(--ore-modal-bg)]"
-      viewportClassName="p-4 sm:p-5 flex flex-col gap-3.5 shadow-[inset_0_10px_20px_-10px_rgba(0,0,0,0.55)]"
-      contentSafePaddingRight={6}
+      viewportClassName="p-4 sm:p-5 flex flex-col gap-3.5 font-minecraft"
+      contentSafePaddingRight={0}
     >
       {/* 1. 基础属性与物理文件 (扁平化清晰属性面板) */}
-      <div
-        className="flex flex-col border-[2px] border-[#1E1E1F] bg-[#2B2C2D] p-3.5 font-minecraft"
-        style={{ boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.35)' }}
-      >
+      <div className="flex flex-col border-[2px] border-[#1E1E1F] bg-[#2B2C2D] p-3.5 font-minecraft">
         <div className="flex items-center gap-2 border-b-[2px] border-[#1E1E1F] pb-2 text-xs font-bold uppercase tracking-wider text-white ore-text-shadow">
           <Info size={14} />
           <span>基础属性与物理文件</span>
@@ -221,26 +215,21 @@ export const ModOverviewTab: React.FC<ModOverviewTabProps> = ({
       </div>
 
       {/* 2. 前置依赖声明 */}
-      <div
-        className="flex flex-1 flex-col border-[2px] border-[#1E1E1F] bg-[#2B2C2D] p-3.5 font-minecraft min-h-[12rem]"
-        style={{ boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.35)' }}
-      >
-        <div className="flex items-center justify-between border-b-[2px] border-[#1E1E1F] pb-2">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white ore-text-shadow">
-            <Link2 size={14} />
-            <span>{t('instanceDetail.mods.detail.dependencies', { defaultValue: '前置依赖声明' })}</span>
-            <span className="border-[2px] border-[#1E1E1F] bg-[#1E2024] px-1.5 py-0.5 text-[10px] font-bold text-[#D0D1D4]">
-              {dependencies.length}
-            </span>
-          </div>
-          {dependencies.length > 0 && (
+      {dependencies.length > 0 ? (
+        <div className="flex flex-col border-[2px] border-[#1E1E1F] bg-[#2B2C2D] p-3.5 font-minecraft">
+          <div className="flex items-center justify-between border-b-[2px] border-[#1E1E1F] pb-2">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white ore-text-shadow">
+              <Link2 size={14} />
+              <span>{t('instanceDetail.mods.detail.dependencies', { defaultValue: '前置依赖声明' })}</span>
+              <span className="border-[2px] border-[#1E1E1F] bg-[#1E2024] px-1.5 py-0.5 text-[10px] font-bold text-[#D0D1D4]">
+                {dependencies.length}
+              </span>
+            </div>
             <span className="text-[11px] text-[#A0A1A4]">
               点击未安装前置可一键下载
             </span>
-          )}
-        </div>
+          </div>
 
-        {dependencies.length > 0 ? (
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {dependencies.map((dep, idx) => {
               const tone: RelationshipTone = dep.isInstalled
@@ -270,13 +259,13 @@ export const ModOverviewTab: React.FC<ModOverviewTabProps> = ({
               );
             })}
           </div>
-        ) : (
-          <div className="flex flex-1 flex-col items-center justify-center py-8 text-center text-[#A0A1A4]">
-            <Check size={26} className="opacity-80" />
-            <span className="mt-2 text-xs font-bold">该模组无声明的前置依赖项</span>
-          </div>
-        )}
-      </div>
+        </div>
+      ) : instanceDependents.length === 0 ? (
+        <div className="flex items-center gap-2 border-[2px] border-[#1E1E1F] bg-[#2B2C2D] px-3.5 py-2.5 font-minecraft text-xs text-[#A0A1A4]">
+          <Check size={14} />
+          <span>该模组无声明的前置依赖项</span>
+        </div>
+      ) : null}
 
       {/* 3. 附属 MOD */}
       {dependentsSection}
