@@ -152,14 +152,13 @@ export const AchievementTimelineView: React.FC<AchievementTimelineViewProps> = (
                                   ? 'text-[#38BDF8]'
                                   : 'text-white'
                               }`}
-                              title={item.title}
                             >
                               {item.title}
                             </h4>
 
                             {/* 第三行：成就说明文本（提升至 13px 清晰字号）与展开箭头 */}
                             <div className="flex items-start justify-between gap-2 mt-1">
-                              <p className="text-[13px] leading-[20px] text-zinc-300 line-clamp-2 flex-1" title={item.description || ''}>
+                              <p className="text-[13px] leading-[20px] text-zinc-300 line-clamp-2 flex-1">
                                 {item.description || '暂无说明'}
                               </p>
                               <ChevronRight

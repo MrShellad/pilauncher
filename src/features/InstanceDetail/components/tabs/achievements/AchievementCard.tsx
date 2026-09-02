@@ -122,7 +122,6 @@ export const AchievementCard: React.FC<AchievementCardProps> = ({ item, onClick 
               <div className="flex items-center justify-between gap-1.5">
                 <h4
                   className={`font-sans text-[16px] font-bold leading-tight truncate ${theme.titleColor}`}
-                  title={item.title}
                 >
                   {item.title}
                 </h4>
@@ -146,7 +145,6 @@ export const AchievementCard: React.FC<AchievementCardProps> = ({ item, onClick 
           <div className="flex-1 flex items-center overflow-hidden my-2">
             <p
               className={`line-clamp-3 text-[13px] leading-[21px] font-normal ${theme.descColor}`}
-              title={item.description || ''}
             >
               {item.description || '暂无详细描述说明'}
             </p>
