@@ -1,3 +1,5 @@
+pub mod achievement_repo;
+pub mod game_session_repo;
 pub mod instance_mod_repo;
 pub mod mod_alias_repo;
 pub mod mod_relation_repo;

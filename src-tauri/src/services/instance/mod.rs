@@ -1,5 +1,9 @@
+pub mod achievement_service;
 pub mod action;
+pub mod advancement_dict_loader;
 pub mod backup_service;
+pub mod translation_loader;
+pub mod vanilla_advancements;
 pub mod binding;
 pub mod creation;
 pub mod environment;

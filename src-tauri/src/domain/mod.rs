@@ -1,3 +1,4 @@
+pub mod achievement;
 pub mod animation;
 pub mod auth;
 pub mod event;

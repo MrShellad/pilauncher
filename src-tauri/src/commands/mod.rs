@@ -1,5 +1,6 @@
 // src-tauri/src/commands/mod.rs
 
+pub mod achievement_cmd;
 pub mod animation_cmd;
 pub mod auth_cmd;
 pub mod cache_cmd;
@@ -287,5 +288,10 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         terracotta::set_p2p_idle,
         version_cmd::get_local_versions,
         version_cmd::delete_local_version,
+        achievement_cmd::get_instance_advancements,
+        achievement_cmd::refresh_instance_advancements,
+        achievement_cmd::get_instance_game_sessions,
+        achievement_cmd::get_session_detail,
+        achievement_cmd::get_player_career_summary,
     ])
 }

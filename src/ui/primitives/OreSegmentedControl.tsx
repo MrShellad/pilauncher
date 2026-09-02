@@ -51,11 +51,11 @@ export const OreSegmentedControl: React.FC<OreSegmentedControlProps> = ({
               tabIndex={tabIndex}
             >
               {tab.icon && (
-                <span className={`mr-2 flex-shrink-0 ${isActive ? 'opacity-100' : 'opacity-70'}`}>
+                <span className={`mr-1.5 inline-flex items-center justify-center flex-shrink-0 ${isActive ? 'opacity-100' : 'opacity-70'}`}>
                   {tab.icon}
                 </span>
               )}
-              <span className="ore-text-shadow tracking-wide drop-shadow-md ore-segmented-label font-minecraft">{tab.label}</span>
+              <span className="ore-text-shadow tracking-wide drop-shadow-md ore-segmented-label font-minecraft leading-none inline-flex items-center">{tab.label}</span>
             </button>
           );
 

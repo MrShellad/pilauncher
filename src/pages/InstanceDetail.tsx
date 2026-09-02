@@ -8,6 +8,7 @@ import {
   Package,
   Image as ImageIcon,
   Download,
+  Trophy,
   type LucideIcon,
 } from 'lucide-react';
 import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
@@ -28,6 +29,7 @@ import { ModPanel } from '../features/InstanceDetail/components/tabs/ModPanel';
 import { SavePanel } from '../features/InstanceDetail/components/tabs/SavePanel';
 import { ResourcePackPanel } from '../features/InstanceDetail/components/tabs/ResourcePackPanel';
 import { ShaderPanel } from '../features/InstanceDetail/components/tabs/ShaderPanel';
+import { AchievementPanel } from '../features/InstanceDetail/components/tabs/AchievementPanel';
 import { ExportPanel } from '../features/InstanceDetail/components/tabs/export';
 import { ErrorBoundary } from '../ui/components/ErrorBoundary';
 
@@ -38,6 +40,7 @@ const TABS: { id: DetailTab; label: string; icon: LucideIcon }[] = [
   { id: 'resourcepacks', label: '资源包', icon: Package },
   { id: 'shaders', label: '光影包', icon: ImageIcon },
   { id: 'saves', label: '世界存档', icon: FolderOpen },
+  { id: 'achievements', label: '游戏成就', icon: Trophy },
   { id: 'export', label: '导出与备份', icon: Download },
 ];
 
@@ -77,6 +80,7 @@ const InstanceDetail: React.FC = () => {
       saves: 'save-btn-history',
       resourcepacks: 'btn-open-resourcepack-folder',
       shaders: 'btn-open-shader-folder',
+      achievements: 'achievement-btn-refresh',
       export: undefined,
     }),
     []
@@ -273,6 +277,17 @@ const InstanceDetail: React.FC = () => {
             >
               <ErrorBoundary fallbackTitle="光影包面板加载失败">
                 <ShaderPanel instanceId={instanceId} />
+              </ErrorBoundary>
+            </FocusBoundary>
+
+            <FocusBoundary
+              id="tab-boundary-achievements"
+              isActive={normalizedTab === 'achievements'}
+              trapFocus
+              className={normalizedTab === 'achievements' ? 'flex flex-1 h-full min-h-0 flex-col overflow-hidden' : 'hidden'}
+            >
+              <ErrorBoundary fallbackTitle="游戏成就面板加载失败">
+                <AchievementPanel instanceId={instanceId} />
               </ErrorBoundary>
             </FocusBoundary>
 

@@ -1,0 +1,1082 @@
+{
+  "$schema": "1.0",
+  "name": "Minecraft 官方原版成就字典",
+  "description": "涵盖 1.12 ~ 26.2+ 原版官方全成就中文翻译、描述与阶层定义",
+  "author": "PiLauncher Community",
+  "version": "26.2.0",
+  "updatedAt": "2026-09-03",
+  "advancements": {
+    "minecraft:story/root": {
+      "title": "Minecraft",
+      "description": "游戏的核心与故事",
+      "category": "story",
+      "frameType": "task",
+      "icon": "grass_block",
+      "parentId": null
+    },
+    "minecraft:story/mine_stone": {
+      "title": "采石时代",
+      "description": "用你的新镐挖掘石头",
+      "category": "story",
+      "frameType": "task",
+      "icon": "wooden_pickaxe",
+      "parentId": "minecraft:story/root"
+    },
+    "minecraft:story/upgrade_tools": {
+      "title": "获得升级",
+      "description": "制造一把更好的镐",
+      "category": "story",
+      "frameType": "task",
+      "icon": "stone_pickaxe",
+      "parentId": "minecraft:story/mine_stone"
+    },
+    "minecraft:story/smelt_iron": {
+      "title": "热腾腾的成就",
+      "description": "熔炼出一块铁锭",
+      "category": "story",
+      "frameType": "task",
+      "icon": "iron_ingot",
+      "parentId": "minecraft:story/upgrade_tools"
+    },
+    "minecraft:story/obtain_armor": {
+      "title": "为荣誉而着装",
+      "description": "用铁制作一件护甲",
+      "category": "story",
+      "frameType": "task",
+      "icon": "iron_chestplate",
+      "parentId": "minecraft:story/smelt_iron"
+    },
+    "minecraft:story/lava_bucket": {
+      "title": "热辣辣的",
+      "description": "用铁桶装满岩浆",
+      "category": "story",
+      "frameType": "task",
+      "icon": "lava_bucket",
+      "parentId": "minecraft:story/smelt_iron"
+    },
+    "minecraft:story/iron_tools": {
+      "title": "不是挺好“铁”吗",
+      "description": "升级你的铁镐",
+      "category": "story",
+      "frameType": "task",
+      "icon": "iron_pickaxe",
+      "parentId": "minecraft:story/smelt_iron"
+    },
+    "minecraft:story/deflect_arrow": {
+      "title": "请勿还手",
+      "description": "用盾牌格挡一次弹射物攻击",
+      "category": "story",
+      "frameType": "task",
+      "icon": "shield",
+      "parentId": "minecraft:story/obtain_armor"
+    },
+    "minecraft:story/form_obsidian": {
+      "title": "冰桶挑战",
+      "description": "获得一块黑曜石",
+      "category": "story",
+      "frameType": "task",
+      "icon": "obsidian",
+      "parentId": "minecraft:story/lava_bucket"
+    },
+    "minecraft:story/mine_diamond": {
+      "title": "钻石！",
+      "description": "获得钻石",
+      "category": "story",
+      "frameType": "task",
+      "icon": "diamond",
+      "parentId": "minecraft:story/iron_tools"
+    },
+    "minecraft:story/enter_the_nether": {
+      "title": "深入下界",
+      "description": "建造、激活并进入一座下界传送门",
+      "category": "story",
+      "frameType": "task",
+      "icon": "flint_and_steel",
+      "parentId": "minecraft:story/form_obsidian"
+    },
+    "minecraft:story/shiny_gear": {
+      "title": "用钻石包裹我",
+      "description": "钻石护甲能拯救生命",
+      "category": "story",
+      "frameType": "task",
+      "icon": "diamond_chestplate",
+      "parentId": "minecraft:story/mine_diamond"
+    },
+    "minecraft:story/enchant_item": {
+      "title": "附魔大师",
+      "description": "在附魔台上给一件物品附魔",
+      "category": "story",
+      "frameType": "task",
+      "icon": "enchanted_book",
+      "parentId": "minecraft:story/mine_diamond"
+    },
+    "minecraft:story/cure_zombie_villager": {
+      "title": "僵尸医生",
+      "description": "削弱并治愈一个僵尸村民",
+      "category": "story",
+      "frameType": "goal",
+      "icon": "golden_apple",
+      "parentId": "minecraft:story/enter_the_nether"
+    },
+    "minecraft:story/follow_ender_eye": {
+      "title": "眼见为实",
+      "description": "跟随末影之眼",
+      "category": "story",
+      "frameType": "task",
+      "icon": "ender_eye",
+      "parentId": "minecraft:story/enter_the_nether"
+    },
+    "minecraft:story/enter_the_end": {
+      "title": "结束了？",
+      "description": "进入末地传送门",
+      "category": "story",
+      "frameType": "task",
+      "icon": "end_stone",
+      "parentId": "minecraft:story/follow_ender_eye"
+    },
+    "minecraft:nether/root": {
+      "title": "下界",
+      "description": "带上夏天的衣服",
+      "category": "nether",
+      "frameType": "task",
+      "icon": "red_nether_bricks",
+      "parentId": null
+    },
+    "minecraft:nether/return_to_sender": {
+      "title": "见鬼去吧",
+      "description": "用一发火球消灭恶魂",
+      "category": "nether",
+      "frameType": "challenge",
+      "icon": "fire_charge",
+      "parentId": "minecraft:nether/root"
+    },
+    "minecraft:nether/find_bastion": {
+      "title": "那些光辉岁月",
+      "description": "进入堡垒遗迹",
+      "category": "nether",
+      "frameType": "task",
+      "icon": "polished_blackstone_bricks",
+      "parentId": "minecraft:nether/root"
+    },
+    "minecraft:nether/obtain_ancient_debris": {
+      "title": "残骸寻踪",
+      "description": "获得远古残骸",
+      "category": "nether",
+      "frameType": "task",
+      "icon": "ancient_debris",
+      "parentId": "minecraft:nether/root"
+    },
+    "minecraft:nether/fast_travel": {
+      "title": "超空间折跃",
+      "description": "利用下界穿行主世界 7 公里",
+      "category": "nether",
+      "frameType": "challenge",
+      "icon": "map",
+      "parentId": "minecraft:nether/return_to_sender"
+    },
+    "minecraft:nether/find_fortress": {
+      "title": "可怕的要塞",
+      "description": "勇闯下界要塞",
+      "category": "nether",
+      "frameType": "task",
+      "icon": "nether_bricks",
+      "parentId": "minecraft:nether/root"
+    },
+    "minecraft:nether/obtain_crying_obsidian": {
+      "title": "身边有谁在哭泣？",
+      "description": "获得一块哭泣的黑曜石",
+      "category": "nether",
+      "frameType": "task",
+      "icon": "crying_obsidian",
+      "parentId": "minecraft:nether/root"
+    },
+    "minecraft:nether/distract_piglin": {
+      "title": "哎呀，真闪！",
+      "description": "用金质物品分散猪灵的注意力",
+      "category": "nether",
+      "frameType": "task",
+      "icon": "gold_ingot",
+      "parentId": "minecraft:nether/root"
+    },
+    "minecraft:nether/ride_strider": {
+      "title": "这只船有条腿",
+      "description": "用诡异菌钓竿骑乘炽足兽",
+      "category": "nether",
+      "frameType": "task",
+      "icon": "warped_fungus_on_a_stick",
+      "parentId": "minecraft:nether/root"
+    },
+    "minecraft:nether/uneasy_alliance": {
+      "title": "不稳定的同盟",
+      "description": "将一只恶魂从下界救入主世界...然后消灭它",
+      "category": "nether",
+      "frameType": "challenge",
+      "icon": "ghast_tear",
+      "parentId": "minecraft:nether/return_to_sender"
+    },
+    "minecraft:nether/loot_bastion": {
+      "title": "战猪",
+      "description": "掠夺堡垒遗迹中的箱子",
+      "category": "nether",
+      "frameType": "task",
+      "icon": "chest",
+      "parentId": "minecraft:nether/find_bastion"
+    },
+    "minecraft:nether/use_lodestone": {
+      "title": "天涯共此时",
+      "description": "在磁石上使用指南针",
+      "category": "nether",
+      "frameType": "task",
+      "icon": "lodestone",
+      "parentId": "minecraft:nether/root"
+    },
+    "minecraft:nether/netherite_armor": {
+      "title": "以残骸蔽体",
+      "description": "获得一套完整的下界合金盔甲",
+      "category": "nether",
+      "frameType": "challenge",
+      "icon": "netherite_chestplate",
+      "parentId": "minecraft:nether/obtain_ancient_debris"
+    },
+    "minecraft:nether/get_wither_skull": {
+      "title": "诡异可怖的骷髅",
+      "description": "获取凋灵骷髅头颅",
+      "category": "nether",
+      "frameType": "task",
+      "icon": "wither_skeleton_skull",
+      "parentId": "minecraft:nether/find_fortress"
+    },
+    "minecraft:nether/obtain_blaze_rod": {
+      "title": "进入烈焰之中",
+      "description": "从烈焰人身上获取烈焰棒",
+      "category": "nether",
+      "frameType": "task",
+      "icon": "blaze_rod",
+      "parentId": "minecraft:nether/find_fortress"
+    },
+    "minecraft:nether/charge_respawn_anchor": {
+      "title": "这可不是“七命猫”",
+      "description": "将重生锚充能至最大阶段",
+      "category": "nether",
+      "frameType": "task",
+      "icon": "respawn_anchor",
+      "parentId": "minecraft:nether/obtain_crying_obsidian"
+    },
+    "minecraft:nether/ride_strider_in_overworld_lava": {
+      "title": "游子归乡",
+      "description": "在主界的熔岩湖上骑乘炽足兽行走至少50格",
+      "category": "nether",
+      "frameType": "challenge",
+      "icon": "warped_fungus_on_a_stick",
+      "parentId": "minecraft:nether/ride_strider"
+    },
+    "minecraft:nether/explore_nether": {
+      "title": "热带风光",
+      "description": "探索下界的所有生物群系",
+      "category": "nether",
+      "frameType": "challenge",
+      "icon": "netherite_boots",
+      "parentId": "minecraft:nether/fast_travel"
+    },
+    "minecraft:nether/summon_wither": {
+      "title": "见证凋灵",
+      "description": "召唤凋灵",
+      "category": "nether",
+      "frameType": "task",
+      "icon": "nether_star",
+      "parentId": "minecraft:nether/get_wither_skull"
+    },
+    "minecraft:nether/brew_potion": {
+      "title": "本地酿造厂",
+      "description": "酿造一瓶药水",
+      "category": "nether",
+      "frameType": "task",
+      "icon": "potion",
+      "parentId": "minecraft:nether/obtain_blaze_rod"
+    },
+    "minecraft:nether/create_beacon": {
+      "title": "信标工程师",
+      "description": "制造并放置一个信标",
+      "category": "nether",
+      "frameType": "task",
+      "icon": "beacon",
+      "parentId": "minecraft:nether/summon_wither"
+    },
+    "minecraft:nether/all_potions": {
+      "title": "猛烈狂暴的鸡尾酒",
+      "description": "同时拥有所有药水效果",
+      "category": "nether",
+      "frameType": "challenge",
+      "icon": "milk_bucket",
+      "parentId": "minecraft:nether/brew_potion"
+    },
+    "minecraft:nether/create_full_beacon": {
+      "title": "信标大师",
+      "description": "将一个信标带到最高能量",
+      "category": "nether",
+      "frameType": "goal",
+      "icon": "beacon",
+      "parentId": "minecraft:nether/create_beacon"
+    },
+    "minecraft:nether/all_effects": {
+      "title": "狂乱狂暴狂欢",
+      "description": "同时拥有所有状态效果",
+      "category": "nether",
+      "frameType": "challenge",
+      "icon": "bucket",
+      "parentId": "minecraft:nether/all_potions"
+    },
+    "minecraft:end/root": {
+      "title": "末地",
+      "description": "还是新的开始？",
+      "category": "the_end",
+      "frameType": "task",
+      "icon": "end_stone",
+      "parentId": null
+    },
+    "minecraft:end/kill_dragon": {
+      "title": "解放末地",
+      "description": "祝你好运",
+      "category": "the_end",
+      "frameType": "task",
+      "icon": "dragon_head",
+      "parentId": "minecraft:end/root"
+    },
+    "minecraft:end/dragon_egg": {
+      "title": "次世代",
+      "description": "抱走龙蛋",
+      "category": "the_end",
+      "frameType": "goal",
+      "icon": "dragon_egg",
+      "parentId": "minecraft:end/kill_dragon"
+    },
+    "minecraft:end/enter_end_gateway": {
+      "title": "远程逃生",
+      "description": "逃离主岛屿",
+      "category": "the_end",
+      "frameType": "task",
+      "icon": "ender_pearl",
+      "parentId": "minecraft:end/kill_dragon"
+    },
+    "minecraft:end/respawn_dragon": {
+      "title": "重新来过",
+      "description": "重新召唤末影龙",
+      "category": "the_end",
+      "frameType": "goal",
+      "icon": "end_crystal",
+      "parentId": "minecraft:end/kill_dragon"
+    },
+    "minecraft:end/dragon_breath": {
+      "title": "来点薄荷糖？",
+      "description": "在玻璃瓶中收集龙息",
+      "category": "the_end",
+      "frameType": "goal",
+      "icon": "dragon_breath",
+      "parentId": "minecraft:end/kill_dragon"
+    },
+    "minecraft:end/find_end_city": {
+      "title": "城市远景",
+      "description": "去走走，末地城可漂亮了",
+      "category": "the_end",
+      "frameType": "task",
+      "icon": "purpur_block",
+      "parentId": "minecraft:end/enter_end_gateway"
+    },
+    "minecraft:end/elytra": {
+      "title": "天空即为极限",
+      "description": "找到鞘翅",
+      "category": "the_end",
+      "frameType": "goal",
+      "icon": "elytra",
+      "parentId": "minecraft:end/find_end_city"
+    },
+    "minecraft:end/levitate": {
+      "title": "好高啊",
+      "description": "被潜影贝的攻击悬浮上升 50 个方块",
+      "category": "the_end",
+      "frameType": "challenge",
+      "icon": "shulker_shell",
+      "parentId": "minecraft:end/find_end_city"
+    },
+    "minecraft:adventure/root": {
+      "title": "冒险",
+      "description": "探险、战斗与生存",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "map",
+      "parentId": null
+    },
+    "minecraft:adventure/voluntary_exile": {
+      "title": "自投罗网",
+      "description": "消灭一名袭击队长",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "ominous_banner",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/spyglass_at_parrot": {
+      "title": "那是只鸟吗？",
+      "description": "通过望远镜观察鹦鹉",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "spyglass",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/kill_a_mob": {
+      "title": "怪物猎人",
+      "description": "消灭任一敌对怪物",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "iron_sword",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/trade": {
+      "title": "交易伙伴",
+      "description": "与村民进行一次成功的交易",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "emerald",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/honey_block_slide": {
+      "title": "甜蜜的滑行",
+      "description": "从蜂蜜块表面滑下以缓冲下落",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "honey_block",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/ol_betsy": {
+      "title": "老伙计",
+      "description": "使用弩射出一箭",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "crossbow",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/sleep_in_bed": {
+      "title": "甜蜜美梦",
+      "description": "睡在床上以改变重生点",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "red_bed",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/hero_of_the_village": {
+      "title": "村庄英雄",
+      "description": "成功保卫一座村庄抵御袭击",
+      "category": "adventure",
+      "frameType": "challenge",
+      "icon": "ominous_banner",
+      "parentId": "minecraft:adventure/voluntary_exile"
+    },
+    "minecraft:adventure/throw_trident": {
+      "title": "扔得一手好叉",
+      "description": "向某物投掷三叉戟",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "trident",
+      "parentId": "minecraft:adventure/ol_betsy"
+    },
+    "minecraft:adventure/shoot_crossbow": {
+      "title": "弩手初成",
+      "description": "用弩射击一个目标",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "crossbow",
+      "parentId": "minecraft:adventure/ol_betsy"
+    },
+    "minecraft:adventure/adventuring_time": {
+      "title": "探索的时光",
+      "description": "发现所有的生物群系",
+      "category": "adventure",
+      "frameType": "challenge",
+      "icon": "diamond_boots",
+      "parentId": "minecraft:adventure/sleep_in_bed"
+    },
+    "minecraft:adventure/kill_all_mobs": {
+      "title": "怪物猎人总动员",
+      "description": "消灭每一种敌对怪物",
+      "category": "adventure",
+      "frameType": "challenge",
+      "icon": "diamond_sword",
+      "parentId": "minecraft:adventure/kill_a_mob"
+    },
+    "minecraft:adventure/bullseye": {
+      "title": "靶心",
+      "description": "从至少 30 米外正中靶心",
+      "category": "adventure",
+      "frameType": "challenge",
+      "icon": "target",
+      "parentId": "minecraft:adventure/shoot_crossbow"
+    },
+    "minecraft:adventure/sniper_duel": {
+      "title": "狙击手的对决",
+      "description": "从 50 米外用弓消灭一只骷髅",
+      "category": "adventure",
+      "frameType": "challenge",
+      "icon": "bow",
+      "parentId": "minecraft:adventure/kill_a_mob"
+    },
+    "minecraft:adventure/under_lock_and_key": {
+      "title": "严防死守",
+      "description": "用试炼钥匙开启一个宝箱",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "trial_key",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/revaulting": {
+      "title": "改邪归正",
+      "description": "用不祥试炼钥匙开启一个不祥宝箱",
+      "category": "adventure",
+      "frameType": "goal",
+      "icon": "ominous_trial_key",
+      "parentId": "minecraft:adventure/under_lock_and_key"
+    },
+    "minecraft:husbandry/root": {
+      "title": "农业",
+      "description": "世界充满朋友与食物",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "hay_block",
+      "parentId": null
+    },
+    "minecraft:husbandry/breed_an_animal": {
+      "title": "自然选择",
+      "description": "繁殖两只动物",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "wheat",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:husbandry/tame_an_animal": {
+      "title": "最好的朋友",
+      "description": "驯服一只动物",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "lead",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:husbandry/plant_seed": {
+      "title": "种子成荫",
+      "description": "播种种子并看着它长大",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "wheat_seeds",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:husbandry/fishy_business": {
+      "title": "捕鱼达人",
+      "description": "钓上一条鱼",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "fishing_rod",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:husbandry/safely_harvest_honey": {
+      "title": "蜜蜂好友",
+      "description": "在营火上用玻璃瓶收集蜂蜜而不惹怒蜜蜂",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "honey_bottle",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:husbandry/a_balanced_diet": {
+      "title": "均衡饮食",
+      "description": "吃下所有能吃的东西，即使对身体不好",
+      "category": "husbandry",
+      "frameType": "challenge",
+      "icon": "apple",
+      "parentId": "minecraft:husbandry/plant_seed"
+    },
+    "minecraft:husbandry/bred_all_animals": {
+      "title": "双双成对",
+      "description": "繁殖每一种动物！",
+      "category": "husbandry",
+      "frameType": "challenge",
+      "icon": "golden_carrot",
+      "parentId": "minecraft:husbandry/breed_an_animal"
+    },
+    "minecraft:husbandry/complete_catalogue": {
+      "title": "全套猫咪图鉴",
+      "description": "驯服所有猫的品种！",
+      "category": "husbandry",
+      "frameType": "challenge",
+      "icon": "cod",
+      "parentId": "minecraft:husbandry/tame_an_animal"
+    },
+    "minecraft:adventure/crafter_crafting_crafter": {
+      "title": "合成者造合成者",
+      "description": "用合成者合成一个合成者",
+      "category": "adventure",
+      "frameType": "challenge",
+      "icon": "crafter",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/who_needs_rockets": {
+      "title": "要什么火箭？",
+      "description": "借助旋风人的风弹爆炸飞起至少7格高",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "wind_charge",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/blowback": {
+      "title": "回敬！",
+      "description": "用偏折的风弹击杀一个旋风人",
+      "category": "adventure",
+      "frameType": "challenge",
+      "icon": "wind_charge",
+      "parentId": "minecraft:adventure/who_needs_rockets"
+    },
+    "minecraft:adventure/overoverkill": {
+      "title": "超额完成",
+      "description": "用重锤一次攻击造成至少50点伤害",
+      "category": "adventure",
+      "frameType": "challenge",
+      "icon": "mace",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:husbandry/repair_wolf_armor": {
+      "title": "修护如初",
+      "description": "使用犰狳鳞片修复损坏的狼铠",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "wolf_armor",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:husbandry/whole_pack": {
+      "title": "同狼成群",
+      "description": "驯服每种狼的一个变种",
+      "category": "husbandry",
+      "frameType": "challenge",
+      "icon": "lead",
+      "parentId": "minecraft:husbandry/tame_an_animal"
+    },
+    "minecraft:husbandry/shearing_armadillo": {
+      "title": "鳞甲片片",
+      "description": "使用剪刀给犰狳刷下犰狳鳞片",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "armadillo_scute",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:nether/loot_piglin_barter": {
+      "title": "交易艺术",
+      "description": "与猪灵以物易物",
+      "category": "nether",
+      "frameType": "task",
+      "icon": "gold_ingot",
+      "parentId": "minecraft:nether/distract_piglin"
+    },
+    "minecraft:adventure/light_up_the_night": {
+      "title": "照亮长夜",
+      "description": "将营火点亮",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "campfire",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/spyglass_at_ghast": {
+      "title": "那是气球吗？",
+      "description": "通过望远镜观察恶魂",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "spyglass",
+      "parentId": "minecraft:adventure/spyglass_at_parrot"
+    },
+    "minecraft:adventure/spyglass_at_dragon": {
+      "title": "那是架飞机吗？",
+      "description": "通过望远镜观察末影龙",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "spyglass",
+      "parentId": "minecraft:adventure/spyglass_at_ghast"
+    },
+    "minecraft:adventure/play_jukebox_in_meadows": {
+      "title": "天籁之音",
+      "description": "在草甸中用唱片机播放音乐",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "jukebox",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/fall_from_world_height": {
+      "title": "星落大地",
+      "description": "从世界顶部（构建限制）无伤跌落至基岩底部",
+      "category": "adventure",
+      "frameType": "challenge",
+      "icon": "water_bucket",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/avoid_vibration": {
+      "title": "潜行至上",
+      "description": "在幽匿感测体或监守者附近潜行，使其察觉不到你",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "sculk_sensor",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/kill_mob_near_sculk_catalyst": {
+      "title": "开枝散叶",
+      "description": "在幽匿催发体附近击杀生物",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "sculk_catalyst",
+      "parentId": "minecraft:adventure/avoid_vibration"
+    },
+    "minecraft:adventure/salvage_sherd": {
+      "title": "细细打磨",
+      "description": "用刷子清理可疑方块刷出陶片",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "brush",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/craft_decorated_pot_using_only_sherds": {
+      "title": "精雕细琢",
+      "description": "用4枚陶片合成一个饰纹陶罐",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "decorated_pot",
+      "parentId": "minecraft:adventure/salvage_sherd"
+    },
+    "minecraft:adventure/trim_with_any_armor_pattern": {
+      "title": "点缀工艺",
+      "description": "在锻造台上使用任意锻造模板装饰一件盔甲",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "dune_armor_trim_smithing_template",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/trim_with_all_exclusive_armor_patterns": {
+      "title": "匠心独运",
+      "description": "应用所有独特的锻造模板至少一次",
+      "category": "adventure",
+      "frameType": "challenge",
+      "icon": "silence_armor_trim_smithing_template",
+      "parentId": "minecraft:adventure/trim_with_any_armor_pattern"
+    },
+    "minecraft:husbandry/allay_drop_item_in_chest": {
+      "title": "得力助手",
+      "description": "让悦灵将物品投递至音符盒旁边的箱子中",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "allay_spawn_egg",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:husbandry/tadpole_in_a_bucket": {
+      "title": "水桶里的奇迹",
+      "description": "用铁桶捕获一只蝌蚪",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "tadpole_bucket",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:husbandry/froglights": {
+      "title": "天下大同！",
+      "description": "在物品栏中同时拥有全部三种蛙明灯",
+      "category": "husbandry",
+      "frameType": "challenge",
+      "icon": "ochre_froglight",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:husbandry/leash_all_frog_variants": {
+      "title": "三蟾齐至",
+      "description": "用拴绳系住每种青蛙变种",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "lead",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:husbandry/feed_snifflet": {
+      "title": "寻香识途",
+      "description": "给幼年嗅探兽喂食火把花种子",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "torchflower_seeds",
+      "parentId": "minecraft:husbandry/obtain_sniffer_egg"
+    },
+    "minecraft:husbandry/plant_any_sniffer_seed": {
+      "title": "播种奇迹",
+      "description": "种植嗅探兽发掘出的任意种子",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "pitcher_pod",
+      "parentId": "minecraft:husbandry/obtain_sniffer_egg"
+    },
+    "minecraft:adventure/arbalistic": {
+      "title": "弩炮",
+      "description": "用十字弩一箭射杀五只不同的生物",
+      "category": "adventure",
+      "frameType": "challenge",
+      "icon": "crossbow",
+      "parentId": "minecraft:adventure/ol_betsy"
+    },
+    "minecraft:adventure/brush_armadillo": {
+      "title": "鳞甲片片",
+      "description": "使用刷子给犰狳刷下犰狳鳞片",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "armadillo_scute",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:adventure/crafters_crafting_crafters": {
+      "title": "合成者造合成者",
+      "description": "用合成者合成一个合成者",
+      "category": "adventure",
+      "frameType": "challenge",
+      "icon": "crafter",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/heart_transplanter": {
+      "title": "核心移植",
+      "description": "合成并组装一个沉重核心或激活旋风人重锤",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "heavy_core",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/lighten_up": {
+      "title": "豁然开朗",
+      "description": "使用刮刀刮除铜灯上的蜡质并用红石点亮",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "copper_bulb",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/lightning_rod_with_villager_no_fire": {
+      "title": "过载保护",
+      "description": "在不引发火灾的前提下让避雷针从闪电中保护村民",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "lightning_rod",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/minecraft_trials_edition": {
+      "title": "Minecraft试炼版",
+      "description": "踏入试炼密室",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "trial_chambers",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/read_power_of_chiseled_bookshelf": {
+      "title": "闻香识书",
+      "description": "用红石比较器读取雕纹书架的信号",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "chiseled_bookshelf",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/shoot_arrow": {
+      "title": "瞄准目标",
+      "description": "用弓箭射击某物",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "bow",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/spear_many_mobs": {
+      "title": "贯穿攻势",
+      "description": "使用武器一次击中多个目标",
+      "category": "adventure",
+      "frameType": "challenge",
+      "icon": "trident",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/summon_iron_golem": {
+      "title": "雇佣帮手",
+      "description": "制造一个铁傀儡来协助防卫村庄",
+      "category": "adventure",
+      "frameType": "goal",
+      "icon": "iron_block",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/totem_of_undying": {
+      "title": "超越生死",
+      "description": "使用不死图腾来逃避死亡",
+      "category": "adventure",
+      "frameType": "goal",
+      "icon": "totem_of_undying",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/trade_at_world_height": {
+      "title": "星际商人",
+      "description": "在世界的最高构建高度限制处与村民交易",
+      "category": "adventure",
+      "frameType": "challenge",
+      "icon": "emerald",
+      "parentId": "minecraft:adventure/trade"
+    },
+    "minecraft:adventure/two_birds_one_arrow": {
+      "title": "一箭双雕",
+      "description": "用穿透箭一箭射杀两只幻翼",
+      "category": "adventure",
+      "frameType": "challenge",
+      "icon": "crossbow",
+      "parentId": "minecraft:adventure/arbalistic"
+    },
+    "minecraft:adventure/use_lodestone": {
+      "title": "天涯共此时",
+      "description": "在磁石上使用指南针",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "lodestone",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/very_very_frightening": {
+      "title": "十分甚至九分的诡异",
+      "description": "用闪电击中村民将其转化为女巫",
+      "category": "adventure",
+      "frameType": "challenge",
+      "icon": "trident",
+      "parentId": "minecraft:adventure/lightning_rod_with_villager_no_fire"
+    },
+    "minecraft:adventure/walk_on_powder_snow_with_leather_boots": {
+      "title": "如履平地",
+      "description": "穿着皮革靴子在细雪上行走而不会陷入",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "leather_boots",
+      "parentId": "minecraft:adventure/root"
+    },
+    "minecraft:adventure/whos_the_pillager_now": {
+      "title": "现在谁是掠夺者？",
+      "description": "以其人之道还治其人之身，用弩击杀一名掠夺者",
+      "category": "adventure",
+      "frameType": "task",
+      "icon": "crossbow",
+      "parentId": "minecraft:adventure/ol_betsy"
+    },
+    "minecraft:husbandry/allay_deliver_cake_to_note_block": {
+      "title": "生日快乐歌",
+      "description": "让悦灵将蛋糕投掷在音符盒上",
+      "category": "husbandry",
+      "frameType": "challenge",
+      "icon": "cake",
+      "parentId": "minecraft:husbandry/allay_deliver_item_to_player"
+    },
+    "minecraft:husbandry/allay_deliver_item_to_player": {
+      "title": "最好的朋友",
+      "description": "让悦灵把物品投递给你",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "cookie",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:husbandry/axolotl_in_a_bucket": {
+      "title": "可爱捕食者",
+      "description": "用铁桶捕获一只美西螈",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "axolotl_bucket",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:husbandry/balanced_diet": {
+      "title": "均衡饮食",
+      "description": "吃下所有可食用的食物，哪怕它们可能有害",
+      "category": "husbandry",
+      "frameType": "challenge",
+      "icon": "apple",
+      "parentId": "minecraft:husbandry/plant_seed"
+    },
+    "minecraft:husbandry/kill_axolotl_target": {
+      "title": "友情的治愈力量！",
+      "description": "与美西螈组队并协助其赢得战斗",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "tropical_fish_bucket",
+      "parentId": "minecraft:husbandry/axolotl_in_a_bucket"
+    },
+    "minecraft:husbandry/make_a_sign_glow": {
+      "title": "超亮耀眼",
+      "description": "使用荧光墨囊使告示牌上的文字发光",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "glow_ink_sac",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:husbandry/obtain_netherite_hoe": {
+      "title": "终极奉献",
+      "description": "使用下界合金锭升级一把锄，然后再好好重新审视你的人生抉择",
+      "category": "husbandry",
+      "frameType": "challenge",
+      "icon": "netherite_hoe",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:husbandry/obtain_sniffer_egg": {
+      "title": "嗅探之卵",
+      "description": "发掘并获得一枚嗅探兽蛋",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "sniffer_egg",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:husbandry/place_dried_ghast_in_water": {
+      "title": "水灵新生",
+      "description": "将干燥恶魂放置在水中令其复苏",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "water_bucket",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:husbandry/remove_wolf_armor": {
+      "title": "解甲归田",
+      "description": "使用剪刀卸下狼铠",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "shears",
+      "parentId": "minecraft:husbandry/repair_wolf_armor"
+    },
+    "minecraft:husbandry/ride_a_boat_with_a_goat": {
+      "title": "同舟共济",
+      "description": "与山羊一同坐进一条船并划行",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "oak_boat",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:husbandry/silk_touch_nest": {
+      "title": "全面蜂控",
+      "description": "使用精准采集工具移动包含三只蜜蜂的蜂巢",
+      "category": "husbandry",
+      "frameType": "goal",
+      "icon": "bee_nest",
+      "parentId": "minecraft:husbandry/safely_harvest_honey"
+    },
+    "minecraft:husbandry/tactical_fishing": {
+      "title": "战术性钓鱼",
+      "description": "不用钓鱼竿，改用桶抓鱼！",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "pufferfish_bucket",
+      "parentId": "minecraft:husbandry/fishy_business"
+    },
+    "minecraft:husbandry/uh_oh": {
+      "title": "大事不妙",
+      "description": "触发意外的恶劣事件",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "bell",
+      "parentId": "minecraft:husbandry/root"
+    },
+    "minecraft:husbandry/wax_off": {
+      "title": "脱蜡除尘",
+      "description": "使用斧从铜块上刮下蜡",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "stone_axe",
+      "parentId": "minecraft:husbandry/wax_on"
+    },
+    "minecraft:husbandry/wax_on": {
+      "title": "蜂蜡封层",
+      "description": "使用蜜脾为铜块打蜡",
+      "category": "husbandry",
+      "frameType": "task",
+      "icon": "honeycomb",
+      "parentId": "minecraft:husbandry/safely_harvest_honey"
+    }
+  }
+}

@@ -6,6 +6,18 @@
   font-style: normal;
 }
 
+@font-face {
+  font-family: 'Fusion Pixel';
+  src: url('../assets/font/fusion-pixel-12px-monospaced-zh_hans.ttf.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+.font-pixel {
+  font-family: 'Fusion Pixel', var(--ore-font-family-minecraft), monospace;
+}
+
 :root {
   --ore-font-family-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "WenQuanYi Micro Hei", Arial, sans-serif;
   --ore-font-family-minecraft: var(--ore-global-font, "Minecraft"), "NotoSans Bold", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "WenQuanYi Micro Hei", sans-serif;

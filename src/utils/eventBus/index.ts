@@ -15,6 +15,8 @@ class TypedEventBus {
     'game-log-metrics',
     'game-launch-progress',
     'game-exit',
+    'achievement-unlocked',
+    'achievement-session-summary',
     'resource-download-progress',
     'native-gamepad-event',
     'trust_request_received',

@@ -84,6 +84,30 @@ export interface GameLaunchProgressPayload {
   ready: boolean;
 }
 
+export interface AchievementUnlockedPayload {
+  instanceId: string;
+  worldName: string;
+  playerUuid: string;
+  playerName?: string;
+  advancementId: string;
+  title: string;
+  description?: string;
+  iconRelPath: string;
+  frameType: string;
+  unlockedAt: number;
+  isFirstCareerUnlock: boolean;
+}
+
+export interface AchievementSessionSummaryPayload {
+  sessionId: string;
+  instanceId: string;
+  worldName?: string;
+  playerUuid: string;
+  durationSecs: number;
+  newAdvancementsCount: number;
+  newAdvancements: AchievementUnlockedPayload[];
+}
+
 export interface AppEventMap {
   // --- Tauri IPC Backend Events ---
   'game-log': string;
@@ -91,6 +115,8 @@ export interface AppEventMap {
   'game-log-metrics': GameLogMetricsPayload;
   'game-launch-progress': GameLaunchProgressPayload;
   'game-exit': { code: number; instanceId?: string };
+  'achievement-unlocked': AchievementUnlockedPayload;
+  'achievement-session-summary': AchievementSessionSummaryPayload;
   'resource-download-progress': ResourceDownloadProgressPayload;
   'native-gamepad-event': NativeGamepadEventPayload;
   'trust_request_received': IncomingTrustRequest;

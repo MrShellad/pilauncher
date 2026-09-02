@@ -12,6 +12,7 @@ export type DetailTab =
   | 'mods'
   | 'resourcepacks'
   | 'shaders'
+  | 'achievements'
   | 'export';
 
 export interface CustomButton {

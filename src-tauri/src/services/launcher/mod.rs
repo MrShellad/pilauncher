@@ -847,6 +847,9 @@ impl LauncherService {
             ),
         });
 
+        let player_uuid = auth_session.uuid.clone();
+        let player_name = auth_session.player_name.clone();
+
         let builder = LaunchCommandBuilder::new(
             resolved_config.clone(),
             auth_session,
@@ -1041,6 +1044,12 @@ Module Path Entries: {}\n\
         {
             eprintln!("[Playtime] Failed to start session: {}", e);
         }
+
+        crate::services::instance::achievement_service::AchievementService::start_session(
+            instance_id,
+            Some(&player_uuid),
+            Some(&player_name),
+        );
 
         let stdout = child.stdout.take().unwrap();
         let stderr = child.stderr.take().unwrap();

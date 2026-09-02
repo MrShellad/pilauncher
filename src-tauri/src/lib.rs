@@ -184,6 +184,17 @@ pub fn run() {
                 .mark("native.database.initialize.complete");
 
             app.manage(services::db_service::AppDatabase { pool: pool.clone() });
+
+            // 异步增量同步原版及用户自制成就字典到 SQLite 缓存
+            let dict_pool = pool.clone();
+            let dict_base_dir = app_dir.clone();
+            tauri::async_runtime::spawn(async move {
+                let _ = services::instance::advancement_dict_loader::AdvancementDictionaryLoader::sync_dictionaries_to_db(
+                    &dict_pool,
+                    &dict_base_dir,
+                ).await;
+            });
+
             app.manage(services::deferred_startup::DeferredStartupState {
                 app: app.handle().clone(),
                 lan_state: lan_state.clone(),
@@ -197,9 +208,10 @@ pub fn run() {
                 pool.clone(),
             );
 
-            // 监听游戏退出事件，并异步安全地触发自动备份
+            // 监听游戏退出事件，并异步安全地触发自动备份与成就结算
             use tauri::Listener;
             let app_handle = app.handle().clone();
+            let exit_pool = pool.clone();
             app.handle().listen_any("game-exit", move |event| {
                 if let Ok(payload) = serde_json::from_str::<serde_json::Value>(event.payload()) {
                     if let Some(instance_id) = payload["instanceId"].as_str() {
@@ -224,6 +236,25 @@ pub fn run() {
                                     eprintln!("{}", message);
                                     let _ = backup_app.emit("game-log", message);
                                 }
+                            }
+                        });
+
+                        // 异步检测并持久化本次游玩成就与游戏会话
+                        let achievement_app = app_handle.clone();
+                        let achievement_pool = exit_pool.clone();
+                        let achievement_instance_id = instance_id.to_string();
+                        let exit_code = payload.get("code").and_then(|c| c.as_i64()).unwrap_or(0) as i32;
+                        tauri::async_runtime::spawn(async move {
+                            if let Err(error) =
+                                crate::services::instance::achievement_service::AchievementService::handle_game_exit(
+                                    &achievement_app,
+                                    &achievement_pool,
+                                    &achievement_instance_id,
+                                    exit_code,
+                                )
+                                .await
+                            {
+                                log::error!("[Achievement] failed to process achievements on game exit: {error}");
                             }
                         });
                     }
