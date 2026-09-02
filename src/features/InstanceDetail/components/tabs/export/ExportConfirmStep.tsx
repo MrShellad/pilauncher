@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -284,16 +284,18 @@ export const ExportConfirmStep: React.FC<ExportConfirmStepProps> = ({
               </div>
             </div>
 
-            {/* 整合包核心名称展示栏 (平铺无截断，充沛空间) */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-[2px] border-[#1E1E1F] bg-[#222324] p-4 shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]">
-              <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center border-[2px] border-[#1E1E1F] bg-[#141517] text-[#6CC349] shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]">
-                  {data.heroLogo ? (
-                    <img src={data.heroLogo} alt="Hero Logo" className="h-full w-full object-contain p-1" />
-                  ) : (
+            {/* 整合包核心名称展示栏 (平铺无截断，宽幅 HeroLogo 展示) */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-[2px] border-[#1E1E1F] bg-[#222324] p-4 shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 min-w-0 flex-1">
+                {data.heroLogo ? (
+                  <div className="flex w-36 sm:w-44 h-14 shrink-0 items-center justify-center border-[2px] border-[#1E1E1F] bg-[#141517] p-1.5 shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]">
+                    <img src={data.heroLogo} alt="Hero Logo" className="h-full w-full object-contain" />
+                  </div>
+                ) : (
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center border-[2px] border-[#1E1E1F] bg-[#141517] text-[#6CC349] shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]">
                     <Package size={24} />
-                  )}
-                </div>
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="text-[11px] font-bold uppercase tracking-wider text-[#8C8D90] mb-0.5">
                     {t('instanceDetail.export.confirm.packName', { defaultValue: '整合包名称' })}

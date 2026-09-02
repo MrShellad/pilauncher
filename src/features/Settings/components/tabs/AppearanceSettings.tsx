@@ -5,7 +5,9 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { Image as ImageIcon, LayoutDashboard, Loader2, Package, Sparkles, Type, Crown } from 'lucide-react';
 
 import { useAccountStore } from '../../../../store/useAccountStore';
+import { useNewsStore } from '../../../../store/useNewsStore';
 import { useSettingsStore } from '../../../../store/useSettingsStore';
+import { normalizeMinecraftNewsItems } from '../../../home/data/newsItems';
 import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { useLinearNavigation } from '../../../../ui/focus/useLinearNavigation';
 import { FormRow } from '../../../../ui/layout/FormRow';
@@ -168,9 +170,19 @@ export const AppearanceSettings: React.FC = () => {
     }
   };
 
+  const rawNewsItems = useNewsStore((state) => state.rawItems);
+  const latestNews = useMemo(() => {
+    if (rawNewsItems.length === 0) return null;
+    const items = normalizeMinecraftNewsItems(rawNewsItems, 'zh');
+    return items[0] || null;
+  }, [rawNewsItems]);
+
   const bgPreviewUrl = useMemo(() => {
+    if (appearance.subscribeNewsCoverBackground && latestNews?.coverImageUrl) {
+      return latestNews.coverImageUrl;
+    }
     return appearance.backgroundImage ? convertFileSrc(appearance.backgroundImage) : null;
-  }, [appearance.backgroundImage]);
+  }, [appearance.subscribeNewsCoverBackground, latestNews, appearance.backgroundImage]);
 
   const fontOptions = useMemo(() => {
     const base = [{ label: t('settings.appearance.defaultFont'), value: 'Minecraft' }];
@@ -188,7 +200,7 @@ export const AppearanceSettings: React.FC = () => {
   );
 
   const focusOrder = useMemo(() => {
-    const keys: string[] = ['settings-appearance-theme'];
+    const keys: string[] = ['settings-appearance-theme', 'settings-appearance-subscribe-news-cover'];
 
     // --- 1. 静态背景 Section ---
     if (appearance.backgroundImage) {
@@ -259,6 +271,23 @@ export const AppearanceSettings: React.FC = () => {
             </div>
           }
         />
+
+        <FormRow
+          label={t('settings.appearance.subscribeNewsCover', '订阅更新日志封面背景')}
+          description={t(
+            'settings.appearance.subscribeNewsCoverDesc',
+            '开启后，启动器背景将自动同步为 Minecraft 官方最新发布的版本更新封面画卷。'
+          )}
+          control={
+            <OreSwitch
+              focusKey="settings-appearance-subscribe-news-cover"
+              onArrowPress={handleLinearArrow}
+              checked={!!appearance.subscribeNewsCoverBackground}
+              onChange={(checked) => updateAppearanceSetting('subscribeNewsCoverBackground', checked)}
+            />
+          }
+        />
+
         <div className="p-6">
           <div className="group relative flex h-56 w-full flex-col items-center justify-center overflow-hidden border-2 border-dashed border-ore-gray-border bg-[#141415] transition-colors">
             {bgPreviewUrl ? (
@@ -269,6 +298,16 @@ export const AppearanceSettings: React.FC = () => {
                   className="h-full w-full object-cover transition-all"
                   style={{ filter: `blur(${appearance.backgroundBlur}px)` }}
                 />
+
+                {appearance.subscribeNewsCoverBackground && latestNews && (
+                  <div className="absolute left-3 bottom-3 z-10 flex items-center gap-1.5 border border-white/20 bg-black/75 px-3 py-1 text-xs font-minecraft text-[#6CC349] backdrop-blur-sm shadow-md">
+                    <Sparkles size={13} className="shrink-0 text-[#6CC349]" />
+                    <span className="truncate max-w-[280px]">
+                      {t('settings.appearance.subscribedCoverBadge', '当前订阅')}：{latestNews.version}
+                    </span>
+                  </div>
+                )}
+
                 <div className="absolute inset-0 z-10 flex items-center justify-center gap-4 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                   <OreButton
                     variant="secondary"
@@ -342,6 +381,7 @@ export const AppearanceSettings: React.FC = () => {
                 onChange={(v) => updateAppearanceSetting('backgroundBlur', v)}
                 disabled={
                   !appearance.backgroundImage &&
+                  !appearance.subscribeNewsCoverBackground &&
                   !(hasMicrosoftAccount && appearance.panoramaEnabled)
                 }
               />

@@ -1,4 +1,4 @@
-// /src/types/settings.ts
+﻿// /src/types/settings.ts
 
 import type { MemoryAllocationMode } from './memory';
 
@@ -42,9 +42,10 @@ export interface GeneralSettings {
   tmtSecretKey?: string;
   translationService?: string;
 }
-// ...
+
 export interface AppearanceSettings {
   backgroundImage: string | null;
+  subscribeNewsCoverBackground: boolean;
   backgroundBlur: number;
   panoramaEnabled: boolean;
   panoramaRotationSpeed: number;
@@ -63,7 +64,7 @@ export interface AppearanceSettings {
 export interface JavaSettings {
   autoDetect: boolean;
   javaPath: string;
-  majorJavaPaths: Record<string, string>; // e.g. { "8": "...", "17": "..." }
+  majorJavaPaths: Record<string, string>;
   memoryAllocationMode: MemoryAllocationMode;
   maxMemory: number;
   minMemory: number;
@@ -78,28 +79,22 @@ export interface GameSettings {
   preLaunchCheck: boolean;
   steamDeckKeymap: boolean;
   steamDeckInputModeConfigured: boolean;
-  gamepadModCheck: boolean; // 鎵嬫焺鍚姩鏃惰嚜鍔ㄦ娴嬫墜鏌?Mod
-  showGameLog: boolean; // 鏄剧ず娓告垙鏃ュ織闈㈡澘
+  gamepadModCheck: boolean;
+  showGameLog: boolean;
 }
 
 export interface DownloadSettings {
   minecraftMetaSource: 'bangbang93' | 'official';
-  // 鉁?鏍稿績淇敼锛氬皢鍘熸湰鍗曚竴鐨?source 鎷嗗垎涓哄洓涓嫭绔嬮€氶亾
   vanillaSource: string;
   vanillaSourceUrl: string;
-
   forgeSource: string;
   forgeSourceUrl: string;
-
   fabricSource: string;
   fabricSourceUrl: string;
-
   neoforgeSource: string;
   neoforgeSourceUrl: string;
-
   quiltSource: string;
   quiltSourceUrl: string;
-
   autoCheckLatency: boolean;
   strictSourceRouting: boolean;
   concurrency: number;
@@ -162,6 +157,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   appearance: {
     backgroundImage: null,
+    subscribeNewsCoverBackground: false,
     backgroundBlur: 8,
     panoramaEnabled: false,
     panoramaRotationSpeed: 0.02,
@@ -185,14 +181,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
       '16': '',
       '17': '',
       '21': '',
-      '25': ''
+      '25': '',
     },
     memoryAllocationMode: 'auto',
     maxMemory: 4096,
     minMemory: 1024,
-    // GC and heap options are resolved by Rust from the actual Java runtime.
-    // Keep this field for genuinely user-owned options such as -D properties.
-    jvmArgs: ''
+    jvmArgs: '',
   },
   game: {
     windowTitle: 'Minecraft',
@@ -207,7 +201,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   download: {
     minecraftMetaSource: 'bangbang93',
-    // 鉁?璧嬩簣鍥涗釜閫氶亾鍒濆鐨勯粯璁ゆ簮 (鍖归厤浣犵殑 JSON 鏁版嵁)
     vanillaSource: 'bmclapi',
     vanillaSourceUrl: 'https://bmclapi2.bangbang93.com',
     forgeSource: 'bmclapi',
@@ -218,7 +211,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
     neoforgeSourceUrl: 'https://bmclapi2.bangbang93.com/neoforge',
     quiltSource: 'official',
     quiltSourceUrl: 'https://meta.quiltmc.org',
-
     autoCheckLatency: false,
     strictSourceRouting: false,
     concurrency: 8,
@@ -233,5 +225,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
     proxyType: 'none',
     proxyHost: '127.0.0.1',
     proxyPort: '7890',
-  }
+  },
 };

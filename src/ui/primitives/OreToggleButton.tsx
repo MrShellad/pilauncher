@@ -43,10 +43,11 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
   const isAdaptiveScale = uiScale === 'adaptive';
 
   const sizeClasses = {
-    sm: 'h-10 text-sm',
-    md: 'h-11 text-base',
+    xs: 'h-8 text-xs',
+    sm: 'h-9 text-xs',
+    md: 'h-10 text-sm sm:text-base',
     lg: 'h-12 text-lg',
-    full: 'h-full min-h-11',
+    full: 'h-full min-h-9',
   };
 
   return (
@@ -70,7 +71,7 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
         aria-label={title}
         className={`
           ore-toggle-btn-group flex items-stretch
-          ${isAdaptiveScale ? 'ore-toggle-btn-group--adaptive' : `w-full ${sizeClasses[size]}`}
+          ${isAdaptiveScale ? 'ore-toggle-btn-group--adaptive' : `w-full ${sizeClasses[size] || sizeClasses.sm}`}
         `}
       >
         {options.map((option, idx) => {
@@ -85,7 +86,7 @@ export const OreToggleButton: React.FC<OreToggleButtonProps> = ({
               aria-checked={isActive}
               aria-disabled={disabled}
               className={`
-                ore-toggle-btn-item
+                ore-toggle-btn-item h-full
                 px-2 outline-none
                 ${isActive ? 'is-active z-10' : ''}
                 ${focused ? 'is-focused' : ''}

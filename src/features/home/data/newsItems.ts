@@ -169,6 +169,16 @@ const buildSummary = (locale: NewsLocale, tag: string) => {
 export const getNewsLocale = (language: string): NewsLocale =>
   language.toLowerCase().startsWith('zh') ? 'zh' : 'en';
 
+const cleanNewsTitle = (rawTitle: string, version: string) => {
+  let title = String(rawTitle || version || 'Update').trim();
+  title = title
+    .replace(/^Minecraft:\s*Java Edition\s*/i, '')
+    .replace(/^Minecraft\s+Java Edition\s*/i, '')
+    .replace(/^Minecraft:\s*/i, '')
+    .replace(/^Minecraft\s+/i, '');
+  return title.trim() || version || 'Update';
+};
+
 export const normalizeMinecraftNewsItems = (
   items: MinecraftUpdateApiItem[],
   locale: NewsLocale
@@ -178,13 +188,14 @@ export const normalizeMinecraftNewsItems = (
     .map((item) => {
       const date = normalizeDate(item.date, item.createdAt);
       const tag = getTypeLabel(detectNewsType(item), locale);
+      const title = cleanNewsTitle(item.title, item.version);
 
       return {
         id: item.version || item.createdAt || item.title,
         date,
         version: item.version || 'Unknown',
         tag,
-        title: item.title || item.version || 'Minecraft Update',
+        title,
         summary: buildSummary(locale, tag),
         coverImageUrl: resolveCoverUrl(item.cover),
         officialUrl: item.article,

@@ -3,7 +3,9 @@ import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import * as THREE from 'three';
 import { useAccountStore } from '../../store/useAccountStore';
 import { useGameLogStore } from '../../store/useGameLogStore';
+import { useNewsStore } from '../../store/useNewsStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
+import { normalizeMinecraftNewsItems } from '../../features/home/data/newsItems';
 import defaultBackground from '../../assets/home/wallpaper/1.webp';
 
 type PanoramaSetPayload = {
@@ -20,6 +22,7 @@ const CAMERA_LOOK_RADIUS = 10;
 export const OreBackground: React.FC = () => {
   const { appearance, general } = useSettingsStore((state) => state.settings);
   const gameState = useGameLogStore((state) => state.gameState);
+  const rawNewsItems = useNewsStore((state) => state.rawItems);
   const hasMicrosoftAccount = useAccountStore((state) =>
     state.accounts.some((account) => account.type?.toLowerCase() === 'microsoft'),
   );
@@ -51,7 +54,19 @@ export const OreBackground: React.FC = () => {
   const shouldCreatePanorama = canUsePanoramaFeature && !shouldSuspendPanorama;
   const shouldPauseRotationRef = useRef(shouldPauseRotation);
 
+  // 动态获取最新更新日志封面
+  const latestNewsCoverUrl = useMemo(() => {
+    if (!appearance.subscribeNewsCoverBackground || rawNewsItems.length === 0) return null;
+    const items = normalizeMinecraftNewsItems(rawNewsItems, 'zh');
+    return items[0]?.coverImageUrl || null;
+  }, [appearance.subscribeNewsCoverBackground, rawNewsItems]);
+
   const bgUrl = useMemo(() => {
+    // 1. 订阅 MC 最新更新日志封面背景
+    if (appearance.subscribeNewsCoverBackground && latestNewsCoverUrl) {
+      return latestNewsCoverUrl;
+    }
+    // 2. 用户自定义静态背景
     if (appearance.backgroundImage) {
       try {
         return convertFileSrc(appearance.backgroundImage);
@@ -61,7 +76,7 @@ export const OreBackground: React.FC = () => {
       }
     }
     return defaultBackground;
-  }, [appearance.backgroundImage]);
+  }, [appearance.subscribeNewsCoverBackground, latestNewsCoverUrl, appearance.backgroundImage]);
 
   useEffect(() => {
     rotationSpeedRef.current = appearance.panoramaRotationSpeed;

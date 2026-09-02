@@ -136,10 +136,13 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({
           >
             <OreOverlayScrollArea
               className="h-full w-full"
-              contentClassName="p-5 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full flex flex-col items-center"
-              contentSafePaddingRight={16}
+              viewportClassName="p-4 sm:p-5 lg:p-6 h-full w-full overflow-x-hidden flex flex-col items-center justify-start"
+              contentClassName="w-full max-w-4xl xl:max-w-5xl mx-auto flex-1 flex flex-col items-stretch justify-start"
+              contentSafePaddingRight={0}
+              safeInsetTop={0}
+              safeInsetBottom={0}
             >
-              <FocusBoundary id={`export-step-${step}-boundary`} isActive trapFocus={false}>
+              <FocusBoundary id={`export-step-${step}-boundary`} className="w-full flex flex-col items-center justify-start" isActive trapFocus={false}>
                 {step === 1 && (
                   <ExportBasicStep
                     data={data}

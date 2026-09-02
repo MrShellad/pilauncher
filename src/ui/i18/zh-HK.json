@@ -792,7 +792,10 @@
       "showLibrary": "顯示「收藏」",
       "showLibraryDesc": "在頂部導覽列中顯示收藏入口",
       "skipExitConfirm": "跳過退出確認",
-      "skipExitConfirmDesc": "關閉視窗時不再彈出確認對話框，直接退出應用（僅在關閉行為為“退出”時生效）"
+      "skipExitConfirmDesc": "關閉視窗時不再彈出確認對話框，直接退出應用（僅在關閉行為為“退出”時生效）",
+      "subscribeNewsCover": "訂閱更新日誌封面背景",
+      "subscribeNewsCoverDesc": "開啟後，啟動器背景將自動同步為 Minecraft 官方最新發布的版本更新封面畫卷。",
+      "subscribedCoverBadge": "當前訂閱"
     },
     "handheld": {
       "sections": {

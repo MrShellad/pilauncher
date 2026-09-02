@@ -57,14 +57,12 @@ export const GameSettings: React.FC = () => {
     ).map(r => ({
       label: <span className="font-minecraft text-sm tracking-wider">{t(r.labelKey!)}</span>,
       value: r.value,
-      description: t(r.labelKey!)
     }));
 
     if (maxRes && !STANDARD_RESOLUTIONS.find(r => r.w === maxRes.w && r.h === maxRes.h)) {
       options.push({
         label: <span className="font-minecraft text-sm tracking-wider">{t('settings.game.resolutions.native')}</span>,
         value: `${maxRes.w}x${maxRes.h}`,
-        description: t('settings.game.resolutions.nativeDesc')
       });
     }
     return options;
@@ -184,13 +182,14 @@ export const GameSettings: React.FC = () => {
             /* ✅ 核心修复 2：外层隐藏破版，内层提供充足 padding 容纳焦点发光 */
             <div className="w-full mt-2 -mx-2 overflow-hidden">
               <div className="w-full overflow-x-auto no-scrollbar px-2 py-2">
-                <div className="min-w-[600px]">
+                <div className="min-w-[620px]">
                   <OreToggleButton
                     focusKeyPrefix="settings-game-resolution"
                     onArrowPress={handleLinearArrow}
                     options={resolutionOptions}
                     value={game.resolution}
                     onChange={(v) => updateGameSetting('resolution', v)}
+                    size="md"
                     disabled={game.fullscreen}
                   />
                 </div>

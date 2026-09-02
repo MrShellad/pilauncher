@@ -1,7 +1,8 @@
-﻿import React from 'react';
+import React from 'react';
 import { FileArchive, Lock, Package, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { FocusItem } from '../../../../../ui/focus/FocusItem';
 import { CurseforgeIcon, ModrinthIcon } from '../../../../Download/components/Icons';
 import { OreSwitch } from '../../../../../ui/primitives/OreSwitch';
 import { OreTag } from '../../../../../ui/primitives/OreTag';
@@ -89,78 +90,105 @@ export const ExportOptimizationStep: React.FC<ExportOptimizationStepProps> = ({
         : 'instanceExport.optimization.manifest.fallback';
 
   return (
-    <div className="w-full max-w-4xl xl:max-w-5xl mx-auto flex flex-col space-y-5 font-minecraft select-none">
-      {/* 1. 导出格式 3D 磁贴选择区 (水平居中，平铺自适应) */}
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="w-full max-w-4xl xl:max-w-5xl mx-auto flex flex-col space-y-4 font-minecraft select-none">
+      {/* 1. 导出格式 3D 磁贴单列排列 (清晰通透，单列大气) */}
+      <div className="flex flex-col space-y-2.5">
         {formats.map((formatItem) => {
           const isSelected = data.format === formatItem.id;
           return (
-            <button
+            <FocusItem
               key={formatItem.id}
-              type="button"
-              onClick={() => handleFormatSelect(formatItem.id)}
-              className={`flex w-full cursor-pointer flex-col justify-between border-[2px] border-[#1E1E1F] p-4 text-left transition-none select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-white active:translate-y-[2px] min-h-[9.5rem] ${
-                isSelected
-                  ? 'bg-[#3C8527] text-white shadow-[inset_0_-3px_0_#1D4D13,inset_0_2px_0_#6CC349]'
-                  : 'bg-[#48494A] text-[#D0D1D4] shadow-[inset_0_2px_0_rgba(255,255,255,0.12),inset_0_-2px_0_rgba(0,0,0,0.35)] hover:bg-[#525354]'
-              }`}
+              focusKey={`export-format-${formatItem.id}`}
+              onEnter={() => handleFormatSelect(formatItem.id)}
             >
-              <div className="flex items-start justify-between gap-2 mb-2">
-                {/* 图标槽 */}
-                <div
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center border-[2px] border-[#1E1E1F] ${
-                    isSelected ? 'bg-[#244A1B]' : 'bg-[#222324]'
-                  } shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]`}
-                >
-                  <formatItem.icon
-                    className={`h-5 w-5 ${
-                      isSelected ? 'text-white' : 'text-[#6CC349]'
-                    }`}
-                  />
-                </div>
-
-                {formatItem.badge && (
-                  <OreTag variant="success" size="sm" weight="bold">
-                    {formatItem.badge}
-                  </OreTag>
-                )}
-              </div>
-
-              <div>
-                <div className="truncate text-sm sm:text-base font-bold tracking-wide mb-1">
-                  {formatItem.label}
-                </div>
-                <div
-                  className={`line-clamp-3 text-xs leading-relaxed ${
-                    isSelected ? 'text-white/90' : 'text-[#8C8D90]'
+              {({ ref, focused }) => (
+                <button
+                  ref={ref as any}
+                  type="button"
+                  onClick={() => handleFormatSelect(formatItem.id)}
+                  className={`flex w-full cursor-pointer items-center justify-between border-[2px] border-[#1E1E1F] p-3 sm:p-3.5 text-left transition-none select-none focus:outline-none active:translate-y-[1px] ${
+                    focused ? 'ring-2 ring-white z-10 brightness-110' : ''
+                  } ${
+                    isSelected
+                      ? 'bg-[#3C8527] text-white shadow-[inset_0_-3px_0_#1D4D13,inset_0_2px_0_#6CC349]'
+                      : 'bg-[#48494A] text-[#D0D1D4] shadow-[inset_0_2px_0_rgba(255,255,255,0.12),inset_0_-2px_0_rgba(0,0,0,0.35)] hover:bg-[#525354]'
                   }`}
                 >
-                  {formatItem.desc}
-                </div>
-              </div>
-            </button>
+                  <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                    {/* 图标槽 */}
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center border-[2px] border-[#1E1E1F] ${
+                        isSelected ? 'bg-[#244A1B]' : 'bg-[#222324]'
+                      } shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]`}
+                    >
+                      <formatItem.icon
+                        className={`h-5 w-5 ${
+                          isSelected ? 'text-white' : 'text-[#6CC349]'
+                        }`}
+                      />
+                    </div>
+
+                    {/* 文本区域 */}
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm sm:text-base font-bold tracking-wide">
+                          {formatItem.label}
+                        </span>
+                        {formatItem.badge && (
+                          <OreTag variant="success" size="sm" weight="bold">
+                            {formatItem.badge}
+                          </OreTag>
+                        )}
+                      </div>
+                      <div
+                        className={`text-xs truncate sm:text-ellipsis ${
+                          isSelected ? 'text-white/90' : 'text-[#8C8D90]'
+                        }`}
+                      >
+                        {formatItem.desc}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 单选指示器 */}
+                  <div className="shrink-0 pl-3">
+                    <div
+                      className={`flex h-5 w-5 items-center justify-center border-[2px] border-[#1E1E1F] ${
+                        isSelected
+                          ? 'bg-[#244A1B] text-white'
+                          : 'bg-[#1E1E1F] text-transparent'
+                      } shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]`}
+                    >
+                      {isSelected && (
+                        <div className="h-2 w-2 bg-[#6CC349]" />
+                      )}
+                    </div>
+                  </div>
+                </button>
+              )}
+            </FocusItem>
           );
         })}
       </div>
 
       {/* 2. Manifest 优化控制矿槽 */}
-      <div className="border-[3px] border-[#1E1E1F] bg-[#313233] p-5 sm:p-6 shadow-[inset_0_2px_0_rgba(255,255,255,0.08)]">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="border-[2px] border-b-[4px] border-[#1E1E1F] bg-[#3B3C3D] p-3.5 sm:p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3.5 min-w-0 flex-1">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center border-[2px] border-[#1E1E1F] bg-[#222324] text-[#A855F7] shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]">
-              <Sparkles size={22} />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center border-[2px] border-[#1E1E1F] bg-[#222324] text-[#A855F7] shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]">
+              <Sparkles size={20} />
             </div>
 
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex items-center gap-2.5">
-                <span className="text-sm sm:text-base font-bold uppercase tracking-wider text-white">
+                <span className="text-sm font-bold uppercase tracking-wider text-white">
                   {t('instanceExport.optimization.manifest.title', {
                     defaultValue: 'Manifest 清单优化模式',
                   })}
                 </span>
                 {manifestLocked && (
                   <span
-                    className="flex items-center gap-1 text-xs text-[#FFE866] bg-black/40 px-2 py-0.5 border border-[#1E1E1F]"
+                    className="flex items-center gap-1 text-[11px] text-[#FFE866] bg-black/40 px-2 py-0.5 border border-[#1E1E1F]"
                     title={
                       data.format === 'zip'
                         ? t('instanceDetail.export.optimization.manifestLockedZipTooltip', {
@@ -171,13 +199,13 @@ export const ExportOptimizationStep: React.FC<ExportOptimizationStepProps> = ({
                           })
                     }
                   >
-                    <Lock size={12} />
+                    <Lock size={11} />
                     <span>格式固定</span>
                   </span>
                 )}
               </div>
 
-              <div className="text-xs leading-relaxed text-[#8C8D90] space-y-0.5">
+              <div className="text-xs leading-relaxed text-[#8C8D90]">
                 <p>
                   {t('instanceExport.optimization.manifest.primary', {
                     defaultValue: '优先使用来源平台链接索引代替实际 Mod 文件打包，显著缩减导出包文件体积。',

@@ -794,7 +794,10 @@
       "showLibrary": "Show \"Library\"",
       "showLibraryDesc": "Show the Library entry in the top navigation bar",
       "skipExitConfirm": "Skip Exit Confirmation",
-      "skipExitConfirmDesc": "Close the window without showing a confirmation dialog (only applies when close behavior is set to \"Exit\")"
+      "skipExitConfirmDesc": "Close the window without showing a confirmation dialog (only applies when close behavior is set to \"Exit\")",
+      "subscribeNewsCover": "Subscribe to Changelog Cover Background",
+      "subscribeNewsCoverDesc": "When enabled, the launcher background will automatically sync with the latest official Minecraft update cover artwork.",
+      "subscribedCoverBadge": "Subscribed Cover"
     },
     "handheld": {
       "sections": {
