@@ -10,8 +10,10 @@ import { useInputAction } from '../../../ui/focus/InputDriver';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import { OreDropdown } from '../../../ui/primitives/OreDropdown';
 import { OreInput } from '../../../ui/primitives/OreInput';
+import { OreSwitch } from '../../../ui/primitives/OreSwitch';
 import { OreToggleButton } from '../../../ui/primitives/OreToggleButton';
 import { useScreenDensity } from '../../../hooks/ui/useScreenDensity';
+import { useDownloadLayoutStore } from '../stores/useDownloadLayoutStore';
 import type { DownloadSource, FilterOption, TabType } from '../hooks/useResourceDownload';
 import {
   getLocalizedDownloadOptionLabel
@@ -80,6 +82,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 }) => {
   const { t, i18n } = useTranslation();
   const density = useScreenDensity();
+  const forceDoubleColumn = useDownloadLayoutStore((state) => state.forceDoubleColumn);
+  const setForceDoubleColumn = useDownloadLayoutStore((state) => state.setForceDoubleColumn);
   const scaleClassName = `
     [--filter-shell-px:0.875rem]
     [--filter-shell-py:0.5rem]
@@ -337,8 +341,17 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             </div>
           </div>
 
-          <div className="shrink-0 items-center flex">
+          <div className="shrink-0 items-center flex gap-3">
             <GamepadButtonIcon button="RT" size="lg" className={controlHintClassName} />
+            <div className="hidden sm:flex items-center pl-2.5 border-l border-white/10">
+              <OreSwitch
+                focusKey="filter-switch-double-column"
+                checked={forceDoubleColumn}
+                onChange={setForceDoubleColumn}
+                label={t('download.filters.forceDoubleColumn', { defaultValue: '强制双列' })}
+                className="text-xs"
+              />
+            </div>
           </div>
         </div>
 

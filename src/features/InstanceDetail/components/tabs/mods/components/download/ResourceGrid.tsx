@@ -11,6 +11,7 @@ import forgeIcon from '../../../../../../../assets/icons/tags/loaders/forge.svg'
 import neoforgeIcon from '../../../../../../../assets/icons/tags/loaders/neoforge.svg';
 import quiltIcon from '../../../../../../../assets/icons/tags/loaders/quilt.svg';
 import liteloaderIcon from '../../../../../../../assets/icons/tags/loaders/liteloader.svg';
+import { useDownloadLayoutStore } from '../../../../../../Download/stores/useDownloadLayoutStore';
 
 import { FocusBoundary } from '../../../../../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../../../../../ui/focus/FocusItem';
@@ -97,7 +98,7 @@ const LOADER_ICON_MAP: Record<string, string> = {
   liteloader: liteloaderIcon
 };
 
-const ResourceGridFooter: React.FC<{ context?: ResourceGridContext }> = ({ context }) => {
+const ResourceGridFooter: React.FC<{ context?: ResourceGridContext; isDoubleColumn?: boolean }> = ({ context, isDoubleColumn = false }) => {
   if (!context) return null;
   const { hasMore, isLoadingMore, loadMoreFailed, onRetryLoadMore } = context;
 
@@ -127,7 +128,7 @@ const ResourceGridFooter: React.FC<{ context?: ResourceGridContext }> = ({ conte
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -15 }}
             transition={{ duration: 0.25, ease: 'easeInOut' }}
-            className="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] w-full pt-[0.75rem] px-[1rem]"
+            className={`grid ${isDoubleColumn ? 'grid-cols-2' : 'grid-cols-1'} gap-[0.75rem] w-full pt-[0.75rem] px-[1rem]`}
           >
             {Array.from({ length: 2 }).map((_, i) => (
               <ResourceCardSkeleton key={`loadmore-skeleton-${i}`} />
@@ -533,12 +534,19 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
 
   const [shouldAnimateLayout, setShouldAnimateLayout] = useState(false);
   const reflowTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [isDoubleColumn, setIsDoubleColumn] = useState(() => window.innerWidth > 1920);
+  const forceDoubleColumn = useDownloadLayoutStore((state) => state.forceDoubleColumn);
+
+  const computeDoubleColumn = useCallback(() => {
+    if (forceDoubleColumn) return true;
+    return window.innerWidth > 1920;
+  }, [forceDoubleColumn]);
+
+  const [isDoubleColumn, setIsDoubleColumn] = useState(computeDoubleColumn);
   const lastFocusedIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
     const handleResize = () => {
-      const double = window.innerWidth > 1920;
+      const double = computeDoubleColumn();
       if (double !== isDoubleColumn) {
         setShouldAnimateLayout(true);
         if (reflowTimeoutRef.current) {
@@ -559,6 +567,8 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
       }
     };
 
+    handleResize();
+
     window.addEventListener('resize', handleResize);
     return () => {
       window.removeEventListener('resize', handleResize);
@@ -566,7 +576,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
         clearTimeout(reflowTimeoutRef.current);
       }
     };
-  }, [isDoubleColumn]);
+  }, [computeDoubleColumn, isDoubleColumn]);
 
 
 
@@ -818,7 +828,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
                           width: '100%',
                           transform: `translateY(${virtualRow.start + 24}px)`,
                         }}
-                        className="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] pb-[0.75rem]"
+                        className={`grid ${isDoubleColumn ? 'grid-cols-2' : 'grid-cols-1'} gap-[0.75rem] pb-[0.75rem]`}
                       >
                         {rowData.map((item, colIndex) => {
                           const itemIndex = isDoubleColumn ? rowIndex * 2 + colIndex : rowIndex;
@@ -849,7 +859,10 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
                   })}
                 </div>
 
-                <ResourceGridFooter context={{ hasMore, isLoadingMore, loadMoreFailed, onRetryLoadMore }} />
+                <ResourceGridFooter
+                  context={{ hasMore, isLoadingMore, loadMoreFailed, onRetryLoadMore }}
+                  isDoubleColumn={isDoubleColumn}
+                />
               </>
             )}
           </div>
@@ -872,7 +885,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
             }}
             className="absolute inset-0 z-30 bg-[#313233] px-[1rem] pt-0 overflow-y-auto custom-scrollbar"
           >
-            <div className="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] pb-[1.5rem] pt-[1.5rem]">
+            <div className={`grid ${isDoubleColumn ? 'grid-cols-2' : 'grid-cols-1'} gap-[0.75rem] pb-[1.5rem] pt-[1.5rem]`}>
               {Array.from({ length: 6 }).map((_, i) => (
                 <ResourceCardSkeleton key={i} />
               ))}

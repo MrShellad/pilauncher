@@ -122,7 +122,8 @@
       "sort": "Sort",
       "versionFilters": "Version Filters",
       "moreHistory": "More History",
-      "snapshots": "Snapshots / Preview"
+      "snapshots": "Snapshots / Preview",
+      "forceDoubleColumn": "2 Columns"
     },
     "sort": {
       "relevance": "Relevance",

@@ -8,10 +8,12 @@ import { OreToggleButton } from '../../../../../../../ui/primitives/OreToggleBut
 import { OreInput } from '../../../../../../../ui/primitives/OreInput';
 import { OreDropdown } from '../../../../../../../ui/primitives/OreDropdown';
 import { OreButton } from '../../../../../../../ui/primitives/OreButton';
+import { OreSwitch } from '../../../../../../../ui/primitives/OreSwitch';
 import { FocusItem } from '../../../../../../../ui/focus/FocusItem';
 import { getSortOptions, getSourceOptions } from '../../../../../../Download/components/FilterBar.constants';
 import type { FilterOption } from '../../../../../../Download/hooks/useResourceDownload';
 import { getLocalizedDownloadOptionLabel } from '../../../../../../Download/logic/downloadTagLabels';
+import { useDownloadLayoutStore } from '../../../../../../Download/stores/useDownloadLayoutStore';
 
 interface InstanceFilterBarProps {
   onBack: () => void;
@@ -72,6 +74,8 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
   onReset
 }) => {
   const { t, i18n } = useTranslation();
+  const forceDoubleColumn = useDownloadLayoutStore((state) => state.forceDoubleColumn);
+  const setForceDoubleColumn = useDownloadLayoutStore((state) => state.setForceDoubleColumn);
 
   const pageMeta = React.useMemo(() => {
     if (resourceTab === 'resourcepack') {
@@ -208,7 +212,14 @@ export const InstanceFilterBar: React.FC<InstanceFilterBarProps> = ({
             </div>
           </div>
 
-          <div className="flex flex-1 justify-end">
+          <div className="flex flex-1 justify-end items-center gap-3">
+            <OreSwitch
+              focusKey="inst-filter-switch-double-column"
+              checked={forceDoubleColumn}
+              onChange={setForceDoubleColumn}
+              label={t('download.filters.forceDoubleColumn', { defaultValue: '强制双列' })}
+              className="text-xs"
+            />
             <div className="flex flex-wrap items-center gap-2 rounded-sm border border-ore-green/30 bg-ore-green/10 px-3 py-2 text-xs font-minecraft tracking-wider text-ore-green">
               <span className="text-white/70">已锁定环境</span>
               <span className="rounded-sm border border-white/10 bg-black/30 px-2 py-1 text-white">

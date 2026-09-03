@@ -122,7 +122,8 @@
       "sort": "排序",
       "versionFilters": "版本筛选",
       "moreHistory": "更多历史版本",
-      "snapshots": "快照 / 预览"
+      "snapshots": "快照 / 预览",
+      "forceDoubleColumn": "强制双列"
     },
     "sort": {
       "relevance": "综合排序",

@@ -5,6 +5,7 @@ import { OreOverlayScrollArea } from '../../../ui/primitives/OreOverlayScrollAre
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import { ShimmerOverlay } from './ShimmerOverlay';
 import { useScreenDensity } from '../../../hooks/ui/useScreenDensity';
+import { useDownloadLayoutStore } from '../stores/useDownloadLayoutStore';
 
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import type { InstalledModIndex, ModMeta } from '../../InstanceDetail/logic/modService';
@@ -27,7 +28,7 @@ interface ResourceGridContext {
   onRetryLoadMore?: () => void;
 }
 
-const ResourceGridFooter: React.FC<{ context?: ResourceGridContext }> = ({ context }) => {
+const ResourceGridFooter: React.FC<{ context?: ResourceGridContext; isDoubleColumn?: boolean }> = ({ context, isDoubleColumn = false }) => {
   if (!context) return null;
   const { hasMore, isLoadingMore, loadMoreFailed, onRetryLoadMore } = context;
 
@@ -57,7 +58,7 @@ const ResourceGridFooter: React.FC<{ context?: ResourceGridContext }> = ({ conte
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -15 }}
             transition={{ duration: 0.25, ease: 'easeInOut' }}
-            className="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] w-full pt-[0.75rem] px-[1rem]"
+            className={`grid ${isDoubleColumn ? 'grid-cols-2' : 'grid-cols-1'} gap-[0.75rem] w-full pt-[0.75rem] px-[1rem]`}
           >
             {Array.from({ length: 2 }).map((_, i) => (
               <ResourceCardSkeleton key={`loadmore-skeleton-${i}`} />
@@ -176,13 +177,20 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
   const [shouldAnimateLayout, setShouldAnimateLayout] = useState(false);
   const reflowTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const forceDoubleColumn = useDownloadLayoutStore((state) => state.forceDoubleColumn);
   const density = useScreenDensity();
-  const [isDoubleColumn, setIsDoubleColumn] = useState(() => window.innerWidth > 1920 && density !== 'compact');
+
+  const computeDoubleColumn = useCallback(() => {
+    if (forceDoubleColumn) return true;
+    return window.innerWidth > 1920 && density !== 'compact';
+  }, [forceDoubleColumn, density]);
+
+  const [isDoubleColumn, setIsDoubleColumn] = useState(computeDoubleColumn);
   const lastFocusedIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
     const handleResize = () => {
-      const double = window.innerWidth > 1920 && density !== 'compact';
+      const double = computeDoubleColumn();
       if (double !== isDoubleColumn) {
         setShouldAnimateLayout(true);
         if (reflowTimeoutRef.current) {
@@ -212,7 +220,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
         clearTimeout(reflowTimeoutRef.current);
       }
     };
-  }, [isDoubleColumn, density]);
+  }, [computeDoubleColumn, isDoubleColumn]);
 
   useEffect(() => {
     latestLoadMoreRef.current = { hasMore, isLoading, isLoadingMore, loadMoreFailed, onLoadMore };
@@ -437,7 +445,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
                         width: '100%',
                         transform: `translateY(${virtualRow.start + 24}px)`,
                       }}
-                      className="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] px-[1rem] pb-[0.5rem]"
+                      className={`grid ${isDoubleColumn ? 'grid-cols-2' : 'grid-cols-1'} gap-[0.75rem] px-[1rem] pb-[0.5rem]`}
                     >
                       {rowData.map((item, colIndex) => {
                         const itemIndex = isDoubleColumn ? rowIndex * 2 + colIndex : rowIndex;
@@ -469,7 +477,10 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
                 })}
               </div>
 
-              <ResourceGridFooter context={{ hasMore, isLoadingMore, loadMoreFailed, onRetryLoadMore }} />
+              <ResourceGridFooter
+                context={{ hasMore, isLoadingMore, loadMoreFailed, onRetryLoadMore }}
+                isDoubleColumn={isDoubleColumn}
+              />
             </OreOverlayScrollArea>
           </LayoutGroup>
         </FocusBoundary>
@@ -490,7 +501,7 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
             }}
             className="absolute inset-0 z-30 bg-[#313233] px-[1rem] pt-0 overflow-y-auto custom-scrollbar"
           >
-            <div className="grid grid-cols-1 min-[1921px]:grid-cols-2 gap-[0.75rem] pb-[1.5rem] pt-[1.5rem]">
+            <div className={`grid ${isDoubleColumn ? 'grid-cols-2' : 'grid-cols-1'} gap-[0.75rem] pb-[1.5rem] pt-[1.5rem]`}>
               {Array.from({ length: 6 }).map((_, i) => (
                 <ResourceCardSkeleton key={i} />
               ))}
