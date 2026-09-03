@@ -114,7 +114,7 @@ export const useAchievementPanel = (instanceId: string) => {
 
   // 3. 监听 EventBus 实时事件 (成就达成 / 会话结束时自动刷新)
   useAchievementEvents({
-    instanceId,
+    filterInstanceId: instanceId,
     onUnlocked: () => {
       loadAdvancements(false);
     },

@@ -21,6 +21,7 @@ export type DetailTabType =
   | 'basic'
   | 'java'
   | 'saves'
+  | 'achievements'
   | 'mods'
   | 'resourcepacks'
   | 'shaders'

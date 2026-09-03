@@ -15,7 +15,6 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { FocusBoundary } from '../../../../ui/focus/FocusBoundary';
-import { FocusItem } from '../../../../ui/focus/FocusItem';
 import { OreButton } from '../../../../ui/primitives/OreButton';
 import { OreSegmentedControl, type TabItem } from '../../../../ui/primitives/OreSegmentedControl';
 import { OreToggleButton, type ToggleOption } from '../../../../ui/primitives/OreToggleButton';
@@ -141,22 +140,17 @@ export const AchievementPanel: React.FC<{ instanceId: string }> = ({ instanceId 
             </div>
           )}
 
-          <FocusItem focusKey="achievement-btn-refresh" onEnter={refresh}>
-            {({ ref, focused }) => (
-              <OreButton
-                ref={ref}
-                focused={focused}
-                variant="secondary"
-                size="sm"
-                onClick={refresh}
-                disabled={isRefreshing || !selectedWorld}
-                className="flex items-center gap-1 text-xs"
-              >
-                <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} />
-                刷新
-              </OreButton>
-            )}
-          </FocusItem>
+          <OreButton
+            focusKey="achievement-btn-refresh"
+            variant="secondary"
+            size="sm"
+            onClick={refresh}
+            disabled={isRefreshing || !selectedWorld}
+            className="flex items-center gap-1 text-xs"
+          >
+            <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} />
+            刷新
+          </OreButton>
         </div>
       </div>
 

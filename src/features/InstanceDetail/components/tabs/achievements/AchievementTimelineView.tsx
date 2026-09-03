@@ -136,7 +136,7 @@ export const AchievementTimelineView: React.FC<AchievementTimelineViewProps> = (
                                   </span>
                                 )}
                                 {item.isFirstCareerUnlock && (
-                                  <OreTag variant="gold" size="sm" className="px-1 py-0 text-[10px] leading-none font-pixel">
+                                  <OreTag variant="notice" size="sm" className="px-1 py-0 text-[10px] leading-none font-pixel">
                                     首通
                                   </OreTag>
                                 )}

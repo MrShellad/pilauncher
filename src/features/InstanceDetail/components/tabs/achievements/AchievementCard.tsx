@@ -172,7 +172,7 @@ export const AchievementCard: React.FC<AchievementCardProps> = ({ item, onClick 
               )}
 
               {isFirstCareerUnlock && (
-                <OreTag variant="gold" size="sm" className="px-1 py-0 text-[10px] leading-none shrink-0 font-pixel">
+                <OreTag variant="notice" size="sm" className="px-1 py-0 text-[10px] leading-none shrink-0 font-pixel">
                   首通
                 </OreTag>
               )}

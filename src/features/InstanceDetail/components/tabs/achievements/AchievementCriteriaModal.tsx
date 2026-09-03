@@ -78,18 +78,18 @@ export const AchievementCriteriaModal: React.FC<AchievementCriteriaModalProps> =
           </div>
           <div className="flex flex-col items-end gap-1 shrink-0">
             {isCompleted ? (
-              <OreTag variant="green" size="sm" className="flex items-center gap-1">
+              <OreTag variant="success" size="sm" className="flex items-center gap-1">
                 <CheckCircle2 size={12} />
                 已完全达成
               </OreTag>
             ) : (
-              <OreTag variant="yellow" size="sm" className="flex items-center gap-1">
+              <OreTag variant="warning" size="sm" className="flex items-center gap-1">
                 <Clock size={12} />
                 推进中 ({criteriaList.length} 条件满足)
               </OreTag>
             )}
             {isFirstCareerUnlock && (
-              <OreTag variant="gold" size="sm" className="flex items-center gap-1">
+              <OreTag variant="notice" size="sm" className="flex items-center gap-1">
                 <Award size={12} />
                 生涯首次
               </OreTag>
