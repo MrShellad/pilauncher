@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useEvent } from '../../../hooks/useEvent';
 
@@ -24,6 +24,7 @@ export const useLogScrollController = ({
   scrollElement,
   virtualizer,
 }: UseLogScrollControllerOptions) => {
+  const [isAutoScroll, setIsAutoScroll] = useState(true);
   const isAutoScrollRef = useRef(true);
   const isProgrammaticScrollRef = useRef(false);
   const releaseProgrammaticScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -32,13 +33,20 @@ export const useLogScrollController = ({
     if (isProgrammaticScrollRef.current) return;
 
     const target = event.currentTarget;
-    isAutoScrollRef.current = target.scrollHeight - target.scrollTop - target.clientHeight <= 10;
+    const atBottom = target.scrollHeight - target.scrollTop - target.clientHeight <= 20;
+    if (isAutoScrollRef.current !== atBottom) {
+      isAutoScrollRef.current = atBottom;
+      setIsAutoScroll(atBottom);
+    }
   }, []);
 
   const handleWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
     isProgrammaticScrollRef.current = false;
     if (event.deltaY < 0) {
-      isAutoScrollRef.current = false;
+      if (isAutoScrollRef.current) {
+        isAutoScrollRef.current = false;
+        setIsAutoScroll(false);
+      }
     }
   }, []);
 
@@ -86,8 +94,16 @@ export const useLogScrollController = ({
     scrollElement.scrollTop += deltaY;
   });
 
+  const handleJumpToBottom = useCallback(() => {
+    isAutoScrollRef.current = true;
+    setIsAutoScroll(true);
+    scrollToBottom();
+  }, [scrollToBottom]);
+
   return {
     handleScroll,
     handleWheel,
+    isAutoScroll,
+    scrollToBottom: handleJumpToBottom,
   };
 };

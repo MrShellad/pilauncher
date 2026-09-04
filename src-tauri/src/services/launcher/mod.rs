@@ -3,9 +3,13 @@ pub mod builder;
 pub mod pre_launch_check;
 pub mod resolver;
 
+use std::collections::VecDeque;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
+use once_cell::sync::Lazy;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
@@ -25,6 +29,41 @@ use builder::{LaunchCommandBuilder, LaunchPreparationError};
 use resolver::ConfigResolver;
 
 pub struct LauncherService;
+
+pub static LOG_STREAMING_ENABLED: AtomicBool = AtomicBool::new(true);
+
+const RECENT_LOGS_CAPACITY: usize = 1000;
+pub static RECENT_LOGS_BUFFER: Lazy<Mutex<VecDeque<String>>> =
+    Lazy::new(|| Mutex::new(VecDeque::with_capacity(RECENT_LOGS_CAPACITY)));
+
+pub fn set_log_streaming_enabled(enabled: bool) {
+    LOG_STREAMING_ENABLED.store(enabled, Ordering::Relaxed);
+}
+
+pub fn push_recent_log(line: String) {
+    if let Ok(mut buffer) = RECENT_LOGS_BUFFER.lock() {
+        if buffer.len() >= RECENT_LOGS_CAPACITY {
+            buffer.pop_front();
+        }
+        buffer.push_back(line);
+    }
+}
+
+pub fn get_recent_logs(max_lines: Option<usize>) -> Vec<String> {
+    if let Ok(buffer) = RECENT_LOGS_BUFFER.lock() {
+        let count = max_lines.unwrap_or(RECENT_LOGS_CAPACITY).min(buffer.len());
+        let start = buffer.len().saturating_sub(count);
+        buffer.iter().skip(start).cloned().collect()
+    } else {
+        Vec::new()
+    }
+}
+
+pub fn clear_recent_logs() {
+    if let Ok(mut buffer) = RECENT_LOGS_BUFFER.lock() {
+        buffer.clear();
+    }
+}
 
 const LOG_BATCH_INTERVAL: Duration = Duration::from_millis(250);
 const LOG_BATCH_MAX_LINES: usize = 64;
@@ -296,27 +335,38 @@ async fn flush_game_log_batch<R: Runtime>(
         return;
     }
 
+    let streaming_enabled = LOG_STREAMING_ENABLED.load(Ordering::Relaxed);
     let mut disk_batch = String::new();
-    let lines = pending
-        .drain(..)
-        .map(|record| {
-            disk_batch.push_str(record.stream);
-            disk_batch.push_str(record.line.as_str());
-            disk_batch.push('\n');
-            record.line
-        })
-        .collect();
+    let mut lines = Vec::new();
+
+    if streaming_enabled {
+        lines.reserve(pending.len());
+    }
+
+    for record in pending.drain(..) {
+        disk_batch.push_str(record.stream);
+        disk_batch.push_str(record.line.as_str());
+        disk_batch.push('\n');
+        if streaming_enabled {
+            lines.push(record.line);
+        }
+    }
+
     if file.write_all(disk_batch.as_bytes()).await.is_ok() {
         *persisted_bytes += disk_batch.len() as u64;
     }
 
-    let batch = GameLogBatch {
-        lines,
-        game_state: game_state.take(),
-        telemetry: telemetry.clone(),
-        latest_lan_port: latest_lan_port.clone(),
-    };
-    let _ = app.emit("game-log-batch", batch);
+    let state_update = game_state.take();
+    // 关键优化：如果推流开启，或者发生了状态流转/新检测到局域网端口，才发送 IPC 事件
+    if streaming_enabled || state_update.is_some() || latest_lan_port.is_some() {
+        let batch = GameLogBatch {
+            lines,
+            game_state: state_update,
+            telemetry: telemetry.clone(),
+            latest_lan_port: latest_lan_port.clone(),
+        };
+        let _ = app.emit("game-log-batch", batch);
+    }
 }
 
 async fn aggregate_game_logs<R: Runtime>(
@@ -364,6 +414,7 @@ async fn aggregate_game_logs<R: Runtime>(
                     let now = std::time::Instant::now();
                     launch_progress_dirty |= launch_progress.observe_line(&record.line, now);
                     launch_progress_dirty |= launch_progress.observe_game_state(game_state.as_deref(), now);
+                    push_recent_log(record.line.clone());
                     pending.push(record);
                     total_lines += 1;
                     if pending.len() >= LOG_BATCH_MAX_LINES {
@@ -1050,6 +1101,8 @@ Module Path Entries: {}\n\
             Some(&player_uuid),
             Some(&player_name),
         );
+
+        clear_recent_logs();
 
         let stdout = child.stdout.take().unwrap();
         let stderr = child.stderr.take().unwrap();

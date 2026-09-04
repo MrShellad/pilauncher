@@ -143,13 +143,14 @@ export const LogShareDialog: React.FC<LogShareDialogProps> = ({
           <>
             <OreButton
               focusKey="logshare-copy-url"
-              variant="secondary"
+              variant={copiedShareUrl ? 'primary' : 'secondary'}
               size="auto"
               onClick={onCopyUrl}
               disabled={!report.upload.url}
+              className="min-w-[110px] justify-center transition-all"
             >
-              {copiedShareUrl ? <Check size={16} className="mr-2 text-ore-green" /> : <Copy size={16} className="mr-2" />}
-              {copiedShareUrl ? t('gameLog.shareDialog.copied', '已复制') : t('gameLog.shareDialog.copyLink', '复制链接')}
+              {copiedShareUrl ? <Check size={16} className="mr-2 shrink-0 text-white" /> : <Copy size={16} className="mr-2 shrink-0" />}
+              <span>{copiedShareUrl ? t('gameLog.shareDialog.copied', '已复制') : t('gameLog.shareDialog.copyLink', '复制链接')}</span>
             </OreButton>
             <OreButton
               focusKey="logshare-open-url"

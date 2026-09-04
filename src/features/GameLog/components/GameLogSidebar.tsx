@@ -1,6 +1,24 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Terminal, Loader2, AlertTriangle, Bug, Activity, Check, Share2, ChevronRight, Power, Copy, FolderOpen, X } from 'lucide-react';
+import {
+  Terminal,
+  Loader2,
+  AlertTriangle,
+  Bug,
+  Activity,
+  Check,
+  Share2,
+  ChevronRight,
+  Power,
+  Copy,
+  FolderOpen,
+  X,
+  Maximize2,
+  Minimize2,
+  Trash2,
+  Package,
+  Lightbulb
+} from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import { OreConfirmDialog } from '../../../ui/primitives/OreConfirmDialog';
@@ -20,6 +38,7 @@ import { useLogShare } from '../hooks/useLogShare';
 import { TelemetryPanel } from './TelemetryPanel';
 import { LogView } from './LogView';
 import { LogShareDialog } from './LogShareDialog';
+import { formatDiagnosisReport } from '../logic/crashAnalyzer';
 import { useScreenDensity } from '../../../hooks/ui/useScreenDensity';
 
 const EMPTY_LOGS: string[] = [];
@@ -36,14 +55,17 @@ export const GameLogSidebar: React.FC = () => {
   const currentInstanceId = useGameLogStore((state) => state.currentInstanceId);
   const gameState = useGameLogStore((state) => state.gameState);
   const crashReason = useGameLogStore((state) => state.crashReason);
+  const crashDiagnosis = useGameLogStore((state) => state.crashDiagnosis);
   const telemetry = useGameLogStore((state) => state.telemetry);
   const clearLogs = useGameLogStore((state) => state.clearLogs);
   // Keep the always-mounted shell independent of high-frequency log batches while closed.
-  const logs = useGameLogStore((state) => isOpen ? state.logs : EMPTY_LOGS);
+  const logs = useGameLogStore((state) => (isOpen ? state.logs : EMPTY_LOGS));
   const hasDownloadTasks = useDownloadStore((state) => Object.keys(state.tasks).length > 0);
   const isDownloadPopupOpen = useDownloadStore((state) => state.isPopupOpen);
   const isGameTerminated = gameState === 'crashed' || gameState === 'idle';
 
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [copiedDiag, setCopiedDiag] = useState(false);
   const [showTelemetry, setShowTelemetry] = useState(false);
   const [exportedZipPath, setExportedZipPath] = useState<string | null>(null);
   const [showExportError, setShowExportError] = useState<string | null>(null);
@@ -130,7 +152,7 @@ export const GameLogSidebar: React.FC = () => {
 
   // Y 键直驱：无论焦点在哪里，只要面板打开，按 Y 键直接切换遥测抽屉
   useInputAction('ACTION_Y', () => {
-    if (isOpen) setShowTelemetry(prev => !prev);
+    if (isOpen) setShowTelemetry((prev) => !prev);
   });
 
   const telemetryItems = [
@@ -151,167 +173,283 @@ export const GameLogSidebar: React.FC = () => {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ x: '100%', opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: '100%', opacity: 0 }}
+            initial={{ x: '100%', opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: '100%', opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className={`fixed top-0 right-0 h-full bg-[#141415] border-l-[3px] border-[#1E1E1F] shadow-2xl z-[90] flex flex-col font-minecraft ${isCompact ? 'w-screen' : 'w-[820px]'}`}
+            className={`fixed top-0 right-0 h-full bg-[#141415] border-l-[3px] border-[#1E1E1F] shadow-2xl z-[90] flex flex-col font-minecraft transition-all duration-200 ${
+              isMaximized
+                ? 'w-screen'
+                : isCompact
+                ? 'w-screen'
+                : 'w-[min(1080px,94vw)] xl:w-[min(1240px,88vw)] 2xl:w-[min(1420px,82vw)]'
+            }`}
           >
-            <FocusBoundary id="game-log-sidebar" trapFocus={isOpen} onEscape={closeSidebarAndRestoreFocus} className="flex flex-col h-full min-h-0 outline-none">
-
-            <div className="h-14 bg-[#1E1E1F] flex items-center justify-between px-4 shrink-0 shadow-sm z-20">
-              <div className="flex items-center text-white">
-                <Terminal size={18} className="mr-2 text-ore-green" />
-                <span className="font-bold tracking-wide">{t('gameLog.sidebar.title', '控制台与日志')}</span>
-                <div className="ml-4 flex items-center">
-                  {gameState === 'launching' && <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-sm flex items-center"><Loader2 size={12} className="mr-1 animate-spin"/> {t('gameLog.sidebar.initializing', '初始化中')}</span>}
-                  {gameState === 'running' && <span className="text-xs bg-ore-green/20 text-ore-green px-2 py-0.5 rounded-sm flex items-center"><span className="w-1.5 h-1.5 bg-ore-green rounded-full mr-1.5 animate-pulse"/> {t('gameLog.sidebar.running', '运行中')}</span>}
-                  {gameState === 'crashed' && <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-sm flex items-center"><Bug size={12} className="mr-1"/> {t('gameLog.sidebar.crashed', '已崩溃')}</span>}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <FocusItem focusKey="log-btn-telemetry" onEnter={() => setShowTelemetry(!showTelemetry)}>
-                  {({ ref, focused }) => (
-                    <button
-                      ref={ref as React.Ref<HTMLButtonElement>}
-                      onClick={() => setShowTelemetry(!showTelemetry)}
-                      className={`flex items-center outline-none text-xs px-2 py-1.5 rounded-sm transition-colors ${showTelemetry ? 'bg-white/10 text-white' : 'text-ore-text-muted hover:text-white hover:bg-white/5'} ${focused ? 'ring-2 ring-white scale-105 bg-white/10' : ''}`}
-                    >
-                      <Activity size={14} className="mr-1.5" />
-                      <span className="[.intent-controller_&]:hidden">{t('gameLog.sidebar.telemetry', '性能遥测')}</span>
-                      <span className="hidden [.intent-controller_&]:flex items-center gap-1.5">
-                        {t('gameLog.sidebar.telemetry', '性能遥测')} <div className="w-3.5 h-3.5 rounded-full bg-[#EAB308] text-black flex items-center justify-center text-[9px] font-bold">Y</div>
+            <FocusBoundary
+              id="game-log-sidebar"
+              trapFocus={isOpen}
+              onEscape={closeSidebarAndRestoreFocus}
+              className="flex flex-col h-full min-h-0 outline-none"
+            >
+              {/* Header */}
+              <div
+                onDoubleClick={() => !isCompact && setIsMaximized((prev) => !prev)}
+                className="h-13 bg-[#1E1E1F] border-b border-white/[0.08] flex items-center justify-between px-4 shrink-0 shadow-sm z-20 select-none cursor-default"
+              >
+                <div className="flex items-center text-white">
+                  <Terminal size={18} className="mr-2 text-ore-green" />
+                  <span className="font-bold tracking-wide">{t('gameLog.sidebar.title', '控制台与日志')}</span>
+                  <div className="ml-4 flex items-center">
+                    {gameState === 'launching' && (
+                      <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-sm flex items-center">
+                        <Loader2 size={12} className="mr-1 animate-spin" /> {t('gameLog.sidebar.initializing', '初始化中')}
                       </span>
-                    </button>
-                  )}
-                </FocusItem>
-
-                <FocusItem focusKey="log-btn-close" onEnter={closeSidebarAndRestoreFocus}>
-                  {({ ref, focused }) => (
-                    <button
-                      ref={ref as React.Ref<HTMLButtonElement>}
-                      type="button"
-                      aria-label={t('common.close', '关闭')}
-                      title={t('common.close', '关闭')}
-                      onClick={closeSidebarAndRestoreFocus}
-                      className={`flex h-8 w-8 items-center justify-center rounded-sm text-ore-text-muted outline-none transition-colors hover:bg-white/5 hover:text-white ${focused ? 'ring-2 ring-white scale-105 bg-white/10 text-white' : ''}`}
-                    >
-                      <X size={16} />
-                    </button>
-                  )}
-                </FocusItem>
-              </div>
-            </div>
-
-            <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
-              <TelemetryPanel showTelemetry={showTelemetry} telemetryItems={telemetryItems} />
-
-              <AnimatePresence>
-                {gameState === 'launching' && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                    className="relative shrink-0 w-full bg-blue-600/10 border-b border-blue-500/30 overflow-hidden z-10"
-                  >
-                    <div className="p-2 flex items-center justify-center text-blue-400 text-xs bg-[#0F172A]/80">
-                      <Loader2 size={14} className="mr-2 animate-spin" />
-                      {t('gameLog.sidebar.pipelineWait', '建立日志管道并启动虚拟机，请稍候...')}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {gameState === 'crashed' && crashReason && (
-                <div className="shrink-0 bg-red-950/40 border-b border-red-900/50 p-4 relative z-10">
-                  <div className="flex items-start">
-                    <AlertTriangle size={24} className="text-red-500 mr-3 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-red-400 font-bold mb-1">{t('gameLog.sidebar.autoDiag', '自动诊断报告')}</h4>
-                      <p className="text-sm text-red-200/80 leading-relaxed">{crashReason}</p>
-                    </div>
+                    )}
+                    {gameState === 'running' && (
+                      <span className="text-xs bg-ore-green/20 text-ore-green px-2 py-0.5 rounded-sm flex items-center">
+                        <span className="w-1.5 h-1.5 bg-ore-green rounded-full mr-1.5 animate-pulse" /> {t('gameLog.sidebar.running', '运行中')}
+                      </span>
+                    )}
+                    {gameState === 'crashed' && (
+                      <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-sm flex items-center">
+                        <Bug size={12} className="mr-1" /> {t('gameLog.sidebar.crashed', '已崩溃')}
+                      </span>
+                    )}
                   </div>
                 </div>
-              )}
 
-              <LogView logs={logs} isOpen={isOpen} />
-            </div>
+                <div className="flex items-center gap-2">
+                  <FocusItem focusKey="log-btn-telemetry" onEnter={() => setShowTelemetry(!showTelemetry)}>
+                    {({ ref, focused }) => (
+                      <button
+                        ref={ref as React.Ref<HTMLButtonElement>}
+                        type="button"
+                        onClick={() => setShowTelemetry(!showTelemetry)}
+                        className={`flex items-center outline-none text-xs px-2 py-1.5 rounded-sm transition-colors ${
+                          showTelemetry ? 'bg-white/10 text-white' : 'text-ore-text-muted hover:text-white hover:bg-white/5'
+                        } ${focused ? 'ring-2 ring-white scale-105 bg-white/10' : ''}`}
+                      >
+                        <Activity size={14} className="mr-1.5" />
+                        <span className="[.intent-controller_&]:hidden">{t('gameLog.sidebar.telemetry', '性能遥测')}</span>
+                        <span className="hidden [.intent-controller_&]:flex items-center gap-1.5">
+                          {t('gameLog.sidebar.telemetry', '性能遥测')}{' '}
+                          <div className="w-3.5 h-3.5 rounded-full bg-[#EAB308] text-black flex items-center justify-center text-[9px] font-bold">
+                            Y
+                          </div>
+                        </span>
+                      </button>
+                    )}
+                  </FocusItem>
 
-            <div className="h-16 bg-[#1E1E1F] border-t-[3px] border-[#1E1E1F] flex items-center justify-between px-4 shrink-0 shadow-sm z-20">
-              <div className="text-xs text-ore-text-muted flex items-center">
-                <span className="inline-block w-2 h-2 rounded-full bg-ore-green animate-pulse mr-2"></span>
-                {t('gameLog.sidebar.linesCaptured', '{{count}} Lines captured', { count: logs.length })}
+                  {!isCompact && (
+                    <FocusItem focusKey="log-btn-maximize" onEnter={() => setIsMaximized((prev) => !prev)}>
+                      {({ ref, focused }) => (
+                        <button
+                          ref={ref as React.Ref<HTMLButtonElement>}
+                          type="button"
+                          aria-label={isMaximized ? t('gameLog.sidebar.restore', '还原') : t('gameLog.sidebar.maximize', '最大化')}
+                          title={isMaximized ? t('gameLog.sidebar.restore', '还原') : t('gameLog.sidebar.maximize', '最大化')}
+                          onClick={() => setIsMaximized((prev) => !prev)}
+                          className={`flex h-8 w-8 items-center justify-center rounded-sm text-ore-text-muted outline-none transition-colors hover:bg-white/5 hover:text-white ${
+                            focused ? 'ring-2 ring-white scale-105 bg-white/10 text-white' : ''
+                          }`}
+                        >
+                          {isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                        </button>
+                      )}
+                    </FocusItem>
+                  )}
+
+                  <FocusItem focusKey="log-btn-close" onEnter={closeSidebarAndRestoreFocus}>
+                    {({ ref, focused }) => (
+                      <button
+                        ref={ref as React.Ref<HTMLButtonElement>}
+                        type="button"
+                        aria-label={t('common.close', '关闭')}
+                        title={t('common.close', '关闭')}
+                        onClick={closeSidebarAndRestoreFocus}
+                        className={`flex h-8 w-8 items-center justify-center rounded-sm text-ore-text-muted outline-none transition-colors hover:bg-white/5 hover:text-white ${
+                          focused ? 'ring-2 ring-white scale-105 bg-white/10 text-white' : ''
+                        }`}
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </FocusItem>
+                </div>
               </div>
-              <div className="flex items-center space-x-3">
 
-                {gameState === 'crashed' && (
+              {/* Main log content area */}
+              <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
+                <TelemetryPanel showTelemetry={showTelemetry} telemetryItems={telemetryItems} />
+
+                <AnimatePresence>
+                  {gameState === 'launching' && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="relative shrink-0 w-full bg-blue-600/10 border-b border-blue-500/30 overflow-hidden z-10"
+                    >
+                      <div className="p-2 flex items-center justify-center text-blue-400 text-xs bg-[#0F172A]/80">
+                        <Loader2 size={14} className="mr-2 animate-spin" />
+                        {t('gameLog.sidebar.pipelineWait', '建立日志管道并启动虚拟机，请稍候...')}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {gameState === 'crashed' && (crashDiagnosis || crashReason) && (
+                  <div className="shrink-0 bg-gradient-to-r from-red-950/70 via-red-950/45 to-[#141415] border-b border-red-900/60 p-4 relative z-10 select-text">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className="w-8 h-8 rounded-sm bg-red-900/40 border border-red-700/50 flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+                          <AlertTriangle size={18} className="text-red-400" />
+                        </div>
+                        <div className="flex-1 min-w-0 space-y-1.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-red-300 font-bold text-sm tracking-wide">
+                              {crashDiagnosis ? crashDiagnosis.title : t('gameLog.sidebar.autoDiag', '自动诊断报告')}
+                            </h4>
+                            {crashDiagnosis?.category && (
+                              <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded-xs bg-red-900/60 text-red-200 border border-red-700/50">
+                                {crashDiagnosis.category}
+                              </span>
+                            )}
+                            {crashDiagnosis?.extractedDetail && (
+                              <span className="text-[11px] font-mono px-2 py-0.5 rounded-xs bg-amber-500/15 text-amber-200 border border-amber-500/30 truncate max-w-[320px]">
+                                {crashDiagnosis.extractedDetail}
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="text-xs text-red-200/90 leading-relaxed break-words">
+                            {crashDiagnosis ? crashDiagnosis.description : crashReason}
+                          </p>
+
+                          {crashDiagnosis?.solution && (
+                            <div className="mt-2 flex items-start gap-2 p-2.5 rounded-sm bg-emerald-950/40 border border-emerald-500/30 text-emerald-200 text-xs leading-relaxed">
+                              <Lightbulb size={15} className="text-emerald-400 shrink-0 mt-0.5" />
+                              <div>
+                                <span className="font-bold text-emerald-300 mr-1.5">建议排查方案:</span>
+                                <span>{crashDiagnosis.solution}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <OreButton
+                        focusKey="log-btn-copy-diag"
+                        variant={copiedDiag ? 'primary' : 'secondary'}
+                        size="sm"
+                        onClick={() => {
+                          const reportText = crashDiagnosis
+                            ? formatDiagnosisReport(crashDiagnosis)
+                            : String(crashReason);
+                          void navigator.clipboard.writeText(reportText);
+                          setCopiedDiag(true);
+                          setTimeout(() => setCopiedDiag(false), 2000);
+                        }}
+                        className="shrink-0 text-xs mt-0.5 min-w-[96px] justify-center transition-all"
+                      >
+                        {copiedDiag ? <Check size={13} className="mr-1 shrink-0" /> : <Copy size={13} className="mr-1 shrink-0" />}
+                        <span>{copiedDiag ? t('gameLog.sidebar.diagCopied', '已复制') : t('gameLog.sidebar.copyDiag', '复制诊断')}</span>
+                      </OreButton>
+                    </div>
+                  </div>
+                )}
+
+                <LogView logs={logs} isOpen={isOpen} />
+              </div>
+
+              {/* Bottom footer bar */}
+              <div className="h-14 bg-[#1E1E1F] border-t border-white/[0.08] flex items-center justify-between px-4 shrink-0 shadow-sm z-20">
+                <div className="text-xs text-ore-text-muted flex items-center select-none font-mono">
+                  <span className="inline-block w-2 h-2 rounded-full bg-ore-green animate-pulse mr-2" />
+                  {t('gameLog.sidebar.linesCaptured', '{{count}} Lines captured', { count: logs.length })}
+                </div>
+                <div className="flex items-center space-x-2">
                   <OreButton
                     focusKey="log-btn-copyall"
+                    variant={copiedAll ? 'primary' : 'secondary'}
+                    size="sm"
+                    disabled={logs.length === 0}
+                    onClick={handleCopyAll}
+                    className="min-w-[102px] justify-center transition-all"
+                  >
+                    {copiedAll ? <Check size={14} className="mr-1 shrink-0" /> : <Copy size={14} className="mr-1 shrink-0" />}
+                    <span>{copiedAll ? t('gameLog.sidebar.copied', '已复制') : t('gameLog.sidebar.copyAll', '复制全部')}</span>
+                  </OreButton>
+
+                  <OreButton
+                    focusKey="log-btn-clear"
                     variant="secondary"
                     size="sm"
-                    onClick={handleCopyAll}
-                    style={{ color: copiedAll ? '#4ade80' : undefined }}
+                    disabled={logs.length === 0}
+                    onClick={clearLogs}
+                    title={t('gameLog.sidebar.clear', '清屏')}
                   >
-                    {copiedAll ? <Check size={14} className="mr-1"/> : <Copy size={14} className="mr-1" />}
-                    {copiedAll ? t('gameLog.sidebar.copied', '已复制') : t('gameLog.sidebar.copyAll', '复制全部')}
+                    <Trash2 size={14} className="mr-1" />
+                    {t('gameLog.sidebar.clear', '清屏')}
                   </OreButton>
-                )}
 
-                <OreButton
-                  focusKey="log-btn-share-online"
-                  variant={gameState === 'crashed' ? 'primary' : 'secondary'}
-                  size="sm"
-                  disabled={logs.length === 0 || isSharing}
-                  onClick={handleOpenLogShare}
-                >
-                  {isSharing ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Share2 size={14} className="mr-1" />}
-                  {isSharing ? t('gameLog.shareDialog.uploading', '上传中...') : t('gameLog.shareDialog.upload', '上传日志')}
-                </OreButton>
-
-                <OreButton
-                  focusKey="log-btn-zip"
-                  variant="secondary"
-                  size="sm"
-                  disabled={isExporting}
-                  onClick={onGenerateDiag}
-                >
-                  {isExporting ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Share2 size={14} className="mr-1" />}
-                  {isExporting ? t('gameLog.sidebar.packing', '打包中...') : t('gameLog.sidebar.diagPack', '诊断包')}
-                </OreButton>
-
-                {(gameState === 'launching' || gameState === 'running') && (
                   <OreButton
-                    focusKey="log-btn-kill"
-                    variant="danger"
+                    focusKey="log-btn-share-online"
+                    variant={gameState === 'crashed' ? 'primary' : 'secondary'}
                     size="sm"
-                    onClick={() => setShowKillConfirm(true)}
+                    disabled={logs.length === 0 || isSharing}
+                    onClick={handleOpenLogShare}
                   >
-                    <Power size={14} className="mr-1" /> {t('gameLog.sidebar.killProcess', '结束进程')}
+                    {isSharing ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Share2 size={14} className="mr-1" />}
+                    {isSharing ? t('gameLog.shareDialog.uploading', '上传中...') : t('gameLog.shareDialog.upload', '上传日志')}
                   </OreButton>
-                )}
 
-                <div className="w-px h-4 bg-white/10 mx-1"></div>
+                  <OreButton
+                    focusKey="log-btn-zip"
+                    variant="secondary"
+                    size="sm"
+                    disabled={isExporting}
+                    onClick={onGenerateDiag}
+                  >
+                    {isExporting ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Package size={14} className="mr-1" />}
+                    {isExporting ? t('gameLog.sidebar.packing', '打包中...') : t('gameLog.sidebar.diagPack', '诊断包')}
+                  </OreButton>
 
-                <OreButton
-                  focusKey={isGameTerminated ? 'log-btn-close-panel' : 'log-btn-hide-panel'}
-                  variant="primary"
-                  size="md"
-                  onClick={closeSidebarAndRestoreFocus}
-                >
-                  {isGameTerminated ? (
-                    <>
-                      {t('gameLog.sidebar.closePanel', '关闭面板')} <X size={16} className="ml-1" />
-                    </>
-                  ) : (
-                    <>
-                      {t('gameLog.sidebar.hidePanel', '隐藏面板')} <ChevronRight size={16} className="ml-1" />
-                    </>
+                  {(gameState === 'launching' || gameState === 'running') && (
+                    <OreButton
+                      focusKey="log-btn-kill"
+                      variant="danger"
+                      size="sm"
+                      onClick={() => setShowKillConfirm(true)}
+                    >
+                      <Power size={14} className="mr-1" /> {t('gameLog.sidebar.killProcess', '结束进程')}
+                    </OreButton>
                   )}
-                </OreButton>
 
+                  <div className="w-px h-4 bg-white/10 mx-1" />
+
+                  <OreButton
+                    focusKey={isGameTerminated ? 'log-btn-close-panel' : 'log-btn-hide-panel'}
+                    variant="primary"
+                    size="md"
+                    onClick={closeSidebarAndRestoreFocus}
+                  >
+                    {isGameTerminated ? (
+                      <>
+                        {t('gameLog.sidebar.closePanel', '关闭面板')} <X size={16} className="ml-1" />
+                      </>
+                    ) : (
+                      <>
+                        {t('gameLog.sidebar.hidePanel', '隐藏面板')} <ChevronRight size={16} className="ml-1" />
+                      </>
+                    )}
+                  </OreButton>
+                </div>
               </div>
-            </div>
-
-          </FocusBoundary>
-        </motion.div>
-      )}
+            </FocusBoundary>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       <GameLogFloatingButton

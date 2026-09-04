@@ -43,7 +43,9 @@ export const useGameLaunch = () => {
         logStore.clearLogs();
         logStore.setInstanceId(instanceId);
         logStore.setGameState('launching');
-        logStore.setOpen(settings.game.showGameLog ?? true);
+        const showGameLog = settings.game.showGameLog ?? true;
+        logStore.setOpen(showGameLog);
+        invoke('set_game_log_streaming', { enabled: showGameLog }).catch(() => {});
 
         const gamepadModCheckEnabled = settings.game.gamepadModCheck;
 

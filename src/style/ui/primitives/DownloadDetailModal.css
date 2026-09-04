@@ -42,3 +42,312 @@
     --ore-download-detail-scale: 1.18;
   }
 }
+
+/* =========================================================
+   OreUI Markdown Typography & Elements
+   ========================================================= */
+.markdown-content {
+  font-family: var(--ore-font-family-minecraft);
+  line-height: 1.6;
+  color: #E6E8EB;
+  font-size: 0.875rem;
+  word-break: break-word;
+}
+
+.markdown-content h1 {
+  font-size: 1.375rem;
+  font-weight: bold;
+  margin-top: 1.25rem;
+  margin-bottom: 0.625rem;
+  color: #FFFFFF;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.7);
+  border-bottom: 2px solid var(--ore-border-color, #1E1E1F);
+  padding-bottom: 0.25rem;
+}
+
+.markdown-content h2 {
+  font-size: 1.125rem;
+  font-weight: bold;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  color: #6CC349;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.7);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding-bottom: 0.25rem;
+}
+
+.markdown-content h3 {
+  font-size: 1rem;
+  font-weight: bold;
+  margin-top: 0.875rem;
+  margin-bottom: 0.375rem;
+  color: #F2F2F2;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.6);
+}
+
+.markdown-content p {
+  margin-bottom: 0.75rem;
+  line-height: 1.6;
+  color: #E6E8EB;
+}
+
+.markdown-content ul {
+  margin-left: 1.5rem;
+  margin-bottom: 0.75rem;
+  list-style-type: square;
+}
+
+.markdown-content ol {
+  margin-left: 1.5rem;
+  margin-bottom: 0.75rem;
+  list-style-type: decimal;
+}
+
+.markdown-content li {
+  margin-bottom: 0.35rem;
+  color: #E6E8EB;
+}
+
+.markdown-content a {
+  color: #8FED6B;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.markdown-content a:hover {
+  color: #FFFFFF;
+  text-shadow: 0 0 6px rgba(143,237,107,0.5);
+}
+
+.markdown-content code {
+  background-color: #1E1E1F;
+  padding: 0.125rem 0.375rem;
+  border: 1px solid #3C3D40;
+  font-family: monospace;
+  font-size: 0.8125rem;
+  color: #8FED6B;
+}
+
+.markdown-content pre {
+  background-color: #171718;
+  padding: 0.875rem;
+  border: 2px solid var(--ore-border-color, #1E1E1F);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+  overflow-x: auto;
+  margin-bottom: 0.875rem;
+}
+
+.markdown-content pre code {
+  background-color: transparent;
+  padding: 0;
+  border: none;
+  color: #D0D1D4;
+}
+
+.markdown-content img {
+  max-width: 100%;
+  height: auto;
+  border: 2px solid var(--ore-border-color, #1E1E1F);
+  margin-top: 0.5rem;
+  margin-bottom: 0.875rem;
+  display: inline-block;
+}
+
+.markdown-content blockquote {
+  background-color: #242526;
+  border-left: 4px solid #6CC349;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  border-right: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding: 0.625rem 0.875rem;
+  color: #C6C8CB;
+  margin-bottom: 0.875rem;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.875rem;
+  border: 2px solid var(--ore-border-color, #1E1E1F);
+}
+
+.markdown-content th, .markdown-content td {
+  border: 1px solid #3C3D40;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.markdown-content th {
+  background-color: var(--ore-downloadDetail-surface, #48494A);
+  color: #FFFFFF;
+  font-weight: bold;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+}
+
+.markdown-content td {
+  background-color: rgba(30, 30, 31, 0.7);
+}
+
+.markdown-content hr {
+  border: 0;
+  height: 2px;
+  background: var(--ore-border-color, #1E1E1F);
+  margin: 1rem 0;
+}
+
+/* =========================================================
+   OreUI Media & Video Embed Cards (Replacing external iframes)
+   ========================================================= */
+.ore-media-card {
+  display: flex !important;
+  align-items: center;
+  gap: 0.875rem;
+  background-color: var(--ore-downloadDetail-surface, #313233);
+  border: 2px solid var(--ore-border-color, #1E1E1F);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+  padding: 0.625rem 0.875rem;
+  margin: 0.75rem 0;
+  text-decoration: none !important;
+  color: inherit !important;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  border-radius: 0;
+  user-select: none;
+}
+
+.ore-media-card:hover {
+  background-color: #3F4042;
+  border-color: #FFFFFF;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.ore-media-thumb-container {
+  position: relative;
+  width: 7.5rem;
+  height: 4.25rem;
+  flex-shrink: 0;
+  background-color: #171718;
+  border: 2px solid #1E1E1F;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ore-media-thumb-img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  margin: 0 !important;
+  border: none !important;
+}
+
+.ore-media-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.ore-media-card:hover .ore-media-overlay {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.ore-media-play-icon {
+  width: 2rem;
+  height: 2rem;
+  background: #6CC349;
+  border: 2px solid #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+  color: #FFFFFF;
+}
+
+.ore-media-card:hover .ore-media-play-icon {
+  transform: scale(1.08);
+  background: #B9FF8A;
+  color: #000000;
+}
+
+.ore-media-bilibili-placeholder {
+  background-color: #00A1D6;
+}
+
+.ore-media-generic-placeholder {
+  background-color: #242526;
+  color: #8C8D90;
+}
+
+.ore-media-card:hover .ore-media-generic-placeholder {
+  color: #FFFFFF;
+}
+
+.ore-media-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.ore-media-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.ore-media-badge {
+  font-family: var(--ore-font-family-minecraft);
+  font-size: 0.6875rem;
+  font-weight: bold;
+  padding: 0.125rem 0.375rem;
+  border: 1px solid #1E1E1F;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background-color: #242526;
+  color: #C6C8CB;
+}
+
+.ore-badge-youtube {
+  background-color: #CC0000;
+  color: #FFFFFF;
+  border-color: #FF4444;
+}
+
+.ore-badge-bilibili {
+  background-color: #00AEEC;
+  color: #FFFFFF;
+  border-color: #40C5F1;
+}
+
+.ore-media-prompt {
+  font-family: var(--ore-font-family-minecraft);
+  font-size: 0.8125rem;
+  font-weight: bold;
+  color: #FFFFFF;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.7);
+}
+
+.ore-media-card:hover .ore-media-prompt {
+  color: #B9FF8A;
+}
+
+.ore-media-url {
+  font-family: monospace;
+  font-size: 0.6875rem;
+  color: #8C8D90;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+

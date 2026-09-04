@@ -59,6 +59,16 @@ pub fn kill_current_game() -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+pub fn set_game_log_streaming(enabled: bool) {
+    crate::services::launcher::set_log_streaming_enabled(enabled);
+}
+
+#[tauri::command]
+pub fn get_recent_game_logs(max_lines: Option<usize>) -> Vec<String> {
+    crate::services::launcher::get_recent_logs(max_lines)
+}
+
 // ==========================================
 // 新增：一键生成崩溃诊断包指令
 // ==========================================

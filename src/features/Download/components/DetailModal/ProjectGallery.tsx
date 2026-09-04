@@ -70,6 +70,8 @@ export const ProjectGallery: React.FC<ProjectGalleryProps> = ({
                 </span>
               </div>
               <OreButton
+                focusKey="download-detail-btn-gallery-more"
+                focusable={controlsEnabled}
                 size="sm"
                 variant="secondary"
                 className="!h-8 min-w-[132px] px-3 text-[11px]"

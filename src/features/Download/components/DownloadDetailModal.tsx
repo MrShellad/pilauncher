@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 
 import type { ModrinthProject, OreProjectVersion } from '../../InstanceDetail/logic/modrinthApi';
 import { useDownloadDetail } from '../hooks/useDownloadDetail';
@@ -7,8 +7,9 @@ import type { DownloadInstanceConfig, DownloadSource } from '../hooks/useResourc
 import { OreModal } from '../../../ui/primitives/OreModal';
 import { OreOverlayScrollArea } from '../../../ui/primitives/OreOverlayScrollArea';
 import { useScreenDensity } from '../../../hooks/ui/useScreenDensity';
-import { marked } from 'marked';
 import { useTranslation } from 'react-i18next';
+import { openExternalLink } from '../../../utils/openExternalLink';
+import { renderMarkdownSafe } from '../logic/sanitizeDescription';
 
 import { InstanceSelectModal } from './DetailModal/InstanceSelectModal';
 import { ModpackCreateModal } from './DetailModal/ModpackCreateModal';
@@ -98,12 +99,35 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
 
   const rawDescription = details?.body || details?.description || displayProject?.description || '';
   const htmlDescription = useMemo(() => {
-    try {
-      return marked.parse(rawDescription) as string;
-    } catch {
-      return rawDescription;
-    }
+    return renderMarkdownSafe(rawDescription);
   }, [rawDescription]);
+
+  const handleContentClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (!(event.target instanceof Element)) return;
+
+    const anchor = event.target.closest<HTMLAnchorElement>('a[href]');
+    if (!anchor?.href) return;
+
+    event.preventDefault();
+    void openExternalLink(anchor.href);
+  }, []);
+
+  const lastFocusBeforeDescModalRef = useRef<string | null>(null);
+
+  const handleOpenDescriptionModal = useCallback(() => {
+    lastFocusBeforeDescModalRef.current = getCurrentFocusKey();
+    setShowDescriptionModal(true);
+  }, []);
+
+  const handleCloseDescriptionModal = useCallback(() => {
+    setShowDescriptionModal(false);
+    const targetKey = lastFocusBeforeDescModalRef.current || 'download-detail-btn-gallery-more';
+    setTimeout(() => {
+      if (doesFocusableExist(targetKey)) {
+        setFocus(targetKey);
+      }
+    }, 100);
+  }, []);
 
   useEffect(() => {
     if (!project) return;
@@ -216,7 +240,7 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
               project={displayProject}
               details={details}
               isScrolled={isScrolled}
-              onOpenDescriptionModal={() => setShowDescriptionModal(true)}
+              onOpenDescriptionModal={handleOpenDescriptionModal}
               controlsEnabled={controlsEnabled}
             />
 
@@ -314,17 +338,18 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
                 className="relative z-10 flex-1 w-full bg-[#313233] min-h-0"
                 viewportClassName="shadow-[inset_0_0.625rem_1.25rem_-0.625rem_rgba(0,0,0,0.55)] p-4"
                 contentSafePaddingRight={6}
+                onClick={handleContentClick}
               >
                 <div className="flex flex-col gap-4">
                   <ProjectGallery
                     project={displayProject}
                     details={details}
                     isScrolled={isScrolled}
-                    onOpenDescriptionModal={() => setShowDescriptionModal(true)}
+                    onOpenDescriptionModal={handleOpenDescriptionModal}
                     controlsEnabled={controlsEnabled}
                   />
                   <div
-                    className="markdown-body font-minecraft text-xs leading-relaxed text-gray-300 break-words"
+                    className="markdown-content font-minecraft text-xs leading-relaxed text-gray-300 break-words"
                     dangerouslySetInnerHTML={{ __html: htmlDescription }}
                   />
                 </div>
@@ -370,7 +395,7 @@ export const DownloadDetailModal: React.FC<DownloadDetailModalProps> = ({
         isOpen={showDescriptionModal}
         project={displayProject}
         details={details}
-        onClose={() => setShowDescriptionModal(false)}
+        onClose={handleCloseDescriptionModal}
       />
     </>
   );

@@ -1,6 +1,8 @@
 // src/store/useGameLogStore.ts
 import { create } from 'zustand';
+import { subscribeWithSelector } from 'zustand/middleware';
 import { appendGameLogs, createInitialTelemetry } from '../features/GameLog/logic/gameLogProcessor';
+import { analyzeCrashLogs, type CrashDiagnosis } from '../features/GameLog/logic/crashAnalyzer';
 import type { GameLaunchProgressPayload, GameLogBatchPayload } from '../utils/eventBus/events';
 
 export type GameState = 'idle' | 'launching' | 'running' | 'crashed';
@@ -34,6 +36,7 @@ interface GameLogStore {
   gameState: GameState;
   logs: string[];
   crashReason: string | null;
+  crashDiagnosis: CrashDiagnosis | null;
   telemetry: StartupTelemetry;
   latestLanPort: string | null;
   launchProgress: GameLaunchProgress;
@@ -50,12 +53,14 @@ interface GameLogStore {
 
 const initialTelemetry = createInitialTelemetry();
 
-export const useGameLogStore = create<GameLogStore>((set, get) => ({
+export const useGameLogStore = create<GameLogStore>()(
+  subscribeWithSelector((set, get) => ({
   isOpen: false,
   currentInstanceId: null,
   gameState: 'idle',
   logs: [],
   crashReason: null,
+  crashDiagnosis: null,
   telemetry: { ...initialTelemetry },
   latestLanPort: null,
   launchProgress: { ...initialLaunchProgress },
@@ -71,98 +76,23 @@ export const useGameLogStore = create<GameLogStore>((set, get) => ({
       telemetry: state.telemetry,
       latestLanPort: state.latestLanPort,
     }, lines);
-
-    /* Legacy inline log processing retained below for reference during migration.
-    if (lines.length === 0) return state;
-    
-    const combined = state.logs.concat(lines);
-    const newLogs = combined.length > MAX_LOG_LINES ? combined.slice(combined.length - MAX_LOG_LINES) : combined;
-
-    let nextState = state.gameState;
-    const newTelemetry = { ...state.telemetry };
-
-    const getElapsed = () => {
-      if (!newTelemetry._startTime) return '0ms';
-      const diff = Date.now() - newTelemetry._startTime;
-      return diff >= 1000 ? `${(diff / 1000).toFixed(2)}s` : `${diff}ms`;
-    };
-
-    // 只需要分析新加的日志，不需要分析所有历史
-    for (let i = 0; i < lines.length; i++) {
-      const log = lines[i];
-
-      if (!newTelemetry._startTime && state.gameState === 'launching') {
-        newTelemetry._startTime = Date.now();
-      }
-
-      if (state.gameState === 'launching' && nextState !== 'running' && (
-        log.includes('LWJGL version') || 
-        log.includes('Setting user:') ||
-        log.includes('Display window initialized') ||
-        log.includes('Sound engine started') 
-      )) {
-        nextState = 'running';
-      }
-
-      if (!newTelemetry.jvmUptime) {
-        const match = log.match(/JVM Uptime at startup:\s*(\d+)/i) || log.match(/JVM running for ([\d\.]+)/i);
-        if (match) newTelemetry.jvmUptime = match[1].includes('.') ? `${match[1]}s` : `${match[1]}ms`;
-      }
-
-      if (!newTelemetry.loaderInit && (
-        log.includes('NeoForge mod loading') || 
-        log.includes('Forge mod loader initialized') || 
-        log.match(/Loading \d+ mods/i) || 
-        log.includes('Fabric is preparing to load') ||
-        log.includes('Built game content classloader')
-      )) {
-        newTelemetry.loaderInit = getElapsed();
-      }
-
-      if (!newTelemetry.renderInit && (
-        log.includes('Backend library: LWJGL version') || 
-        log.includes('Display window initialized')
-      )) {
-        newTelemetry.renderInit = getElapsed();
-      }
-
-      if (!newTelemetry.resourceLoad && (
-        log.includes('Reloading ResourceManager') || 
-        log.includes('ModelLoader took')
-      )) {
-        newTelemetry.resourceLoad = getElapsed();
-      }
-
-      if (!newTelemetry.totalStartup && (
-        log.includes('Sound engine started') || 
-        log.match(/Time: (\d+)ms/i) || 
-        log.match(/Done \((.*?)\)!/i)
-      )) {
-        newTelemetry.totalStartup = getElapsed();
-      }
-
-      const portMatch = log.match(/(?:[Ll]ocal game hosted on(?: port)?|[局域网游戏]已在端口|Started on port)\s*(\d{4,5})/i);
-      if (portMatch) {
-        set({ latestLanPort: portMatch[1] });
-      }
-    }
-
-    */
-    return state;
   }),
 
   applyLogBatch: (batch) => set((state) => {
-    if (batch.lines.length === 0) return state;
+    let logs = state.logs;
+    if (batch.lines && batch.lines.length > 0) {
+      const combined = state.logs.concat(batch.lines);
+      logs = combined.length > 1000
+        ? combined.slice(combined.length - 1000)
+        : combined;
+    }
 
-    const combined = state.logs.concat(batch.lines);
-    const logs = combined.length > 1000
-      ? combined.slice(combined.length - 1000)
-      : combined;
-
-    const nextTelemetry = {
-      ...state.telemetry,
-      ...batch.telemetry,
-    };
+    const nextTelemetry = batch.telemetry
+      ? {
+          ...state.telemetry,
+          ...batch.telemetry,
+        }
+      : state.telemetry;
     const telemetry = (
       nextTelemetry.jvmUptime === state.telemetry.jvmUptime &&
       nextTelemetry.loaderInit === state.telemetry.loaderInit &&
@@ -202,6 +132,7 @@ export const useGameLogStore = create<GameLogStore>((set, get) => ({
   clearLogs: () => set({
     logs: [],
     crashReason: null,
+    crashDiagnosis: null,
     gameState: 'idle',
     telemetry: { ...initialTelemetry },
     latestLanPort: null,
@@ -210,16 +141,12 @@ export const useGameLogStore = create<GameLogStore>((set, get) => ({
 
   analyzeCrash: () => {
     const logs = get().logs;
-    let reason = "未知错误，请检查完整日志获取详细信息。";
-
-    for (let i = logs.length - 1; i >= 0; i--) {
-      const line = logs[i];
-      if (line.includes('java.lang.OutOfMemoryError')) { reason = "内存不足 (Out of Memory)。请在实例设置中分配更多的运行内存。"; break; }
-      if (line.includes('UnsupportedClassVersionError')) { reason = "Java 版本不匹配。你当前使用的 Java 版本过低或过高，请检查该游戏版本所需的 Java。"; break; }
-      if (line.includes('Missing required dependencies') || line.includes('Could not find required mod')) { reason = "缺少前置模组 (Missing Dependencies)。请检查日志中的模组依赖提示并补全。"; break; }
-      if (line.includes('Failed to verify authentication') || line.includes('InvalidCredentialsException')) { reason = "登录验证失败。可能是正版服务器连接超时或 Token 失效，请重新登录。"; break; }
-      if (line.includes('hs_err_pid')) { reason = "JVM 核心崩溃。这通常是显卡驱动过旧或物理内存损坏导致。"; break; }
-    }
-    set({ crashReason: reason, gameState: 'crashed' });
+    const diagnosis = analyzeCrashLogs(logs);
+    const fallbackReason = `${diagnosis.title}：${diagnosis.description}`;
+    set({
+      crashDiagnosis: diagnosis,
+      crashReason: fallbackReason,
+      gameState: 'crashed',
+    });
   }
-}));
+})));

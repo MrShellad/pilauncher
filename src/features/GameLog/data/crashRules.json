@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "oom",
+      "category": "memory",
+      "patterns": [
+        "java.lang.OutOfMemoryError",
+        "There is insufficient memory for the Java Runtime Environment",
+        "GC overhead limit exceeded"
+      ],
+      "title": "内存溢出 (Out of Memory)",
+      "description": "游戏分配的运行内存已耗尽，导致 Java 虚拟机强制终止。",
+      "solution": "请前往启动器「实例设置」->「Java 设置」，适当增大最大运行内存（建议分配 4096MB - 8192MB，请勿超过物理内存的一半以上）。"
+    },
+    {
+      "id": "java_version_mismatch",
+      "category": "java",
+      "patterns": [
+        "UnsupportedClassVersionError",
+        "has been compiled by a more recent version of the Java Runtime"
+      ],
+      "regex": "class file version (\\d+\\.\\d+|\\d+)",
+      "title": "Java 版本不匹配",
+      "description": "当前选择的 Java 版本与该 Minecraft 版本或所安装模组所需的 Java 版本不一致。",
+      "solution": "请在「实例设置」中切换适配的 Java：1.16.5 及以下版本推荐使用 Java 8；1.17 版本需 Java 16；1.18 ~ 1.20.4 需 Java 17；1.20.5 及以上版本需 Java 21。"
+    },
+    {
+      "id": "missing_dependencies",
+      "category": "mod",
+      "patterns": [
+        "Missing required dependencies",
+        "Could not find required mod",
+        "ModLoadingException",
+        "requires .* which is missing",
+        "ModResolutionException"
+      ],
+      "regex": "requires\\s+['\"]?([a-zA-Z0-9_\\-]+)['\"]?\\s+which is missing|Could not find required mod:?\\s*['\"]?([a-zA-Z0-9_\\-]+)['\"]?",
+      "title": "缺少前置依赖模组",
+      "description": "安装的部分模组依赖其他前置模组或特定的运行库，当前实例中未检测到这些前置。",
+      "solution": "请查看日志详情中提示的具体缺失 Mod 名称，前往启动器的模组下载或 Mod 管理页面安装相应的前置依赖模组。"
+    },
+    {
+      "id": "duplicate_mods",
+      "category": "mod",
+      "patterns": [
+        "DuplicateModsFoundException",
+        "Duplicate mod ID",
+        "Found multiple mods with the same mod ID",
+        "Duplicate Mod:"
+      ],
+      "regex": "Duplicate mod ID:?\\s*['\"]?([a-zA-Z0-9_\\-]+)['\"]?|Duplicate Mod:?\\s*['\"]?([a-zA-Z0-9_\\-]+)['\"]?",
+      "title": "存在重复模组",
+      "description": "实例的 mods 文件夹中存在相同 Mod ID 的重复文件，或是同时安装了同一模组的不同版本。",
+      "solution": "请打开实例文件夹中的 mods 目录，检查并删除带有重复名称或旧版本号的 Mod Jar 包，确保每个模组仅保留一个文件。"
+    },
+    {
+      "id": "mixin_error",
+      "category": "mod",
+      "patterns": [
+        "MixinTransformerError",
+        "Mixin apply failed",
+        "Critical injection failure:"
+      ],
+      "regex": "in config \\[([a-zA-Z0-9_\\-\\.]+\\.json)\\]|Critical injection failure:.*in\\s+([a-zA-Z0-9_\\-\\.]+)",
+      "title": "Mixin 底层代码注入冲突",
+      "description": "两个或多个模组尝试通过 Mixin 修改游戏同一处底层核心逻辑时发生了冲突。",
+      "solution": "请查看报错日志中提及的 Mixin 配置文件（例如 xxx.mixins.json）或类名，排查并尝试暂时禁用近期新安装的优化类、界面类或修改机制的 Mod。"
+    },
+    {
+      "id": "gpu_driver_jvm_crash",
+      "category": "system",
+      "patterns": [
+        "hs_err_pid",
+        "EXCEPTION_ACCESS_VIOLATION",
+        "ig9icd64.dll",
+        "nvoglv64.dll",
+        "atio6axx.dll"
+      ],
+      "title": "显卡驱动或 JVM 核心底层崩溃",
+      "description": "图形驱动组件或 OpenGL 驱动发生底层内存访问冲突，导致 JVM 进程异常终止。",
+      "solution": "请前往对应显卡官网（Intel / NVIDIA / AMD）更新最新的显卡驱动；若使用的是双显卡笔记本，请在 Windows 设置的「图形设置」中为 Java 进程指定高性能独立显卡。"
+    },
+    {
+      "id": "auth_failure",
+      "category": "auth",
+      "patterns": [
+        "Failed to verify authentication",
+        "InvalidCredentialsException",
+        "Could not authorize with Xbox Live",
+        "sun.security.validator.ValidatorException"
+      ],
+      "title": "微软正版验证或网络证书错误",
+      "description": "微软正版身份验证超时，或系统本地 SSL 证书校验未通过。",
+      "solution": "请检查系统时间是否准确无误、网络连接或代理工具是否正常；若 Token 失效，请在启动器的账号管理中重新添加/登录微软账号。"
+    },
+    {
+      "id": "corrupted_file",
+      "category": "filesystem",
+      "patterns": [
+        "ZipException: error in opening zip file",
+        "Invalid or corrupt jarfile",
+        "TomlInvalidError",
+        "Unexpected end of file"
+      ],
+      "title": "模组文件或配置损坏",
+      "description": "下载的模组 Jar 包不完整、文件已损坏，或对应的 Mod 配置文件（TOML / JSON）格式异常。",
+      "solution": "请在模组列表中重新下载报错的 Mod 文件；若为配置问题，可进入 config 目录删除对应的配置文件让游戏重新生成默认配置。"
+    },
+    {
+      "id": "shader_error",
+      "category": "graphics",
+      "patterns": [
+        "Program linked failed:",
+        "Composite shader compilation failed",
+        "net.irisshaders.iris.pipeline"
+      ],
+      "title": "光影着色器编译失败",
+      "description": "当前启用的光影包代码与您的显卡架构、驱动程序或当前安装的渲染优化 Mod 不兼容。",
+      "solution": "请进入实例目录，打开 optionsshaders.txt 将 shaderPack 设为 off，或暂时移出 shaderpacks 文件夹中的光影包以排查。"
+    },
+    {
+      "id": "ticking_entity",
+      "category": "world",
+      "patterns": [
+        "Ticking entity",
+        "Ticking block entity",
+        "Encountered an unexpected exception"
+      ],
+      "title": "世界实体 / 方块刻更新异常",
+      "description": "游戏世界中的某个生物实体或方块（如管道、机器）在每刻运算时抛出了无法恢复的异常。",
+      "solution": "建议安装实体容错恢复模组（如 Neruina 等）；若为单人世界，请务必先备份 saves 存档，再使用外部 NBT 工具按报错日志提示的坐标删除异常实体。"
+    },
+    {
+      "id": "loader_mismatch",
+      "category": "mod",
+      "patterns": [
+        "requires version .* of 'fabric-loader'",
+        "requires version .* of 'forge'",
+        "Incompatible mod set found!"
+      ],
+      "title": "模组加载器 (Loader) 版本过低",
+      "description": "部分新版本模组要求更高版本的模组加载器（Fabric Loader 或 Forge）支持。",
+      "solution": "请在启动器的实例设置或版本管理中，将 Fabric Loader / Forge / NeoForge 升级至更高或最新稳定版本。"
+    },
+    {
+      "id": "stackoverflow_error",
+      "category": "mod",
+      "patterns": [
+        "java.lang.StackOverflowError"
+      ],
+      "title": "堆栈溢出 (StackOverflowError)",
+      "description": "某个 Mod 触发了死循环或无限递归调用，导致 Java 调用栈溢出。",
+      "solution": "此问题通常由 Mod 之间的相互调用冲突引起。请查看错误日志的连续重复调用链，排查并移除导致无限递归的 Mod。"
+    }
+  ]
+}

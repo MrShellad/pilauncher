@@ -1708,8 +1708,18 @@
     "view": {
       "waiting": "等待标准输出...",
       "copied": "已复制！",
-      "copyLine": "复制此行",
-      "scrollHint": "上下翻滚日志"
+      "copyLine": "复制此段",
+      "scrollHint": "上下翻滚日志",
+      "jumpToBottom": "回到最新日志"
+    },
+    "filter": {
+      "searchPlaceholder": "搜索日志 (Ctrl+F)...",
+      "all": "全部",
+      "errors": "错误",
+      "warnings": "警告",
+      "info": "信息",
+      "matches": "{{count}} 项匹配",
+      "noMatches": "无匹配项"
     },
     "shareDialog": {
       "issueFallback": "问题 {{index}}",
@@ -1769,6 +1779,11 @@
       "linesCaptured": "{{count}} Lines captured",
       "copied": "已复制",
       "copyAll": "复制全部",
+      "clear": "清屏",
+      "maximize": "最大化",
+      "restore": "还原",
+      "copyDiag": "复制诊断",
+      "diagCopied": "已复制诊断",
       "packing": "打包中...",
       "diagPack": "诊断包",
       "killProcess": "结束进程",

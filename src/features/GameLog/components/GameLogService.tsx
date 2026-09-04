@@ -5,6 +5,7 @@
 // so LaunchingAnimation (and any other consumers) always receive live logs.
 
 import React, { useEffect, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useWindowService } from '../hooks/useWindowService';
 import { useLogService } from '../hooks/useLogService';
 import { useGameLogStore } from '../../../store/useGameLogStore';
@@ -16,7 +17,6 @@ export const GameLogService: React.FC = () => {
     applyLauncherVisibility,
     restoreLauncherAfterGameExit
   } = useWindowService();
-  const previousGameStateRef = useRef(useGameLogStore.getState().gameState);
   const handledRunningInstanceRef = useRef<string | null>(null);
 
   useLogService({
@@ -24,26 +24,52 @@ export const GameLogService: React.FC = () => {
     restoreLauncherAfterGameExit
   });
 
+  // 1. 精确监听 gameState 变化，仅在状态转移时触发，彻底消除高频日志导致的回调空转
   useEffect(() => {
-    return useGameLogStore.subscribe((state) => {
-      const previousGameState = previousGameStateRef.current;
-      previousGameStateRef.current = state.gameState;
+    return useGameLogStore.subscribe(
+      (state) => state.gameState,
+      (gameState, previousGameState) => {
+        if (gameState === 'launching') {
+          handledRunningInstanceRef.current = null;
+          return;
+        }
 
-      if (state.gameState === 'launching') {
-        handledRunningInstanceRef.current = null;
-        return;
+        if (gameState !== 'running' || previousGameState === 'running') return;
+
+        const currentInstanceId = useGameLogStore.getState().currentInstanceId;
+        const instanceKey = currentInstanceId ?? '__unknown__';
+        if (handledRunningInstanceRef.current === instanceKey) return;
+        handledRunningInstanceRef.current = instanceKey;
+
+        const launcherVisibility = useSettingsStore.getState().settings.game.launcherVisibility;
+        void applyLauncherVisibility(launcherVisibility);
       }
-
-      if (state.gameState !== 'running' || previousGameState === 'running') return;
-
-      const instanceKey = state.currentInstanceId ?? '__unknown__';
-      if (handledRunningInstanceRef.current === instanceKey) return;
-      handledRunningInstanceRef.current = instanceKey;
-
-      const launcherVisibility = useSettingsStore.getState().settings.game.launcherVisibility;
-      void applyLauncherVisibility(launcherVisibility);
-    });
+    );
   }, [applyLauncherVisibility]);
+
+  // 2. 精确监听 isOpen 变化，按需同步 Rust IPC 流控状态；若展开时日志为空则按需回填
+  useEffect(() => {
+    return useGameLogStore.subscribe(
+      (state) => state.isOpen,
+      (isOpen) => {
+        invoke('set_game_log_streaming', { enabled: isOpen }).catch((err) => {
+          console.warn('[GameLogService] Failed to set log streaming state:', err);
+        });
+
+        if (isOpen && useGameLogStore.getState().logs.length === 0) {
+          invoke<string[]>('get_recent_game_logs')
+            .then((recentLogs) => {
+              if (recentLogs && recentLogs.length > 0) {
+                useGameLogStore.getState().addLogs(recentLogs);
+              }
+            })
+            .catch((err) => {
+              console.warn('[GameLogService] Failed to fetch recent logs on open:', err);
+            });
+        }
+      }
+    );
+  }, []);
 
   React.useEffect(() => {
     console.log('[GameLogService] Headless log service mounted!');

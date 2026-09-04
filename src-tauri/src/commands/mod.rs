@@ -167,6 +167,8 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         launcher_cmd::launch_game,
         launcher_cmd::run_pre_launch_check,
         launcher_cmd::kill_current_game,
+        launcher_cmd::set_game_log_streaming,
+        launcher_cmd::get_recent_game_logs,
         launcher_cmd::export_diagnostics,
         system_cmd::get_primary_monitor_resolution,
         system_cmd::check_steam_status,
