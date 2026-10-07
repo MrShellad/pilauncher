@@ -9,6 +9,7 @@ import {
   Image as ImageIcon,
   Download,
   Trophy,
+  Images,
   type LucideIcon,
 } from 'lucide-react';
 import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
@@ -30,6 +31,7 @@ import { SavePanel } from '../features/InstanceDetail/components/tabs/SavePanel'
 import { ResourcePackPanel } from '../features/InstanceDetail/components/tabs/ResourcePackPanel';
 import { ShaderPanel } from '../features/InstanceDetail/components/tabs/ShaderPanel';
 import { AchievementPanel } from '../features/InstanceDetail/components/tabs/AchievementPanel';
+import { ScreenshotPanel } from '../features/InstanceDetail/components/tabs/ScreenshotPanel';
 import { ExportPanel } from '../features/InstanceDetail/components/tabs/export';
 import { ErrorBoundary } from '../ui/components/ErrorBoundary';
 
@@ -39,6 +41,7 @@ const TABS: { id: DetailTab; label: string; icon: LucideIcon }[] = [
   { id: 'mods', label: 'MOD 管理', icon: Blocks },
   { id: 'resourcepacks', label: '资源包', icon: Package },
   { id: 'shaders', label: '光影包', icon: ImageIcon },
+  { id: 'screenshots', label: '截图', icon: Images },
   { id: 'saves', label: '世界存档', icon: FolderOpen },
   { id: 'achievements', label: '游戏成就', icon: Trophy },
   { id: 'export', label: '导出与备份', icon: Download },
@@ -58,6 +61,7 @@ const InstanceDetail: React.FC = () => {
     handleOpenFolder,
     handleUpdateName,
     handleUpdateCover,
+    handleScreenshotCoverChanged,
     handleUpdateEnvironment,
     handleUpdateCustomButtons,
     handleUpdateTags,
@@ -80,6 +84,7 @@ const InstanceDetail: React.FC = () => {
       saves: 'save-btn-history',
       resourcepacks: 'btn-open-resourcepack-folder',
       shaders: 'btn-open-shader-folder',
+      screenshots: 'screenshot-btn-refresh',
       achievements: 'achievement-btn-refresh',
       export: undefined,
     }),
@@ -277,6 +282,21 @@ const InstanceDetail: React.FC = () => {
             >
               <ErrorBoundary fallbackTitle="光影包面板加载失败">
                 <ShaderPanel instanceId={instanceId} />
+              </ErrorBoundary>
+            </FocusBoundary>
+
+            <FocusBoundary
+              id="tab-boundary-screenshots"
+              isActive={normalizedTab === 'screenshots'}
+              trapFocus
+              className={normalizedTab === 'screenshots' ? 'flex flex-1 h-full min-h-0 flex-col overflow-hidden' : 'hidden'}
+            >
+              <ErrorBoundary fallbackTitle="截图管理面板加载失败">
+                <ScreenshotPanel
+                  instanceId={instanceId}
+                  isActive={normalizedTab === 'screenshots'}
+                  onCoverChanged={handleScreenshotCoverChanged}
+                />
               </ErrorBoundary>
             </FocusBoundary>
 

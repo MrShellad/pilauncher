@@ -12,6 +12,7 @@ export type DetailTab =
   | 'mods'
   | 'resourcepacks'
   | 'shaders'
+  | 'screenshots'
   | 'achievements'
   | 'export';
 
@@ -184,6 +185,11 @@ export const useInstanceDetail = (instanceId: string) => {
       setData((prev) => (prev ? { ...prev, coverUrl: assetUrl } : null));
       return;
     }
+  };
+
+  const handleScreenshotCoverChanged = (absolutePath: string) => {
+    const assetUrl = `${convertFileSrc(absolutePath)}?t=${Date.now()}`;
+    setData((prev) => (prev ? { ...prev, coverUrl: assetUrl } : null));
   };
 
   const handleUpdateEnvironment = async (update: {
@@ -362,6 +368,7 @@ export const useInstanceDetail = (instanceId: string) => {
     handleOpenFolder,
     handleUpdateName,
     handleUpdateCover,
+    handleScreenshotCoverChanged,
     handleUpdateEnvironment,
     handleUpdateHeroLogo,
     handleUpdateCustomButtons,

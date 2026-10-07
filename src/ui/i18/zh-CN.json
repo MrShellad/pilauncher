@@ -2157,6 +2157,21 @@
       "deleteConfirmBtn": "确认删除",
       "deleteNote": "删除操作不可恢复，请确认当前实例确实不再需要该资源包。"
     },
+    "screenshots": {
+      "title": "截图库",
+      "refresh": "刷新",
+      "openFolder": "打开截图目录",
+      "sortNewest": "最新优先",
+      "sortOldest": "最旧优先",
+      "sortName": "名称 A–Z",
+      "sortSize": "文件最大优先",
+      "gridView": "网格",
+      "listView": "列表",
+      "select": "选择",
+      "done": "完成",
+      "emptyTitle": "还没有截图",
+      "emptyDescription": "在游戏中按 F2 拍摄，截图会显示在这里。"
+    },
     "saves": {
       "title": "存档备份",
       "restoreCenter": "恢复中心",
@@ -2186,6 +2201,7 @@
       "mods": "MOD",
       "resourcepacks": "资源包",
       "shaders": "光影",
+      "screenshots": "截图",
       "export": "导出"
     }
   }

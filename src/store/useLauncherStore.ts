@@ -25,6 +25,7 @@ export type DetailTabType =
   | 'mods'
   | 'resourcepacks'
   | 'shaders'
+  | 'screenshots'
   | 'export';
 
 export type InstanceDownloadTarget = 'mod' | 'resourcepack' | 'shader';

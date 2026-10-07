@@ -155,6 +155,7 @@ export const InstanceHeroSidebar: React.FC<InstanceHeroSidebarProps> = ({
               mods: '#67B346', // 方块/MOD 亮绿
               resourcepacks: '#E0A33A', // 箱子/资源包 矿石黄
               shaders: '#4EB8DE', // 图像/光影 青蓝
+              screenshots: '#58B2DC', // 截图库 湖蓝
               saves: '#5EBA46', // 文件夹/存档 鲜绿
               export: '#E8B834', // 下载/导出 金黄
             };
