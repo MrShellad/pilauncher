@@ -6,7 +6,7 @@ import {
   type LoaderType,
   type McVersionType,
   type VersionGroup,
-} from '../../..';
+} from '../../../logic/environmentSelection';
 import type { InstanceEnvironmentUpdate } from '../schemas/basicPanelSchemas';
 
 interface CurrentEnvironmentInput {

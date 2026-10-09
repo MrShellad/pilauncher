@@ -1,11 +1,11 @@
 import type {
   LoaderType,
   McVersionType,
-} from '../../..';
+} from '../../../logic/environmentSelection';
 import {
   LOADER_TYPES,
   VERSION_TYPES,
-} from '../../..';
+} from '../../../logic/environmentSelection';
 
 import vanillaIcon from '../../../../../assets/icons/tags/loaders/vanilla.svg';
 import fabricIcon from '../../../../../assets/icons/tags/loaders/fabric.svg';

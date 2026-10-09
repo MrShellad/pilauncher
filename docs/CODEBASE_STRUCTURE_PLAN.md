@@ -381,11 +381,13 @@ home / settings   -> authentication + account
 - 修复迁移后键盘布局 SVG 的脆弱相对路径，改用 `@/assets` 根别名。
 - 完成 `instances/detail/keymap` 子域拆分：主编排、视觉键盘、键位列表、单键编辑、配置档案、静态布局解析、按键映射和公共类型均有独立职责文件。
 - `KeymapSection.tsx` 从约 1600 行降至约 327 行；拆出的最大文件约 315 行，均低于大文件复核阈值。
+- `LibraryPageController.tsx` 已先提取上下文菜单与手柄焦点导航 Hook，从约 1182 行降至约 777 行；后续继续拆集合管理和弹窗编排。
+- 修复 `instances/detail/basic-panel` 经自身 Feature 公共入口回引 `environmentSelection` 导致的 `LOADER_TYPES` 运行时暂时性死区；Feature 内部统一改为直接模块依赖。
 - 深层源码路径和跨 Feature 深层导入继续保持为 0，`pnpm structure:check` 与 `pnpm build` 通过。
 
 当前大文件拆分优先级：
 
-1. `src/features/library/components/LibraryPageController.tsx`（约 1182 行；已移出路由层，仍需继续按控制器职责拆分）。
+1. `src/features/library/components/LibraryPageController.tsx`（约 777 行；上下文菜单和焦点导航已提取，待继续拆集合管理和弹窗编排）。
 2. `src/features/home/components/MicrosoftAccountSidebar.tsx`（约 1052 行）。
 3. `src/features/instances/detail/mods/download/InstanceModDownloadView.tsx`（约 1050 行）。
 4. `src/features/settings/components/tabs/data-settings/components/WebDavManageModal.tsx`（约 884 行）。
@@ -429,6 +431,7 @@ home / settings   -> authentication + account
 - 是否重新出现根级 `src/store/`、`src/stores/` 或 `src/hooks/pages/`。
 - 是否存在超过约定深度的新增路径。
 - Feature 外部是否深层导入另一个 Feature 的内部目录。
+- Feature 内部是否通过自身根级 `index.ts` 回引，避免 Barrel 循环依赖和运行时暂时性死区。
 - 大小写不一致的 import 是否能在 Linux 环境解析。
 
 ESLint 至少增加：

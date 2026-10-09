@@ -1,8 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { motion } from 'motion/react';
-import { Columns3, Eye, Pencil, Tags, Trash2, XCircle } from 'lucide-react';
 import { AddLibraryResourceModal } from './modals/AddLibraryResourceModal';
 import { ManageLinkageModal } from './modals/ManageLinkageModal';
 import { EditLibraryResourceModal } from './modals/EditLibraryResourceModal';
@@ -14,12 +12,7 @@ import { CollectionSidebar } from './CollectionSidebar';
 import { CollectionCard } from './CollectionCard';
 import { CollectionMetadataModal } from './CollectionMetadataModal';
 import { LibraryEmptyState } from './LibraryEmptyState';
-import {
-  LibraryContextMenu,
-  type LibraryContextMenuAction,
-  type LibraryContextMenuAnchor,
-  type LibraryContextMenuPoint,
-} from './LibraryContextMenu';
+import { LibraryContextMenu } from './LibraryContextMenu';
 import { LibraryHeader, type LibraryHeaderView } from './LibraryHeader';
 import { LibraryResourceList } from './LibraryResourceList';
 import { LibraryToolbar } from './LibraryToolbar';
@@ -35,6 +28,8 @@ import {
 import { useLibraryPage } from '../hooks/useLibraryPage';
 import { useLibraryBackup } from '../hooks/useLibraryBackup';
 import { useLibraryCollectionOrdering } from '../hooks/useLibraryCollectionOrdering';
+import { useLibraryContextMenu } from '../hooks/useLibraryContextMenu';
+import { useLibraryFocusNavigation } from '../hooks/useLibraryFocusNavigation';
 import { useLibraryRelations } from '../hooks/useLibraryRelations';
 import { useLibraryResourceDetail } from '../hooks/useLibraryResourceDetail';
 import { LibraryInstanceSelectModal } from './modals/LibraryInstanceSelectModal';
@@ -42,7 +37,6 @@ import { LibraryInstanceSelectModal } from './modals/LibraryInstanceSelectModal'
 import { useModSetTrackerStore, type ModSetTrackerItemStatus } from '../stores/useModSetTrackerStore';
 import { useLauncherStore } from '@/app/stores/useLauncherStore';
 import { FocusBoundary } from '@/ui/focus/FocusBoundary';
-import { useInputAction } from '@/ui/focus/InputDriver';
 import { ControlHint } from '@/ui/components/ControlHint';
 import type { DropdownOption } from '@/ui/primitives/OreDropdown';
 import { OreOverlayScrollArea } from '@/ui/primitives/OreOverlayScrollArea';
@@ -54,12 +48,8 @@ import {
 } from '../logic/libraryItems';
 import {
   LIBRARY_COLLECTION_FOCUS_PREFIX,
-  LIBRARY_RESOURCE_FOCUS_PREFIX,
   LOADER_OPTIONS,
   getCollectionItemTrackerKeys,
-  getRelationPendingKey,
-  getRemoveContextLabel,
-  toDetailProject,
 } from '../logic/libraryPageUtils';
 
 export const LibraryPageController: React.FC = () => {
@@ -121,18 +111,6 @@ export const LibraryPageController: React.FC = () => {
   const [selectedLibraryResource, setSelectedLibraryResource] = useState<LibraryResourceViewModel | null>(null);
   const [isManageLinkageOpen, setIsManageLinkageOpen] = useState(false);
   const [isEditResourceOpen, setIsEditResourceOpen] = useState(false);
-  const didInitialControllerFocusRef = useRef(false);
-  const [contextMenu, setContextMenu] = useState<{
-    type: 'resource' | 'collection';
-    item?: LibraryResourceViewModel;
-    collection?: Collection;
-    anchorRect: LibraryContextMenuAnchor;
-    triggerPoint: LibraryContextMenuPoint;
-  } | null>(null);
-  const rightAreaLastFocusRef = useRef<string | null>(null);
-  const [activeSection, setActiveSection] = useState<'sidebar' | 'content'>('content');
-  const sidebarLastFocusRef = useRef<string | null>('library-tags-manage');
-  const lastFocusKeyBeforeOverlayRef = useRef<string | null>(null);
   const {
     pendingRelationKeys,
     relationError,
@@ -291,288 +269,6 @@ export const LibraryPageController: React.FC = () => {
       .filter((item): item is NonNullable<typeof item> => Boolean(item))
       .map(toLibraryResource);
   }, [collectionItems, selectedCollection, starredItems]);
-  const contextMenuItem = contextMenu?.type === 'resource' ? contextMenu.item : null;
-  const canRemoveContextItemFromCurrentCollection = Boolean(
-    contextMenuItem &&
-    selectedCollection &&
-    collectionItems.some(
-      (relation) =>
-        relation.collectionId === selectedCollection.id &&
-        relation.itemId === contextMenuItem.id,
-    ),
-  );
-  const contextRemoveRelationKey =
-    contextMenuItem && selectedCollection
-      ? getRelationPendingKey(selectedCollection.id, contextMenuItem.id)
-      : '';
-  const isContextRemovePending = Boolean(
-    contextRemoveRelationKey && pendingRelationKeys.has(contextRemoveRelationKey),
-  );
-  const getFocusedResource = () => {
-    const currentFocus = getCurrentFocusKey();
-    if (!currentFocus?.startsWith(LIBRARY_RESOURCE_FOCUS_PREFIX)) return null;
-
-    const index = Number(currentFocus.slice(LIBRARY_RESOURCE_FOCUS_PREFIX.length));
-    if (!Number.isInteger(index) || index < 0) return null;
-    return visibleResources[index] ?? null;
-  };
-  const getControllerAnchorForFocusKey = (focusKey: string) => {
-    const element = document.querySelector<HTMLElement>(
-      `[data-library-resource-focus-key="${focusKey}"], [data-library-collection-focus-key="${focusKey}"]`,
-    );
-    if (!element) return null;
-
-    const rect = element.getBoundingClientRect();
-    return {
-      anchorRect: {
-        left: rect.left,
-        top: rect.top,
-        right: rect.right,
-        bottom: rect.bottom,
-      },
-      triggerPoint: {
-        x: rect.right - Math.min(28, rect.width / 4),
-        y: rect.top + Math.min(28, rect.height / 3),
-      },
-    };
-  };
-
-  const handleItemContextMenu = (
-    event: React.MouseEvent<HTMLElement>,
-    item: LibraryResourceViewModel,
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const rect = event.currentTarget.getBoundingClientRect();
-    setContextMenu({
-      type: 'resource',
-      item,
-      anchorRect: {
-        left: rect.left,
-        top: rect.top,
-        right: rect.right,
-        bottom: rect.bottom,
-      },
-      triggerPoint: {
-        x: event.clientX,
-        y: event.clientY,
-      },
-    });
-  };
-
-  const handleCollectionContextMenu = (
-    event: React.MouseEvent<HTMLElement>,
-    collection: Collection,
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const rect = event.currentTarget.getBoundingClientRect();
-    setContextMenu({
-      type: 'collection',
-      collection,
-      anchorRect: {
-        left: rect.left,
-        top: rect.top,
-        right: rect.right,
-        bottom: rect.bottom,
-      },
-      triggerPoint: {
-        x: event.clientX,
-        y: event.clientY,
-      },
-    });
-  };
-
-  const handleRemoveContextItemFromCollection = async () => {
-    if (!contextMenu?.item || !selectedCollection) return;
-    const item = contextMenu.item;
-    const collection = selectedCollection;
-
-    setContextMenu(null);
-    await removeItemFromCollectionWithTracking(collection, item);
-  };
-
-  const handleOpenTagModal = () => {
-    if (!contextMenu?.item) return;
-    openTagModal(contextMenu.item);
-    setContextMenu(null);
-  };
-
-  const handleOpenFavoriteDeleteModal = () => {
-    if (!contextMenu?.item) return;
-    setFavoriteDeleteTarget(contextMenu.item);
-    setContextMenu(null);
-  };
-
-  const handleOpenItem = (item: LibraryResourceViewModel) => {
-    if (item.type === 'shader' || item.type === 'resourcepack') {
-      if (item.installedVersion) {
-        setSelectedLibraryResource(item);
-        setIsManageLinkageOpen(true);
-      } else {
-        setPendingLibraryResource(item);
-        setIsLibraryInstanceSelectOpen(true);
-      }
-    } else {
-      openResourceDetail(item);
-    }
-  };
-
-  const handleOpenDetail = () => {
-    if (!contextMenu?.item) return;
-    openResourceDetail(contextMenu.item);
-    setContextMenu(null);
-  };
-
-  const handleOpenFocusedResourceContextMenu = () => {
-    const currentFocus = getCurrentFocusKey();
-    if (!currentFocus) return;
-
-    if (currentFocus.startsWith(LIBRARY_RESOURCE_FOCUS_PREFIX)) {
-      const item = getFocusedResource();
-      const anchor = getControllerAnchorForFocusKey(currentFocus);
-      if (!item || !anchor) return;
-
-      setContextMenu({
-        type: 'resource',
-        item,
-        ...anchor,
-      });
-    } else if (currentFocus.startsWith(LIBRARY_COLLECTION_FOCUS_PREFIX)) {
-      const index = Number(currentFocus.slice(LIBRARY_COLLECTION_FOCUS_PREFIX.length));
-      const collection = visibleCollections[index];
-      const anchor = getControllerAnchorForFocusKey(currentFocus);
-      if (!collection || !anchor) return;
-
-      setContextMenu({
-        type: 'collection',
-        collection,
-        ...anchor,
-      });
-    }
-  };
-
-  const contextMenuActions: LibraryContextMenuAction[] = [];
-  if (contextMenu) {
-    if (contextMenu.type === 'resource' && contextMenu.item) {
-      const resItem = contextMenu.item;
-      if (toDetailProject(resItem)) {
-        contextMenuActions.push({
-          id: 'detail',
-          label: t('libraryPage.context.detail', { type: t(`libraryPage.types.${resItem.type}`, { defaultValue: 'Mod' }) }),
-          icon: Eye,
-          group: 'primary',
-          onSelect: handleOpenDetail,
-        });
-      }
-
-      if (resItem.type === 'shader' || resItem.type === 'resourcepack') {
-        contextMenuActions.push({
-          id: 'link-instances',
-          label: '导入/应用到实例',
-          icon: Columns3,
-          group: 'primary',
-          onSelect: () => {
-            setSelectedLibraryResource(resItem);
-            setIsManageLinkageOpen(true);
-            setContextMenu(null);
-          }
-        });
-        contextMenuActions.push({
-          id: 'upgrade-resource',
-          label: '编辑与覆盖升级',
-          icon: Pencil,
-          group: 'primary',
-          onSelect: () => {
-            setSelectedLibraryResource(resItem);
-            setIsEditResourceOpen(true);
-            setContextMenu(null);
-          }
-        });
-      }
-
-      contextMenuActions.push({
-        id: 'tags',
-        label: t('libraryPage.context.tags'),
-        icon: Tags,
-        group: 'secondary',
-        onSelect: handleOpenTagModal,
-      });
-
-      if (canRemoveContextItemFromCurrentCollection && !isContextRemovePending) {
-        contextMenuActions.push({
-          id: 'remove',
-          label: t(getRemoveContextLabel(selectedCollection?.type)),
-          icon: XCircle,
-          group: 'danger',
-          onSelect: () => { void handleRemoveContextItemFromCollection(); },
-        });
-      }
-
-      contextMenuActions.push({
-        id: 'delete-favorite',
-        label: t('libraryPage.context.deleteFavorite'),
-        icon: Trash2,
-        group: 'danger',
-        onSelect: () => {
-          if (resItem.type === 'shader' || resItem.type === 'resourcepack') {
-            setFavoriteDeleteTarget(resItem);
-            setContextMenu(null);
-          } else {
-            handleOpenFavoriteDeleteModal();
-          }
-        },
-      });
-    } else if (contextMenu.type === 'collection' && contextMenu.collection) {
-      const col = contextMenu.collection;
-      const isEditable = col.type === 'mod_set' || col.type === 'modpack';
-      if (isEditable) {
-        contextMenuActions.push({
-          id: 'edit-collection',
-          label: t('libraryPage.metadata.title', {
-            type: col.type === 'modpack' ? t('libraryPage.views.modpack') : t('libraryPage.views.modSet'),
-          }),
-          icon: Pencil,
-          group: 'primary',
-          onSelect: () => {
-            openCollectionMetadataEdit(col);
-            setContextMenu(null);
-          },
-        });
-      }
-
-      if (col.type === 'mod_set') {
-        contextMenuActions.push({
-          id: 'delete-modset',
-          label: t('libraryPage.toolbar.deleteModSet'),
-          icon: Trash2,
-          group: 'danger',
-          onSelect: () => {
-            setDeleteModSetSelectedItemIds(new Set(selectedModSetResources.map((item) => item.id)));
-            setIsDeleteModSetOpen(true);
-            setContextMenu(null);
-          },
-        });
-      } else if (col.type === 'group') {
-        contextMenuActions.push({
-          id: 'delete-tag',
-          label: t('libraryPage.sidebar.deleteTag'),
-          icon: Trash2,
-          group: 'danger',
-          onSelect: () => {
-            void removeCollection(col.id);
-            if (selectedGroupId === col.id) {
-              setSelectedGroupId('all');
-            }
-            setContextMenu(null);
-          },
-        });
-      }
-    }
-  }
-
   useEffect(() => {
     void loadTrackers();
   }, [loadTrackers]);
@@ -716,18 +412,35 @@ export const LibraryPageController: React.FC = () => {
     }
   };
 
-  const handleContentArrow = (index: number, direction: string) => {
-    if (direction === 'up' && index === 0) {
-      const target = ['library-search', 'library-sort'].find((key) =>
-        doesFocusableExist(key),
-      );
-      if (target) {
-        setFocus(target);
-        return false;
-      }
-    }
-    return true;
-  };
+  const {
+    contextMenu,
+    setContextMenu,
+    contextMenuActions,
+    handleItemContextMenu,
+    handleCollectionContextMenu,
+    handleOpenItem,
+    handleOpenFocusedResourceContextMenu,
+  } = useLibraryContextMenu({
+    visibleResources,
+    visibleCollections,
+    selectedCollection,
+    selectedGroupId,
+    selectedModSetResources,
+    pendingRelationKeys,
+    setSelectedGroupId,
+    removeItemFromCollectionWithTracking,
+    openTagModal,
+    openResourceDetail,
+    openCollectionMetadataEdit,
+    setFavoriteDeleteTarget,
+    setPendingLibraryResource,
+    setIsLibraryInstanceSelectOpen,
+    setSelectedLibraryResource,
+    setIsManageLinkageOpen,
+    setIsEditResourceOpen,
+    setDeleteModSetSelectedItemIds,
+    setIsDeleteModSetOpen,
+  });
 
   const hasBlockingOverlay = Boolean(
     contextMenu ||
@@ -744,136 +457,17 @@ export const LibraryPageController: React.FC = () => {
     isLibraryInstanceSelectOpen
   );
 
-  useEffect(() => {
-    if (hasBlockingOverlay) {
-      const currentFocus = getCurrentFocusKey();
-      if (currentFocus && currentFocus !== 'SN:ROOT') {
-        lastFocusKeyBeforeOverlayRef.current = currentFocus;
-      }
-    }
-  }, [hasBlockingOverlay]);
-
-  useInputAction('ACTION_X', () => {
-    if (currentGlobalTab !== 'library' || hasBlockingOverlay || isCollectionSortMode) return;
-    handleOpenFocusedResourceContextMenu();
-  });
-
-  useInputAction('ACTION_Y', () => {
-    if (currentGlobalTab !== 'library' || hasBlockingOverlay) return;
-
-    const currentFocus = getCurrentFocusKey();
-    if (activeSection === 'sidebar') {
-      if (currentFocus && (currentFocus === 'library-tags-manage' || currentFocus.startsWith('library-tag-'))) {
-        sidebarLastFocusRef.current = currentFocus;
-      }
-      setActiveSection('content');
-    } else {
-      if (currentFocus && currentFocus !== 'SN:ROOT') {
-        rightAreaLastFocusRef.current = currentFocus;
-      }
-      setActiveSection('sidebar');
-    }
-  });
-
-  useInputAction('CANCEL', () => {
-    if (currentGlobalTab !== 'library' || hasBlockingOverlay) return;
-
-    if (parentCategoryId) {
-      setSelectedGroupId(parentCategoryId);
-      return;
-    }
-
-    if (isCategoryView) {
-      setSelectedGroupId('all');
-    }
-  });
-
-  useEffect(() => {
-    if (currentGlobalTab !== 'library') {
-      setActiveSection('content');
-      didInitialControllerFocusRef.current = false;
-      lastFocusKeyBeforeOverlayRef.current = null;
-    }
-  }, [currentGlobalTab]);
-
-  useEffect(() => {
-    if (currentGlobalTab !== 'library' || hasBlockingOverlay) return;
-
-    if (activeSection === 'sidebar') {
-      const target = sidebarLastFocusRef.current || 'library-tags-manage';
-      const timer = setTimeout(() => {
-        if (doesFocusableExist(target)) {
-          setFocus(target);
-        }
-      }, 50);
-      return () => clearTimeout(timer);
-    } else {
-      const target = rightAreaLastFocusRef.current;
-      const fallbackTarget = isCategoryView
-        ? `${LIBRARY_COLLECTION_FOCUS_PREFIX}0`
-        : visibleResources.length > 0
-          ? `${LIBRARY_RESOURCE_FOCUS_PREFIX}0`
-          : 'library-search';
-      const finalTarget = (target && doesFocusableExist(target)) ? target : fallbackTarget;
-
-      const timer = setTimeout(() => {
-        if (doesFocusableExist(finalTarget)) {
-          setFocus(finalTarget);
-        }
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [activeSection, isCategoryView, finalVisibleResources.length, visibleCollections.length, currentGlobalTab, hasBlockingOverlay]);
-
-  useEffect(() => {
-    if (currentGlobalTab !== 'library') {
-      didInitialControllerFocusRef.current = false;
-      return;
-    }
-    if (hasBlockingOverlay) return;
-
-    const currentFocus = getCurrentFocusKey();
-    if (currentFocus && currentFocus !== 'SN:ROOT' && doesFocusableExist(currentFocus)) {
-      const isInSidebar = currentFocus === 'library-tags-manage' || currentFocus?.startsWith('library-tag-');
-      setActiveSection(isInSidebar ? 'sidebar' : 'content');
-      didInitialControllerFocusRef.current = true;
-      return;
-    }
-
-    const restoredTarget = lastFocusKeyBeforeOverlayRef.current;
-    const preferredTarget = isCategoryView
-      ? `${LIBRARY_COLLECTION_FOCUS_PREFIX}0`
-      : finalVisibleResources.length > 0
-        ? `${LIBRARY_RESOURCE_FOCUS_PREFIX}0`
-        : 'library-search';
-
-    const finalTarget = (restoredTarget && doesFocusableExist(restoredTarget))
-      ? restoredTarget
-      : preferredTarget;
-
-    lastFocusKeyBeforeOverlayRef.current = null;
-
-    if (didInitialControllerFocusRef.current && !doesFocusableExist(finalTarget)) return;
-
-    const timer = window.setTimeout(() => {
-      const target = [
-        finalTarget,
-        'library-search',
-      ].find((key) => doesFocusableExist(key));
-      if (target) {
-        setFocus(target);
-        didInitialControllerFocusRef.current = true;
-      }
-    }, 80);
-
-    return () => window.clearTimeout(timer);
-  }, [
+  const { activeSection, handleContentArrow } = useLibraryFocusNavigation({
     currentGlobalTab,
     hasBlockingOverlay,
+    isCollectionSortMode,
     isCategoryView,
-    finalVisibleResources.length,
-    visibleCollections.length,
-  ]);
+    parentCategoryId,
+    visibleResourceCount: finalVisibleResources.length,
+    visibleCollectionCount: visibleCollections.length,
+    setSelectedGroupId,
+    onOpenFocusedResourceContextMenu: handleOpenFocusedResourceContextMenu,
+  });
 
   return (
     <FocusBoundary

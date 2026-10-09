@@ -13,7 +13,7 @@ import {
   type McVersionType,
   VERSION_TYPES,
   type VersionGroup,
-} from '../../..';
+} from '../../../logic/environmentSelection';
 import { useInputAction } from '../../../../../ui/focus/InputDriver';
 import {
   canApplyEnvironment,

@@ -119,6 +119,7 @@ if (deepSourcePaths.length !== policy.ratchets.deepSourcePathCount) {
 
 const moduleSpecifierPattern = /(?:from\s*|import\s*\(\s*|import\s*)['"]([^'"]+)['"]/g
 const crossFeatureImports = []
+const selfPublicEntryImports = []
 
 for (const file of sourceFiles.filter((candidate) => /\.[jt]sx?$/.test(candidate))) {
   const sourcePath = toRepositoryPath(file)
@@ -142,12 +143,20 @@ for (const file of sourceFiles.filter((candidate) => /\.[jt]sx?$/.test(candidate
 
     if (targetSegments[0] !== 'src' || targetSegments[1] !== 'features') continue
     const targetFeature = targetSegments[2]
-    if (!targetFeature || targetFeature === sourceFeature) continue
-
     const targetRemainder = targetSegments.slice(3)
     const usesPublicEntry =
       targetRemainder.length === 0 ||
       (targetRemainder.length === 1 && targetRemainder[0] === 'index')
+
+    if (!targetFeature) continue
+    if (targetFeature === sourceFeature) {
+      if (usesPublicEntry) {
+        const line = contents.slice(0, match.index).split('\n').length
+        selfPublicEntryImports.push(`${sourcePath}:${line} -> ${specifier}`)
+      }
+      continue
+    }
+
     if (usesPublicEntry) continue
 
     const line = contents.slice(0, match.index).split('\n').length
@@ -162,11 +171,19 @@ if (crossFeatureImports.length !== policy.ratchets.crossFeatureDeepImportCount) 
   )
 }
 
+if (selfPublicEntryImports.length > 0) {
+  errors.push(
+    `Feature 内部通过自身公共入口回引 ${selfPublicEntryImports.length} 处；` +
+      '这会扩大循环依赖和运行时暂时性死区风险，请改为直接引用 Feature 内部模块'
+  )
+}
+
 notes.push(`遗留非 kebab-case 目录：${legacyDirectories.size}`)
 notes.push(`遗留未使用 Page 后缀的页面：${legacyPages.size}`)
 notes.push(`禁止重新出现的旧目录：${forbiddenDirectories.size}`)
 notes.push(`超过 ${policy.ratchets.allowedSourcePathSegments} 段的源码路径：${deepSourcePaths.length}`)
 notes.push(`跨 Feature 深层导入：${crossFeatureImports.length}`)
+notes.push(`Feature 内部公共入口回引：${selfPublicEntryImports.length}`)
 
 console.log('结构检查摘要')
 for (const note of notes) console.log(`- ${note}`)
@@ -176,6 +193,8 @@ if (process.argv.includes('--details')) {
   for (const file of deepSourcePaths.map(toRepositoryPath).sort()) console.log(`- ${file}`)
   console.log('\n跨 Feature 深层导入')
   for (const item of crossFeatureImports.sort()) console.log(`- ${item}`)
+  console.log('\nFeature 内部公共入口回引')
+  for (const item of selfPublicEntryImports.sort()) console.log(`- ${item}`)
 }
 
 if (errors.length > 0) {

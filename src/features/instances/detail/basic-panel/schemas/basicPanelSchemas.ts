@@ -1,4 +1,4 @@
-import type { LoaderType } from '../../..';
+import type { LoaderType } from '../../../logic/environmentSelection';
 export type {
   VerifyDialogState,
   VerifyProgress,
