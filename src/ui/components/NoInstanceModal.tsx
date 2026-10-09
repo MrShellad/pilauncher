@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { PackageOpen, Download, FolderInput } from 'lucide-react';
 import { OreModal } from '../primitives/OreModal';
 import { OreButton } from '../primitives/OreButton';
-import { useLauncherStore } from '../../store/useLauncherStore';
+import { useLauncherStore } from '@/app/stores/useLauncherStore';
 
 interface NoInstanceModalProps {
   isOpen: boolean;

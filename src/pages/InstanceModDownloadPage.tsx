@@ -3,8 +3,8 @@ import { ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 
-import { InstanceModDownloadView } from '../features/InstanceDetail/components/tabs/mods/components/download/InstanceModDownloadView';
-import { useLauncherStore } from '../store/useLauncherStore';
+import { InstanceModDownloadView } from '@/features/instances';
+import { useLauncherStore } from '@/app/stores/useLauncherStore';
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { OreButton } from '../ui/primitives/OreButton';
 

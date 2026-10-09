@@ -1,10 +1,10 @@
 // src/hooks/useAchievementEvents.ts
 import { useEffect } from 'react';
-import { eventBus } from '../utils/eventBus';
+import { eventBus } from '../utils/event-bus';
 import type {
   AchievementUnlockedPayload,
   AchievementSessionSummaryPayload,
-} from '../utils/eventBus/events';
+} from '../utils/event-bus/events';
 
 export interface UseAchievementEventsOptions {
   onUnlocked?: (payload: AchievementUnlockedPayload) => void;

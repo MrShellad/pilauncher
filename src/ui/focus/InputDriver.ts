@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { useGameLogStore } from '../../store/useGameLogStore';
-import { eventBus } from '../../utils/eventBus';
+import { useGameLogStore } from '@/features/game-log';
+import { eventBus } from '../../utils/event-bus';
 import { useEvent } from '../../hooks/useEvent';
 
 export type InputAction =

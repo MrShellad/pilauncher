@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'motion/react';
 import { BellRing, CalendarClock, ExternalLink, Tag, X } from 'lucide-react';
 
-import { useArticlePushStore } from '../../../store/useArticlePushStore';
+import { useArticlePushStore } from '../stores/useArticlePushStore';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import { OreOverlayScrollArea } from '../../../ui/primitives/OreOverlayScrollArea';
 import { openExternalLink } from '../../../utils/openExternalLink';

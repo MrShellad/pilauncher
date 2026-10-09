@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { useSkinViewer, loadAccountSkin } from '../../home/hooks/useSkinViewer';
+import { useSkinViewer, loadAccountSkin } from './useSkinViewer';
 import type { SkinCardAsset, WardrobeSkinModel, WardrobeTab } from '../types';
 
 export function useWardrobeViewerControl() {

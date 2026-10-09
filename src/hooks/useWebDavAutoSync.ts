@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { useSettingsStore } from '../store/useSettingsStore';
-import { useLibraryStore } from '../stores/useLibraryStore';
+import { useSettingsStore } from '@/app/stores/useSettingsStore';
+import { useLibraryStore } from '@/features/library';
 
 const INTERVALS_MS = {
   '3h': 3 * 60 * 60 * 1000,

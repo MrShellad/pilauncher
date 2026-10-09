@@ -10,7 +10,7 @@ import {
   enableSampleAlphaToCoverage,
   loadModrinthModel,
   loadModrinthTexture,
-} from '../../home/engine/modrinthSkinRendering';
+} from '../engine/modrinthSkinRendering';
 
 type RenderTask = () => Promise<void>;
 

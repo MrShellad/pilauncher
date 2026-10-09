@@ -26,8 +26,8 @@ import type {
   IncomingTransferNotice,
 } from '../../../hooks/useLan';
 import { useLan } from '../../../hooks/useLan';
-import { useAccountStore } from '../../../store/useAccountStore';
-import { useSettingsStore } from '../../../store/useSettingsStore';
+import { useAccountStore } from '@/features/account';
+import { useSettingsStore } from '@/app/stores/useSettingsStore';
 import { resolveAccountAvatarAsset } from '../../../services/accountAppearance';
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../ui/focus/FocusItem';
@@ -37,8 +37,8 @@ import { OreDropdown } from '../../../ui/primitives/OreDropdown';
 import { OreModal } from '../../../ui/primitives/OreModal';
 import { OreProgressBar } from '../../../ui/primitives/OreProgressBar';
 import defaultAvatar from '../../../assets/home/account/128.png';
-import { JavaFriendsAndLanPanel } from './AccountSliderBar/JavaFriendsAndLanPanel';
-import { UserProfileCard } from './AccountSliderBar/UserProfileCard';
+import { JavaFriendsAndLanPanel } from './account-slider-bar/JavaFriendsAndLanPanel';
+import { UserProfileCard } from './account-slider-bar/UserProfileCard';
 
 interface MicrosoftAccountSidebarProps {
   isOpen: boolean;

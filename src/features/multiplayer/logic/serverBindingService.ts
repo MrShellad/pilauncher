@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { ServerBindableInstance, ServerBindingRecord } from '../types';
-import { useDownloadStore } from '../../../store/useDownloadStore';
+import { useDownloadStore } from '@/features/download';
 
 interface DownloadAndImportModpackInput {
   url: string;

@@ -93,6 +93,11 @@ const lucideDirectImportPlugin = (): Plugin => {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [tailwindcss(), lucideDirectImportPlugin(), react()],
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url))
+    }
+  },
   optimizeDeps: {
     include: [
       'react',

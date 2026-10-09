@@ -1,11 +1,11 @@
 import { useState, useCallback, type KeyboardEvent, type MouseEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { useAccountStore } from '../store/useAccountStore';
-import { useDownloadStore } from '../store/useDownloadStore';
-import { useGameLogStore } from '../store/useGameLogStore';
-import { useGamepadModStore } from '../store/useGamepadModStore';
-import { useRuntimeRepairDialogStore } from '../store/useRuntimeRepairDialogStore';
-import { useSettingsStore } from '../store/useSettingsStore';
+import { useAccountStore } from '@/features/account';
+import { useDownloadStore } from '@/features/download';
+import { useGameLogStore } from '@/features/game-log';
+import { useGamepadModStore } from '@/features/instances';
+import { useRuntimeRepairDialogStore } from '@/features/runtime';
+import { useSettingsStore } from '@/app/stores/useSettingsStore';
 import type { PreLaunchCheckReport } from '../types/runtimeRepair';
 import {
   resolveGamepadMod,

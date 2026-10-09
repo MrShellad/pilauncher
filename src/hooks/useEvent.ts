@@ -1,7 +1,7 @@
 // src/hooks/useEvent.ts
 import { useEffect, useRef } from 'react';
-import { eventBus } from '../utils/eventBus';
-import type { AppEventMap } from '../utils/eventBus/events';
+import { eventBus } from '../utils/event-bus';
+import type { AppEventMap } from '../utils/event-bus/events';
 
 /**
  * A React hook to subscribe to the global Event Bus.

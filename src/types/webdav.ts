@@ -42,7 +42,7 @@ export interface WebDavRemoteSaveBackup {
   remotePrefix: string;
   fileCount: number;
   totalSize: number;
-  metadata: import('../features/InstanceDetail/logic/saveService').SaveBackupMetadata;
+  metadata: import('@/features/instances').SaveBackupMetadata;
 }
 
 export interface WebDavSaveBackupDownloadResult {
@@ -51,7 +51,7 @@ export interface WebDavSaveBackupDownloadResult {
   downloadedBackups: number;
   downloadedFiles: number;
   restored: boolean;
-  restoreResult?: import('../features/InstanceDetail/logic/saveService').SaveRestoreResult | null;
+  restoreResult?: import('@/features/instances').SaveRestoreResult | null;
 }
 
 export interface WebDavSaveBackupDeleteResult {

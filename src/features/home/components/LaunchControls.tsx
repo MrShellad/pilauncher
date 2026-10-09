@@ -8,10 +8,10 @@ import { useScreenDensity } from '../../../hooks/ui/useScreenDensity';
 import { focusManager } from '../../../ui/focus/FocusManager';
 import { useInputMode } from '../../../ui/focus/FocusProvider';
 
-import { useLauncherStore } from '../../../store/useLauncherStore';
-import { useAccountStore } from '../../../store/useAccountStore';
-import { useInstances } from '../../../hooks/pages/Instances/useInstances';
-import { useToastStore } from '../../../store/useToastStore';
+import { useLauncherStore } from '@/app/stores/useLauncherStore';
+import { useAccountStore } from '@/features/account';
+import { useInstances } from '@/features/instances';
+import { useToastStore } from '@/shared/stores/useToastStore';
 import { NoAccountModal } from '../../../ui/components/NoAccountModal';
 import { NoInstanceModal } from '../../../ui/components/NoInstanceModal';
 

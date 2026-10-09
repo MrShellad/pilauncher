@@ -1,8 +1,8 @@
 import { useCallback, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
-import { useAccountStore, type MinecraftAccount } from '../../../store/useAccountStore';
-import { useWardrobeStore } from '../../../store/useWardrobeStore';
+import { useAccountStore, type MinecraftAccount } from '@/features/account';
+import { useWardrobeStore } from '../stores/useWardrobeStore';
 import type { WardrobeProfile, WardrobeSkinLibrary } from '../types';
 import {
   isMicrosoftAccount,

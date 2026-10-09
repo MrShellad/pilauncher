@@ -4,8 +4,8 @@ import { Download, Home as HomeIcon, Library as LibraryIcon, Minus, Server, Sett
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import logoImage from '../../assets/home/herologo/minecraft_title.webp';
 import { invoke } from '@tauri-apps/api/core';
-import { useLauncherStore } from '../../store/useLauncherStore';
-import { useSettingsStore } from '../../store/useSettingsStore';
+import { useLauncherStore } from '@/app/stores/useLauncherStore';
+import { useSettingsStore } from '@/app/stores/useSettingsStore';
 import { OreSegmentedControl, type TabItem } from '../primitives/OreSegmentedControl';
 import { useInputAction } from '../focus/InputDriver';
 import { GamepadButtonIcon } from '../components/GamepadButtonIcon';

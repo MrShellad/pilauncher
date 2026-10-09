@@ -1,0 +1,175 @@
+import React, { useState, useEffect } from 'react';
+import { RefreshCw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+
+import { OreModal } from '../../../../../ui/primitives/OreModal';
+import { OreButton } from '../../../../../ui/primitives/OreButton';
+import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary';
+import { OreToggleButton } from '../../../../../ui/primitives/OreToggleButton';
+import { OreProgressBar } from '../../../../../ui/primitives/OreProgressBar';
+import type { ModMetadataSettings, ModPlatformPreference } from '../../../../instance-resources';
+
+interface GlobalModMetadataModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  currentSettings?: ModMetadataSettings;
+  onSaveMetadataSettings: (settings: ModMetadataSettings, skipReload?: boolean) => Promise<void>;
+  onReidentifyAllMods: (onProgress?: (current: number, total: number) => void) => Promise<void>;
+}
+
+export const GlobalModMetadataModal: React.FC<GlobalModMetadataModalProps> = ({
+  isOpen,
+  onClose,
+  currentSettings,
+  onSaveMetadataSettings,
+  onReidentifyAllMods
+}) => {
+  const { t } = useTranslation();
+  const [metadataPlatformDraft, setMetadataPlatformDraft] = useState<ModPlatformPreference>('auto');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isReidentifying, setIsReidentifying] = useState(false);
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
+
+  // Load current settings when opened
+  useEffect(() => {
+    if (isOpen) {
+      setMetadataPlatformDraft(currentSettings?.metadataPlatform ?? 'auto');
+      setIsSaving(false);
+      setIsReidentifying(false);
+      setProgress(null);
+    }
+  }, [isOpen, currentSettings]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onSaveMetadataSettings({
+        metadataPlatform: metadataPlatformDraft,
+        updatePlatform: 'auto',
+        metadataLocked: metadataPlatformDraft !== 'auto',
+        updateLocked: false
+      });
+      onClose();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleReidentifyAll = async () => {
+    setIsReidentifying(true);
+    setProgress({ current: 0, total: 1 });
+    try {
+      // Auto save draft settings first, skipping loadMods() to avoid concurrent mod scanning race conditions
+      await onSaveMetadataSettings({
+        metadataPlatform: metadataPlatformDraft,
+        updatePlatform: 'auto',
+        metadataLocked: metadataPlatformDraft !== 'auto',
+        updateLocked: false
+      }, true);
+
+      await onReidentifyAllMods((current, total) => {
+        setProgress({ current, total });
+      });
+      onClose();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsReidentifying(false);
+      setProgress(null);
+    }
+  };
+
+  const platformOptions = [
+    { label: t('instanceDetail.mods.globalMetadata.platformOptions.auto.label', { defaultValue: '自动' }), value: 'auto', description: t('instanceDetail.mods.globalMetadata.platformOptions.auto.desc', { defaultValue: '根据模组文件哈希自动匹配' }) },
+    { label: 'Modrinth', value: 'modrinth', description: t('instanceDetail.mods.globalMetadata.platformOptions.modrinth.desc', { defaultValue: '仅从 Modrinth 平台获取' }) },
+    { label: 'CurseForge', value: 'curseforge', description: t('instanceDetail.mods.globalMetadata.platformOptions.curseforge.desc', { defaultValue: '仅从 CurseForge 平台获取' }) }
+  ];
+
+  return (
+    <OreModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t('instanceDetail.mods.globalMetadata.title', { defaultValue: '全局模组元数据设置' })}
+      className="w-[95vw] max-w-xl"
+      actionsClassName="!justify-center"
+      defaultFocusKey="global-metadata-platform-0"
+      actions={
+        <>
+          <OreButton
+            focusKey="global-metadata-save"
+            variant="primary"
+            onClick={handleSave}
+            disabled={isReidentifying || isSaving}
+          >
+            {isSaving ? t('instanceDetail.mods.globalMetadata.saving', { defaultValue: '保存中...' }) : t('instanceDetail.mods.globalMetadata.save', { defaultValue: '保存修改' })}
+          </OreButton>
+          <OreButton
+            focusKey="global-metadata-cancel"
+            variant="secondary"
+            onClick={onClose}
+            disabled={isReidentifying || isSaving}
+          >
+            {t('instanceDetail.mods.globalMetadata.cancel', { defaultValue: '取消' })}
+          </OreButton>
+        </>
+      }
+    >
+      <FocusBoundary id="global-mod-metadata-boundary" trapFocus onEscape={onClose} className="flex flex-col gap-3.5 w-full">
+        {/* 主要设置区域 - 合并为一个卡片，逻辑分割 */}
+        <div className="rounded-sm border border-[#2A2A2C] bg-[#1A1A1C] p-4 flex flex-col gap-4">
+          <div>
+            <h3 className="text-xs font-minecraft font-bold text-gray-300 mb-2">{t('instanceDetail.mods.globalMetadata.platformLabel', { defaultValue: '全局元数据平台' })}</h3>
+            <OreToggleButton
+              options={platformOptions}
+              value={metadataPlatformDraft}
+              onChange={(val) => setMetadataPlatformDraft(val as ModPlatformPreference)}
+              focusKeyPrefix="global-metadata-platform"
+            />
+          </div>
+
+        </div>
+
+        {/* 提示信息区域 */}
+        <div className="rounded-sm border border-ore-green/30 bg-ore-green/10 px-3 py-2 text-[11px] text-ore-green font-minecraft leading-relaxed">
+          {t('instanceDetail.mods.globalMetadata.tip', { defaultValue: '更新检查会自动查询所有已识别平台，并选择最新的兼容版本；这里仅设置名称、图标和简介的优先来源。' })}
+        </div>
+
+        {/* 危险操作 / 维护区域 */}
+        <div className="rounded-sm border border-red-900/40 bg-red-950/10 p-4 flex flex-col gap-3">
+          <div>
+            <h4 className="text-xs font-minecraft font-bold text-red-300">{t('instanceDetail.mods.globalMetadata.maintenanceLabel', { defaultValue: '高级维护操作' })}</h4>
+            <p className="text-[11px] text-gray-400 mt-1 font-minecraft leading-relaxed">
+              {t('instanceDetail.mods.globalMetadata.maintenanceDesc', { defaultValue: '如果模组匹配信息出现偏差或无法获取更新，可清空并重新从云端检索匹配所有模组的数据。' })}
+            </p>
+          </div>
+          
+          {isReidentifying ? (
+            <OreProgressBar
+              percent={progress && progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0}
+              label={
+                <span className="flex items-center gap-1.5 font-minecraft text-[11px] text-gray-300 normal-case tracking-normal">
+                  <RefreshCw size={11} className="animate-spin text-ore-green" />
+                  {t('instanceDetail.mods.globalMetadata.reidentifyingProgress', { defaultValue: '正在重新匹配模组云端数据... ({{current}}/{{total}})', current: progress ? progress.current : 0, total: progress ? progress.total : 0 })}
+                </span>
+              }
+              className="pt-1 !px-0"
+            />
+          ) : (
+            <OreButton
+              focusKey="global-metadata-reidentify"
+              variant="danger"
+              className="w-full justify-center !h-10 !min-h-10"
+              onClick={handleReidentifyAll}
+              disabled={isSaving}
+            >
+              <RefreshCw size={14} className="mr-1.5" />
+              {t('instanceDetail.mods.globalMetadata.reidentifyAllBtn', { defaultValue: '重新识别所有模组数据' })}
+            </OreButton>
+          )}
+        </div>
+      </FocusBoundary>
+    </OreModal>
+  );
+};

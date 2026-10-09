@@ -30,4 +30,5 @@ build_tauri.bat
 build-signed.bat
 Terracotta-master/
 mclogs-js-sdk/
-/docs/
+/docs/*
+!/docs/CODEBASE_STRUCTURE_PLAN.md

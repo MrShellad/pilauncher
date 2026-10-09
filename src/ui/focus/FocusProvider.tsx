@@ -18,7 +18,7 @@ import {
   steamDeckKeyboardPreset,
 } from './InputDriver';
 import { GamepadToast } from './GamepadToast';
-import { useSettingsStore } from '../../store/useSettingsStore';
+import { useSettingsStore } from '@/app/stores/useSettingsStore';
 
 interface GlobalFocusContextType {
   inputMode: InputMode;

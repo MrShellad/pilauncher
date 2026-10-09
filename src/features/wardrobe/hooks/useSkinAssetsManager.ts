@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { convertFileSrc } from '@tauri-apps/api/core';
 
-import type { MinecraftAccount } from '../../../store/useAccountStore';
+import type { MinecraftAccount } from '@/features/account';
 import type {
   WardrobeProfile,
   WardrobeSkinLibrary,

@@ -7,17 +7,16 @@ import { OreMotionTokens } from '../../../style/tokens/motion';
 import { getButtonIcon } from '../../../ui/icons/SocialIcons';
 import { NewspaperIcon } from '../../../ui/icons/NewspaperIcon';
 import { OreButton } from '../../../ui/primitives/OreButton';
-import { useLauncherStore } from '../../../store/useLauncherStore';
-import { useNewsStore } from '../../../store/useNewsStore';
+import { useLauncherStore } from '@/app/stores/useLauncherStore';
+import { useNewsStore } from '../stores/useNewsStore';
 import { openExternalLink } from '../../../utils/openExternalLink';
 import { formatPlayTime, formatRelativeTime } from '../../../utils/formatters';
 
-import { useAccountStore } from '../../../store/useAccountStore';
+import { useAccountStore } from '@/features/account';
 import { resolveAccountAvatarAsset } from '../../../services/accountAppearance';
-import { useMicrosoftAuth } from '../../Settings/hooks/useMicrosoftAuth';
-import { MicrosoftAuthModal } from '../../Settings/components/modals/MicrosoftAuthModal';
+import { MicrosoftAuthModal, useMicrosoftAuth } from '@/features/authentication';
 import { MicrosoftAccountSidebar } from './MicrosoftAccountSidebar';
-import { LanTrustModal } from '../../lan/LanTrustModal';
+import { LanTrustModal } from '@/features/lan';
 import { useScreenDensity } from '../../../hooks/ui/useScreenDensity';
 
 // ✅ 引入本地默认头像作为终极兜底

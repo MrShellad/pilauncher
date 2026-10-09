@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { AlertTriangle, UserPlus } from 'lucide-react';
 import { OreModal } from '../primitives/OreModal';
 import { OreButton } from '../primitives/OreButton';
-import { useLauncherStore } from '../../store/useLauncherStore';
+import { useLauncherStore } from '@/app/stores/useLauncherStore';
 
 interface NoAccountModalProps {
   isOpen: boolean;

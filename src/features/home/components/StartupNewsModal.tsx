@@ -5,9 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { doesFocusableExist, getCurrentFocusKey } from '@noriginmedia/norigin-spatial-navigation';
 
 import { NewsCard } from './NewsCard';
-import { NEWS_PAGE_COPY, getNewsLocale, normalizeMinecraftNewsItems } from '../data/newsItems';
-import { useLauncherStore } from '../../../store/useLauncherStore';
-import { useNewsStore } from '../../../store/useNewsStore';
+import { NEWS_PAGE_COPY, getNewsLocale, normalizeMinecraftNewsItems } from '@/shared/data/newsItems';
+import { useLauncherStore } from '@/app/stores/useLauncherStore';
+import { useNewsStore } from '../stores/useNewsStore';
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { focusManager } from '../../../ui/focus/FocusManager';
 

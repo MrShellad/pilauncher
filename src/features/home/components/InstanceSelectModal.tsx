@@ -3,14 +3,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { useInstances } from '../../../hooks/pages/Instances/useInstances';
+import { useInstances } from '@/features/instances';
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { FocusItem } from '../../../ui/focus/FocusItem';
 import { focusManager } from '../../../ui/focus/FocusManager';
 import { OreInstanceCard } from '../../../ui/primitives/OreInstanceCard';
 import { OreModal } from '../../../ui/primitives/OreModal';
 import { OreOverlayScrollArea } from '../../../ui/primitives/OreOverlayScrollArea';
-import { useLauncherStore } from '../../../store/useLauncherStore';
+import { useLauncherStore } from '@/app/stores/useLauncherStore';
 import { formatRelativeTime } from '../../../utils/formatters';
 
 interface InstanceSelectModalProps {

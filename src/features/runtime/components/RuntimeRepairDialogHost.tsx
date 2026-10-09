@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { useRuntimeRepairDialogStore } from '../../../store/useRuntimeRepairDialogStore';
+import { useRuntimeRepairDialogStore } from '../stores/useRuntimeRepairDialogStore';
 import { RuntimeRepairDialog } from './RuntimeRepairDialog';
 
 const idleProgress = {

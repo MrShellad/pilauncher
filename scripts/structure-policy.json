@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "legacyDirectories": [],
+  "legacyPages": [],
+  "forbiddenDirectories": [
+    "src/store",
+    "src/stores",
+    "src/hooks/pages"
+  ],
+  "deprecatedRoots": {},
+  "ratchets": {
+    "allowedSourcePathSegments": 7,
+    "deepSourcePathCount": 0,
+    "crossFeatureDeepImportCount": 0
+  }
+}

@@ -1,7 +1,7 @@
-// src/features/Setup/hooks/useSetupWizard.ts
+// src/features/setup/hooks/useSetupWizard.ts
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { useSettingsStore } from '../store/useSettingsStore';
+import { useSettingsStore } from '@/app/stores/useSettingsStore';
 // ✅ 移除了对 setFocus 的引入
 
 export const CURRENT_EULA_DATE = '2026-05-08';

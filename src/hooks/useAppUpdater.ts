@@ -5,9 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { create } from 'zustand';
 
-import { useAccountStore } from '../store/useAccountStore';
-import { useDownloadStore } from '../store/useDownloadStore';
-import { useSettingsStore } from '../store/useSettingsStore';
+import { useAccountStore } from '@/features/account';
+import { useDownloadStore } from '@/features/download';
+import { useSettingsStore } from '@/app/stores/useSettingsStore';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

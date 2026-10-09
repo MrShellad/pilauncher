@@ -7,20 +7,20 @@ import { useTranslation } from 'react-i18next';
 import {
   ContextualActionBar,
   getContextualActionBarFocusKey
-} from '../features/Download/components/ContextualActionBar';
-import { DownloadDetailModal } from '../features/Download/components/DownloadDetailModal';
-import { FavoritePlaceholderModal } from '../features/Download/components/FavoritePlaceholderModal';
-import { FilterBar } from '../features/Download/components/FilterBar';
-import { InstanceSelectModal } from '../features/Download/components/DetailModal/InstanceSelectModal';
-import { ResourceGrid } from '../features/Download/components/ResourceGrid';
-import { fetchCurseForgeVersions } from '../features/Download/logic/curseforgeApi';
-import { runResourceDownloadTask } from '../features/Download/logic/resourceDownloadTask';
-import { useResourceDownload, type DownloadSource, type TabType } from '../features/Download/hooks/useResourceDownload';
-import { useDownloadSelectionStore } from '../features/Download/stores/useDownloadSelectionStore';
-import { useIconCacheStore } from '../features/Download/logic/iconCache';
-import { fetchModrinthVersions, type ModrinthProject, type OreProjectVersion } from '../features/InstanceDetail/logic/modrinthApi';
-import { getInstalledProjectIds, getInstalledVersionIds, modService } from '../features/InstanceDetail/logic/modService';
-import { useLauncherStore } from '../store/useLauncherStore';
+} from '../features/download/components/ContextualActionBar';
+import { DownloadDetailModal } from '../features/download/components/DownloadDetailModal';
+import { FavoritePlaceholderModal } from '@/features/library';
+import { FilterBar } from '../features/download/components/FilterBar';
+import { InstanceSelectModal } from '../features/download/components/detail-modal/InstanceSelectModal';
+import { ResourceGrid } from '../features/download/components/ResourceGrid';
+import { fetchCurseForgeVersions } from '@/features/resource-catalog';
+import { runResourceDownloadTask } from '../features/download/logic/resourceDownloadTask';
+import { useResourceDownload, type DownloadSource, type TabType } from '../features/download/hooks/useResourceDownload';
+import { useDownloadSelectionStore } from '../features/download/stores/useDownloadSelectionStore';
+import { useIconCacheStore } from '../features/download/logic/iconCache';
+import { fetchModrinthVersions, type ModrinthProject, type OreProjectVersion } from '@/features/resource-catalog';
+import { getInstalledProjectIds, getInstalledVersionIds, modService } from '@/features/instance-resources';
+import { useLauncherStore } from '@/app/stores/useLauncherStore';
 import { FocusBoundary } from '../ui/focus/FocusBoundary';
 import { useInputAction } from '../ui/focus/InputDriver';
 import { focusManager } from '../ui/focus/FocusManager';

@@ -6,7 +6,7 @@
 // ════════════════════════════════════════════════════════════════
 
 import React from 'react';
-import { useSkinViewer } from '../hooks/useSkinViewer';
+import { useSkinViewer } from '@/features/wardrobe';
 
 const HOME_SKIN_PREVIEW_SCALE = 1.18;
 

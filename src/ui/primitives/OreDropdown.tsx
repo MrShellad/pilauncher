@@ -13,7 +13,7 @@ import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
 import { createPortal } from 'react-dom';
 
 import { FocusItem } from '../focus/FocusItem';
-import { eventBus } from '../../utils/eventBus';
+import { eventBus } from '../../utils/event-bus';
 import { useEvent } from '../../hooks/useEvent';
 
 export interface DropdownOption {

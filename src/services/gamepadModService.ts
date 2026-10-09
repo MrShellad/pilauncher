@@ -3,9 +3,9 @@
 // 启动器启动时从 Modrinth / CurseForge API 拉取版本信息，缓存到内存
 
 import { invoke } from '@tauri-apps/api/core';
-import { fetchCurseForgeVersions } from '../features/Download/logic/curseforgeApi';
-import { hasCurseForgeApiKey } from '../features/Download/logic/curseforgeApi';
-import type { OreProjectVersion, OreProjectDependency } from '../features/InstanceDetail/logic/modrinthApi';
+import { fetchCurseForgeVersions } from '@/features/resource-catalog';
+import { hasCurseForgeApiKey } from '@/features/resource-catalog';
+import type { OreProjectVersion, OreProjectDependency } from '@/features/resource-catalog';
 import gamepadConfig from '../assets/config/gamepad.json';
 
 // ==========================================

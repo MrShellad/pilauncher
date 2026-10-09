@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import * as THREE from 'three';
-import { useAccountStore } from '../../store/useAccountStore';
-import { useGameLogStore } from '../../store/useGameLogStore';
-import { useNewsStore } from '../../store/useNewsStore';
-import { useSettingsStore } from '../../store/useSettingsStore';
-import { normalizeMinecraftNewsItems } from '../../features/home/data/newsItems';
+import { useAccountStore } from '@/features/account';
+import { useGameLogStore } from '@/features/game-log';
+import { useNewsStore } from '@/features/home';
+import { useSettingsStore } from '@/app/stores/useSettingsStore';
+import { normalizeMinecraftNewsItems } from '@/shared/data/newsItems';
 import defaultBackground from '../../assets/home/wallpaper/1.webp';
 
 type PanoramaSetPayload = {

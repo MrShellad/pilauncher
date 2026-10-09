@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "structure:check": "node scripts/check-structure.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },

@@ -1,5 +1,5 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
-import type { MinecraftAccount } from '../../../store/useAccountStore';
+import type { MinecraftAccount } from '@/features/account';
 import type {
   WardrobeProfile,
   WardrobeSkinModel,

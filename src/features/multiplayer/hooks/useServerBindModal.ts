@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useLauncherStore } from '../../../store/useLauncherStore';
+import { useLauncherStore } from '@/app/stores/useLauncherStore';
 import { useGameLaunch } from '../../../hooks/useGameLaunch';
 import { serverBindingService } from '../logic/serverBindingService';
 import type { OnlineServer, ServerBindableInstance } from '../types';

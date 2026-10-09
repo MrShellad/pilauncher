@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from 'lucide-react';
 
-import { useToastStore, type ToastItem, type ToastTone } from '../../store/useToastStore';
+import { useToastStore, type ToastItem, type ToastTone } from '@/shared/stores/useToastStore';
 
 /* ─── tone → visual map ─── */
 const toneConfig: Record<ToastTone, { icon: React.ReactNode; accent: string }> = {

@@ -4,8 +4,8 @@ import { motion } from 'motion/react';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { PhysicalPosition } from '@tauri-apps/api/dpi';
-import { useSettingsStore } from '../../../store/useSettingsStore';
-import { useAccountStore } from '../../../store/useAccountStore';
+import { useSettingsStore } from '@/app/stores/useSettingsStore';
+import { useAccountStore } from '@/features/account';
 import { OreMotionTokens } from '../../../style/tokens/motion';
 
 // 启动器默认 logo（静态资源，构建时打包进 bundle）

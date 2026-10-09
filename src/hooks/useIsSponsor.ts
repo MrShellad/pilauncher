@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { useAccountStore } from '../store/useAccountStore';
+import { useAccountStore } from '@/features/account';
 import donorData from '../assets/config/donors.json';
 
 interface DonorEntry {

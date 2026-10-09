@@ -3,16 +3,17 @@ import { AlertTriangle, CheckCircle2, ShieldCheck, Wrench } from 'lucide-react';
 
 import { OreConfirmDialog } from '../../../ui/primitives/OreConfirmDialog';
 import { OreProgressBar } from '../../../ui/primitives/OreProgressBar';
-import type { VerifyDialogState, VerifyProgress } from '../../InstanceDetail/components/tabs/BasicPanel/schemas/basicPanelSchemas';
 import {
+  getVerifyPercent,
   getVerifyConfirmLabel,
   getVerifyDialogDescription,
   getVerifyDialogHeadline,
   getVerifyDialogTitle,
   getVerifyDialogTone,
   shouldUseSingleVerifyClose,
-} from '../../InstanceDetail/components/tabs/BasicPanel/utils/maintenanceSectionUtils';
-import { getVerifyPercent } from '../../InstanceDetail/components/tabs/BasicPanel/utils/verifyInstanceUtils';
+  type VerifyDialogState,
+  type VerifyProgress,
+} from '../verify';
 
 interface RuntimeRepairDialogProps {
   isOpen: boolean;
