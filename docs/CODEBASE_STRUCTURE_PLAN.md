@@ -361,6 +361,8 @@ home / settings   -> authentication + account
 - [x] 拆分 `InstanceModDownloadView` 的前置依赖弹窗、下载队列与依赖编排职责。
 - [x] 拆分 `MicrosoftAccountSidebar` 的局域网投送状态、设备列表、传输面板与接收弹窗职责。
 - [x] 拆分 `SkinEngine` 的公共类型、场景几何工具与点击反馈状态机，保留模型和 AnimationMixer 生命周期主干。
+- [x] 拆分 `WebDavManageModal` 的收藏、按键配置、存档列表与下载目标视图，保留 WebDAV 状态和命令编排主干。
+- [x] 拆分实例模组下载 `ResourceGrid` 的资源卡片与加载反馈视图，保留虚拟列表、响应式列数和焦点/触底加载编排主干。
 - [ ] 继续按 `mods`、`saves`、`screenshots` 等子域拆分实例详情大文件。
 - [x] 将 `LibraryPage` 的状态编排迁入 Feature Controller，路由页面只保留 Feature 组合。
 - [x] 将 Library 的实例选择、资源关联、资源编辑和新增资源弹窗状态提取为独立 Hook。
@@ -406,6 +408,10 @@ home / settings   -> authentication + account
 - 上述拆分未改动账户或投送行为；`pnpm build` 通过，专项 ESLint 从原文件既有的 9 个错误和 2 个警告降为 Controller Hook 中 4 个 Effect 错误和 2 个依赖警告，其余新增文件无规则问题。
 - 完成 `SkinEngine` 算法边界复核与拆分：公共契约、Three.js 场景/相机几何工具、点击冲量与受击闪烁状态机已独立，主引擎从 967 行降至 794 行；模型加载、AnimationMixer、渲染循环和资源销毁保留在同一生命周期主干中，不再为满足行数机械拆分。
 - SkinEngine 拆分后 `pnpm build` 通过；新增模块专项 ESLint 无问题，主引擎仍仅有拆分前已存在的 2 个 `_backEquipment` 未使用参数错误。
+- 完成 `WebDavManageModal` 视图职责拆分：主编排从约 940 行降至 492 行，收藏同步、按键配置、远端存档列表、下载目标面板以及共享展示类型/格式化工具均已独立；WebDAV 加载、同步、删除、下载与恢复命令仍保留在同一编排主干中。
+- WebDAV 管理弹窗拆分后 `pnpm build` 通过；新增组件和工具专项 ESLint 无问题，主文件从原有 6 个错误和 1 个警告降至 4 个既有错误和 1 个既有警告，未新增规则问题。
+- 完成实例模组下载 `ResourceGrid` 职责拆分：主网格从 898 行降至 453 行，353 行资源卡片与 106 行加载骨架/分页反馈视图已独立；虚拟行计算、响应式单双列、焦点恢复与触底加载继续保留在同一网格编排主干中。
+- ResourceGrid 拆分后 `pnpm build` 通过；三个相关文件专项 ESLint 为 0 个错误和 1 个既有 `useVirtualizer` 兼容性警告，未新增规则问题。
 - 深层源码路径和跨 Feature 深层导入继续保持为 0，`pnpm structure:check` 与 `pnpm build` 通过。
 
 遗漏复核（2026-10-10）：
@@ -417,18 +423,16 @@ home / settings   -> authentication + account
 
 当前剩余大文件拆分优先级：
 
-1. `src/features/settings/components/tabs/data-settings/components/WebDavManageModal.tsx`（约 940 行）。
-2. `src/features/instances/detail/mods/download/ResourceGrid.tsx`（约 898 行）。
-3. `src/features/settings/components/tabs/AppearanceSettings.tsx`（约 807 行）。
-4. `src/features/home/components/account-slider-bar/JavaFriendsAndLanPanel.tsx`（约 777 行）。
-5. `src/features/wardrobe/components/WardrobePageController.tsx`（约 775 行；页面编排已归入 Feature，后续再拆会话、在线皮肤与焦点控制）。
-6. `src/features/instances/detail/mods/hooks/useModPanelController.ts`（约 766 行）。
-7. `src/features/instance-resources/logic/modService.ts`（约 731 行）。
-8. `src/features/download/components/ResourceDownloadPageController.tsx`（约 693 行；页面编排已归入 Feature，后续再拆选择、焦点与批量下载流程）。
-9. `src/features/instances/detail/saves/SaveRestoreModal.tsx`（约 672 行）。
-10. `src/features/library/components/LibraryPageController.tsx`（约 655 行；状态编排已按上下文菜单、焦点导航、集合管理和资源弹窗拆分）。
-11. `src/features/instances/components/InstancesPageController.tsx`（约 567 行；页面编排已归入 Feature，后续再拆筛选栏和导入弹窗）。
-12. `src/features/instances/detail/ScreenshotPanel.tsx`（约 540 行）。
+1. `src/features/settings/components/tabs/AppearanceSettings.tsx`（约 807 行）。
+2. `src/features/home/components/account-slider-bar/JavaFriendsAndLanPanel.tsx`（约 777 行）。
+3. `src/features/wardrobe/components/WardrobePageController.tsx`（约 775 行；页面编排已归入 Feature，后续再拆会话、在线皮肤与焦点控制）。
+4. `src/features/instances/detail/mods/hooks/useModPanelController.ts`（约 766 行）。
+5. `src/features/instance-resources/logic/modService.ts`（约 731 行）。
+6. `src/features/download/components/ResourceDownloadPageController.tsx`（约 693 行；页面编排已归入 Feature，后续再拆选择、焦点与批量下载流程）。
+7. `src/features/instances/detail/saves/SaveRestoreModal.tsx`（约 672 行）。
+8. `src/features/library/components/LibraryPageController.tsx`（约 655 行；状态编排已按上下文菜单、焦点导航、集合管理和资源弹窗拆分）。
+9. `src/features/instances/components/InstancesPageController.tsx`（约 567 行；页面编排已归入 Feature，后续再拆筛选栏和导入弹窗）。
+10. `src/features/instances/detail/ScreenshotPanel.tsx`（约 540 行）。
 
 样式文件中 `src/style/pages/Multiplayer.css` 约 1917 行，应与 Multiplayer 子组件拆分同步处理，避免只按行数机械切割。
 
@@ -542,7 +546,7 @@ cargo check --manifest-path src-tauri/Cargo.toml
 | Phase 1：纯命名统一 | DONE | 目录和页面命名已统一，构建通过 |
 | Phase 2：重复目录治理 | DONE | Store 与页面 Hook 已归位，旧根目录已禁止 |
 | Phase 3：Feature 解耦 | DONE | 远程目录、本地资源和下载任务已分层，跨 Feature 深层导入降为 0 |
-| Phase 4：大模块拆分 | IN PROGRESS | 重型路由页、实例模组下载、账户 LAN 侧栏与皮肤引擎边界已完成拆分；下一步继续处理剩余大模块 |
+| Phase 4：大模块拆分 | IN PROGRESS | 重型路由页、实例模组下载视图与网格、账户 LAN 侧栏、皮肤引擎及 WebDAV 管理弹窗已完成拆分；下一步继续处理剩余大模块 |
 | Phase 5：Rust 整理 | TODO | 尚未执行 |
 
-最近更新：2026-10-10，Phase 0 至 Phase 3 完成；Phase 4 已完成深层目录扁平化、实例领域合并、Keymap 子域拆分、四个重型路由页编排迁移和 `page.ts` 打包边界隔离，并完成实例模组下载视图、账户 LAN 侧栏与皮肤引擎稳定算法边界的职责拆分；下一步继续拆分实例详情及各 Feature 内部大模块。
+最近更新：2026-10-10，Phase 0 至 Phase 3 完成；Phase 4 已完成深层目录扁平化、实例领域合并、Keymap 子域拆分、四个重型路由页编排迁移和 `page.ts` 打包边界隔离，并完成实例模组下载视图及资源网格、账户 LAN 侧栏、皮肤引擎稳定算法边界与 WebDAV 管理弹窗的职责拆分；下一步继续拆分实例详情及各 Feature 内部大模块。
