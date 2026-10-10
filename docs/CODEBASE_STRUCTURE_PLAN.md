@@ -363,6 +363,7 @@ home / settings   -> authentication + account
 - [x] 拆分 `SkinEngine` 的公共类型、场景几何工具与点击反馈状态机，保留模型和 AnimationMixer 生命周期主干。
 - [x] 拆分 `WebDavManageModal` 的收藏、按键配置、存档列表与下载目标视图，保留 WebDAV 状态和命令编排主干。
 - [x] 拆分实例模组下载 `ResourceGrid` 的资源卡片与加载反馈视图，保留虚拟列表、响应式列数和焦点/触底加载编排主干。
+- [x] 拆分 `AppearanceSettings` 的静态背景、动态全景、赞助者 Logo、排版与导航设置视图，保留账户判定、资源导入和统一焦点编排主干。
 - [ ] 继续按 `mods`、`saves`、`screenshots` 等子域拆分实例详情大文件。
 - [x] 将 `LibraryPage` 的状态编排迁入 Feature Controller，路由页面只保留 Feature 组合。
 - [x] 将 Library 的实例选择、资源关联、资源编辑和新增资源弹窗状态提取为独立 Hook。
@@ -414,6 +415,12 @@ home / settings   -> authentication + account
 - ResourceGrid 拆分后 `pnpm build` 通过；三个相关文件专项 ESLint 为 0 个错误和 1 个既有 `useVirtualizer` 兼容性警告，未新增规则问题。
 - 深层源码路径和跨 Feature 深层导入继续保持为 0，`pnpm structure:check` 与 `pnpm build` 通过。
 
+第三批完成结果（2026-10-11）：
+
+- 完成 `AppearanceSettings` 视图职责拆分：主编排从 807 行降至 306 行，静态背景、动态全景、赞助者 Logo、排版与导航设置已形成独立 Section；最大拆出文件为 274 行。
+- 账户与赞助者判定、背景/Logo/全景资源导入、系统字体和新闻封面加载、统一焦点顺序仍由主文件编排；设置字段和交互顺序保持不变。
+- AppearanceSettings 拆分后 `pnpm build` 通过；相关文件专项 ESLint 从原有 12 个错误降至 1 个既有全景列表 Effect 规则错误，新增 Section 无规则问题。
+
 遗漏复核（2026-10-10）：
 
 - 旧 `instance-detail`、根级 `store/stores` 和 `hooks/pages` 均已删除，未发现迁移残留引用。
@@ -423,16 +430,15 @@ home / settings   -> authentication + account
 
 当前剩余大文件拆分优先级：
 
-1. `src/features/settings/components/tabs/AppearanceSettings.tsx`（约 807 行）。
-2. `src/features/home/components/account-slider-bar/JavaFriendsAndLanPanel.tsx`（约 777 行）。
-3. `src/features/wardrobe/components/WardrobePageController.tsx`（约 775 行；页面编排已归入 Feature，后续再拆会话、在线皮肤与焦点控制）。
-4. `src/features/instances/detail/mods/hooks/useModPanelController.ts`（约 766 行）。
-5. `src/features/instance-resources/logic/modService.ts`（约 731 行）。
-6. `src/features/download/components/ResourceDownloadPageController.tsx`（约 693 行；页面编排已归入 Feature，后续再拆选择、焦点与批量下载流程）。
-7. `src/features/instances/detail/saves/SaveRestoreModal.tsx`（约 672 行）。
-8. `src/features/library/components/LibraryPageController.tsx`（约 655 行；状态编排已按上下文菜单、焦点导航、集合管理和资源弹窗拆分）。
-9. `src/features/instances/components/InstancesPageController.tsx`（约 567 行；页面编排已归入 Feature，后续再拆筛选栏和导入弹窗）。
-10. `src/features/instances/detail/ScreenshotPanel.tsx`（约 540 行）。
+1. `src/features/home/components/account-slider-bar/JavaFriendsAndLanPanel.tsx`（约 777 行）。
+2. `src/features/wardrobe/components/WardrobePageController.tsx`（约 775 行；页面编排已归入 Feature，后续再拆会话、在线皮肤与焦点控制）。
+3. `src/features/instances/detail/mods/hooks/useModPanelController.ts`（约 766 行）。
+4. `src/features/instance-resources/logic/modService.ts`（约 731 行）。
+5. `src/features/download/components/ResourceDownloadPageController.tsx`（约 693 行；页面编排已归入 Feature，后续再拆选择、焦点与批量下载流程）。
+6. `src/features/instances/detail/saves/SaveRestoreModal.tsx`（约 672 行）。
+7. `src/features/library/components/LibraryPageController.tsx`（约 655 行；状态编排已按上下文菜单、焦点导航、集合管理和资源弹窗拆分）。
+8. `src/features/instances/components/InstancesPageController.tsx`（约 567 行；页面编排已归入 Feature，后续再拆筛选栏和导入弹窗）。
+9. `src/features/instances/detail/ScreenshotPanel.tsx`（约 540 行）。
 
 样式文件中 `src/style/pages/Multiplayer.css` 约 1917 行，应与 Multiplayer 子组件拆分同步处理，避免只按行数机械切割。
 
@@ -546,7 +552,7 @@ cargo check --manifest-path src-tauri/Cargo.toml
 | Phase 1：纯命名统一 | DONE | 目录和页面命名已统一，构建通过 |
 | Phase 2：重复目录治理 | DONE | Store 与页面 Hook 已归位，旧根目录已禁止 |
 | Phase 3：Feature 解耦 | DONE | 远程目录、本地资源和下载任务已分层，跨 Feature 深层导入降为 0 |
-| Phase 4：大模块拆分 | IN PROGRESS | 重型路由页、实例模组下载视图与网格、账户 LAN 侧栏、皮肤引擎及 WebDAV 管理弹窗已完成拆分；下一步继续处理剩余大模块 |
+| Phase 4：大模块拆分 | IN PROGRESS | 重型路由页、实例模组下载视图与网格、账户 LAN 侧栏、皮肤引擎、WebDAV 管理弹窗及外观设置已完成拆分；下一步继续处理剩余大模块 |
 | Phase 5：Rust 整理 | TODO | 尚未执行 |
 
-最近更新：2026-10-10，Phase 0 至 Phase 3 完成；Phase 4 已完成深层目录扁平化、实例领域合并、Keymap 子域拆分、四个重型路由页编排迁移和 `page.ts` 打包边界隔离，并完成实例模组下载视图及资源网格、账户 LAN 侧栏、皮肤引擎稳定算法边界与 WebDAV 管理弹窗的职责拆分；下一步继续拆分实例详情及各 Feature 内部大模块。
+最近更新：2026-10-11，Phase 0 至 Phase 3 完成；Phase 4 已完成深层目录扁平化、实例领域合并、Keymap 子域拆分、四个重型路由页编排迁移和 `page.ts` 打包边界隔离，并完成实例模组下载视图及资源网格、账户 LAN 侧栏、皮肤引擎稳定算法边界、WebDAV 管理弹窗与外观设置的职责拆分；下一步继续拆分实例详情及各 Feature 内部大模块。
