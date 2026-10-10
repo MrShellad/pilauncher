@@ -1,6 +1,6 @@
 import {
   ResourceDownloadPageController,
-} from '@/features/download';
+} from '@/features/download/page';
 import { FavoritePlaceholderModal } from '@/features/library';
 
 const ResourceDownloadPage = () => (

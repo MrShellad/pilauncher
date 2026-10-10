@@ -1,4 +1,4 @@
-import { WardrobePageController } from '@/features/wardrobe';
+import { WardrobePageController } from '@/features/wardrobe/page';
 
 const WardrobePage = () => <WardrobePageController />;
 

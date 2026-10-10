@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
-import { AlertTriangle, Check, Loader2 } from 'lucide-react';
 
 import { DownloadDetailModal } from '../../../../download';
 import {
@@ -15,190 +14,21 @@ import {
   type DownloadSource
 } from '../../../../download';
 import { useIconCacheStore } from '../../../../download';
-import { runResourceDownloadTask } from '../../../../download';
-import { fetchCurseForgeVersions, getCurseForgeProjectDetails } from '../../../../resource-catalog';
 import {
-  fetchModrinthVersions,
-  getProjectDetails,
-  type ModrinthProject,
-  type OreProjectDependency,
-  type OreProjectVersion
+  type ModrinthProject
 } from '../../../../resource-catalog';
-import {
-  getInstalledVersionIds,
-  InstalledModIndex,
-  modService
-} from '../../../../instance-resources';
-import { eventBus } from '../../../../../utils/event-bus';
-import { useToastStore } from '../../../../../shared/stores/useToastStore';
+import { getInstalledVersionIds } from '../../../../instance-resources';
 import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary';
-import { FocusItem } from '../../../../../ui/focus/FocusItem';
 import { useInputAction } from '../../../../../ui/focus/InputDriver';
-import { OreModal } from '../../../../../ui/primitives/OreModal';
-import { OreButton } from '../../../../../ui/primitives/OreButton';
-import { OreOverlayScrollArea } from '../../../../../ui/primitives/OreOverlayScrollArea';
 import { InstanceFilterBar } from './InstanceFilterBar';
+import { MissingDependenciesModal } from './MissingDependenciesModal';
 import { ResourceGrid } from './ResourceGrid';
+import { useInstanceModDownloadActions } from './useInstanceModDownloadActions';
 import { useInstanceDownloadSelectionStore } from '../hooks/useInstanceDownloadSelectionStore';
 import { GamepadButtonIcon } from '../../../../../ui/components/GamepadButtonIcon';
 
 const INSTANCE_DOWNLOAD_ACTION_BAR_FOCUS_PREFIX = 'instance-download-actions';
 const INSTANCE_DOWNLOAD_GRID_FOCUS_PREFIX = 'download-grid-item-';
-
-interface MissingDependencyInfo {
-  id: string;
-  name: string;
-}
-
-const MissingDependenciesModal: React.FC<{
-  isOpen: boolean;
-  version: OreProjectVersion | null;
-  missingDeps: MissingDependencyInfo[];
-  autoInstallDeps: boolean;
-  isChecking: boolean;
-  onToggleAutoInstall: () => void;
-  onClose: () => void;
-  onConfirm: () => void;
-  isBatch?: boolean;
-  batchCount?: number;
-}> = ({
-  isOpen,
-  version,
-  missingDeps,
-  autoInstallDeps,
-  isChecking,
-  onToggleAutoInstall,
-  onClose,
-  onConfirm,
-  isBatch = false,
-  batchCount = 0
-}) => {
-  if (!isOpen || (!version && !isBatch)) return null;
-
-  return (
-    <OreModal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="检查前置依赖"
-      defaultFocusKey={isChecking ? 'instance-deps-cancel' : 'instance-deps-confirm'}
-      className="w-full max-w-[34rem]"
-      contentClassName="flex flex-col gap-4 overflow-hidden bg-[var(--ore-modal-bg)] p-5"
-      actionsClassName="px-5 py-4"
-      actions={(
-        <>
-          <OreButton focusKey="instance-deps-cancel" variant="secondary" size="auto" onClick={onClose}>
-            取消
-          </OreButton>
-          <OreButton
-            focusKey="instance-deps-confirm"
-            variant="primary"
-            size="auto"
-            disabled={isChecking}
-            onClick={onConfirm}
-            className="font-bold tracking-widest text-black"
-          >
-            确认下载
-          </OreButton>
-        </>
-      )}
-    >
-      <div className="border-[0.125rem] border-[var(--ore-border-color)] bg-[var(--ore-modal-header-bg)] px-4 py-3 shadow-[inset_0_-0.25rem_0_rgba(0,0,0,0.28),inset_0.125rem_0.125rem_0_rgba(255,255,255,0.08)]">
-        <div className="mb-2 font-minecraft text-[0.75rem] uppercase leading-none tracking-[0.16em] text-[var(--ore-text-muted)]">
-          准备部署到当前实例
-        </div>
-        <div className="truncate font-minecraft text-[1rem] leading-[1.25] text-[var(--ore-btn-primary-bg)] ore-text-shadow">
-          {isBatch ? `已选择 ${batchCount} 个组件/模组` : version?.file_name}
-        </div>
-      </div>
-
-      {isChecking ? (
-        <div className="flex min-h-[8rem] items-center justify-center border-[0.125rem] border-[var(--ore-border-color)] bg-[#111112] px-4 py-5 shadow-[inset_0_0.1875rem_0_rgba(255,255,255,0.04),inset_0_-0.25rem_0_rgba(0,0,0,0.35)]">
-          <div className="flex items-center gap-3 font-minecraft text-[0.8125rem] leading-none tracking-[0.08em] text-[var(--ore-btn-primary-bg)]">
-            <Loader2 size={18} className="animate-spin" />
-            <span className="translate-y-px">正在分析当前实例缺少的必需前置...</span>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="border-[0.125rem] border-[#8A6A22] bg-[#221B10] shadow-[inset_0_-0.25rem_0_rgba(0,0,0,0.32),inset_0.125rem_0.125rem_0_rgba(255,229,138,0.12)]">
-            <div className="flex items-center gap-3 border-b-[0.125rem] border-[#8A6A22]/70 bg-[#3A2B12] px-4 py-3 text-[#F5C542]">
-              <AlertTriangle size={18} className="shrink-0" strokeWidth={2.5} />
-              <div className="font-minecraft text-[0.875rem] leading-none tracking-[0.08em]">
-                当前实例缺少 <span className="text-white">{missingDeps.length}</span> 个必需前置
-              </div>
-            </div>
-            <OreOverlayScrollArea
-              className="max-h-28"
-              viewportClassName="max-h-28"
-              contentClassName="py-3 pl-4"
-              safeInsetTop={8}
-              safeInsetBottom={8}
-              safeInsetRight={5}
-              contentSafePaddingRight={24}
-            >
-              <div className="flex flex-wrap gap-2">
-                {missingDeps.map((dep) => (
-                  <span
-                    key={dep.id}
-                    className="max-w-full truncate border-[0.125rem] border-[#B88A24] bg-[#0B0905] px-2 py-1 font-minecraft text-[0.75rem] leading-none tracking-[0.06em] text-[#FFF2B8] shadow-[inset_0_-0.125rem_0_rgba(0,0,0,0.55)]"
-                  >
-                    {dep.name}
-                  </span>
-                ))}
-              </div>
-            </OreOverlayScrollArea>
-          </div>
-
-          <FocusItem focusKey="instance-deps-auto-install" onEnter={onToggleAutoInstall}>
-            {({ ref, focused }) => (
-              <button
-                ref={ref as React.RefObject<HTMLButtonElement>}
-                type="button"
-                onClick={onToggleAutoInstall}
-                aria-pressed={autoInstallDeps}
-                className={`group flex w-full items-center gap-3 border-[0.125rem] px-4 py-3 text-left outline-none transition-none ${
-                  focused
-                    ? 'border-[var(--ore-focus-ringFallback)] bg-[#3A3B3D] drop-shadow-[0_0_0.5rem_var(--ore-focus-glow)]'
-                    : 'border-[var(--ore-border-color)] bg-[var(--ore-modal-header-bg)] hover:bg-[#343538]'
-                }`}
-                style={{
-                  boxShadow: focused
-                    ? 'inset 0 -0.25rem var(--ore-btn-secondary-shadow), inset 0.125rem 0.125rem var(--ore-btn-secondary-highlight)'
-                    : 'inset 0 -0.25rem rgba(0,0,0,0.28), inset 0.125rem 0.125rem rgba(255,255,255,0.08)'
-                }}
-              >
-                <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center border-[0.125rem] transition-none ${
-                    autoInstallDeps
-                      ? 'border-[#1E1E1F] bg-[var(--ore-btn-primary-bg)] text-black shadow-[inset_0_-0.1875rem_0_var(--ore-btn-primary-shadow),inset_0.125rem_0.125rem_0_var(--ore-btn-primary-hl1)]'
-                      : 'border-[var(--ore-border-color)] bg-[#111112] text-transparent shadow-[inset_0_0.1875rem_0_rgba(0,0,0,0.4)]'
-                  }`}
-                  aria-hidden="true"
-                >
-                  <Check size={15} strokeWidth={3.5} className="translate-y-[-0.0625rem]" />
-                </span>
-                <span className="flex min-w-0 flex-col gap-1">
-                  <span
-                    className={`font-minecraft text-[0.875rem] uppercase leading-none tracking-[0.12em] ${
-                      focused ? 'text-white ore-text-shadow' : 'text-[#F4F4F5] group-hover:text-white'
-                    }`}
-                  >
-                    自动下载并补全前置
-                  </span>
-                  <span className="text-[0.75rem] leading-[1.35] text-[#C8CBD0] group-hover:text-[#E4E6EA]">
-                    关闭后只下载当前选择的文件，缺失前置可能导致模组无法加载。
-                  </span>
-                </span>
-              </button>
-            )}
-          </FocusItem>
-        </>
-      )}
-    </OreModal>
-  );
-};
-
-
 
 export const InstanceModDownloadView: React.FC<{
   instanceId: string;
@@ -242,8 +72,6 @@ export const InstanceModDownloadView: React.FC<{
     loadMoreFailed,
     retryLoadMore
   } = useResourceDownload(instanceId, { lockInstanceEnvironment: true });
-  const addToast = useToastStore((state) => state.addToast);
-
   const [selectedProject, setSelectedProject] = useState<ModrinthProject | null>(null);
   const [selectedProjectIdForTransition, setSelectedProjectIdForTransition] = useState<string | undefined>(undefined);
 
@@ -259,15 +87,6 @@ export const InstanceModDownloadView: React.FC<{
   }, [selectedProject]);
 
   const [syncStep, setSyncStep] = useState(0);
-  const [pendingDependencyVersion, setPendingDependencyVersion] = useState<OreProjectVersion | null>(null);
-  const [pendingDependencyEntries, setPendingDependencyEntries] = useState<OreProjectDependency[]>([]);
-  const [pendingDependencyProjectId, setPendingDependencyProjectId] = useState('');
-  const [missingDeps, setMissingDeps] = useState<MissingDependencyInfo[]>([]);
-  const [autoInstallDeps, setAutoInstallDeps] = useState(true);
-  const [isCheckingDeps, setIsCheckingDeps] = useState(false);
-  const [isBatchDependency, setIsBatchDependency] = useState(false);
-  const [batchCount, setBatchCount] = useState(0);
-  const [batchDownloadable, setBatchDownloadable] = useState<{ version: OreProjectVersion; projectId: string }[]>([]);
   const [resultsScrollTop, setResultsScrollTop] = useState(0);
   const [isFavoriteModalOpen, setIsFavoriteModalOpen] = useState(false);
 
@@ -344,18 +163,14 @@ export const InstanceModDownloadView: React.FC<{
   const getProjectKey = useInstanceDownloadSelectionStore((state) => state.getProjectKey);
   const toggleProjectSelection = useInstanceDownloadSelectionStore((state) => state.toggleProject);
   const clearDownloadSelection = useInstanceDownloadSelectionStore((state) => state.clearSelection);
-  const pendingDepIdsRef = React.useRef<Set<string>>(new Set());
-  const pendingDownloadProjectIdsRef = React.useRef<Set<string>>(new Set());
   const lastListFocusBeforeActionBarRef = React.useRef<string>('download-grid-item-0');
   const lastFocusBeforeModalRef = React.useRef<string>('inst-filter-search');
-  const projectDetailsCache = React.useRef<Map<string, any>>(new Map());
 
   const isHintVisible = resultsScrollTop > 48;
   const targetMc = resolvedMcVersion || resolveInstanceGameVersion(instanceConfig);
   const targetLoader = resourceTab === 'mod'
     ? (resolvedLoaderType || resolveInstanceLoaderType(instanceConfig))
     : '';
-  const installedModIndex = useMemo(() => new InstalledModIndex(installedMods), [installedMods]);
   const installedVersionIds = useMemo(() => getInstalledVersionIds(installedMods), [installedMods]);
   const yHintText = useMemo(() => '回到顶部', []);
   const subFolder = resourceTab === 'shader'
@@ -377,6 +192,33 @@ export const InstanceModDownloadView: React.FC<{
     clearDownloadSelection();
     setIsFavoriteModalOpen(false);
   }, [clearDownloadSelection]);
+
+  const {
+    pendingDependencyVersion,
+    missingDeps,
+    autoInstallDeps,
+    isCheckingDeps,
+    isBatchDependency,
+    batchCount,
+    closeDependencyModal,
+    toggleAutoInstallDeps,
+    handleConfirmDependencyDownload,
+    handleConfirmBatchDownload,
+    handleDetailDownload,
+    handleBatchDownload
+  } = useInstanceModDownloadActions({
+    instanceId,
+    resourceTab,
+    source,
+    subFolder,
+    targetMc,
+    targetLoader,
+    installedMods,
+    refreshInstalledMods,
+    selectedProject,
+    selectedProjects,
+    clearSelection
+  });
 
   const handleToggleProjectSelection = useCallback((project: ModrinthProject) => {
     toggleProjectSelection(project);
@@ -482,538 +324,15 @@ export const InstanceModDownloadView: React.FC<{
     }
   });
 
-  const closeDependencyModal = useCallback(() => {
-    setPendingDependencyVersion(null);
-    setPendingDependencyEntries([]);
-    setPendingDependencyProjectId('');
-    setMissingDeps([]);
-    setAutoInstallDeps(true);
-    setIsCheckingDeps(false);
-    setIsBatchDependency(false);
-    setBatchCount(0);
-    setBatchDownloadable([]);
-  }, []);
 
-  const enqueueDownload = useCallback(async (version: OreProjectVersion, targetInstanceId: string, explicitProjectId?: string) => {
-    /* Legacy task initialization is owned by runResourceDownloadTask.
-      message: '正在建立连接...',
-    */
-    const projectId = explicitProjectId || version.project_id || selectedProject?.id || '';
-    const platform = source === 'curseforge' ? 'curseforge' : 'modrinth';
-    const downloadIdentity = projectId ? `${platform}:${projectId.toLowerCase()}` : '';
-    const shouldGuardInstalledMod = resourceTab === 'mod' && targetInstanceId === instanceId && !!projectId;
 
-    if (shouldGuardInstalledMod && pendingDownloadProjectIdsRef.current.has(downloadIdentity)) {
-      addToast('info', '该 Mod 已在下载队列中，已跳过重复任务');
-      return;
-    }
 
-    if (shouldGuardInstalledMod) {
-      pendingDownloadProjectIdsRef.current.add(downloadIdentity);
-    }
 
-    let oldFileName: string | undefined;
-    let installAction: 'install' | 'reinstall' | 'upgrade' = 'install';
 
-    try {
-      if (shouldGuardInstalledMod) {
-        let actualMods;
-        try {
-          actualMods = await modService.getCachedModManifest(targetInstanceId, true);
-        } catch (error) {
-          console.error('下载前扫描实例 Mod 失败:', error);
-        }
-        let detail = projectDetailsCache.current.get(projectId) as { slug?: string; title?: string } | undefined;
-        if (!detail) {
-          try {
-            detail = source === 'curseforge'
-              ? await getCurseForgeProjectDetails(projectId)
-              : await getProjectDetails(projectId);
-            projectDetailsCache.current.set(projectId, detail);
-          } catch {
-            // Exact platform project IDs can still be checked without project details.
-          }
-        }
 
-        const validActualMods = (actualMods || []).filter((m) => (m.fileSize || 0) > 0);
-        const pLower = projectId.toLowerCase();
-        const slugLower = detail?.slug?.toLowerCase();
-        const existingMod = validActualMods.find((m) => {
-          const mFile = m.fileName.toLowerCase();
-          if (mFile === version.file_name.toLowerCase()) return true;
-          const srcId = m.manifestEntry?.source?.projectId?.toLowerCase();
-          const mrId = m.manifestEntry?.matchedPlatforms?.modrinth?.projectId?.toLowerCase();
-          const cfId = m.manifestEntry?.matchedPlatforms?.curseforge?.projectId?.toLowerCase();
-          const modId = m.modId?.toLowerCase();
-          return (
-            (pLower && (srcId === pLower || mrId === pLower || cfId === pLower || modId === pLower)) ||
-            (slugLower && (srcId === slugLower || modId === slugLower))
-          );
-        });
 
-        if (existingMod) {
-          oldFileName = existingMod.fileName;
-          installAction = oldFileName.toLowerCase() === version.file_name.toLowerCase() ? 'reinstall' : 'upgrade';
-        }
-      }
 
-      await runResourceDownloadTask({
-        url: version.download_url,
-        fileName: version.file_name,
-        instanceId: targetInstanceId,
-        subFolder,
-        title: version.file_name,
-        message: installAction === 'reinstall'
-          ? `正在重新下载: ${version.file_name}`
-          : installAction === 'upgrade'
-            ? `正在升级替换: ${version.file_name}`
-            : 'Connecting...',
-        modSource: resourceTab === 'mod' && projectId && version.id
-          ? {
-              sourceKind: 'launcherDownload',
-              platform,
-              projectId,
-              fileId: String(version.id),
-              version: version.version_number || undefined,
-              oldFileName
-            }
-          : undefined,
-        onCompleted: async () => {
-          let cachedDetail = projectId ? projectDetailsCache.current.get(projectId) : null;
-          if (!cachedDetail && projectId && selectedProject && projectId === selectedProject.id) {
-            cachedDetail = selectedProject;
-          }
 
-          if (projectId && cachedDetail) {
-            const cacheKey = `${platform}_${projectId}`;
-            await modService.updateModCache(
-              cacheKey,
-              cachedDetail.title || cachedDetail.name || '',
-              cachedDetail.description || cachedDetail.summary || '',
-              cachedDetail.icon_url || cachedDetail.logo || ''
-            ).catch((err) => console.error('Failed to update resource cache:', err));
-          }
-
-          if (targetInstanceId === instanceId && resourceTab === 'mod') {
-            await refreshInstalledMods();
-          }
-
-          eventBus.publish('instance-resources-fs-changed', {
-            instanceId: targetInstanceId,
-            resType: resourceTab,
-            action: 'install',
-            fileName: version.file_name,
-          });
-        }
-      });
-    } catch (error) {
-      console.error('下载异常:', error);
-      /* Error task state is written by runResourceDownloadTask.
-      useDownloadStore.getState().addOrUpdateTask({
-        id: taskId,
-        stage: 'ERROR',
-        message: `下载失败: ${error}`
-      });
-      */
-      throw error;
-    } finally {
-      if (shouldGuardInstalledMod) {
-        pendingDownloadProjectIdsRef.current.delete(downloadIdentity);
-      }
-    }
-  }, [addToast, instanceId, refreshInstalledMods, resourceTab, selectedProject, source, subFolder]);
-
-  const resolveMissingDependencies = useCallback(async (
-    dependencies: OreProjectDependency[],
-    activeSource: DownloadSource,
-    identityIndex: InstalledModIndex = installedModIndex
-  ): Promise<{ entries: OreProjectDependency[]; info: MissingDependencyInfo[] }> => {
-    const inspected = await Promise.all(
-      dependencies.map(async (dependency) => {
-        const dependencyId = dependency.project_id!;
-        const exactMatch = identityIndex.matchDependency(
-          { projectId: dependencyId },
-          activeSource
-        );
-        if (exactMatch.status !== 'missing') return null;
-
-        try {
-          const detail = activeSource === 'curseforge'
-            ? await getCurseForgeProjectDetails(dependencyId)
-            : await getProjectDetails(dependencyId);
-          projectDetailsCache.current.set(dependencyId, detail);
-          const localMatch = identityIndex.matchDependency(
-            {
-              projectId: dependencyId,
-              slug: detail.slug,
-              name: detail.title
-            },
-            activeSource
-          );
-          if (localMatch.status !== 'missing') return null;
-          return {
-            dependency,
-            info: { id: dependencyId, name: detail.title }
-          };
-        } catch {
-          return {
-            dependency,
-            info: { id: dependencyId, name: `未知前置 (${dependencyId})` }
-          };
-        }
-      })
-    );
-
-    const missing = inspected.filter((item): item is NonNullable<typeof item> => item !== null);
-    return {
-      entries: missing.map((item) => item.dependency),
-      info: missing.map((item) => item.info)
-    };
-  }, [installedModIndex]);
-
-  const downloadWithDependencies = useCallback(async (
-    version: OreProjectVersion,
-    targetInstanceId: string,
-    dependenciesToInstall: OreProjectDependency[] = [],
-    primaryProjectId?: string
-  ) => {
-    if (dependenciesToInstall.length > 0) {
-      const fetchVersions = source === 'curseforge' ? fetchCurseForgeVersions : fetchModrinthVersions;
-
-      for (const dependency of dependenciesToInstall) {
-        if (!dependency.project_id) continue;
-        pendingDepIdsRef.current.add(dependency.project_id);
-
-        try {
-          const dependencyVersions = await fetchVersions(
-            dependency.project_id,
-            targetMc || undefined,
-            resourceTab === 'mod' ? targetLoader || undefined : undefined
-          );
-
-          if (dependencyVersions.length > 0) {
-            await enqueueDownload(dependencyVersions[0], targetInstanceId, dependency.project_id);
-          }
-        } catch (error) {
-          console.error(`前置 ${dependency.project_id} 自动下载失败:`, error);
-        }
-      }
-      for (const dependency of dependenciesToInstall) {
-        if (dependency.project_id) {
-          pendingDepIdsRef.current.delete(dependency.project_id);
-        }
-      }
-    }
-
-    await enqueueDownload(version, targetInstanceId, primaryProjectId);
-  }, [enqueueDownload, resourceTab, source, targetLoader, targetMc]);
-
-  const handleStartDownload = useCallback(async (
-    version: OreProjectVersion,
-    targetInstanceId: string,
-    autoInstallRequiredDeps?: boolean,
-    primaryProjectId = ''
-  ) => {
-    if (resourceTab !== 'mod' || targetInstanceId !== instanceId) {
-      await downloadWithDependencies(version, targetInstanceId, [], primaryProjectId);
-      return;
-    }
-
-    if (typeof autoInstallRequiredDeps === 'boolean') {
-      const dependenciesToInstall = autoInstallRequiredDeps ? pendingDependencyEntries : [];
-      closeDependencyModal();
-
-      await downloadWithDependencies(
-        version,
-        targetInstanceId,
-        dependenciesToInstall,
-        primaryProjectId
-      );
-      return;
-    }
-
-    const requiredDependencies = (version.dependencies || []).filter(
-      (dependency) => dependency.dependency_type === 'required' && dependency.project_id
-    );
-
-    if (requiredDependencies.length === 0) {
-      await downloadWithDependencies(version, targetInstanceId, [], primaryProjectId);
-      return;
-    }
-
-    const dependencyCandidates = requiredDependencies.filter(
-      (dependency) =>
-        dependency.project_id && !pendingDepIdsRef.current.has(dependency.project_id)
-    );
-
-    if (dependencyCandidates.length === 0) {
-      await downloadWithDependencies(version, targetInstanceId, [], primaryProjectId);
-      return;
-    }
-
-    setIsCheckingDeps(true);
-
-    try {
-      const latestInstalledMods = await refreshInstalledMods();
-      const missing = await resolveMissingDependencies(
-        dependencyCandidates,
-        source,
-        new InstalledModIndex(latestInstalledMods)
-      );
-      if (missing.entries.length === 0) {
-        await downloadWithDependencies(version, targetInstanceId, [], primaryProjectId);
-        return;
-      }
-
-      setPendingDependencyVersion(version);
-      setPendingDependencyEntries(missing.entries);
-      setPendingDependencyProjectId(primaryProjectId);
-      setMissingDeps(missing.info);
-      setAutoInstallDeps(true);
-    } catch (error) {
-      console.error('分析前置依赖失败:', error);
-      closeDependencyModal();
-      await downloadWithDependencies(version, targetInstanceId, [], primaryProjectId);
-      return;
-    } finally {
-      setIsCheckingDeps(false);
-    }
-  }, [
-    closeDependencyModal,
-    downloadWithDependencies,
-    instanceId,
-    pendingDependencyEntries,
-    refreshInstalledMods,
-    resolveMissingDependencies,
-    resourceTab,
-    source
-  ]);
-
-  const handleConfirmDependencyDownload = useCallback(async () => {
-    if (!pendingDependencyVersion) return;
-    await handleStartDownload(pendingDependencyVersion, instanceId, autoInstallDeps, pendingDependencyProjectId);
-  }, [autoInstallDeps, handleStartDownload, instanceId, pendingDependencyProjectId, pendingDependencyVersion]);
-
-  const handleDetailDownload = useCallback((
-    version: OreProjectVersion,
-    targetInstanceId: string | string[],
-    autoInstallRequiredDeps?: boolean
-  ) => {
-    const singleId = Array.isArray(targetInstanceId) ? targetInstanceId[0] : targetInstanceId;
-    return handleStartDownload(version, singleId, autoInstallRequiredDeps, selectedProject?.id || '');
-  }, [handleStartDownload, selectedProject]);
-
-  const fetchLatestProjectVersion = useCallback(async (project: ModrinthProject) => {
-    const projectId = project.id || project.project_id || '';
-    if (!projectId) return null;
-
-    const fetchVersions = source === 'curseforge' ? fetchCurseForgeVersions : fetchModrinthVersions;
-    const versions = await fetchVersions(
-      projectId,
-      targetMc || undefined,
-      resourceTab === 'mod' ? targetLoader || undefined : undefined
-    );
-
-    return versions[0] ? { version: versions[0], projectId } : null;
-  }, [resourceTab, source, targetLoader, targetMc]);
-
-  const handleConfirmBatchDownload = useCallback(async () => {
-    if (batchDownloadable.length === 0) return;
-
-    const fetchVersions = source === 'curseforge' ? fetchCurseForgeVersions : fetchModrinthVersions;
-    const targetInstanceId = instanceId;
-
-    setIsCheckingDeps(true);
-    const dependenciesToInstall = autoInstallDeps ? pendingDependencyEntries : [];
-    closeDependencyModal();
-
-    if (dependenciesToInstall.length > 0) {
-      for (const dependency of dependenciesToInstall) {
-        if (dependency.project_id) {
-          pendingDepIdsRef.current.add(dependency.project_id);
-        }
-      }
-
-      await Promise.allSettled(
-        dependenciesToInstall.map(async (dependency) => {
-          const depId = dependency.project_id!;
-          try {
-            const dependencyVersions = await fetchVersions(
-              depId,
-              targetMc || undefined,
-              resourceTab === 'mod' ? targetLoader || undefined : undefined
-            );
-            if (dependencyVersions.length > 0) {
-              await enqueueDownload(dependencyVersions[0], targetInstanceId, depId);
-            }
-          } catch (error) {
-            console.error(`批量前置 ${depId} 自动下载失败:`, error);
-          } finally {
-            pendingDepIdsRef.current.delete(depId);
-          }
-        })
-      );
-    }
-
-    await Promise.allSettled(
-      batchDownloadable.map(({ version, projectId }) =>
-        enqueueDownload(version, targetInstanceId, projectId)
-      )
-    );
-
-    clearSelection();
-  }, [
-    autoInstallDeps,
-    batchDownloadable,
-    closeDependencyModal,
-    enqueueDownload,
-    instanceId,
-    pendingDependencyEntries,
-    resourceTab,
-    source,
-    targetLoader,
-    targetMc,
-    clearSelection
-  ]);
-
-  const handleBatchDownload = useCallback(async () => {
-    let targets = [...selectedProjects];
-    if (targets.length === 0) return;
-
-    if (resourceTab === 'mod') {
-      try {
-        const actualMods = await modService.getCachedModManifest(instanceId, true);
-        const validActualMods = (actualMods || []).filter((m) => (m.fileSize || 0) > 0);
-        const actualIndex = new InstalledModIndex(validActualMods);
-        const beforeCount = targets.length;
-        targets = targets.filter((project) => !actualIndex.isInstalled(project));
-        const skippedCount = beforeCount - targets.length;
-        if (skippedCount > 0) {
-          addToast('info', `已跳过 ${skippedCount} 个当前实例中已存在的 Mod`);
-        }
-      } catch (error) {
-        console.error('批量下载前扫描实例 Mod 失败:', error);
-        addToast('error', '无法确认实例内已有 Mod，已取消下载以避免重复');
-        return;
-      }
-    }
-
-    if (targets.length === 0) {
-      clearSelection();
-      return;
-    }
-
-    targets.forEach((project) => {
-      const key = project.id || (project as any).project_id;
-      if (key) {
-        projectDetailsCache.current.set(key, project);
-      }
-    });
-
-    setIsCheckingDeps(true);
-    setIsBatchDependency(true);
-    setBatchCount(targets.length);
-    setMissingDeps([]);
-    setAutoInstallDeps(true);
-
-    try {
-      const resolvedVersions = await Promise.allSettled(
-        targets.map((project) => fetchLatestProjectVersion(project))
-      );
-
-      const downloadable = resolvedVersions
-        .map((result) => result.status === 'fulfilled' ? result.value : null)
-        .filter((result): result is { version: OreProjectVersion; projectId: string } => Boolean(result));
-
-      if (downloadable.length === 0) {
-        closeDependencyModal();
-        clearSelection();
-        return;
-      }
-
-      setBatchDownloadable(downloadable);
-      setBatchCount(downloadable.length);
-
-      if (resourceTab !== 'mod') {
-        await Promise.allSettled(
-          downloadable.map(({ version, projectId }) =>
-            enqueueDownload(version, instanceId, projectId)
-          )
-        );
-        closeDependencyModal();
-        clearSelection();
-        return;
-      }
-
-      const allRequiredDepsMap = new Map<string, OreProjectDependency>();
-      const downloadableProjectIds = new Set(downloadable.map((d) => d.projectId));
-
-      for (const { version } of downloadable) {
-        const reqs = (version.dependencies || []).filter(
-          (dep) => dep.dependency_type === 'required' && dep.project_id
-        );
-        for (const dep of reqs) {
-          const depId = dep.project_id!;
-          if (
-            !downloadableProjectIds.has(depId) &&
-            !pendingDepIdsRef.current.has(depId)
-          ) {
-            allRequiredDepsMap.set(depId, dep);
-          }
-        }
-      }
-
-      const dependencyCandidates = Array.from(allRequiredDepsMap.values());
-
-      if (dependencyCandidates.length === 0) {
-        await Promise.allSettled(
-          downloadable.map(({ version, projectId }) =>
-            enqueueDownload(version, instanceId, projectId)
-          )
-        );
-        closeDependencyModal();
-        clearSelection();
-        return;
-      }
-
-      const latestInstalledMods = await refreshInstalledMods();
-      const missing = await resolveMissingDependencies(
-        dependencyCandidates,
-        source,
-        new InstalledModIndex(latestInstalledMods)
-      );
-      if (missing.entries.length === 0) {
-        await Promise.allSettled(
-          downloadable.map(({ version, projectId }) =>
-            enqueueDownload(version, instanceId, projectId)
-          )
-        );
-        closeDependencyModal();
-        clearSelection();
-        return;
-      }
-
-      setPendingDependencyEntries(missing.entries);
-      setMissingDeps(missing.info);
-      setIsCheckingDeps(false);
-    } catch (error) {
-      console.error('批量下载依赖分析失败:', error);
-      closeDependencyModal();
-      clearSelection();
-    }
-  }, [
-    addToast,
-    selectedProjects,
-    fetchLatestProjectVersion,
-    resourceTab,
-    source,
-    refreshInstalledMods,
-    resolveMissingDependencies,
-    enqueueDownload,
-    instanceId,
-    closeDependencyModal,
-    clearSelection
-  ]);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-transparent">
@@ -1138,7 +457,7 @@ export const InstanceModDownloadView: React.FC<{
           missingDeps={missingDeps}
           autoInstallDeps={autoInstallDeps}
           isChecking={isCheckingDeps}
-          onToggleAutoInstall={() => setAutoInstallDeps((prev) => !prev)}
+          onToggleAutoInstall={toggleAutoInstallDeps}
           onClose={closeDependencyModal}
           onConfirm={isBatchDependency ? handleConfirmBatchDownload : handleConfirmDependencyDownload}
           isBatch={isBatchDependency}

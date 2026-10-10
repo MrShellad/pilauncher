@@ -1,4 +1,4 @@
-import { LibraryPageController } from '@/features/library';
+import { LibraryPageController } from '@/features/library/page';
 
 const LibraryPage = () => <LibraryPageController />;
 
