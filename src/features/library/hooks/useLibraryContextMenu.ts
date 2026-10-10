@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type MouseEvent, type SetStateAction } from 'react';
+import { useState, type MouseEvent } from 'react';
 import { getCurrentFocusKey } from '@noriginmedia/norigin-spatial-navigation';
 import { Columns3, Eye, Pencil, Tags, Trash2, XCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -33,21 +33,17 @@ interface UseLibraryContextMenuOptions {
   visibleCollections: Collection[];
   selectedCollection: Collection | null | undefined;
   selectedGroupId: string;
-  selectedModSetResources: LibraryResourceViewModel[];
   pendingRelationKeys: Set<string>;
   setSelectedGroupId: (groupId: string) => void;
   removeItemFromCollectionWithTracking: (collection: Collection, item: LibraryResourceViewModel) => Promise<void>;
   openTagModal: (item: LibraryResourceViewModel) => void;
   openResourceDetail: (item: LibraryResourceViewModel) => void;
   openCollectionMetadataEdit: (collection: Collection) => void;
-  setFavoriteDeleteTarget: Dispatch<SetStateAction<LibraryResourceViewModel | null>>;
-  setPendingLibraryResource: Dispatch<SetStateAction<LibraryResourceViewModel | null>>;
-  setIsLibraryInstanceSelectOpen: Dispatch<SetStateAction<boolean>>;
-  setSelectedLibraryResource: Dispatch<SetStateAction<LibraryResourceViewModel | null>>;
-  setIsManageLinkageOpen: Dispatch<SetStateAction<boolean>>;
-  setIsEditResourceOpen: Dispatch<SetStateAction<boolean>>;
-  setDeleteModSetSelectedItemIds: Dispatch<SetStateAction<Set<string>>>;
-  setIsDeleteModSetOpen: Dispatch<SetStateAction<boolean>>;
+  openFavoriteDelete: (item: LibraryResourceViewModel) => void;
+  openDeleteModSetModal: () => void;
+  openInstanceSelect: (item: LibraryResourceViewModel) => void;
+  openManageLinkage: (item: LibraryResourceViewModel) => void;
+  openEditResource: (item: LibraryResourceViewModel) => void;
 }
 
 const getControllerAnchorForFocusKey = (focusKey: string) => {
@@ -70,21 +66,17 @@ export const useLibraryContextMenu = ({
   visibleCollections,
   selectedCollection,
   selectedGroupId,
-  selectedModSetResources,
   pendingRelationKeys,
   setSelectedGroupId,
   removeItemFromCollectionWithTracking,
   openTagModal,
   openResourceDetail,
   openCollectionMetadataEdit,
-  setFavoriteDeleteTarget,
-  setPendingLibraryResource,
-  setIsLibraryInstanceSelectOpen,
-  setSelectedLibraryResource,
-  setIsManageLinkageOpen,
-  setIsEditResourceOpen,
-  setDeleteModSetSelectedItemIds,
-  setIsDeleteModSetOpen,
+  openFavoriteDelete,
+  openDeleteModSetModal,
+  openInstanceSelect,
+  openManageLinkage,
+  openEditResource,
 }: UseLibraryContextMenuOptions) => {
   const { t } = useTranslation();
   const collectionItems = useLibraryStore((state) => state.collectionItems);
@@ -121,11 +113,9 @@ export const useLibraryContextMenu = ({
       return;
     }
     if (item.installedVersion) {
-      setSelectedLibraryResource(item);
-      setIsManageLinkageOpen(true);
+      openManageLinkage(item);
     } else {
-      setPendingLibraryResource(item);
-      setIsLibraryInstanceSelectOpen(true);
+      openInstanceSelect(item);
     }
   };
 
@@ -164,11 +154,11 @@ export const useLibraryContextMenu = ({
     if (item.type === 'shader' || item.type === 'resourcepack') {
       actions.push({
         id: 'link-instances', label: '导入/应用到实例', icon: Columns3, group: 'primary',
-        onSelect: () => { setSelectedLibraryResource(item); setIsManageLinkageOpen(true); setContextMenu(null); },
+        onSelect: () => { openManageLinkage(item); setContextMenu(null); },
       });
       actions.push({
         id: 'upgrade-resource', label: '编辑与覆盖升级', icon: Pencil, group: 'primary',
-        onSelect: () => { setSelectedLibraryResource(item); setIsEditResourceOpen(true); setContextMenu(null); },
+        onSelect: () => { openEditResource(item); setContextMenu(null); },
       });
     }
     actions.push({
@@ -191,7 +181,7 @@ export const useLibraryContextMenu = ({
     }
     actions.push({
       id: 'delete-favorite', label: t('libraryPage.context.deleteFavorite'), icon: Trash2, group: 'danger',
-      onSelect: () => { setFavoriteDeleteTarget(item); setContextMenu(null); },
+      onSelect: () => { openFavoriteDelete(item); setContextMenu(null); },
     });
   } else if (contextMenu?.type === 'collection' && contextMenu.collection) {
     const collection = contextMenu.collection;
@@ -210,8 +200,7 @@ export const useLibraryContextMenu = ({
       actions.push({
         id: 'delete-modset', label: t('libraryPage.toolbar.deleteModSet'), icon: Trash2, group: 'danger',
         onSelect: () => {
-          setDeleteModSetSelectedItemIds(new Set(selectedModSetResources.map((item) => item.id)));
-          setIsDeleteModSetOpen(true);
+          openDeleteModSetModal();
           setContextMenu(null);
         },
       });

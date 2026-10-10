@@ -1,6 +1,6 @@
 # PiLauncher 代码结构与命名统一计划
 
-> 状态：待实施
+> 状态：进行中
 > 建立日期：2026-10-09
 > 适用范围：`src/`、`src-tauri/src/` 以及与源码组织直接相关的配置文件
 > 用途：作为后续 Agent 和开发者执行目录重构时的统一上下文与检查清单
@@ -358,6 +358,9 @@ home / settings   -> authentication + account
 - [x] 完成 `keymap` 子域拆分，主编排组件控制在 500 行以内。
 - [ ] 继续按 `mods`、`saves`、`screenshots` 等子域拆分实例详情大文件。
 - [x] 将 `LibraryPage` 的状态编排迁入 Feature Controller，路由页面只保留 Feature 组合。
+- [x] 将 Library 的实例选择、资源关联、资源编辑和新增资源弹窗状态提取为独立 Hook。
+- [x] 将 `WardrobePage` 的业务编排迁入 Wardrobe Feature Controller，路由页面只保留公共入口组合。
+- [x] 将 `ResourceDownloadPage` 的业务编排迁入 Download Feature Controller；Library 收藏弹窗由路由页通过组件契约注入，避免恢复双向依赖。
 - [ ] 继续检查其余页面，将明显的业务状态编排提取到 Feature Hook 或 Controller。
 - [x] 将超过约 500 行且承担多种职责的文件列入拆分清单。
 - [x] 将 `dialogs/components` 之类的重复层级扁平化。
@@ -381,21 +384,40 @@ home / settings   -> authentication + account
 - 修复迁移后键盘布局 SVG 的脆弱相对路径，改用 `@/assets` 根别名。
 - 完成 `instances/detail/keymap` 子域拆分：主编排、视觉键盘、键位列表、单键编辑、配置档案、静态布局解析、按键映射和公共类型均有独立职责文件。
 - `KeymapSection.tsx` 从约 1600 行降至约 327 行；拆出的最大文件约 315 行，均低于大文件复核阈值。
-- `LibraryPageController.tsx` 已先提取上下文菜单与手柄焦点导航 Hook，从约 1182 行降至约 777 行；后续继续拆集合管理和弹窗编排。
+- `LibraryPageController.tsx` 已提取上下文菜单、手柄焦点导航、集合管理与资源弹窗状态 Hook，从约 1182 行降至约 655 行；弹窗调用不再向右键菜单暴露 React setter。
+- 将 `WardrobePage.tsx` 从约 775 行缩减为 5 行路由组合，原实现迁入 `features/wardrobe/components/WardrobePageController.tsx`；页面不再深层导入 Wardrobe 内部模块。
+- Wardrobe 等价迁移后 `pnpm structure:check` 与 `pnpm build` 通过；专项 ESLint 暴露原实现既有的 7 个错误和 3 个警告，留待独立代码质量批次处理，避免与架构迁移混合。
+- 将 `ResourceDownloadPage.tsx` 从约 676 行缩减为 10 行路由组合，原实现迁入 `features/download/components/ResourceDownloadPageController.tsx`；Library 收藏弹窗由页面注入，未恢复 `download -> library` 依赖。
+- ResourceDownload 等价迁移后 `pnpm structure:check` 与 `pnpm build` 通过；专项 ESLint 仅保留原实现既有的 2 个错误，未引入新的规则错误。
 - 修复 `instances/detail/basic-panel` 经自身 Feature 公共入口回引 `environmentSelection` 导致的 `LOADER_TYPES` 运行时暂时性死区；Feature 内部统一改为直接模块依赖。
 - 深层源码路径和跨 Feature 深层导入继续保持为 0，`pnpm structure:check` 与 `pnpm build` 通过。
 
+遗漏复核（2026-10-10）：
+
+- 旧 `instance-detail`、根级 `store/stores` 和 `hooks/pages` 均已删除，未发现迁移残留引用。
+- `InstancesPage.tsx` 仍包含较多业务状态、副作用和 Feature 内部深层导入，应按页面 Controller 迁移模式继续治理；Wardrobe 与 ResourceDownload 路由页已完成瘦身。
+- `src/style/pages`、`src/style/features` 与 `src/style/ui` 仍集中保存大量组件样式；样式共置任务尚未开始，不应误标为完成。
+- 超过 500 行只作为复核信号；纯数据、设计 token 或单一算法实现不因行数自动拆分。
+
 当前大文件拆分优先级：
 
-1. `src/features/library/components/LibraryPageController.tsx`（约 777 行；上下文菜单和焦点导航已提取，待继续拆集合管理和弹窗编排）。
-2. `src/features/home/components/MicrosoftAccountSidebar.tsx`（约 1052 行）。
-3. `src/features/instances/detail/mods/download/InstanceModDownloadView.tsx`（约 1050 行）。
-4. `src/features/settings/components/tabs/data-settings/components/WebDavManageModal.tsx`（约 884 行）。
-5. `src/features/instances/detail/mods/download/ResourceGrid.tsx`（约 818 行）。
-6. `src/features/wardrobe/engine/SkinEngine.ts`（约 817 行）。
-7. `src/features/settings/components/tabs/AppearanceSettings.tsx`（约 753 行）。
+1. `src/features/instances/detail/mods/download/InstanceModDownloadView.tsx`（约 1160 行）。
+2. `src/features/home/components/MicrosoftAccountSidebar.tsx`（约 1148 行）。
+3. `src/features/wardrobe/engine/SkinEngine.ts`（约 967 行；先确认算法边界再决定是否拆分）。
+4. `src/features/settings/components/tabs/data-settings/components/WebDavManageModal.tsx`（约 940 行）。
+5. `src/features/instances/detail/mods/download/ResourceGrid.tsx`（约 898 行）。
+6. `src/features/settings/components/tabs/AppearanceSettings.tsx`（约 807 行）。
+7. `src/features/home/components/account-slider-bar/JavaFriendsAndLanPanel.tsx`（约 777 行）。
+8. `src/features/wardrobe/components/WardrobePageController.tsx`（约 775 行；页面编排已归入 Feature，后续再拆会话、在线皮肤与焦点控制）。
+9. `src/features/instances/detail/mods/hooks/useModPanelController.ts`（约 766 行）。
+10. `src/features/instance-resources/logic/modService.ts`（约 731 行）。
+11. `src/features/download/components/ResourceDownloadPageController.tsx`（约 693 行；页面编排已归入 Feature，后续再拆选择、焦点与批量下载流程）。
+12. `src/features/instances/detail/saves/SaveRestoreModal.tsx`（约 672 行）。
+13. `src/features/library/components/LibraryPageController.tsx`（约 655 行；状态编排已按上下文菜单、焦点导航、集合管理和资源弹窗拆分）。
+14. `src/pages/InstancesPage.tsx`（约 568 行；优先迁移页面业务编排）。
+15. `src/features/instances/detail/ScreenshotPanel.tsx`（约 540 行）。
 
-样式文件中 `src/style/pages/Multiplayer.css` 约 1669 行，应与 Multiplayer 子组件拆分同步处理，避免只按行数机械切割。
+样式文件中 `src/style/pages/Multiplayer.css` 约 1917 行，应与 Multiplayer 子组件拆分同步处理，避免只按行数机械切割。
 
 建议限制：
 
@@ -507,7 +529,7 @@ cargo check --manifest-path src-tauri/Cargo.toml
 | Phase 1：纯命名统一 | DONE | 目录和页面命名已统一，构建通过 |
 | Phase 2：重复目录治理 | DONE | Store 与页面 Hook 已归位，旧根目录已禁止 |
 | Phase 3：Feature 解耦 | DONE | 远程目录、本地资源和下载任务已分层，跨 Feature 深层导入降为 0 |
-| Phase 4：大模块拆分 | IN PROGRESS | 实例领域已合并、Library 路由页已瘦身；下一步拆分 Keymap 与 Library Controller |
+| Phase 4：大模块拆分 | IN PROGRESS | Library、Wardrobe、ResourceDownload 路由页已瘦身；下一步治理 Instances 页面 Controller |
 | Phase 5：Rust 整理 | TODO | 尚未执行 |
 
-最近更新：2026-10-10，Phase 0 至 Phase 3 完成；Phase 4 已完成深层目录扁平化、实例领域合并和 Library 路由页编排迁移，下一步拆分 Keymap 与 Library Controller。
+最近更新：2026-10-10，Phase 0 至 Phase 3 完成；Phase 4 已完成深层目录扁平化、实例领域合并、Keymap 子域拆分，以及 Library、Wardrobe、ResourceDownload 路由页编排迁移；下一步治理 Instances 页面 Controller，并继续拆分各 Feature 内部职责。

@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { motion } from 'motion/react';
 import { AddLibraryResourceModal } from './modals/AddLibraryResourceModal';
 import { ManageLinkageModal } from './modals/ManageLinkageModal';
@@ -28,23 +27,21 @@ import {
 import { useLibraryPage } from '../hooks/useLibraryPage';
 import { useLibraryBackup } from '../hooks/useLibraryBackup';
 import { useLibraryCollectionOrdering } from '../hooks/useLibraryCollectionOrdering';
+import { useLibraryCollectionManagement } from '../hooks/useLibraryCollectionManagement';
 import { useLibraryContextMenu } from '../hooks/useLibraryContextMenu';
 import { useLibraryFocusNavigation } from '../hooks/useLibraryFocusNavigation';
 import { useLibraryRelations } from '../hooks/useLibraryRelations';
 import { useLibraryResourceDetail } from '../hooks/useLibraryResourceDetail';
+import { useLibraryResourceModals } from '../hooks/useLibraryResourceModals';
 import { LibraryInstanceSelectModal } from './modals/LibraryInstanceSelectModal';
 
 import { useModSetTrackerStore, type ModSetTrackerItemStatus } from '../stores/useModSetTrackerStore';
 import { useLauncherStore } from '@/app/stores/useLauncherStore';
 import { FocusBoundary } from '@/ui/focus/FocusBoundary';
 import { ControlHint } from '@/ui/components/ControlHint';
-import type { DropdownOption } from '@/ui/primitives/OreDropdown';
 import { OreOverlayScrollArea } from '@/ui/primitives/OreOverlayScrollArea';
-import type { VersionGroup } from '@/features/instances';
-import type { Collection } from '@/types/library';
 import {
   toLibraryResource,
-  type LibraryResourceViewModel,
 } from '../logic/libraryItems';
 import {
   LIBRARY_COLLECTION_FOCUS_PREFIX,
@@ -61,15 +58,11 @@ export const LibraryPageController: React.FC = () => {
   const loadTrackers = useModSetTrackerStore((state) => state.loadTrackers);
   const checkTracker = useModSetTrackerStore((state) => state.checkTracker);
   const removeTracker = useModSetTrackerStore((state) => state.removeTracker);
-  const updateTrackerTarget = useModSetTrackerStore((state) => state.updateTrackerTarget);
-  const removeTrackersForCollection = useModSetTrackerStore((state) => state.removeTrackersForCollection);
   const syncCollectionTrackers = useModSetTrackerStore((state) => state.syncCollectionTrackers);
-  const renameTrackersForCollection = useModSetTrackerStore((state) => state.renameTrackersForCollection);
   const removeCollection = useLibraryStore((state) => state.removeCollection);
   const updateCollection = useLibraryStore((state) => state.updateCollection);
   const starredItems = useLibraryStore((state) => state.items);
   const collectionItems = useLibraryStore((state) => state.collectionItems);
-  const removeStarredItem = useLibraryStore((state) => state.removeStarredItem);
   const initializeLibrary = useLibraryStore((state) => state.initializeLibrary);
   const {
     collections,
@@ -92,25 +85,24 @@ export const LibraryPageController: React.FC = () => {
     parentCategoryId,
   } = useLibraryPage();
 
-
-  const [isLibraryInstanceSelectOpen, setIsLibraryInstanceSelectOpen] = useState(false);
-  const [pendingLibraryResource, setPendingLibraryResource] = useState<LibraryResourceViewModel | null>(null);
-
   const [isTrackerModalOpen, setIsTrackerModalOpen] = useState(false);
   const [directInstallTrackerId, setDirectInstallTrackerId] = useState<string | null>(null);
-  const [minecraftVersionOptions, setMinecraftVersionOptions] = useState<DropdownOption[]>([]);
-  const [isDeleteModSetOpen, setIsDeleteModSetOpen] = useState(false);
-  const [isDeletingModSet, setIsDeletingModSet] = useState(false);
-  const [removeFavoritesWithModSet, setRemoveFavoritesWithModSet] = useState(true);
-  const [deleteModSetSelectedItemIds, setDeleteModSetSelectedItemIds] = useState<Set<string>>(() => new Set());
-  const [favoriteDeleteTarget, setFavoriteDeleteTarget] = useState<LibraryResourceViewModel | null>(null);
-  const [isDeletingFavoriteItem, setIsDeletingFavoriteItem] = useState(false);
-  const [editingCollectionMetadata, setEditingCollectionMetadata] = useState<Collection | null>(null);
-  const [isSavingCollectionMetadata, setIsSavingCollectionMetadata] = useState(false);
-  const [isAddResourceModalOpen, setIsAddResourceModalOpen] = useState(false);
-  const [selectedLibraryResource, setSelectedLibraryResource] = useState<LibraryResourceViewModel | null>(null);
-  const [isManageLinkageOpen, setIsManageLinkageOpen] = useState(false);
-  const [isEditResourceOpen, setIsEditResourceOpen] = useState(false);
+  const {
+    isInstanceSelectOpen,
+    pendingResource,
+    openInstanceSelect,
+    closeInstanceSelect,
+    isAddResourceOpen,
+    openAddResource,
+    closeAddResource,
+    selectedResource,
+    isManageLinkageOpen,
+    openManageLinkage,
+    closeManageLinkage,
+    isEditResourceOpen,
+    openEditResource,
+    closeEditResource,
+  } = useLibraryResourceModals();
   const {
     pendingRelationKeys,
     relationError,
@@ -269,26 +261,43 @@ export const LibraryPageController: React.FC = () => {
       .filter((item): item is NonNullable<typeof item> => Boolean(item))
       .map(toLibraryResource);
   }, [collectionItems, selectedCollection, starredItems]);
+  const {
+    minecraftVersionOptions,
+    editingCollectionMetadata,
+    editingCollectionTrackingInfo,
+    isSavingCollectionMetadata,
+    openCollectionMetadataEdit,
+    closeCollectionMetadataEdit,
+    saveCollectionMetadata,
+    saveTracking,
+    isDeleteModSetOpen,
+    isDeletingModSet,
+    removeFavoritesWithModSet,
+    deleteModSetSelectedItemIds,
+    openDeleteModSetModal,
+    closeDeleteModSetModal,
+    deleteModSet,
+    toggleRemoveFavoritesWithModSet,
+    toggleDeleteModSetItem,
+    selectAllDeleteModSetItems,
+    invertDeleteModSetItems,
+    favoriteDeleteTarget,
+    isDeletingFavoriteItem,
+    openFavoriteDelete,
+    closeFavoriteDelete,
+    deleteFavoriteItem,
+  } = useLibraryCollectionManagement({
+    selectedCollection,
+    selectedModSetTracker,
+    selectedModSetResources,
+    trackers,
+    setSelectedGroupId,
+    setError: setRelationError,
+  });
+
   useEffect(() => {
     void loadTrackers();
   }, [loadTrackers]);
-
-  useEffect(() => {
-    const isEditingModSet = editingCollectionMetadata?.type === 'mod_set';
-    if (!isEditingModSet || minecraftVersionOptions.length > 0) return;
-
-    invoke<VersionGroup[]>('get_minecraft_versions', { force: false })
-      .then((groups) => {
-        const options = groups
-          .flatMap((group) => group.versions)
-          .filter((version) => version.type === 'release')
-          .map((version) => ({ label: version.id, value: version.id }));
-        setMinecraftVersionOptions(options);
-      })
-      .catch((error) => {
-        console.error('[LibraryPage] failed to load Minecraft versions for tracker edit', error);
-      });
-  }, [editingCollectionMetadata, minecraftVersionOptions.length]);
 
   useEffect(() => {
     modSetTrackerSyncTargets.forEach((target) => {
@@ -299,116 +308,6 @@ export const LibraryPageController: React.FC = () => {
   const handleEntryAction = (id: string) => {
     if (id === 'browse' || id === 'download') {
       setActiveTab('downloads');
-    }
-  };
-
-  const handleSaveTracking = (gameVersion: string, loader: string) => {
-    if (!selectedModSetTracker) return;
-    updateTrackerTarget(selectedModSetTracker.id, gameVersion, loader);
-    void checkTracker(selectedModSetTracker.id);
-  };
-
-  const editingCollectionTrackingInfo = useMemo(() => {
-    if (editingCollectionMetadata?.type !== 'mod_set') return null;
-    const tracker = trackers
-      .filter((t) => t.collectionId === editingCollectionMetadata.id)
-      .sort((a, b) => b.updatedAt - a.updatedAt)[0];
-    if (!tracker) return null;
-    return {
-      gameVersion: tracker.gameVersion,
-      loader: tracker.loader,
-      trackerId: tracker.id,
-    };
-  }, [editingCollectionMetadata, trackers]);
-
-  const openCollectionMetadataEdit = (collection?: Collection | null) => {
-    if (!collection || (collection.type !== 'mod_set' && collection.type !== 'modpack')) return;
-    setEditingCollectionMetadata(collection);
-  };
-
-  const handleSaveCollectionMetadata = async (nextCollection: Collection) => {
-    if (isSavingCollectionMetadata) return;
-
-    setIsSavingCollectionMetadata(true);
-    try {
-      await updateCollection(nextCollection);
-      if (nextCollection.type === 'mod_set') {
-        renameTrackersForCollection(nextCollection.id, nextCollection.name);
-      }
-      setEditingCollectionMetadata(null);
-    } finally {
-      setIsSavingCollectionMetadata(false);
-    }
-  };
-
-  const handleDeleteModSet = async () => {
-    if (!selectedCollection || selectedCollection.type !== 'mod_set' || isDeletingModSet) return;
-
-    setIsDeletingModSet(true);
-    try {
-      if (removeFavoritesWithModSet) {
-        for (const itemId of deleteModSetSelectedItemIds) {
-          await removeStarredItem(itemId);
-        }
-      }
-      await removeCollection(selectedCollection.id);
-      removeTrackersForCollection(selectedCollection.id);
-      setIsDeleteModSetOpen(false);
-      setSelectedGroupId('category_modsets');
-    } finally {
-      setIsDeletingModSet(false);
-    }
-  };
-
-  const openDeleteModSetModal = () => {
-    setRemoveFavoritesWithModSet(true);
-    setDeleteModSetSelectedItemIds(new Set(selectedModSetResources.map((item) => item.id)));
-    setIsDeleteModSetOpen(true);
-  };
-
-  const toggleDeleteModSetItem = (itemId: string) => {
-    setDeleteModSetSelectedItemIds((current) => {
-      const next = new Set(current);
-      if (next.has(itemId)) {
-        next.delete(itemId);
-      } else {
-        next.add(itemId);
-      }
-      return next;
-    });
-  };
-
-  const selectAllDeleteModSetItems = () => {
-    setDeleteModSetSelectedItemIds(new Set(selectedModSetResources.map((item) => item.id)));
-  };
-
-  const invertDeleteModSetItems = () => {
-    setDeleteModSetSelectedItemIds((current) => {
-      const next = new Set<string>();
-      selectedModSetResources.forEach((item) => {
-        if (!current.has(item.id)) next.add(item.id);
-      });
-      return next;
-    });
-  };
-
-  const handleDeleteFavoriteItem = async () => {
-    if (!favoriteDeleteTarget || isDeletingFavoriteItem) return;
-
-    setIsDeletingFavoriteItem(true);
-    try {
-      if (favoriteDeleteTarget.type === 'shader' || favoriteDeleteTarget.type === 'resourcepack') {
-        await invoke('delete_library_resource', { resourceId: favoriteDeleteTarget.id });
-        void initializeLibrary();
-      } else {
-        await removeStarredItem(favoriteDeleteTarget.id);
-      }
-      setFavoriteDeleteTarget(null);
-    } catch (e) {
-      console.error(e);
-      setRelationError(`删除失败: ${String(e)}`);
-    } finally {
-      setIsDeletingFavoriteItem(false);
     }
   };
 
@@ -425,21 +324,17 @@ export const LibraryPageController: React.FC = () => {
     visibleCollections,
     selectedCollection,
     selectedGroupId,
-    selectedModSetResources,
     pendingRelationKeys,
     setSelectedGroupId,
     removeItemFromCollectionWithTracking,
     openTagModal,
     openResourceDetail,
     openCollectionMetadataEdit,
-    setFavoriteDeleteTarget,
-    setPendingLibraryResource,
-    setIsLibraryInstanceSelectOpen,
-    setSelectedLibraryResource,
-    setIsManageLinkageOpen,
-    setIsEditResourceOpen,
-    setDeleteModSetSelectedItemIds,
-    setIsDeleteModSetOpen,
+    openFavoriteDelete,
+    openDeleteModSetModal,
+    openInstanceSelect,
+    openManageLinkage,
+    openEditResource,
   });
 
   const hasBlockingOverlay = Boolean(
@@ -451,10 +346,10 @@ export const LibraryPageController: React.FC = () => {
     isTrackerModalOpen ||
     editingCollectionMetadata ||
     libraryImportDraft ||
-    isAddResourceModalOpen ||
+    isAddResourceOpen ||
     isManageLinkageOpen ||
     isEditResourceOpen ||
-    isLibraryInstanceSelectOpen
+    isInstanceSelectOpen
   );
 
   const { activeSection, handleContentArrow } = useLibraryFocusNavigation({
@@ -495,14 +390,10 @@ export const LibraryPageController: React.FC = () => {
       <CollectionMetadataModal
         collection={editingCollectionMetadata}
         isSaving={isSavingCollectionMetadata}
-        onClose={() => {
-          if (!isSavingCollectionMetadata) {
-            setEditingCollectionMetadata(null);
-          }
-        }}
-        onSave={handleSaveCollectionMetadata}
+        onClose={closeCollectionMetadataEdit}
+        onSave={saveCollectionMetadata}
         trackingInfo={editingCollectionTrackingInfo}
-        onSaveTracking={handleSaveTracking}
+        onSaveTracking={saveTracking}
         trackingVersionOptions={minecraftVersionOptions}
         trackingLoaderOptions={LOADER_OPTIONS}
       />
@@ -557,7 +448,7 @@ export const LibraryPageController: React.FC = () => {
             showModSetManageActions={showModSetDeployAction}
             onDeleteModSet={openDeleteModSetModal}
             showAddResource={activeFilter === 'external'}
-            onAddResource={() => setIsAddResourceModalOpen(true)}
+            onAddResource={openAddResource}
           />
 
           {relationError && !tagTargetItem && (
@@ -706,15 +597,12 @@ export const LibraryPageController: React.FC = () => {
       />
 
       <LibraryInstanceSelectModal
-        isOpen={isLibraryInstanceSelectOpen}
-        onClose={() => {
-          setIsLibraryInstanceSelectOpen(false);
-          setPendingLibraryResource(null);
-        }}
-        resource={pendingLibraryResource}
+        isOpen={isInstanceSelectOpen}
+        onClose={closeInstanceSelect}
+        resource={pendingResource}
         onConfirm={(instanceIds) => {
-          if (pendingLibraryResource) {
-            openResourceDetailWithInstances(pendingLibraryResource, instanceIds);
+          if (pendingResource) {
+            openResourceDetailWithInstances(pendingResource, instanceIds);
           }
         }}
       />
@@ -722,34 +610,26 @@ export const LibraryPageController: React.FC = () => {
       <FavoriteDeleteModal
         target={favoriteDeleteTarget}
         isDeleting={isDeletingFavoriteItem}
-        onClose={() => {
-          if (!isDeletingFavoriteItem) setFavoriteDeleteTarget(null);
-        }}
-        onConfirm={() => { void handleDeleteFavoriteItem(); }}
+        onClose={closeFavoriteDelete}
+        onConfirm={() => { void deleteFavoriteItem(); }}
       />
 
       <AddLibraryResourceModal
-        isOpen={isAddResourceModalOpen}
-        onClose={() => setIsAddResourceModalOpen(false)}
+        isOpen={isAddResourceOpen}
+        onClose={closeAddResource}
         onSuccess={() => void initializeLibrary()}
       />
 
       <ManageLinkageModal
         isOpen={isManageLinkageOpen}
-        onClose={() => {
-          setIsManageLinkageOpen(false);
-          setSelectedLibraryResource(null);
-        }}
-        resource={selectedLibraryResource}
+        onClose={closeManageLinkage}
+        resource={selectedResource}
       />
 
       <EditLibraryResourceModal
         isOpen={isEditResourceOpen}
-        onClose={() => {
-          setIsEditResourceOpen(false);
-          setSelectedLibraryResource(null);
-        }}
-        resource={selectedLibraryResource}
+        onClose={closeEditResource}
+        resource={selectedResource}
         onSuccess={() => void initializeLibrary()}
       />
 
@@ -760,11 +640,9 @@ export const LibraryPageController: React.FC = () => {
         removeFavoritesWithModSet={removeFavoritesWithModSet}
         selectedItemIds={deleteModSetSelectedItemIds}
         resources={selectedModSetResources}
-        onClose={() => {
-          if (!isDeletingModSet) setIsDeleteModSetOpen(false);
-        }}
-        onConfirm={() => { void handleDeleteModSet(); }}
-        onToggleRemoveFavorites={() => setRemoveFavoritesWithModSet((current) => !current)}
+        onClose={closeDeleteModSetModal}
+        onConfirm={() => { void deleteModSet(); }}
+        onToggleRemoveFavorites={toggleRemoveFavoritesWithModSet}
         onToggleItem={toggleDeleteModSetItem}
         onSelectAll={selectAllDeleteModSetItems}
         onInvert={invertDeleteModSetItems}
