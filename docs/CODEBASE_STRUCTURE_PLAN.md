@@ -364,7 +364,23 @@ home / settings   -> authentication + account
 - [x] 拆分 `WebDavManageModal` 的收藏、按键配置、存档列表与下载目标视图，保留 WebDAV 状态和命令编排主干。
 - [x] 拆分实例模组下载 `ResourceGrid` 的资源卡片与加载反馈视图，保留虚拟列表、响应式列数和焦点/触底加载编排主干。
 - [x] 拆分 `AppearanceSettings` 的静态背景、动态全景、赞助者 Logo、排版与导航设置视图，保留账户判定、资源导入和统一焦点编排主干。
-- [ ] 继续按 `mods`、`saves`、`screenshots` 等子域拆分实例详情大文件。
+- [x] 拆分 `JavaFriendsAndLanPanel` 的联系人卡片与 Java/LAN 合并模型，保留好友轮询、设备详情轮询和在线状态编排主干。
+- [x] 拆分 `WardrobePageController` 的皮肤备注/卡片模型、在线皮肤操作、横幅状态与页面焦点控制，保留会话资源和页面组合主干。
+- [x] 拆分 `useModPanelController` 的资源刷新/依赖健康与升级快照职责，保留列表选择、元数据操作、模组管理器和面板契约组合主干。
+- [x] 拆分 `modService` 的领域类型、纯身份/依赖匹配算法与 Tauri 服务网关，同时保持 `instance-resources` 公共入口契约不变。
+- [x] 拆分 `ResourceDownloadPageController` 的资源选择/焦点状态与单项/批量下载执行职责，保留筛选、历史导航和页面组合主干。
+- [x] 拆分 `SaveRestoreModal` 的恢复校验/交互状态与详情展示职责，保留弹窗动作和焦点导航组合主干。
+- [x] 拆分 `LibraryPageController` 的模组集追踪派生/同步与覆盖层弹窗组合职责，保留集合筛选、主内容和页面焦点编排。
+- [x] 拆分 `InstancesPageController` 的响应式筛选/操作栏与导入/标签覆盖层职责，保留视图模式、自动聚焦和实例列表编排。
+- [x] 拆分 `ScreenshotPanel` 的截图卡片/图库状态视图与展示格式化工具，保留数据控制、焦点导航、头部工具栏和覆盖层编排。
+- [x] 拆分 `ExportConfirmStep` 的导出摘要/路径视图、执行状态视图与共享契约，保留默认目录、进度监听、命令调用和状态切换编排。
+- [x] 拆分 `OnlineServerCard` 的图片缓存、展示模型、封面/详情抽屉与底部操作区，保留展开状态、复制反馈和卡片焦点编排。
+- [x] 拆分 `useResourceDownload` 的实例环境/已安装模组同步与筛选元数据加载职责，保留搜索、分页、缓存恢复和返回契约组合。
+- [x] 拆分 `GameLogSidebar` 的崩溃诊断报告、诊断/分享动作与浮动入口职责，保留侧栏布局、焦点边界和日志视图编排。
+- [x] 拆分 `DirectoryBrowserModal` 的文件分类/面包屑模型与目录内容视图，保留导航历史、目录创建、输入焦点和选择契约编排。
+- [x] 拆分 `CollectionSidebar` 的标签展示模型与标签增删改管理弹窗，保留集合筛选导航和选择契约。
+- [x] 拆分 `ProjectDescriptionModal` 的翻译控制、双语 Markdown 内容与截图轮播职责，保留弹窗滚动和焦点编排。
+- [x] 继续按 `mods`、`saves`、`screenshots` 等子域拆分实例详情大文件。
 - [x] 将 `LibraryPage` 的状态编排迁入 Feature Controller，路由页面只保留 Feature 组合。
 - [x] 将 Library 的实例选择、资源关联、资源编辑和新增资源弹窗状态提取为独立 Hook。
 - [x] 将 `WardrobePage` 的业务编排迁入 Wardrobe Feature Controller，路由页面只保留公共入口组合。
@@ -420,25 +436,54 @@ home / settings   -> authentication + account
 - 完成 `AppearanceSettings` 视图职责拆分：主编排从 807 行降至 306 行，静态背景、动态全景、赞助者 Logo、排版与导航设置已形成独立 Section；最大拆出文件为 274 行。
 - 账户与赞助者判定、背景/Logo/全景资源导入、系统字体和新闻封面加载、统一焦点顺序仍由主文件编排；设置字段和交互顺序保持不变。
 - AppearanceSettings 拆分后 `pnpm build` 通过；相关文件专项 ESLint 从原有 12 个错误降至 1 个既有全景列表 Effect 规则错误，新增 Section 无规则问题。
+- 完成 `JavaFriendsAndLanPanel` 职责拆分：主面板从 777 行降至 334 行，332 行联系人卡片、119 行 Java/LAN 合并排序模型和共享契约已独立；好友轮询、设备详情轮询、展开状态清理仍保留在主编排中。
+- JavaFriendsAndLanPanel 拆分后 `pnpm build` 通过；专项 ESLint 从原有 5 个错误和 1 个警告降至 3 个既有 Effect 错误和 1 个既有依赖警告，纯模型及类型文件无规则问题。
+- 完成 `WardrobePageController` 职责拆分：主控制器从 775 行降至 495 行，皮肤备注持久化、皮肤卡片模型、在线皮肤保存/应用、横幅计时状态与页面焦点/输入动作分别迁入独立 Hook；会话资源、Viewer 同步和页面组合仍保留在主编排中。
+- Wardrobe 控制器拆分后 `pnpm build` 与 `pnpm structure:check -- --details` 通过；专项 ESLint 从原有 7 个错误和 3 个警告降至 1 个既有备注加载 Effect 错误和 2 个既有依赖警告，同时移除了披风预览参数的显式 `any`。
+- 完成 `useModPanelController` 职责拆分：主 Hook 从 766 行降至 486 行，130 行资源刷新/依赖健康 Hook 与 244 行升级快照 Hook 已独立；列表选择、文件名清理、元数据重识别和最终面板契约仍保留在主编排中。
+- 模组面板控制器拆分后 `pnpm build` 与 `pnpm structure:check -- --details` 通过；专项 ESLint 从原有 4 个错误和 1 个警告降至 3 个既有 Effect 错误和 1 个既有依赖警告，同时移除了增量元数据合并处的显式 `any`。
+- 完成 `instance-resources` 模组服务拆分：原 731 行 `modService.ts` 缩减为 236 行 Tauri 服务网关，217 行领域契约迁入 `modTypes.ts`，319 行实例版本解析及模组身份/依赖匹配算法迁入 `modIdentity.ts`；原有 37 个公共导出均由 Feature 根入口继续提供。
+- 模组服务拆分后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，服务、类型、身份算法和公共入口专项 ESLint 从原有 5 个显式 `any` 错误降为 0；仅被动更新类型导入的 `modIconService` 保留 1 个既有依赖警告。实例详情返回值与文件清理结果改用明确契约，不改变命令名、参数或缓存失效行为。
+- 完成 `ResourceDownloadPageController` 职责拆分：主控制器从 693 行降至 331 行，284 行资源选择/焦点 Hook 与 245 行单项/批量下载执行 Hook 已独立；筛选、作者历史导航和页面组合仍保留在主编排中。
+- 资源下载控制器拆分后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，三个相关文件专项 ESLint 从原有 2 个错误降为 0；移除资源 ID 读取处的显式 `any`，并将详情退出过渡状态收口到打开/关闭动作，保留原有 350ms 退出动画。
+- 完成 `SaveRestoreModal` 职责拆分：主弹窗从 672 行降至 196 行，336 行备份详情视图、126 行恢复校验/手柄滚动控制 Hook 和 100 行告警/错误本地化工具已独立；弹窗动作与线性焦点导航仍保留在主组合中。
+- 存档恢复弹窗拆分后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，四个相关文件专项 ESLint 从原有 1 个 Effect 错误降为 0；内部控制器按实例与备份 ID 建立生命周期边界，切换或重开备份时自然重置校验和配置恢复状态。
+- 完成 `LibraryPageController` 后续职责拆分：主控制器从 654 行降至 440 行，124 行模组集追踪派生/同步 Hook 与 237 行页面覆盖层组合组件已独立；集合筛选、排序、主内容和页面焦点编排仍保留在主控制器中。
+- Library 控制器拆分后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，三个相关文件专项 ESLint 均为 0；追踪面板、集合元数据弹窗和其余覆盖层的 DOM 先后顺序保持不变。
+- 完成 `InstancesPageController` 后续职责拆分：主控制器从 567 行降至 211 行，335 行响应式筛选/操作栏与 215 行目录导入、第三方导入、标签筛选覆盖层组合已独立；视图模式持久化、首次自动聚焦、第三方来源面板和实例列表仍保留在页面控制器中。
+- Instances 控制器拆分后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，三个相关文件专项 ESLint 从原有 3 个显式 `any` 错误降为 0；焦点键、覆盖层顺序及目录选择后的 150ms 检查延迟保持不变。
+- 完成 `ScreenshotPanel` 视图职责拆分：主面板从 540 行降至 333 行，305 行截图卡片/加载错误空状态/选择操作栏组合迁入 `screenshots/ScreenshotGallery.tsx`，字节与日期格式化迁入 19 行纯展示工具；数据控制、二维焦点导航、头部工具栏、预览与删除确认仍保留在主编排中。
+- ScreenshotPanel 拆分后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，三个相关文件专项 ESLint 均为 0；卡片 DOM、焦点键、右键多选、预览和永久删除交互保持不变。
+- 完成 `ExportConfirmStep` 职责拆分：主编排从 567 行降至 295 行，205 行导出摘要/路径确认视图、208 行导出中/成功/失败状态视图和 19 行共享契约已独立；默认目录创建、进度事件监听、导出/取消命令和焦点切换仍保留在主组件中。
+- 导出确认步骤拆分后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，四个相关文件专项 ESLint 从原有 1 个显式 `any` 错误降为 0；Tauri 命令名、参数、任务 ID 过滤和状态 DOM 顺序保持不变。实例详情目录最大源码文件现为 486 行，本轮大文件复核完成。
+- 完成 `OnlineServerCard` 职责拆分：主卡片从 662 行降至 155 行，299 行封面/实时状态/详情抽屉视图、171 行特色与复制/加入操作区、195 行纯展示模型和 71 行图片缓存组件已独立；展开状态、复制反馈计时、输入模式与卡片级焦点编排仍保留在主组件中。
+- 在线服务器卡片拆分后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，五个相关文件专项 ESLint 从原有 1 个缓存图片 Effect 错误降为 0；图片回退、焦点键、Y 键切换、复制 IP、外链打开和加入回调保持不变。
+- 完成 `useResourceDownload` 职责拆分：主 Hook 从 635 行降至 404 行，206 行实例环境/已安装模组同步与 109 行筛选元数据加载分别迁入独立 Hook；远程搜索、分页重试、筛选状态、缓存恢复和原返回契约仍由主 Hook 编排。
+- 下载资源 Hook 拆分后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，三个相关文件专项 ESLint 从原有 4 个 Effect 错误和 1 个回调依赖警告降为 0；实例环境解析导出、700ms 下载完成刷新、2 秒事件去重、180ms 元数据延迟和 40ms 搜索延迟保持不变。
+- 完成 `GameLogSidebar` 职责拆分：主侧栏从 605 行降至 451 行，126 行诊断复制/日志分享/诊断包导出/进程终止动作 Hook、76 行崩溃诊断报告与 82 行浮动入口组件已独立；侧栏动画、焦点边界、遥测、日志视图和覆盖层顺序仍由主组件编排。
+- 游戏日志侧栏拆分后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，四个相关文件专项 ESLint 均为 0；诊断复制反馈 2 秒计时、焦点恢复 80ms 延迟、分享参数、浮动入口层级和焦点键保持不变。
+- 完成 `DirectoryBrowserModal` 职责拆分：主弹窗从 646 行降至 354 行，299 行动作菜单/新建目录/节点列表内容视图与 91 行文件分类、面包屑、排序和焦点键纯模型已独立；目录历史、Tauri 数据 Hook、全局输入动作、页头/页脚和选择契约仍由主弹窗编排。
+- 目录浏览弹窗拆分后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，三个相关文件专项 ESLint 从原有 1 个 Effect 错误和 7 个显式 `any` 错误降为 0；文件扩展名过滤、文件夹优先排序、焦点键、50ms 创建/菜单聚焦延迟和双击打开行为保持不变。
+- 完成 `CollectionSidebar` 职责拆分：主侧栏从 595 行降至 151 行，455 行标签增删改管理弹窗与 65 行颜色、图标、时间戳和集合创建模型已独立；主组件仅保留标签筛选导航、管理入口和原回调契约。
+- 集合侧栏拆分后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，三个相关文件专项 ESLint 从原有 1 个渲染纯度错误降为 0；标签资源计数、重复名称校验、二次删除确认、80ms 输入聚焦和焦点键保持不变。
+- 完成 `ProjectDescriptionModal` 职责拆分：主弹窗从 594 行降至 274 行，136 行翻译控制 Hook、135 行单双语 Markdown 内容和 112 行截图轮播已独立；滚动折叠、外链处理、翻译状态提示和弹窗焦点仍由主组件编排。
+- 项目描述弹窗拆分后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，四个相关文件专项 ESLint 均为 0；TMT 命令参数、图片/iframe 占位保护、LT/RT 模式切换、轮播焦点键和滚动阈值保持不变。
 
-遗漏复核（2026-10-10）：
+遗漏复核（更新至 2026-10-12）：
 
 - 旧 `instance-detail`、根级 `store/stores` 和 `hooks/pages` 均已删除，未发现迁移残留引用。
 - 已识别的 `WardrobePage.tsx`、`ResourceDownloadPage.tsx`、`InstancesPage.tsx` 均已完成路由层瘦身；后续继续复核 News、NewInstance 等页面是否仍有可迁移的业务编排。
 - `src/style/pages`、`src/style/features` 与 `src/style/ui` 仍集中保存大量组件样式；样式共置任务尚未开始，不应误标为完成。
 - 超过 500 行只作为复核信号；纯数据、设计 token 或单一算法实现不因行数自动拆分。
+- ScreenshotPanel 拆分后发现并补做 `export/ExportConfirmStep.tsx`；再次扫描确认实例详情目录已无超过 500 行的源码文件。
+- GameLogSidebar 拆分后重新扫描前端大文件；`SkinEngine`、设计 token 和平台 API 等单一生命周期/数据/网关文件继续按职责而非行数判断，其余多职责 UI 纳入下一轮复核。
+- DirectoryBrowserModal 拆分后通用目录选择器的三个文件均低于 500 行；五处既有调用继续复用原组件契约，无需修改 Feature 消费方。
+- CollectionSidebar 拆分后 Library 标签导航、管理弹窗和共享展示模型均低于 500 行；标签持久化回调仍由上层 Library Feature 注入，无需修改 Store 或数据库结构。
+- ProjectDescriptionModal 拆分后描述弹窗相关文件均低于 500 行；同目录 `InstanceSelectModal` 仍混合实例兼容性加载、已安装扫描和前置依赖检查，是下一批明确目标。
 
 当前剩余大文件拆分优先级：
 
-1. `src/features/home/components/account-slider-bar/JavaFriendsAndLanPanel.tsx`（约 777 行）。
-2. `src/features/wardrobe/components/WardrobePageController.tsx`（约 775 行；页面编排已归入 Feature，后续再拆会话、在线皮肤与焦点控制）。
-3. `src/features/instances/detail/mods/hooks/useModPanelController.ts`（约 766 行）。
-4. `src/features/instance-resources/logic/modService.ts`（约 731 行）。
-5. `src/features/download/components/ResourceDownloadPageController.tsx`（约 693 行；页面编排已归入 Feature，后续再拆选择、焦点与批量下载流程）。
-6. `src/features/instances/detail/saves/SaveRestoreModal.tsx`（约 672 行）。
-7. `src/features/library/components/LibraryPageController.tsx`（约 655 行；状态编排已按上下文菜单、焦点导航、集合管理和资源弹窗拆分）。
-8. `src/features/instances/components/InstancesPageController.tsx`（约 567 行；页面编排已归入 Feature，后续再拆筛选栏和导入弹窗）。
-9. `src/features/instances/detail/ScreenshotPanel.tsx`（约 540 行）。
+1. `src/features/download/components/detail-modal/InstanceSelectModal.tsx`（约 578 行；实例兼容性加载、已安装扫描、前置依赖检查和选择视图职责混合）。
 
 样式文件中 `src/style/pages/Multiplayer.css` 约 1917 行，应与 Multiplayer 子组件拆分同步处理，避免只按行数机械切割。
 
@@ -552,7 +597,7 @@ cargo check --manifest-path src-tauri/Cargo.toml
 | Phase 1：纯命名统一 | DONE | 目录和页面命名已统一，构建通过 |
 | Phase 2：重复目录治理 | DONE | Store 与页面 Hook 已归位，旧根目录已禁止 |
 | Phase 3：Feature 解耦 | DONE | 远程目录、本地资源和下载任务已分层，跨 Feature 深层导入降为 0 |
-| Phase 4：大模块拆分 | IN PROGRESS | 重型路由页、实例模组下载视图与网格、账户 LAN 侧栏、皮肤引擎、WebDAV 管理弹窗及外观设置已完成拆分；下一步继续处理剩余大模块 |
+| Phase 4：大模块拆分 | IN PROGRESS | 实例详情大文件复核已完成；重型路由页、Library/资源下载/Instances 控制器、通用目录浏览弹窗、游戏日志侧栏、在线服务器卡片、截图与导出确认面板、存档恢复弹窗、实例模组下载视图/网格/面板控制器、实例资源模组服务、账户 LAN 侧栏及好友设备面板、皮肤引擎、WebDAV 管理弹窗、外观设置和更衣室控制器已完成拆分；下一步继续处理其余多职责 UI 大模块 |
 | Phase 5：Rust 整理 | TODO | 尚未执行 |
 
-最近更新：2026-10-11，Phase 0 至 Phase 3 完成；Phase 4 已完成深层目录扁平化、实例领域合并、Keymap 子域拆分、四个重型路由页编排迁移和 `page.ts` 打包边界隔离，并完成实例模组下载视图及资源网格、账户 LAN 侧栏、皮肤引擎稳定算法边界、WebDAV 管理弹窗与外观设置的职责拆分；下一步继续拆分实例详情及各 Feature 内部大模块。
+最近更新：2026-10-12，Phase 0 至 Phase 3 完成；Phase 4 已完成深层目录扁平化、实例领域合并、Keymap 子域拆分、四个重型路由页编排迁移和 `page.ts` 打包边界隔离，并完成实例详情大文件复核，以及 Library、资源下载与 Instances 控制器、通用目录浏览弹窗、游戏日志侧栏、在线服务器卡片、截图面板、导出确认步骤、存档恢复弹窗、项目描述弹窗、实例模组下载视图/资源网格/面板控制器、实例资源模组服务、账户 LAN 侧栏与好友设备面板、皮肤引擎稳定算法边界、WebDAV 管理弹窗、外观设置和更衣室控制器的职责拆分；下一步处理实例选择弹窗的兼容性与依赖扫描职责。

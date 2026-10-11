@@ -1,3 +1,5 @@
 export * from './logic/modIconService'
+export * from './logic/modIdentity'
 export * from './logic/modService'
+export * from './logic/modTypes'
 export * from './logic/resourceService'

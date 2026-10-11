@@ -1,26 +1,17 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
-import { AddLibraryResourceModal } from './modals/AddLibraryResourceModal';
-import { ManageLinkageModal } from './modals/ManageLinkageModal';
-import { EditLibraryResourceModal } from './modals/EditLibraryResourceModal';
 import { useTranslation } from 'react-i18next';
 
 import { useLibraryStore } from '../stores/useLibraryStore';
-import { DownloadDetailModal } from '@/features/download';
 import { CollectionSidebar } from './CollectionSidebar';
 import { CollectionCard } from './CollectionCard';
 import { CollectionMetadataModal } from './CollectionMetadataModal';
 import { LibraryEmptyState } from './LibraryEmptyState';
-import { LibraryContextMenu } from './LibraryContextMenu';
 import { LibraryHeader, type LibraryHeaderView } from './LibraryHeader';
+import { LibraryPageOverlays } from './LibraryPageOverlays';
 import { LibraryResourceList } from './LibraryResourceList';
 import { LibraryToolbar } from './LibraryToolbar';
 import { ModSetTrackerPanel } from './ModSetTrackerPanel';
-import { DeleteModSetModal } from './modals/DeleteModSetModal';
-import { FavoriteDeleteModal } from './modals/FavoriteDeleteModal';
-import { LibraryCloudSyncModal } from './modals/LibraryCloudSyncModal';
-import { LibraryImportPreviewModal } from './modals/LibraryImportPreviewModal';
-import { LibraryTagModal } from './modals/LibraryTagModal';
 import {
   LIBRARY_EMPTY_ACTIONS,
 } from '../data/libraryPageData';
@@ -30,35 +21,24 @@ import { useLibraryCollectionOrdering } from '../hooks/useLibraryCollectionOrder
 import { useLibraryCollectionManagement } from '../hooks/useLibraryCollectionManagement';
 import { useLibraryContextMenu } from '../hooks/useLibraryContextMenu';
 import { useLibraryFocusNavigation } from '../hooks/useLibraryFocusNavigation';
+import { useLibraryModSetTracking } from '../hooks/useLibraryModSetTracking';
 import { useLibraryRelations } from '../hooks/useLibraryRelations';
 import { useLibraryResourceDetail } from '../hooks/useLibraryResourceDetail';
 import { useLibraryResourceModals } from '../hooks/useLibraryResourceModals';
-import { LibraryInstanceSelectModal } from './modals/LibraryInstanceSelectModal';
 
-import { useModSetTrackerStore, type ModSetTrackerItemStatus } from '../stores/useModSetTrackerStore';
 import { useLauncherStore } from '@/app/stores/useLauncherStore';
 import { FocusBoundary } from '@/ui/focus/FocusBoundary';
 import { ControlHint } from '@/ui/components/ControlHint';
 import { OreOverlayScrollArea } from '@/ui/primitives/OreOverlayScrollArea';
 import {
-  toLibraryResource,
-} from '../logic/libraryItems';
-import {
   LIBRARY_COLLECTION_FOCUS_PREFIX,
   LOADER_OPTIONS,
-  getCollectionItemTrackerKeys,
 } from '../logic/libraryPageUtils';
 
 export const LibraryPageController: React.FC = () => {
   const { t } = useTranslation();
   const setActiveTab = useLauncherStore((state) => state.setActiveTab);
   const currentGlobalTab = useLauncherStore((state) => state.activeTab);
-  const trackers = useModSetTrackerStore((state) => state.trackers);
-  const isCheckingTrackers = useModSetTrackerStore((state) => state.isChecking);
-  const loadTrackers = useModSetTrackerStore((state) => state.loadTrackers);
-  const checkTracker = useModSetTrackerStore((state) => state.checkTracker);
-  const removeTracker = useModSetTrackerStore((state) => state.removeTracker);
-  const syncCollectionTrackers = useModSetTrackerStore((state) => state.syncCollectionTrackers);
   const removeCollection = useLibraryStore((state) => state.removeCollection);
   const updateCollection = useLibraryStore((state) => state.updateCollection);
   const starredItems = useLibraryStore((state) => state.items);
@@ -85,73 +65,53 @@ export const LibraryPageController: React.FC = () => {
     parentCategoryId,
   } = useLibraryPage();
 
-  const [isTrackerModalOpen, setIsTrackerModalOpen] = useState(false);
-  const [directInstallTrackerId, setDirectInstallTrackerId] = useState<string | null>(null);
+  const tracking = useLibraryModSetTracking({
+    collections,
+    collectionItems,
+    starredItems,
+    selectedCollection,
+  });
+  const {
+    trackers,
+    isTrackerModalOpen,
+    setDirectInstallTrackerId,
+    selectedModSetTracker,
+    selectedModSetResources,
+    showModSetDeployAction,
+    getTrackerStatusForResource,
+  } = tracking;
+  const resourceModals = useLibraryResourceModals();
   const {
     isInstanceSelectOpen,
-    pendingResource,
     openInstanceSelect,
-    closeInstanceSelect,
     isAddResourceOpen,
     openAddResource,
-    closeAddResource,
-    selectedResource,
     isManageLinkageOpen,
     openManageLinkage,
-    closeManageLinkage,
     isEditResourceOpen,
     openEditResource,
-    closeEditResource,
-  } = useLibraryResourceModals();
+  } = resourceModals;
+  const relations = useLibraryRelations();
   const {
     pendingRelationKeys,
     relationError,
     setRelationError,
-    tagCollections,
     tagTargetItem,
-    tagTargetTagIds,
-    tagTargetHasPendingRelation,
-    closeTagModal,
     openTagModal,
     removeItemFromCollectionWithTracking,
-    toggleItemTag,
-  } = useLibraryRelations();
+  } = relations;
+  const resourceDetail = useLibraryResourceDetail();
   const {
     detailProject,
-    detailSource,
-    detailTab,
-    directInstallInstanceIds,
-    searchMcVersion,
-    searchLoader,
     openResourceDetail,
-    openResourceDetailWithInstances,
-    closeResourceDetail,
-    handleLibraryDetailDownload,
-  } = useLibraryResourceDetail();
+  } = resourceDetail;
+  const backup = useLibraryBackup({ onMessage: setRelationError });
   const {
     isBusy: isLibraryBackupBusy,
-    isCloudModalOpen: isLibraryCloudModalOpen,
     isSyncingWebDav: isLibraryWebDavSyncing,
-    syncHistory: librarySyncHistory,
     importDraft: libraryImportDraft,
-    closeImportPreview,
     openCloudModal,
-    closeCloudModal,
-    exportLibrary,
-    openImportLibrary,
-    syncWebDavFavorites,
-    toggleImportTagMerge,
-    confirmImportLibrary,
-  } = useLibraryBackup({ onMessage: setRelationError });
-  const selectedCollectionTrackers = useMemo(() => {
-    if (selectedCollection?.type !== 'mod_set') return [];
-    return trackers
-      .filter((tracker) => tracker.collectionId === selectedCollection.id)
-      .sort((a, b) => b.updatedAt - a.updatedAt);
-  }, [selectedCollection, trackers]);
-  const selectedModSetTracker =
-    selectedCollectionTrackers.find((tracker) => tracker.readyCount > 0) || selectedCollectionTrackers[0] || null;
-  const showModSetDeployAction = selectedCollection?.type === 'mod_set';
+  } = backup;
   const canEditSelectedCollectionMetadata =
     selectedCollection?.type === 'mod_set' || selectedCollection?.type === 'modpack';
   const canSortSelectedCollection = Boolean(
@@ -171,31 +131,6 @@ export const LibraryPageController: React.FC = () => {
     disabled: collectionSortModeDisabled,
     onError: setRelationError,
   });
-  const selectedTrackerStatusByKey = useMemo(() => {
-    const statusByKey = new Map<string, ModSetTrackerItemStatus>();
-    selectedModSetTracker?.items.forEach((item) => {
-      statusByKey.set(item.itemId.toLowerCase(), item.status);
-      statusByKey.set(`${item.source}:${item.projectId}`.toLowerCase(), item.status);
-      statusByKey.set(item.projectId.toLowerCase(), item.status);
-    });
-    return statusByKey;
-  }, [selectedModSetTracker]);
-
-  const getTrackerStatusForResource = (item: typeof visibleResources[number]) => {
-    const keys = [
-      item.id,
-      item.item.projectId,
-      item.item.projectId ? `${item.source}:${item.item.projectId}` : undefined,
-    ]
-      .filter((key): key is string => Boolean(key))
-      .map((key) => key.toLowerCase());
-
-    for (const key of keys) {
-      const status = selectedTrackerStatusByKey.get(key);
-      if (status) return status;
-    }
-    return undefined;
-  };
 
   const finalVisibleResources = visibleResources;
 
@@ -239,54 +174,7 @@ export const LibraryPageController: React.FC = () => {
     modpack: t('libraryPage.views.modpack'),
     external: t('libraryPage.views.external'),
   };
-  const modSetTrackerSyncTargets = useMemo(() => (
-    collections
-      .filter((collection) => collection.type === 'mod_set')
-      .map((collection) => ({
-        collectionId: collection.id,
-        keys: collectionItems
-          .filter((relation) => relation.collectionId === collection.id)
-          .flatMap(getCollectionItemTrackerKeys)
-          .sort(),
-      }))
-  ), [collectionItems, collections]);
-  const selectedModSetResources = useMemo(() => {
-    if (selectedCollection?.type !== 'mod_set') return [];
-
-    const itemMap = new Map(starredItems.map((item) => [item.id, item]));
-    return collectionItems
-      .filter((relation) => relation.collectionId === selectedCollection.id)
-      .sort((a, b) => a.position - b.position)
-      .map((relation) => itemMap.get(relation.itemId))
-      .filter((item): item is NonNullable<typeof item> => Boolean(item))
-      .map(toLibraryResource);
-  }, [collectionItems, selectedCollection, starredItems]);
-  const {
-    minecraftVersionOptions,
-    editingCollectionMetadata,
-    editingCollectionTrackingInfo,
-    isSavingCollectionMetadata,
-    openCollectionMetadataEdit,
-    closeCollectionMetadataEdit,
-    saveCollectionMetadata,
-    saveTracking,
-    isDeleteModSetOpen,
-    isDeletingModSet,
-    removeFavoritesWithModSet,
-    deleteModSetSelectedItemIds,
-    openDeleteModSetModal,
-    closeDeleteModSetModal,
-    deleteModSet,
-    toggleRemoveFavoritesWithModSet,
-    toggleDeleteModSetItem,
-    selectAllDeleteModSetItems,
-    invertDeleteModSetItems,
-    favoriteDeleteTarget,
-    isDeletingFavoriteItem,
-    openFavoriteDelete,
-    closeFavoriteDelete,
-    deleteFavoriteItem,
-  } = useLibraryCollectionManagement({
+  const collectionManagement = useLibraryCollectionManagement({
     selectedCollection,
     selectedModSetTracker,
     selectedModSetResources,
@@ -294,16 +182,14 @@ export const LibraryPageController: React.FC = () => {
     setSelectedGroupId,
     setError: setRelationError,
   });
-
-  useEffect(() => {
-    void loadTrackers();
-  }, [loadTrackers]);
-
-  useEffect(() => {
-    modSetTrackerSyncTargets.forEach((target) => {
-      syncCollectionTrackers(target.collectionId, target.keys);
-    });
-  }, [modSetTrackerSyncTargets, syncCollectionTrackers]);
+  const {
+    editingCollectionMetadata,
+    openCollectionMetadataEdit,
+    isDeleteModSetOpen,
+    openDeleteModSetModal,
+    favoriteDeleteTarget,
+    openFavoriteDelete,
+  } = collectionManagement;
 
   const handleEntryAction = (id: string) => {
     if (id === 'browse' || id === 'download') {
@@ -311,15 +197,7 @@ export const LibraryPageController: React.FC = () => {
     }
   };
 
-  const {
-    contextMenu,
-    setContextMenu,
-    contextMenuActions,
-    handleItemContextMenu,
-    handleCollectionContextMenu,
-    handleOpenItem,
-    handleOpenFocusedResourceContextMenu,
-  } = useLibraryContextMenu({
+  const contextMenuController = useLibraryContextMenu({
     visibleResources,
     visibleCollections,
     selectedCollection,
@@ -336,6 +214,13 @@ export const LibraryPageController: React.FC = () => {
     openManageLinkage,
     openEditResource,
   });
+  const {
+    contextMenu,
+    handleItemContextMenu,
+    handleCollectionContextMenu,
+    handleOpenItem,
+    handleOpenFocusedResourceContextMenu,
+  } = contextMenuController;
 
   const hasBlockingOverlay = Boolean(
     contextMenu ||
@@ -377,24 +262,26 @@ export const LibraryPageController: React.FC = () => {
       />
 
       <ModSetTrackerPanel
-        isOpen={isTrackerModalOpen}
-        onClose={() => setIsTrackerModalOpen(false)}
-        trackers={trackers}
-        isChecking={isCheckingTrackers}
-        onCheck={(trackerId) => { void checkTracker(trackerId); }}
-        onRemove={removeTracker}
-        directInstallTrackerId={directInstallTrackerId}
-        onDirectInstallHandled={() => setDirectInstallTrackerId(null)}
+        isOpen={tracking.isTrackerModalOpen}
+        onClose={tracking.closeTrackerModal}
+        trackers={tracking.trackers}
+        isChecking={tracking.isCheckingTrackers}
+        onCheck={(trackerId) => {
+          void tracking.checkTracker(trackerId);
+        }}
+        onRemove={tracking.removeTracker}
+        directInstallTrackerId={tracking.directInstallTrackerId}
+        onDirectInstallHandled={() => tracking.setDirectInstallTrackerId(null)}
       />
 
       <CollectionMetadataModal
-        collection={editingCollectionMetadata}
-        isSaving={isSavingCollectionMetadata}
-        onClose={closeCollectionMetadataEdit}
-        onSave={saveCollectionMetadata}
-        trackingInfo={editingCollectionTrackingInfo}
-        onSaveTracking={saveTracking}
-        trackingVersionOptions={minecraftVersionOptions}
+        collection={collectionManagement.editingCollectionMetadata}
+        isSaving={collectionManagement.isSavingCollectionMetadata}
+        onClose={collectionManagement.closeCollectionMetadataEdit}
+        onSave={collectionManagement.saveCollectionMetadata}
+        trackingInfo={collectionManagement.editingCollectionTrackingInfo}
+        onSaveTracking={collectionManagement.saveTracking}
+        trackingVersionOptions={collectionManagement.minecraftVersionOptions}
         trackingLoaderOptions={LOADER_OPTIONS}
       />
 
@@ -535,117 +422,16 @@ export const LibraryPageController: React.FC = () => {
         </main>
       </div>
 
-      {contextMenu && contextMenuActions.length > 0 && (
-        <LibraryContextMenu
-          anchorRect={contextMenu.anchorRect}
-          triggerPoint={contextMenu.triggerPoint}
-          actions={contextMenuActions}
-          onClose={() => setContextMenu(null)}
-        />
-      )}
-
-      <LibraryCloudSyncModal
-        isOpen={isLibraryCloudModalOpen}
-        isBusy={isLibraryBackupBusy}
-        isSyncingWebDav={isLibraryWebDavSyncing}
-        records={librarySyncHistory}
-        onClose={closeCloudModal}
-        onExportLibrary={() => {
-          closeCloudModal();
-          void exportLibrary();
-        }}
-        onImportLibrary={() => {
-          closeCloudModal();
-          void openImportLibrary();
-        }}
-        onSyncWebDav={() => {
-          void syncWebDavFavorites();
-        }}
-      />
-
-      <LibraryImportPreviewModal
-        draft={libraryImportDraft}
-        isBusy={isLibraryBackupBusy}
-        errorMessage={relationError}
-        onClose={closeImportPreview}
-        onToggleMergeTags={() => { void toggleImportTagMerge(); }}
-        onConfirm={() => { void confirmImportLibrary(); }}
-      />
-
-      <LibraryTagModal
-        item={tagTargetItem}
-        tags={tagCollections}
-        activeTagIds={tagTargetTagIds}
-        pendingRelationKeys={pendingRelationKeys}
-        relationError={relationError}
-        hasPendingRelation={tagTargetHasPendingRelation}
-        onClose={closeTagModal}
-        onToggleTag={(tagId) => { void toggleItemTag(tagId); }}
-      />
-
-      <DownloadDetailModal
-        project={detailProject}
-        instanceConfig={null}
-        onClose={closeResourceDetail}
-        onDownload={handleLibraryDetailDownload}
-        installedVersionIds={[]}
-        activeTab={detailTab}
-        source={detailSource}
-        directInstallInstanceIds={directInstallInstanceIds}
-        searchMcVersion={searchMcVersion}
-        searchLoader={searchLoader}
-      />
-
-      <LibraryInstanceSelectModal
-        isOpen={isInstanceSelectOpen}
-        onClose={closeInstanceSelect}
-        resource={pendingResource}
-        onConfirm={(instanceIds) => {
-          if (pendingResource) {
-            openResourceDetailWithInstances(pendingResource, instanceIds);
-          }
-        }}
-      />
-
-      <FavoriteDeleteModal
-        target={favoriteDeleteTarget}
-        isDeleting={isDeletingFavoriteItem}
-        onClose={closeFavoriteDelete}
-        onConfirm={() => { void deleteFavoriteItem(); }}
-      />
-
-      <AddLibraryResourceModal
-        isOpen={isAddResourceOpen}
-        onClose={closeAddResource}
-        onSuccess={() => void initializeLibrary()}
-      />
-
-      <ManageLinkageModal
-        isOpen={isManageLinkageOpen}
-        onClose={closeManageLinkage}
-        resource={selectedResource}
-      />
-
-      <EditLibraryResourceModal
-        isOpen={isEditResourceOpen}
-        onClose={closeEditResource}
-        resource={selectedResource}
-        onSuccess={() => void initializeLibrary()}
-      />
-
-      <DeleteModSetModal
-        isOpen={isDeleteModSetOpen}
-        collectionName={selectedCollection?.name || ''}
-        isDeleting={isDeletingModSet}
-        removeFavoritesWithModSet={removeFavoritesWithModSet}
-        selectedItemIds={deleteModSetSelectedItemIds}
-        resources={selectedModSetResources}
-        onClose={closeDeleteModSetModal}
-        onConfirm={() => { void deleteModSet(); }}
-        onToggleRemoveFavorites={toggleRemoveFavoritesWithModSet}
-        onToggleItem={toggleDeleteModSetItem}
-        onSelectAll={selectAllDeleteModSetItems}
-        onInvert={invertDeleteModSetItems}
+      <LibraryPageOverlays
+        selectedCollection={selectedCollection}
+        initializeLibrary={initializeLibrary}
+        tracking={tracking}
+        backup={backup}
+        collectionManagement={collectionManagement}
+        contextMenuController={contextMenuController}
+        relations={relations}
+        resourceDetail={resourceDetail}
+        resourceModals={resourceModals}
       />
     </FocusBoundary>
   );

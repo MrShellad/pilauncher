@@ -1,32 +1,23 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Blocks, Image as ImageIcon, Package, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import {
-  ContextualActionBar,
-  getContextualActionBarFocusKey
-} from './ContextualActionBar';
+import { ContextualActionBar } from './ContextualActionBar';
 import { DownloadDetailModal } from './DownloadDetailModal';
 import { FilterBar } from './FilterBar';
 import { InstanceSelectModal } from './detail-modal/InstanceSelectModal';
 import { ResourceGrid } from './ResourceGrid';
-import { fetchCurseForgeVersions } from '@/features/resource-catalog';
-import { runResourceDownloadTask } from '../logic/resourceDownloadTask';
-import { useResourceDownload, type DownloadSource, type TabType } from '../hooks/useResourceDownload';
-import { useDownloadSelectionStore } from '../stores/useDownloadSelectionStore';
-import { useIconCacheStore } from '../logic/iconCache';
-import { fetchModrinthVersions, type ModrinthProject, type OreProjectVersion } from '@/features/resource-catalog';
-import { getInstalledProjectIds, getInstalledVersionIds, modService } from '@/features/instance-resources';
+import { type ModrinthProject } from '@/features/resource-catalog';
+import { useResourceDownload, type TabType } from '../hooks/useResourceDownload';
+import { useResourceDownloadActions } from '../hooks/useResourceDownloadActions';
+import {
+  DOWNLOAD_ACTION_BAR_FOCUS_PREFIX,
+  useResourceDownloadSelection,
+} from '../hooks/useResourceDownloadSelection';
 import { useLauncherStore } from '@/app/stores/useLauncherStore';
 import { FocusBoundary } from '@/ui/focus/FocusBoundary';
-import { useInputAction } from '@/ui/focus/InputDriver';
-import { focusManager } from '@/ui/focus/FocusManager';
 import type { DropdownOption } from '@/ui/primitives/OreDropdown';
-
-const DOWNLOAD_ACTION_BAR_FOCUS_PREFIX = 'resource-download-actions';
-const DOWNLOAD_GRID_FOCUS_PREFIX = 'download-grid-item-';
 
 interface DownloadHistoryItem {
   query: string;
@@ -101,22 +92,57 @@ export const ResourceDownloadPageController: React.FC<ResourceDownloadPageContro
     retryLoadMore
   } = useResourceDownload(instanceId);
 
-  const [selectedProject, setSelectedProject] = useState<ModrinthProject | null>(null);
-  const [selectedProjectIdForTransition, setSelectedProjectIdForTransition] = useState<string | undefined>(undefined);
+  const {
+    selectedProject,
+    selectedProjectIdForTransition,
+    selectedProjectIds,
+    selectedProjects,
+    selectedCount,
+    isSelectionMode,
+    selectionEnabled,
+    showBulkDownload,
+    favoriteResourceType,
+    batchRepresentativeVersion,
+    isFavoriteModalOpen,
+    isBatchInstanceModalOpen,
+    getProjectKey,
+    handleSelectProject,
+    handleToggleProjectSelection,
+    clearSelection,
+    closeSelectedProject,
+    openFavoriteModal,
+    closeFavoriteModal,
+    openBatchInstanceModal,
+    closeBatchInstanceModal,
+  } = useResourceDownloadSelection({
+    activeTab,
+    currentGlobalTab,
+    isEnvLoaded,
+    results,
+    mcVersion,
+    loaderType,
+  });
 
-  useEffect(() => {
-    if (selectedProject) {
-      setSelectedProjectIdForTransition(selectedProject.id || (selectedProject as any).project_id);
-    } else {
-      const timer = setTimeout(() => {
-        setSelectedProjectIdForTransition(undefined);
-      }, 350);
-      return () => clearTimeout(timer);
-    }
-  }, [selectedProject]);
+  const {
+    installedVersionIds,
+    handleStartDownload,
+    handleBatchDownloadConfirm,
+  } = useResourceDownloadActions({
+    activeTab,
+    instanceConfig,
+    instanceId,
+    loaderType,
+    mcVersion,
+    installedMods,
+    refreshInstalledMods,
+    selectedProject,
+    selectedProjects,
+    source,
+    closeBatchInstanceModal,
+    clearSelection,
+    t,
+  });
 
-  const [isFavoriteModalOpen, setIsFavoriteModalOpen] = useState(false);
-  const [isBatchInstanceModalOpen, setIsBatchInstanceModalOpen] = useState(false);
   const [resultsScrollTop, setResultsScrollTop] = useState(0);
 
   const [historyStack, setHistoryStack] = useState<DownloadHistoryItem[]>([]);
@@ -173,380 +199,6 @@ export const ResourceDownloadPageController: React.FC<ResourceDownloadPageContro
       window.removeEventListener('mousedown', handleMouseDown);
     };
   }, [handleBackFromAuthor]);
-  const selectedProjectIds = useDownloadSelectionStore((state) => state.selectedProjectIds);
-  const selectedProjectsById = useDownloadSelectionStore((state) => state.selectedProjects);
-  const selectedCount = useDownloadSelectionStore((state) => state.selectedCount);
-  const isSelectionMode = useDownloadSelectionStore((state) => state.isSelectionMode);
-  const getProjectKey = useDownloadSelectionStore((state) => state.getProjectKey);
-  const toggleProjectSelection = useDownloadSelectionStore((state) => state.toggleProject);
-  const clearDownloadSelection = useDownloadSelectionStore((state) => state.clearSelection);
-  const lastFocusBeforeModalRef = React.useRef<string>('download-search-input');
-  const lastListFocusBeforeActionBarRef = React.useRef<string>('download-grid-item-0');
-  const didInitialFocusRef = React.useRef(false);
-  const selectionTabRef = React.useRef<TabType>(activeTab);
-  const pendingDepIdsRef = React.useRef<Set<string>>(new Set());
-  const installedVersionIds = useMemo(() => getInstalledVersionIds(installedMods), [installedMods]);
-
-  const selectedProjects = useMemo(
-    () => Object.values(selectedProjectsById),
-    [selectedProjectsById]
-  );
-
-  const hasStrictVersionAndLoader = Boolean(
-    mcVersion && mcVersion !== 'all' && loaderType && loaderType !== 'all'
-  );
-  const showBulkDownload = activeTab === 'mod' && hasStrictVersionAndLoader;
-  const selectionEnabled = activeTab !== 'modpack';
-  const favoriteResourceType =
-    activeTab === 'resourcepack'
-      ? 'resourcepack'
-      : activeTab === 'shader'
-      ? 'shader'
-      : 'mod';
-
-  const batchRepresentativeVersion = useMemo<OreProjectVersion | null>(() => {
-    if (!showBulkDownload || selectedProjects.length === 0) return null;
-
-    return {
-      id: `batch-${mcVersion}-${loaderType}-${selectedProjects.length}`,
-      name: `批量下载 ${selectedProjects.length} 个资源`,
-      version_number: 'latest',
-      date_published: new Date().toISOString(),
-      loaders: [loaderType],
-      game_versions: [mcVersion],
-      file_name: `批量下载 ${selectedProjects.length} 个资源`,
-      download_url: '',
-      dependencies: []
-    };
-  }, [loaderType, mcVersion, selectedProjects.length, showBulkDownload]);
-
-  const handleSelectProject = useCallback((project: ModrinthProject) => {
-    const currentFocus = getCurrentFocusKey();
-    if (currentFocus && currentFocus !== 'SN:ROOT') {
-      lastFocusBeforeModalRef.current = currentFocus;
-    }
-    setSelectedProject(project);
-    if (project.icon_url) {
-      void useIconCacheStore.getState().refreshIcon(project.icon_url);
-    }
-  }, []);
-
-  const handleToggleProjectSelection = useCallback((project: ModrinthProject) => {
-    if (!selectionEnabled) return;
-    toggleProjectSelection(project);
-  }, [selectionEnabled, toggleProjectSelection]);
-
-  const getFocusedResultProject = useCallback(() => {
-    const currentFocus = getCurrentFocusKey();
-    if (!currentFocus?.startsWith(DOWNLOAD_GRID_FOCUS_PREFIX)) return null;
-
-    const index = Number(currentFocus.slice(DOWNLOAD_GRID_FOCUS_PREFIX.length));
-    if (!Number.isInteger(index) || index < 0) return null;
-    return results[index] ?? null;
-  }, [results]);
-
-  useInputAction('ACTION_X', () => {
-    if (currentGlobalTab !== 'downloads') return;
-    if (!selectionEnabled) return;
-    if (selectedProject || isFavoriteModalOpen || isBatchInstanceModalOpen) return;
-
-    const project = getFocusedResultProject();
-    if (!project) return;
-
-    const currentFocus = getCurrentFocusKey();
-    if (currentFocus) lastListFocusBeforeActionBarRef.current = currentFocus;
-    handleToggleProjectSelection(project);
-  });
-
-  useInputAction('MENU', () => {
-    if (currentGlobalTab !== 'downloads') return;
-    if (!selectionEnabled) return;
-    if (!isSelectionMode || selectedProject || isFavoriteModalOpen || isBatchInstanceModalOpen) return;
-
-    const currentFocus = getCurrentFocusKey();
-    const isActionBarFocused = Boolean(currentFocus?.startsWith(DOWNLOAD_ACTION_BAR_FOCUS_PREFIX));
-
-    if (isActionBarFocused) {
-      const target = lastListFocusBeforeActionBarRef.current;
-      if (target && doesFocusableExist(target)) {
-        setFocus(target);
-      } else if (doesFocusableExist('download-grid-item-0')) {
-        setFocus('download-grid-item-0');
-      }
-      return;
-    }
-
-    if (currentFocus?.startsWith(DOWNLOAD_GRID_FOCUS_PREFIX)) {
-      lastListFocusBeforeActionBarRef.current = currentFocus;
-    }
-
-    const actionFocusKey = getContextualActionBarFocusKey(DOWNLOAD_ACTION_BAR_FOCUS_PREFIX, showBulkDownload);
-    if (doesFocusableExist(actionFocusKey)) {
-      setFocus(actionFocusKey);
-    }
-  });
-
-  const clearSelection = useCallback(() => {
-    clearDownloadSelection();
-    setIsFavoriteModalOpen(false);
-    setIsBatchInstanceModalOpen(false);
-
-    // 核心修复：当取消选择时，如果当前聚焦在操作栏或丢失焦点，自动将焦点引回之前在列表里最后聚焦的那张卡片上
-    setTimeout(() => {
-      const currentFocus = getCurrentFocusKey();
-      const isInsideActionBar = currentFocus?.startsWith(DOWNLOAD_ACTION_BAR_FOCUS_PREFIX);
-      if (!currentFocus || currentFocus === 'SN:ROOT' || isInsideActionBar) {
-        const fallback = lastListFocusBeforeActionBarRef.current;
-        if (fallback && doesFocusableExist(fallback)) {
-          setFocus(fallback);
-        } else if (doesFocusableExist('download-grid-item-0')) {
-          setFocus('download-grid-item-0');
-        }
-      }
-    }, 50);
-  }, [clearDownloadSelection]);
-
-  useEffect(() => {
-    if (selectionTabRef.current === activeTab) return;
-    selectionTabRef.current = activeTab;
-    if (isSelectionMode) {
-      queueMicrotask(clearSelection);
-    }
-  }, [activeTab, clearSelection, isSelectionMode]);
-
-  useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      if (currentGlobalTab !== 'downloads') return;
-
-      if (isSelectionMode && !selectedProject && !isFavoriteModalOpen && !isBatchInstanceModalOpen) {
-        clearSelection();
-        return;
-      }
-    };
-
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [
-    clearSelection,
-    currentGlobalTab,
-    isBatchInstanceModalOpen,
-    isFavoriteModalOpen,
-    isSelectionMode,
-    selectedProject
-  ]);
-
-  useEffect(() => {
-    if (!isEnvLoaded || selectedProject || didInitialFocusRef.current) return;
-    didInitialFocusRef.current = true;
-    setTimeout(() => setFocus('download-search-input'), 100);
-  }, [isEnvLoaded, selectedProject]);
-
-  // Restore focus to downloads tab components when returning to the downloads page tab
-  useEffect(() => {
-    if (currentGlobalTab !== 'downloads') return;
-    if (selectedProject || isFavoriteModalOpen || isBatchInstanceModalOpen) return;
-
-    const timer = setTimeout(() => {
-      const currentFocus = getCurrentFocusKey();
-      // If focus is lost, at root, or not on downloads page, restore it using FocusManager
-      if (
-        !currentFocus ||
-        currentFocus === 'SN:ROOT' ||
-        (!currentFocus.startsWith('download-') &&
-          !currentFocus.startsWith('filter-') &&
-          !currentFocus.startsWith('resource-download-actions'))
-      ) {
-        focusManager.restoreFocus('resource-download-page', 'download-search-input');
-      }
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [currentGlobalTab, selectedProject, isFavoriteModalOpen, isBatchInstanceModalOpen]);
-
-  const handleStartDownload = useCallback(async (
-    version: OreProjectVersion,
-    targetInstanceId: string | string[],
-    autoInstallDeps = false,
-    projectOverride?: { projectId?: string; source?: DownloadSource }
-  ) => {
-    const singleInstanceId = Array.isArray(targetInstanceId) ? targetInstanceId[0] : targetInstanceId;
-    const subFolderMap: Record<TabType, string> = {
-      mod: 'mods',
-      resourcepack: 'resourcepacks',
-      shader: 'shaderpacks',
-      modpack: 'modpacks'
-    };
-
-    const subFolder = subFolderMap[activeTab];
-
-    const executeDownload = async (targetVersion: OreProjectVersion, customProjectId?: string) => {
-      try {
-        let oldFileName: string | undefined;
-        let installAction: 'install' | 'reinstall' | 'upgrade' = 'install';
-
-        if (activeTab === 'mod') {
-          const projectId = customProjectId || projectOverride?.projectId || targetVersion.project_id || selectedProject?.id || '';
-          if (projectId) {
-            const currentInstalledMods = await modService.getCachedModManifest(singleInstanceId, true).catch(() => []);
-            const validActualMods = (currentInstalledMods || []).filter((m) => (m.fileSize || 0) > 0);
-            const pLower = projectId.toLowerCase();
-            const existingMod = validActualMods.find((m) => {
-              const mFile = m.fileName.toLowerCase();
-              if (mFile === targetVersion.file_name.toLowerCase()) return true;
-              const srcId = m.manifestEntry?.source?.projectId?.toLowerCase();
-              const mrId = m.manifestEntry?.matchedPlatforms?.modrinth?.projectId?.toLowerCase();
-              const cfId = m.manifestEntry?.matchedPlatforms?.curseforge?.projectId?.toLowerCase();
-              const modId = m.modId?.toLowerCase();
-              return pLower && (srcId === pLower || mrId === pLower || cfId === pLower || modId === pLower);
-            });
-
-            if (existingMod) {
-              oldFileName = existingMod.fileName;
-              installAction = oldFileName.toLowerCase() === targetVersion.file_name.toLowerCase() ? 'reinstall' : 'upgrade';
-            }
-          }
-        }
-
-        await runResourceDownloadTask({
-          url: targetVersion.download_url,
-          fileName: targetVersion.file_name,
-          instanceId: singleInstanceId,
-          subFolder,
-          title: targetVersion.file_name,
-          message: installAction === 'reinstall'
-            ? `正在重新下载: ${targetVersion.file_name}`
-            : installAction === 'upgrade'
-              ? `正在升级替换: ${targetVersion.file_name}`
-              : t('download.progress.connecting', { defaultValue: 'Connecting...' }),
-          onCompleted: async () => {
-            if (activeTab !== 'mod') return;
-
-            const projectId = customProjectId || projectOverride?.projectId || targetVersion.project_id || selectedProject?.id || '';
-            if (projectId) {
-              if (oldFileName && oldFileName !== targetVersion.file_name) {
-                await modService.deleteMod(singleInstanceId, oldFileName).catch(console.error);
-              }
-
-              await modService.updateModManifest(
-                singleInstanceId,
-                targetVersion.file_name,
-                'launcherDownload',
-                (projectOverride?.source || source) === 'curseforge' ? 'curseforge' : 'modrinth',
-                projectId,
-                targetVersion.id,
-                targetVersion.version_number || undefined,
-                oldFileName
-              );
-            }
-
-            if (singleInstanceId === instanceId) {
-              await refreshInstalledMods();
-            }
-          }
-        });
-
-      } catch (error) {
-        console.error(`下载 ${targetVersion.file_name} 失败:`, error);
-        throw error;
-      }
-    };
-
-    await executeDownload(version);
-
-    if (!autoInstallDeps || !version.dependencies?.length) return;
-
-    try {
-      const currentInstalledMods = await modService.getCachedModManifest(singleInstanceId, true);
-      const installedIds = getInstalledProjectIds(currentInstalledMods);
-      const missingDeps = version.dependencies.filter(
-        (dependency) =>
-          dependency.dependency_type === 'required' &&
-          dependency.project_id &&
-          !installedIds.includes(dependency.project_id) &&
-          !pendingDepIdsRef.current.has(dependency.project_id)
-      );
-
-      if (missingDeps.length === 0) return;
-
-      const targetGameVersion = version.game_versions[0]
-        || instanceConfig?.game_version
-        || instanceConfig?.gameVersion
-        || mcVersion;
-
-      const targetLoader = version.loaders[0]
-        || instanceConfig?.loader_type
-        || instanceConfig?.loaderType
-        || loaderType;
-
-      const fetchVersions = source === 'curseforge' ? fetchCurseForgeVersions : fetchModrinthVersions;
-
-      for (const dependency of missingDeps) {
-        pendingDepIdsRef.current.add(dependency.project_id!);
-        try {
-          const depVersions = await fetchVersions(
-            dependency.project_id!,
-            targetGameVersion && targetGameVersion !== 'all' ? targetGameVersion : undefined,
-            targetLoader && targetLoader !== 'all' ? targetLoader : undefined
-          );
-
-          if (depVersions.length > 0) {
-            await executeDownload(depVersions[0], dependency.project_id!);
-          }
-        } catch (err) {
-          console.error(`处理前置依赖 ${dependency.project_id} 失败:`, err);
-        }
-
-        pendingDepIdsRef.current.delete(dependency.project_id!);
-      }
-    } catch (error) {
-      console.error('处理前置依赖下载总流程失败:', error);
-    }
-  }, [
-    activeTab,
-    instanceConfig,
-    instanceId,
-    loaderType,
-    mcVersion,
-    refreshInstalledMods,
-    selectedProject,
-    source,
-    t
-  ]);
-
-  const fetchLatestProjectVersion = useCallback(async (project: ModrinthProject) => {
-    const projectId = project.id || project.project_id || '';
-    if (!projectId) return null;
-
-    const projectSource = project.source || source;
-    const fetchVersions = projectSource === 'curseforge' ? fetchCurseForgeVersions : fetchModrinthVersions;
-    const versions = await fetchVersions(projectId, mcVersion, loaderType);
-    return versions[0] ? { version: versions[0], projectId, projectSource } : null;
-  }, [loaderType, mcVersion, source]);
-
-  const handleBatchDownloadConfirm = useCallback(async (instanceIds: string[]) => {
-    const targets = [...selectedProjects];
-    setIsBatchInstanceModalOpen(false);
-
-    const resolvedVersions = await Promise.allSettled(
-      targets.map((project) => fetchLatestProjectVersion(project))
-    );
-
-    const downloadable = resolvedVersions
-      .map((result) => result.status === 'fulfilled' ? result.value : null)
-      .filter((result): result is { version: OreProjectVersion; projectId: string; projectSource: DownloadSource } => Boolean(result));
-
-    await Promise.allSettled(
-      downloadable.flatMap(({ version, projectId, projectSource }) =>
-        instanceIds.map((targetInstanceId) =>
-          handleStartDownload(version, targetInstanceId, false, { projectId, source: projectSource })
-        )
-      )
-    );
-
-    clearSelection();
-  }, [clearSelection, fetchLatestProjectVersion, handleStartDownload, selectedProjects]);
-
   return (
     <div className="relative h-full w-full overflow-hidden bg-transparent">
       {/* Main content wrapper, always mounted to prevent layout jumps and allow smooth reveal */}
@@ -623,8 +275,8 @@ export const ResourceDownloadPageController: React.FC<ResourceDownloadPageContro
             <ContextualActionBar
               selectedCount={selectedCount}
               showBulkDownload={showBulkDownload}
-              onBulkDownload={() => setIsBatchInstanceModalOpen(true)}
-              onAddFavorite={() => setIsFavoriteModalOpen(true)}
+              onBulkDownload={openBatchInstanceModal}
+              onAddFavorite={openFavoriteModal}
               onClear={clearSelection}
               focusKeyPrefix={DOWNLOAD_ACTION_BAR_FOCUS_PREFIX}
               favoriteLabel={
@@ -640,21 +292,7 @@ export const ResourceDownloadPageController: React.FC<ResourceDownloadPageContro
           <DownloadDetailModal
             project={selectedProject}
             instanceConfig={instanceConfig}
-            onClose={() => {
-              setSelectedProject(null);
-              setTimeout(() => {
-                const lastFocus = lastFocusBeforeModalRef.current;
-                if (lastFocus && doesFocusableExist(lastFocus)) {
-                  setFocus(lastFocus);
-                  return;
-                }
-                if (doesFocusableExist('download-grid-item-0')) {
-                  setFocus('download-grid-item-0');
-                  return;
-                }
-                setFocus('download-search-input');
-              }, 50);
-            }}
+            onClose={closeSelectedProject}
             onDownload={handleStartDownload}
             installedVersionIds={installedVersionIds}
             searchMcVersion={mcVersion}
@@ -666,7 +304,7 @@ export const ResourceDownloadPageController: React.FC<ResourceDownloadPageContro
           <FavoriteModal
             isOpen={isFavoriteModalOpen}
             projects={selectedProjects}
-            onClose={() => setIsFavoriteModalOpen(false)}
+            onClose={closeFavoriteModal}
             resourceType={favoriteResourceType}
             defaultGameVersion={mcVersion && mcVersion !== 'all' ? mcVersion : ''}
             defaultLoader={loaderType && loaderType !== 'all' ? loaderType : ''}
@@ -677,7 +315,7 @@ export const ResourceDownloadPageController: React.FC<ResourceDownloadPageContro
           <InstanceSelectModal
             isOpen={isBatchInstanceModalOpen}
             version={batchRepresentativeVersion}
-            onClose={() => setIsBatchInstanceModalOpen(false)}
+            onClose={closeBatchInstanceModal}
             onConfirm={(instanceIds) => {
               void handleBatchDownloadConfirm(instanceIds);
             }}

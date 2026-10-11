@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 
-import type { ModMeta } from './modService';
+import type { ModMeta } from './modTypes';
 import { resourceService, type ResourceType } from './resourceService';
 
 export type ModIconPriority = 'high' | 'medium' | 'low';

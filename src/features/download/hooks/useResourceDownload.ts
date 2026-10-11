@@ -1,40 +1,23 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { useEvent } from '../../../hooks/useEvent';
-
-import mcvData from '../../../assets/download/mcv.json';
 import {
-  getCachedCurseForgeCategories,
-  getCachedCurseForgeMinecraftVersions,
-  getCachedModrinthCategories,
-  getCachedModrinthMcVersions,
   hasCurseForgeApiKey,
   searchCurseForge,
   searchModrinth,
-  type CurseForgeCategoryOption,
   type DownloadSource,
-  type FilterOption,
   type ModrinthProject,
   type TabType
 } from '@/features/resource-catalog';
-import { modService, InstalledModIndex, type ModMeta } from '@/features/instance-resources';
+import { InstalledModIndex } from '@/features/instance-resources';
 import {
-  getBundledDownloadCategoryOptions,
-  getSharedDownloadCategoryOptions
-} from '../logic/downloadFilterConfig';
+  resolveInstanceGameVersion,
+  resolveInstanceLoaderType,
+  useResourceDownloadEnvironment,
+  type DownloadInstanceConfig
+} from './useResourceDownloadEnvironment';
+import { useResourceDownloadMetadata } from './useResourceDownloadMetadata';
 export type { DownloadSource, FilterOption, TabType } from '@/features/resource-catalog';
-
-export interface DownloadInstanceConfig {
-  game_version?: string;
-  gameVersion?: string;
-  mcVersion?: string;
-  loader_type?: string;
-  loaderType?: string;
-  loader?: {
-    type?: string;
-  };
-  [key: string]: unknown;
-}
+export type { DownloadInstanceConfig } from './useResourceDownloadEnvironment';
+export { resolveInstanceGameVersion, resolveInstanceLoaderType } from './useResourceDownloadEnvironment';
 
 interface UseResourceDownloadOptions {
   lockInstanceEnvironment?: boolean;
@@ -55,50 +38,9 @@ interface DownloadCache {
   hasMore: boolean;
 }
 
-const FALLBACK_MC_VERSIONS: string[] = Array.isArray(mcvData)
-  ? mcvData
-  : (mcvData as { versions?: string[] }).versions || [];
-
 let globalCache: DownloadCache | null = null;
 
-const METADATA_LOAD_DELAY_MS = 180;
 const INITIAL_SEARCH_DELAY_MS = 40;
-const RESOURCE_REFRESH_DELAY_MS = 700;
-const RESOURCE_DONE_DEDUPE_MS = 2000;
-
-interface ResourceDownloadProgressPayload {
-  task_id?: string;
-  file_name?: string;
-  stage?: string;
-  current?: number;
-  total?: number;
-}
-
-const getDefaultVersions = (): FilterOption[] => FALLBACK_MC_VERSIONS.map((version) => ({ label: version, value: version }));
-
-export const resolveInstanceGameVersion = (config: DownloadInstanceConfig | null | undefined) =>
-  String(config?.game_version || config?.gameVersion || config?.mcVersion || '');
-
-export const resolveInstanceLoaderType = (config: DownloadInstanceConfig | null | undefined) => {
-  const raw = String(config?.loader_type || config?.loaderType || config?.loader?.type || '').toLowerCase();
-  return raw === 'vanilla' ? '' : raw;
-};
-
-const getResourceProgressKey = (payload: ResourceDownloadProgressPayload | null | undefined) =>
-  String(payload?.task_id || payload?.file_name || '').trim();
-
-const isCompletedResourceDownload = (payload: ResourceDownloadProgressPayload | null | undefined) => {
-  const key = getResourceProgressKey(payload);
-  if (!key || key === 'java_download') return false;
-
-  return payload?.stage === 'DONE'
-    || (
-      typeof payload?.current === 'number'
-      && typeof payload?.total === 'number'
-      && payload.total > 0
-      && payload.current >= payload.total
-    );
-};
 
 export const useResourceDownload = (
   instanceId?: string | null,
@@ -108,11 +50,6 @@ export const useResourceDownload = (
   const isCacheValid = Boolean(instanceId && globalCache?.instanceId === instanceId);
 
   const [activeTab, setActiveTab] = useState<TabType>(() => (isCacheValid ? globalCache!.activeTab : 'mod'));
-  const [instanceConfig, setInstanceConfig] = useState<DownloadInstanceConfig | null>(() => (isCacheValid ? globalCache!.instanceConfig : null));
-  const [isEnvLoaded, setIsEnvLoaded] = useState(() => isCacheValid);
-  const [installedMods, setInstalledMods] = useState<ModMeta[]>(() => (
-    instanceId ? modService.getManifestModsSnapshot(instanceId) ?? [] : []
-  ));
 
   const [committedQuery, setCommittedQuery] = useState(() => (isCacheValid ? globalCache!.query : ''));
   const [localQuery, setLocalQuery] = useState(() => (isCacheValid ? globalCache!.query : ''));
@@ -133,12 +70,27 @@ export const useResourceDownload = (
   const [offset, setOffset] = useState(() => (isCacheValid ? globalCache!.offset : 0));
   const [hasMore, setHasMore] = useState(() => (isCacheValid ? globalCache!.hasMore : true));
 
-  const [mcVersionOptions, setMcVersionOptions] = useState<FilterOption[]>(getDefaultVersions);
-  const [categoryOptions, setCategoryOptions] = useState<FilterOption[]>(() => getBundledDownloadCategoryOptions('mod'));
-
   const [isLoading, setIsLoading] = useState(!isCacheValid);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreFailed, setLoadMoreFailed] = useState(false);
+
+  const {
+    instanceConfig,
+    isEnvLoaded,
+    installedMods,
+    refreshInstalledMods
+  } = useResourceDownloadEnvironment({
+    instanceId,
+    isCacheValid,
+    cachedInstanceConfig: isCacheValid ? globalCache!.instanceConfig : null,
+    setMcVersion,
+    setLoaderType
+  });
+  const { mcVersionOptions, categoryOptions } = useResourceDownloadMetadata({
+    activeTab,
+    isEnvLoaded,
+    source
+  });
 
   const isFirstMount = useRef(true);
   const isRestoringRef = useRef(false);
@@ -152,192 +104,6 @@ export const useResourceDownload = (
     ? (lockInstanceEnvironment && resolvedInstanceLoaderType ? resolvedInstanceLoaderType : loaderType)
     : '';
 
-  const loadInstalledMods = useCallback(async (forceRefresh = false) => {
-    if (!instanceId) {
-      setInstalledMods([]);
-      return [] as ModMeta[];
-    }
-
-    try {
-      const mods = await modService.getCachedModManifest(instanceId, forceRefresh);
-      const resolvedMods = mods || [];
-      setInstalledMods(resolvedMods);
-      return resolvedMods;
-    } catch {
-      return modService.getManifestModsSnapshot(instanceId) ?? [];
-    }
-  }, [instanceId]);
-
-  const refreshInstalledMods = useCallback(async () => {
-    return loadInstalledMods(true);
-  }, [loadInstalledMods]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setInstalledMods(instanceId ? modService.getManifestModsSnapshot(instanceId) ?? [] : []);
-
-    const loadInstalledManifest = async () => {
-      if (!instanceId) return;
-      try {
-        // The download page must reflect the physical mods directory, including JARs
-        // copied in outside the launcher. A DB-only snapshot is not authoritative here.
-        const mods = await modService.getCachedModManifest(instanceId, true);
-        if (!cancelled) setInstalledMods(mods || []);
-      } catch {
-        // Keep the last known list on transient scan failures instead of making every
-        // project appear uninstalled.
-      }
-    };
-
-    const initEnv = async () => {
-      if (!instanceId) {
-        setInstalledMods([]);
-        setIsEnvLoaded(true);
-        return;
-      }
-
-      if (isCacheValid) {
-        await loadInstalledManifest();
-        if (!cancelled) setIsEnvLoaded(true);
-        return;
-      }
-
-      try {
-        const config = await invoke<DownloadInstanceConfig>('get_instance_detail', { id: instanceId });
-        if (cancelled) return;
-
-        const safeConfig = config || {};
-        setInstanceConfig(safeConfig);
-
-        setMcVersion(resolveInstanceGameVersion(safeConfig));
-        setLoaderType(resolveInstanceLoaderType(safeConfig));
-      } catch (error) {
-        console.error('获取实例环境失败:', error);
-      } finally {
-        await loadInstalledManifest();
-        if (!cancelled) setIsEnvLoaded(true);
-      }
-    };
-
-    void initEnv();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [instanceId, isCacheValid]);
-
-  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isRefreshingRef = useRef(false);
-  const refreshAgainRef = useRef(false);
-  const lastDoneKeyRef = useRef('');
-  const lastDoneAtRef = useRef(0);
-
-  const runRefresh = useCallback(async () => {
-    if (isRefreshingRef.current) {
-      refreshAgainRef.current = true;
-      return;
-    }
-
-    isRefreshingRef.current = true;
-    try {
-      await refreshInstalledMods();
-    } finally {
-      isRefreshingRef.current = false;
-      if (refreshAgainRef.current) {
-        refreshAgainRef.current = false;
-        scheduleRefresh();
-      }
-    }
-  }, [refreshInstalledMods]);
-
-  const scheduleRefresh = useCallback(() => {
-    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-    refreshTimerRef.current = setTimeout(() => {
-      refreshTimerRef.current = null;
-      void runRefresh();
-    }, RESOURCE_REFRESH_DELAY_MS);
-  }, [runRefresh]);
-
-  useEvent('resource-download-progress', (payload) => {
-    if (!instanceId) return;
-    if (!isCompletedResourceDownload(payload)) return;
-
-    const doneKey = getResourceProgressKey(payload);
-    const now = Date.now();
-    if (doneKey === lastDoneKeyRef.current && now - lastDoneAtRef.current < RESOURCE_DONE_DEDUPE_MS) return;
-
-    lastDoneKeyRef.current = doneKey;
-    lastDoneAtRef.current = now;
-    scheduleRefresh();
-  });
-
-  useEffect(() => {
-    return () => {
-      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isEnvLoaded) return;
-
-    let cancelled = false;
-
-    const loadMetadata = async () => {
-      const configuredModrinthCategories = await getSharedDownloadCategoryOptions(activeTab).catch((error) => {
-        console.error('Failed to load Modrinth category config:', error);
-        return getBundledDownloadCategoryOptions(activeTab);
-      });
-
-      if (source !== 'curseforge') {
-        const categoriesTask = getCachedModrinthCategories(activeTab, configuredModrinthCategories).catch((error) => {
-          console.error('Failed to load Modrinth categories:', error);
-          return configuredModrinthCategories;
-        });
-        const versionsTask = getCachedModrinthMcVersions().catch((error) => {
-          console.error('Failed to load Modrinth game versions:', error);
-          return getDefaultVersions();
-        });
-
-        const [modrinthCategories, modrinthMcVersions] = await Promise.all([categoriesTask, versionsTask]);
-
-        if (!cancelled) {
-          setMcVersionOptions(modrinthMcVersions.length > 0 ? modrinthMcVersions : getDefaultVersions());
-          setCategoryOptions(modrinthCategories.length > 0 ? modrinthCategories : configuredModrinthCategories);
-        }
-        return;
-      }
-
-      const versionTask = hasCurseForgeApiKey()
-        ? getCachedCurseForgeMinecraftVersions().catch((error) => {
-            console.error('加载 CurseForge 版本列表失败:', error);
-            return getDefaultVersions();
-          })
-        : Promise.resolve(getDefaultVersions());
-
-      const categoryTask = activeTab === 'mod' || activeTab === 'resourcepack' || activeTab === 'shader'
-        ? getCachedCurseForgeCategories(activeTab).catch((error) => {
-            console.error('加载 CurseForge 分类失败:', error);
-            return [] as CurseForgeCategoryOption[];
-          })
-        : Promise.resolve([] as CurseForgeCategoryOption[]);
-
-      const [versions, categories] = await Promise.all([versionTask, categoryTask]);
-      if (cancelled) return;
-
-      setMcVersionOptions(versions.length > 0 ? versions : getDefaultVersions());
-      setCategoryOptions(categories);
-    };
-
-    const metadataTimer = setTimeout(() => {
-      void loadMetadata();
-    }, METADATA_LOAD_DELAY_MS);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(metadataTimer);
-    };
-  }, [activeTab, isEnvLoaded, source]);
-
   useEffect(() => {
     if (!lockInstanceEnvironment || !instanceConfig) return;
 
@@ -345,6 +111,7 @@ export const useResourceDownload = (
     const nextLoaderType = resolveInstanceLoaderType(instanceConfig);
 
     if (nextMcVersion && mcVersion !== nextMcVersion) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMcVersion(nextMcVersion);
     }
 
@@ -356,12 +123,14 @@ export const useResourceDownload = (
   useEffect(() => {
     if (!category) return;
     const validValues = new Set(categoryOptions.map((item) => item.value));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!validValues.has(category)) setCategory('');
   }, [category, categoryOptions]);
 
   useEffect(() => {
     if (!mcVersion || lockInstanceEnvironment) return;
     const validValues = new Set(mcVersionOptions.map((item) => item.value));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!validValues.has(mcVersion) && source === 'curseforge') setMcVersion('');
   }, [lockInstanceEnvironment, mcVersion, mcVersionOptions, source]);
 

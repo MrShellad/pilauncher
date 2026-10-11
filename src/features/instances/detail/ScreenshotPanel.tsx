@@ -1,27 +1,24 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   ArrowDownWideNarrow,
-  Check,
   FolderOpen,
-  ImageOff,
   Images,
   LayoutGrid,
   List,
   RefreshCw,
-  Trash2,
 } from 'lucide-react';
 import { doesFocusableExist, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { useTranslation } from 'react-i18next';
 
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
-import { FocusItem } from '../../../ui/focus/FocusItem';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import { OreConfirmDialog } from '../../../ui/primitives/OreConfirmDialog';
 import { OreDropdown } from '../../../ui/primitives/OreDropdown';
-import { OreOverlayScrollArea } from '../../../ui/primitives/OreOverlayScrollArea';
 import { OreSegmentedControl } from '../../../ui/primitives/OreSegmentedControl';
 import type { ScreenshotItem } from './logic/screenshotService';
+import { ScreenshotGallery } from './screenshots/ScreenshotGallery';
 import { ScreenshotPreviewModal } from './screenshots/ScreenshotPreviewModal';
+import { formatScreenshotBytes, formatScreenshotDate } from './screenshots/screenshotPresentation';
 import {
   useScreenshotPanel,
   type ScreenshotSort,
@@ -33,120 +30,6 @@ interface ScreenshotPanelProps {
   isActive: boolean;
   onCoverChanged: (absolutePath: string) => void;
 }
-
-const formatBytes = (bytes: number) => {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-};
-
-const formatDate = (timestamp: number, locale: string) =>
-  timestamp > 0
-    ? new Intl.DateTimeFormat(locale, {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      }).format(timestamp)
-    : '未知时间';
-
-interface ScreenshotCardProps {
-  item: ScreenshotItem;
-  locale: string;
-  view: ScreenshotView;
-  selectionMode: boolean;
-  selected: boolean;
-  onActivate: () => void;
-  onContextSelect: () => void;
-  onArrowPress: (direction: string) => boolean | void;
-}
-
-const ScreenshotCard: React.FC<ScreenshotCardProps> = ({
-  item,
-  locale,
-  view,
-  selectionMode,
-  selected,
-  onActivate,
-  onContextSelect,
-  onArrowPress,
-}) => {
-  const [imageFailed, setImageFailed] = useState(false);
-
-  return (
-    <FocusItem
-      focusKey={`screenshot-card-${item.id}`}
-      onEnter={onActivate}
-      onArrowPress={onArrowPress}
-    >
-      {({ ref, focused, tabIndex }) => (
-        <button
-          ref={ref as React.RefObject<HTMLButtonElement>}
-          type="button"
-          tabIndex={tabIndex}
-          role={selectionMode ? 'option' : undefined}
-          aria-selected={selectionMode ? selected : undefined}
-          aria-label={`${item.fileName}，${formatDate(item.capturedAt, locale)}`}
-          data-screenshot-id={item.id}
-          onClick={onActivate}
-          onContextMenu={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onContextSelect();
-          }}
-          className={`relative min-w-0 cursor-pointer border-2 bg-[#18181B] text-left outline-none transition-none hover:bg-[#242526] ${
-            focused ? 'z-10 outline outline-2 outline-white outline-offset-[-2px]' : ''
-          } ${selected ? 'border-[#3C8527] shadow-[inset_3px_0_0_#3C8527]' : 'border-[#27272A]'} ${
-            view === 'list' ? 'flex h-[80px] w-full items-center' : 'grid w-full grid-rows-[auto_62px]'
-          }`}
-        >
-          <div className={`relative shrink-0 overflow-hidden bg-[#111214] ${view === 'list' ? 'h-full w-[128px]' : 'aspect-video w-full'}`}>
-            {imageFailed ? (
-              <div className="flex h-full w-full items-center justify-center text-[#68696B]">
-                <ImageOff size={view === 'list' ? 26 : 34} />
-              </div>
-            ) : (
-              <img
-                src={item.assetUrl}
-                alt=""
-                loading="lazy"
-                draggable={false}
-                onError={() => setImageFailed(true)}
-                className="h-full w-full object-cover"
-              />
-            )}
-
-            {selectionMode && (
-              <span
-                className={`absolute right-2 top-2 flex h-6 w-6 items-center justify-center border-2 ${
-                  selected
-                    ? 'border-[#1D4D13] bg-[#3C8527] text-white'
-                    : 'border-[#D0D1D4] bg-[#18181B]/90 text-transparent'
-                }`}
-                aria-hidden="true"
-              >
-                <Check size={16} strokeWidth={3} />
-              </span>
-            )}
-          </div>
-
-          <div className={`min-w-0 ${view === 'list' ? 'flex-1 px-3 py-2' : 'flex h-[62px] flex-col justify-center px-3 py-2'}`}>
-            <div className="truncate font-minecraft text-xs text-[#F2F2F2]">{item.fileName}</div>
-            <div className={`mt-1 flex min-w-0 text-[11px] text-[#B1B2B5] ${view === 'list' ? 'items-center gap-2' : 'justify-between gap-2'}`}>
-              <span className="truncate">{formatDate(item.capturedAt, locale)}</span>
-              {view === 'list' && item.width && item.height && (
-                <span className="shrink-0 text-[#8C8D90]">{item.width}×{item.height}</span>
-              )}
-              <span className="shrink-0">{formatBytes(item.sizeBytes)}</span>
-            </div>
-          </div>
-        </button>
-      )}
-    </FocusItem>
-  );
-};
 
 export const ScreenshotPanel: React.FC<ScreenshotPanelProps> = ({
   instanceId,
@@ -318,8 +201,10 @@ export const ScreenshotPanel: React.FC<ScreenshotPanelProps> = ({
               {t('instanceDetail.screenshots.title', '截图库')}
             </h3>
             <p className="mt-0.5 truncate text-xs text-[#B1B2B5]">
-              {panel.items.length} 张 · {formatBytes(panel.totalSize)}
-              {latestTimestamp > 0 ? ` · 最新 ${formatDate(latestTimestamp, i18n.language)}` : ''}
+              {panel.items.length} 张 · {formatScreenshotBytes(panel.totalSize)}
+              {latestTimestamp > 0
+                ? ` · 最新 ${formatScreenshotDate(latestTimestamp, i18n.language)}`
+                : ''}
             </p>
           </div>
         </div>
@@ -380,121 +265,29 @@ export const ScreenshotPanel: React.FC<ScreenshotPanelProps> = ({
         </div>
       </div>
 
-      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden border-2 border-[#27272A] bg-[#141416]">
-        {panel.isLoading ? (
-          <div className="grid flex-1 grid-cols-[repeat(auto-fill,minmax(220px,1fr))] content-start gap-2 overflow-hidden p-2.5">
-            {Array.from({ length: 8 }).map((_, index) => (
-              <div key={index} className="aspect-[16/10] animate-pulse border border-[#27272A] bg-[#18181B]" />
-            ))}
-          </div>
-        ) : panel.error ? (
-          <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
-            <ImageOff size={42} className="mb-3 text-[#C33636]" />
-            <h4 className="font-minecraft text-sm text-white">无法读取截图</h4>
-            <p className="mt-2 max-w-lg text-xs leading-relaxed text-[#B1B2B5]">{panel.error}</p>
-            <OreButton
-              focusKey="screenshot-btn-retry"
-              variant="primary"
-              size="sm"
-              className="mt-4"
-              onClick={() => void panel.load(false)}
-            >
-              重试
-            </OreButton>
-          </div>
-        ) : panel.sortedItems.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
-            <Images size={46} className="mb-3 text-[#68696B]" />
-            <h4 className="font-minecraft text-base text-[#D0D1D4]">
-              {t('instanceDetail.screenshots.emptyTitle', '还没有截图')}
-            </h4>
-            <p className="mt-2 max-w-md text-xs leading-relaxed text-[#8C8D90]">
-              {t('instanceDetail.screenshots.emptyDescription', '在游戏中按 F2 拍摄，截图会显示在这里。')}
-            </p>
-            <OreButton
-              focusKey="screenshot-empty-folder"
-              variant="secondary"
-              size="sm"
-              className="mt-4"
-              onClick={() => void panel.openFolder()}
-              prefixIcon={<FolderOpen size={15} />}
-            >
-              {t('instanceDetail.screenshots.openFolder', '打开截图目录')}
-            </OreButton>
-          </div>
-        ) : (
-          <OreOverlayScrollArea
-            className="flex-1 min-h-0"
-            viewportClassName="h-full"
-            contentClassName={panel.view === 'grid'
-              ? 'grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] content-start gap-2 p-2.5'
-              : 'flex flex-col gap-2 p-2.5'}
-          >
-            <div ref={itemsContainerRef} className="contents" role="listbox" aria-multiselectable={panel.selectionMode || undefined}>
-              {panel.sortedItems.map((item) => (
-                <ScreenshotCard
-                  key={item.id}
-                  item={item}
-                  locale={i18n.language}
-                  view={panel.view}
-                  selectionMode={panel.selectionMode}
-                  selected={panel.selectedIds.has(item.id)}
-                  onActivate={() => activateItem(item)}
-                  onContextSelect={() => panel.toggleSelectionFromContext(item.id)}
-                  onArrowPress={(direction) => handleCardArrow(item.id, direction)}
-                />
-              ))}
-            </div>
-          </OreOverlayScrollArea>
-        )}
-
-        {panel.selectionMode && panel.items.length > 0 && (
-          <div className="flex shrink-0 flex-wrap items-center gap-2 border-t-2 border-[#1E1E1F] bg-[#313233] px-3 py-2.5 shadow-[inset_0_2px_rgba(255,255,255,0.08)]">
-            <span className="mr-auto font-minecraft text-xs text-white">
-              已选 {panel.selectedIds.size} 张 · 右键截图可继续选择
-            </span>
-            <OreButton
-              focusKey="screenshot-selection-done"
-              variant="secondary"
-              size="sm"
-              onClick={panel.exitSelectionMode}
-              onArrowPress={handleSelectionBarArrow}
-            >
-              完成
-            </OreButton>
-            <OreButton
-              focusKey="screenshot-selection-all"
-              variant="secondary"
-              size="sm"
-              onClick={panel.selectAll}
-              onArrowPress={handleSelectionBarArrow}
-            >
-              {panel.selectedIds.size === panel.items.length ? '取消全选' : '全选'}
-            </OreButton>
-            <OreButton
-              focusKey="screenshot-selection-clear"
-              variant="secondary"
-              size="sm"
-              disabled={panel.selectedIds.size === 0}
-              onClick={() => panel.selectedIds.forEach((id) => panel.toggleSelection(id))}
-              onArrowPress={handleSelectionBarArrow}
-            >
-              取消选择
-            </OreButton>
-            <OreButton
-              focusKey="screenshot-selection-delete"
-              variant="danger"
-              size="sm"
-              disabled={panel.selectedIds.size === 0}
-              onClick={() => panel.setPendingDeleteIds([...panel.selectedIds])}
-              onArrowPress={handleSelectionBarArrow}
-              prefixIcon={<Trash2 size={15} />}
-            >
-              删除 {panel.selectedIds.size} 张
-            </OreButton>
-          </div>
-        )}
-      </div>
+      <ScreenshotGallery
+        itemsContainerRef={itemsContainerRef}
+        items={panel.items}
+        sortedItems={panel.sortedItems}
+        selectedIds={panel.selectedIds}
+        locale={i18n.language}
+        view={panel.view}
+        selectionMode={panel.selectionMode}
+        isLoading={panel.isLoading}
+        error={panel.error}
+        onRetry={() => void panel.load(false)}
+        onOpenFolder={() => void panel.openFolder()}
+        onActivate={activateItem}
+        onContextSelect={panel.toggleSelectionFromContext}
+        onCardArrow={handleCardArrow}
+        onExitSelectionMode={panel.exitSelectionMode}
+        onSelectAll={panel.selectAll}
+        onClearSelection={() =>
+          panel.selectedIds.forEach((id) => panel.toggleSelection(id))
+        }
+        onDeleteSelection={() => panel.setPendingDeleteIds([...panel.selectedIds])}
+        onSelectionBarArrow={handleSelectionBarArrow}
+      />
 
       <ScreenshotPreviewModal
         item={panel.pendingDeleteIds.length > 0 ? null : panel.previewItem}
@@ -522,7 +315,7 @@ export const ScreenshotPanel: React.FC<ScreenshotPanelProps> = ({
         onClose={() => panel.setPendingDeleteIds([])}
         onConfirm={() => void panel.confirmDelete()}
         title={panel.pendingDeleteIds.length === 1 ? '删除这张截图？' : `删除选中的 ${panel.pendingDeleteIds.length} 张截图？`}
-        headline={`将释放 ${formatBytes(pendingDeleteSize)} 空间`}
+        headline={`将释放 ${formatScreenshotBytes(pendingDeleteSize)} 空间`}
         description="截图将被永久删除，无法从启动器或系统回收站恢复。"
         confirmationNote="删除操作不可撤销，请确认已不再需要这些文件。"
         confirmationNoteTone="danger"

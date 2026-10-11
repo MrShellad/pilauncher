@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useEvent } from '../../../../../hooks/useEvent';
 import { useLauncherStore } from '../../../../../app/stores/useLauncherStore';
 import { useToastStore } from '../../../../../shared/stores/useToastStore';
 import { useModManager, type ModSortType } from '../../hooks/useModManager';
@@ -18,36 +17,10 @@ import {
   toggleSelectedModFile,
   type ModFileCleanupItem
 } from '../../logic/modPanelService';
-import { modService, type ModMeta, type ModMetadataSettings, type ModVersionInstallAction, type InstanceDependencyHealth } from '../../../../instance-resources';
-import type { OreProjectVersion } from '../../../../resource-catalog';
+import { modService, type ModMeta, type ModMetadataSettings } from '../../../../instance-resources';
 import { useModPanelDialogs } from './useModPanelDialogs';
-
-const RESOURCE_REFRESH_DELAY_MS = 700;
-const RESOURCE_DONE_DEDUPE_MS = 2000;
-
-interface ResourceDownloadProgressPayload {
-  task_id?: string;
-  file_name?: string;
-  stage?: string;
-  current?: number;
-  total?: number;
-}
-
-const getResourceProgressKey = (payload: ResourceDownloadProgressPayload | null | undefined) =>
-  String(payload?.task_id || payload?.file_name || '').trim();
-
-const isCompletedResourceDownload = (payload: ResourceDownloadProgressPayload | null | undefined) => {
-  const key = getResourceProgressKey(payload);
-  if (!key || key === 'java_download') return false;
-
-  return payload?.stage === 'DONE'
-    || (
-      typeof payload?.current === 'number'
-      && typeof payload?.total === 'number'
-      && payload.total > 0
-      && payload.current >= payload.total
-    );
-};
+import { useModPanelResourceRefresh } from './useModPanelResourceRefresh';
+import { useModUpgradeActions } from './useModUpgradeActions';
 
 export const useModPanelController = (instanceId: string) => {
   const { t } = useTranslation();
@@ -92,41 +65,16 @@ export const useModPanelController = (instanceId: string) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [cleanupItems, setCleanupItems] = useState<ModFileCleanupItem[] | null>(null);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
-  const [pendingUpgradeMod, setPendingUpgradeMod] = useState<ModMeta | null>(null);
-  const [pendingUpgradeVersion, setPendingUpgradeVersion] = useState<OreProjectVersion | null>(null);
-  const [pendingUpgradeAction, setPendingUpgradeAction] = useState<ModVersionInstallAction>('upgrade');
-  const [isPreparingUpgradeSnapshot, setIsPreparingUpgradeSnapshot] = useState(false);
-  const [dependencyHealth, setDependencyHealth] = useState<InstanceDependencyHealth | null>(null);
-  const upgradeSnapshotPromptHandledRef = useRef(false);
-  const isBatchUpgradeRunningRef = useRef(false);
-
-  const refreshDependencyHealth = useCallback(async () => {
-    if (!instanceId) return;
-    try {
-      const health = await modService.getInstanceDependencyHealth(instanceId);
-      setDependencyHealth(health);
-    } catch (error) {
-      console.error('Failed to get instance dependency health', error);
-    }
-  }, [instanceId]);
-
-  const dependencyStateSignature = useMemo(() => {
-    return mods.map((m) => `${m.fileName}:${m.modId || ''}:${m.isEnabled ? '1' : '0'}:${m.manifestEntry?.source?.projectId || ''}:${m.manifestEntry?.matchedPlatforms?.curseforge?.projectId || ''}:${m.manifestEntry?.matchedPlatforms?.modrinth?.projectId || ''}:${m.networkInfo?.id || ''}`).join(';');
-  }, [mods]);
-
-  useEffect(() => {
-    if (!isLoading && mods.length > 0) {
-      void refreshDependencyHealth();
-    }
-  }, [instanceId, dependencyStateSignature, isLoading, refreshDependencyHealth]);
-
-  useEffect(() => {
-    upgradeSnapshotPromptHandledRef.current = false;
-    setPendingUpgradeMod(null);
-    setPendingUpgradeVersion(null);
-    setPendingUpgradeAction('upgrade');
-    setIsPreparingUpgradeSnapshot(false);
-  }, [instanceId]);
+  const {
+    dependencyHealth,
+    refreshDependencyHealth,
+    isBatchUpgradeRunningRef,
+  } = useModPanelResourceRefresh({
+    instanceId,
+    mods,
+    isLoading,
+    loadMods,
+  });
 
   const handleDeletedMods = useCallback((fileNames: string[]) => {
     setSelectedMods((current) => pruneDeletedModSelections(current, fileNames));
@@ -155,60 +103,21 @@ export const useModPanelController = (instanceId: string) => {
     openGlobalMetadata
   } = dialogActions;
 
-  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isRefreshingRef = useRef(false);
-  const refreshAgainRef = useRef(false);
-  const lastDoneKeyRef = useRef('');
-  const lastDoneAtRef = useRef(0);
-
-  const scheduleRefresh = useCallback(() => {
-    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-    refreshTimerRef.current = setTimeout(async () => {
-      refreshTimerRef.current = null;
-      if (isBatchUpgradeRunningRef.current) return;
-
-      if (isRefreshingRef.current) {
-        refreshAgainRef.current = true;
-        return;
-      }
-
-      isRefreshingRef.current = true;
-      try {
-        await loadMods({ silent: true });
-        await refreshDependencyHealth();
-      } finally {
-        isRefreshingRef.current = false;
-        if (refreshAgainRef.current) {
-          refreshAgainRef.current = false;
-          scheduleRefresh();
-        }
-      }
-    }, RESOURCE_REFRESH_DELAY_MS);
-  }, [loadMods, refreshDependencyHealth]);
-
-  useEffect(() => {
-    return () => {
-      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-    };
-  }, []);
-
-  useEvent('instance-mods-fs-changed', (payload) => {
-    if (payload.instanceId !== instanceId) return;
-    if (isBatchUpgradeRunningRef.current) return;
-    scheduleRefresh();
-  });
-
-  useEvent('resource-download-progress', (payload) => {
-    if (!isCompletedResourceDownload(payload)) return;
-    if (isBatchUpgradeRunningRef.current) return;
-
-    const doneKey = getResourceProgressKey(payload);
-    const now = Date.now();
-    if (doneKey === lastDoneKeyRef.current && now - lastDoneAtRef.current < RESOURCE_DONE_DEDUPE_MS) return;
-
-    lastDoneKeyRef.current = doneKey;
-    lastDoneAtRef.current = now;
-    scheduleRefresh();
+  const {
+    handleUpdateAllMods,
+    handleUpgradeMod,
+    upgradeSnapshotDialog,
+  } = useModUpgradeActions({
+    instanceId,
+    mods,
+    upgradeMod,
+    installModVersion,
+    loadMods,
+    takeSnapshot,
+    syncHistoryAfterSnapshot,
+    addToast,
+    t,
+    isBatchUpgradeRunningRef,
   });
 
   useEffect(() => {
@@ -292,71 +201,6 @@ export const useModPanelController = (instanceId: string) => {
     void checkModUpdates();
   }, [checkModUpdates]);
 
-  const handleUpdateAllMods = useCallback(async () => {
-    const modsToUpdate = mods.filter((m) => m.hasUpdate && !m.isUpdatingMod);
-    if (modsToUpdate.length === 0) {
-      return;
-    }
-
-    setIsPreparingUpgradeSnapshot(true);
-    try {
-      await takeSnapshot(
-        'MOD_UPDATE',
-        t('modPanel.beforeUpdateAllSnapshotMessage', {
-          count: modsToUpdate.length,
-          defaultValue: `一键更新 ${modsToUpdate.length} 个模组前的快照`
-        })
-      );
-      addToast('success', t('modPanel.updateAllSnapshotSuccess', {
-        defaultValue: '成功创建更新前快照。开始批量更新...'
-      }));
-      await syncHistoryAfterSnapshot();
-    } catch (error) {
-      console.error(error);
-      addToast('error', t('modPanel.updateAllSnapshotFailed', {
-        defaultValue: '创建更新前快照失败，已取消批量更新。'
-      }));
-      return;
-    } finally {
-      setIsPreparingUpgradeSnapshot(false);
-    }
-
-    let successCount = 0;
-    let failCount = 0;
-
-    isBatchUpgradeRunningRef.current = true;
-    try {
-      for (const mod of modsToUpdate) {
-        try {
-          await upgradeMod(mod, { reloadAfterInstall: false });
-          successCount++;
-        } catch (error) {
-          console.error(`Failed to upgrade mod ${mod.name || mod.fileName}:`, error);
-          failCount++;
-        }
-      }
-
-      if (successCount > 0) {
-        await loadMods({ silent: true });
-      }
-    } finally {
-      isBatchUpgradeRunningRef.current = false;
-    }
-
-    if (successCount > 0) {
-      addToast('success', t('modPanel.updateAllSuccess', {
-        count: successCount,
-        defaultValue: `成功更新了 ${successCount} 个模组。`
-      }));
-    }
-    if (failCount > 0) {
-      addToast('error', t('modPanel.updateAllFailed', {
-        count: failCount,
-        defaultValue: `${failCount} 个模组更新失败。`
-      }));
-    }
-  }, [mods, upgradeMod, loadMods, takeSnapshot, addToast, t, syncHistoryAfterSnapshot]);
-
   const handleMetadataResolved = useCallback((updatedMod: ModMeta) => {
     setMods((current) => {
       let changed = false;
@@ -409,121 +253,6 @@ export const useModPanelController = (instanceId: string) => {
       return changed ? nextMods : current;
     });
   }, [setMods, refreshDependencyHealth]);
-
-  const getInstallActionLabel = useCallback((action: ModVersionInstallAction) => {
-    if (action === 'downgrade') return t('instanceDetail.mods.actionDowngrade', '降级');
-    if (action === 'reinstall') return t('instanceDetail.mods.actionReinstall', '重装');
-    if (action === 'install') return t('instanceDetail.mods.actionInstall', '安装');
-    return t('instanceDetail.mods.actionUpgrade', '升级');
-  }, [t]);
-
-  const executeUpgradeMod = useCallback(async (
-    mod: ModMeta,
-    version?: OreProjectVersion | null,
-    action: ModVersionInstallAction = 'upgrade'
-  ) => {
-    const actionLabel = getInstallActionLabel(action);
-    try {
-      if (version) {
-        await installModVersion(mod, version, action);
-      } else {
-        await upgradeMod(mod);
-      }
-      addToast('success', t('modPanel.installVersionSuccess', {
-        action: actionLabel,
-        name: mod.name || mod.fileName,
-        defaultValue: `已${actionLabel}：\n${mod.name || mod.fileName}`
-      }));
-    } catch (error) {
-      console.error(error);
-      const message = error instanceof Error ? error.message : String(error);
-      addToast('error', t('modPanel.installVersionFailed', {
-        action: actionLabel,
-        error: message,
-        defaultValue: `${actionLabel}失败：\n${message}`
-      }));
-    }
-  }, [addToast, getInstallActionLabel, installModVersion, t, upgradeMod]);
-
-  const handleUpgradeMod = useCallback((
-    mod: ModMeta,
-    version?: OreProjectVersion,
-    action: ModVersionInstallAction = 'upgrade'
-  ) => {
-    if ((!version && !mod.hasUpdate) || mod.isUpdatingMod) {
-      return;
-    }
-
-    if (!upgradeSnapshotPromptHandledRef.current) {
-      setPendingUpgradeMod(mod);
-      setPendingUpgradeVersion(version || null);
-      setPendingUpgradeAction(action);
-      return;
-    }
-
-    void executeUpgradeMod(mod, version || null, action);
-  }, [executeUpgradeMod]);
-
-  const closeUpgradeSnapshotPrompt = useCallback(() => {
-    if (isPreparingUpgradeSnapshot) {
-      return;
-    }
-
-    setPendingUpgradeMod(null);
-    setPendingUpgradeVersion(null);
-    setPendingUpgradeAction('upgrade');
-  }, [isPreparingUpgradeSnapshot]);
-
-  const confirmUpgradeWithSnapshot = useCallback(async () => {
-    if (!pendingUpgradeMod) {
-      return;
-    }
-
-    setIsPreparingUpgradeSnapshot(true);
-
-    try {
-      await takeSnapshot(
-        'MOD_UPDATE',
-        t('modPanel.beforeUpgradeSnapshotMessage', {
-          action: getInstallActionLabel(pendingUpgradeAction),
-          name: pendingUpgradeMod.name || pendingUpgradeMod.fileName,
-          defaultValue: `${getInstallActionLabel(pendingUpgradeAction)} ${pendingUpgradeMod.name || pendingUpgradeMod.fileName} 前的快照`
-        })
-      );
-      upgradeSnapshotPromptHandledRef.current = true;
-      const modToUpgrade = pendingUpgradeMod;
-      const versionToInstall = pendingUpgradeVersion;
-      const actionToRun = pendingUpgradeAction;
-      setPendingUpgradeMod(null);
-      setPendingUpgradeVersion(null);
-      setPendingUpgradeAction('upgrade');
-      await executeUpgradeMod(modToUpgrade, versionToInstall, actionToRun);
-    } catch (error) {
-      console.error(error);
-      const message = error instanceof Error ? error.message : String(error);
-      addToast('error', t('modPanel.beforeUpgradeSnapshotFailed', {
-        error: message,
-        defaultValue: `创建${getInstallActionLabel(pendingUpgradeAction)}前快照失败: ${message}`
-      }));
-    } finally {
-      setIsPreparingUpgradeSnapshot(false);
-    }
-  }, [addToast, executeUpgradeMod, getInstallActionLabel, pendingUpgradeAction, pendingUpgradeMod, pendingUpgradeVersion, t, takeSnapshot]);
-
-  const skipUpgradeSnapshot = useCallback(() => {
-    if (!pendingUpgradeMod || isPreparingUpgradeSnapshot) {
-      return;
-    }
-
-    upgradeSnapshotPromptHandledRef.current = true;
-    const modToUpgrade = pendingUpgradeMod;
-    const versionToInstall = pendingUpgradeVersion;
-    const actionToRun = pendingUpgradeAction;
-    setPendingUpgradeMod(null);
-    setPendingUpgradeVersion(null);
-    setPendingUpgradeAction('upgrade');
-    void executeUpgradeMod(modToUpgrade, versionToInstall, actionToRun);
-  }, [executeUpgradeMod, isPreparingUpgradeSnapshot, pendingUpgradeAction, pendingUpgradeMod, pendingUpgradeVersion]);
 
   const handleSearchQueryChange = useCallback((value: string) => {
     setSearchQuery(value);
@@ -636,7 +365,7 @@ export const useModPanelController = (instanceId: string) => {
                       ...(mod.manifestEntry?.matchedPlatforms || {}),
                       ...(updated.manifestEntry.matchedPlatforms || {})
                     }
-                  } as any)
+                  } as ModMeta['manifestEntry'])
                 : mod.manifestEntry
             };
           }));
@@ -752,15 +481,6 @@ export const useModPanelController = (instanceId: string) => {
       confirmLabel: isCleaningUp ? '清理中...' : '确认清理',
       cancelLabel: '取消'
     },
-    upgradeSnapshotDialog: {
-      isOpen: pendingUpgradeMod !== null,
-      mod: pendingUpgradeMod,
-      action: pendingUpgradeAction,
-      actionLabel: getInstallActionLabel(pendingUpgradeAction),
-      isCreatingSnapshot: isPreparingUpgradeSnapshot,
-      onClose: closeUpgradeSnapshotPrompt,
-      onConfirm: confirmUpgradeWithSnapshot,
-      onSkip: skipUpgradeSnapshot
-    }
+    upgradeSnapshotDialog
   };
 };

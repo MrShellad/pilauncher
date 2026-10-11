@@ -1,22 +1,23 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { doesFocusableExist, getCurrentFocusKey } from '@noriginmedia/norigin-spatial-navigation';
 import { AlertCircle, ArrowLeft, CheckCircle2, Info, RefreshCw, Shirt, Sparkles, User } from 'lucide-react';
 
-import type { OnlineSkinItem, SkinCardAsset, WardrobeSkinModel, WardrobeTab } from '../types';
+import type { SkinCardAsset, WardrobeCape, WardrobeSkinModel, WardrobeTab } from '../types';
 import {
   isMicrosoftAccount,
-  resolveSkinModel,
   findActiveSkin,
   findActiveCape,
   accountSkinPreviewUrl,
   toStoredAssetUrl,
-  modelLabel,
 } from '../utils/wardrobe.utils';
-import { downloadAndSaveOnlineSkin } from '../services/onlineSkinService';
 import { useWardrobeSession } from '../hooks/useWardrobeSession';
 import { useWardrobeViewerControl } from '../hooks/useWardrobeViewerControl';
 import { useSkinAssetsManager } from '../hooks/useSkinAssetsManager';
+import { useWardrobeBanner } from '../hooks/useWardrobeBanner';
+import { useWardrobeOnlineSkinActions } from '../hooks/useWardrobeOnlineSkinActions';
+import { useWardrobePageFocus } from '../hooks/useWardrobePageFocus';
+import { useWardrobeSkinCards } from '../hooks/useWardrobeSkinCards';
+import { useWardrobeSkinNotes } from '../hooks/useWardrobeSkinNotes';
 import { WardrobeViewer } from './WardrobeViewer';
 import { WardrobeSkinPanel } from './WardrobeSkinPanel';
 import { WardrobeOnlinePanel } from './WardrobeOnlinePanel';
@@ -29,21 +30,11 @@ import { useAccountStore } from '@/features/account';
 import { useLauncherStore } from '@/app/stores/useLauncherStore';
 import { ControlHint } from '@/ui/components/ControlHint';
 import { FocusBoundary } from '@/ui/focus/FocusBoundary';
-import { focusManager } from '@/ui/focus/FocusManager';
-import { useInputAction } from '@/ui/focus/InputDriver';
 import { OreBanner } from '@/ui/primitives/OreBanner';
 import { OreButton } from '@/ui/primitives/OreButton';
 import { OreOverlayScrollArea } from '@/ui/primitives/OreOverlayScrollArea';
 import { OreTag } from '@/ui/primitives/OreTag';
 import { OreToggleButton } from '@/ui/primitives/OreToggleButton';
-
-const SKIN_NOTE_STORAGE_PREFIX = 'wardrobe:skin-notes:';
-const MAX_SKIN_NOTE_LENGTH = 28;
-
-interface WardrobeBannerState {
-  variant: 'important' | 'info' | 'warning' | 'danger';
-  message: string;
-}
 
 export const WardrobePageController: React.FC = () => {
   const { t } = useTranslation();
@@ -57,20 +48,8 @@ export const WardrobePageController: React.FC = () => {
 
   const [activeSection, setActiveSection] = useState<WardrobeTab>('skin');
   const [skinModel, setSkinModel] = useState<WardrobeSkinModel>('classic');
-  const [skinNotes, setSkinNotes] = useState<Record<string, string>>({});
-  const [onlineMenuAsset, setOnlineMenuAsset] = useState<OnlineSkinItem | null>(null);
-  const [isOnlineProcessing, setIsOnlineProcessing] = useState<boolean>(false);
-  const [activeBanner, setActiveBanner] = useState<WardrobeBannerState | null>(null);
-  const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isNotesLoadedRef = useRef(false);
-
-  const showBanner = useCallback((variant: 'important' | 'info' | 'warning' | 'danger', message: string) => {
-    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
-    setActiveBanner({ variant, message });
-    bannerTimerRef.current = setTimeout(() => {
-      setActiveBanner(null);
-    }, 4000);
-  }, []);
+  const { activeBanner, setActiveBanner, showBanner } = useWardrobeBanner();
+  const { skinNotes, handleChangeSkinNote } = useWardrobeSkinNotes(currentAccount?.uuid);
 
   const {
     profile,
@@ -115,64 +94,6 @@ export const WardrobePageController: React.FC = () => {
     previewSkinAsset,
     playTransientAnimation,
   } = useWardrobeViewerControl();
-
-  const skinNoteStorageKey = useMemo(
-    () => (currentAccount ? `${SKIN_NOTE_STORAGE_PREFIX}${currentAccount.uuid}` : null),
-    [currentAccount?.uuid]
-  );
-
-  useEffect(() => {
-    isNotesLoadedRef.current = false;
-
-    if (!skinNoteStorageKey) {
-      setSkinNotes({});
-      isNotesLoadedRef.current = true;
-      return;
-    }
-
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    try {
-      const raw = window.localStorage.getItem(skinNoteStorageKey);
-      if (!raw) {
-        setSkinNotes({});
-        isNotesLoadedRef.current = true;
-        return;
-      }
-
-      const parsed = JSON.parse(raw) as Record<string, unknown>;
-      const normalized = Object.entries(parsed).reduce<Record<string, string>>((acc, [assetId, noteValue]) => {
-        if (typeof noteValue !== 'string') return acc;
-        const note = noteValue.slice(0, MAX_SKIN_NOTE_LENGTH);
-        if (!note.trim()) return acc;
-        acc[assetId] = note;
-        return acc;
-      }, {});
-      setSkinNotes(normalized);
-    } catch {
-      setSkinNotes({});
-    } finally {
-      isNotesLoadedRef.current = true;
-    }
-  }, [skinNoteStorageKey]);
-
-  useEffect(() => {
-    if (!skinNoteStorageKey || !isNotesLoadedRef.current || typeof window === 'undefined') {
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      try {
-        window.localStorage.setItem(skinNoteStorageKey, JSON.stringify(skinNotes));
-      } catch {
-        // Keep in-memory notes when local storage is unavailable.
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [skinNoteStorageKey, skinNotes]);
 
   const restoreViewer = useCallback(() => {
     if (!currentAccount) {
@@ -219,17 +140,25 @@ export const WardrobePageController: React.FC = () => {
     syncViewerToCurrentState: restoreViewer,
   });
 
-  const hasBlockingOverlay = Boolean(skinMenuAsset || capeMenuAsset || onlineMenuAsset);
-  const lastFocusKeyBeforeOverlayRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (hasBlockingOverlay) {
-      const currentFocus = getCurrentFocusKey();
-      if (currentFocus && currentFocus !== 'SN:ROOT') {
-        lastFocusKeyBeforeOverlayRef.current = currentFocus;
-      }
-    }
-  }, [hasBlockingOverlay]);
+  const {
+    onlineMenuAsset,
+    setOnlineMenuAsset,
+    isOnlineProcessing,
+    handlePreviewOnlineSkin,
+    handleSaveOnlineSkinToLibrary,
+    handleApplyOnlineSkin,
+  } = useWardrobeOnlineSkinActions({
+    currentAccount,
+    skinLibrary,
+    activeCapeUrl: activeCape?.url ?? null,
+    setSkinModel,
+    setSkinLibrary,
+    loadViewerState,
+    playTransientAnimation,
+    applyDirectSkinAsset,
+    handleChangeSkinNote,
+    showBanner,
+  });
 
   useEffect(() => {
     setError(null);
@@ -280,52 +209,7 @@ export const WardrobePageController: React.FC = () => {
     );
   }, [currentAccount, hydrateWardrobe, isApplying]);
 
-  const handleChangeSkinNote = useCallback((assetId: string, note: string) => {
-    const normalizedNote = note.slice(0, MAX_SKIN_NOTE_LENGTH);
-    setSkinNotes((previous) => {
-      const trimmedNote = normalizedNote.trim();
-
-      if (!trimmedNote) {
-        if (!(assetId in previous)) {
-          return previous;
-        }
-        const { [assetId]: _, ...rest } = previous;
-        return rest;
-      }
-
-      if (previous[assetId] === normalizedNote) {
-        return previous;
-      }
-
-      return {
-        ...previous,
-        [assetId]: normalizedNote,
-      };
-    });
-  }, []);
-
-  const skinCards = useMemo<SkinCardAsset[]>(
-    () =>
-      (skinLibrary?.assets ?? []).map((asset) => {
-        const variant = resolveSkinModel(asset.variant ?? skinModel);
-        const originalTitle = asset.fileName.replace(/\.png$/i, '');
-        const note = (skinNotes[asset.id] ?? asset.note ?? '').trim();
-        return {
-          id: asset.id,
-          kind: 'library' as const,
-          title: note || originalTitle,
-          originalTitle,
-          note: note || undefined,
-          subtitle: modelLabel(variant),
-          skinUrl: toStoredAssetUrl(asset),
-          variant,
-          filePath: asset.filePath,
-          isActive: asset.isActive,
-          canDelete: !asset.isActive,
-        };
-      }).sort((a, b) => (a.isActive === b.isActive ? 0 : a.isActive ? -1 : 1)),
-    [skinLibrary?.assets, skinModel, skinNotes]
-  );
+  const skinCards = useWardrobeSkinCards(skinLibrary?.assets, skinModel, skinNotes);
 
   const handlePreviewSkin = useCallback(
     (asset: SkinCardAsset) => {
@@ -338,82 +222,8 @@ export const WardrobePageController: React.FC = () => {
     [activeCape?.url, playTransientAnimation, previewSkinAsset, showBanner, skinModel]
   );
 
-  const handlePreviewOnlineSkin = useCallback(
-    (item: OnlineSkinItem, model: WardrobeSkinModel) => {
-      setSkinModel(model);
-      void loadViewerState(item.skinUrl, activeCape?.url ?? null, model, 'skin');
-      playTransientAnimation('interact', 1200);
-      showBanner('info', `已在 3D 展台试穿: ${item.title}`);
-    },
-    [activeCape?.url, loadViewerState, playTransientAnimation, showBanner]
-  );
-
-  const handleSaveOnlineSkinToLibrary = useCallback(
-    async (item: OnlineSkinItem, model: WardrobeSkinModel, customTitle?: string) => {
-      if (!currentAccount) return;
-      setIsOnlineProcessing(true);
-      try {
-        const prevIds = new Set((skinLibrary?.assets ?? []).map((a) => a.id));
-        const nextLibrary = await downloadAndSaveOnlineSkin(currentAccount.uuid, item, model);
-        setSkinLibrary(nextLibrary, currentAccount.uuid);
-
-        // 精准定位新下载入库的资产 ID（避免误覆盖已有皮肤的备注名）
-        const newlyAddedAsset =
-          nextLibrary.assets.find((a) => !prevIds.has(a.id)) ||
-          nextLibrary.assets[0];
-
-        const targetTitle = (customTitle && customTitle.trim()) || item.title;
-        if (newlyAddedAsset && targetTitle) {
-          handleChangeSkinNote(newlyAddedAsset.id, targetTitle.trim());
-        }
-
-        showBanner('important', `皮肤 “${targetTitle || item.title}” 已下载并存入本地皮肤库！`);
-        setOnlineMenuAsset(null);
-      } catch (err) {
-        showBanner('danger', String(err instanceof Error ? err.message : err));
-      } finally {
-        setIsOnlineProcessing(false);
-      }
-    },
-    [currentAccount, handleChangeSkinNote, setSkinLibrary, showBanner, skinLibrary?.assets]
-  );
-
-  const handleApplyOnlineSkin = useCallback(
-    async (item: OnlineSkinItem, model: WardrobeSkinModel, customTitle?: string) => {
-      if (!currentAccount) return;
-      setIsOnlineProcessing(true);
-      try {
-        const prevIds = new Set((skinLibrary?.assets ?? []).map((a) => a.id));
-        const nextLibrary = await downloadAndSaveOnlineSkin(currentAccount.uuid, item, model);
-        setSkinLibrary(nextLibrary, currentAccount.uuid);
-
-        // 精准定位新下载的资产并立即应用
-        const targetAsset =
-          nextLibrary.assets.find((a) => !prevIds.has(a.id)) ||
-          nextLibrary.assets[0];
-
-        if (targetAsset) {
-          const targetTitle = (customTitle && customTitle.trim()) || item.title;
-          if (targetTitle) {
-            handleChangeSkinNote(targetAsset.id, targetTitle.trim());
-          }
-
-          await applyDirectSkinAsset(targetAsset, model);
-        }
-
-        showBanner('important', `皮肤 “${customTitle?.trim() || item.title}” 已成功应用至当前角色！`);
-        setOnlineMenuAsset(null);
-      } catch (err) {
-        showBanner('danger', String(err instanceof Error ? err.message : err));
-      } finally {
-        setIsOnlineProcessing(false);
-      }
-    },
-    [applyDirectSkinAsset, currentAccount, handleChangeSkinNote, setSkinLibrary, showBanner, skinLibrary?.assets]
-  );
-
   const handlePreviewCape = useCallback(
-    (cape: any) => {
+    (cape: WardrobeCape) => {
       void loadViewerState(currentSkinUrl, cape.url, skinModel, 'cape');
       playTransientAnimation('interact', 1200);
       showBanner('info', `已在 3D 展台试戴披风`);
@@ -421,111 +231,21 @@ export const WardrobePageController: React.FC = () => {
     [currentSkinUrl, loadViewerState, playTransientAnimation, showBanner, skinModel]
   );
 
-  const resolveWardrobeFocusKey = useCallback(() => {
-    const sectionCandidates =
-      activeSection === 'online'
-        ? ['wardrobe-online-search', 'wardrobe-section-1', 'wardrobe-upload-card']
-        : activeSection === 'cape'
-        ? ['wardrobe-cape-0', 'wardrobe-section-2', 'wardrobe-section-0', 'wardrobe-upload-card']
-        : ['wardrobe-upload-card', 'wardrobe-skin-0', 'wardrobe-section-0', 'wardrobe-section-1'];
-
-    return sectionCandidates.find((focusKey) => doesFocusableExist(focusKey)) ?? null;
-  }, [activeSection]);
-
-  useEffect(() => {
-    if (skinMenuAsset || capeMenuAsset || onlineMenuAsset) {
-      return;
-    }
-
-    let attempts = 0;
-    let timer: ReturnType<typeof window.setTimeout> | undefined;
-
-    const ensureWardrobeFocus = () => {
-      const currentFocusKey = getCurrentFocusKey();
-      if (currentFocusKey && doesFocusableExist(currentFocusKey)) {
-        return;
-      }
-
-      const restoredTarget = lastFocusKeyBeforeOverlayRef.current;
-      const targetKey = (restoredTarget && doesFocusableExist(restoredTarget))
-        ? restoredTarget
-        : resolveWardrobeFocusKey();
-
-      lastFocusKeyBeforeOverlayRef.current = null;
-
-      if (targetKey) {
-        timer = window.setTimeout(() => {
-          if (doesFocusableExist(targetKey)) {
-            focusManager.focus(targetKey);
-          }
-        }, 0);
-        return;
-      }
-
-      attempts += 1;
-      if (attempts < 12) {
-        timer = window.setTimeout(ensureWardrobeFocus, 60);
-      }
-    };
-
-    timer = window.setTimeout(ensureWardrobeFocus, 30);
-
-    return () => {
-      if (timer !== undefined) {
-        window.clearTimeout(timer);
-      }
-    };
-  }, [
+  useWardrobePageFocus({
     activeSection,
-    capeMenuAsset,
-    currentAccount?.uuid,
-    onlineMenuAsset,
-    profile?.capes.length,
-    resolveWardrobeFocusKey,
-    skinCards.length,
-    skinMenuAsset,
-  ]);
-
-  useInputAction('CANCEL', () => {
-    if (skinMenuAsset) {
-      closeSkinMenu();
-      return;
-    }
-    if (onlineMenuAsset) {
-      setOnlineMenuAsset(null);
-      return;
-    }
-    if (capeMenuAsset) {
-      closeCapeMenu();
-      return;
-    }
-    handleBack();
-  });
-
-  useInputAction('TAB_LEFT', () => {
-    if (!skinMenuAsset && !capeMenuAsset && !onlineMenuAsset) {
-      setActiveSection((prev) => (prev === 'cape' ? 'online' : prev === 'online' ? 'skin' : 'skin'));
-    }
-  });
-  useInputAction('PAGE_LEFT', () => {
-    if (!skinMenuAsset && !capeMenuAsset && !onlineMenuAsset) {
-      setActiveSection((prev) => (prev === 'cape' ? 'online' : prev === 'online' ? 'skin' : 'skin'));
-    }
-  });
-  useInputAction('TAB_RIGHT', () => {
-    if (!skinMenuAsset && !capeMenuAsset && !onlineMenuAsset) {
-      setActiveSection((prev) => (prev === 'skin' ? 'online' : prev === 'online' ? 'cape' : 'cape'));
-    }
-  });
-  useInputAction('PAGE_RIGHT', () => {
-    if (!skinMenuAsset && !capeMenuAsset && !onlineMenuAsset) {
-      setActiveSection((prev) => (prev === 'skin' ? 'online' : prev === 'online' ? 'cape' : 'cape'));
-    }
-  });
-  useInputAction('ACTION_X', () => {
-    if (skinMenuAsset || capeMenuAsset || onlineMenuAsset) return;
-    if (!currentAccount || isApplying) return;
-    void handleRefresh();
+    setActiveSection,
+    skinMenuOpen: Boolean(skinMenuAsset),
+    capeMenuOpen: Boolean(capeMenuAsset),
+    onlineMenuOpen: Boolean(onlineMenuAsset),
+    closeSkinMenu,
+    closeCapeMenu,
+    closeOnlineMenu: () => setOnlineMenuAsset(null),
+    handleBack,
+    handleRefresh,
+    canRefresh: Boolean(currentAccount) && !isApplying,
+    accountUuid: currentAccount?.uuid,
+    profileCapeCount: profile?.capes.length,
+    skinCardCount: skinCards.length,
   });
 
   return (

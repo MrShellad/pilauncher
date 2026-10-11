@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Terminal,
   Loader2,
-  AlertTriangle,
   Bug,
   Activity,
   Check,
@@ -16,10 +15,8 @@ import {
   Maximize2,
   Minimize2,
   Trash2,
-  Package,
-  Lightbulb
+  Package
 } from 'lucide-react';
-import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import { OreConfirmDialog } from '../../../ui/primitives/OreConfirmDialog';
 
@@ -32,13 +29,12 @@ import { useDownloadStore } from '@/features/download';
 import { OreButton } from '../../../ui/primitives/OreButton';
 
 import { useFocusManager } from '../hooks/useFocusManager';
-import { useGameProcessService } from '../hooks/useGameProcessService';
-import { useExportService } from '../hooks/useExportService';
-import { useLogShare } from '../hooks/useLogShare';
+import { useGameLogSidebarActions } from '../hooks/useGameLogSidebarActions';
 import { TelemetryPanel } from './TelemetryPanel';
 import { LogView } from './LogView';
 import { LogShareDialog } from './LogShareDialog';
-import { formatDiagnosisReport } from '../logic/crashAnalyzer';
+import { GameLogCrashReport } from './GameLogCrashReport';
+import { GameLogFloatingButton } from './GameLogFloatingButton';
 import { useScreenDensity } from '../../../hooks/ui/useScreenDensity';
 
 const EMPTY_LOGS: string[] = [];
@@ -65,17 +61,9 @@ export const GameLogSidebar: React.FC = () => {
   const isGameTerminated = gameState === 'crashed' || gameState === 'idle';
 
   const [isMaximized, setIsMaximized] = useState(false);
-  const [copiedDiag, setCopiedDiag] = useState(false);
   const [showTelemetry, setShowTelemetry] = useState(false);
-  const [exportedZipPath, setExportedZipPath] = useState<string | null>(null);
-  const [showExportError, setShowExportError] = useState<string | null>(null);
-  const [showKillConfirm, setShowKillConfirm] = useState(false);
-  const [isLogShareOpen, setIsLogShareOpen] = useState(false);
-  const [sanitizeBeforeShare, setSanitizeBeforeShare] = useState(true);
-  const [includeAiAnalysis, setIncludeAiAnalysis] = useState(false);
 
   const { restoreFocusToCurrentPage } = useFocusManager(isOpen);
-  const { killCurrentGame } = useGameProcessService();
 
   const closeSidebarAndRestoreFocus = useCallback(() => {
     setOpen(false);
@@ -98,57 +86,43 @@ export const GameLogSidebar: React.FC = () => {
     prevIsOpenRef.current = isOpen;
   }, [isOpen, restoreFocusToCurrentPage]);
 
-  const { isExporting, copiedAll, handleCopyAll, handleShareZip } = useExportService({
-    currentInstanceId,
-    logs
-  });
   const {
+    copiedDiag,
+    copiedAll,
+    isExporting,
+    exportedZipPath,
+    showExportError,
+    showKillConfirm,
+    isLogShareOpen,
+    sanitizeBeforeShare,
+    includeAiAnalysis,
     isSharing,
-    report: shareReport,
-    error: shareError,
+    shareReport,
+    shareError,
     copiedShareUrl,
-    shareLogs,
+    handleCopyDiagnosis,
+    handleCopyAll,
+    handleGenerateDiagnostics,
+    handleOpenZipFolder,
+    handleOpenLogShare,
+    handleShareLogs,
     copyShareUrl,
     openShareUrl,
-    resetShare
-  } = useLogShare();
-
-  const onGenerateDiag = async () => {
-    try {
-      const path = await handleShareZip();
-      setExportedZipPath(path);
-    } catch (e: unknown) {
-      setShowExportError(e instanceof Error ? e.message : String(e));
-    }
-  };
-
-  const handleOpenZipFolder = useCallback(() => {
-    if (exportedZipPath) {
-      invoke('open_path_in_file_manager', { path: exportedZipPath })
-        .then(() => setExportedZipPath(null))
-        .catch((error) => setShowExportError(String(error)));
-    }
-  }, [exportedZipPath]);
-
-  const handleOpenLogShare = useCallback(() => {
-    resetShare();
-    setIncludeAiAnalysis(gameState === 'crashed');
-    setIsLogShareOpen(true);
-  }, [gameState, resetShare]);
-
-  const handleShareLogs = useCallback(() => {
-    void shareLogs(logs, {
-      sanitize: sanitizeBeforeShare,
-      includeInsights: true,
-      includeAiAnalysis,
-      logType: gameState === 'crashed' ? 'crash' : 'game'
-    });
-  }, [gameState, includeAiAnalysis, logs, sanitizeBeforeShare, shareLogs]);
-
-  const onConfirmKill = () => {
-    killCurrentGame();
-    setShowKillConfirm(false);
-  };
+    setSanitizeBeforeShare,
+    setIncludeAiAnalysis,
+    closeLogShare,
+    openKillConfirm,
+    closeKillConfirm,
+    handleConfirmKill,
+    closeExportSuccess,
+    closeExportError
+  } = useGameLogSidebarActions({
+    currentInstanceId,
+    logs,
+    gameState,
+    crashDiagnosis,
+    crashReason
+  });
 
   // Y 键直驱：无论焦点在哪里，只要面板打开，按 Y 键直接切换遥测抽屉
   useInputAction('ACTION_Y', () => {
@@ -300,64 +274,12 @@ export const GameLogSidebar: React.FC = () => {
                 </AnimatePresence>
 
                 {gameState === 'crashed' && (crashDiagnosis || crashReason) && (
-                  <div className="shrink-0 bg-gradient-to-r from-red-950/70 via-red-950/45 to-[#141415] border-b border-red-900/60 p-4 relative z-10 select-text">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                        <div className="w-8 h-8 rounded-sm bg-red-900/40 border border-red-700/50 flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-                          <AlertTriangle size={18} className="text-red-400" />
-                        </div>
-                        <div className="flex-1 min-w-0 space-y-1.5">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="text-red-300 font-bold text-sm tracking-wide">
-                              {crashDiagnosis ? crashDiagnosis.title : t('gameLog.sidebar.autoDiag', '自动诊断报告')}
-                            </h4>
-                            {crashDiagnosis?.category && (
-                              <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded-xs bg-red-900/60 text-red-200 border border-red-700/50">
-                                {crashDiagnosis.category}
-                              </span>
-                            )}
-                            {crashDiagnosis?.extractedDetail && (
-                              <span className="text-[11px] font-mono px-2 py-0.5 rounded-xs bg-amber-500/15 text-amber-200 border border-amber-500/30 truncate max-w-[320px]">
-                                {crashDiagnosis.extractedDetail}
-                              </span>
-                            )}
-                          </div>
-
-                          <p className="text-xs text-red-200/90 leading-relaxed break-words">
-                            {crashDiagnosis ? crashDiagnosis.description : crashReason}
-                          </p>
-
-                          {crashDiagnosis?.solution && (
-                            <div className="mt-2 flex items-start gap-2 p-2.5 rounded-sm bg-emerald-950/40 border border-emerald-500/30 text-emerald-200 text-xs leading-relaxed">
-                              <Lightbulb size={15} className="text-emerald-400 shrink-0 mt-0.5" />
-                              <div>
-                                <span className="font-bold text-emerald-300 mr-1.5">建议排查方案:</span>
-                                <span>{crashDiagnosis.solution}</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <OreButton
-                        focusKey="log-btn-copy-diag"
-                        variant={copiedDiag ? 'primary' : 'secondary'}
-                        size="sm"
-                        onClick={() => {
-                          const reportText = crashDiagnosis
-                            ? formatDiagnosisReport(crashDiagnosis)
-                            : String(crashReason);
-                          void navigator.clipboard.writeText(reportText);
-                          setCopiedDiag(true);
-                          setTimeout(() => setCopiedDiag(false), 2000);
-                        }}
-                        className="shrink-0 text-xs mt-0.5 min-w-[96px] justify-center transition-all"
-                      >
-                        {copiedDiag ? <Check size={13} className="mr-1 shrink-0" /> : <Copy size={13} className="mr-1 shrink-0" />}
-                        <span>{copiedDiag ? t('gameLog.sidebar.diagCopied', '已复制') : t('gameLog.sidebar.copyDiag', '复制诊断')}</span>
-                      </OreButton>
-                    </div>
-                  </div>
+                  <GameLogCrashReport
+                    diagnosis={crashDiagnosis}
+                    reason={crashReason}
+                    copied={copiedDiag}
+                    onCopy={handleCopyDiagnosis}
+                  />
                 )}
 
                 <LogView logs={logs} isOpen={isOpen} />
@@ -410,7 +332,7 @@ export const GameLogSidebar: React.FC = () => {
                     variant="secondary"
                     size="sm"
                     disabled={isExporting}
-                    onClick={onGenerateDiag}
+                    onClick={handleGenerateDiagnostics}
                   >
                     {isExporting ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Package size={14} className="mr-1" />}
                     {isExporting ? t('gameLog.sidebar.packing', '打包中...') : t('gameLog.sidebar.diagPack', '诊断包')}
@@ -421,7 +343,7 @@ export const GameLogSidebar: React.FC = () => {
                       focusKey="log-btn-kill"
                       variant="danger"
                       size="sm"
-                      onClick={() => setShowKillConfirm(true)}
+                      onClick={openKillConfirm}
                     >
                       <Power size={14} className="mr-1" /> {t('gameLog.sidebar.killProcess', '结束进程')}
                     </OreButton>
@@ -477,13 +399,13 @@ export const GameLogSidebar: React.FC = () => {
           void copyShareUrl();
         }}
         onOpenUrl={openShareUrl}
-        onClose={() => setIsLogShareOpen(false)}
+        onClose={closeLogShare}
       />
 
       <OreConfirmDialog
         isOpen={!!exportedZipPath}
-        onClose={() => setExportedZipPath(null)}
-        onConfirm={() => setExportedZipPath(null)}
+        onClose={closeExportSuccess}
+        onConfirm={closeExportSuccess}
         title={t('gameLog.sidebar.exportSuccessTitle', '生成成功')}
         headline={t('gameLog.sidebar.exportSuccessHeadline', '完整的诊断包已成功生成')}
         description={<div className="break-all">{exportedZipPath}</div>}
@@ -501,8 +423,8 @@ export const GameLogSidebar: React.FC = () => {
 
       <OreConfirmDialog
         isOpen={!!showExportError}
-        onClose={() => setShowExportError(null)}
-        onConfirm={() => setShowExportError(null)}
+        onClose={closeExportError}
+        onConfirm={closeExportError}
         title={t('gameLog.sidebar.exportFailTitle', '生成失败')}
         headline={t('gameLog.sidebar.exportFailHeadline', '诊断包打包发生异常')}
         description={showExportError}
@@ -514,8 +436,8 @@ export const GameLogSidebar: React.FC = () => {
 
       <OreConfirmDialog
         isOpen={showKillConfirm}
-        onClose={() => setShowKillConfirm(false)}
-        onConfirm={onConfirmKill}
+        onClose={closeKillConfirm}
+        onConfirm={handleConfirmKill}
         title={t('gameLog.sidebar.killWarnTitle', '安全警告')}
         headline={t('gameLog.sidebar.killWarnHeadline', '确定要强制终止游戏吗？')}
         description={t('gameLog.sidebar.killWarnDesc', '强行关闭进程可能导致当前游戏世界的存档损坏，或者造成未保存的数据丢失。仅在游戏完全无响应（卡死）时使用此功能。')}
@@ -525,81 +447,5 @@ export const GameLogSidebar: React.FC = () => {
         tone="danger"
       />
     </>
-  );
-};
-
-interface GameLogFloatingButtonProps {
-  isVisible: boolean;
-  hasDownloadTasks: boolean;
-  gameState: 'idle' | 'launching' | 'running' | 'crashed';
-  logCount: number;
-  title: string;
-  onClick: () => void;
-}
-
-const GameLogFloatingButton: React.FC<GameLogFloatingButtonProps> = ({
-  isVisible,
-  hasDownloadTasks,
-  gameState,
-  logCount,
-  title,
-  onClick,
-}) => {
-  const bottomOffset = hasDownloadTasks
-    ? 'calc(clamp(1rem, 2vw, 1.5rem) + clamp(4.75rem, 5vw, 5.75rem))'
-    : 'clamp(1rem, 2vw, 1.5rem)';
-  const stateClass =
-    gameState === 'crashed'
-      ? 'border-red-500 text-red-100 hover:border-red-400'
-      : gameState === 'launching'
-        ? 'border-blue-500 text-blue-100 hover:border-blue-400'
-        : 'border-ore-green text-white hover:border-ore-green';
-  const badgeClass =
-    gameState === 'crashed'
-      ? 'bg-red-500 text-white'
-      : gameState === 'launching'
-        ? 'bg-blue-500 text-white'
-        : 'bg-ore-green text-[#1E1E1F]';
-
-  return (
-    <AnimatePresence>
-      {isVisible && (
-        <FocusItem focusKey="btn-floating-game-log" onEnter={onClick} autoScroll={false}>
-          {({ ref, focused }) => (
-            <motion.button
-              ref={ref as React.RefObject<HTMLButtonElement>}
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
-              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              type="button"
-              aria-label={title}
-              title={title}
-              onClick={onClick}
-              className={`fixed right-[clamp(1rem,2vw,1.5rem)] z-[998] flex h-[clamp(3.5rem,4vw,4.5rem)] w-[clamp(3.5rem,4vw,4.5rem)] items-center justify-center rounded-full border-[0.125rem] bg-[#1E1E1F] shadow-lg outline-none transition-all ${stateClass} ${
-                focused ? 'scale-105 ring-4 ring-white shadow-[0_0_20px_rgba(255,255,255,0.28)]' : ''
-              }`}
-              style={{ bottom: bottomOffset }}
-            >
-              {gameState === 'crashed' ? (
-                <Bug className="h-[1.5rem] w-[1.5rem] sm:h-[1.625rem] sm:w-[1.625rem]" />
-              ) : gameState === 'launching' ? (
-                <Loader2 className="h-[1.5rem] w-[1.5rem] animate-spin sm:h-[1.625rem] sm:w-[1.625rem]" />
-              ) : (
-                <Terminal className="h-[1.5rem] w-[1.5rem] sm:h-[1.625rem] sm:w-[1.625rem]" />
-              )}
-
-              {logCount > 0 && (
-                <span className={`absolute -right-[0.25rem] -top-[0.25rem] flex min-h-[1.375rem] min-w-[1.375rem] items-center justify-center rounded-full px-[0.25rem] text-[0.6875rem] font-bold ${badgeClass}`}>
-                  {logCount > 999 ? '999+' : logCount}
-                </span>
-              )}
-            </motion.button>
-          )}
-        </FocusItem>
-      )}
-    </AnimatePresence>
   );
 };
