@@ -181,7 +181,7 @@ Phase 4 首批处理中已将其扁平化为 `src/features/instance-detail/compo
 - `src/pages/LibraryPage.tsx`
 - `src/features/instance-detail/components/tabs/mods/download/InstanceModDownloadView.tsx`
 - `src/features/home/components/MicrosoftAccountSidebar.tsx`
-- `src/style/pages/Multiplayer.css`
+- `src/features/multiplayer/styles/online-servers.css`
 
 源码层级建议控制在 `src/` 以下 5～6 层。超过该深度时，应优先拆出子域，而不是继续增加 `components/` 嵌套。
 
@@ -399,9 +399,13 @@ home / settings   -> authentication + account
 - [x] 将 `InstanceDetailPage` 的详情数据、页签焦点与面板组合迁入 Instances Detail Controller，并以独立 `detailPage.ts` 次入口保持路由懒加载边界。
 - [x] 将 `SettingsPage` 的页签、字体预热与焦点编排迁入 Settings Feature Controller，路由页面改走 `page.ts` 次入口。
 - [x] 将 `HomePage` 的实例选择、启动与页面导航编排迁入 Home Feature Controller，并以独立 `homePage.ts` 次入口避免与 News 路由耦合。
-- [ ] 继续检查其余页面，将明显的业务状态编排提取到 Feature Hook 或 Controller。
+- [x] 将 `InstanceModDownloadPage` 的实例上下文、返回导航与下载视图组合迁入 Instances Detail Controller，并以独立 `modDownloadPage.ts` 次入口保持路由边界。
+- [x] 将 `MultiplayerPage` 的分区、输入动作与在线服务器编排迁入 Multiplayer Feature Controller，路由页面改走 `page.ts` 次入口。
+- [x] 继续检查其余页面，将明显的业务状态编排提取到 Feature Hook 或 Controller。
 - [x] 将超过约 500 行且承担多种职责的文件列入拆分清单。
 - [x] 将 `dialogs/components` 之类的重复层级扁平化。
+- [x] 将 `src/style/pages/Multiplayer.css` 整体归位到 Multiplayer Feature，并保持全局加载时机不变。
+- [x] 按 Multiplayer 页面外壳、联机流程与在线服务器子组件职责拆分 Feature 内样式。
 - [ ] 样式与其所有者共置，保留真正全局的 token、reset 和主题样式。
 - [x] 消除 `src/style/app.css` 中两个 `index.css` 导入的命名歧义。
 
@@ -504,12 +508,21 @@ home / settings   -> authentication + account
 - Settings 页面迁移后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，页面、次入口与 Controller 专项 ESLint 均为 0；约 9.04 kB Settings 路由入口与八个设置面板继续独立分包，Feature 内未通过自身公共入口回引。
 - 将 `HomePage.tsx` 从 134 行缩减为 5 行路由组合，原当前实例派生、实例选择、游戏启动、详情/衣柜导航和响应式首页组合等价迁入 131 行 `features/home/components/HomePageController.tsx`，并由独立 `homePage.ts` 次入口导出。
 - Home 页面迁移后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，页面、次入口与 Controller 专项 ESLint 均为 0；首页继续由应用壳同步组合，约 39.87 kB News 路由块与 Home 公共块保持独立。
+- 将 `InstanceModDownloadPage.tsx` 从 64 行缩减为 5 行路由组合，原实例上下文、空实例回退、Escape 返回和下载视图组合等价迁入 62 行 `instances/detail/mods/download/InstanceModDownloadPageController.tsx`，并由独立 `modDownloadPage.ts` 次入口导出。
+- InstanceModDownload 页面迁移后 `pnpm build` 与 `pnpm structure:check -- --details` 通过；专项 ESLint 仅保留迁移前已有的 1 个 Effect 依赖警告。约 1.50 kB 页面入口与 46.56 kB 下载视图形成独立块，`useGameLaunch` 共享块从约 542.26 kB 降至 496.66 kB。
+- 将 `MultiplayerPage.tsx` 从 47 行缩减为 5 行路由组合，原分区状态、四个输入动作、在线服务器加载/刷新和两种视图组合等价迁入 45 行 `features/multiplayer/components/MultiplayerPageController.tsx`，并由 `page.ts` 次入口导出。
+- Multiplayer 页面迁移后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，页面、次入口与 Controller 专项 ESLint 均为 0；约 63.37 kB 路由块与迁移前约 63.35 kB 基本一致，1917 行样式文件未混入本批处理。
+- 将 1917 行 `src/style/pages/Multiplayer.css` 整体迁入 `features/multiplayer/multiplayer.css`；该文件无资源 URL、全局根选择器或跨业务域类名，样式所有者明确。
+- Multiplayer 样式归位后 `pnpm build` 与 `pnpm structure:check -- --details` 通过；`style/app.css` 仅更新导入路径且顺序不变，主 CSS 产物继续为约 444.23 kB，本批未改变加载时机或选择器优先级。
+- 将 1917 行 `features/multiplayer/multiplayer.css` 拆为 3 行聚合入口，以及 `styles/page-shell.css`（页面外壳与共享反馈）、`styles/terracotta-flow.css`（Terracotta 选择、状态和日志流程）、`styles/online-servers.css`（服务器目录、浮动刷新与兼容卡片样式）三个职责文件；各断点规则随其所有者归位。
+- 本批保留当前 JSX 已不再引用的旧服务器卡片选择器，不把死样式删除混入结构拆分；后续应在独立清理批次核实后移除。
+- Multiplayer 样式拆分后以 PostCSS AST 对比确认拆分前后的 281 条“媒体条件 + 选择器 + 声明”规则一致；`pnpm build`、`pnpm structure:check -- --details` 与 diff 空白检查通过，主 CSS 产物约 444.31 kB，Multiplayer 路由块仍约 63.37 kB。
 
 遗漏复核（更新至 2026-10-12）：
 
 - 旧 `instance-detail`、根级 `store/stores` 和 `hooks/pages` 均已删除，未发现迁移残留引用。
-- 已识别的 `WardrobePage.tsx`、`ResourceDownloadPage.tsx`、`InstancesPage.tsx`、`NewsPage.tsx`、`NewInstancePage.tsx`、`InstanceDetailPage.tsx`、`SettingsPage.tsx` 与 `HomePage.tsx` 均已完成路由层瘦身；最新页面盘点确认 `InstanceModDownloadPage.tsx` 与 `MultiplayerPage.tsx` 仍保留少量 Feature 编排，需继续复核。
-- `src/style/pages`、`src/style/features` 与 `src/style/ui` 仍集中保存大量组件样式；样式共置任务尚未开始，不应误标为完成。
+- 全部 11 个 `*Page.tsx` 已完成复核：10 个页面为 5 行 Feature 组合，`ResourceDownloadPage.tsx` 为 10 行跨 Feature 弹窗契约注入；页面层已无 `useState`、Effect、输入动作或跨 Feature 深层导入。
+- 样式共置已从 Multiplayer 开始：原页面样式已整体归位到 Feature，但 `src/style/pages`、`src/style/features` 与 `src/style/ui` 仍集中保存大量组件样式，且 Multiplayer 内部样式尚待按现有子组件职责拆分，因此总括任务保持未完成。
 - 超过 500 行只作为复核信号；纯数据、设计 token 或单一算法实现不因行数自动拆分。
 - ScreenshotPanel 拆分后发现并补做 `export/ExportConfirmStep.tsx`；再次扫描确认实例详情目录已无超过 500 行的源码文件。
 - GameLogSidebar 拆分后重新扫描前端大文件；`SkinEngine`、设计 token 和平台 API 等单一生命周期/数据/网关文件继续按职责而非行数判断，其余多职责 UI 纳入下一轮复核。
@@ -529,12 +542,14 @@ home / settings   -> authentication + account
 - InstanceDetail 页面迁入 Instances Detail 后，路由层不再直接组合九个详情面板；`detailPage.ts` 与 Feature 内直接导入共同避免列表、创建、详情三个路由互相卷入依赖图。
 - Settings 页面迁入 Settings Feature 后，路由层不再持有页签和焦点状态；面板级 `lazy()` 仍留在 Controller，保持原有按页签加载边界。
 - Home 页面迁入 Home Feature 后，路由层不再深层组合首页内部组件；首页使用 `homePage.ts`，避免与 News 的 `page.ts` 共用重型入口。
+- InstanceModDownload 页面迁入 Instances Detail 后，路由层不再经 Instances 公共 Barrel 获取重型下载视图；直接子域依赖恢复了下载视图的独立懒加载块。
+- Multiplayer 页面迁入 Multiplayer Feature 后，路由层不再深层导入类型、Hook 和内部视图；页面业务编排复核总括项完成。
 
 当前剩余大文件拆分优先级：
 
 当前未发现新的超过 500 行且承担多种职责的 UI 模块；后续大文件处理以页面业务编排复核结果为准，不再按行数机械拆分。
 
-样式文件中 `src/style/pages/Multiplayer.css` 约 1917 行，应与 Multiplayer 子组件拆分同步处理，避免只按行数机械切割。
+`features/multiplayer/multiplayer.css` 约 1917 行，已完成所有权归位；后续应按页面外壳、联机流程与在线服务器组件边界拆分，避免只按行数机械切割。
 
 建议限制：
 
@@ -646,7 +661,7 @@ cargo check --manifest-path src-tauri/Cargo.toml
 | Phase 1：纯命名统一 | DONE | 目录和页面命名已统一，构建通过 |
 | Phase 2：重复目录治理 | DONE | Store 与页面 Hook 已归位，旧根目录已禁止 |
 | Phase 3：Feature 解耦 | DONE | 远程目录、本地资源和下载任务已分层，跨 Feature 深层导入降为 0 |
-| Phase 4：大模块拆分 | IN PROGRESS | 多职责 UI 大文件清单已处理完成；Home/News/NewInstance/InstanceDetail/Settings 及其他四个重型路由页、Library/资源下载/Instances 控制器、收藏占位与下载详情弹窗、Java 选择器、Download 筛选栏/资源网格/版本更新日志、设置 UI 展示弹窗、通用目录浏览弹窗、游戏日志侧栏、在线服务器卡片、截图与导出确认面板、存档恢复弹窗、实例模组下载视图/网格/面板控制器、实例资源模组服务、账户 LAN 侧栏及好友设备面板、皮肤引擎、WebDAV 管理弹窗、外观设置和更衣室控制器已完成拆分；下一步复核 InstanceModDownload、Multiplayer 页面与样式共置 |
+| Phase 4：大模块拆分 | IN PROGRESS | 全部 11 个路由页面与多职责 UI 大文件清单已完成复核和编排迁移；Multiplayer 样式已归位并按页面外壳、Terracotta 流程、在线服务器目录拆分，其他组件拆分成果保持不变；下一步继续推进其余集中样式共置 |
 | Phase 5：Rust 整理 | TODO | 尚未执行 |
 
-最近更新：2026-10-12，Phase 0 至 Phase 3 完成；Phase 4 已完成深层目录扁平化、实例领域合并、Keymap 子域拆分、Home/News/NewInstance/InstanceDetail/Settings 及其他四个重型路由页编排迁移和语义化 `*Page.ts` 打包边界隔离，并完成实例详情与多职责 UI 大文件复核，以及 Library、资源下载与 Instances 控制器、Library 收藏占位弹窗、Java 选择器、Download 筛选栏/资源网格/版本更新日志、项目描述/实例选择下载详情弹窗、设置 UI 展示弹窗、通用目录浏览弹窗、游戏日志侧栏、在线服务器卡片、截图面板、导出确认步骤、存档恢复弹窗、实例模组下载视图/资源网格/面板控制器、实例资源模组服务、账户 LAN 侧栏与好友设备面板、皮肤引擎稳定算法边界、WebDAV 管理弹窗、外观设置和更衣室控制器的职责拆分；下一步复核 InstanceModDownload、Multiplayer 页面业务编排与样式共置。
+最近更新：2026-10-12，Phase 0 至 Phase 3 完成；Phase 4 已完成深层目录扁平化、实例领域合并、Keymap 子域拆分、全部 11 个路由页面编排迁移和语义化 `*Page.ts` 打包边界隔离，并完成实例详情与多职责 UI 大文件复核，以及 Library、资源下载与 Instances 控制器、Library 收藏占位弹窗、Java 选择器、Download 筛选栏/资源网格/版本更新日志、项目描述/实例选择下载详情弹窗、设置 UI 展示弹窗、通用目录浏览弹窗、游戏日志侧栏、在线服务器卡片、截图面板、导出确认步骤、存档恢复弹窗、实例模组下载视图/资源网格/面板控制器、实例资源模组服务、账户 LAN 侧栏与好友设备面板、皮肤引擎稳定算法边界、WebDAV 管理弹窗、外观设置和更衣室控制器的职责拆分；Multiplayer 样式已整体归位并按页面外壳、Terracotta 流程和在线服务器目录拆分，下一步继续推进其余集中样式共置。
