@@ -396,6 +396,9 @@ home / settings   -> authentication + account
 - [x] 将 Library、Wardrobe、Download、Instances 的重型路由 Controller 从通用 `index.ts` 分离到 `page.ts` 次入口，避免公共 Barrel 扩大产物依赖图。
 - [x] 将 `NewsPage` 的筛选、分页、焦点与更新日志编排迁入 Home Feature Controller，路由页面改走 `page.ts` 次入口。
 - [x] 将 `NewInstancePage` 的创建视图切换、赞助数据与返回焦点编排迁入 Instances Feature Controller，并以独立 `creationPage.ts` 次入口保持路由懒加载边界。
+- [x] 将 `InstanceDetailPage` 的详情数据、页签焦点与面板组合迁入 Instances Detail Controller，并以独立 `detailPage.ts` 次入口保持路由懒加载边界。
+- [x] 将 `SettingsPage` 的页签、字体预热与焦点编排迁入 Settings Feature Controller，路由页面改走 `page.ts` 次入口。
+- [x] 将 `HomePage` 的实例选择、启动与页面导航编排迁入 Home Feature Controller，并以独立 `homePage.ts` 次入口避免与 News 路由耦合。
 - [ ] 继续检查其余页面，将明显的业务状态编排提取到 Feature Hook 或 Controller。
 - [x] 将超过约 500 行且承担多种职责的文件列入拆分清单。
 - [x] 将 `dialogs/components` 之类的重复层级扁平化。
@@ -495,11 +498,17 @@ home / settings   -> authentication + account
 - News 页面迁移后 `pnpm build` 与 `pnpm structure:check -- --details` 通过；页面、次入口与 Controller 专项 ESLint 仅保留原文件第 147 行已有的 1 个 Effect 同步状态错误，未新增规则问题。焦点键、70/80ms 首项聚焦重试、IntersectionObserver 阈值、每次 6 项加载和实例创建跳转保持不变。
 - 将 `NewInstancePage.tsx` 从 317 行缩减为 5 行路由组合，原创建方式切换、新闻版本承接、赞助数据过滤/排序、Escape/B 键返回和菜单焦点恢复编排等价迁入 316 行 `features/instances/components/NewInstancePageController.tsx`。
 - NewInstance 页面迁移后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，页面、语义化次入口与 Controller 专项 ESLint 均为 0；首次构建发现共用 `instances/page.ts` 会把 Instances/NewInstance 合并为约 122 kB 共享块，改用独立 `creationPage.ts` 后恢复为约 74/48 kB 两个路由块，未扩大既有懒加载边界。
+- 将 `InstanceDetailPage.tsx` 从 334 行缩减为 5 行路由组合，原实例详情数据装配、九个面板组合、页签切换/焦点恢复和 Escape 退出编排等价迁入 329 行 `features/instances/detail/InstanceDetailPageController.tsx`。
+- InstanceDetail 页面迁移后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，页面、`detailPage.ts` 次入口与 Controller 专项 ESLint 均为 0；Controller 全部改用 Instances Feature 内直接依赖，未重新引入自身 Barrel 回引，约 8.75 kB 路由入口块保持独立。
+- 将 `SettingsPage.tsx` 从 187 行缩减为 5 行路由组合，原八个设置页签、系统字体预热、LT/RT 切换反馈、焦点恢复和面板组合等价迁入 184 行 `features/settings/components/SettingsPageController.tsx`，并由 Settings 的 `page.ts` 次入口单独导出。
+- Settings 页面迁移后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，页面、次入口与 Controller 专项 ESLint 均为 0；约 9.04 kB Settings 路由入口与八个设置面板继续独立分包，Feature 内未通过自身公共入口回引。
+- 将 `HomePage.tsx` 从 134 行缩减为 5 行路由组合，原当前实例派生、实例选择、游戏启动、详情/衣柜导航和响应式首页组合等价迁入 131 行 `features/home/components/HomePageController.tsx`，并由独立 `homePage.ts` 次入口导出。
+- Home 页面迁移后 `pnpm build` 与 `pnpm structure:check -- --details` 通过，页面、次入口与 Controller 专项 ESLint 均为 0；首页继续由应用壳同步组合，约 39.87 kB News 路由块与 Home 公共块保持独立。
 
 遗漏复核（更新至 2026-10-12）：
 
 - 旧 `instance-detail`、根级 `store/stores` 和 `hooks/pages` 均已删除，未发现迁移残留引用。
-- 已识别的 `WardrobePage.tsx`、`ResourceDownloadPage.tsx`、`InstancesPage.tsx`、`NewsPage.tsx` 与 `NewInstancePage.tsx` 均已完成路由层瘦身；后续继续复核 InstanceDetail、Settings 与 Home 页面是否仍有可迁移的业务编排。
+- 已识别的 `WardrobePage.tsx`、`ResourceDownloadPage.tsx`、`InstancesPage.tsx`、`NewsPage.tsx`、`NewInstancePage.tsx`、`InstanceDetailPage.tsx`、`SettingsPage.tsx` 与 `HomePage.tsx` 均已完成路由层瘦身；最新页面盘点确认 `InstanceModDownloadPage.tsx` 与 `MultiplayerPage.tsx` 仍保留少量 Feature 编排，需继续复核。
 - `src/style/pages`、`src/style/features` 与 `src/style/ui` 仍集中保存大量组件样式；样式共置任务尚未开始，不应误标为完成。
 - 超过 500 行只作为复核信号；纯数据、设计 token 或单一算法实现不因行数自动拆分。
 - ScreenshotPanel 拆分后发现并补做 `export/ExportConfirmStep.tsx`；再次扫描确认实例详情目录已无超过 500 行的源码文件。
@@ -517,6 +526,9 @@ home / settings   -> authentication + account
 - VersionChangelogModal 拆分后翻译编排、单双语格式化和滚动内容视图均低于 500 行；重新扫描 `src` 后，超过 500 行的 TypeScript 文件仅剩已明确按稳定生命周期、设计数据、平台网关和统一输入驱动保留的四个职责单一模块。
 - News 页面迁入 Home Feature 后，`src/pages/NewsPage.tsx` 不再深层引用 Home 内部组件；重型 Controller 通过 `features/home/page.ts` 暴露，未扩大 Home 通用公共入口。
 - NewInstance 页面迁入 Instances Feature 后，`src/pages/NewInstancePage.tsx` 不再深层引用创建视图；Instances 列表与创建页分别使用 `page.ts`、`creationPage.ts`，构建产物继续维持独立路由块。
+- InstanceDetail 页面迁入 Instances Detail 后，路由层不再直接组合九个详情面板；`detailPage.ts` 与 Feature 内直接导入共同避免列表、创建、详情三个路由互相卷入依赖图。
+- Settings 页面迁入 Settings Feature 后，路由层不再持有页签和焦点状态；面板级 `lazy()` 仍留在 Controller，保持原有按页签加载边界。
+- Home 页面迁入 Home Feature 后，路由层不再深层组合首页内部组件；首页使用 `homePage.ts`，避免与 News 的 `page.ts` 共用重型入口。
 
 当前剩余大文件拆分优先级：
 
@@ -634,7 +646,7 @@ cargo check --manifest-path src-tauri/Cargo.toml
 | Phase 1：纯命名统一 | DONE | 目录和页面命名已统一，构建通过 |
 | Phase 2：重复目录治理 | DONE | Store 与页面 Hook 已归位，旧根目录已禁止 |
 | Phase 3：Feature 解耦 | DONE | 远程目录、本地资源和下载任务已分层，跨 Feature 深层导入降为 0 |
-| Phase 4：大模块拆分 | IN PROGRESS | 多职责 UI 大文件清单已处理完成；News/NewInstance 及其他四个重型路由页、Library/资源下载/Instances 控制器、收藏占位与下载详情弹窗、Java 选择器、Download 筛选栏/资源网格/版本更新日志、设置 UI 展示弹窗、通用目录浏览弹窗、游戏日志侧栏、在线服务器卡片、截图与导出确认面板、存档恢复弹窗、实例模组下载视图/网格/面板控制器、实例资源模组服务、账户 LAN 侧栏及好友设备面板、皮肤引擎、WebDAV 管理弹窗、外观设置和更衣室控制器已完成拆分；下一步继续复核 InstanceDetail、Settings、Home 页面与样式共置 |
+| Phase 4：大模块拆分 | IN PROGRESS | 多职责 UI 大文件清单已处理完成；Home/News/NewInstance/InstanceDetail/Settings 及其他四个重型路由页、Library/资源下载/Instances 控制器、收藏占位与下载详情弹窗、Java 选择器、Download 筛选栏/资源网格/版本更新日志、设置 UI 展示弹窗、通用目录浏览弹窗、游戏日志侧栏、在线服务器卡片、截图与导出确认面板、存档恢复弹窗、实例模组下载视图/网格/面板控制器、实例资源模组服务、账户 LAN 侧栏及好友设备面板、皮肤引擎、WebDAV 管理弹窗、外观设置和更衣室控制器已完成拆分；下一步复核 InstanceModDownload、Multiplayer 页面与样式共置 |
 | Phase 5：Rust 整理 | TODO | 尚未执行 |
 
-最近更新：2026-10-12，Phase 0 至 Phase 3 完成；Phase 4 已完成深层目录扁平化、实例领域合并、Keymap 子域拆分、News/NewInstance 及其他四个重型路由页编排迁移和语义化 `*Page.ts` 打包边界隔离，并完成实例详情与多职责 UI 大文件复核，以及 Library、资源下载与 Instances 控制器、Library 收藏占位弹窗、Java 选择器、Download 筛选栏/资源网格/版本更新日志、项目描述/实例选择下载详情弹窗、设置 UI 展示弹窗、通用目录浏览弹窗、游戏日志侧栏、在线服务器卡片、截图面板、导出确认步骤、存档恢复弹窗、实例模组下载视图/资源网格/面板控制器、实例资源模组服务、账户 LAN 侧栏与好友设备面板、皮肤引擎稳定算法边界、WebDAV 管理弹窗、外观设置和更衣室控制器的职责拆分；下一步复核 InstanceDetail、Settings、Home 页面业务编排与样式共置。
+最近更新：2026-10-12，Phase 0 至 Phase 3 完成；Phase 4 已完成深层目录扁平化、实例领域合并、Keymap 子域拆分、Home/News/NewInstance/InstanceDetail/Settings 及其他四个重型路由页编排迁移和语义化 `*Page.ts` 打包边界隔离，并完成实例详情与多职责 UI 大文件复核，以及 Library、资源下载与 Instances 控制器、Library 收藏占位弹窗、Java 选择器、Download 筛选栏/资源网格/版本更新日志、项目描述/实例选择下载详情弹窗、设置 UI 展示弹窗、通用目录浏览弹窗、游戏日志侧栏、在线服务器卡片、截图面板、导出确认步骤、存档恢复弹窗、实例模组下载视图/资源网格/面板控制器、实例资源模组服务、账户 LAN 侧栏与好友设备面板、皮肤引擎稳定算法边界、WebDAV 管理弹窗、外观设置和更衣室控制器的职责拆分；下一步复核 InstanceModDownload、Multiplayer 页面业务编排与样式共置。
