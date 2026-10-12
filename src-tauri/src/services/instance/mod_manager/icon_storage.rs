@@ -1,5 +1,5 @@
 use crate::domain::mod_manifest::ModCacheInfo;
-use crate::services::config_service::ConfigService;
+use crate::services::config::ConfigService;
 use serde_json::Value;
 use std::fs::{self, File};
 use std::io::Read;
@@ -265,7 +265,7 @@ impl IconStorage {
         app: &AppHandle<R>,
         items: Vec<ModCacheUpdateItem>,
     ) -> Result<std::collections::HashMap<String, Option<String>>, String> {
-        let db = app.state::<crate::services::db_service::AppDatabase>();
+        let db = app.state::<crate::services::db::AppDatabase>();
         let shared_mods_dir_res = Self::get_shared_mods_dir(app);
         let mut results = std::collections::HashMap::new();
 
@@ -475,7 +475,7 @@ impl IconStorage {
                     .execute(&mut *tx)
                     .await;
 
-                    let _ = crate::services::db_service::mod_alias_repo::save_mod_aliases_tx(
+                    let _ = crate::services::db::mod_alias_repo::save_mod_aliases_tx(
                         &mut *tx,
                         &id,
                         display_title,
@@ -523,7 +523,7 @@ impl IconStorage {
         curseforge_project_id: Option<&str>,
         modrinth_project_id: Option<&str>,
     ) -> Result<Option<String>, String> {
-        let db = app.state::<crate::services::db_service::AppDatabase>();
+        let db = app.state::<crate::services::db::AppDatabase>();
 
         let mut final_icon_url = icon_url.to_string();
         let mut cached_icon_path = None;

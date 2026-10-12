@@ -31,7 +31,7 @@ pub fn start(app: AppHandle, lan_state: Arc<services::lan::http_api::SharedLanSt
         println!("\n[PiLauncher] ========================================");
         println!("[PiLauncher] Starting deferred LAN background services...");
 
-        match services::config_service::ConfigService::get_base_path(&handle_for_lan) {
+        match services::config::ConfigService::get_base_path(&handle_for_lan) {
             Ok(Some(base_path_str)) => {
                 let config_dir = std::path::PathBuf::from(base_path_str).join("config");
                 let identity =
@@ -42,7 +42,7 @@ pub fn start(app: AppHandle, lan_state: Arc<services::lan::http_api::SharedLanSt
                     identity.device_id, identity.device_name
                 );
 
-                services::lan::mdns_service::MdnsScanner::start_broadcast(
+                services::lan::mdns::MdnsScanner::start_broadcast(
                     &identity.device_id,
                     &identity.device_name,
                     &identity.public_key_b64,
@@ -61,5 +61,5 @@ pub fn start(app: AppHandle, lan_state: Arc<services::lan::http_api::SharedLanSt
         services::lan::http_api::start_http_server(handle_for_lan, state_for_lan, 9999).await;
     });
 
-    services::gamepad_service::GamepadService::start_listener(app);
+    services::gamepad::GamepadService::start_listener(app);
 }

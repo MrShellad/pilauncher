@@ -7,7 +7,7 @@ use reqwest::Client;
 use tauri::{AppHandle, Runtime};
 
 use crate::error::{AppError, AppResult};
-use crate::services::config_service::{ConfigService, DownloadSettings};
+use crate::services::config::{ConfigService, DownloadSettings};
 use crate::services::deployment_cancel::is_cancelled;
 
 mod assets;

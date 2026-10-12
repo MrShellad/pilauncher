@@ -2,7 +2,7 @@
 use crate::domain::instance::CreateInstancePayload;
 use crate::domain::manifest::*;
 use crate::error::AppResult;
-use crate::services::minecraft_service::resolve_loader_folder;
+use crate::services::minecraft::resolve_loader_folder;
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;

@@ -1,6 +1,6 @@
 use crate::domain::event::DownloadProgressEvent;
 use crate::error::{AppError, AppResult};
-use crate::services::config_service::{ConfigService, DownloadSettings};
+use crate::services::config::{ConfigService, DownloadSettings};
 use crate::services::deployment_cancel::is_cancelled;
 use crate::services::downloader::dependencies::scheduler::sha1_file;
 use crate::services::downloader::logging::{log_download_event, DownloadLogLevel};

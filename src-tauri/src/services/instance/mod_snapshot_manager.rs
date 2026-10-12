@@ -1,4 +1,4 @@
-use crate::services::config_service::ConfigService;
+use crate::services::config::ConfigService;
 use chrono::Utc;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -908,7 +908,7 @@ impl ModSnapshotManager {
     }
 
     fn ensure_game_not_running() -> Result<(), String> {
-        if crate::commands::launcher_cmd::CURRENT_GAME_PID.load(Ordering::SeqCst) != 0 {
+        if crate::commands::launcher::CURRENT_GAME_PID.load(Ordering::SeqCst) != 0 {
             return Err("游戏正在运行，无法创建或回滚模组快照".to_string());
         }
         Ok(())

@@ -22,8 +22,8 @@ use tokio::sync::{broadcast, oneshot};
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::domain::lan::{DeviceInitInfo, TrustRequest};
-use crate::services::config_service::ConfigService;
-use crate::services::db_service::AppDatabase;
+use crate::services::config::ConfigService;
+use crate::services::db::AppDatabase;
 use crate::services::lan::transfer_records::{
     emit_transfer_progress, upsert_transfer_record, TransferRecordUpsert,
 };

@@ -1,6 +1,6 @@
 // src-tauri/src/services/instance/action.rs
 use crate::domain::instance::{CustomButtonConfig, ServerBinding};
-use crate::services::config_service::ConfigService;
+use crate::services::config::ConfigService;
 use crate::services::instance::binding::InstanceBindingService;
 use serde_json::Value;
 use sqlx::SqlitePool;

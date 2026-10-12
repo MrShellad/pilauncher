@@ -1,6 +1,6 @@
 use crate::domain::instance::{InstanceBindingState, InstanceConfig, ServerBinding};
 use crate::error::AppResult;
-use crate::services::config_service::ConfigService;
+use crate::services::config::ConfigService;
 use crate::services::instance::tag::InstanceTagService;
 use crate::services::playtime::PlaytimeService;
 use sqlx::{Row, SqlitePool};

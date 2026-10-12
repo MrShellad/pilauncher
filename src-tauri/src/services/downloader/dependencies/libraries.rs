@@ -8,7 +8,7 @@ use serde_json::Value;
 use tauri::{AppHandle, Runtime};
 
 use crate::error::AppResult;
-use crate::services::config_service::{ConfigService, DownloadSettings};
+use crate::services::config::{ConfigService, DownloadSettings};
 
 use super::mirror::route_library_urls;
 use super::progress::DownloadStage;

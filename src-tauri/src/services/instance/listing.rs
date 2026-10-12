@@ -62,7 +62,7 @@ impl InstanceListingService {
     }
 
     fn base_dir<R: Runtime>(app: &AppHandle<R>) -> AppResult<PathBuf> {
-        let base_path_str = crate::services::config_service::ConfigService::get_base_path(app)?
+        let base_path_str = crate::services::config::ConfigService::get_base_path(app)?
             .ok_or_else(|| {
                 std::io::Error::new(
                     std::io::ErrorKind::NotFound,

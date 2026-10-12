@@ -1,4 +1,4 @@
-use crate::services::config_service::DownloadSettings;
+use crate::services::config::DownloadSettings;
 
 fn normalize_source_base(url: &str) -> Option<String> {
     let trimmed = url.trim().trim_end_matches('/');

@@ -1,6 +1,6 @@
 use crate::domain::event::DownloadProgressEvent;
 use crate::error::{AppError, AppResult};
-use crate::services::config_service::{ConfigService, DownloadSettings};
+use crate::services::config::{ConfigService, DownloadSettings};
 use crate::services::deployment_cancel::is_cancelled;
 use crate::services::downloader::dependencies::scheduler::sha1_file;
 use crate::services::downloader::logging::{
@@ -1020,7 +1020,7 @@ pub async fn install_loader<R: Runtime>(
     global_mc_root: &Path,
     cancel: &Arc<AtomicBool>,
 ) -> AppResult<()> {
-    let loader_version = crate::services::minecraft_service::normalize_loader_version_token(
+    let loader_version = crate::services::minecraft::normalize_loader_version_token(
         loader_type,
         mc_version,
         loader_version,

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 
 use crate::domain::achievement::AdvancementMetadataCache;
-use crate::services::db_service::achievement_repo;
+use crate::services::db::achievement_repo;
 
 /// 单条成就字典项配置
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -7,7 +7,7 @@ use sha1::{Digest, Sha1};
 use tauri::{AppHandle, Runtime};
 
 use crate::error::{AppError, AppResult};
-use crate::services::config_service::ConfigService;
+use crate::services::config::ConfigService;
 use crate::services::deployment_cancel::is_cancelled;
 
 use super::mirror::{route_asset_object_urls, route_assets_index_urls};

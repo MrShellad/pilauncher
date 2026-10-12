@@ -7,7 +7,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tokio::io::AsyncWriteExt;
 
-use crate::services::config_service::ConfigService;
+use crate::services::config::ConfigService;
 
 #[derive(Debug, Clone, Copy)]
 pub enum DownloadLogLevel {

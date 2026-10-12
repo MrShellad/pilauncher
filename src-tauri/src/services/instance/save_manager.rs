@@ -1,5 +1,5 @@
 use crate::domain::instance::InstanceConfig;
-use crate::services::config_service::ConfigService;
+use crate::services::config::ConfigService;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
@@ -679,7 +679,7 @@ impl SaveManagerService {
     }
 
     fn is_game_process_running() -> bool {
-        crate::commands::launcher_cmd::CURRENT_GAME_PID.load(std::sync::atomic::Ordering::SeqCst)
+        crate::commands::launcher::CURRENT_GAME_PID.load(std::sync::atomic::Ordering::SeqCst)
             != 0
     }
 

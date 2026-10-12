@@ -1,5 +1,5 @@
 use crate::error::{AppError, AppResult};
-use crate::services::config_service::{ConfigService, PlaytimeSyncSettings};
+use crate::services::config::{ConfigService, PlaytimeSyncSettings};
 use crate::services::file_write_lock::lock_for_path;
 use crate::services::instance::binding::InstanceBindingService;
 use chrono::{DateTime, NaiveDateTime, Utc};

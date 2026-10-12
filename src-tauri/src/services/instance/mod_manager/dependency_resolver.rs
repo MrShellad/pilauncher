@@ -1,7 +1,7 @@
 use crate::domain::mod_health::{
     ConflictPairInfo, DependencySummaryInfo, InstanceDependencyHealth, MissingDependencyInfo,
 };
-use crate::services::db_service::DbService;
+use crate::services::db::DbService;
 use std::collections::HashMap;
 use tauri::{AppHandle, Manager, Runtime};
 
@@ -83,7 +83,7 @@ impl DependencyResolver {
         app: &AppHandle<R>,
         instance_id: &str,
     ) -> Result<InstanceDependencyHealth, String> {
-        let db = app.state::<crate::services::db_service::AppDatabase>();
+        let db = app.state::<crate::services::db::AppDatabase>();
         let pool = db.pool.clone();
 
         let rows = DbService::query_instance_mods(&pool, instance_id)
@@ -277,7 +277,7 @@ impl DependencyResolver {
                         rel.source_identifier.eq_ignore_ascii_case(src_id)
                             && rel.target_identifier.eq_ignore_ascii_case(&d_clean)
                     }) {
-                        forward_relations.push(crate::services::db_service::models::ModRelationRecord {
+                        forward_relations.push(crate::services::db::models::ModRelationRecord {
                             source_identifier: src_id.to_string(),
                             source_type: "mod_id".to_string(),
                             target_identifier: d.clone(),

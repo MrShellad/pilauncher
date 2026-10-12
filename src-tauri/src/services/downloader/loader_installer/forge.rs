@@ -23,10 +23,10 @@ pub(super) async fn install<R: Runtime>(
     let dl_settings = ConfigService::get_download_settings(app);
     let java_settings = ConfigService::get_java_settings(app);
     let java_runtime =
-        crate::services::runtime_service::resolve_global_installer_java_runtime_with_managed(
+        crate::services::runtime::resolve_global_installer_java_runtime_with_managed(
             &java_settings,
             mc_version,
-            crate::services::runtime_service::installer_default_java_command(),
+            crate::services::runtime::installer_default_java_command(),
             &global_mc_root.join("java"),
         );
     let client = build_download_client(&dl_settings)?;

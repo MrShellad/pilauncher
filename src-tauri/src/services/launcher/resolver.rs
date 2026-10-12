@@ -1,8 +1,8 @@
 use crate::domain::instance::InstanceConfig;
 use crate::domain::launcher::ResolvedLaunchConfig;
 use crate::domain::runtime::{MemoryAllocationMode, MemoryStats, RuntimeConfig};
-use crate::services::config_service::ConfigService;
-use crate::services::runtime_service;
+use crate::services::config::ConfigService;
+use crate::services::runtime;
 use std::path::PathBuf;
 use tauri::{AppHandle, Runtime};
 
@@ -246,7 +246,7 @@ impl ConfigResolver {
             .join(&instance_cfg.id);
 
         let instance_runtime =
-            runtime_service::get_instance_runtime(&instance_dir).unwrap_or_else(|_| {
+            runtime::get_instance_runtime(&instance_dir).unwrap_or_else(|_| {
                 crate::domain::runtime::RuntimeConfig {
                     use_global_java: true,
                     use_global_memory: true,
@@ -258,15 +258,15 @@ impl ConfigResolver {
                 }
             });
 
-        let java_runtime = runtime_service::resolve_instance_java_runtime(
+        let java_runtime = runtime::resolve_instance_java_runtime(
             &instance_runtime,
             &global_java,
             &instance_cfg.mc_version,
-            runtime_service::launcher_default_java_command(),
+            runtime::launcher_default_java_command(),
         );
         let java_path =
-            if java_runtime.java_path == runtime_service::launcher_default_java_command() {
-                runtime_service::resolve_managed_java_runtime(
+            if java_runtime.java_path == runtime::launcher_default_java_command() {
+                runtime::resolve_managed_java_runtime(
                     &PathBuf::from(&base_path),
                     &java_runtime.required_java_major,
                 )
@@ -274,7 +274,7 @@ impl ConfigResolver {
             } else {
                 java_runtime.java_path.clone()
             };
-        let actual_java_major = runtime_service::test_java_runtime(&java_path)
+        let actual_java_major = runtime::test_java_runtime(&java_path)
             .ok()
             .and_then(|install| parse_java_major_version(&install.version))
             .or_else(|| parse_java_major_version(&java_runtime.required_java_major))
@@ -300,7 +300,7 @@ impl ConfigResolver {
                 instance_runtime.max_memory as u32
             };
 
-        let memory_thresholds = compute_memory_thresholds(&runtime_service::get_system_memory());
+        let memory_thresholds = compute_memory_thresholds(&runtime::get_system_memory());
         let (min_memory, max_memory) = resolve_memory_limits(
             &memory_mode,
             requested_max_memory,

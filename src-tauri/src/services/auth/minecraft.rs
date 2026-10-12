@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 use super::http::{format_reqwest_error, get_client};
 use super::{paths, skin_png, wardrobe};
-use crate::services::config_service::ConfigService;
+use crate::services::config::ConfigService;
 
 fn cached_source_matches(marker_path: &PathBuf, source: &str) -> bool {
     fs::read_to_string(marker_path)

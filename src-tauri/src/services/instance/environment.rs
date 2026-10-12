@@ -9,11 +9,11 @@ use tauri::{AppHandle, Emitter, Runtime};
 use crate::domain::event::DownloadProgressEvent;
 use crate::domain::instance::{CreateInstancePayload, UpdateInstanceEnvironmentPayload};
 use crate::error::{AppError, AppResult};
-use crate::services::config_service::ConfigService;
-use crate::services::db_service::AppDatabase;
+use crate::services::config::ConfigService;
+use crate::services::db::AppDatabase;
 use crate::services::deployment_cancel;
 use crate::services::instance::binding::InstanceBindingService;
-use crate::services::minecraft_service::normalize_loader_version_token;
+use crate::services::minecraft::normalize_loader_version_token;
 
 pub struct InstanceEnvironmentService;
 

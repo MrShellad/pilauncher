@@ -1,5 +1,5 @@
 use crate::domain::lan::{TransferProgressEvent, TransferRecord};
-use crate::services::db_service::AppDatabase;
+use crate::services::db::AppDatabase;
 use sqlx::Row;
 use tauri::{AppHandle, Emitter, Runtime};
 

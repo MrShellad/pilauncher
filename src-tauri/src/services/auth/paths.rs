@@ -7,7 +7,7 @@
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Runtime};
 
-use crate::services::config_service::ConfigService;
+use crate::services::config::ConfigService;
 
 /// 获取账号的运行时资源目录: `{base}/runtime/accounts/{uuid}`
 pub fn account_runtime_dir<R: Runtime>(

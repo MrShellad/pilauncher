@@ -9,11 +9,11 @@ use crate::domain::instance::{
     CreateInstancePayload, InstanceConfig, JavaConfig, LoaderConfig, MemoryConfig, ResolutionConfig,
 };
 use crate::error::{AppError, AppResult};
-use crate::services::db_service::AppDatabase;
+use crate::services::db::AppDatabase;
 use crate::services::deployment_cancel;
 use crate::services::downloader::logging::sanitize_filename;
 use crate::services::instance::binding::InstanceBindingService;
-use crate::services::minecraft_service::{normalize_loader_version_token, resolve_loader_folder};
+use crate::services::minecraft::{normalize_loader_version_token, resolve_loader_folder};
 
 pub struct InstanceCreationService;
 
@@ -22,7 +22,7 @@ impl InstanceCreationService {
         app: &AppHandle<R>,
         payload: CreateInstancePayload,
     ) -> AppResult<()> {
-        let base_path_str = crate::services::config_service::ConfigService::get_base_path(app)?
+        let base_path_str = crate::services::config::ConfigService::get_base_path(app)?
             .ok_or_else(|| {
                 std::io::Error::new(
                     std::io::ErrorKind::NotFound,

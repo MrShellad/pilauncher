@@ -1,6 +1,6 @@
-﻿use crate::domain::mod_manifest::ModMetadata;
-use crate::services::config_service::ConfigService;
-use crate::services::db_service::{
+use crate::domain::mod_manifest::ModMetadata;
+use crate::services::config::ConfigService;
+use crate::services::db::{
     models::{ModPlatformMatchBatchItem, ModRelationRecord},
     DbService,
 };
@@ -27,7 +27,7 @@ impl ModCloudSync {
         curseforge_key: Option<String>,
         target_file_names: Option<&[String]>,
     ) -> Result<Vec<ModMetadata>, String> {
-        let db = app.state::<crate::services::db_service::AppDatabase>();
+        let db = app.state::<crate::services::db::AppDatabase>();
         let pool = db.pool.clone();
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(15))

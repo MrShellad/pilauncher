@@ -1,0 +1,135 @@
+use crate::domain::instance::ServerBinding;
+use crate::domain::modpack::{
+    ImportResult, MissingRuntime, ModpackMetadata, ThirdPartyImportResult, ThirdPartyImportSource,
+    VerifyInstanceRuntimeResult,
+};
+use crate::services::import::{local_instance, third_party};
+use crate::services::instance::verify;
+use crate::services::modpack;
+use crate::services::modpack::export::{ExportConfig, ExportResult};
+use tauri::{AppHandle, Runtime};
+
+#[tauri::command]
+pub fn import_local_instances_folders<R: Runtime>(
+    app: AppHandle<R>,
+    paths: Vec<String>,
+) -> Result<ImportResult, String> {
+    local_instance::import_local_instances_folders(&app, paths)
+}
+
+#[tauri::command]
+pub fn import_third_party_instance<R: Runtime>(
+    app: AppHandle<R>,
+    path: String,
+) -> Result<Option<MissingRuntime>, String> {
+    third_party::import_single_instance(&app, path)
+}
+
+#[tauri::command]
+pub async fn verify_instance_runtime<R: Runtime>(
+    app: AppHandle<R>,
+    instance_id: String,
+) -> Result<VerifyInstanceRuntimeResult, String> {
+    verify::verify_instance_runtime(&app, &instance_id).await
+}
+
+#[tauri::command]
+pub async fn download_missing_runtimes<R: Runtime>(
+    app: AppHandle<R>,
+    missing_list: Vec<MissingRuntime>,
+) -> Result<(), String> {
+    verify::download_missing_runtimes(&app, missing_list).await
+}
+
+#[tauri::command]
+pub fn parse_modpack_metadata(path: String) -> Result<ModpackMetadata, String> {
+    modpack::parse_modpack(&path)
+}
+
+#[tauri::command]
+pub async fn import_modpack<R: Runtime>(
+    app: AppHandle<R>,
+    zip_path: String,
+    instance_name: String,
+    server_binding: Option<ServerBinding>,
+) -> Result<modpack::ModpackDeploymentAccepted, String> {
+    modpack::start_import(app, zip_path, instance_name, server_binding)
+}
+
+#[tauri::command]
+pub async fn download_and_import_modpack<R: Runtime>(
+    app: AppHandle<R>,
+    url: String,
+    instance_name: String,
+    server_binding: Option<ServerBinding>,
+) -> Result<modpack::ModpackDeploymentAccepted, String> {
+    modpack::download_and_import_modpack(app, url, instance_name, server_binding)
+}
+
+#[tauri::command]
+pub fn scan_instances_in_dir<R: Runtime>(
+    app: AppHandle<R>,
+    path: String,
+) -> Result<ImportResult, String> {
+    local_instance::scan_instances_in_dir(&app, path)
+}
+
+#[tauri::command]
+pub async fn export_modpack<R: Runtime>(
+    app: AppHandle<R>,
+    config: ExportConfig,
+) -> Result<ExportResult, String> {
+    modpack::export::execute_export(&app, config).await
+}
+
+#[tauri::command]
+pub fn cancel_modpack_export(task_id: String) -> Result<(), String> {
+    if task_id.trim().is_empty() {
+        return Err("Export task identifier cannot be empty".to_string());
+    }
+    crate::services::deployment_cancel::cancel(&format!("export:{}", task_id));
+    Ok(())
+}
+
+#[tauri::command]
+pub fn detect_third_party_launcher_sources<R: Runtime>(
+    app: AppHandle<R>,
+    path: Option<String>,
+) -> Result<Vec<ThirdPartyImportSource>, String> {
+    third_party::detect_launcher_sources(&app, path)
+}
+
+#[tauri::command]
+pub fn import_third_party_launcher_source<R: Runtime>(
+    app: AppHandle<R>,
+    path: String,
+) -> Result<ThirdPartyImportResult, String> {
+    third_party::import_launcher_source(&app, path)
+}
+
+#[tauri::command]
+pub async fn check_modpack_update<R: Runtime>(
+    app: AppHandle<R>,
+    instance_id: String,
+    new_pack_path: Option<String>,
+) -> Result<crate::domain::modpack::ModpackUpgradeInfo, String> {
+    modpack::check_modpack_update(&app, &instance_id, new_pack_path).await
+}
+
+#[tauri::command]
+pub async fn execute_modpack_upgrade<R: Runtime>(
+    app: AppHandle<R>,
+    instance_id: String,
+    new_pack_path: String,
+    skip_backup: Option<bool>,
+) -> Result<(), String> {
+    modpack::execute_modpack_upgrade(&app, &instance_id, &new_pack_path, skip_backup).await
+}
+
+#[tauri::command]
+pub async fn rollback_modpack_upgrade<R: Runtime>(
+    app: AppHandle<R>,
+    instance_id: String,
+) -> Result<(), String> {
+    modpack::rollback_modpack_upgrade(&app, &instance_id).await
+}

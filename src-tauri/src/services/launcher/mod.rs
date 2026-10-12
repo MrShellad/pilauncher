@@ -19,7 +19,7 @@ use tokio::time::{self, Duration, MissedTickBehavior};
 use crate::domain::instance::InstanceConfig;
 use crate::domain::launcher::{Account, AccountType, LoaderType};
 use crate::error::{AppError, AppResult};
-use crate::services::minecraft_service::{
+use crate::services::minecraft::{
     normalize_loader_version_token, parse_third_party_json, resolve_loader_folder,
 };
 use crate::services::playtime::PlaytimeService;
@@ -802,7 +802,7 @@ impl LauncherService {
         // contract and never scans the full game log to infer progress.
         emit_game_launch_progress(app, &GameLaunchProgress::preparing());
 
-        let base_path = crate::services::config_service::ConfigService::get_base_path(app)?
+        let base_path = crate::services::config::ConfigService::get_base_path(app)?
             .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "未配置数据目录"))?;
 
         let base_dir = PathBuf::from(base_path);
@@ -819,7 +819,7 @@ impl LauncherService {
         let instance_cfg: InstanceConfig = serde_json::from_str(&content)?;
 
         let should_pre_launch_check = pre_launch_check_enabled.unwrap_or_else(|| {
-            crate::services::config_service::ConfigService::get_game_settings(app).pre_launch_check
+            crate::services::config::ConfigService::get_game_settings(app).pre_launch_check
         });
         if should_pre_launch_check {
             pre_launch_check::PreLaunchCheckService::ensure_passed(app, instance_id).await?;
@@ -930,7 +930,7 @@ impl LauncherService {
 
         let actual_java_path =
             if resolved_config.java_path == "auto" || resolved_config.java_path.is_empty() {
-                crate::services::runtime_service::launcher_default_java_command().to_string()
+                crate::services::runtime::launcher_default_java_command().to_string()
             } else {
                 resolved_config.java_path.clone()
             };
@@ -1081,13 +1081,13 @@ Module Path Entries: {}\n\
         };
 
         if let Some(pid) = child.id() {
-            crate::commands::launcher_cmd::CURRENT_GAME_PID
+            crate::commands::launcher::CURRENT_GAME_PID
                 .store(pid, std::sync::atomic::Ordering::SeqCst);
         }
 
         // 🌟 记录游戏时长：启动会话
         let pool = app
-            .state::<crate::services::db_service::AppDatabase>()
+            .state::<crate::services::db::AppDatabase>()
             .pool
             .clone();
         if let Err(e) =
@@ -1096,7 +1096,7 @@ Module Path Entries: {}\n\
             eprintln!("[Playtime] Failed to start session: {}", e);
         }
 
-        crate::services::instance::achievement_service::AchievementService::start_session(
+        crate::services::instance::achievement::AchievementService::start_session(
             instance_id,
             Some(&player_uuid),
             Some(&player_name),
@@ -1169,13 +1169,13 @@ Module Path Entries: {}\n\
 
         // 🌟 记录游戏时长：结束会话并持久化
         let pool = app
-            .state::<crate::services::db_service::AppDatabase>()
+            .state::<crate::services::db::AppDatabase>()
             .pool
             .clone();
         if let Err(e) = PlaytimeService::finish_session(app, &pool, instance_id).await {
             eprintln!("[Playtime] Failed to finish session: {}", e);
         }
-        crate::commands::launcher_cmd::CURRENT_GAME_PID
+        crate::commands::launcher::CURRENT_GAME_PID
             .store(0, std::sync::atomic::Ordering::SeqCst);
 
         let exit_msg = format!("游戏进程已退出，状态: {}", status);

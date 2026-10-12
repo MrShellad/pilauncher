@@ -1,4 +1,4 @@
-﻿use crate::services::db_service::DbService;
+use crate::services::db::DbService;
 use futures::stream::{FuturesUnordered, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -28,7 +28,7 @@ impl ModUpdateEngine {
         _force: bool,
         curseforge_key: Option<String>,
     ) -> Result<Vec<ModUpdateInfo>, String> {
-        let db = app.state::<crate::services::db_service::AppDatabase>();
+        let db = app.state::<crate::services::db::AppDatabase>();
         let pool = db.pool.clone();
         let client = Arc::new(
             reqwest::Client::builder()

@@ -1,4 +1,4 @@
-use crate::services::config_service::ConfigService;
+use crate::services::config::ConfigService;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -221,13 +221,13 @@ impl ResourceManager {
             );
 
             if res_type == ResourceType::Mod {
-                let db = app.state::<crate::services::db_service::AppDatabase>();
+                let db = app.state::<crate::services::db::AppDatabase>();
                 let pool = db.pool.clone();
                 let inst_id = instance_id.to_string();
                 let old_f = file_name.to_string();
                 let new_f = new_file_name.clone();
                 tauri::async_runtime::spawn(async move {
-                    let _ = crate::services::db_service::DbService::toggle_instance_mod(
+                    let _ = crate::services::db::DbService::toggle_instance_mod(
                         &pool, &inst_id, &old_f, &new_f, enable,
                     )
                     .await;
@@ -254,7 +254,7 @@ impl ResourceManager {
     ) -> Result<Vec<(String, String)>, String> {
         let target_dir = Self::get_target_dir(app, instance_id, &ResourceType::Mod)?;
         let mut toggled = Vec::new();
-        let db = app.state::<crate::services::db_service::AppDatabase>();
+        let db = app.state::<crate::services::db::AppDatabase>();
         let pool = db.pool.clone();
 
         for file_name in file_names {
@@ -277,7 +277,7 @@ impl ResourceManager {
         }
 
         if !toggled.is_empty() {
-            crate::services::db_service::DbService::toggle_instance_mods_batch(
+            crate::services::db::DbService::toggle_instance_mods_batch(
                 &pool,
                 instance_id,
                 &toggled,
@@ -330,12 +330,12 @@ impl ResourceManager {
         );
 
         if res_type == ResourceType::Mod {
-            let db = app.state::<crate::services::db_service::AppDatabase>();
+            let db = app.state::<crate::services::db::AppDatabase>();
             let pool = db.pool.clone();
             let inst_id = instance_id.to_string();
             let f_name = file_name.to_string();
             tauri::async_runtime::spawn(async move {
-                let _ = crate::services::db_service::DbService::delete_instance_mods(
+                let _ = crate::services::db::DbService::delete_instance_mods(
                     &pool,
                     &inst_id,
                     &[f_name],
@@ -457,7 +457,7 @@ impl ResourceManager {
             .join("mods")
             .join(file_name);
 
-        let db = app.state::<crate::services::db_service::AppDatabase>();
+        let db = app.state::<crate::services::db::AppDatabase>();
         let pool = db.pool.clone();
         let inst_id = instance_id.to_string();
         let f_name = file_name.to_string();
@@ -481,7 +481,7 @@ impl ResourceManager {
         let s_kind = source_kind.to_string();
 
         if let Some(old) = old_f {
-            crate::services::db_service::DbService::delete_instance_mods(&pool, &inst_id, &[old])
+            crate::services::db::DbService::delete_instance_mods(&pool, &inst_id, &[old])
                 .await
                 .map_err(|error| error.to_string())?;
         }
@@ -561,7 +561,7 @@ impl ResourceManager {
         )
         .await;
 
-        let row = crate::services::db_service::InstanceModDbRow {
+        let row = crate::services::db::InstanceModDbRow {
             instance_id: inst_id.clone(),
             file_name: f_name,
             is_enabled: true,
@@ -575,7 +575,7 @@ impl ResourceManager {
             source_project_id: p_id,
             source_file_id: f_id,
         };
-        crate::services::db_service::DbService::upsert_instance_mods(&pool, &inst_id, &[row])
+        crate::services::db::DbService::upsert_instance_mods(&pool, &inst_id, &[row])
             .await
             .map_err(|error| error.to_string())?;
 
@@ -618,7 +618,7 @@ impl ResourceManager {
         file_name: &str,
         matches: std::collections::HashMap<String, crate::domain::mod_manifest::ModPlatformMatch>,
     ) -> Result<(), String> {
-        let db = app.state::<crate::services::db_service::AppDatabase>();
+        let db = app.state::<crate::services::db::AppDatabase>();
         let pool = db.pool.clone();
         let inst_id = instance_id.to_string();
         let f_name = file_name.to_string();
@@ -660,14 +660,14 @@ impl ResourceManager {
     pub fn update_mod_platform_matches_batch<R: Runtime>(
         app: &AppHandle<R>,
         instance_id: &str,
-        items: Vec<crate::services::db_service::ModPlatformMatchBatchItem>,
+        items: Vec<crate::services::db::ModPlatformMatchBatchItem>,
     ) -> Result<(), String> {
-        let db = app.state::<crate::services::db_service::AppDatabase>();
+        let db = app.state::<crate::services::db::AppDatabase>();
         let pool = db.pool.clone();
         let inst_id = instance_id.to_string();
 
         tauri::async_runtime::spawn(async move {
-            let _ = crate::services::db_service::DbService::update_mod_platform_matches_batch(
+            let _ = crate::services::db::DbService::update_mod_platform_matches_batch(
                 &pool, &inst_id, &items,
             )
             .await;
@@ -683,7 +683,7 @@ impl ResourceManager {
         settings: crate::domain::mod_manifest::ModMetadataSettings,
     ) -> Result<(), String> {
         let manifest_path = Self::get_instance_root(app, instance_id)?.join("mod_manifest.json");
-        crate::services::instance::mod_manifest_service::ModManifestService::update_metadata_settings(
+        crate::services::instance::mod_manifest::ModManifestService::update_metadata_settings(
             &manifest_path,
             file_name,
             settings,
@@ -696,7 +696,7 @@ impl ResourceManager {
         file_name: &str,
     ) -> Result<(), String> {
         let manifest_path = Self::get_instance_root(app, instance_id)?.join("mod_manifest.json");
-        crate::services::instance::mod_manifest_service::ModManifestService::reset_platform_metadata(
+        crate::services::instance::mod_manifest::ModManifestService::reset_platform_metadata(
             &manifest_path,
             file_name,
         )?;
@@ -704,7 +704,7 @@ impl ResourceManager {
         // Version-specific dependency data must not be reused after a forced identification
         // attempt. Preserve the user-confirmed provider/project link, but clear only the stale
         // archive-level identity; a successful exact match will fill these fields again.
-        let db = app.state::<crate::services::db_service::AppDatabase>();
+        let db = app.state::<crate::services::db::AppDatabase>();
         sqlx::query(
             "UPDATE instance_mods \
              SET source_file_id = NULL, version = NULL, updated_at = ? \

@@ -24,9 +24,9 @@
 @import './ui/primitives/SaveRestoreModal.css';
 @import './ui/primitives/BackupListModal.css';
 @import './ui/layout/SettingsPageLayout.css';
-@import './features/home/MicrosoftAccountSidebar.css';
-@import './features/home/StartupArticlePushModal.css';
+@import '../features/home/components/MicrosoftAccountSidebar.css';
+@import '../features/home/components/StartupArticlePushModal.css';
 @import '../features/multiplayer/multiplayer.css';
-@import './pages/Wardrobe.css';
-@import './pages/Settings.css';
+@import '../features/wardrobe/components/WardrobeSkinCardPreview.css';
+@import '../features/settings/components/SettingsPageController.css';
 @import './utilities.css';

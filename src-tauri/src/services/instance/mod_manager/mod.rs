@@ -26,7 +26,7 @@ use crate::domain::mod_manifest::{
     build_manifest_entry, build_manifest_source, mod_manifest_key, ModMetadataSettings,
     ModPlatformMatch,
 };
-use crate::services::config_service::ConfigService;
+use crate::services::config::ConfigService;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
@@ -64,7 +64,7 @@ pub struct ModManagerService;
 
 impl ModManagerService {
     fn manifest_entry_from_db_row(
-        row: &crate::services::db_service::EnrichedInstanceModRow,
+        row: &crate::services::db::EnrichedInstanceModRow,
     ) -> ModManifestEntry {
         let platform = row
             .source_platform
@@ -417,7 +417,7 @@ impl ModManagerService {
                 .execute(&mut *tx)
                 .await;
 
-                let _ = crate::services::db_service::mod_alias_repo::save_mod_aliases_tx(
+                let _ = crate::services::db::mod_alias_repo::save_mod_aliases_tx(
                     &mut *tx,
                     &id,
                     display_title,
@@ -479,13 +479,13 @@ impl ModManagerService {
         fs::create_dir_all(&icons_base_dir).ok();
 
         // 获取 DB Pool 进行全局缓存查询
-        let db = app.state::<crate::services::db_service::AppDatabase>();
+        let db = app.state::<crate::services::db::AppDatabase>();
         let pool = db.pool.clone();
         let manifest_path = instance_dir.join("mod_manifest.json");
         // Per-mod platform preferences live in the manifest. It must survive normal scans;
         // deleting it here made a just-saved preference disappear before re-identification.
         let persisted_metadata_settings: std::collections::HashMap<String, ModMetadataSettings> =
-            crate::services::instance::mod_manifest_service::ModManifestService::load_from_mods_dir(
+            crate::services::instance::mod_manifest::ModManifestService::load_from_mods_dir(
                 &mods_dir,
                 &manifest_path,
             )
@@ -496,12 +496,12 @@ impl ModManagerService {
 
         // 1. Read existing records from SQLite instance_mods
         let db_mods =
-            crate::services::db_service::DbService::query_instance_mods(&pool, instance_id)
+            crate::services::db::DbService::query_instance_mods(&pool, instance_id)
                 .await
                 .unwrap_or_default();
         let db_mod_map: std::collections::HashMap<
             String,
-            crate::services::db_service::EnrichedInstanceModRow,
+            crate::services::db::EnrichedInstanceModRow,
         > = db_mods
             .into_iter()
             .map(|m| (m.file_name.clone(), m))
@@ -541,7 +541,7 @@ impl ModManagerService {
             .cloned()
             .collect();
         if !deleted_files.is_empty() {
-            let _ = crate::services::db_service::DbService::delete_instance_mods(
+            let _ = crate::services::db::DbService::delete_instance_mods(
                 &pool,
                 instance_id,
                 &deleted_files,
@@ -870,7 +870,7 @@ impl ModManagerService {
         while let Some(res) = pending_tasks.next().await {
             if let Ok((f_name, is_en, f_size, m_time, meta, db_icon_val)) = res {
                 let source = meta.manifest_entry.as_ref().map(|entry| &entry.source);
-                new_instance_mods.push(crate::services::db_service::InstanceModDbRow {
+                new_instance_mods.push(crate::services::db::InstanceModDbRow {
                     instance_id: instance_id.to_string(),
                     file_name: f_name.clone(),
                     is_enabled: is_en,
@@ -900,7 +900,7 @@ impl ModManagerService {
         }
 
         if !new_instance_mods.is_empty() {
-            let _ = crate::services::db_service::DbService::upsert_instance_mods(
+            let _ = crate::services::db::DbService::upsert_instance_mods(
                 &pool,
                 instance_id,
                 &new_instance_mods,
@@ -978,7 +978,7 @@ impl ModManagerService {
                     if d_clean.is_empty() || d_clean == "minecraft" || d_clean == "java" || d_clean == "fabricloader" || d_clean == "quiltloader" || d_clean == "quilt_loader" {
                         continue;
                     }
-                    relations_to_save.push(crate::services::db_service::models::ModRelationRecord {
+                    relations_to_save.push(crate::services::db::models::ModRelationRecord {
                         source_identifier: src_id.to_string(),
                         source_type: "mod_id".to_string(),
                         target_identifier: d.clone(),
@@ -992,7 +992,7 @@ impl ModManagerService {
             }
         }
         if !relations_to_save.is_empty() {
-            let _ = crate::services::db_service::DbService::save_mod_relations(&pool, &relations_to_save).await;
+            let _ = crate::services::db::DbService::save_mod_relations(&pool, &relations_to_save).await;
         }
 
         mods.sort_by(|a, b| {
@@ -1025,17 +1025,17 @@ impl ModManagerService {
         let mods_dir = game_dir.join("mods");
         let shared_mods_dir = icon_storage::IconStorage::get_shared_mods_dir(app)?;
         let icons_base_dir = shared_mods_dir.join("icons");
-        let db = app.state::<crate::services::db_service::AppDatabase>();
+        let db = app.state::<crate::services::db::AppDatabase>();
         let pool = db.pool.clone();
         let persisted_metadata_settings: std::collections::HashMap<String, ModMetadataSettings> =
-            crate::services::instance::mod_manifest_service::ModManifestService::read_manifest_robust(
+            crate::services::instance::mod_manifest::ModManifestService::read_manifest_robust(
                 &instance_dir.join("mod_manifest.json"),
             )
             .into_iter()
             .filter_map(|(file_name, entry)| entry.metadata_settings.map(|settings| (file_name, settings)))
             .collect();
 
-        let rows = crate::services::db_service::DbService::query_instance_mods(&pool, instance_id)
+        let rows = crate::services::db::DbService::query_instance_mods(&pool, instance_id)
             .await
             .map_err(|e| e.to_string())?;
 
@@ -1116,7 +1116,7 @@ impl ModManagerService {
             let instance_id_owned = instance_id.to_string();
             let pool_clone = pool.clone();
             tauri::async_runtime::spawn(async move {
-                let _ = crate::services::db_service::DbService::delete_instance_mods(
+                let _ = crate::services::db::DbService::delete_instance_mods(
                     &pool_clone,
                     &instance_id_owned,
                     &orphaned_files,
@@ -1334,7 +1334,7 @@ impl ModManagerService {
 #[cfg(test)]
 mod identity_tests {
     use super::*;
-    use crate::services::db_service::EnrichedInstanceModRow;
+    use crate::services::db::EnrichedInstanceModRow;
 
     fn installed_row() -> EnrichedInstanceModRow {
         EnrichedInstanceModRow {

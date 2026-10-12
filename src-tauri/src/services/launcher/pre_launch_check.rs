@@ -6,11 +6,11 @@ use tauri::{AppHandle, Emitter, Runtime};
 use crate::domain::instance::InstanceConfig;
 use crate::domain::modpack::MissingRuntime;
 use crate::error::{AppError, AppResult};
-use crate::services::config_service::ConfigService;
-use crate::services::instance::verify_service;
+use crate::services::config::ConfigService;
+use crate::services::instance::verify;
 use crate::services::launcher::resolver::ConfigResolver;
-use crate::services::minecraft_service::{get_mc_arch, get_mc_os, resolve_loader_folder};
-use crate::services::runtime_service;
+use crate::services::minecraft::{get_mc_arch, get_mc_os, resolve_loader_folder};
+use crate::services::runtime;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -93,7 +93,7 @@ fn inspect_manifest_platform(
     let mut native_libraries = 0usize;
 
     for library in libraries {
-        if !crate::services::minecraft_service::evaluate_library_rules(library["rules"].as_array())
+        if !crate::services::minecraft::evaluate_library_rules(library["rules"].as_array())
         {
             continue;
         }
@@ -228,7 +228,7 @@ fn check_java<R: Runtime>(
 ) -> PreLaunchCheckItem {
     let resolved_config = ConfigResolver::resolve(app, config);
     let instance_runtime =
-        runtime_service::get_instance_runtime(instance_dir).unwrap_or_else(|_| {
+        runtime::get_instance_runtime(instance_dir).unwrap_or_else(|_| {
             crate::domain::runtime::RuntimeConfig {
                 use_global_java: true,
                 use_global_memory: true,
@@ -240,17 +240,17 @@ fn check_java<R: Runtime>(
             }
         });
     let java_settings = ConfigService::get_java_settings(app);
-    let java_runtime = runtime_service::resolve_instance_java_runtime(
+    let java_runtime = runtime::resolve_instance_java_runtime(
         &instance_runtime,
         &java_settings,
         &config.mc_version,
-        runtime_service::launcher_default_java_command(),
+        runtime::launcher_default_java_command(),
     );
 
     let java_path = if resolved_config.java_path.trim().is_empty()
         || resolved_config.java_path.eq_ignore_ascii_case("auto")
     {
-        runtime_service::launcher_default_java_command().to_string()
+        runtime::launcher_default_java_command().to_string()
     } else {
         resolved_config.java_path
     };
@@ -260,7 +260,7 @@ fn check_java<R: Runtime>(
         .parse::<u32>()
         .unwrap_or_default();
 
-    match runtime_service::test_java_runtime(&java_path) {
+    match runtime::test_java_runtime(&java_path) {
         Ok(install) => {
             let detected_major = parse_java_major(&install.version);
             let mut details = vec![
@@ -359,7 +359,7 @@ impl PreLaunchCheckService {
         checks.push(check_game_directory(&instance_dir, &config));
 
         emit_check_log(app, "[INFO] 启动前检查：正在校验游戏运行库完整性...");
-        let mut runtime_check = verify_service::verify_instance_runtime(app, instance_id)
+        let mut runtime_check = verify::verify_instance_runtime(app, instance_id)
             .await
             .map_err(AppError::Generic)?;
 
@@ -392,11 +392,11 @@ impl PreLaunchCheckService {
                             runtime_check.missing_file_count, runtime_check.total_missing_size
                         ),
                     );
-                    match verify_service::download_missing_runtimes(app, vec![repair.clone()]).await
+                    match verify::download_missing_runtimes(app, vec![repair.clone()]).await
                     {
                         Ok(_) => {
                             emit_check_log(app, "[INFO] 自动修复完成，正在进行二次校验...");
-                            match verify_service::verify_instance_runtime(app, instance_id).await {
+                            match verify::verify_instance_runtime(app, instance_id).await {
                                 Ok(new_check) => {
                                     runtime_check = new_check;
                                     if !runtime_check.needs_repair {

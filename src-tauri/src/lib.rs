@@ -79,7 +79,7 @@ fn apply_linux_compat_env_vars() {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let _ = lighty_core::app_state::AppState::init("PiLauncher");
-    let startup_trace = commands::system_cmd::StartupTrace::new();
+    let startup_trace = commands::system::StartupTrace::new();
 
     #[cfg(all(target_os = "linux", not(target_os = "android")))]
     apply_linux_compat_env_vars();
@@ -123,10 +123,10 @@ pub fn run() {
                 env!("CARGO_PKG_VERSION"),
                 env!("PILAUNCHER_INITIAL_SCHEMA_SHA384")
             );
-            app.state::<commands::system_cmd::StartupTrace>()
+            app.state::<commands::system::StartupTrace>()
                 .mark("native.setup.begin");
             if let Err(error) =
-                commands::config_cmd::recover_interrupted_base_directory_migration(app.handle())
+                commands::config::recover_interrupted_base_directory_migration(app.handle())
             {
                 log::error!("failed to recover interrupted base directory migration: {error}");
             }
@@ -144,11 +144,11 @@ pub fn run() {
                 std::io::Error::other(format!("failed to resolve application data directory: {error}"))
             })?;
             let db_config_dir = app_dir.join("config");
-            app.state::<commands::system_cmd::StartupTrace>()
+            app.state::<commands::system::StartupTrace>()
                 .mark("native.database.initialize.begin");
 
             let pool = match tauri::async_runtime::block_on(async {
-                services::db_service::DbService::init_db(&db_config_dir).await
+                services::db::DbService::init_db(&db_config_dir).await
             }) {
                 Ok(pool) => pool,
                 Err(error) => {
@@ -180,10 +180,10 @@ pub fn run() {
                 }
             };
             log::info!("database initialized in {}", db_config_dir.display());
-            app.state::<commands::system_cmd::StartupTrace>()
+            app.state::<commands::system::StartupTrace>()
                 .mark("native.database.initialize.complete");
 
-            app.manage(services::db_service::AppDatabase { pool: pool.clone() });
+            app.manage(services::db::AppDatabase { pool: pool.clone() });
 
             // 异步增量同步原版及用户自制成就字典到 SQLite 缓存
             let dict_pool = pool.clone();
@@ -246,7 +246,7 @@ pub fn run() {
                         let exit_code = payload.get("code").and_then(|c| c.as_i64()).unwrap_or(0) as i32;
                         tauri::async_runtime::spawn(async move {
                             if let Err(error) =
-                                crate::services::instance::achievement_service::AchievementService::handle_game_exit(
+                                crate::services::instance::achievement::AchievementService::handle_game_exit(
                                     &achievement_app,
                                     &achievement_pool,
                                     &achievement_instance_id,
@@ -264,11 +264,11 @@ pub fn run() {
             // Non-critical LAN and gamepad services are started by the frontend after the
             // first rendered frame via start_deferred_services.
 
-            app.state::<commands::system_cmd::StartupTrace>()
+            app.state::<commands::system::StartupTrace>()
                 .mark("native.setup.complete");
 
             let frontend_timeout_trace = app
-                .state::<commands::system_cmd::StartupTrace>()
+                .state::<commands::system::StartupTrace>()
                 .inner()
                 .clone();
             tauri::async_runtime::spawn(async move {
@@ -295,7 +295,7 @@ pub fn run() {
     app.run(|app_handle: &tauri::AppHandle, event| {
         if matches!(event, tauri::RunEvent::Ready) {
             app_handle
-                .state::<commands::system_cmd::StartupTrace>()
+                .state::<commands::system::StartupTrace>()
                 .mark("native.run_event.ready");
         }
         // NOTE: Terracotta sidecar cleanup disabled — no child process to kill.

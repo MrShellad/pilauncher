@@ -2,7 +2,7 @@ use crate::domain::gamepad::GamepadModMeta;
 use crate::domain::mod_cleanup::{
     ModFileNameCleanupFailure, ModFileNameCleanupItem, ModFileNameCleanupResult,
 };
-use crate::services::config_service::ConfigService;
+use crate::services::config::ConfigService;
 use crate::services::downloader::transfer::{download_file, DownloadRateLimiter, DownloadTuning};
 use std::fs::{self, File};
 use std::sync::Arc;
@@ -84,7 +84,7 @@ impl ModInstaller {
 
             let _ = app.emit(
                 "resource-download-progress",
-                crate::services::resource_service::ResourceProgressPayload {
+                crate::services::resource::ResourceProgressPayload {
                     task_id: file_name.to_string(),
                     file_name: file_name.to_string(),
                     stage: "DOWNLOADING_MOD".to_string(),
@@ -116,7 +116,7 @@ impl ModInstaller {
 
             let _ = app.emit(
                 "resource-download-progress",
-                crate::services::resource_service::ResourceProgressPayload {
+                crate::services::resource::ResourceProgressPayload {
                     task_id: file_name.to_string(),
                     file_name: file_name.to_string(),
                     stage: "DONE".to_string(),
@@ -161,8 +161,8 @@ impl ModInstaller {
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
 
-        let db = app.state::<crate::services::db_service::AppDatabase>();
-        let row = crate::services::db_service::InstanceModDbRow {
+        let db = app.state::<crate::services::db::AppDatabase>();
+        let row = crate::services::db::InstanceModDbRow {
             instance_id: instance_id.to_string(),
             file_name: file_name.to_string(),
             is_enabled: true,
@@ -176,7 +176,7 @@ impl ModInstaller {
             source_project_id: None,
             source_file_id: None,
         };
-        let _ = crate::services::db_service::DbService::upsert_instance_mods(&db.pool, instance_id, &[row]).await;
+        let _ = crate::services::db::DbService::upsert_instance_mods(&db.pool, instance_id, &[row]).await;
 
         use tauri::Emitter;
         let _ = app.emit(
@@ -238,9 +238,9 @@ impl ModInstaller {
         }
 
         if !renamed.is_empty() {
-            let db = app.state::<crate::services::db_service::AppDatabase>();
+            let db = app.state::<crate::services::db::AppDatabase>();
             for item in &renamed {
-                let _ = crate::services::db_service::DbService::toggle_instance_mod(
+                let _ = crate::services::db::DbService::toggle_instance_mod(
                     &db.pool,
                     instance_id,
                     &item.original_file_name,

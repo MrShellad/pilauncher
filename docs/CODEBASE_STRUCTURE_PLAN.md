@@ -117,8 +117,8 @@ app/pages -> features -> shared
 - 初始页面 Hook 同时存在于 `src/hooks/pages/` 和 `src/features/*/hooks/`；Phase 2 后已全部归入 Feature。
 - `src/style/app.css` 重复导入 `src/index.css`。
 - `src/App.css`、`src/assets/react.svg` 已在确认无静态或动态引用后于 Phase 2 删除。
-- `src/assets/legal/` 和 `src-tauri/src/utils/` 当前为空。
-- `src-tauri/dispatch2-0.3.1/` 是由 Cargo patch 使用的已跟踪 vendored crate，不可直接删除。
+- `src/assets/legal/` 当前为空；空的 `src-tauri/src/utils/` 已在 Phase 5 确认无引用后删除。
+- `src-tauri/dispatch2-0.3.1/` 是由 Cargo patch 使用的已跟踪 vendored crate；2026-10-13 复核后按用户要求恢复并继续保留。
 
 当前重点结构问题：
 
@@ -406,7 +406,10 @@ home / settings   -> authentication + account
 - [x] 将 `dialogs/components` 之类的重复层级扁平化。
 - [x] 将 `src/style/pages/Multiplayer.css` 整体归位到 Multiplayer Feature，并保持全局加载时机不变。
 - [x] 按 Multiplayer 页面外壳、联机流程与在线服务器子组件职责拆分 Feature 内样式。
+- [x] 将 Home 的账户/LAN 侧栏与启动文章弹窗样式归位到同名组件目录，并保持全局加载顺序不变。
+- [x] 将 Wardrobe 皮肤卡片预览与 Settings 页面页签样式按真实组件名归位，并保持全局加载顺序不变。
 - [ ] 样式与其所有者共置，保留真正全局的 token、reset 和主题样式。
+- [ ] 继续归位共享 UI 的集中样式（2026-10-12 按用户要求暂缓，先推进 Phase 5）。
 - [x] 消除 `src/style/app.css` 中两个 `index.css` 导入的命名歧义。
 
 首批完成结果（2026-10-09）：
@@ -517,12 +520,16 @@ home / settings   -> authentication + account
 - 将 1917 行 `features/multiplayer/multiplayer.css` 拆为 3 行聚合入口，以及 `styles/page-shell.css`（页面外壳与共享反馈）、`styles/terracotta-flow.css`（Terracotta 选择、状态和日志流程）、`styles/online-servers.css`（服务器目录、浮动刷新与兼容卡片样式）三个职责文件；各断点规则随其所有者归位。
 - 本批保留当前 JSX 已不再引用的旧服务器卡片选择器，不把死样式删除混入结构拆分；后续应在独立清理批次核实后移除。
 - Multiplayer 样式拆分后以 PostCSS AST 对比确认拆分前后的 281 条“媒体条件 + 选择器 + 声明”规则一致；`pnpm build`、`pnpm structure:check -- --details` 与 diff 空白检查通过，主 CSS 产物约 444.31 kB，Multiplayer 路由块仍约 63.37 kB。
+- 将 `style/features/home/MicrosoftAccountSidebar.css` 与 `StartupArticlePushModal.css` 分别归位到 `features/home/components/` 下的同名组件旁；两份样式无相对资源、内部导入或全局根选择器，`style/app.css` 仅替换导入路径并保持原顺序。
+- Home 样式归位前后两份 CSS 的 Git blob 哈希分别保持一致；`pnpm build`、`pnpm structure:check -- --details` 与 diff 空白检查通过，主 CSS 产物继续为约 444.31 kB，未改变样式内容、加载时机或级联顺序。
+- 将 `style/pages/Wardrobe.css` 按实际选择器所有者改名并归位为 `features/wardrobe/components/WardrobeSkinCardPreview.css`，将 `style/pages/Settings.css` 归位为 `features/settings/components/SettingsPageController.css`；两份样式均无相对资源、内部导入或全局根选择器，聚合入口只替换路径。
+- Wardrobe 与 Settings 样式归位前后 Git blob 哈希一致；`pnpm build`、`pnpm structure:check -- --details` 与 diff 空白检查通过，主 CSS 产物继续为约 444.31 kB，未改变样式内容、加载时机或级联顺序。
 
 遗漏复核（更新至 2026-10-12）：
 
 - 旧 `instance-detail`、根级 `store/stores` 和 `hooks/pages` 均已删除，未发现迁移残留引用。
 - 全部 11 个 `*Page.tsx` 已完成复核：10 个页面为 5 行 Feature 组合，`ResourceDownloadPage.tsx` 为 10 行跨 Feature 弹窗契约注入；页面层已无 `useState`、Effect、输入动作或跨 Feature 深层导入。
-- 样式共置已从 Multiplayer 开始：原页面样式已整体归位到 Feature，但 `src/style/pages`、`src/style/features` 与 `src/style/ui` 仍集中保存大量组件样式，且 Multiplayer 内部样式尚待按现有子组件职责拆分，因此总括任务保持未完成。
+- 样式共置已完成 Multiplayer、Home、Wardrobe 和 Settings 四个明确批次；`src/style/features` 与 `src/style/pages` 已清空，剩余 `src/style/ui` 需要区分真正共享的基础样式与可归位到共享组件的文件，因此总括任务保持未完成。
 - 超过 500 行只作为复核信号；纯数据、设计 token 或单一算法实现不因行数自动拆分。
 - ScreenshotPanel 拆分后发现并补做 `export/ExportConfirmStep.tsx`；再次扫描确认实例详情目录已无超过 500 行的源码文件。
 - GameLogSidebar 拆分后重新扫描前端大文件；`SkinEngine`、设计 token 和平台 API 等单一生命周期/数据/网关文件继续按职责而非行数判断，其余多职责 UI 纳入下一轮复核。
@@ -549,7 +556,7 @@ home / settings   -> authentication + account
 
 当前未发现新的超过 500 行且承担多种职责的 UI 模块；后续大文件处理以页面业务编排复核结果为准，不再按行数机械拆分。
 
-`features/multiplayer/multiplayer.css` 约 1917 行，已完成所有权归位；后续应按页面外壳、联机流程与在线服务器组件边界拆分，避免只按行数机械切割。
+Multiplayer 的 1917 行聚合样式已完成职责拆分；其中 `styles/online-servers.css` 仍约 828 行，但同时保留了当前 JSX 未引用的兼容卡片选择器，应在独立死样式清理批次核实，不因行数直接删除。
 
 建议限制：
 
@@ -559,22 +566,71 @@ home / settings   -> authentication + account
 
 ### Phase 5：Rust 模块整理
 
-状态：`TODO`
+状态：`DONE`
 
 任务：
 
-- [ ] 统一 `services` 下模块是否使用 `_service` 后缀。
-- [ ] 统一 `commands` 下模块是否使用 `_cmd` 后缀。
-- [ ] 优先采用父目录表达角色，例如 `services/config.rs`、`commands/auth.rs`。
-- [ ] 将 `dispatch2-0.3.1` 移入明确的 `vendor/dispatch2` 路径并更新 Cargo patch。
-- [ ] 为 vendored crate 添加来源、版本、补丁原因和升级方式说明。
-- [ ] 删除确认无用的空 `src-tauri/src/utils/`，或在实际需要时再建立。
+- [x] 移除 `commands/` 根级模块的 `_cmd` 后缀并更新内部模块路径，不改变 Tauri command 名称。
+- [x] 单独整理 `commands/instance/` 子模块；8 个模块直接移除 `_cmd`，与目录入口 `mod.rs` 冲突的 `mod_cmd.rs` 改为 `mods.rs`。
+- [x] 分批整理 `services/` 根级文件与 `_service` 目录，先核对公共路径和同名冲突。
+  - [x] 首先将 14 个根级 `*_service.rs` 文件直接移除 `_service` 后缀，并更新模块路径。
+  - [x] 再单独将四个根级目录重命名为 `db`、`import`、`modpack`、`webdav_sync`，并更新模块路径。
+  - [x] 最后整理 `instance/`、`lan/`、`import/` 子域内 8 个 `*_service.rs` 文件，直接移除 `_service` 后缀并更新模块路径。
+- [x] 统一 `services` 下模块是否使用 `_service` 后缀。
+- [x] 统一 `commands` 下模块是否使用 `_cmd` 后缀。
+- [x] 优先采用父目录表达角色，例如 `services/config.rs`、`commands/auth.rs`。
+- [x] 保留 `src-tauri/dispatch2-0.3.1/` vendored 副本及对应 `[patch.crates-io]` 配置。
+- [x] 恢复本地 `dispatch2` patch，并验证现有目标继续通过检查。
+- [x] 删除确认无用且无引用的空 `src-tauri/src/utils/`；如未来实际需要，再按职责建立具体模块。
 
 约束：
 
 - 不修改已发布数据库迁移文件的名称、顺序或内容。
 - 不在纯目录整理中改变 Tauri command、事件名、配置键和持久化格式。
-- vendored crate 只能在确认 Cargo patch 指向新位置后移动。
+- 删除 vendored crate 前必须先移除对应 Cargo patch，并验证锁文件和现有目标仍可解析。
+
+首批完成结果（2026-10-12）：
+
+- 将 `commands/` 根级 28 个 `*_cmd.rs` 文件统一改为父目录已表达角色的无后缀名称，并同步 `commands/mod.rs`、`lib.rs` 与游戏运行状态消费者的 Rust 模块路径。
+- 根级与实例子域同时存在的 `resource_cmd` 采用上下文限定替换；根级模块改为 `commands::resource`，`commands::instance::resource_cmd` 保持不变，实例子模块未混入本批。
+- 对 28 个移动文件与 5 个路径消费者执行机械等价校验，确认差异仅为预定模块名替换；`cargo check --manifest-path src-tauri/Cargo.toml` 与 `pnpm structure:check -- --details` 通过，仅保留既有的 WebDAV keymap 未使用参数警告。
+
+第二批完成结果（2026-10-12）：
+
+- 将 `commands/instance/` 下 9 个 `*_cmd.rs` 文件统一为无命令角色后缀的名称；其中 8 个直接移除 `_cmd`，`mod_cmd.rs` 因与目录入口 `mod.rs` 冲突而改为 `mods.rs`。
+- 同步更新实例命令模块声明与 Tauri 注册路径，未修改函数、外部 command 名称、参数、序列化字段或业务实现；`commands/` 下已不再存在 `_cmd` 文件或模块引用。
+- 9 个移动文件的机械等价校验、`cargo check --manifest-path src-tauri/Cargo.toml` 与 `pnpm structure:check -- --details` 均通过；仅保留既有的 WebDAV keymap 未使用参数警告与当前文件系统不支持增量缓存硬链接的环境警告。
+
+第三批完成结果（2026-10-12）：
+
+- 将 `services/` 根级 14 个 `*_service.rs` 文件直接移除 `_service` 后缀，覆盖 animation、config、gamepad、library、loader、logshare、minecraft、qrcode、resource、runtime、social、telemetry 与 wiki 等根级服务模块。
+- 同步更新 72 个原路径消费者和根级服务模块声明；未调整服务类型名、函数、公开数据结构、配置键或业务实现。根级 `_service` 目录与子域内部 `_service` 文件留在后续独立批次。
+- 14 个移动文件与 72 个消费者的机械等价校验通过，`cargo check --manifest-path src-tauri/Cargo.toml` 与 `pnpm structure:check -- --details` 均通过，仅保留既有的 WebDAV keymap 未使用参数警告。
+
+第四批完成结果（2026-10-12）：
+
+- 将根级 `db_service`、`import_service`、`modpack_service`、`webdav_sync_service` 目录分别重命名为 `db`、`import`、`modpack`、`webdav_sync`，父级 `services/` 继续表达服务角色。
+- 同步更新 38 个目录内文件及 29 个原路径消费者中的模块路径与路径注释；未修改数据库迁移、服务接口、配置键、持久化格式或业务实现。
+- 38 个移动文件与 29 个消费者的机械等价校验通过，`cargo check --manifest-path src-tauri/Cargo.toml` 与 `pnpm structure:check -- --details` 均通过；仅保留既有的 WebDAV keymap 未使用参数警告与当前文件系统不支持增量缓存硬链接的环境警告。
+
+第五批完成结果（2026-10-13）：
+
+- 将 `instance/`、`lan/`、`import/` 子域内剩余 8 个 `*_service.rs` 文件直接移除 `_service` 后缀，覆盖 achievement、backup、mod_manifest、verify、mdns、transfer、local_instance 与 third_party 模块。
+- 同步更新 14 个原路径消费者及三个子域模块声明；未修改服务类型名、函数、Tauri 命令、数据结构或业务实现。
+- `services/` 下已不存在 `_service` 文件、目录或模块声明；仅在 auth 模块中保留说明历史兼容来源的 `auth_service` 注释。
+- 8 个移动文件与 14 个消费者的机械等价校验通过，`cargo check --manifest-path src-tauri/Cargo.toml` 与 `pnpm structure:check -- --details` 均通过，仅保留既有的 WebDAV keymap 未使用参数警告。
+
+第六批完成结果（2026-10-13）：
+
+- 复核 `dispatch2` 的 Apple 平台用途后，按用户要求恢复 `src-tauri/dispatch2-0.3.1/` vendored 副本及 `src-tauri/Cargo.toml` 中对应的 `[patch.crates-io]`。
+- `Cargo.lock` 中 `dispatch2 0.3.1` 已恢复为本地 path patch 来源，不再记录 crates.io registry 来源与校验和。
+- 恢复后执行 `cargo check --manifest-path src-tauri/Cargo.toml` 与 `pnpm structure:check -- --details`，确认本地 patch 和现有结构可继续通过检查。
+
+第七批完成结果（2026-10-13）：
+
+- 确认 `src-tauri/src/utils/` 为空、未被 Git 跟踪，且不存在 Rust 模块声明、源码引用或动态路径引用后删除该目录。
+- 仅删除空目录，没有移动工具函数或改变 Rust 业务实现；未来若出现共享工具能力，应按明确职责建立模块，避免重新创建无所有者的通用容器目录。
+- 删除后执行 `cargo check --manifest-path src-tauri/Cargo.toml` 与 `pnpm structure:check -- --details`，完成 Phase 5 验收。
 
 ## 6. 自动化约束建议
 
@@ -650,7 +706,7 @@ cargo check --manifest-path src-tauri/Cargo.toml
 - 不顺带重写网络、下载、登录或实例管理逻辑。
 - 不修改用户数据目录结构。
 - 不修改已发布数据库迁移。
-- 不删除 `dispatch2` vendored crate，除非 Cargo 已不再需要该 patch。
+- 不删除 `dispatch2` vendored crate 或对应 Cargo patch；若未来确需调整，必须先验证 Apple 平台依赖用途并单独确认。
 - 不要求一次性完成全部改造；优先保持主分支可构建。
 
 ## 10. 当前进度
@@ -661,7 +717,7 @@ cargo check --manifest-path src-tauri/Cargo.toml
 | Phase 1：纯命名统一 | DONE | 目录和页面命名已统一，构建通过 |
 | Phase 2：重复目录治理 | DONE | Store 与页面 Hook 已归位，旧根目录已禁止 |
 | Phase 3：Feature 解耦 | DONE | 远程目录、本地资源和下载任务已分层，跨 Feature 深层导入降为 0 |
-| Phase 4：大模块拆分 | IN PROGRESS | 全部 11 个路由页面与多职责 UI 大文件清单已完成复核和编排迁移；Multiplayer 样式已归位并按页面外壳、Terracotta 流程、在线服务器目录拆分，其他组件拆分成果保持不变；下一步继续推进其余集中样式共置 |
-| Phase 5：Rust 整理 | TODO | 尚未执行 |
+| Phase 4：大模块拆分 | IN PROGRESS | 全部 11 个路由页面与多职责 UI 大文件清单已完成复核和编排迁移；Multiplayer、Home、Wardrobe 与 Settings 样式已归位，共享 UI 样式按用户要求暂缓 |
+| Phase 5：Rust 整理 | DONE | Command/Service 后缀统一完成，本地 `dispatch2` patch 已恢复并保留，空的 `src-tauri/src/utils/` 已清理 |
 
-最近更新：2026-10-12，Phase 0 至 Phase 3 完成；Phase 4 已完成深层目录扁平化、实例领域合并、Keymap 子域拆分、全部 11 个路由页面编排迁移和语义化 `*Page.ts` 打包边界隔离，并完成实例详情与多职责 UI 大文件复核，以及 Library、资源下载与 Instances 控制器、Library 收藏占位弹窗、Java 选择器、Download 筛选栏/资源网格/版本更新日志、项目描述/实例选择下载详情弹窗、设置 UI 展示弹窗、通用目录浏览弹窗、游戏日志侧栏、在线服务器卡片、截图面板、导出确认步骤、存档恢复弹窗、实例模组下载视图/资源网格/面板控制器、实例资源模组服务、账户 LAN 侧栏与好友设备面板、皮肤引擎稳定算法边界、WebDAV 管理弹窗、外观设置和更衣室控制器的职责拆分；Multiplayer 样式已整体归位并按页面外壳、Terracotta 流程和在线服务器目录拆分，下一步继续推进其余集中样式共置。
+最近更新：2026-10-13，Phase 0 至 Phase 3 完成；Phase 4 已完成深层目录扁平化、实例领域合并、Keymap 子域拆分、全部 11 个路由页面编排迁移和语义化 `*Page.ts` 打包边界隔离，并完成实例详情与多职责 UI 大文件复核，以及 Library、资源下载与 Instances 控制器、Library 收藏占位弹窗、Java 选择器、Download 筛选栏/资源网格/版本更新日志、项目描述/实例选择下载详情弹窗、设置 UI 展示弹窗、通用目录浏览弹窗、游戏日志侧栏、在线服务器卡片、截图面板、导出确认步骤、存档恢复弹窗、实例模组下载视图/资源网格/面板控制器、实例资源模组服务、账户 LAN 侧栏与好友设备面板、皮肤引擎稳定算法边界、WebDAV 管理弹窗、外观设置和更衣室控制器的职责拆分；Multiplayer、Home、Wardrobe 与 Settings 的明确样式已归位，共享 UI 样式按用户要求暂缓。Phase 5 已完成 Command/Service 后缀统一，本地 `dispatch2` patch 已恢复并继续保留，空的 `src-tauri/src/utils/` 已确认无引用后清理。
