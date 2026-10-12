@@ -211,6 +211,16 @@ export const useModOperations = ({
         subFolder: 'mods',
         title: targetFileName,
         message: `Preparing ${getActionText(action)} mod...`,
+        modSource: platform && projectId
+          ? {
+              sourceKind: 'launcherDownload',
+              platform,
+              projectId,
+              fileId: targetVersionId,
+              version: version?.version_number || version?.name || mod.updateVersionName || undefined,
+              oldFileName
+            }
+          : undefined,
         onCompleted: async () => {
 
       const name = mod.name || mod.networkInfo?.title || '';
@@ -224,17 +234,6 @@ export const useModOperations = ({
           .catch((err) => console.error('Failed to update mod cache:', err));
       }
 
-      const targetVersionName = version?.version_number || version?.name || mod.updateVersionName || '';
-      await modService.updateModManifest(
-        instanceId,
-        targetFileName,
-        'launcherDownload',
-        platform,
-        projectId,
-        targetVersionId,
-        targetVersionName || undefined,
-        oldFileName
-      );
       if (platform) {
         const matchedPlatforms = {
           ...(mod.manifestEntry?.matchedPlatforms || {}),
@@ -249,10 +248,6 @@ export const useModOperations = ({
         );
         await modService.updateModPlatformMatches(instanceId, targetFileName, matchedPlatforms);
         await modService.updateModMetadataSettings(instanceId, targetFileName, metadataSettings);
-      }
-
-      if (targetFileName !== oldFileName) {
-        await modService.deleteMod(instanceId, oldFileName);
       }
 
       const installedMod: ModMeta = {

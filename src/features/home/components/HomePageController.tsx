@@ -108,8 +108,7 @@ export const HomePageController: React.FC = () => {
         initial={OreMotionTokens.homeBottomPanel.initial}
         animate={OreMotionTokens.homeBottomPanel.animate}
         transition={OreMotionTokens.homeBottomPanel.transition}
-        className="pointer-events-none absolute bottom-[clamp(5.5rem,13vh,12rem)] left-1/2 z-20 flex w-full justify-center"
-        style={{ x: "-50%" }}
+        className="pointer-events-none absolute inset-x-0 bottom-[clamp(5.5rem,13vh,12rem)] z-20 flex w-full justify-center"
       >
         <LaunchControls
           instanceId={currentId}

@@ -141,7 +141,7 @@ export const JavaSettings: React.FC = () => {
   return (
     <SettingsPageLayout adaptiveScale>
       <SettingsSection title={t('settings.java.sections.autoDownload')} icon={<Download size={18} />}>
-        <div className="px-6 py-4 bg-[#141415]/50 flex flex-col gap-4">
+        <div className="px-6 py-4 flex flex-col gap-4">
           <p className="font-minecraft text-sm text-ore-text-muted leading-relaxed" dangerouslySetInnerHTML={{ __html: t('settings.java.autoDownloadDesc') }} />
 
           <div className="grid grid-cols-12 gap-4 items-end w-full">
@@ -327,7 +327,7 @@ export const JavaSettings: React.FC = () => {
       </SettingsSection>
 
       <SettingsSection title={t('settings.java.sections.memory')} icon={<Cpu size={18} />}>
-        <div className="px-6 py-4 bg-[#141415]/50">
+        <div className="px-6 py-4">
           <p className="font-minecraft text-sm text-ore-text-muted leading-relaxed">
             {t('settings.java.memoryDesc')}
           </p>

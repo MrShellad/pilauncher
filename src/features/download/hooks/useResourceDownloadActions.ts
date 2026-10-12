@@ -68,9 +68,10 @@ export function useResourceDownloadActions({
       try {
         let oldFileName: string | undefined;
         let installAction: 'install' | 'reinstall' | 'upgrade' = 'install';
+        const projectId = customProjectId || projectOverride?.projectId || targetVersion.project_id || selectedProject?.id || '';
+        const platform = (projectOverride?.source || source) === 'curseforge' ? 'curseforge' : 'modrinth';
 
         if (activeTab === 'mod') {
-          const projectId = customProjectId || projectOverride?.projectId || targetVersion.project_id || selectedProject?.id || '';
           if (projectId) {
             const currentInstalledMods = await modService.getCachedModManifest(singleInstanceId, true).catch(() => []);
             const validActualMods = (currentInstalledMods || []).filter((mod) => (mod.fileSize || 0) > 0);
@@ -110,26 +111,18 @@ export function useResourceDownloadActions({
             : installAction === 'upgrade'
               ? `正在升级替换: ${targetVersion.file_name}`
               : t('download.progress.connecting', { defaultValue: 'Connecting...' }),
+          modSource: activeTab === 'mod' && projectId && targetVersion.id
+            ? {
+                sourceKind: 'launcherDownload',
+                platform,
+                projectId,
+                fileId: String(targetVersion.id),
+                version: targetVersion.version_number || undefined,
+                oldFileName
+              }
+            : undefined,
           onCompleted: async () => {
             if (activeTab !== 'mod') return;
-
-            const projectId = customProjectId || projectOverride?.projectId || targetVersion.project_id || selectedProject?.id || '';
-            if (projectId) {
-              if (oldFileName && oldFileName !== targetVersion.file_name) {
-                await modService.deleteMod(singleInstanceId, oldFileName).catch(console.error);
-              }
-
-              await modService.updateModManifest(
-                singleInstanceId,
-                targetVersion.file_name,
-                'launcherDownload',
-                (projectOverride?.source || source) === 'curseforge' ? 'curseforge' : 'modrinth',
-                projectId,
-                targetVersion.id,
-                targetVersion.version_number || undefined,
-                oldFileName
-              );
-            }
 
             if (singleInstanceId === instanceId) {
               await refreshInstalledMods();

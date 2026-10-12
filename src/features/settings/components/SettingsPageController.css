@@ -13,6 +13,23 @@
   white-space: nowrap;
 }
 
+/* Keep the scroll viewport flush with the tab bar and page bottom so content
+   is clipped only at the real viewport edges. The 6px breathing room belongs
+   to the scrollable content and is visible only at the start/end positions. */
+.settings-tabs-content .ore-settings-page-layout {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.settings-tabs-content .ore-overlay-scrollarea__content {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.settings-tabs-content .ore-settings-page-layout__content {
+  padding-bottom: 0;
+}
+
 @media (max-width: 90rem) {
   .settings-tabs-header {
     padding-left: clamp(0.5rem, 1vw, 1rem);

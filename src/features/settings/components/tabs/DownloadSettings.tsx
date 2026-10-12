@@ -357,7 +357,7 @@ export const DownloadSettings: React.FC = () => {
         />
 
         {download.proxyType !== 'none' && (
-          <div className="divide-y-2 divide-[#1E1E1F] bg-[#141415]/30">
+          <div className="divide-y-2 divide-[#1E1E1F]">
             <FormRow
               label={t('settings.download.proxyHost')}
               control={

@@ -69,6 +69,7 @@ export const OreButton: React.FC<OreButtonProps> = ({
   focusable = true,
   onArrowPress,
   autoScroll,
+  style,
   ...props 
 }) => {
   // 处理尺寸与向后兼容模式
@@ -116,37 +117,39 @@ export const OreButton: React.FC<OreButtonProps> = ({
           }}
           tabIndex={tabIndex}
           className={`
-            ore-btn relative inline-flex items-center justify-center font-minecraft tracking-wide
-            focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 transition-none antialiased
+            ore-btn relative inline-flex items-center justify-center font-minecraft
+            focus:outline-none transition-none
             ${sizeClass}
             ${widthClass}
             ${VARIANTS[variant]}
             ${focused ? 'is-focused' : ''}
             ${className}
           `}
-          style={{ fontWeight: 'normal', ...props.style }}
+          style={{ fontWeight: 'normal', ...style }}
           {...props}
         >
-          {loading ? (
-            <span className="inline-flex items-center justify-center gap-1.5">
-              <Loader2 size={sizeConfig.loaderSize} className="animate-spin shrink-0" />
-              {!isIconOnly && children && <span>{children}</span>}
-            </span>
-          ) : (
-            <>
-              {prefixIcon && (
-                <span className="mr-1.5 shrink-0 inline-flex items-center justify-center pointer-events-none">
-                  {prefixIcon}
-                </span>
-              )}
-              {children}
-              {suffixIcon && (
-                <span className="ml-1.5 shrink-0 inline-flex items-center justify-center pointer-events-none">
-                  {suffixIcon}
-                </span>
-              )}
-            </>
-          )}
+          <span className="ore-btn__content">
+            {loading ? (
+              <span className="inline-flex items-center justify-center gap-1.5">
+                <Loader2 size={sizeConfig.loaderSize} className="animate-spin shrink-0" />
+                {!isIconOnly && children && <span>{children}</span>}
+              </span>
+            ) : (
+              <>
+                {prefixIcon && (
+                  <span className="mr-1.5 shrink-0 inline-flex items-center justify-center pointer-events-none">
+                    {prefixIcon}
+                  </span>
+                )}
+                {children}
+                {suffixIcon && (
+                  <span className="ml-1.5 shrink-0 inline-flex items-center justify-center pointer-events-none">
+                    {suffixIcon}
+                  </span>
+                )}
+              </>
+            )}
+          </span>
         </button>
       )}
     </FocusItem>

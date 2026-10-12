@@ -256,8 +256,8 @@ export const OreMotionTokens = {
   },
 
   homeBottomPanel: {
-    initial: { y: 100, opacity: 0, x: "-50%" },
-    animate: { y: 0, opacity: 1, x: "-50%" },
+    initial: { y: 100, opacity: 0 },
+    animate: { y: 0, opacity: 1 },
     transition: { type: "spring" as const, stiffness: 160, damping: 18, delay: 0.18 }
   }
 

@@ -174,7 +174,7 @@ export const SettingsPageController: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 w-full overflow-hidden relative">
+      <div className="settings-tabs-content flex-1 w-full overflow-hidden relative">
         <Suspense fallback={<div className="absolute inset-0" />}>
           {renderContent()}
         </Suspense>

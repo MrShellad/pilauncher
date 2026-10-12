@@ -32,7 +32,9 @@ use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
+use tokio::sync::Semaphore;
 
 // 数据模型
 #[derive(Serialize, Deserialize, Clone, Default, sqlx::FromRow)]
@@ -553,6 +555,13 @@ impl ModManagerService {
         let mut mods = Vec::new();
         let mut pending_fast_emit: Vec<ModMetadata> = Vec::new();
         let request_id_ref = request_id.as_deref();
+        // JAR parsing, CurseForge fingerprinting and SHA-1 hashing are CPU-heavy. Leave
+        // headroom for the UI and downloads instead of filling the blocking pool with one
+        // worker per changed mod.
+        let scan_parallelism = std::thread::available_parallelism()
+            .map(|value| (value.get() / 2).clamp(1, 4))
+            .unwrap_or(2);
+        let scan_cpu_slots = Arc::new(Semaphore::new(scan_parallelism));
 
         for (file_name, (path, is_enabled, file_size, modified_at)) in actual_files {
             let db_entry = db_mod_map.get(&file_name);
@@ -647,6 +656,7 @@ impl ModManagerService {
             let pool_clone = pool.clone();
             let path_clone = path.clone();
             let file_name_clone = file_name.clone();
+            let scan_cpu_slots = Arc::clone(&scan_cpu_slots);
             let metadata_settings = persisted_metadata_settings
                 .get(&mod_manifest_key(&file_name))
                 .cloned();
@@ -662,7 +672,11 @@ impl ModManagerService {
 
             tasks.push(tokio::spawn(async move {
                 let shared_mods_dir_for_blocking = shared_mods_dir_clone.clone();
-                let (mut meta, mut extracted_icon_rel_path, bucket_dir) =
+                let cpu_slot = scan_cpu_slots
+                    .acquire_owned()
+                    .await
+                    .expect("mod scan CPU semaphore must remain open");
+                let blocking_result =
                     tokio::task::spawn_blocking(move || {
                         let mut m = jar_parser::JarParser::parse_jar_meta(&path_clone);
                         m.is_enabled = is_enabled;
@@ -749,6 +763,8 @@ impl ModManagerService {
                     })
                     .await
                     .unwrap();
+                drop(cpu_slot);
+                let (mut meta, mut extracted_icon_rel_path, bucket_dir) = blocking_result;
 
                 if let Some((known_sha1, known_entry)) = known_download_identity {
                     Self::restore_known_download_identity(&mut meta, &known_sha1, known_entry);

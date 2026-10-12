@@ -1,85 +1,103 @@
 /* /src/style/ui/primitives/OreButton.css */
 @layer components {
-  /* ================= 基础物理框架 (Minecraft Bedrock 9-Slice) ================= */
+  /* ================= 基础物理框架（纯 CSS Bedrock 风格） ================= */
   .ore-btn {
     --ore-btn-unit: 2px;
-    --ore-btn-face-offset: 0px;
-    --ore-btn-border: #1E1E1F;
+    --ore-btn-depth: calc(var(--ore-btn-unit) * 2);
+    --ore-btn-border: #1e1e1f;
+    --ore-btn-current-bg: var(--ore-btn-bg);
+    --ore-btn-current-highlight-top: var(--ore-btn-highlight-top);
+    --ore-btn-current-highlight-side: var(--ore-btn-highlight-side);
+    --ore-btn-current-depth: var(--ore-btn-shadow);
+    --ore-btn-current-depth-size: var(--ore-btn-depth);
 
     @apply relative inline-flex items-center justify-center box-border font-minecraft uppercase font-bold transition-none outline-none leading-none select-none;
+    appearance: none;
+    top: 0;
     white-space: nowrap;
     margin: 0;
-    padding-bottom: calc(var(--ore-btn-unit) * 2); /* 4px 默认底部阴影补偿 */
+    border: var(--ore-btn-unit) solid var(--ore-btn-border);
+    border-radius: 0;
+    overflow: hidden;
+    background-color: var(--ore-btn-current-bg);
+    background-clip: padding-box;
+    background-image: none;
     color: var(--ore-btn-fg, #FFFFFF);
-
-    background:
-      /* 顶边黑框（随 face-offset 整体位移） */
-      linear-gradient(var(--ore-btn-border), var(--ore-btn-border)) center
-        var(--ore-btn-face-offset) / 100% var(--ore-btn-unit) no-repeat,
-      /* 底边黑框（固定在最底边） */
-      linear-gradient(var(--ore-btn-border), var(--ore-btn-border)) center
-        bottom / 100% var(--ore-btn-unit) no-repeat,
-      /* 左边黑框（从 face-offset 开始向下延伸） */
-      linear-gradient(var(--ore-btn-border), var(--ore-btn-border)) left
-        var(--ore-btn-face-offset) / var(--ore-btn-unit)
-        calc(100% - var(--ore-btn-face-offset)) no-repeat,
-      /* 右边黑框（从 face-offset 开始向下延伸） */
-      linear-gradient(var(--ore-btn-border), var(--ore-btn-border)) right
-        var(--ore-btn-face-offset) / var(--ore-btn-unit)
-        calc(100% - var(--ore-btn-face-offset)) no-repeat,
-      /* 底部 4px 实体立体暗阴影（未按下时可见） */
-      linear-gradient(var(--ore-btn-shadow), var(--ore-btn-shadow)) center
-        calc(100% - var(--ore-btn-unit)) /
-        calc(100% - var(--ore-btn-unit) * 2) calc(var(--ore-btn-unit) * 2)
-        no-repeat,
-      /* 顶部内高光框（随 face-offset 位移） */
-      linear-gradient(var(--ore-btn-highlight), var(--ore-btn-highlight))
-        center calc(var(--ore-btn-unit) + var(--ore-btn-face-offset)) /
-        calc(100% - var(--ore-btn-unit) * 2) var(--ore-btn-unit) no-repeat,
-      /* 底部边缘内高光框 */
-      linear-gradient(var(--ore-btn-highlight), var(--ore-btn-highlight))
-        center
-        calc(100% - var(--ore-btn-unit) * 3 + var(--ore-btn-face-offset)) /
-        calc(100% - var(--ore-btn-unit) * 2) var(--ore-btn-unit) no-repeat,
-      /* 左侧内高光框 */
-      linear-gradient(var(--ore-btn-highlight), var(--ore-btn-highlight))
-        left calc(var(--ore-btn-unit) + var(--ore-btn-face-offset)) /
-        calc(var(--ore-btn-unit) * 2)
-        calc(100% - var(--ore-btn-unit) * 4 - 1px) no-repeat,
-      /* 右侧内高光框 */
-      linear-gradient(var(--ore-btn-highlight), var(--ore-btn-highlight))
-        right calc(var(--ore-btn-unit) + var(--ore-btn-face-offset)) /
-        calc(var(--ore-btn-unit) * 2)
-        calc(100% - var(--ore-btn-unit) * 4 - 1px) no-repeat,
-      /* 主背景表面（填充从 face-offset 到最底部的区域） */
-      linear-gradient(var(--ore-btn-bg), var(--ore-btn-bg))
-        center var(--ore-btn-face-offset) / 100%
-        calc(100% - var(--ore-btn-face-offset)) no-repeat;
+    filter: none;
+    text-shadow: none;
   }
 
-  /* 物理按下状态：整个按钮表面及其黑框下移 4px，底部阴影消隐，顶部露出 4px 留白 */
+  /* 表面与底部厚度分层绘制，所有边都落在整数像素上。 */
+  .ore-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    box-sizing: border-box;
+    background-color: inherit;
+    border-style: solid;
+    border-width: var(--ore-btn-unit) var(--ore-btn-unit) 0;
+    border-color:
+      var(--ore-btn-current-highlight-top)
+      var(--ore-btn-current-highlight-side)
+      transparent
+      var(--ore-btn-current-highlight-top);
+    pointer-events: none;
+  }
+
+  .ore-btn::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 0;
+    box-sizing: border-box;
+    height: calc(var(--ore-btn-unit) + var(--ore-btn-current-depth-size));
+    border-top: var(--ore-btn-unit) solid var(--ore-btn-current-highlight-side);
+    background-color: var(--ore-btn-current-depth);
+    pointer-events: none;
+  }
+
+  .ore-btn__content {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin-inline: auto;
+    align-items: inherit;
+    justify-content: inherit;
+    gap: inherit;
+    text-align: center;
+    pointer-events: none;
+    transform: none;
+  }
+
+  .ore-btn:hover:not(:disabled) {
+    --ore-btn-current-bg: var(--ore-btn-bg-hover);
+    --ore-btn-current-highlight-top: var(--ore-btn-highlight-top-hover);
+    --ore-btn-current-highlight-side: var(--ore-btn-highlight-side-hover);
+  }
+
+  /* 官方按下态：整个按钮盒下沉一个单位，光源不翻转，底部厚度消失。 */
   .ore-btn:active:not(:disabled) {
-    --ore-btn-bg: var(--ore-btn-bg-active) !important;
-    --ore-btn-highlight: var(--ore-btn-hl-active) !important;
-    --ore-btn-shadow: transparent !important;
-    --ore-btn-face-offset: calc(var(--ore-btn-unit) * 2) !important; /* 4px */
-    padding-top: var(--ore-btn-face-offset) !important;
-    padding-bottom: 0px !important;
+    --ore-btn-current-bg: var(--ore-btn-bg-active);
+    --ore-btn-current-highlight-top: var(--ore-btn-highlight-top-active);
+    --ore-btn-current-highlight-side: var(--ore-btn-highlight-side-active);
+    --ore-btn-current-depth-size: 0px;
+    top: var(--ore-btn-unit);
   }
 
-  /* ================= 高光焦点导航环 (HDR Ready) ================= */
-  .ore-btn.is-focused {
-    outline: 2px solid var(--ore-focus-ringFallback, #FFFFFF);
-    outline: 2px solid var(--ore-focus-ring, #FFFFFF);
-    outline-offset: 1px;
+  /* ================= 键盘 / 手柄焦点环 ================= */
+  .ore-btn.is-focused,
+  .ore-btn:focus-visible {
+    outline: var(--ore-btn-unit) solid var(--ore-focus-ringFallback, #FFFFFF);
+    outline: var(--ore-btn-unit) solid var(--ore-focus-ring, #FFFFFF);
+    outline-offset: 0;
     z-index: 20;
-    filter: drop-shadow(0 0 6px var(--ore-focus-glow, rgba(255, 255, 255, 0.6))) brightness(1.1);
-  }
-
-  /* 当按钮被按下时，焦点环保持稳定不动 */
-  .ore-btn.is-focused:active:not(:disabled) {
-    outline-offset: 1px;
-    filter: drop-shadow(0 0 4px var(--ore-focus-glow, rgba(255, 255, 255, 0.6))) brightness(1.1);
   }
 
   /* ================= Primary / Hero (绿色动作) ================= */
@@ -88,93 +106,99 @@
     --ore-btn-bg-hover: #52A535;
     --ore-btn-bg-active: #2A641C;
     --ore-btn-shadow: #1D4D13;
-    --ore-btn-highlight: #6CC349;
-    --ore-btn-hl-hover: #86D562;
-    --ore-btn-hl-active: #3F7333;
+    --ore-btn-highlight-top: #639D52;
+    --ore-btn-highlight-side: #4F913C;
+    --ore-btn-highlight-top-hover: #75B75D;
+    --ore-btn-highlight-side-hover: #63AE49;
+    --ore-btn-highlight-top-active: #558349;
+    --ore-btn-highlight-side-active: #3F7332;
     --ore-btn-fg: #FFFFFF;
     text-shadow: none;
   }
-  .ore-btn-primary:hover:not(:disabled) {
-    --ore-btn-bg: var(--ore-btn-bg-hover);
-    --ore-btn-highlight: var(--ore-btn-hl-hover);
-  }
-
   /* ================= Secondary (灰色次要) ================= */
   .ore-btn-secondary {
     --ore-btn-bg: #D0D1D4;
-    --ore-btn-bg-hover: #E6E8EB;
+    --ore-btn-bg-hover: #F4F6F9;
     --ore-btn-bg-active: #B1B2B5;
     --ore-btn-shadow: #58585A;
-    --ore-btn-highlight: #FFFFFF;
-    --ore-btn-hl-hover: #FFFFFF;
-    --ore-btn-hl-active: #C7C8CB;
+    --ore-btn-highlight-top: #ECEDEE;
+    --ore-btn-highlight-side: #E3E3E5;
+    --ore-btn-highlight-top-hover: #FBFBFD;
+    --ore-btn-highlight-side-hover: #F8FAFB;
+    --ore-btn-highlight-top-active: #E0E0E1;
+    --ore-btn-highlight-side-active: #D0D1D3;
     --ore-btn-fg: #1E1E1F;
     text-shadow: none;
   }
-  .ore-btn-secondary:hover:not(:disabled) {
-    --ore-btn-bg: var(--ore-btn-bg-hover);
-    --ore-btn-highlight: var(--ore-btn-hl-hover);
-  }
-
   /* ================= Danger (红色危险) ================= */
   .ore-btn-danger {
-    --ore-btn-bg: #C33636;
-    --ore-btn-bg-hover: #D54242;
-    --ore-btn-bg-active: #AD1D1D;
-    --ore-btn-shadow: #7D1515;
-    --ore-btn-highlight: #DE6868;
-    --ore-btn-hl-hover: #E58080;
-    --ore-btn-hl-active: #BD3B3B;
+    --ore-btn-bg: #CA3636;
+    --ore-btn-bg-hover: #FF8080;
+    --ore-btn-bg-active: #C02D2D;
+    --ore-btn-shadow: #AD1D1D;
+    --ore-btn-highlight-top: #D55E5E;
+    --ore-btn-highlight-side: #CF4A4A;
+    --ore-btn-highlight-top-hover: #FF9999;
+    --ore-btn-highlight-side-hover: #FF8C8C;
+    --ore-btn-highlight-top-active: #CD5757;
+    --ore-btn-highlight-side-active: #C64242;
     --ore-btn-fg: #FFFFFF;
     text-shadow: none;
   }
-  .ore-btn-danger:hover:not(:disabled) {
-    --ore-btn-bg: var(--ore-btn-bg-hover);
-    --ore-btn-highlight: var(--ore-btn-hl-hover);
-  }
-
   /* ================= Purple (紫色史诗) ================= */
   .ore-btn-purple {
     --ore-btn-bg: #9333EA;
     --ore-btn-bg-hover: #A855F7;
     --ore-btn-bg-active: #7E22CE;
     --ore-btn-shadow: #581C87;
-    --ore-btn-highlight: #C084FC;
-    --ore-btn-hl-hover: #D8B4FE;
-    --ore-btn-hl-active: #9333EA;
+    --ore-btn-highlight-top: #C084FC;
+    --ore-btn-highlight-side: #A855F7;
+    --ore-btn-highlight-top-hover: #D8B4FE;
+    --ore-btn-highlight-side-hover: #C084FC;
+    --ore-btn-highlight-top-active: #A855F7;
+    --ore-btn-highlight-side-active: #9333EA;
     --ore-btn-fg: #FFFFFF;
     text-shadow: none;
   }
-  .ore-btn-purple:hover:not(:disabled) {
-    --ore-btn-bg: var(--ore-btn-bg-hover);
-    --ore-btn-highlight: var(--ore-btn-hl-hover);
-  }
-
-  /* ⚡ 新增：-- Ghost (幽灵 / 透明按钮) --- */
+  /* ================= Ghost（幽灵 / 透明按钮） ================= */
   .ore-btn-ghost {
-    background: transparent !important;
-    border: 2px solid transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
     color: #A0A2A5 !important;
-    padding-bottom: 0px !important;
+  }
+  .ore-btn-ghost::before,
+  .ore-btn-ghost::after {
+    display: none;
   }
   .ore-btn-ghost:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1) !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
     color: #FFFFFF !important;
   }
   .ore-btn-ghost:active:not(:disabled) {
-    background: rgba(255, 255, 255, 0.2) !important;
+    background-color: rgba(255, 255, 255, 0.2) !important;
     color: #FFFFFF !important;
-    padding-top: 0px !important;
-    --ore-btn-face-offset: 0px !important;
   }
 
   /* ================= Disabled (禁用还原) ================= */
   .ore-btn:disabled {
     --ore-btn-bg: #D0D1D4;
+    --ore-btn-bg-hover: #D0D1D4;
+    --ore-btn-bg-active: #D0D1D4;
     --ore-btn-shadow: #B1B2B5;
-    --ore-btn-highlight: #D0D1D4;
+    --ore-btn-highlight-top: #D0D1D4;
+    --ore-btn-highlight-side: #D0D1D4;
+    --ore-btn-highlight-top-hover: #D0D1D4;
+    --ore-btn-highlight-side-hover: #D0D1D4;
+    --ore-btn-highlight-top-active: #D0D1D4;
+    --ore-btn-highlight-side-active: #D0D1D4;
     --ore-btn-border: #8C8D90;
     --ore-btn-fg: #48494A;
+    --ore-btn-current-bg: var(--ore-btn-bg);
+    --ore-btn-current-highlight-top: var(--ore-btn-highlight-top);
+    --ore-btn-current-highlight-side: var(--ore-btn-highlight-side);
+    --ore-btn-current-depth: var(--ore-btn-shadow);
+    --ore-btn-current-depth-size: var(--ore-btn-depth);
     cursor: not-allowed;
     text-shadow: none;
   }

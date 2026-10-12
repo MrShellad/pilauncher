@@ -5,38 +5,12 @@ import { modService, type InstanceDependencyHealth, type ModMeta } from '../../.
 import type { useModManager } from '../../hooks/useModManager';
 
 const RESOURCE_REFRESH_DELAY_MS = 700;
-const RESOURCE_DONE_DEDUPE_MS = 2000;
-
-interface ResourceDownloadProgressPayload {
-  task_id?: string;
-  file_name?: string;
-  stage?: string;
-  current?: number;
-  total?: number;
-}
-
 interface UseModPanelResourceRefreshOptions {
   instanceId: string;
   mods: ModMeta[];
   isLoading: boolean;
   loadMods: ReturnType<typeof useModManager>['loadMods'];
 }
-
-const getResourceProgressKey = (payload: ResourceDownloadProgressPayload | null | undefined) =>
-  String(payload?.task_id || payload?.file_name || '').trim();
-
-const isCompletedResourceDownload = (payload: ResourceDownloadProgressPayload | null | undefined) => {
-  const key = getResourceProgressKey(payload);
-  if (!key || key === 'java_download') return false;
-
-  return payload?.stage === 'DONE'
-    || (
-      typeof payload?.current === 'number'
-      && typeof payload?.total === 'number'
-      && payload.total > 0
-      && payload.current >= payload.total
-    );
-};
 
 export function useModPanelResourceRefresh({
   instanceId,
@@ -49,8 +23,6 @@ export function useModPanelResourceRefresh({
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRefreshingRef = useRef(false);
   const refreshAgainRef = useRef(false);
-  const lastDoneKeyRef = useRef('');
-  const lastDoneAtRef = useRef(0);
 
   const refreshDependencyHealth = useCallback(async () => {
     if (!instanceId) return;
@@ -67,10 +39,13 @@ export function useModPanelResourceRefresh({
   }, [mods]);
 
   useEffect(() => {
-    if (!isLoading && mods.length > 0) {
+    if (isLoading || mods.length === 0) return;
+
+    const timer = window.setTimeout(() => {
       void refreshDependencyHealth();
-    }
-  }, [instanceId, dependencyStateSignature, isLoading, refreshDependencyHealth]);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [instanceId, dependencyStateSignature, isLoading, mods.length, refreshDependencyHealth]);
 
   const scheduleRefresh = useCallback(() => {
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
@@ -106,19 +81,6 @@ export function useModPanelResourceRefresh({
   useEvent('instance-mods-fs-changed', (payload) => {
     if (payload.instanceId !== instanceId) return;
     if (isBatchUpgradeRunningRef.current) return;
-    scheduleRefresh();
-  });
-
-  useEvent('resource-download-progress', (payload) => {
-    if (!isCompletedResourceDownload(payload)) return;
-    if (isBatchUpgradeRunningRef.current) return;
-
-    const doneKey = getResourceProgressKey(payload);
-    const now = Date.now();
-    if (doneKey === lastDoneKeyRef.current && now - lastDoneAtRef.current < RESOURCE_DONE_DEDUPE_MS) return;
-
-    lastDoneKeyRef.current = doneKey;
-    lastDoneAtRef.current = now;
     scheduleRefresh();
   });
 

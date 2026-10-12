@@ -1,10 +1,9 @@
 // /src/features/home/components/LaunchControls.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { OreButton } from '../../../ui/primitives/OreButton';
 import { useTranslation } from 'react-i18next';
 
-import { FocusItem } from '../../../ui/focus/FocusItem';
-import { useScreenDensity } from '../../../hooks/ui/useScreenDensity';
+import { useScreenDensity, type ScreenDensity } from '../../../hooks/ui/useScreenDensity';
 import { focusManager } from '../../../ui/focus/FocusManager';
 import { useInputMode } from '../../../ui/focus/FocusProvider';
 
@@ -23,6 +22,68 @@ interface LaunchControlsProps {
   onSelectInstance: () => void;
 }
 
+type LaunchControlStyle = React.CSSProperties & {
+  [key: `--${string}`]: string | number;
+};
+
+const LAUNCH_CONTROL_STYLE_BY_DENSITY: Record<ScreenDensity, LaunchControlStyle> = {
+  compact: {
+    '--launch-control-w': '352px',
+    '--launch-control-gap': '8px',
+    '--launch-action-h': '36px',
+    '--launch-hero-h': '44px',
+    '--launch-action-font': '14px',
+    '--launch-hero-font': '16px',
+    '--launch-action-gap': '6px',
+    '--launch-action-unit': '2px',
+    '--launch-hero-unit': '2px',
+  },
+  deck: {
+    '--launch-control-w': '384px',
+    '--launch-control-gap': '20px',
+    '--launch-action-h': '56px',
+    '--launch-hero-h': '72px',
+    '--launch-action-font': '20px',
+    '--launch-hero-font': '26px',
+    '--launch-action-gap': '12px',
+    '--launch-action-unit': '3px',
+    '--launch-hero-unit': '3px',
+  },
+  desktop: {
+    '--launch-control-w': '448px',
+    '--launch-control-gap': '24px',
+    '--launch-action-h': '64px',
+    '--launch-hero-h': '80px',
+    '--launch-action-font': '22px',
+    '--launch-hero-font': '28px',
+    '--launch-action-gap': '14px',
+    '--launch-action-unit': '3px',
+    '--launch-hero-unit': '4px',
+  },
+  wide: {
+    '--launch-control-w': '512px',
+    '--launch-control-gap': '28px',
+    '--launch-action-h': '72px',
+    '--launch-hero-h': '88px',
+    '--launch-action-font': '24px',
+    '--launch-hero-font': '32px',
+    '--launch-action-gap': '16px',
+    '--launch-action-unit': '4px',
+    '--launch-hero-unit': '4px',
+  },
+  tv: {
+    '--launch-control-w': '576px',
+    '--launch-control-gap': '32px',
+    '--launch-action-h': '80px',
+    '--launch-hero-h': '96px',
+    '--launch-action-font': '28px',
+    '--launch-hero-font': '36px',
+    '--launch-action-gap': '18px',
+    '--launch-action-unit': '4px',
+    '--launch-hero-unit': '4px',
+  },
+};
+
 export const LaunchControls: React.FC<LaunchControlsProps> = ({
   instanceId,
   instanceName,
@@ -38,6 +99,8 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
 
   const [showNoAccountModal, setShowNoAccountModal] = useState(false);
   const [showNoInstanceModal, setShowNoInstanceModal] = useState(false);
+  const [pixelSnapX, setPixelSnapX] = useState(0);
+  const controlsRef = useRef<HTMLDivElement>(null);
 
   const inputMode = useInputMode();
   const { instances } = useInstances();
@@ -45,26 +108,47 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
   const density = useScreenDensity();
   const isCompact = density === 'compact';
 
-  const scaleStyle = isCompact ? {
-    '--launch-control-w': '22rem',
-    '--launch-control-gap': '0.5rem',
-    '--launch-action-h': '2.25rem',
-    '--launch-hero-h': '2.75rem',
-    '--launch-action-font': '0.875rem',
-    '--launch-hero-font': '1rem',
-    '--launch-action-gap': '0.375rem',
-  } as React.CSSProperties : {
-    '--launch-control-w': 'clamp(20rem, 42vmin, 96rem)',
-    '--launch-control-gap': 'calc(var(--launch-control-w) * 0.055)',
-    '--launch-action-h': 'calc(var(--launch-control-w) * 0.155)',
-    '--launch-hero-h': 'calc(var(--launch-control-w) * 0.195)',
-    '--launch-action-font': 'calc(var(--launch-control-w) * 0.052)',
-    '--launch-hero-font': 'calc(var(--launch-control-w) * 0.064)',
-    '--launch-action-gap': 'calc(var(--launch-control-w) * 0.035)',
-  } as React.CSSProperties;
+  const scaleStyle = LAUNCH_CONTROL_STYLE_BY_DENSITY[density];
 
-  const innerButtonClass = "!h-[var(--launch-action-h)] !text-[length:var(--launch-action-font)] !text-[#111214] [&_svg]:!text-[#111214] flex items-center justify-center gap-[var(--launch-action-gap)] w-full transition-colors duration-200 !m-0";
-  const heroButtonClass = "!h-[var(--launch-hero-h)] !text-[length:var(--launch-hero-font)] !text-white [&_svg]:!text-white flex items-center justify-center gap-[var(--launch-action-gap)] w-full transition-colors duration-200 !m-0";
+  const innerButtonClass = "[--ore-btn-unit:var(--launch-action-unit)] !h-[var(--launch-action-h)] !text-[length:var(--launch-action-font)] !text-[#111214] [&_svg]:!text-[#111214] flex items-center justify-center gap-[var(--launch-action-gap)] w-full !m-0";
+  const heroButtonClass = "[--ore-btn-unit:var(--launch-hero-unit)] !h-[var(--launch-hero-h)] !text-[length:var(--launch-hero-font)] !text-white [&_svg]:!text-white flex items-center justify-center gap-[var(--launch-action-gap)] w-full !m-0";
+
+  useLayoutEffect(() => {
+    const controls = controlsRef.current;
+    const container = controls?.parentElement;
+    if (!controls || !container) return;
+
+    let frameId = 0;
+
+    const snapToDevicePixel = () => {
+      cancelAnimationFrame(frameId);
+      frameId = requestAnimationFrame(() => {
+        const containerRect = container.getBoundingClientRect();
+        const controlsWidth = controls.getBoundingClientRect().width;
+        const unsnappedLeft = containerRect.left + (containerRect.width - controlsWidth) / 2;
+        const devicePixelRatio = window.devicePixelRatio || 1;
+        const snappedLeft = Math.round(unsnappedLeft * devicePixelRatio) / devicePixelRatio;
+        const nextOffset = snappedLeft - unsnappedLeft;
+
+        setPixelSnapX(currentOffset => (
+          Math.abs(currentOffset - nextOffset) < 0.001 ? currentOffset : nextOffset
+        ));
+      });
+    };
+
+    snapToDevicePixel();
+
+    const resizeObserver = new ResizeObserver(snapToDevicePixel);
+    resizeObserver.observe(container);
+    resizeObserver.observe(controls);
+    window.addEventListener('resize', snapToDevicePixel);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', snapToDevicePixel);
+    };
+  }, [density]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -134,101 +218,52 @@ export const LaunchControls: React.FC<LaunchControlsProps> = ({
   return (
     <>
       <div
-        className="pointer-events-auto flex w-[var(--launch-control-w)] flex-col items-center justify-center gap-[var(--launch-control-gap)]"
-        style={scaleStyle}
+        ref={controlsRef}
+        className="pointer-events-auto relative flex w-[var(--launch-control-w)] flex-col items-center justify-center gap-[var(--launch-control-gap)]"
+        style={{ ...scaleStyle, left: pixelSnapX }}
       >
 
         {/* 1. Play 主按钮 */}
-        <FocusItem focusKey="play-button" onEnter={handlePlayClick} autoScroll={false}>
-          {({ ref, focused }) => (
-            <div className="relative w-full group">
-              <div
-                className={`
-                  absolute inset-0 bg-ore-green/40 blur-xl rounded-sm pointer-events-none transition-all duration-500
-                  ${focused ? 'bg-ore-green/70 blur-2xl scale-105' : 'group-hover:bg-ore-green/60 group-hover:blur-2xl'}
-                `}
-              />
-              <div
-                ref={ref}
-                className={`
-                  relative w-full rounded-sm transition-shadow duration-150 z-10
-                  ${focused
-                    ? 'outline outline-[0.1875rem] outline-offset-[0.25rem] outline-ore-green shadow-[0_0_1.25rem_rgba(56,133,39,0.6)]'
-                    : 'outline outline-[0.1875rem] outline-offset-[0.25rem] outline-transparent'
-                  }
-                `}
-              >
-                <OreButton
-                  variant="primary"
-                  size="full"
-                  className={heroButtonClass}
-                  onClick={handlePlayClick}
-                  tabIndex={-1}
-                >
-                  <span className="font-minecraft font-bold tracking-[0.1em] uppercase leading-none">
-                    {t('home.launchGame')}
-                  </span>
-                </OreButton>
-              </div>
-            </div>
-          )}
-        </FocusItem>
+        <OreButton
+          focusKey="play-button"
+          variant="primary"
+          size="full"
+          className={heroButtonClass}
+          onClick={handlePlayClick}
+          autoScroll={false}
+        >
+          <span className="font-minecraft font-bold text-center uppercase leading-none">
+            {t('home.launchGame')}
+          </span>
+        </OreButton>
 
         {/* 2. 实例选择与设置按钮 */}
         <div className={`w-full flex ${isCompact ? 'flex-row gap-2' : 'flex-col gap-[var(--launch-control-gap)]'}`}>
-          <FocusItem focusKey="instance-button" onEnter={onSelectInstance} autoScroll={false}>
-            {({ ref, focused }) => (
-              <div
-                ref={ref}
-                className={`
-                  w-full rounded-sm transition-shadow duration-150
-                  ${focused
-                    ? 'z-10 outline outline-[0.1875rem] outline-offset-[0.25rem] outline-white/60 shadow-[0_0_0.9375rem_rgba(255,255,255,0.2)]'
-                    : 'outline outline-[0.1875rem] outline-offset-[0.25rem] outline-transparent'
-                  }
-                `}
-              >
-                <OreButton
-                  variant="secondary"
-                  size="full"
-                  className={innerButtonClass}
-                  onClick={onSelectInstance}
-                  tabIndex={-1}
-                >
-                  <span className="font-minecraft truncate max-w-[80%] tracking-wide leading-none">
-                    {instanceName}
-                  </span>
-                </OreButton>
-              </div>
-            )}
-          </FocusItem>
+          <OreButton
+            focusKey="instance-button"
+            variant="secondary"
+            size="full"
+            className={innerButtonClass}
+            onClick={onSelectInstance}
+            autoScroll={false}
+          >
+            <span className="max-w-[80%] truncate text-center font-minecraft leading-none">
+              {instanceName}
+            </span>
+          </OreButton>
 
-          <FocusItem focusKey="settings-button" onEnter={handleSettingsClick} autoScroll={false}>
-            {({ ref, focused }) => (
-              <div
-                ref={ref}
-                className={`
-                  w-full rounded-sm transition-shadow duration-150
-                  ${focused
-                    ? 'z-10 outline outline-[0.1875rem] outline-offset-[0.25rem] outline-white/60 shadow-[0_0_0.9375rem_rgba(255,255,255,0.2)]'
-                    : 'outline outline-[0.1875rem] outline-offset-[0.25rem] outline-transparent'
-                  }
-                `}
-              >
-                <OreButton
-                  variant="secondary"
-                  size="full"
-                  className={innerButtonClass}
-                  onClick={handleSettingsClick}
-                  tabIndex={-1}
-                >
-                  <span className="font-minecraft font-medium tracking-wide leading-none">
-                    {t('home.instanceDetail')}
-                  </span>
-                </OreButton>
-              </div>
-            )}
-          </FocusItem>
+          <OreButton
+            focusKey="settings-button"
+            variant="secondary"
+            size="full"
+            className={innerButtonClass}
+            onClick={handleSettingsClick}
+            autoScroll={false}
+          >
+            <span className="font-minecraft font-medium text-center leading-none">
+              {t('home.instanceDetail')}
+            </span>
+          </OreButton>
         </div>
 
       </div>
