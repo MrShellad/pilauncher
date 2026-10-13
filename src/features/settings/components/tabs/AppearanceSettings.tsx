@@ -239,6 +239,7 @@ export const AppearanceSettings = () => {
     keys.push('settings-appearance-font');
     keys.push('settings-appearance-gradient');
     keys.push(
+      'settings-appearance-download-double-column',
       'settings-appearance-nav-instances',
       'settings-appearance-nav-multiplayer',
       'settings-appearance-nav-downloads',

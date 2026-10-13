@@ -58,6 +58,7 @@ export interface AppearanceSettings {
   customLogoScale: number;
   hiddenNavTabs: string[];
   skipExitConfirm: boolean;
+  forceDoubleColumn: boolean;
   theme: 'light' | 'dark' | 'system';
 }
 
@@ -170,6 +171,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     customLogoScale: 100,
     hiddenNavTabs: [],
     skipExitConfirm: false,
+    forceDoubleColumn: false,
     theme: 'system',
   },
   java: {

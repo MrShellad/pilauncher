@@ -3,8 +3,8 @@ import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/
 import { Blocks } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { motion, AnimatePresence } from 'motion/react';
-import { useDownloadLayoutStore } from '../../../../download';
 
+import { useSettingsStore } from '../../../../../app/stores/useSettingsStore';
 import { FocusBoundary } from '../../../../../ui/focus/FocusBoundary';
 import { OreOverlayScrollArea } from '../../../../../ui/primitives/OreOverlayScrollArea';
 import { InstalledModIndex, type ModMeta } from '../../../../instance-resources';
@@ -89,7 +89,9 @@ export const ResourceGrid: React.FC<ResourceGridProps> = ({
 
   const [shouldAnimateLayout, setShouldAnimateLayout] = useState(false);
   const reflowTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const forceDoubleColumn = useDownloadLayoutStore((state) => state.forceDoubleColumn);
+  const forceDoubleColumn = useSettingsStore(
+    (state) => state.settings.appearance.forceDoubleColumn
+  );
 
   const computeDoubleColumn = useCallback(() => {
     if (forceDoubleColumn) return true;

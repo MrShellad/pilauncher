@@ -1,8 +1,6 @@
 import React from 'react';
-import type { TFunction } from 'i18next';
 
 import { GamepadButtonIcon } from '../../../ui/components/GamepadButtonIcon';
-import { OreSwitch } from '../../../ui/primitives/OreSwitch';
 import type { DownloadTabConfig } from './filterBarModel';
 import {
   filterControlHintClassName,
@@ -15,9 +13,6 @@ interface FilterBarTabsProps {
   tabs: DownloadTabConfig[];
   onTabChange: (tab: TabType) => void;
   isCompactOrDeck: boolean;
-  forceDoubleColumn: boolean;
-  setForceDoubleColumn: (value: boolean) => void;
-  t: TFunction;
 }
 
 export const FilterBarTabs: React.FC<FilterBarTabsProps> = ({
@@ -25,9 +20,6 @@ export const FilterBarTabs: React.FC<FilterBarTabsProps> = ({
   tabs,
   onTabChange,
   isCompactOrDeck,
-  forceDoubleColumn,
-  setForceDoubleColumn,
-  t,
 }) => {
   const tabButtonClassName = getFilterTabButtonClassName(isCompactOrDeck);
 
@@ -76,17 +68,8 @@ export const FilterBarTabs: React.FC<FilterBarTabsProps> = ({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-3">
+      <div className="flex shrink-0 items-center">
         <GamepadButtonIcon button="RT" size="lg" className={filterControlHintClassName} />
-        <div className="hidden items-center border-l border-white/10 pl-2.5 sm:flex">
-          <OreSwitch
-            focusKey="filter-switch-double-column"
-            checked={forceDoubleColumn}
-            onChange={setForceDoubleColumn}
-            label={t('download.filters.forceDoubleColumn', { defaultValue: '强制双列' })}
-            className="text-xs"
-          />
-        </div>
       </div>
     </div>
   );

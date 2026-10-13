@@ -15,14 +15,7 @@ use tokio::sync::RwLock;
 static VERSION_CACHE: Lazy<RwLock<Option<(String, Vec<VersionGroup>)>>> =
     Lazy::new(|| RwLock::new(None));
 
-const BUNDLED_MCV_JSON: &str = include_str!("../../../src/assets/download/mcv.json");
-
 pub struct McMetadataService;
-
-#[derive(Debug, serde::Deserialize)]
-struct BundledMcVersions {
-    versions: Vec<String>,
-}
 
 const OFFICIAL_MANIFEST_URL: &str =
     "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json";
@@ -46,75 +39,6 @@ impl McMetadataService {
                 OFFICIAL_MANIFEST_URL.to_string(),
             ],
         }
-    }
-
-    fn build_version_groups_from_ids(versions: Vec<String>) -> Vec<VersionGroup> {
-        let mut groups_map: BTreeMap<String, Vec<McVersion>> = BTreeMap::new();
-
-        for id in versions {
-            let version_type = if id.contains("-rc") {
-                "rc"
-            } else if id.contains("-pre") {
-                "pre"
-            } else if id.contains("snapshot") || id.contains("experimental") {
-                "snapshot"
-            } else {
-                "release"
-            };
-
-            let group_name = if version_type == "rc" {
-                if let Some((major, _)) = id.split_once("-rc") {
-                    format!("{} 候选版 (RC)", major)
-                } else {
-                    "候选版 (RC)".to_string()
-                }
-            } else if version_type == "pre" {
-                if let Some((major, _)) = id.split_once("-pre") {
-                    format!("{} 预发布版 (Pre)", major)
-                } else {
-                    "预发布版 (Pre)".to_string()
-                }
-            } else if version_type == "snapshot" {
-                if id.chars().take(2).all(|c| c.is_ascii_digit()) && id.contains('w') {
-                    format!("快照 {}", id)
-                } else {
-                    "其他快照".to_string()
-                }
-            } else {
-                let parts: Vec<&str> = id.split('.').collect();
-                if parts.len() >= 2 {
-                    format!("Minecraft {}.{}", parts[0], parts[1])
-                } else {
-                    format!("Minecraft {}", id)
-                }
-            };
-
-            groups_map.entry(group_name).or_default().push(McVersion {
-                id: id.clone(),
-                r#type: version_type.to_string(),
-                release_time: String::new(),
-                wiki_url: format!("https://minecraft.wiki/w/Java_Edition_{}", id),
-            });
-        }
-
-        let mut result: Vec<VersionGroup> = groups_map
-            .into_iter()
-            .map(|(group_name, mut versions)| {
-                versions.sort_by(|a, b| b.id.cmp(&a.id));
-                VersionGroup {
-                    group_name,
-                    versions,
-                }
-            })
-            .collect();
-
-        result.sort_by(|a, b| a.group_name.cmp(&b.group_name).reverse());
-        result
-    }
-
-    fn load_bundled_version_groups() -> Option<Vec<VersionGroup>> {
-        let bundled: BundledMcVersions = serde_json::from_str(BUNDLED_MCV_JSON).ok()?;
-        Some(Self::build_version_groups_from_ids(bundled.versions))
     }
 
     pub async fn fetch_remote_versions<R: Runtime>(
@@ -201,12 +125,6 @@ impl McMetadataService {
             }
 
             if manifest_content.is_empty() {
-                if let Some(fallback) = Self::load_bundled_version_groups() {
-                    let mut cache = VERSION_CACHE.write().await;
-                    *cache = Some((manifest_url, fallback.clone()));
-                    return Ok(fallback);
-                }
-
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::Other,
                     format!(
@@ -219,11 +137,6 @@ impl McMetadataService {
         }
 
         if manifest_content.is_empty() {
-            if let Some(fallback) = Self::load_bundled_version_groups() {
-                let mut cache = VERSION_CACHE.write().await;
-                *cache = Some((manifest_url, fallback.clone()));
-                return Ok(fallback);
-            }
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 "Failed to fetch version list and no cached manifest was available",
@@ -231,19 +144,8 @@ impl McMetadataService {
             .into());
         }
 
-        let response: RemoteVersionManifest = match serde_json::from_str(&manifest_content) {
-            Ok(parsed) => parsed,
-            Err(err) => {
-                if let Some(fallback) = Self::load_bundled_version_groups() {
-                    let mut cache = VERSION_CACHE.write().await;
-                    *cache = Some((manifest_url, fallback.clone()));
-                    return Ok(fallback);
-                }
-                return Err(
-                    std::io::Error::new(std::io::ErrorKind::InvalidData, err.to_string()).into(),
-                );
-            }
-        };
+        let response: RemoteVersionManifest = serde_json::from_str(&manifest_content)
+            .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err.to_string()))?;
 
         // 1. 准备更精细的正则表达式
         let re_rc = Regex::new(r"^([\d\.]+)-rc\d+$").unwrap(); // 匹配 1.21.2-rc1

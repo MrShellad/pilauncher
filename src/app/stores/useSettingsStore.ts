@@ -54,6 +54,19 @@ const hasJavaSelectionChanged = (
 
 let settingsWereLoadedFromDisk = false;
 
+const readLegacyForceDoubleColumn = () => {
+  try {
+    const value = localStorage.getItem('pilauncher-download-layout-preferences');
+    if (!value) return undefined;
+    const parsed = JSON.parse(value);
+    return typeof parsed?.state?.forceDoubleColumn === 'boolean'
+      ? parsed.state.forceDoubleColumn
+      : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 const applyPerformanceProfileToSettings = (
   settings: AppSettings,
   profile: PerformanceProfile
@@ -247,6 +260,10 @@ export const useSettingsStore = create<SettingsStore>()(
       storage: createJSONStorage(() => tauriStorage),
       merge: (persistedState: any, currentState: SettingsStore) => {
         if (!persistedState) return currentState;
+        const persistedAppearance = persistedState.settings?.appearance;
+        const forceDoubleColumn = typeof persistedAppearance?.forceDoubleColumn === 'boolean'
+          ? persistedAppearance.forceDoubleColumn
+          : readLegacyForceDoubleColumn() ?? currentState.settings.appearance.forceDoubleColumn;
         return {
           ...currentState,
           ...persistedState,
@@ -263,7 +280,8 @@ export const useSettingsStore = create<SettingsStore>()(
             },
             appearance: {
               ...currentState.settings.appearance,
-              ...persistedState.settings?.appearance
+              ...persistedAppearance,
+              forceDoubleColumn
             },
             java: { ...currentState.settings.java, ...persistedState.settings?.java },
             game: { ...currentState.settings.game, ...persistedState.settings?.game },

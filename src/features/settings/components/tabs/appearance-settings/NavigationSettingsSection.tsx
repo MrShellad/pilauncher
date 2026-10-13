@@ -30,6 +30,18 @@ export const NavigationSettingsSection = ({
   return (
     <SettingsSection title={t('settings.appearance.sections.navigation', '导航与行为')} icon={<LayoutDashboard size={18} />}>
       <FormRow
+        label={t('settings.appearance.forceDoubleColumn', '资源下载强制双列')}
+        description={t('settings.appearance.forceDoubleColumnDesc', '让资源下载列表始终使用双列布局，不受窗口宽度影响')}
+        control={
+          <OreSwitch
+            focusKey="settings-appearance-download-double-column"
+            onArrowPress={onArrowPress}
+            checked={appearance.forceDoubleColumn}
+            onChange={(value) => updateAppearanceSetting('forceDoubleColumn', value)}
+          />
+        }
+      />
+      <FormRow
         label={t('settings.appearance.showInstances', '显示「实例」')}
         description={t('settings.appearance.showInstancesDesc', '在顶部导航栏中显示实例入口')}
         control={

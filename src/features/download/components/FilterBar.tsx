@@ -7,7 +7,6 @@ import { useScreenDensity } from '../../../hooks/ui/useScreenDensity';
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
 import { useInputAction } from '../../../ui/focus/InputDriver';
 import type { FilterOption } from '../hooks/useResourceDownload';
-import { useDownloadLayoutStore } from '../stores/useDownloadLayoutStore';
 import {
   firstRow,
   getLoaderOptions,
@@ -48,8 +47,6 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 }) => {
   const { t, i18n } = useTranslation();
   const density = useScreenDensity();
-  const forceDoubleColumn = useDownloadLayoutStore((state) => state.forceDoubleColumn);
-  const setForceDoubleColumn = useDownloadLayoutStore((state) => state.setForceDoubleColumn);
   const isCompactOrDeck = density === 'compact' || density === 'deck';
 
   const localizeCategoryLabel = useCallback((option: FilterOption) => {
@@ -170,9 +167,6 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           tabs={tabs}
           onTabChange={onTabChange}
           isCompactOrDeck={isCompactOrDeck}
-          forceDoubleColumn={forceDoubleColumn}
-          setForceDoubleColumn={setForceDoubleColumn}
-          t={t}
         />
         <FilterBarFields
           category={category}

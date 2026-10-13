@@ -1,17 +1,15 @@
 import { useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 
-import mcvData from '../../../assets/download/mcv.json';
 import {
   getCachedCurseForgeCategories,
-  getCachedCurseForgeMinecraftVersions,
   getCachedModrinthCategories,
-  getCachedModrinthMcVersions,
-  hasCurseForgeApiKey,
   type CurseForgeCategoryOption,
   type DownloadSource,
   type FilterOption,
   type TabType
 } from '@/features/resource-catalog';
+import type { VersionGroup } from '@/features/instances';
 import {
   getBundledDownloadCategoryOptions,
   getSharedDownloadCategoryOptions
@@ -23,26 +21,48 @@ interface UseResourceDownloadMetadataOptions {
   source: DownloadSource;
 }
 
-const FALLBACK_MC_VERSIONS: string[] = Array.isArray(mcvData)
-  ? mcvData
-  : (mcvData as { versions?: string[] }).versions || [];
-
 const METADATA_LOAD_DELAY_MS = 180;
 
-const getDefaultVersions = (): FilterOption[] => FALLBACK_MC_VERSIONS.map((version) => ({
-  label: version,
-  value: version
-}));
+const toReleaseVersionOptions = (groups: VersionGroup[]): FilterOption[] => {
+  const releases = groups
+    .flatMap((group) => group.versions)
+    .filter((version) => version.type === 'release')
+    .sort((left, right) => right.release_time.localeCompare(left.release_time));
+
+  return Array.from(new Map(releases.map((version) => [version.id, {
+    label: version.id,
+    value: version.id
+  }])).values());
+};
 
 export const useResourceDownloadMetadata = ({
   activeTab,
   isEnvLoaded,
   source
 }: UseResourceDownloadMetadataOptions) => {
-  const [mcVersionOptions, setMcVersionOptions] = useState<FilterOption[]>(getDefaultVersions);
+  const [mcVersionOptions, setMcVersionOptions] = useState<FilterOption[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<FilterOption[]>(() => (
     getBundledDownloadCategoryOptions('mod')
   ));
+
+  useEffect(() => {
+    if (!isEnvLoaded) return;
+
+    let cancelled = false;
+
+    void invoke<VersionGroup[]>('get_minecraft_versions', { force: true })
+      .then((groups) => {
+        if (!cancelled) setMcVersionOptions(toReleaseVersionOptions(groups));
+      })
+      .catch((error) => {
+        console.error('Failed to load official Minecraft versions:', error);
+        if (!cancelled) setMcVersionOptions([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isEnvLoaded]);
 
   useEffect(() => {
     if (!isEnvLoaded) return;
@@ -56,30 +76,16 @@ export const useResourceDownloadMetadata = ({
       });
 
       if (source !== 'curseforge') {
-        const categoriesTask = getCachedModrinthCategories(activeTab, configuredModrinthCategories).catch((error) => {
+        const modrinthCategories = await getCachedModrinthCategories(activeTab, configuredModrinthCategories).catch((error) => {
           console.error('Failed to load Modrinth categories:', error);
           return configuredModrinthCategories;
         });
-        const versionsTask = getCachedModrinthMcVersions().catch((error) => {
-          console.error('Failed to load Modrinth game versions:', error);
-          return getDefaultVersions();
-        });
-
-        const [modrinthCategories, modrinthMcVersions] = await Promise.all([categoriesTask, versionsTask]);
 
         if (!cancelled) {
-          setMcVersionOptions(modrinthMcVersions.length > 0 ? modrinthMcVersions : getDefaultVersions());
           setCategoryOptions(modrinthCategories.length > 0 ? modrinthCategories : configuredModrinthCategories);
         }
         return;
       }
-
-      const versionTask = hasCurseForgeApiKey()
-        ? getCachedCurseForgeMinecraftVersions().catch((error) => {
-            console.error('加载 CurseForge 版本列表失败:', error);
-            return getDefaultVersions();
-          })
-        : Promise.resolve(getDefaultVersions());
 
       const categoryTask = activeTab === 'mod' || activeTab === 'resourcepack' || activeTab === 'shader'
         ? getCachedCurseForgeCategories(activeTab).catch((error) => {
@@ -88,10 +94,9 @@ export const useResourceDownloadMetadata = ({
           })
         : Promise.resolve([] as CurseForgeCategoryOption[]);
 
-      const [versions, categories] = await Promise.all([versionTask, categoryTask]);
+      const categories = await categoryTask;
       if (cancelled) return;
 
-      setMcVersionOptions(versions.length > 0 ? versions : getDefaultVersions());
       setCategoryOptions(categories);
     };
 

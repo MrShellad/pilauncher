@@ -1,4 +1,5 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 
 import { OreConfirmDialog } from '../../../ui/primitives/OreConfirmDialog';
@@ -9,16 +10,18 @@ import { useModPanelController } from './mods/hooks/useModPanelController';
 import { useModPanelFocusNavigation } from './mods/hooks/useModPanelFocusNavigation';
 import { FavoritePlaceholderModal } from '../../library';
 import { resolveInstanceGameVersion, resolveInstanceLoader } from '../../instance-resources';
-import mcvData from '../../../assets/download/mcv.json';
 import { fetchModrinthProjectById, matchModrinthVersionsByHashes, searchModrinth } from '../../resource-catalog';
 import { getCurseForgeProjectDetails, matchCurseForgeFingerprints, hasCurseForgeApiKey, searchCurseForge } from '../../resource-catalog';
 import { useToastStore } from '../../../shared/stores/useToastStore';
+import type { VersionGroup } from '../logic/environmentSelection';
 
-const FALLBACK_MC_VERSIONS: string[] = Array.isArray(mcvData)
-  ? mcvData
-  : (mcvData as { versions?: string[] }).versions || [];
-
-const MC_VERSION_OPTIONS = FALLBACK_MC_VERSIONS.map((version) => ({ label: version, value: version }));
+const toReleaseVersionOptions = (groups: VersionGroup[]) => Array.from(new Map(
+  groups
+    .flatMap((group) => group.versions)
+    .filter((version) => version.type === 'release')
+    .sort((left, right) => right.release_time.localeCompare(left.release_time))
+    .map((version) => [version.id, { label: version.id, value: version.id }])
+).values());
 
 const isProjectMatching = (hit: any, modId: string, name?: string): boolean => {
   const hitSlug = (hit.slug || '').toLowerCase();
@@ -171,7 +174,24 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   const [isFavoriteModalOpen, setIsFavoriteModalOpen] = useState(false);
   const [favoriteProjects, setFavoriteProjects] = useState<any[]>([]);
   const [isIdentifying, setIsIdentifying] = useState(false);
+  const [mcVersionOptions, setMcVersionOptions] = useState<{ label: string; value: string }[]>([]);
   const addToast = useToastStore((state) => state.addToast);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void invoke<VersionGroup[]>('get_minecraft_versions', { force: false })
+      .then((groups) => {
+        if (!cancelled) setMcVersionOptions(toReleaseVersionOptions(groups));
+      })
+      .catch((error) => {
+        console.error('Failed to load official Minecraft versions:', error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleBatchFavorite = useCallback(async () => {
     if (isIdentifying) return;
@@ -339,7 +359,7 @@ export const ModPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
         resourceType="mod"
         defaultGameVersion={resolveInstanceGameVersion(controller.state.instanceConfig)}
         defaultLoader={resolveInstanceLoader(controller.state.instanceConfig)}
-        mcVersionOptions={MC_VERSION_OPTIONS}
+        mcVersionOptions={mcVersionOptions}
         onCreated={() => {
           controller.list.onExitBatchMode();
         }}

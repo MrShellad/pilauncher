@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getCurrentFocusKey } from '@noriginmedia/norigin-spatial-navigation';
 
+import { useSettingsStore } from '../../../app/stores/useSettingsStore';
 import { useScreenDensity } from '../../../hooks/ui/useScreenDensity';
-import { useDownloadLayoutStore } from '../stores/useDownloadLayoutStore';
 
 export const useResourceGridLayout = () => {
-  const forceDoubleColumn = useDownloadLayoutStore((state) => state.forceDoubleColumn);
+  const forceDoubleColumn = useSettingsStore(
+    (state) => state.settings.appearance.forceDoubleColumn
+  );
   const density = useScreenDensity();
   const reflowTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastFocusedIndexRef = useRef<number | null>(null);

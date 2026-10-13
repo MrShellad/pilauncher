@@ -122,8 +122,7 @@
       "sort": "Sort",
       "versionFilters": "Version Filters",
       "moreHistory": "More History",
-      "snapshots": "Snapshots / Preview",
-      "forceDoubleColumn": "2 Columns"
+      "snapshots": "Snapshots / Preview"
     },
     "sort": {
       "relevance": "Relevance",
@@ -794,6 +793,8 @@
       "showDownloadsDesc": "Show the Downloads entry in the top navigation bar",
       "showLibrary": "Show \"Library\"",
       "showLibraryDesc": "Show the Library entry in the top navigation bar",
+      "forceDoubleColumn": "Force Two-Column Downloads",
+      "forceDoubleColumnDesc": "Always use a two-column layout for resource downloads, regardless of window width",
       "skipExitConfirm": "Skip Exit Confirmation",
       "skipExitConfirmDesc": "Close the window without showing a confirmation dialog (only applies when close behavior is set to \"Exit\")",
       "subscribeNewsCover": "Subscribe to Changelog Cover Background",
