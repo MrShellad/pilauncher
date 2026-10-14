@@ -133,7 +133,7 @@ export const useInstanceResourceDownloadQueue = ({
           : installAction === 'upgrade'
             ? `正在升级替换: ${version.file_name}`
             : 'Connecting...',
-        modSource: resourceTab === 'mod' && projectId && version.id
+        modSource: projectId && version.id
           ? {
               sourceKind: 'launcherDownload',
               platform,

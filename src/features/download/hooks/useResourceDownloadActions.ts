@@ -111,7 +111,7 @@ export function useResourceDownloadActions({
             : installAction === 'upgrade'
               ? `正在升级替换: ${targetVersion.file_name}`
               : t('download.progress.connecting', { defaultValue: 'Connecting...' }),
-          modSource: activeTab === 'mod' && projectId && targetVersion.id
+          modSource: activeTab !== 'modpack' && projectId && targetVersion.id
             ? {
                 sourceKind: 'launcherDownload',
                 platform,

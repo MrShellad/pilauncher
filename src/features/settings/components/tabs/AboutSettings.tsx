@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SettingsPageLayout } from '../../../../ui/layout/SettingsPageLayout';
 import { SettingsSection } from '../../../../ui/layout/SettingsSection';
-import { Info, Github, Heart, Users, ExternalLink, Tv, Zap, Crown, PackageOpen, Palette } from 'lucide-react';
+import { Info, Github, Heart, Users, ExternalLink, Tv, Zap, Crown, PackageOpen } from 'lucide-react';
 import { getVersion } from '@tauri-apps/api/app';
 import { invoke } from '@tauri-apps/api/core';
 import { QRCodeSVG } from 'qrcode.react';
@@ -14,7 +14,6 @@ import { OreModal } from '../../../../ui/primitives/OreModal';
 import { openExternalLink } from '../../../../utils/openExternalLink';
 import { DonorSkinModal, getDonorTierColor } from './account/DonorSkinModal';
 import type { DonorInfo } from './account/DonorSkinModal';
-import { OreUiShowcaseModal } from './account/OreUiShowcaseModal';
 
 type OpenSourceProjectGroup = 'frontend' | 'backend' | 'ecosystem';
 
@@ -108,7 +107,6 @@ export const AboutSettings: React.FC = () => {
   const [selectedDonor, setSelectedDonor] = useState<DonorInfo | null>(null);
   const [showSkinModal, setShowSkinModal] = useState(false);
   const [showOpenSourceModal, setShowOpenSourceModal] = useState(false);
-  const [showShowcaseModal, setShowShowcaseModal] = useState(false);
 
   useEffect(() => {
     getVersion().then(v => setVersion(v)).catch(console.error);
@@ -132,7 +130,6 @@ export const AboutSettings: React.FC = () => {
   // ✅ 1. 补全焦点链：从上到下，覆盖所有区域，防止焦点出现断层
   const focusOrder = [
     'settings-about-product',
-    'settings-about-showcase',
     'settings-about-open-source',
     'settings-about-github',
     'settings-about-bilibili',
@@ -206,18 +203,6 @@ export const AboutSettings: React.FC = () => {
           </FocusItem>
 
           <div className="flex flex-wrap items-center justify-center gap-3 px-4 pb-5">
-            <OreButton
-              focusKey="settings-about-showcase"
-              onArrowPress={handleLinearArrow}
-              variant="primary"
-              size="auto"
-              className="min-w-[200px] justify-center whitespace-nowrap"
-              onClick={() => setShowShowcaseModal(true)}
-            >
-              <Palette size={16} className="mr-2" />
-              {t('settings.about.componentShowcase.button', { defaultValue: 'OreUI 组件预览' })}
-            </OreButton>
-
             <OreButton
               focusKey="settings-about-open-source"
               onArrowPress={handleLinearArrow}
@@ -378,12 +363,6 @@ export const AboutSettings: React.FC = () => {
           setSelectedDonor(null);
         }}
         donor={selectedDonor}
-      />
-
-      {/* OreUI 组件工坊与设计规范全量展示弹窗 */}
-      <OreUiShowcaseModal
-        isOpen={showShowcaseModal}
-        onClose={() => setShowShowcaseModal(false)}
       />
 
       <OreModal

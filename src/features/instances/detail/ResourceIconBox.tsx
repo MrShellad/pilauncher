@@ -37,7 +37,10 @@ export const ResourceIconBox: React.FC<ResourceIconBoxProps> = ({
   className = '',
   fallbackIconSize = 24,
 }) => {
-  const iconSnapshot = useResourceIcon(item, priority, { instanceId, resType });
+  const iconSnapshot = useResourceIcon({
+    ...item,
+    hasNetworkIdentity: Boolean(item.meta?.projectId),
+  }, priority, { instanceId, resType });
   const isIconLoading = iconSnapshot.status === 'loading';
   const iconUrl = iconSnapshot.src;
 

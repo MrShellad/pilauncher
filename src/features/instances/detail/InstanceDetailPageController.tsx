@@ -267,7 +267,7 @@ export const InstanceDetailPageController: React.FC = () => {
               className={normalizedTab === 'resourcepacks' ? 'flex flex-1 h-full min-h-0 flex-col overflow-hidden' : 'hidden'}
             >
               <ErrorBoundary fallbackTitle="资源包面板加载失败">
-                <ResourcePackPanel instanceId={instanceId} />
+                <ResourcePackPanel instanceId={instanceId} gameVersion={data?.version} />
               </ErrorBoundary>
             </FocusBoundary>
 
@@ -278,7 +278,7 @@ export const InstanceDetailPageController: React.FC = () => {
               className={normalizedTab === 'shaders' ? 'flex flex-1 h-full min-h-0 flex-col overflow-hidden' : 'hidden'}
             >
               <ErrorBoundary fallbackTitle="光影包面板加载失败">
-                <ShaderPanel instanceId={instanceId} />
+                <ShaderPanel instanceId={instanceId} gameVersion={data?.version} />
               </ErrorBoundary>
             </FocusBoundary>
 

@@ -2,7 +2,7 @@ use once_cell::sync::Lazy;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
@@ -14,9 +14,9 @@ use crate::services::downloader::transfer::{
 };
 use crate::services::file_write_lock;
 
-/// Provider identity supplied by the resource centre for a Mod download.  It is persisted
-/// before the completion event so filesystem observers never see the new jar as an unknown
-/// local import.
+/// Provider identity supplied by the resource centre for an instance resource download.
+/// Mods persist this in the database; resource packs and shaders use the instance resource
+/// metadata manifest.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadedModSource {
@@ -156,6 +156,135 @@ fn resource_download_semaphore(concurrency: usize) -> Result<Arc<Semaphore>, Str
     ))
 }
 
+#[derive(Debug)]
+struct TextFilePatch {
+    path: PathBuf,
+    original_content: String,
+}
+
+fn rewrite_resource_pack_options_content(
+    content: &str,
+    old_file_name: &str,
+    new_file_name: &str,
+) -> Result<(String, bool), String> {
+    let mut output = String::with_capacity(content.len());
+    let mut changed = false;
+
+    for segment in content.split_inclusive('\n') {
+        let (line, line_ending) = if let Some(line) = segment.strip_suffix("\r\n") {
+            (line, "\r\n")
+        } else if let Some(line) = segment.strip_suffix('\n') {
+            (line, "\n")
+        } else {
+            (segment, "")
+        };
+
+        let Some((key, value)) = line.split_once(':') else {
+            output.push_str(line);
+            output.push_str(line_ending);
+            continue;
+        };
+        if key != "resourcePacks" && key != "incompatibleResourcePacks" {
+            output.push_str(line);
+            output.push_str(line_ending);
+            continue;
+        }
+
+        let mut entries: Vec<String> = serde_json::from_str(value)
+            .map_err(|error| format!("解析 options.txt 的 {key} 配置失败: {error}"))?;
+        let old_file_entry = format!("file/{old_file_name}");
+        let new_file_entry = format!("file/{new_file_name}");
+        let mut line_changed = false;
+        for entry in &mut entries {
+            if entry == &old_file_entry {
+                *entry = new_file_entry.clone();
+                line_changed = true;
+            } else if entry == old_file_name {
+                *entry = new_file_name.to_string();
+                line_changed = true;
+            }
+        }
+
+        if line_changed {
+            output.push_str(key);
+            output.push(':');
+            output.push_str(
+                &serde_json::to_string(&entries)
+                    .map_err(|error| format!("序列化 options.txt 的 {key} 配置失败: {error}"))?,
+            );
+            changed = true;
+        } else {
+            output.push_str(line);
+        }
+        output.push_str(line_ending);
+    }
+
+    Ok((output, changed))
+}
+
+fn write_text_file_atomically(path: &Path, content: &str) -> Result<(), String> {
+    let temp_path = path.with_extension("pil-update.tmp");
+    let backup_path = path.with_extension("pil-update.bak");
+    std::fs::write(&temp_path, content)
+        .map_err(|error| format!("写入配置临时文件失败: {error}"))?;
+
+    if backup_path.exists() {
+        std::fs::remove_file(&backup_path)
+            .map_err(|error| format!("清理配置旧备份失败: {error}"))?;
+    }
+    std::fs::rename(path, &backup_path).map_err(|error| format!("备份配置文件失败: {error}"))?;
+    if let Err(error) = std::fs::rename(&temp_path, path) {
+        let _ = std::fs::rename(&backup_path, path);
+        return Err(format!("提交配置文件失败: {error}"));
+    }
+    let _ = std::fs::remove_file(backup_path);
+    Ok(())
+}
+
+fn patch_selected_resource_pack(
+    game_dir: &Path,
+    old_file_name: &str,
+    new_file_name: &str,
+) -> Result<Option<TextFilePatch>, String> {
+    if old_file_name.eq_ignore_ascii_case(new_file_name) {
+        return Ok(None);
+    }
+
+    let options_path = game_dir.join("options.txt");
+    if !options_path.is_file() {
+        return Ok(None);
+    }
+    let original_content = std::fs::read_to_string(&options_path)
+        .map_err(|error| format!("读取 options.txt 失败: {error}"))?;
+    let (updated_content, changed) =
+        rewrite_resource_pack_options_content(&original_content, old_file_name, new_file_name)?;
+    if !changed {
+        return Ok(None);
+    }
+
+    write_text_file_atomically(&options_path, &updated_content)?;
+    Ok(Some(TextFilePatch {
+        path: options_path,
+        original_content,
+    }))
+}
+
+async fn restore_replaced_resource(
+    target_file_path: &Path,
+    backup_path: &Path,
+    had_existing_target: bool,
+    old_resource_path: Option<&PathBuf>,
+    old_resource_backup_path: Option<&PathBuf>,
+) {
+    let _ = tokio::fs::remove_file(target_file_path).await;
+    if had_existing_target {
+        let _ = tokio::fs::rename(backup_path, target_file_path).await;
+    }
+    if let (Some(old_path), Some(old_backup_path)) = (old_resource_path, old_resource_backup_path) {
+        let _ = tokio::fs::rename(old_backup_path, old_path).await;
+    }
+}
+
 async fn acquire_resource_download_slot(
     concurrency: usize,
     control: &DownloadControl,
@@ -216,6 +345,35 @@ mod download_scheduler_tests {
     }
 }
 
+#[cfg(test)]
+mod resource_pack_selection_tests {
+    use super::rewrite_resource_pack_options_content;
+
+    #[test]
+    fn resource_pack_update_preserves_enabled_and_incompatible_entries() {
+        let input = "resourcePacks:[\"vanilla\",\"file/Old Pack.zip\"]\r\n\
+incompatibleResourcePacks:[\"file/Old Pack.zip\"]\r\nlang:zh_cn\r\n";
+        let (output, changed) =
+            rewrite_resource_pack_options_content(input, "Old Pack.zip", "New Pack.zip")
+                .expect("resource pack options should be rewritten");
+
+        assert!(changed);
+        assert!(output.contains("resourcePacks:[\"vanilla\",\"file/New Pack.zip\"]\r\n"));
+        assert!(output.contains("incompatibleResourcePacks:[\"file/New Pack.zip\"]\r\n"));
+        assert!(output.ends_with("lang:zh_cn\r\n"));
+    }
+
+    #[test]
+    fn resource_pack_update_leaves_unselected_pack_unchanged() {
+        let input = "resourcePacks:[\"vanilla\",\"file/Other.zip\"]\n";
+        let (output, changed) = rewrite_resource_pack_options_content(input, "Old.zip", "New.zip")
+            .expect("valid resource pack options should parse");
+
+        assert!(!changed);
+        assert_eq!(output, input);
+    }
+}
+
 impl ResourceService {
     /// 获取并清洗项目详情
     pub async fn fetch_project_detail(project_id: &str) -> Result<OreProjectDetail, String> {
@@ -227,7 +385,10 @@ impl ResourceService {
 
         let res = client
             .get(&url)
-            .header("User-Agent", "PiLauncher/0.1.50 (contact@pilauncher.internal)")
+            .header(
+                "User-Agent",
+                "PiLauncher/0.1.50 (contact@pilauncher.internal)",
+            )
             .header("Accept", "application/json")
             .send()
             .await
@@ -237,10 +398,7 @@ impl ResourceService {
             return Err(format!("Modrinth API error ({}): {}", res.status(), url));
         }
 
-        let raw: ModrinthRawProject = res
-            .json()
-            .await
-            .map_err(|e| e.to_string())?;
+        let raw: ModrinthRawProject = res.json().await.map_err(|e| e.to_string())?;
 
         let gallery_urls = match raw.gallery {
             Some(g) => g.into_iter().map(|img| img.url).collect(),
@@ -292,7 +450,10 @@ impl ResourceService {
 
         let res = client
             .get(&url)
-            .header("User-Agent", "PiLauncher/0.1.50 (contact@pilauncher.internal)")
+            .header(
+                "User-Agent",
+                "PiLauncher/0.1.50 (contact@pilauncher.internal)",
+            )
             .header("Accept", "application/json")
             .query(&query)
             .send()
@@ -307,10 +468,7 @@ impl ResourceService {
             return Err(format!("Modrinth API error ({}): {}", res.status(), url));
         }
 
-        let raw_versions: Vec<ModrinthRawVersion> = res
-            .json()
-            .await
-            .map_err(|e| e.to_string())?;
+        let raw_versions: Vec<ModrinthRawVersion> = res.json().await.map_err(|e| e.to_string())?;
 
         let mut clean_versions = Vec::new();
         for v in raw_versions {
@@ -447,7 +605,16 @@ impl ResourceService {
                 .map_err(|e| e.to_string())?;
         }
 
-        let target_file_path = target_dir.join(file_name);
+        let installed_file_name = if mod_source
+            .and_then(|source| source.old_file_name.as_deref())
+            .is_some_and(|old_file_name| old_file_name.ends_with(".disabled"))
+            && !file_name.ends_with(".disabled")
+        {
+            format!("{file_name}.disabled")
+        } else {
+            file_name.to_string()
+        };
+        let target_file_path = target_dir.join(&installed_file_name);
         let path_key = target_file_path.to_string_lossy().to_string();
 
         // 同一路径同时只允许一个写入，避免并发写导致文件损坏
@@ -455,8 +622,7 @@ impl ResourceService {
         let _write_guard = path_lock.lock().await;
 
         // 2. 发起下载（支持分块 / 单连接自动回退）
-        let dl_settings =
-            crate::services::config::ConfigService::get_download_settings(app);
+        let dl_settings = crate::services::config::ConfigService::get_download_settings(app);
         let _download_slot =
             acquire_resource_download_slot(dl_settings.concurrency, &control).await?;
         let mut builder = Client::builder()
@@ -591,6 +757,71 @@ impl ResourceService {
             Ok(res) => res,
             Err(e) => {
                 let _ = tokio::fs::remove_file(&temp_target_path).await;
+                if sub_folder.eq_ignore_ascii_case("mods") {
+                    let db = app.state::<crate::services::db::AppDatabase>();
+                    let _ = crate::services::db::DbService::delete_instance_mods(
+                        &db.pool,
+                        instance_id,
+                        &[file_name.to_string()],
+                    )
+                    .await;
+                }
+                return Err(format!("下载失败: {}", e));
+            }
+        };
+
+        let old_resource_path = mod_source
+            .and_then(|source| source.old_file_name.as_deref())
+            .filter(|old_file_name| !old_file_name.eq_ignore_ascii_case(&installed_file_name))
+            .map(|old_file_name| target_dir.join(old_file_name))
+            .filter(|path| path.is_file());
+        let backup_path = target_dir.join(format!(".{installed_file_name}.update-backup"));
+        let had_existing_target = target_file_path.is_file();
+        if had_existing_target && old_resource_path.is_some() {
+            let _ = tokio::fs::remove_file(&temp_target_path).await;
+            return Err(format!(
+                "无法更新资源：目标文件 {installed_file_name} 已存在，请先处理同名文件"
+            ));
+        }
+        if had_existing_target {
+            let _ = tokio::fs::remove_file(&backup_path).await;
+            tokio::fs::rename(&target_file_path, &backup_path)
+                .await
+                .map_err(|error| format!("备份旧资源文件失败: {error}"))?;
+        }
+
+        let old_resource_backup_path = old_resource_path.as_ref().map(|old_path| {
+            target_dir.join(format!(
+                ".{}.update-backup",
+                old_path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("resource")
+            ))
+        });
+        if let (Some(old_path), Some(old_backup_path)) =
+            (&old_resource_path, &old_resource_backup_path)
+        {
+            let _ = tokio::fs::remove_file(old_backup_path).await;
+            if let Err(error) = tokio::fs::rename(old_path, old_backup_path).await {
+                if had_existing_target {
+                    let _ = tokio::fs::rename(&backup_path, &target_file_path).await;
+                }
+                return Err(format!("备份待更新资源文件失败: {error}"));
+            }
+        }
+
+        if let Err(error) = tokio::fs::rename(&temp_target_path, &target_file_path).await {
+            let _ = tokio::fs::remove_file(&temp_target_path).await;
+            if had_existing_target {
+                let _ = tokio::fs::rename(&backup_path, &target_file_path).await;
+            }
+            if let (Some(old_path), Some(old_backup_path)) =
+                (&old_resource_path, &old_resource_backup_path)
+            {
+                let _ = tokio::fs::rename(old_backup_path, old_path).await;
+            }
+            if sub_folder.eq_ignore_ascii_case("mods") {
                 let db = app.state::<crate::services::db::AppDatabase>();
                 let _ = crate::services::db::DbService::delete_instance_mods(
                     &db.pool,
@@ -598,45 +829,56 @@ impl ResourceService {
                     &[file_name.to_string()],
                 )
                 .await;
-                return Err(format!("下载失败: {}", e));
             }
-        };
-
-        if let Err(e) = tokio::fs::rename(&temp_target_path, &target_file_path).await {
-            let _ = tokio::fs::remove_file(&temp_target_path).await;
-            let db = app.state::<crate::services::db::AppDatabase>();
-            let _ = crate::services::db::DbService::delete_instance_mods(
-                &db.pool,
-                instance_id,
-                &[file_name.to_string()],
-            )
-            .await;
-            return Err(format!("移动文件失败: {}", e));
+            return Err(format!("替换资源文件失败: {error}"));
         }
+
+        let resource_pack_options_patch = if sub_folder.eq_ignore_ascii_case("resourcepacks") {
+            if let Some(old_file_name) =
+                mod_source.and_then(|source| source.old_file_name.as_deref())
+            {
+                let Some(game_dir) = target_dir.parent() else {
+                    restore_replaced_resource(
+                        &target_file_path,
+                        &backup_path,
+                        had_existing_target,
+                        old_resource_path.as_ref(),
+                        old_resource_backup_path.as_ref(),
+                    )
+                    .await;
+                    return Err("无法确定实例游戏目录，未能保持资源包启用状态".to_string());
+                };
+                match patch_selected_resource_pack(game_dir, old_file_name, &installed_file_name) {
+                    Ok(patch) => patch,
+                    Err(error) => {
+                        restore_replaced_resource(
+                            &target_file_path,
+                            &backup_path,
+                            had_existing_target,
+                            old_resource_path.as_ref(),
+                            old_resource_backup_path.as_ref(),
+                        )
+                        .await;
+                        return Err(format!("更新资源包配置失败，已恢复旧文件: {error}"));
+                    }
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
 
         // Write the provider/project/file identity before notifying the frontend that the
         // resource is complete. Previously this happened in a frontend callback after DONE,
         // allowing an automatic scan to classify a just-downloaded CurseForge/Modrinth file as
         // an unknown local archive and incorrectly start hash-based re-identification.
-        if let Some(source) = mod_source {
+        let identity_result = if let Some(source) = mod_source {
             if instance_id != "__library__" && sub_folder.eq_ignore_ascii_case("mods") {
-                if let Some(old_file_name) = source
-                    .old_file_name
-                    .as_deref()
-                    .filter(|old_file_name| *old_file_name != file_name)
-                {
-                    let old_path = target_dir.join(old_file_name);
-                    if old_path.is_file() {
-                        tokio::fs::remove_file(&old_path)
-                            .await
-                            .map_err(|error| format!("下载完成，但移除旧 Mod 文件失败: {error}"))?;
-                    }
-                }
-
                 crate::services::instance::resource_manager::ResourceManager::upsert_downloaded_mod(
                     app,
                     instance_id,
-                    file_name,
+                    &installed_file_name,
                     &source.source_kind,
                     &source.platform,
                     &source.project_id,
@@ -645,8 +887,61 @@ impl ResourceService {
                     source.old_file_name.clone(),
                 )
                 .await
-                .map_err(|error| format!("下载完成，但写入 Mod 平台身份失败: {error}"))?;
+                .map_err(|error| format!("下载完成，但写入 Mod 平台身份失败: {error}"))
+            } else if instance_id != "__library__"
+                && (sub_folder.eq_ignore_ascii_case("resourcepacks")
+                    || sub_folder.eq_ignore_ascii_case("shaderpacks"))
+            {
+                let resource_type = if sub_folder.eq_ignore_ascii_case("resourcepacks") {
+                    crate::services::instance::resource_manager::ResourceType::ResourcePack
+                } else {
+                    crate::services::instance::resource_manager::ResourceType::Shader
+                };
+                crate::services::instance::resource_manager::ResourceManager::upsert_downloaded_resource(
+                    app,
+                    instance_id,
+                    resource_type,
+                    &installed_file_name,
+                    &source.source_kind,
+                    &source.platform,
+                    &source.project_id,
+                    &source.file_id,
+                    source.version.clone(),
+                    source.old_file_name.as_deref(),
+                )
+                .map_err(|error| format!("下载完成，但写入资源平台身份失败: {error}"))
+            } else {
+                Ok(())
             }
+        } else {
+            Ok(())
+        };
+
+        if let Err(error) = identity_result {
+            let options_rollback_error = resource_pack_options_patch.as_ref().and_then(|patch| {
+                write_text_file_atomically(&patch.path, &patch.original_content).err()
+            });
+            restore_replaced_resource(
+                &target_file_path,
+                &backup_path,
+                had_existing_target,
+                old_resource_path.as_ref(),
+                old_resource_backup_path.as_ref(),
+            )
+            .await;
+            return Err(match options_rollback_error {
+                Some(rollback_error) => {
+                    format!("{error}；同时恢复 options.txt 失败: {rollback_error}")
+                }
+                None => error,
+            });
+        }
+
+        if had_existing_target {
+            let _ = tokio::fs::remove_file(&backup_path).await;
+        }
+        if let Some(old_backup_path) = old_resource_backup_path {
+            let _ = tokio::fs::remove_file(old_backup_path).await;
         }
 
         // 4. 下载完成封口事件
@@ -654,11 +949,11 @@ impl ResourceService {
             "resource-download-progress",
             ResourceProgressPayload {
                 task_id: task_id.to_string(),
-                file_name: file_name.to_string(),
+                file_name: installed_file_name.clone(),
                 stage: "DONE".to_string(),
                 current: download_result.total_bytes.max(1),
                 total: download_result.total_bytes.max(1),
-                message: format!("成功: 下载完成 {}", file_name),
+                message: format!("成功: 下载完成 {}", installed_file_name),
             },
         );
 

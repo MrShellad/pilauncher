@@ -1,6 +1,6 @@
 // src-tauri/src/commands/instance/resource.rs
 use crate::services::instance::resource_manager::{
-    ResourceItem, ResourceManager, ResourceSnapshot, ResourceType,
+    ResourceFileIdentifiers, ResourceItem, ResourceManager, ResourceSnapshot, ResourceType,
 };
 use std::collections::HashMap;
 use tauri::{AppHandle, Runtime};
@@ -33,6 +33,58 @@ pub async fn delete_resource<R: Runtime>(
     file_name: String,
 ) -> Result<(), String> {
     ResourceManager::delete_resource(&app, &id, res_type, &file_name)
+}
+
+#[tauri::command]
+pub async fn calculate_resource_file_identifiers<R: Runtime>(
+    app: AppHandle<R>,
+    id: String,
+    res_type: ResourceType,
+    file_names: Vec<String>,
+    include_sha1: bool,
+    include_curseforge: bool,
+) -> Result<Vec<ResourceFileIdentifiers>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        ResourceManager::calculate_resource_file_identifiers(
+            &app,
+            &id,
+            res_type,
+            &file_names,
+            include_sha1,
+            include_curseforge,
+        )
+    })
+    .await
+    .map_err(|error| format!("计算资源文件标识失败: {error}"))?
+}
+
+#[tauri::command]
+pub async fn update_resource_manifest<R: Runtime>(
+    app: AppHandle<R>,
+    instance_id: String,
+    res_type: ResourceType,
+    file_name: String,
+    source_kind: String,
+    platform: String,
+    project_id: String,
+    file_id: String,
+    version: Option<String>,
+) -> Result<(), String> {
+    if res_type != ResourceType::ResourcePack && res_type != ResourceType::Shader {
+        return Err("仅支持写入资源包和光影包来源信息".to_string());
+    }
+    ResourceManager::upsert_downloaded_resource(
+        &app,
+        &instance_id,
+        res_type,
+        &file_name,
+        &source_kind,
+        &platform,
+        &project_id,
+        &file_id,
+        version,
+        None,
+    )
 }
 
 #[tauri::command]

@@ -17,7 +17,7 @@ export interface ResourceDownloadTaskConfig {
   taskId?: string;
   title?: string;
   message?: string;
-  /** Known provider identity for a resource-centre Mod download. */
+  /** Known provider identity for a resource-centre Mod, resource-pack, or shader download. */
   modSource?: {
     sourceKind: string;
     platform: 'modrinth' | 'curseforge';

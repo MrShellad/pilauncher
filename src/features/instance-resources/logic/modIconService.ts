@@ -21,6 +21,7 @@ export interface IconTargetItem {
   offlineJarIconAbsolutePath?: string | null;
   networkIconUrl?: string | null;
   networkInfo?: { icon_url?: string } | null;
+  hasNetworkIdentity?: boolean;
   fileSize?: number;
   modifiedAt?: number;
 }
@@ -312,7 +313,8 @@ export const subscribeToResourceIcon = (
     if (
       instanceId &&
       !item.iconAbsolutePath &&
-      !item.offlineJarIconAbsolutePath
+      !item.offlineJarIconAbsolutePath &&
+      !item.hasNetworkIdentity
     ) {
       try {
         const path = await resourceService.ensureOfflineResourceIcon(instanceId, resType, item.fileName);
@@ -350,12 +352,34 @@ export const useResourceIcon = (
       ? { instanceId: options, resType: 'mod' }
       : options || {};
   const { instanceId, resType = 'mod' } = opts;
+  const {
+    cacheKey,
+    fileName,
+    fileSize,
+    modifiedAt,
+    iconAbsolutePath,
+    offlineJarIconAbsolutePath,
+    networkIconUrl,
+    networkInfo,
+    hasNetworkIdentity,
+  } = item;
+  const networkInfoIconUrl = networkInfo?.icon_url;
 
   useEffect(() => {
     let disposed = false;
     let unsubscribe = () => {};
 
-    void subscribeToResourceIcon(item, priority, (nextSnapshot) => {
+    void subscribeToResourceIcon({
+      cacheKey,
+      fileName,
+      fileSize,
+      modifiedAt,
+      iconAbsolutePath,
+      offlineJarIconAbsolutePath,
+      networkIconUrl,
+      networkInfo: networkInfoIconUrl ? { icon_url: networkInfoIconUrl } : null,
+      hasNetworkIdentity,
+    }, priority, (nextSnapshot) => {
       if (!disposed) {
         setSnapshot(nextSnapshot);
       }
@@ -372,14 +396,15 @@ export const useResourceIcon = (
       unsubscribe();
     };
   }, [
-    item.cacheKey,
-    item.fileName,
-    item.fileSize,
-    item.modifiedAt,
-    item.iconAbsolutePath,
-    item.offlineJarIconAbsolutePath,
-    item.networkIconUrl,
-    item.networkInfo?.icon_url,
+    cacheKey,
+    fileName,
+    fileSize,
+    modifiedAt,
+    iconAbsolutePath,
+    offlineJarIconAbsolutePath,
+    networkIconUrl,
+    networkInfoIconUrl,
+    hasNetworkIdentity,
     priority,
     instanceId,
     resType

@@ -1,16 +1,64 @@
 use crate::services::config::ConfigService;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::path::Component;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use tauri::{AppHandle, Manager, Runtime};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+static RESOURCE_METADATA_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum ResourceType {
     Mod,
     Save,
     Shader,
     ResourcePack,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourceSourceMetadata {
+    pub resource_type: ResourceType,
+    pub file_name: String,
+    pub source_kind: String,
+    pub platform: String,
+    pub project_id: String,
+    pub file_id: String,
+    pub version: Option<String>,
+    pub updated_at: i64,
+}
+
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourceFileIdentifiers {
+    pub file_name: String,
+    pub sha1: Option<String>,
+    pub curseforge_fingerprint: Option<u32>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+struct ResourceMetadataManifest {
+    #[serde(default = "resource_metadata_schema_version")]
+    schema_version: u32,
+    #[serde(default)]
+    resources: Vec<ResourceSourceMetadata>,
+}
+
+fn resource_metadata_schema_version() -> u32 {
+    1
+}
+
+impl Default for ResourceMetadataManifest {
+    fn default() -> Self {
+        Self {
+            schema_version: resource_metadata_schema_version(),
+            resources: Vec::new(),
+        }
+    }
 }
 
 impl ResourceType {
@@ -33,7 +81,7 @@ pub struct ResourceItem {
     pub file_size: u64,
     pub modified_at: i64,
     pub icon_absolute_path: Option<String>,
-    pub meta: Option<serde_json::Value>,
+    pub meta: Option<ResourceSourceMetadata>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -48,6 +96,210 @@ pub struct ResourceSnapshot {
 pub struct ResourceManager;
 
 impl ResourceManager {
+    fn metadata_path<R: Runtime>(app: &AppHandle<R>, instance_id: &str) -> Result<PathBuf, String> {
+        Ok(Self::get_instance_root(app, instance_id)?
+            .join("piconfig")
+            .join("resource-metadata.json"))
+    }
+
+    fn metadata_key(res_type: ResourceType, file_name: &str) -> String {
+        format!(
+            "{}:{}",
+            res_type.folder_name(),
+            file_name
+                .trim_end_matches(".disabled")
+                .trim()
+                .to_ascii_lowercase()
+        )
+    }
+
+    fn load_metadata_manifest<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+    ) -> Result<ResourceMetadataManifest, String> {
+        let path = Self::metadata_path(app, instance_id)?;
+        let backup_path = path.with_extension("json.bak");
+        if !path.exists() {
+            if backup_path.exists() {
+                fs::rename(&backup_path, &path)
+                    .map_err(|error| format!("恢复资源来源元数据备份失败: {error}"))?;
+            } else {
+                return Ok(ResourceMetadataManifest {
+                    schema_version: resource_metadata_schema_version(),
+                    resources: Vec::new(),
+                });
+            }
+        }
+
+        let content = fs::read_to_string(&path)
+            .map_err(|error| format!("读取资源来源元数据失败: {error}"))?;
+        serde_json::from_str(&content).map_err(|error| format!("解析资源来源元数据失败: {error}"))
+    }
+
+    fn save_metadata_manifest<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        manifest: &ResourceMetadataManifest,
+    ) -> Result<(), String> {
+        let path = Self::metadata_path(app, instance_id)?;
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|error| format!("创建资源来源元数据目录失败: {error}"))?;
+        }
+        let content = serde_json::to_string_pretty(manifest)
+            .map_err(|error| format!("序列化资源来源元数据失败: {error}"))?;
+        let temp_path = path.with_extension("json.tmp");
+        let backup_path = path.with_extension("json.bak");
+        fs::write(&temp_path, content)
+            .map_err(|error| format!("写入资源来源元数据临时文件失败: {error}"))?;
+
+        let had_manifest = path.exists();
+        if had_manifest {
+            if backup_path.exists() {
+                fs::remove_file(&backup_path)
+                    .map_err(|error| format!("清理资源来源元数据旧备份失败: {error}"))?;
+            }
+            fs::rename(&path, &backup_path)
+                .map_err(|error| format!("备份资源来源元数据失败: {error}"))?;
+        }
+
+        if let Err(error) = fs::rename(&temp_path, &path) {
+            if had_manifest {
+                let _ = fs::rename(&backup_path, &path);
+            }
+            return Err(format!("提交资源来源元数据失败: {error}"));
+        }
+
+        if had_manifest {
+            let _ = fs::remove_file(backup_path);
+        }
+        Ok(())
+    }
+
+    pub fn upsert_downloaded_resource<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        resource_type: ResourceType,
+        file_name: &str,
+        source_kind: &str,
+        platform: &str,
+        project_id: &str,
+        file_id: &str,
+        version: Option<String>,
+        old_file_name: Option<&str>,
+    ) -> Result<(), String> {
+        let _guard = RESOURCE_METADATA_LOCK
+            .lock()
+            .map_err(|_| "资源来源元数据锁已损坏".to_string())?;
+        let mut manifest = Self::load_metadata_manifest(app, instance_id)?;
+        let new_key = Self::metadata_key(resource_type, file_name);
+        let old_key = old_file_name.map(|name| Self::metadata_key(resource_type, name));
+
+        manifest.resources.retain(|item| {
+            let key = Self::metadata_key(item.resource_type, &item.file_name);
+            key != new_key && old_key.as_ref().is_none_or(|old| &key != old)
+        });
+        manifest.resources.push(ResourceSourceMetadata {
+            resource_type,
+            file_name: file_name.to_string(),
+            source_kind: source_kind.to_string(),
+            platform: platform.to_string(),
+            project_id: project_id.to_string(),
+            file_id: file_id.to_string(),
+            version,
+            updated_at: chrono::Utc::now().timestamp(),
+        });
+        Self::save_metadata_manifest(app, instance_id, &manifest)
+    }
+
+    pub fn calculate_resource_file_identifiers<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        resource_type: ResourceType,
+        file_names: &[String],
+        include_sha1: bool,
+        include_curseforge: bool,
+    ) -> Result<Vec<ResourceFileIdentifiers>, String> {
+        if resource_type != ResourceType::ResourcePack && resource_type != ResourceType::Shader {
+            return Err("仅支持识别资源包和光影包".to_string());
+        }
+
+        let target_dir = Self::get_target_dir(app, instance_id, &resource_type)?;
+        let mut identifiers = Vec::with_capacity(file_names.len());
+        for file_name in file_names {
+            let mut components = std::path::Path::new(file_name).components();
+            let is_plain_file_name = matches!(components.next(), Some(Component::Normal(_)))
+                && components.next().is_none();
+            if !is_plain_file_name {
+                continue;
+            }
+
+            let file_path = target_dir.join(file_name);
+            if !file_path.is_file() {
+                continue;
+            }
+            identifiers.push(ResourceFileIdentifiers {
+                file_name: file_name.clone(),
+                sha1: include_sha1
+                    .then(|| crate::domain::mod_manifest::compute_sha1(&file_path).ok())
+                    .flatten(),
+                curseforge_fingerprint: include_curseforge
+                    .then(|| {
+                        crate::domain::mod_manifest::compute_curseforge_fingerprint(&file_path).ok()
+                    })
+                    .flatten(),
+            });
+        }
+        Ok(identifiers)
+    }
+
+    fn rename_resource_metadata<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        resource_type: ResourceType,
+        old_file_name: &str,
+        new_file_name: &str,
+    ) -> Result<(), String> {
+        let _guard = RESOURCE_METADATA_LOCK
+            .lock()
+            .map_err(|_| "资源来源元数据锁已损坏".to_string())?;
+        let mut manifest = Self::load_metadata_manifest(app, instance_id)?;
+        let old_key = Self::metadata_key(resource_type, old_file_name);
+        let mut changed = false;
+        for item in &mut manifest.resources {
+            if Self::metadata_key(item.resource_type, &item.file_name) == old_key {
+                item.file_name = new_file_name.to_string();
+                item.updated_at = chrono::Utc::now().timestamp();
+                changed = true;
+            }
+        }
+        if changed {
+            Self::save_metadata_manifest(app, instance_id, &manifest)?;
+        }
+        Ok(())
+    }
+
+    fn remove_resource_metadata<R: Runtime>(
+        app: &AppHandle<R>,
+        instance_id: &str,
+        resource_type: ResourceType,
+        file_name: &str,
+    ) -> Result<(), String> {
+        let _guard = RESOURCE_METADATA_LOCK
+            .lock()
+            .map_err(|_| "资源来源元数据锁已损坏".to_string())?;
+        let mut manifest = Self::load_metadata_manifest(app, instance_id)?;
+        let target_key = Self::metadata_key(resource_type, file_name);
+        let previous_len = manifest.resources.len();
+        manifest
+            .resources
+            .retain(|item| Self::metadata_key(item.resource_type, &item.file_name) != target_key);
+        if manifest.resources.len() != previous_len {
+            Self::save_metadata_manifest(app, instance_id, &manifest)?;
+        }
+        Ok(())
+    }
+
     pub fn get_instance_root<R: Runtime>(
         app: &AppHandle<R>,
         instance_id: &str,
@@ -102,6 +354,11 @@ impl ResourceManager {
     ) -> Result<Vec<ResourceItem>, String> {
         let target_dir = Self::get_target_dir(app, instance_id, &res_type)?;
         let mut items = Vec::new();
+        let metadata_manifest = RESOURCE_METADATA_LOCK
+            .lock()
+            .ok()
+            .and_then(|_guard| Self::load_metadata_manifest(app, instance_id).ok())
+            .unwrap_or_default();
 
         let icons_base_dir =
             crate::services::instance::mod_manager::icon_storage::IconStorage::get_shared_mods_dir(
@@ -176,7 +433,15 @@ impl ResourceManager {
                     file_size: metadata.len(),
                     modified_at,
                     icon_absolute_path,
-                    meta: None,
+                    meta: metadata_manifest
+                        .resources
+                        .iter()
+                        .find(|item| {
+                            item.resource_type == res_type
+                                && Self::metadata_key(item.resource_type, &item.file_name)
+                                    == Self::metadata_key(res_type, &file_name)
+                        })
+                        .cloned(),
                 });
             }
         }
@@ -206,9 +471,22 @@ impl ResourceManager {
             format!("{}.disabled", file_name)
         };
 
-        let res =
-            fs::rename(current_path, target_dir.join(&new_file_name)).map_err(|e| e.to_string());
+        let new_path = target_dir.join(&new_file_name);
+        let res = fs::rename(&current_path, &new_path).map_err(|e| e.to_string());
         if res.is_ok() {
+            if res_type == ResourceType::ResourcePack || res_type == ResourceType::Shader {
+                if let Err(error) = Self::rename_resource_metadata(
+                    app,
+                    instance_id,
+                    res_type,
+                    file_name,
+                    &new_file_name,
+                ) {
+                    let _ = fs::rename(&new_path, &current_path);
+                    return Err(error);
+                }
+            }
+
             use tauri::Emitter;
             let _ = app.emit(
                 "instance-resources-fs-changed",
@@ -316,6 +594,10 @@ impl ResourceManager {
             } else {
                 fs::remove_file(&current_path).map_err(|e| e.to_string())?;
             }
+        }
+
+        if res_type == ResourceType::ResourcePack || res_type == ResourceType::Shader {
+            Self::remove_resource_metadata(app, instance_id, res_type, file_name)?;
         }
 
         use tauri::Emitter;
@@ -722,5 +1004,25 @@ impl ResourceManager {
         // repacked, renamed, or provider-removed files. Cloud sync refreshes the linked project
         // separately and replaces its icon only after the provider answers successfully.
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ResourceManager, ResourceMetadataManifest, ResourceType};
+
+    #[test]
+    fn metadata_key_is_stable_across_disabled_state_and_case() {
+        assert_eq!(
+            ResourceManager::metadata_key(ResourceType::ResourcePack, "Pack.ZIP.disabled"),
+            ResourceManager::metadata_key(ResourceType::ResourcePack, "pack.zip")
+        );
+    }
+
+    #[test]
+    fn metadata_manifest_uses_current_schema_by_default() {
+        let manifest = ResourceMetadataManifest::default();
+        assert_eq!(manifest.schema_version, 1);
+        assert!(manifest.resources.is_empty());
     }
 }

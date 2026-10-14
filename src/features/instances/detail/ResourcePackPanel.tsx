@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation';
-import { DownloadCloud, FolderOpen, Loader2, Package, Trash2 } from 'lucide-react';
+import { CircleArrowUp, DownloadCloud, FolderOpen, Loader2, Package, RefreshCw, Trash2 } from 'lucide-react';
 
 import { useLauncherStore } from '../../../app/stores/useLauncherStore';
 import { FocusBoundary } from '../../../ui/focus/FocusBoundary';
@@ -16,8 +16,13 @@ import { OreOverlayScrollArea } from '../../../ui/primitives/OreOverlayScrollAre
 import { useResourceManager } from './hooks/useResourceManager';
 import { ResourceIconBox } from './ResourceIconBox';
 
-const TOP_FOCUS_ORDER = ['btn-download-resourcepack', 'btn-open-resourcepack-folder'];
-const ROW_ACTIONS = ['toggle', 'delete'] as const;
+const TOP_FOCUS_ORDER = [
+  'btn-download-resourcepack',
+  'btn-check-resourcepack-updates',
+  'btn-update-all-resourcepacks',
+  'btn-open-resourcepack-folder',
+];
+const ROW_ACTIONS = ['update', 'toggle', 'delete'] as const;
 type RowAction = (typeof ROW_ACTIONS)[number];
 
 interface PendingDeleteState {
@@ -25,9 +30,28 @@ interface PendingDeleteState {
   rowIndex: number;
 }
 
-export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId }) => {
+interface ResourcePackPanelProps {
+  instanceId: string;
+  gameVersion?: string;
+}
+
+export const ResourcePackPanel: React.FC<ResourcePackPanelProps> = ({ instanceId, gameVersion }) => {
   const { t } = useTranslation();
-  const { items, isLoading, toggleItem, deleteItem, openFolder, formatSize } = useResourceManager(instanceId, 'resourcePack');
+  const {
+    items,
+    isLoading,
+    isCheckingUpdates,
+    isUpdatingAll,
+    isInstanceRunning,
+    updatingFileNames,
+    checkUpdates,
+    updateItem,
+    updateAll,
+    toggleItem,
+    deleteItem,
+    openFolder,
+    formatSize,
+  } = useResourceManager(instanceId, 'resourcePack', gameVersion);
   const setActiveTab = useLauncherStore((state) => state.setActiveTab);
   const setInstanceDownloadTarget = useLauncherStore((state) => state.setInstanceDownloadTarget);
   const inputMode = useInputMode();
@@ -47,13 +71,13 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
 
   const enterRowOperation = useCallback((index: number) => {
     setOperationRowIndex(index);
-    const firstAction = getActionFocusKey(index, 'toggle');
+    const firstAction = getActionFocusKey(index, items[index]?.update ? 'update' : 'toggle');
     window.setTimeout(() => {
       if (doesFocusableExist(firstAction)) {
         setFocus(firstAction);
       }
     }, 20);
-  }, []);
+  }, [items]);
 
   const exitRowOperation = useCallback((index: number) => {
     setOperationRowIndex(null);
@@ -98,12 +122,15 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
     if (inputMode === 'mouse') return true;
 
     if (direction === 'left' || direction === 'right') {
-      const currentIndex = ROW_ACTIONS.indexOf(action);
+      const availableActions: readonly RowAction[] = items[index]?.update
+        ? ROW_ACTIONS
+        : ROW_ACTIONS.filter((candidate) => candidate !== 'update');
+      const currentIndex = availableActions.indexOf(action);
       const nextIndex =
         direction === 'right'
-          ? Math.min(ROW_ACTIONS.length - 1, currentIndex + 1)
+          ? Math.min(availableActions.length - 1, currentIndex + 1)
           : Math.max(0, currentIndex - 1);
-      const target = getActionFocusKey(index, ROW_ACTIONS[nextIndex]);
+      const target = getActionFocusKey(index, availableActions[nextIndex]);
       if (doesFocusableExist(target)) {
         setFocus(target);
       }
@@ -141,7 +168,7 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
     }
 
     return false;
-  }, [inputMode, items.length]);
+  }, [inputMode, items]);
 
   const restoreDeleteFocus = useCallback((rowIndex: number) => {
     const candidates = [
@@ -177,6 +204,7 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
   }, [deleteItem, pendingDelete, restoreDeleteFocus]);
 
   const enabledCount = useMemo(() => items.filter((i) => i.isEnabled).length, [items]);
+  const updateCount = useMemo(() => items.filter((item) => item.update).length, [items]);
 
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-hidden p-3.5 gap-3">
@@ -207,6 +235,36 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
             <DownloadCloud size={16} className="mr-2" />
             {t('instanceDetail.resourcepacks.downloadBtn', '下载资源包')}
           </OreButton>
+
+          <OreButton
+            focusKey="btn-check-resourcepack-updates"
+            variant="secondary"
+            size="auto"
+            loading={isCheckingUpdates}
+            prefixIcon={<RefreshCw size={16} />}
+            disabled={isUpdatingAll || updatingFileNames.size > 0 || items.length === 0}
+            className="!h-10 !min-h-10 px-4 font-minecraft font-bold uppercase tracking-wide text-xs"
+            onArrowPress={handleTopArrow}
+            onClick={() => { void checkUpdates(); }}
+          >
+            {t('instanceDetail.resourcepacks.checkUpdates', '检查更新')}
+          </OreButton>
+
+          {updateCount > 0 && (
+            <OreButton
+              focusKey="btn-update-all-resourcepacks"
+              variant="primary"
+              size="auto"
+              loading={isUpdatingAll}
+              prefixIcon={<CircleArrowUp size={16} />}
+              disabled={isCheckingUpdates || updatingFileNames.size > 0 || isInstanceRunning}
+              className="!h-10 !min-h-10 px-4 font-minecraft font-bold uppercase tracking-wide text-xs"
+              onArrowPress={handleTopArrow}
+              onClick={() => { void updateAll(); }}
+            >
+              {t('instanceDetail.resourcepacks.updateAll', { defaultValue: '全部更新 ({{count}})', count: updateCount })}
+            </OreButton>
+          )}
 
           <OreButton
             focusKey="btn-open-resourcepack-folder"
@@ -261,7 +319,12 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
                       title={(item.fileName || '').replace('.zip', '').replace('.disabled', '')}
                       description={item.isDirectory ? t('instanceDetail.resourcepacks.directoryPack', '文件夹资源包') : t('instanceDetail.resourcepacks.zipPack', 'ZIP 资源包')}
                       metaItems={[
-                        item.fileName || '', item.isDirectory ? t('instanceDetail.resourcepacks.directory', '文件夹') : formatSize(item.fileSize || 0),
+                        item.fileName || '',
+                        item.update
+                          ? t('instanceDetail.resourcepacks.updateAvailable', '可更新至 {{version}}', { version: item.update.version })
+                          : item.isDirectory
+                            ? t('instanceDetail.resourcepacks.directory', '文件夹')
+                            : formatSize(item.fileSize || 0),
                       ]}
                       leading={
                         <ResourceIconBox
@@ -273,6 +336,26 @@ export const ResourcePackPanel: React.FC<{ instanceId: string }> = ({ instanceId
                       trailingClassName="flex items-center space-x-2.5"
                       trailing={
                         <>
+                          {item.update && (
+                            <OreButton
+                              focusKey={getActionFocusKey(index, 'update')}
+                              variant="primary"
+                              size="auto"
+                              iconOnly
+                              loading={updatingFileNames.has(item.fileName)}
+                              prefixIcon={<CircleArrowUp size={16} />}
+                              disabled={isUpdatingAll || isInstanceRunning || updatingFileNames.has(item.fileName)}
+                              className="!h-9 !w-9 !min-h-9 !min-w-9 !px-0 flex items-center justify-center"
+                              onArrowPress={(direction) => handleActionArrow(index, 'update', direction)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void updateItem(item);
+                              }}
+                              title={t('instanceDetail.resourcepacks.updateItem', '更新资源包')}
+                            >
+                            </OreButton>
+                          )}
+
                           <OreSwitch
                             focusKey={getActionFocusKey(index, 'toggle')}
                             checked={item.isEnabled}

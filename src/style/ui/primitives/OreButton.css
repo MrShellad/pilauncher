@@ -25,6 +25,7 @@
     color: var(--ore-btn-fg, #FFFFFF);
     filter: none;
     text-shadow: none;
+    cursor: pointer;
   }
 
   /* 表面与底部厚度分层绘制，所有边都落在整数像素上。 */
