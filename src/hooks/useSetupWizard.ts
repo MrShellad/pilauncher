@@ -4,7 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useSettingsStore } from '@/app/stores/useSettingsStore';
 // ✅ 移除了对 setFocus 的引入
 
-export const CURRENT_EULA_DATE = '2026-05-08';
+export const CURRENT_EULA_DATE = '2026-10-20';
 
 export const useSetupWizard = () => {
   const [needsSetup, setNeedsSetup] = useState(false);

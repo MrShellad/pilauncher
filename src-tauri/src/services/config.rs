@@ -50,7 +50,7 @@ pub struct DownloadSettings {
 }
 
 fn default_minecraft_meta_source() -> String {
-    "bangbang93".to_string()
+    "official".to_string()
 }
 
 fn default_quilt_source() -> String {
@@ -88,7 +88,7 @@ fn default_pre_launch_check() -> bool {
 impl Default for DownloadSettings {
     fn default() -> Self {
         Self {
-            minecraft_meta_source: "bangbang93".to_string(),
+            minecraft_meta_source: "official".to_string(),
             concurrency: 8,
             chunked_download_enabled: true,
             chunked_download_threads: 4,
@@ -103,16 +103,42 @@ impl Default for DownloadSettings {
             verify_after_download: true,
             auto_check_latency: false,
             strict_source_routing: false,
-            vanilla_source: "bmclapi".to_string(),
-            vanilla_source_url: "https://bmclapi2.bangbang93.com".to_string(),
+            vanilla_source: "mojang".to_string(),
+            vanilla_source_url: "https://piston-meta.mojang.com".to_string(),
             fabric_source: "official".to_string(),
             fabric_source_url: "https://meta.fabricmc.net".to_string(),
-            forge_source: "bmclapi".to_string(),
-            forge_source_url: "https://bmclapi2.bangbang93.com/forge".to_string(),
-            neoforge_source: "bmclapi".to_string(),
-            neoforge_source_url: "https://bmclapi2.bangbang93.com/neoforge".to_string(),
+            forge_source: "official".to_string(),
+            forge_source_url: "https://maven.minecraftforge.net".to_string(),
+            neoforge_source: "official".to_string(),
+            neoforge_source_url: "https://maven.neoforged.net/releases".to_string(),
             quilt_source: default_quilt_source(),
             quilt_source_url: default_quilt_source_url(),
+        }
+    }
+}
+
+impl DownloadSettings {
+    /// BMCLAPI is temporarily unavailable. Normalize persisted selections so
+    /// existing installations cannot continue reaching it through stale settings.
+    fn disable_bmclapi(&mut self) {
+        self.minecraft_meta_source = "official".to_string();
+
+        if self.vanilla_source == "bmclapi" || self.vanilla_source_url.contains("bangbang93.com") {
+            self.vanilla_source = "mojang".to_string();
+            self.vanilla_source_url = "https://piston-meta.mojang.com".to_string();
+        }
+        if self.fabric_source == "bmclapi" || self.fabric_source_url.contains("bangbang93.com") {
+            self.fabric_source = "official".to_string();
+            self.fabric_source_url = "https://meta.fabricmc.net".to_string();
+        }
+        if self.forge_source == "bmclapi" || self.forge_source_url.contains("bangbang93.com") {
+            self.forge_source = "official".to_string();
+            self.forge_source_url = "https://maven.minecraftforge.net".to_string();
+        }
+        if self.neoforge_source == "bmclapi" || self.neoforge_source_url.contains("bangbang93.com")
+        {
+            self.neoforge_source = "official".to_string();
+            self.neoforge_source_url = "https://maven.neoforged.net/releases".to_string();
         }
     }
 }
@@ -365,8 +391,9 @@ impl ConfigService {
     pub fn get_download_settings<R: Runtime>(app: &AppHandle<R>) -> DownloadSettings {
         if let Some(json) = Self::get_settings_json(app) {
             if let Some(val) = json.pointer("/state/settings/download") {
-                if let Ok(s) = serde_json::from_value(val.clone()) {
-                    return s;
+                if let Ok(mut settings) = serde_json::from_value::<DownloadSettings>(val.clone()) {
+                    settings.disable_bmclapi();
+                    return settings;
                 }
             }
         }
@@ -539,6 +566,43 @@ mod tests {
         assert_eq!(
             ConfigService::download_speed_limit_bytes_per_sec(&megabits_per_second),
             1_250_000
+        );
+    }
+
+    #[test]
+    fn replaces_persisted_bmclapi_sources_with_official_sources() {
+        let mut settings = DownloadSettings {
+            minecraft_meta_source: "bangbang93".to_string(),
+            vanilla_source: "bmclapi".to_string(),
+            vanilla_source_url: "https://bmclapi2.bangbang93.com".to_string(),
+            fabric_source: "bmclapi".to_string(),
+            fabric_source_url: "https://bmclapi2.bangbang93.com/fabric-meta".to_string(),
+            forge_source: "bmclapi".to_string(),
+            forge_source_url: "https://bmclapi2.bangbang93.com/forge".to_string(),
+            neoforge_source: "bmclapi".to_string(),
+            neoforge_source_url: "https://bmclapi2.bangbang93.com/neoforge".to_string(),
+            ..DownloadSettings::default()
+        };
+
+        settings.disable_bmclapi();
+
+        assert_eq!(settings.minecraft_meta_source, "official");
+        assert_eq!(settings.vanilla_source, "mojang");
+        assert_eq!(
+            settings.vanilla_source_url,
+            "https://piston-meta.mojang.com"
+        );
+        assert_eq!(settings.fabric_source, "official");
+        assert_eq!(settings.fabric_source_url, "https://meta.fabricmc.net");
+        assert_eq!(settings.forge_source, "official");
+        assert_eq!(
+            settings.forge_source_url,
+            "https://maven.minecraftforge.net"
+        );
+        assert_eq!(settings.neoforge_source, "official");
+        assert_eq!(
+            settings.neoforge_source_url,
+            "https://maven.neoforged.net/releases"
         );
     }
 }

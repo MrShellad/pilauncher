@@ -155,7 +155,7 @@ async fn fetch_forge_versions(
     game_version: &str,
 ) -> AppResult<Vec<String>> {
     let selected = normalize_source_base(&dl_settings.forge_source_url)
-        .unwrap_or_else(|| "https://bmclapi2.bangbang93.com/forge".to_string());
+        .unwrap_or_else(|| "https://maven.minecraftforge.net".to_string());
 
     if dl_settings.forge_source == "official" || selected.contains("maven.minecraftforge.net") {
         let metadata_base = if selected.ends_with("/forge") {
@@ -209,7 +209,7 @@ async fn fetch_neoforge_versions(
     game_version: &str,
 ) -> AppResult<Vec<String>> {
     let selected = normalize_source_base(&dl_settings.neoforge_source_url)
-        .unwrap_or_else(|| "https://bmclapi2.bangbang93.com/neoforge".to_string());
+        .unwrap_or_else(|| "https://maven.neoforged.net/releases".to_string());
 
     if dl_settings.neoforge_source == "official" || selected.contains("maven.neoforged.net") {
         let metadata_base = if selected.ends_with("/releases") {
@@ -229,15 +229,11 @@ async fn fetch_neoforge_versions(
         }
 
         versions.reverse();
-        if !versions.is_empty() {
-            return Ok(versions);
-        }
+        return Ok(versions);
     }
 
-    let list_base = if selected.ends_with("/neoforge") {
-        selected
-    } else {
-        "https://bmclapi2.bangbang93.com/neoforge".to_string()
+    let Some(list_base) = selected.ends_with("/neoforge").then_some(selected) else {
+        return Ok(Vec::new());
     };
     let url = format!("{}/list/{}", list_base, game_version);
     let res = client.get(&url).send().await?;

@@ -53,7 +53,6 @@ pub async fn run_network_test() -> Result<NetworkTestReport, String> {
         "meta.fabricmc.net",
         "api.curseforge.com",
         "modrinth.com",
-        "bmclapi2.bangbang93.com",
         "api.adoptium.net",
         "api.azul.com",
         "aka.ms",

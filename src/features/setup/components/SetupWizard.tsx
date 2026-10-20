@@ -21,7 +21,7 @@ const getDefaultFocusKey = (step: 'directory' | 'java_download' | 'steam_integra
   if (step === 'directory') return 'setup-btn-browse';
   if (step === 'java_download') return 'setup-btn-download';
   if (step === 'steam_integration') return 'setup-btn-steam-register';
-  return 'setup-btn-agree';
+  return 'setup-legal-scrollarea';
 };
 
 const isSetupFocus = (focusKey: string | null) => {

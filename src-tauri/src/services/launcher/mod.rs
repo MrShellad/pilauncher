@@ -542,10 +542,7 @@ async fn ensure_authlib_injector(runtime_dir: &Path) -> Result<PathBuf, String> 
         .user_agent("PiLauncher")
         .build()
         .map_err(|error| format!("初始化 authlib-injector 下载器失败: {}", error))?;
-    let metadata_urls = [
-        "https://authlib-injector.yushi.moe/artifact/latest.json",
-        "https://bmclapi2.bangbang93.com/mirrors/authlib-injector/artifact/latest.json",
-    ];
+    let metadata_urls = ["https://authlib-injector.yushi.moe/artifact/latest.json"];
 
     let mut last_error = None;
     for metadata_url in metadata_urls {

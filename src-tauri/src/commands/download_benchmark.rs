@@ -944,10 +944,7 @@ fn build_version_manifest_urls(dl_settings: &DownloadSettings) -> Vec<String> {
         }
     }
 
-    for url in [
-        "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
-        "https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json",
-    ] {
+    for url in ["https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"] {
         if seen.insert(url.to_string()) {
             urls.push(url.to_string());
         }
@@ -978,6 +975,9 @@ fn push_named_source(
     seen: &mut HashSet<String>,
     source: NamedSource,
 ) {
+    if source.url.contains("bangbang93.com") {
+        return;
+    }
     if seen.insert(source.url.clone()) {
         sources.push(source);
     }

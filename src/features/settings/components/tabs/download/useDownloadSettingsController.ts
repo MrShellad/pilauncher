@@ -12,13 +12,10 @@ import { INITIAL_DOWNLOAD_FOCUS_KEY } from '@/shared/constants/focusKeys';
 export const useDownloadSettingsController = (extraFocusKeys: string[] = []) => {
   const { settings, updateDownloadSetting } = useSettingsStore();
   const download = settings.download || DEFAULT_SETTINGS.download;
-  const minecraftMetaSource = download.minecraftMetaSource || 'bangbang93';
+  const minecraftMetaSource = 'official';
 
   const focusOrder = useMemo(() => {
-    const keys: string[] = [
-      'settings-download-minecraft-meta-source-0',
-      'settings-download-minecraft-meta-source-1'
-    ];
+    const keys: string[] = ['settings-download-minecraft-meta-source-0'];
 
     DOWNLOAD_SOURCE_CATEGORIES.forEach(({ key, data }) => {
       data.forEach((_, idx) => {

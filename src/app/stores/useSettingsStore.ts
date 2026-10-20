@@ -52,6 +52,28 @@ const hasJavaSelectionChanged = (
   );
 };
 
+const disableBmclapiDownloadSettings = (
+  download: AppSettings['download']
+): AppSettings['download'] => ({
+  ...download,
+  minecraftMetaSource: 'official',
+  ...(download.vanillaSource === 'bmclapi' || download.vanillaSourceUrl.includes('bangbang93.com')
+    ? { vanillaSource: 'mojang', vanillaSourceUrl: 'https://piston-meta.mojang.com' }
+    : {}),
+  ...(download.fabricSource === 'bmclapi' || download.fabricSourceUrl.includes('bangbang93.com')
+    ? { fabricSource: 'official', fabricSourceUrl: 'https://meta.fabricmc.net' }
+    : {}),
+  ...(download.forgeSource === 'bmclapi' || download.forgeSourceUrl.includes('bangbang93.com')
+    ? { forgeSource: 'official', forgeSourceUrl: 'https://maven.minecraftforge.net' }
+    : {}),
+  ...(download.neoforgeSource === 'bmclapi' || download.neoforgeSourceUrl.includes('bangbang93.com')
+    ? {
+        neoforgeSource: 'official',
+        neoforgeSourceUrl: 'https://maven.neoforged.net/releases'
+      }
+    : {})
+});
+
 let settingsWereLoadedFromDisk = false;
 
 const readLegacyForceDoubleColumn = () => {
@@ -285,7 +307,10 @@ export const useSettingsStore = create<SettingsStore>()(
             },
             java: { ...currentState.settings.java, ...persistedState.settings?.java },
             game: { ...currentState.settings.game, ...persistedState.settings?.game },
-            download: { ...currentState.settings.download, ...persistedState.settings?.download }
+            download: disableBmclapiDownloadSettings({
+              ...currentState.settings.download,
+              ...persistedState.settings?.download
+            })
           },
           _hasHydrated: persistedState._hasHydrated
         };

@@ -10,6 +10,11 @@ fn normalize_source_base(url: &str) -> Option<String> {
 }
 
 fn push_unique(urls: &mut Vec<String>, url: String) {
+    // Keep the dormant BMCLAPI routing code in place for an easy restore, but
+    // never expose it as a live candidate while the upstream is unavailable.
+    if url.contains("bangbang93.com") {
+        return;
+    }
     if !urls.iter().any(|existing| existing == &url) {
         urls.push(url);
     }
@@ -685,13 +690,13 @@ mod tests {
         );
         assert_eq!(
             client_urls,
-            vec!["https://bmclapi2.bangbang93.com/v1/objects/client.jar"]
+            vec!["https://piston-data.mojang.com/v1/objects/client.jar"]
         );
 
         let forge_urls = route_forge_installer_urls("1.20.1", "47.4.0", &settings);
         assert!(forge_urls
             .iter()
-            .all(|url| url.starts_with("https://bmclapi2.bangbang93.com/")));
+            .all(|url| url.starts_with("https://maven.minecraftforge.net/")));
         assert!(!forge_urls.is_empty());
     }
 

@@ -6,8 +6,11 @@ export const EulaEn: React.FC<{ currentDate: string }> = ({ currentDate }) => {
       <h1 className="text-lg text-white border-b border-[#2a2f3a] pb-2 mb-2 font-bold">PiLauncher End User License Agreement & Privacy Policy</h1>
       <p className="mb-4">Last Updated: {currentDate}</p>
 
-      <div className="bg-[#1a1f2b] p-3 rounded-md border border-[#2a2f3a] mb-5 text-white">
-        By using this software, you signify that you have read and agreed to all the terms in this agreement.
+      <div className="bg-[#2a2115] p-3 rounded-md border border-[#d89b38] mb-5 text-white">
+        <p className="font-bold text-[#f4c76b]">Important: PiLauncher is available only to users who are at least 18 years old and have full legal capacity.</p>
+        <p className="mt-1">
+          By clicking "I am 18 or older and agree," you confirm that you have read this agreement and formally represent that you are actually at least 18 years old and legally capable of entering into and performing it. If you are under 18 or lack full legal capacity, do not agree, install, or continue using the software.
+        </p>
       </div>
 
       <div className="mt-8">
@@ -17,47 +20,72 @@ export const EulaEn: React.FC<{ currentDate: string }> = ({ currentDate }) => {
         <p className="my-1">PiLauncher is a third-party launcher tool for managing and launching Minecraft.</p>
         <p className="my-1">This software has no affiliation or official relationship with Microsoft or Mojang Studios.</p>
 
-        <h3 className="text-sm text-white mt-4 mb-1 font-bold">2. Prerequisites</h3>
+        <h3 className="text-sm text-white mt-4 mb-1 font-bold">2. Eligibility and Age Representation</h3>
+        <ul className="list-disc pl-5 my-1 space-y-1">
+          <li>The software and related online services are available only to natural persons who are at least 18 years old and have full legal capacity.</li>
+          <li>Clicking agree is your express representation and warranty regarding your age and legal capacity.</li>
+          <li>We may refuse or terminate service if that representation is false. A false statement does not make a minor an adult or remove any party's mandatory legal obligations.</li>
+          <li>A guardian who discovers a minor using the software or submitting personal information may contact us at the email below to request service restriction and data handling.</li>
+        </ul>
+
+        <h3 className="text-sm text-white mt-4 mb-1 font-bold">3. Lawful Use Requirements</h3>
         <ul className="list-disc pl-5 my-1 space-y-1">
           <li>You must own a legally purchased genuine Minecraft account.</li>
           <li>Login must be done via the official authentication service.</li>
-          <li>Bypassing verification or using pirated copies is strictly prohibited.</li>
+          <li>You must not bypass verification, distribute pirated material, infringe intellectual property, or use the software for unlawful activity.</li>
+          <li>You must comply with the applicable terms and laws of Microsoft, Mojang Studios, resource platforms, and your jurisdiction.</li>
         </ul>
 
-        <h3 className="text-sm text-white mt-4 mb-1 font-bold">3. Accounts & Authentication</h3>
+        <h3 className="text-sm text-white mt-4 mb-1 font-bold">4. Accounts & Authentication</h3>
         <ul className="list-disc pl-5 my-1 space-y-1">
           <li>Login is completed through the official system.</li>
           <li>This software does not store your account password.</li>
           <li>Users are responsible for the security of their own accounts.</li>
         </ul>
 
-        <h3 className="text-sm text-white mt-4 mb-1 font-bold">4. Resources & Copyright</h3>
+        <h3 className="text-sm text-white mt-4 mb-1 font-bold">5. Resources, Downloads & Copyright</h3>
         <ul className="list-disc pl-5 my-1 space-y-1">
-          <li>All resources are sourced from official platforms or your local machine.</li>
-          <li>This software does not distribute copyrighted materials.</li>
+          <li>The software only provides resource management, indexing, and download technology; it grants no rights in any game or third-party content.</li>
+          <li>Resources may come from official APIs, third-party platforms, or user-selected locations and remain the property of their respective rights holders.</li>
           <li>Illegal distribution of game resources is prohibited.</li>
+          <li>We may suspend, restrict, or remove download, indexing, or related features due to law, rights-holder requests, API policies, or security risks.</li>
         </ul>
 
-        <h3 className="text-sm text-white mt-4 mb-1 font-bold">5. Third-Party Services</h3>
-        <p className="my-1">This software may integrate third-party services like Mod platforms, subject to their respective terms.</p>
+        <h3 className="text-sm text-white mt-4 mb-1 font-bold">6. Third-Party Platforms, Servers & Transactions</h3>
+        <ul className="list-disc pl-5 my-1 space-y-1">
+          <li>The software may display or connect to mod platforms, game servers, authentication services, cloud storage, or other third parties. Their content, operation, and transactions are controlled by those third parties.</li>
+          <li>A listing, search result, or external link is not a recommendation, warranty, audit, or joint operation by PiLauncher.</li>
+          <li>Do not pay unknown servers or individuals, disclose account credentials, or participate in induced spending. For third-party transaction disputes, contact the actual payee, platform, and payment provider first.</li>
+          <li>If you encounter fraud, inducement of spending by minors, illegal content, or infringing resources, stop access and report it to the relevant platform or authority. You may also notify us so that we can review the entry point.</li>
+        </ul>
 
-        <h3 className="text-sm text-white mt-4 mb-1 font-bold">6. Paid Services</h3>
+        <h3 className="text-sm text-white mt-4 mb-1 font-bold">7. PiLauncher Paid Services</h3>
         <ul className="list-disc pl-5 my-1 space-y-1">
           <li>Cloud Sync</li>
           <li>Multi-device Management</li>
           <li>Premium Features</li>
         </ul>
-        <p className="my-1 font-bold text-[#4da3ff]">All payments are exclusively for launcher features and do not involve the base game.</p>
+        <p className="my-1 font-bold text-[#4da3ff]">Any payment expressly offered by PiLauncher is only for launcher features, not the base game or third-party server benefits, and is available only to eligible adults under this agreement.</p>
 
-        <h3 className="text-sm text-white mt-4 mb-1 font-bold">7. Disclaimer</h3>
+        <h3 className="text-sm text-white mt-4 mb-1 font-bold">8. Service Changes & Availability</h3>
+        <p className="my-1">
+          We may update, suspend, or discontinue features for compliance, security, or third-party API compatibility, with in-app notice of material changes where practicable. Third-party APIs, resources, and network services may change at any time and are not guaranteed to remain available.
+        </p>
+
+        <h3 className="text-sm text-white mt-4 mb-1 font-bold">9. Limitation of Liability</h3>
         <ul className="list-disc pl-5 my-1 space-y-1">
           <li>Provided "as is" without warranty.</li>
           <li>No guarantee of error-free operation or continuous availability.</li>
-          <li>We are not liable for data loss or account bans.</li>
+          <li>You should back up important data before installing, migrating, deleting, or synchronizing content.</li>
+          <li>To the extent permitted by law, we are not liable for losses directly caused by third-party services, user actions, or force majeure.</li>
+          <li>Nothing here excludes liability for intentional misconduct, gross negligence, personal injury, or any other liability that cannot lawfully be limited or excluded.</li>
         </ul>
 
-        <h3 className="text-sm text-white mt-4 mb-1 font-bold">8. Termination</h3>
-        <p className="my-1">If the terms are violated, we reserve the right to restrict or terminate the service.</p>
+        <h3 className="text-sm text-white mt-4 mb-1 font-bold">10. Suspension & Termination</h3>
+        <p className="my-1">We may restrict or terminate related services and retain legally required records if a user is ineligible by age, makes a false representation, violates this agreement, or creates a security or compliance risk.</p>
+
+        <h3 className="text-sm text-white mt-4 mb-1 font-bold">11. Updates & Governing Rules</h3>
+        <p className="my-1">Material updates will be presented in the software and require renewed acceptance. If you disagree, stop using the software. Mandatory law applicable in your jurisdiction prevails over any inconsistent term.</p>
       </div>
 
       <div className="mt-8">
@@ -121,7 +149,9 @@ export const EulaEn: React.FC<{ currentDate: string }> = ({ currentDate }) => {
         </ul>
 
         <h3 className="text-sm text-white mt-4 mb-1 font-bold">7. Minor Protection</h3>
-        <p className="my-1">Minors must use the software with guardian consent.</p>
+        <p className="my-1">
+          The software and related online services are not directed to anyone under 18, and we do not knowingly collect personal information from minors. If we discover, or a guardian confirms, that a minor's information was collected inadvertently, we will stop the relevant processing and promptly delete or anonymize it except where retention is legally required. Guardians may use the email below to request access, correction, deletion, or cessation of processing.
+        </p>
 
         <h3 className="text-sm text-white mt-4 mb-1 font-bold">8. Policy Updates</h3>
         <p className="my-1">This policy may be updated, and changes will be notified within the software.</p>

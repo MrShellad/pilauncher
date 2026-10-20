@@ -45,10 +45,6 @@ export const DownloadSettings: React.FC = () => {
                 onArrowPress={handleLinearArrow}
                 options={[
                   {
-                    label: <span className="font-minecraft tracking-wider">BMCLAPI</span>,
-                    value: 'bangbang93'
-                  },
-                  {
                     label: <span className="font-minecraft tracking-wider">Official</span>,
                     value: 'official'
                   }

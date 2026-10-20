@@ -19,26 +19,9 @@ pub struct McMetadataService;
 
 const OFFICIAL_MANIFEST_URL: &str =
     "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json";
-const BANGBANG93_MANIFEST_URL: &str =
-    "https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json";
-
 impl McMetadataService {
-    fn resolve_manifest_urls<R: Runtime>(app: &AppHandle<R>) -> Vec<String> {
-        let dl_settings = ConfigService::get_download_settings(app);
-        match dl_settings.minecraft_meta_source.as_str() {
-            "official" => vec![
-                OFFICIAL_MANIFEST_URL.to_string(),
-                BANGBANG93_MANIFEST_URL.to_string(),
-            ],
-            "bangbang93" => vec![
-                BANGBANG93_MANIFEST_URL.to_string(),
-                OFFICIAL_MANIFEST_URL.to_string(),
-            ],
-            _ => vec![
-                BANGBANG93_MANIFEST_URL.to_string(),
-                OFFICIAL_MANIFEST_URL.to_string(),
-            ],
-        }
+    fn resolve_manifest_urls<R: Runtime>(_app: &AppHandle<R>) -> Vec<String> {
+        vec![OFFICIAL_MANIFEST_URL.to_string()]
     }
 
     pub async fn fetch_remote_versions<R: Runtime>(
@@ -49,7 +32,7 @@ impl McMetadataService {
         let manifest_url = manifest_urls
             .first()
             .cloned()
-            .unwrap_or_else(|| BANGBANG93_MANIFEST_URL.to_string());
+            .unwrap_or_else(|| OFFICIAL_MANIFEST_URL.to_string());
 
         // Fetch logic
         let mut manifest_content = String::new();
